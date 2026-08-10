@@ -1,0 +1,99 @@
+generate:
+  context: Skill name for generating a 3D model
+  en: Generate 3D model
+  de: 3D-Modell generieren
+  zh: Generate 3D model
+  es: Generate 3D model
+  fr: Generate 3D model
+  pt: Generate 3D model
+  ru: Generate 3D model
+  ja: Generate 3D model
+  ko: Generate 3D model
+  it: Generate 3D model
+  tr: Generate 3D model
+  vi: Generate 3D model
+  id: Generate 3D model
+  pl: Generate 3D model
+  nl: Generate 3D model
+  ar: Generate 3D model
+  hi: Generate 3D model
+  th: Generate 3D model
+  cs: Generate 3D model
+  sv: Generate 3D model
+  he: Generate 3D model
+  verified_by_human: [en, de]
+
+generate.description:
+  context: Description for the 3D model generation skill
+  en: Create a 3D model from a text prompt or reference images.
+  de: Erstelle ein 3D-Modell aus einem Text-Prompt oder Referenzbildern.
+  zh: Create a 3D model from a text prompt or reference images.
+  es: Create a 3D model from a text prompt or reference images.
+  fr: Create a 3D model from a text prompt or reference images.
+  pt: Create a 3D model from a text prompt or reference images.
+  ru: Create a 3D model from a text prompt or reference images.
+  ja: Create a 3D model from a text prompt or reference images.
+  ko: Create a 3D model from a text prompt or reference images.
+  it: Create a 3D model from a text prompt or reference images.
+  tr: Create a 3D model from a text prompt or reference images.
+  vi: Create a 3D model from a text prompt or reference images.
+  id: Create a 3D model from a text prompt or reference images.
+  pl: Create a 3D model from a text prompt or reference images.
+  nl: Create a 3D model from a text prompt or reference images.
+  ar: Create a 3D model from a text prompt or reference images.
+  hi: Create a 3D model from a text prompt or reference images.
+  th: Create a 3D model from a text prompt or reference images.
+  cs: Create a 3D model from a text prompt or reference images.
+  sv: Create a 3D model from a text prompt or reference images.
+  he: Create a 3D model from a text prompt or reference images.
+  verified_by_human: [en, de]
+
+search:
+  context: Skill name for searching existing 3D models
+  en: Search
+  de: Search
+  zh: Search
+  es: Search
+  fr: Search
+  pt: Search
+  ru: Search
+  ja: Search
+  ko: Search
+  it: Search
+  tr: Search
+  vi: Search
+  id: Search
+  pl: Search
+  nl: Search
+  ar: Search
+  hi: Search
+  th: Search
+  cs: Search
+  sv: Search
+  he: Search
+  verified_by_human: [en, de]
+
+search.description:
+  context: Description for the 3D model search skill
+  en: Find existing 3D models in public model catalogs.
+  de: Finde vorhandene 3D-Modelle in öffentlichen Modellkatalogen.
+  zh: Find existing 3D models in public model catalogs.
+  es: Find existing 3D models in public model catalogs.
+  fr: Find existing 3D models in public model catalogs.
+  pt: Find existing 3D models in public model catalogs.
+  ru: Find existing 3D models in public model catalogs.
+  ja: Find existing 3D models in public model catalogs.
+  ko: Find existing 3D models in public model catalogs.
+  it: Find existing 3D models in public model catalogs.
+  tr: Find existing 3D models in public model catalogs.
+  vi: Find existing 3D models in public model catalogs.
+  id: Find existing 3D models in public model catalogs.
+  pl: Find existing 3D models in public model catalogs.
+  nl: Find existing 3D models in public model catalogs.
+  ar: Find existing 3D models in public model catalogs.
+  hi: Find existing 3D models in public model catalogs.
+  th: Find existing 3D models in public model catalogs.
+  cs: Find existing 3D models in public model catalogs.
+  sv: Find existing 3D models in public model catalogs.
+  he: Find existing 3D models in public model catalogs.
+  verified_by_human: [en, de]

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C0FFEE000000000000054002 /* WatchChatLayoutUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000054001 /* WatchChatLayoutUITests.swift */; };
 		0007B5C7FCB6FC85F1DD7107 /* SettingsLogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1590D8670281FDF56C8F2860 /* SettingsLogsView.swift */; };
 		00E9903CB4B266B59E16AB50 /* CryptoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13ABD68DF91C20D76F75ABD8 /* CryptoManager.swift */; };
 		012057623219277299AA30A1 /* EmbedFullscreenContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F59D6321EE1553D0589225B /* EmbedFullscreenContainer.swift */; };
@@ -15,13 +16,52 @@
 		033A6721A553CE34ADB246BA /* OMDesignPrimitives.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90F73912048C468D3CC42BC0 /* OMDesignPrimitives.swift */; };
 		C0FFEE000000000000046002 /* MessageComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046001 /* MessageComposerView.swift */; };
 		C0FFEE000000000000046003 /* MessageComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046001 /* MessageComposerView.swift */; };
-		C0FFEE000000000000046004 /* TiptapComposerWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046006 /* TiptapComposerWebView.swift */; };
-		C0FFEE000000000000046005 /* TiptapComposerWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046006 /* TiptapComposerWebView.swift */; };
-		C0FFEE000000000000046007 /* TiptapComposer in Resources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046008 /* TiptapComposer */; };
-		C0FFEE000000000000046009 /* TiptapComposer in Resources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046008 /* TiptapComposer */; };
-		C0FFEE00000000000004600B /* TiptapComposerBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000004600A /* TiptapComposerBridgeTests.swift */; };
-		C0FFEE00000000000004600C /* TiptapComposer in Resources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046008 /* TiptapComposer */; };
-		C0FFEE00000000000004600D /* TiptapComposer in Resources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046008 /* TiptapComposer */; };
+		C0FFEE000000000000050002 /* ComposerDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050001 /* ComposerDocument.swift */; };
+		C0FFEE000000000000050003 /* ComposerDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050001 /* ComposerDocument.swift */; };
+		C0FFEE000000000000050006 /* NativeComposerDocumentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050005 /* NativeComposerDocumentTests.swift */; };
+		C0FFEE000000000000050008 /* NativeComposerControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050007 /* NativeComposerControllerTests.swift */; };
+		C0FFEE000000000000050011 /* NativeComposerTextViewAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050010 /* NativeComposerTextViewAdapterTests.swift */; };
+		C0FFEE00000000000005001C /* AppleComposerRendererRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005001B /* AppleComposerRendererRegistryTests.swift */; };
+		C0FFEE00000000000005001E /* AppleComposerRendererRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005001D /* AppleComposerRendererRegistry.swift */; };
+		C0FFEE00000000000005001F /* AppleComposerRendererRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005001D /* AppleComposerRendererRegistry.swift */; };
+		C0FFEE000000000000050021 /* AppleComposerEmbedPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050020 /* AppleComposerEmbedPreview.swift */; };
+		C0FFEE000000000000050022 /* AppleComposerEmbedPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050020 /* AppleComposerEmbedPreview.swift */; };
+		C0FFEE000000000000050024 /* ComposerDraftRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050023 /* ComposerDraftRepository.swift */; };
+		C0FFEE000000000000050025 /* ComposerDraftRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050023 /* ComposerDraftRepository.swift */; };
+		C0FFEE000000000000050027 /* NativeComposerEmbedLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050026 /* NativeComposerEmbedLifecycleTests.swift */; };
+		C0FFEE000000000000050029 /* ComposerEmbedLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050028 /* ComposerEmbedLifecycle.swift */; };
+		C0FFEE00000000000005002A /* ComposerEmbedLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050028 /* ComposerEmbedLifecycle.swift */; };
+		C0FFEE00000000000005002C /* ComposerPendingSendCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005002B /* ComposerPendingSendCoordinator.swift */; };
+		C0FFEE00000000000005002D /* ComposerPendingSendCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005002B /* ComposerPendingSendCoordinator.swift */; };
+		C0FFEE00000000000005002F /* NativeComposerSubmitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005002E /* NativeComposerSubmitTests.swift */; };
+		C0FFEE000000000000050031 /* NativeComposerPasteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050030 /* NativeComposerPasteTests.swift */; };
+		C0FFEE000000000000050033 /* NativeComposerMentionPIITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050032 /* NativeComposerMentionPIITests.swift */; };
+		C0FFEE000000000000050035 /* ComposerSubmitPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050034 /* ComposerSubmitPolicy.swift */; };
+		C0FFEE000000000000050036 /* ComposerSubmitPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050034 /* ComposerSubmitPolicy.swift */; };
+		C0FFEE000000000000050038 /* ComposerPasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050037 /* ComposerPasteService.swift */; };
+		C0FFEE000000000000050039 /* ComposerPasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050037 /* ComposerPasteService.swift */; };
+		C0FFEE00000000000005003B /* ComposerMentionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005003A /* ComposerMentionService.swift */; };
+		C0FFEE00000000000005003C /* ComposerMentionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005003A /* ComposerMentionService.swift */; };
+		C0FFEE00000000000005003E /* ComposerPIIDecorations.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005003D /* ComposerPIIDecorations.swift */; };
+		C0FFEE00000000000005003F /* ComposerPIIDecorations.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005003D /* ComposerPIIDecorations.swift */; };
+		C0FFEE000000000000050054 /* NativeComposerSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050053 /* NativeComposerSessionTests.swift */; };
+		C0FFEE000000000000050059 /* NativeComposerFailureRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050058 /* NativeComposerFailureRecoveryTests.swift */; };
+		C0FFEE00000000000005005B /* NativeComposerPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005005A /* NativeComposerPerformanceTests.swift */; };
+		C0FFEE00000000000005005D /* VoiceRecorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005005C /* VoiceRecorderTests.swift */; };
+		C0FFEE000000000000050056 /* NativeComposerSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050055 /* NativeComposerSession.swift */; };
+		C0FFEE000000000000050057 /* NativeComposerSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050055 /* NativeComposerSession.swift */; };
+		C0FFEE00000000000005000E /* NativeComposerEncryptionCompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005000C /* NativeComposerEncryptionCompatibilityTests.swift */; };
+		C0FFEE00000000000005000F /* NativeComposerDraftEncryptionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005000D /* NativeComposerDraftEncryptionTests.swift */; };
+		C0FFEE00000000000005000A /* NativeComposerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050009 /* NativeComposerController.swift */; };
+		C0FFEE00000000000005000B /* NativeComposerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050009 /* NativeComposerController.swift */; };
+		C0FFEE000000000000050013 /* ComposerTextAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050012 /* ComposerTextAttachment.swift */; };
+		C0FFEE000000000000050014 /* ComposerTextAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050012 /* ComposerTextAttachment.swift */; };
+		C0FFEE000000000000050016 /* ComposerAttachmentViewProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050015 /* ComposerAttachmentViewProvider.swift */; };
+		C0FFEE000000000000050017 /* ComposerAttachmentViewProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050015 /* ComposerAttachmentViewProvider.swift */; };
+		C0FFEE000000000000050019 /* NativeComposerTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050018 /* NativeComposerTextView.swift */; };
+		C0FFEE00000000000005001A /* NativeComposerTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050018 /* NativeComposerTextView.swift */; };
+		C0FFEE000000000000050051 /* NativeComposerEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050050 /* NativeComposerEditorView.swift */; };
+		C0FFEE000000000000050052 /* NativeComposerEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050050 /* NativeComposerEditorView.swift */; };
 		C0FFEE000000000000047002 /* OpenMatesWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000047001 /* OpenMatesWatchApp.swift */; };
 		C0FFEE000000000000047004 /* WatchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000047003 /* WatchRootView.swift */; };
 		C0FFEE000000000000047006 /* DataExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A6630F3C041702710BABA2 /* DataExtensions.swift */; };
@@ -53,6 +93,7 @@
 		C0FFEE000000000000049005 /* WatchChatRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049003 /* WatchChatRuntime.swift */; };
 		C0FFEE000000000000049006 /* WatchChatRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049003 /* WatchChatRuntime.swift */; };
 		C0FFEE000000000000049008 /* WatchChatRuntimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049007 /* WatchChatRuntimeTests.swift */; };
+		C0FFEE000000000000049031 /* WatchAuthStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049030 /* WatchAuthStoreTests.swift */; };
 		C0FFEE000000000000049010 /* WatchEmbedPreviewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */; };
 		C0FFEE000000000000049011 /* WatchEmbedPreviewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */; };
 		C0FFEE000000000000049012 /* WatchEmbedPreviewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */; };
@@ -68,6 +109,18 @@
 		FDD100000000000000000002 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDD100000000000000000001 /* BrandAssets.xcassets */; };
 		FDD100000000000000000003 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDD100000000000000000001 /* BrandAssets.xcassets */; };
 		04B767719514CAB080FEB1CB /* LucideIcons in Frameworks */ = {isa = PBXBuildFile; productRef = 8FC7D47DA7AECCBB2EBDABE9 /* LucideIcons */; };
+		D00D00000000000000000031 /* Sodium in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000011 /* Sodium */; };
+		D00D00000000000000000032 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000012 /* Yams */; };
+		D00D00000000000000000033 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000013 /* ZIPFoundation */; };
+		D00D00000000000000000041 /* Sodium in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000021 /* Sodium */; };
+		D00D00000000000000000042 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000022 /* Yams */; };
+		D00D00000000000000000043 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000023 /* ZIPFoundation */; };
+		D00D00000000000000000051 /* AccountSecurityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00D00000000000000000061 /* AccountSecurityService.swift */; };
+		D00D00000000000000000052 /* AccountSecurityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00D00000000000000000061 /* AccountSecurityService.swift */; };
+		D00D00000000000000000053 /* PasskeyRegistrationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00D00000000000000000062 /* PasskeyRegistrationCoordinator.swift */; };
+		D00D00000000000000000054 /* PasskeyRegistrationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00D00000000000000000062 /* PasskeyRegistrationCoordinator.swift */; };
+		D00D00000000000000000072 /* SettingsProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00D00000000000000000071 /* SettingsProjectsView.swift */; };
+		D00D00000000000000000073 /* SettingsProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00D00000000000000000071 /* SettingsProjectsView.swift */; };
 		054A74F600EA9DCABA103B0A /* EditMessageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4011158DF04A05A08516EA7D /* EditMessageStore.swift */; };
 		0651B4D9F35E780990F06473 /* DataExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A6630F3C041702710BABA2 /* DataExtensions.swift */; };
 		D1A6D1A6D1A6D1A6D1A60002 /* NativeDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A6D1A6D1A6D1A6D1A60001 /* NativeDiagnostics.swift */; };
@@ -86,6 +139,7 @@
 		0BA7A4B79D29807CCFE43528 /* NutritionSearchIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57079AD3AF054B1475AB1E48 /* NutritionSearchIntent.swift */; };
 		0BE362E14A6CB86AC682F806 /* TravelFlightDetailsEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAAB613483881B693D9C100E /* TravelFlightDetailsEmbedRenderer.swift */; };
 		0D059F14E00015EF9968496C /* ChatListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 649F06774727FF8F3BCDDF64 /* ChatListRow.swift */; };
+		59AA00000000000000000002 /* ChatHistoryRenderDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59AA00000000000000000001 /* ChatHistoryRenderDocument.swift */; };
 		0D111E643443DC338AA6F50C /* ImageGenerateEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBF599D81A6A446CFEEA5E59 /* ImageGenerateEmbedRenderer.swift */; };
 		0D626B67DE83DBFD33BF1B72 /* MiscRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F57B730049713E7560BD28C /* MiscRenderers.swift */; };
 		0DAF7DF70FD202C90584D5FD /* ColorTokens.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C9535F0FF42FE0BC7095410 /* ColorTokens.generated.swift */; };
@@ -93,6 +147,8 @@
 		0F99B1EAD3C2F9DB935B0BB4 /* NewsletterSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F34D30BDD3CA6FB3E99D6F3 /* NewsletterSettingsView.swift */; };
 		0FAE66BBAFAEF660A11C0001 /* AnonymousFreeUsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FAE66BBAFAEF660A11C0000 /* AnonymousFreeUsageService.swift */; };
 		0FAE66BBAFAEF660A11C0002 /* AnonymousFreeUsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FAE66BBAFAEF660A11C0000 /* AnonymousFreeUsageService.swift */; };
+		0FAE66BBAFAEF660A11C0011 /* ChatCompletionRecoveryCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FAE66BBAFAEF660A11C0010 /* ChatCompletionRecoveryCoordinator.swift */; };
+		0FAE66BBAFAEF660A11C0012 /* ChatCompletionRecoveryCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FAE66BBAFAEF660A11C0010 /* ChatCompletionRecoveryCoordinator.swift */; };
 		0FD5C9343DD03830A8A1D0DC /* EmbedBasicInfoBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 473BBCB35F21B98B24DB2DDB /* EmbedBasicInfoBar.swift */; };
 		E1A0E57A8C5C4F0E92A10103 /* EventEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0E57A8C5C4F0E92A10101 /* EventEmbedRenderer.swift */; };
 		E1A0E57A8C5C4F0E92A10104 /* EventsSearchEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0E57A8C5C4F0E92A10102 /* EventsSearchEmbedRenderer.swift */; };
@@ -140,6 +196,20 @@
 		23B666E453D592CEE9783215 /* SettingsServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0C1FF9CFB126B5BAA62F06 /* SettingsServerView.swift */; };
 		2410CC839A6BE347AA8A2405 /* OpenMatesShareExtension_macOS.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F376B3E95264F50E89441B25 /* OpenMatesShareExtension_macOS.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		24297CA925C3F4E644CBAFCE /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FBE13CE390895845544512 /* ShareViewController.swift */; };
+		C0FFEE000000000000050060 /* ComposerDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050001 /* ComposerDocument.swift */; };
+		C0FFEE000000000000050061 /* ComposerDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050001 /* ComposerDocument.swift */; };
+		C0FFEE000000000000050062 /* AppleComposerRendererRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005001D /* AppleComposerRendererRegistry.swift */; };
+		C0FFEE000000000000050063 /* AppleComposerRendererRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005001D /* AppleComposerRendererRegistry.swift */; };
+		C0FFEE000000000000050064 /* ComposerEmbedLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050028 /* ComposerEmbedLifecycle.swift */; };
+		C0FFEE000000000000050065 /* ComposerEmbedLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050028 /* ComposerEmbedLifecycle.swift */; };
+		C0FFEE000000000000050066 /* ComposerTextAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050012 /* ComposerTextAttachment.swift */; };
+		C0FFEE000000000000050067 /* ComposerTextAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050012 /* ComposerTextAttachment.swift */; };
+		C0FFEE000000000000050068 /* NativeComposerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050009 /* NativeComposerController.swift */; };
+		C0FFEE000000000000050069 /* NativeComposerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050009 /* NativeComposerController.swift */; };
+		C0FFEE00000000000005006A /* NativeComposerSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050055 /* NativeComposerSession.swift */; };
+		C0FFEE00000000000005006B /* NativeComposerSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050055 /* NativeComposerSession.swift */; };
+		C0FFEE00000000000005006C /* NativeComposerTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050018 /* NativeComposerTextView.swift */; };
+		C0FFEE00000000000005006D /* NativeComposerTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050018 /* NativeComposerTextView.swift */; };
 		25468B39379E6020F76E58A4 /* OfflineStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3097B5CA5DCA16BB86C4AADF /* OfflineStore.swift */; };
 		25630A2D3A70904E005658BA /* PasskeyLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB03275320AE573452F949A0 /* PasskeyLoginView.swift */; };
 		257091716AF1D1AD5770B815 /* SignupFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88FAB07DECD954240DE2747 /* SignupFlowView.swift */; };
@@ -163,6 +233,7 @@
 		C0FFEE000000000000000003 /* DevChatOpeningPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000000001 /* DevChatOpeningPreviewView.swift */; };
 		C0FFEE000000000000001004 /* ChatOpeningScalabilityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */; };
 		C0FFEE000000000000003004 /* ChatFlowParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000003001 /* ChatFlowParityUITests.swift */; };
+		C0FFEE000000000000055004 /* ChatNavigationParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000055001 /* ChatNavigationParityUITests.swift */; };
 		C0FFEE000000000000004004 /* ChatFlowRealAccountUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */; };
 		C0FFEE000000000000005004 /* RealAccountUITestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000005001 /* RealAccountUITestSupport.swift */; };
 		C0FFEE000000000000006004 /* BackgroundChatNotificationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */; };
@@ -170,6 +241,7 @@
 		C0FFEE000000000000008004 /* MessageInputAudioRecordingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000008001 /* MessageInputAudioRecordingUITests.swift */; };
 		C0FFEE000000000000041004 /* MacMenuBarQuickCaptureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000041001 /* MacMenuBarQuickCaptureUITests.swift */; };
 		C0FFEE000000000000043004 /* MacMenuBarQuickCaptureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000041001 /* MacMenuBarQuickCaptureUITests.swift */; };
+		A11E00000000000000000002 /* SettingsMacShellParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11E00000000000000000001 /* SettingsMacShellParityUITests.swift */; };
 		C0FFEE000000000000090004 /* TooltipHelpParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000090001 /* TooltipHelpParityUITests.swift */; };
 		C0FFEE000000000000090005 /* TooltipHelpParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000090001 /* TooltipHelpParityUITests.swift */; };
 		C0FFEE000000000000042004 /* ShareExtensionAttachmentParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000042001 /* ShareExtensionAttachmentParityUITests.swift */; };
@@ -177,13 +249,23 @@
 		C0FFEE000000000000009004 /* ChatResponsiveParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */; };
 		C0FFEE000000000000010004 /* ChatShellResponsiveParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */; };
 		C0FFEE000000000000011004 /* EmbedRenderingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000011001 /* EmbedRenderingParityUITests.swift */; };
+		50AD00000000000000000006 /* ChatHistoryAudioParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50AD00000000000000000005 /* ChatHistoryAudioParityUITests.swift */; };
+		50AD00000000000000000008 /* ChatHistoryFullParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50AD00000000000000000007 /* ChatHistoryFullParityUITests.swift */; };
+		50AD0000000000000000000A /* ChatHistoryMacParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50AD00000000000000000009 /* ChatHistoryMacParityUITests.swift */; };
+		C0FFEE000000000000051002 /* NativeComposerInlineEmbedUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000051001 /* NativeComposerInlineEmbedUITests.swift */; };
+		C0FFEE000000000000052002 /* NativeComposerDraftEditUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000052001 /* NativeComposerDraftEditUITests.swift */; };
 		C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */; };
+		C0FFEE000000000000053002 /* ChatCompletionRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000053001 /* ChatCompletionRecoveryTests.swift */; };
 		C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000012001 /* ChatSyncParityTests.swift */; };
+		D5AF70000000000000000002 /* DraftSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5AF70000000000000000001 /* DraftSyncCoordinator.swift */; };
+		D5AF70000000000000000003 /* DraftSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5AF70000000000000000001 /* DraftSyncCoordinator.swift */; };
+		D5AF70000000000000000012 /* DraftSyncParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5AF70000000000000000011 /* DraftSyncParityTests.swift */; };
 		C0FFEE000000000000013004 /* SubChatProcessingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000013001 /* SubChatProcessingTests.swift */; };
 		C0FFEE000000000000014004 /* ChatManagementSharingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000014001 /* ChatManagementSharingParityUITests.swift */; };
 		C0FFEE000000000000015004 /* ChatManagementSharingParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000015001 /* ChatManagementSharingParityTests.swift */; };
 		C0FFEE000000000000016004 /* AuthSecurityParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000016001 /* AuthSecurityParityUITests.swift */; };
 		C0FFEE000000000000017004 /* AuthSecurityParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000017001 /* AuthSecurityParityTests.swift */; };
+		F0CF00000000000000000004 /* CryptoFailureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CF00000000000000000001 /* CryptoFailureTests.swift */; };
 		C0FFEE000000000000018004 /* SettingsBillingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000018001 /* SettingsBillingParityUITests.swift */; };
 		C0FFEE000000000000019004 /* SettingsBillingParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000019001 /* SettingsBillingParityTests.swift */; };
 		C0FFEE000000000000020004 /* RemindersPublicContentParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000020001 /* RemindersPublicContentParityUITests.swift */; };
@@ -191,7 +273,27 @@
 		C0FFEE000000000000022004 /* SkillApplicationParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000022001 /* SkillApplicationParityUITests.swift */; };
 		C0FFEE000000000000023004 /* SkillApplicationParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000023001 /* SkillApplicationParityTests.swift */; };
 		C0FFEE000000000000024004 /* SettingsFullParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000024001 /* SettingsFullParityTests.swift */; };
+		A22E00000000000000000011 /* SettingsModeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22E00000000000000000001 /* SettingsModeModels.swift */; };
+		A22E00000000000000000012 /* SettingsModeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22E00000000000000000001 /* SettingsModeModels.swift */; };
+		A22E00000000000000000013 /* SettingsLearningModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22E00000000000000000002 /* SettingsLearningModeView.swift */; };
+		A22E00000000000000000014 /* SettingsLearningModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22E00000000000000000002 /* SettingsLearningModeView.swift */; };
+		A22E00000000000000000015 /* SettingsModesParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22E00000000000000000003 /* SettingsModesParityTests.swift */; };
+		A22E00000000000000000016 /* SettingsModesParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22E00000000000000000004 /* SettingsModesParityUITests.swift */; };
+		B70000000000000000000011 /* PrivacySettingsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70000000000000000000001 /* PrivacySettingsModels.swift */; };
+		B70000000000000000000012 /* SettingsPrivacyContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70000000000000000000002 /* SettingsPrivacyContentView.swift */; };
+		B70000000000000000000013 /* SettingsAutoDeletionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70000000000000000000003 /* SettingsAutoDeletionView.swift */; };
+		B70000000000000000000014 /* SettingsConnectedAccountsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70000000000000000000004 /* SettingsConnectedAccountsView.swift */; };
+		B70000000000000000000015 /* PrivacySettingsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70000000000000000000001 /* PrivacySettingsModels.swift */; };
+		B70000000000000000000016 /* SettingsPrivacyContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70000000000000000000002 /* SettingsPrivacyContentView.swift */; };
+		B70000000000000000000017 /* SettingsAutoDeletionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70000000000000000000003 /* SettingsAutoDeletionView.swift */; };
+		B70000000000000000000018 /* SettingsConnectedAccountsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70000000000000000000004 /* SettingsConnectedAccountsView.swift */; };
+		B70000000000000000000019 /* SettingsPrivacyParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70000000000000000000005 /* SettingsPrivacyParityTests.swift */; };
+		B7000000000000000000001A /* SettingsPrivacyParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70000000000000000000006 /* SettingsPrivacyParityUITests.swift */; };
+		B7000000000000000000001B /* SettingsMacPrivacyParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70000000000000000000007 /* SettingsMacPrivacyParityUITests.swift */; };
 		C0FFEE000000000000025004 /* SettingsAppsParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000025001 /* SettingsAppsParityUITests.swift */; };
+		B66000000000000000000004 /* SettingsMemoriesMatesParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B66000000000000000000001 /* SettingsMemoriesMatesParityTests.swift */; };
+		B66000000000000000000005 /* SettingsMemoriesParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B66000000000000000000002 /* SettingsMemoriesParityUITests.swift */; };
+		B66000000000000000000006 /* SettingsMatesParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B66000000000000000000003 /* SettingsMatesParityUITests.swift */; };
 		C0FFEE000000000000026004 /* SettingsIPadLayoutParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000026001 /* SettingsIPadLayoutParityUITests.swift */; };
 		C0FFEE000000000000027004 /* SettingsFullParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000027001 /* SettingsFullParityUITests.swift */; };
 		C0FFEE000000000000028004 /* SettingsBillingStoreKitParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000028001 /* SettingsBillingStoreKitParityUITests.swift */; };
@@ -203,8 +305,15 @@
 		C0FFEE000000000000032003 /* AppStrings+RemotionVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000032001 /* AppStrings+RemotionVideo.swift */; };
 		C0FFEE000000000000033004 /* InteractiveQuestionsParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000033001 /* InteractiveQuestionsParityTests.swift */; };
 		C0FFEE000000000000034004 /* EmbedDiffEditingParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000034001 /* EmbedDiffEditingParityTests.swift */; };
+		50AD00000000000000000002 /* ChatHistoryRenderDocumentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50AD00000000000000000001 /* ChatHistoryRenderDocumentTests.swift */; };
 		C0FFEE000000000000036003 /* WorkflowModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036001 /* WorkflowModels.swift */; };
 		C0FFEE000000000000036004 /* WorkflowAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036002 /* WorkflowAPI.swift */; };
+		C0FFEE000000000000036007 /* WorkflowStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036005 /* WorkflowStore.swift */; };
+		C0FFEE000000000000036008 /* WorkflowViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036006 /* WorkflowViews.swift */; };
+		C0FFEE000000000000036009 /* WorkflowModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036001 /* WorkflowModels.swift */; };
+		C0FFEE00000000000003600A /* WorkflowAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036002 /* WorkflowAPI.swift */; };
+		C0FFEE00000000000003600B /* WorkflowStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036005 /* WorkflowStore.swift */; };
+		C0FFEE00000000000003600C /* WorkflowViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036006 /* WorkflowViews.swift */; };
 		C0FFEE000000000000037002 /* PendingAssistantResponseQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */; };
 		C0FFEE000000000000037003 /* PendingAssistantResponseQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */; };
 		C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */; };
@@ -448,6 +557,7 @@
 		C7F5E40B8BD01E7BACE43C81 /* IconMapping.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E66A702436AC193AD07F8F /* IconMapping.generated.swift */; };
 		C8255A8451A5A242350D7E60 /* SettingsSubPages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 366CE07E3F5DB8511C15C9CE /* SettingsSubPages.swift */; };
 		CA1F3A16641229B3A5CF236E /* ChatListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 649F06774727FF8F3BCDDF64 /* ChatListRow.swift */; };
+		59AA00000000000000000003 /* ChatHistoryRenderDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59AA00000000000000000001 /* ChatHistoryRenderDocument.swift */; };
 		CA6F6555AA357B7738B875DB /* DevEmbedPreviewFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07628DCDF09C5AFAC4686CCE /* DevEmbedPreviewFixtures.swift */; };
 		CA87A69207971B1FF3795C9F /* BackgroundChatSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224ACCD58377D1F4497661CC /* BackgroundChatSender.swift */; };
 		CB070FC70F4579D10F5E9435 /* MailSearchIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71CEEB7ED60D9AA6993A5347 /* MailSearchIntent.swift */; };
@@ -527,6 +637,10 @@
 		F2862F8645CA164C75FA6A04 /* OpenMatesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DAC483AA3335BAB3069AD2B /* OpenMatesApp.swift */; };
 		F2C8C1CBFA62E58BB77809C2 /* HealthSearchIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26ACFA25575D0443B600F0A2 /* HealthSearchIntent.swift */; };
 		F387E8E87488BEEBEAB2BF21 /* CryptoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13ABD68DF91C20D76F75ABD8 /* CryptoManager.swift */; };
+		F76400000000000000000003 /* ShareLinkCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = F76400000000000000000001 /* ShareLinkCrypto.swift */; };
+		F76400000000000000000004 /* ShareLinkCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = F76400000000000000000001 /* ShareLinkCrypto.swift */; };
+		F76400000000000000000005 /* AppleSharePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F76400000000000000000002 /* AppleSharePanel.swift */; };
+		F76400000000000000000006 /* AppleSharePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F76400000000000000000002 /* AppleSharePanel.swift */; };
 		F3AFDA4A070DCB2D02D2FC59 /* EmbedContextMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE764FDBE95761A12B79B1B9 /* EmbedContextMenuView.swift */; };
 		F3DFFE681A29A34B353336F9 /* ForkProgressBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25713DDF92D2E7ACF6D4E4B /* ForkProgressBannerView.swift */; };
 		F41A2ED1BB247017E78B42BF /* DeviceVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05CCC941953D164ECF4C25A3 /* DeviceVerificationView.swift */; };
@@ -610,6 +724,13 @@
 			remoteGlobalIDString = C0FFEE000000000000047018;
 			remoteInfo = OpenMatesWatch;
 		};
+		C0FFEE000000000000054014 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FA6E6E20CD0A094A87EB04A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C0FFEE000000000000047018;
+			remoteInfo = OpenMatesWatch;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -666,6 +787,7 @@
 		C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPairLoginRuntimeTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000049003 /* WatchChatRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchChatRuntime.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000049007 /* WatchChatRuntimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchChatRuntimeTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000049030 /* WatchAuthStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchAuthStoreTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchEmbedPreviewModel.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000049015 /* WatchEmbedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchEmbedViews.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000049019 /* WatchEmbedPreviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchEmbedPreviewTests.swift; sourceTree = "<group>"; };
@@ -680,6 +802,8 @@
 		10E4F0D8583B6A6B1E504AEB /* ImagesSearchEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesSearchEmbedRenderer.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000035001 /* MindMapEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindMapEmbedRenderer.swift; sourceTree = "<group>"; };
 		13ABD68DF91C20D76F75ABD8 /* CryptoManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoManager.swift; sourceTree = "<group>"; };
+		F76400000000000000000001 /* ShareLinkCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkCrypto.swift; sourceTree = "<group>"; };
+		F76400000000000000000002 /* AppleSharePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSharePanel.swift; sourceTree = "<group>"; };
 		151F47FC0A1C13A3A3FC3ABF /* PasswordLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordLoginView.swift; sourceTree = "<group>"; };
 		1590D8670281FDF56C8F2860 /* SettingsLogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLogsView.swift; sourceTree = "<group>"; };
 		18F626DBB5DC4CFCA1A618E7 /* SettingsMatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMatesView.swift; sourceTree = "<group>"; };
@@ -722,6 +846,7 @@
 		3E76CFDAA08AA7F288658EA2 /* SettingsStorageFull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStorageFull.swift; sourceTree = "<group>"; };
 		3E83213DE2F85D4A37475DB3 /* PendingUploadStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingUploadStore.swift; sourceTree = "<group>"; };
 		0FAE66BBAFAEF660A11C0000 /* AnonymousFreeUsageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnonymousFreeUsageService.swift; sourceTree = "<group>"; };
+		0FAE66BBAFAEF660A11C0010 /* ChatCompletionRecoveryCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCompletionRecoveryCoordinator.swift; sourceTree = "<group>"; };
 		3FF87BFEDD0901768A27407A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FDD100000000000000000001 /* BrandAssets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = BrandAssets.xcassets; sourceTree = "<group>"; };
 		4010DCCB3CAAB4051B50AE07 /* OpenMatesShareExtensionMacOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenMatesShareExtensionMacOS.entitlements; sourceTree = "<group>"; };
@@ -754,6 +879,7 @@
 		606527BCC8CC1CA4F4648783 /* AppIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconView.swift; sourceTree = "<group>"; };
 		607F21F81D207D06EE2F1CE0 /* AppStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStrings.swift; sourceTree = "<group>"; };
 		649F06774727FF8F3BCDDF64 /* ChatListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatListRow.swift; sourceTree = "<group>"; };
+		59AA00000000000000000001 /* ChatHistoryRenderDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryRenderDocument.swift; sourceTree = "<group>"; };
 		6741A45B494755343B591447 /* RecoveryKeyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryKeyView.swift; sourceTree = "<group>"; };
 		6B654CD72EF52F98AA3D2E7F /* AccountRecoveryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountRecoveryView.swift; sourceTree = "<group>"; };
 		6B67074848688485A446BC5C /* OpenMates.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenMates.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -838,15 +964,46 @@
 		BE1031D79B03616FF9E0E7F7 /* OpenMates.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenMates.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C085AAB1B7660B7EB15B8A54 /* VoiceRecordingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecordingView.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000046001 /* MessageComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageComposerView.swift; sourceTree = "<group>"; };
-		C0FFEE000000000000046006 /* TiptapComposerWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiptapComposerWebView.swift; sourceTree = "<group>"; };
-		C0FFEE000000000000046008 /* TiptapComposer */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TiptapComposer; path = OpenMates/Resources/TiptapComposer; sourceTree = SOURCE_ROOT; };
-		C0FFEE00000000000004600A /* TiptapComposerBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiptapComposerBridgeTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050001 /* ComposerDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerDocument.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050005 /* NativeComposerDocumentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerDocumentTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050007 /* NativeComposerControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerControllerTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050010 /* NativeComposerTextViewAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerTextViewAdapterTests.swift; sourceTree = "<group>"; };
+		C0FFEE00000000000005000C /* NativeComposerEncryptionCompatibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerEncryptionCompatibilityTests.swift; sourceTree = "<group>"; };
+		C0FFEE00000000000005000D /* NativeComposerDraftEncryptionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerDraftEncryptionTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050009 /* NativeComposerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerController.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050012 /* ComposerTextAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerTextAttachment.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050015 /* ComposerAttachmentViewProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerAttachmentViewProvider.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050018 /* NativeComposerTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerTextView.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050050 /* NativeComposerEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerEditorView.swift; sourceTree = "<group>"; };
+		C0FFEE00000000000005001B /* AppleComposerRendererRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleComposerRendererRegistryTests.swift; sourceTree = "<group>"; };
+		C0FFEE00000000000005001D /* AppleComposerRendererRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleComposerRendererRegistry.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050023 /* ComposerDraftRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerDraftRepository.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050026 /* NativeComposerEmbedLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerEmbedLifecycleTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050028 /* ComposerEmbedLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerEmbedLifecycle.swift; sourceTree = "<group>"; };
+		C0FFEE00000000000005002B /* ComposerPendingSendCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerPendingSendCoordinator.swift; sourceTree = "<group>"; };
+		C0FFEE00000000000005002E /* NativeComposerSubmitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerSubmitTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050030 /* NativeComposerPasteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerPasteTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050032 /* NativeComposerMentionPIITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerMentionPIITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050034 /* ComposerSubmitPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerSubmitPolicy.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050037 /* ComposerPasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerPasteService.swift; sourceTree = "<group>"; };
+		C0FFEE00000000000005003A /* ComposerMentionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerMentionService.swift; sourceTree = "<group>"; };
+		C0FFEE00000000000005003D /* ComposerPIIDecorations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerPIIDecorations.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050053 /* NativeComposerSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerSessionTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050058 /* NativeComposerFailureRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerFailureRecoveryTests.swift; sourceTree = "<group>"; };
+		C0FFEE00000000000005005A /* NativeComposerPerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerPerformanceTests.swift; sourceTree = "<group>"; };
+		C0FFEE00000000000005005C /* VoiceRecorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecorderTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050055 /* NativeComposerSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerSession.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050020 /* AppleComposerEmbedPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleComposerEmbedPreview.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000000001 /* DevChatOpeningPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevChatOpeningPreviewView.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOpeningScalabilityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000001002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C0FFEE000000000000001003 /* OpenMatesUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C0FFEE000000000000043003 /* OpenMatesMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0FFEE000000000000054001 /* WatchChatLayoutUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchChatLayoutUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000054003 /* OpenMatesWatchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesWatchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A11E00000000000000000001 /* SettingsMacShellParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMacShellParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000003001 /* ChatFlowParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFlowParityUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000055001 /* ChatNavigationParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatNavigationParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFlowRealAccountUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000005001 /* RealAccountUITestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealAccountUITestSupport.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundChatNotificationUITests.swift; sourceTree = "<group>"; };
@@ -858,14 +1015,22 @@
 		C0FFEE000000000000044001 /* ComposerVisualParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerVisualParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatResponsiveParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000011001 /* EmbedRenderingParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedRenderingParityUITests.swift; sourceTree = "<group>"; };
+		50AD00000000000000000005 /* ChatHistoryAudioParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryAudioParityUITests.swift; sourceTree = "<group>"; };
+		50AD00000000000000000007 /* ChatHistoryFullParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryFullParityUITests.swift; sourceTree = "<group>"; };
+		50AD00000000000000000009 /* ChatHistoryMacParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryMacParityUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000051001 /* NativeComposerInlineEmbedUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerInlineEmbedUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000052001 /* NativeComposerDraftEditUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerDraftEditUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatShellResponsiveParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatWindowLoadingTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000012001 /* ChatSyncParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSyncParityTests.swift; sourceTree = "<group>"; };
+		D5AF70000000000000000001 /* DraftSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftSyncCoordinator.swift; sourceTree = "<group>"; };
+		D5AF70000000000000000011 /* DraftSyncParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftSyncParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000013001 /* SubChatProcessingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubChatProcessingTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000014001 /* ChatManagementSharingParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatManagementSharingParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000015001 /* ChatManagementSharingParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatManagementSharingParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000016001 /* AuthSecurityParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthSecurityParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000017001 /* AuthSecurityParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthSecurityParityTests.swift; sourceTree = "<group>"; };
+		F0CF00000000000000000001 /* CryptoFailureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoFailureTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000018001 /* SettingsBillingParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBillingParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000019001 /* SettingsBillingParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBillingParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000020001 /* RemindersPublicContentParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersPublicContentParityUITests.swift; sourceTree = "<group>"; };
@@ -873,7 +1038,24 @@
 		C0FFEE000000000000022001 /* SkillApplicationParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillApplicationParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000023001 /* SkillApplicationParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillApplicationParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000024001 /* SettingsFullParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsFullParityTests.swift; sourceTree = "<group>"; };
+		A22E00000000000000000001 /* SettingsModeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModeModels.swift; sourceTree = "<group>"; };
+		A22E00000000000000000002 /* SettingsLearningModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLearningModeView.swift; sourceTree = "<group>"; };
+		A22E00000000000000000003 /* SettingsModesParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModesParityTests.swift; sourceTree = "<group>"; };
+		A22E00000000000000000004 /* SettingsModesParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModesParityUITests.swift; sourceTree = "<group>"; };
+		D00D00000000000000000061 /* AccountSecurityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSecurityService.swift; sourceTree = "<group>"; };
+		D00D00000000000000000062 /* PasskeyRegistrationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyRegistrationCoordinator.swift; sourceTree = "<group>"; };
+		D00D00000000000000000071 /* SettingsProjectsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsProjectsView.swift; sourceTree = "<group>"; };
+		B70000000000000000000001 /* PrivacySettingsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacySettingsModels.swift; sourceTree = "<group>"; };
+		B70000000000000000000002 /* SettingsPrivacyContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPrivacyContentView.swift; sourceTree = "<group>"; };
+		B70000000000000000000003 /* SettingsAutoDeletionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAutoDeletionView.swift; sourceTree = "<group>"; };
+		B70000000000000000000004 /* SettingsConnectedAccountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsConnectedAccountsView.swift; sourceTree = "<group>"; };
+		B70000000000000000000005 /* SettingsPrivacyParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPrivacyParityTests.swift; sourceTree = "<group>"; };
+		B70000000000000000000006 /* SettingsPrivacyParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPrivacyParityUITests.swift; sourceTree = "<group>"; };
+		B70000000000000000000007 /* SettingsMacPrivacyParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMacPrivacyParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000025001 /* SettingsAppsParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAppsParityUITests.swift; sourceTree = "<group>"; };
+		B66000000000000000000001 /* SettingsMemoriesMatesParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMemoriesMatesParityTests.swift; sourceTree = "<group>"; };
+		B66000000000000000000002 /* SettingsMemoriesParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMemoriesParityUITests.swift; sourceTree = "<group>"; };
+		B66000000000000000000003 /* SettingsMatesParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMatesParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000026001 /* SettingsIPadLayoutParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsIPadLayoutParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000027001 /* SettingsFullParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsFullParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000028001 /* SettingsBillingStoreKitParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBillingStoreKitParityUITests.swift; sourceTree = "<group>"; };
@@ -882,11 +1064,15 @@
 		C0FFEE000000000000031001 /* RemotionVideoCreateRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemotionVideoCreateRenderer.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000032001 /* AppStrings+RemotionVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppStrings+RemotionVideo.swift"; sourceTree = "<group>"; };
 		C0FFEE000000000000034001 /* EmbedDiffEditingParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedDiffEditingParityTests.swift; sourceTree = "<group>"; };
+		50AD00000000000000000001 /* ChatHistoryRenderDocumentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryRenderDocumentTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000033001 /* InteractiveQuestionsParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveQuestionsParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000036001 /* WorkflowModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowModels.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000036002 /* WorkflowAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowAPI.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000036005 /* WorkflowStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowStore.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000036006 /* WorkflowViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowViews.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingAssistantResponseQueue.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSendPipelineParityTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000053001 /* ChatCompletionRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCompletionRecoveryTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStreamingLifecycleParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000039001 /* BackgroundChatSenderParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundChatSenderParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnonymousChatStreamingParityTests.swift; sourceTree = "<group>"; };
@@ -968,6 +1154,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				07676E979606FF0FAD918D77 /* LucideIcons in Frameworks */,
+				D00D00000000000000000041 /* Sodium in Frameworks */,
+				D00D00000000000000000042 /* Yams in Frameworks */,
+				D00D00000000000000000043 /* ZIPFoundation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -979,6 +1168,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C0FFEE000000000000043007 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0FFEE000000000000054007 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -997,6 +1193,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				04B767719514CAB080FEB1CB /* LucideIcons in Frameworks */,
+				D00D00000000000000000031 /* Sodium in Frameworks */,
+				D00D00000000000000000032 /* Yams in Frameworks */,
+				D00D00000000000000000033 /* ZIPFoundation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1091,6 +1290,8 @@
 			children = (
 				C0FFEE000000000000036002 /* WorkflowAPI.swift */,
 				C0FFEE000000000000036001 /* WorkflowModels.swift */,
+				C0FFEE000000000000036005 /* WorkflowStore.swift */,
+				C0FFEE000000000000036006 /* WorkflowViews.swift */,
 			);
 			path = Workflows;
 			sourceTree = "<group>";
@@ -1120,19 +1321,42 @@
 				AECE37D7DFFDBC33D888985C /* AITypingIndicator.swift */,
 				606527BCC8CC1CA4F4648783 /* AppIconView.swift */,
 				649F06774727FF8F3BCDDF64 /* ChatListRow.swift */,
+				59AA00000000000000000001 /* ChatHistoryRenderDocument.swift */,
 				EBD2AB394167FF4F53E2CEE2 /* CopyMessageFormatter.swift */,
 				A6F1CDCF7BD24C20B06BC7E3 /* Icon.swift */,
 				DF95252DD3548D54E1FCF816 /* KeyboardShortcuts.swift */,
 				38D934941E331ECEAA249618 /* NetworkStatusView.swift */,
 				E8CE5605C33C752A2F0375B4 /* NotificationBanners.swift */,
 				C0FFEE000000000000046001 /* MessageComposerView.swift */,
-				C0FFEE000000000000046006 /* TiptapComposerWebView.swift */,
 				196E2615E6B7768CDD149B36 /* OMButtonStyles.swift */,
 				90F73912048C468D3CC42BC0 /* OMDesignPrimitives.swift */,
 				96B5D464AD5823963A861166 /* RichMarkdownRenderer.swift */,
 				5BFC6131B2CFDC1BDE64CE86 /* ToastNotification.swift */,
 			);
 			path = Components;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000050004 /* Composer */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000050020 /* AppleComposerEmbedPreview.swift */,
+				C0FFEE00000000000005001D /* AppleComposerRendererRegistry.swift */,
+				C0FFEE000000000000050023 /* ComposerDraftRepository.swift */,
+				C0FFEE000000000000050028 /* ComposerEmbedLifecycle.swift */,
+				C0FFEE00000000000005002B /* ComposerPendingSendCoordinator.swift */,
+				C0FFEE000000000000050034 /* ComposerSubmitPolicy.swift */,
+				C0FFEE000000000000050037 /* ComposerPasteService.swift */,
+				C0FFEE00000000000005003A /* ComposerMentionService.swift */,
+				C0FFEE00000000000005003D /* ComposerPIIDecorations.swift */,
+				C0FFEE000000000000050015 /* ComposerAttachmentViewProvider.swift */,
+				C0FFEE000000000000050001 /* ComposerDocument.swift */,
+				C0FFEE000000000000050012 /* ComposerTextAttachment.swift */,
+				C0FFEE000000000000050009 /* NativeComposerController.swift */,
+				C0FFEE000000000000050018 /* NativeComposerTextView.swift */,
+				C0FFEE000000000000050050 /* NativeComposerEditorView.swift */,
+				C0FFEE000000000000050055 /* NativeComposerSession.swift */,
+			);
+			path = Composer;
 			sourceTree = "<group>";
 		};
 		2838FF6BE0B141777044BC57 /* Views */ = {
@@ -1223,9 +1447,40 @@
 		56D546DA53A7A7E0E93D0579 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				A22E00000000000000000021 /* Models */,
+				B70000000000000000000021 /* Privacy */,
+				D00D00000000000000000070 /* Services */,
 				CFE6DC4E6E577CC4E8695932 /* Views */,
 			);
 			path = Settings;
+			sourceTree = "<group>";
+		};
+		D00D00000000000000000070 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				D00D00000000000000000061 /* AccountSecurityService.swift */,
+				D00D00000000000000000062 /* PasskeyRegistrationCoordinator.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		B70000000000000000000021 /* Privacy */ = {
+			isa = PBXGroup;
+			children = (
+				B70000000000000000000001 /* PrivacySettingsModels.swift */,
+				B70000000000000000000003 /* SettingsAutoDeletionView.swift */,
+				B70000000000000000000004 /* SettingsConnectedAccountsView.swift */,
+				B70000000000000000000002 /* SettingsPrivacyContentView.swift */,
+			);
+			path = Privacy;
+			sourceTree = "<group>";
+		};
+		A22E00000000000000000021 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A22E00000000000000000001 /* SettingsModeModels.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 		5CADB8842432593D9E90CD62 /* OpenMates */ = {
@@ -1250,7 +1505,9 @@
 			isa = PBXGroup;
 			children = (
 				0FAE66BBAFAEF660A11C0000 /* AnonymousFreeUsageService.swift */,
+				0FAE66BBAFAEF660A11C0010 /* ChatCompletionRecoveryCoordinator.swift */,
 				AD2F1CD833F2B5BFF432DF0E /* DraftService.swift */,
+				D5AF70000000000000000001 /* DraftSyncCoordinator.swift */,
 				4011158DF04A05A08516EA7D /* EditMessageStore.swift */,
 				5A66F9209C32CC2A77C5A966 /* HandoffManager.swift */,
 				3E83213DE2F85D4A37475DB3 /* PendingUploadStore.swift */,
@@ -1359,6 +1616,8 @@
 				C0FFEE000000000000047016 /* OpenMatesWatch */,
 				C0FFEE000000000000002012 /* OpenMatesTests */,
 				C0FFEE000000000000001012 /* OpenMatesUITests */,
+				A11E00000000000000000003 /* OpenMatesMacUITests */,
+				C0FFEE000000000000054004 /* OpenMatesWatchUITests */,
 				5CADB8842432593D9E90CD62 /* OpenMates */,
 				EB8536A31BBD5884C13C3AC6 /* OpenMatesShared */,
 				A1000000000000000000000C /* OpenMatesNotificationService */,
@@ -1414,6 +1673,7 @@
 				C0FFEE000000000000002003 /* OpenMatesTests.xctest */,
 				C0FFEE000000000000001003 /* OpenMatesUITests.xctest */,
 				C0FFEE000000000000043003 /* OpenMatesMacUITests.xctest */,
+				C0FFEE000000000000054003 /* OpenMatesWatchUITests.xctest */,
 				A10000000000000000000009 /* OpenMatesNotificationService.appex */,
 				F376B3E95264F50E89441B25 /* OpenMatesShareExtension_macOS.appex */,
 				8F6573E0E9224234EF13DC13 /* OpenMatesShareExtension.appex */,
@@ -1462,6 +1722,7 @@
 		C0FFEE000000000000001012 /* OpenMatesUITests */ = {
 			isa = PBXGroup;
 			children = (
+				B70000000000000000000006 /* SettingsPrivacyParityUITests.swift */,
 				C0FFEE000000000000005001 /* RealAccountUITestSupport.swift */,
 				C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */,
 				C0FFEE000000000000007001 /* MessageInputAttachmentUITests.swift */,
@@ -1473,24 +1734,50 @@
 				C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */,
 				C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */,
 				C0FFEE000000000000011001 /* EmbedRenderingParityUITests.swift */,
+				50AD00000000000000000005 /* ChatHistoryAudioParityUITests.swift */,
+				50AD00000000000000000007 /* ChatHistoryFullParityUITests.swift */,
+				50AD00000000000000000009 /* ChatHistoryMacParityUITests.swift */,
+				C0FFEE000000000000051001 /* NativeComposerInlineEmbedUITests.swift */,
+				C0FFEE000000000000052001 /* NativeComposerDraftEditUITests.swift */,
 				C0FFEE000000000000014001 /* ChatManagementSharingParityUITests.swift */,
 				C0FFEE000000000000016001 /* AuthSecurityParityUITests.swift */,
 				C0FFEE000000000000018001 /* SettingsBillingParityUITests.swift */,
 				C0FFEE000000000000020001 /* RemindersPublicContentParityUITests.swift */,
 				C0FFEE000000000000022001 /* SkillApplicationParityUITests.swift */,
 				C0FFEE000000000000025001 /* SettingsAppsParityUITests.swift */,
+				B66000000000000000000002 /* SettingsMemoriesParityUITests.swift */,
+				B66000000000000000000003 /* SettingsMatesParityUITests.swift */,
 				C0FFEE000000000000026001 /* SettingsIPadLayoutParityUITests.swift */,
 				C0FFEE000000000000027001 /* SettingsFullParityUITests.swift */,
+				A22E00000000000000000004 /* SettingsModesParityUITests.swift */,
 				C0FFEE000000000000028001 /* SettingsBillingStoreKitParityUITests.swift */,
 				C0FFEE000000000000029001 /* SettingsSensitiveActionsParityUITests.swift */,
 				C0FFEE000000000000030001 /* SettingsInterfaceLanguageParityUITests.swift */,
 				C0FFEE000000000000036013 /* WorkflowsParityUITests.swift */,
 				C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */,
 				C0FFEE000000000000003001 /* ChatFlowParityUITests.swift */,
+				C0FFEE000000000000055001 /* ChatNavigationParityUITests.swift */,
 				C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */,
 				C0FFEE000000000000001002 /* Info.plist */,
 			);
 			path = OpenMatesUITests;
+			sourceTree = "<group>";
+		};
+		A11E00000000000000000003 /* OpenMatesMacUITests */ = {
+			isa = PBXGroup;
+			children = (
+				B70000000000000000000007 /* SettingsMacPrivacyParityUITests.swift */,
+				A11E00000000000000000001 /* SettingsMacShellParityUITests.swift */,
+			);
+			path = OpenMatesMacUITests;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000054004 /* OpenMatesWatchUITests */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000054001 /* WatchChatLayoutUITests.swift */,
+			);
+			path = OpenMatesWatchUITests;
 			sourceTree = "<group>";
 		};
 		C0FFEE000000000000047016 /* OpenMatesWatch */ = {
@@ -1521,26 +1808,47 @@
 		C0FFEE000000000000002012 /* OpenMatesTests */ = {
 			isa = PBXGroup;
 			children = (
+				C0FFEE000000000000053001 /* ChatCompletionRecoveryTests.swift */,
+				B70000000000000000000005 /* SettingsPrivacyParityTests.swift */,
 				C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */,
 				C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */,
 				C0FFEE000000000000049007 /* WatchChatRuntimeTests.swift */,
+				C0FFEE000000000000049030 /* WatchAuthStoreTests.swift */,
 				C0FFEE000000000000049019 /* WatchEmbedPreviewTests.swift */,
 				C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */,
 				C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */,
 				C0FFEE000000000000039001 /* BackgroundChatSenderParityTests.swift */,
 				C0FFEE000000000000045001 /* MessageComposerConfigurationTests.swift */,
-				C0FFEE00000000000004600A /* TiptapComposerBridgeTests.swift */,
+				C0FFEE000000000000050005 /* NativeComposerDocumentTests.swift */,
+				C0FFEE000000000000050007 /* NativeComposerControllerTests.swift */,
+				C0FFEE000000000000050010 /* NativeComposerTextViewAdapterTests.swift */,
+				C0FFEE00000000000005001B /* AppleComposerRendererRegistryTests.swift */,
+				C0FFEE00000000000005000C /* NativeComposerEncryptionCompatibilityTests.swift */,
+				C0FFEE00000000000005000D /* NativeComposerDraftEncryptionTests.swift */,
+				C0FFEE000000000000050026 /* NativeComposerEmbedLifecycleTests.swift */,
+				C0FFEE00000000000005002E /* NativeComposerSubmitTests.swift */,
+				C0FFEE000000000000050030 /* NativeComposerPasteTests.swift */,
+				C0FFEE000000000000050032 /* NativeComposerMentionPIITests.swift */,
+				C0FFEE000000000000050053 /* NativeComposerSessionTests.swift */,
+				C0FFEE000000000000050058 /* NativeComposerFailureRecoveryTests.swift */,
+				C0FFEE00000000000005005A /* NativeComposerPerformanceTests.swift */,
+				C0FFEE00000000000005005C /* VoiceRecorderTests.swift */,
 				C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */,
 				C0FFEE000000000000012001 /* ChatSyncParityTests.swift */,
+				D5AF70000000000000000011 /* DraftSyncParityTests.swift */,
 				C0FFEE000000000000013001 /* SubChatProcessingTests.swift */,
 				C0FFEE000000000000015001 /* ChatManagementSharingParityTests.swift */,
 				C0FFEE000000000000017001 /* AuthSecurityParityTests.swift */,
+				F0CF00000000000000000001 /* CryptoFailureTests.swift */,
 				C0FFEE000000000000019001 /* SettingsBillingParityTests.swift */,
 				C0FFEE000000000000021001 /* RemindersPublicContentParityTests.swift */,
 				C0FFEE000000000000023001 /* SkillApplicationParityTests.swift */,
 				C0FFEE000000000000024001 /* SettingsFullParityTests.swift */,
+				B66000000000000000000001 /* SettingsMemoriesMatesParityTests.swift */,
+				A22E00000000000000000003 /* SettingsModesParityTests.swift */,
 				C0FFEE000000000000033001 /* InteractiveQuestionsParityTests.swift */,
 				C0FFEE000000000000034001 /* EmbedDiffEditingParityTests.swift */,
+				50AD00000000000000000001 /* ChatHistoryRenderDocumentTests.swift */,
 				C0FFEE000000000000036011 /* WorkflowsParityTests.swift */,
 				C0FFEE000000000000002002 /* Info.plist */,
 			);
@@ -1552,6 +1860,7 @@
 			children = (
 				B9FBFD8D921E0469DA412993 /* ChatKeyManager.swift */,
 				13ABD68DF91C20D76F75ABD8 /* CryptoManager.swift */,
+				F76400000000000000000001 /* ShareLinkCrypto.swift */,
 				2010DA119E370FEB468BB19E /* KeychainHelper.swift */,
 			);
 			path = Crypto;
@@ -1572,6 +1881,7 @@
 		CFE6DC4E6E577CC4E8695932 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				D00D00000000000000000071 /* SettingsProjectsView.swift */,
 				7F34D30BDD3CA6FB3E99D6F3 /* NewsletterSettingsView.swift */,
 				7F5C1DCEC899C0A6F6DC2139 /* ReportIssueView.swift */,
 				A9EA07F6DD4573380C2EC670 /* SettingsAccountChatsView.swift */,
@@ -1584,6 +1894,7 @@
 				29D5F13E53FCA68AB0F4E146 /* SettingsExportAccountView.swift */,
 				E252A864D82EEB91D4238F96 /* SettingsHidePersonalDataView.swift */,
 				1ED5938F5E29D96C36EBF8FD /* SettingsIncognitoInfoView.swift */,
+				A22E00000000000000000002 /* SettingsLearningModeView.swift */,
 				1590D8670281FDF56C8F2860 /* SettingsLogsView.swift */,
 				18F626DBB5DC4CFCA1A618E7 /* SettingsMatesView.swift */,
 				4C7C463F57142CA4C0101AEC /* SettingsMemoriesFull.swift */,
@@ -1624,6 +1935,7 @@
 				D82141164C0949C2F8C28C00 /* ChatPaginationView.swift */,
 				6C4E9F72D9FCA3E904FB5B97 /* ChatSearchView.swift */,
 				C7DFBC3D2D8AFBC4367D6CB5 /* ChatShareView.swift */,
+				F76400000000000000000002 /* AppleSharePanel.swift */,
 				4C81AB019DC95300C00108EE /* ChatView.swift */,
 				FB531014DF91F38A7DD04A2B /* DailyInspirationView.swift */,
 				41E019B11E74836197058244 /* ExampleChatsView.swift */,
@@ -1716,6 +2028,7 @@
 		F359146C5D66BBB7A1335521 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				C0FFEE000000000000050004 /* Composer */,
 				26981DBFBB357D60B8D70419 /* Components */,
 				46A3D36BAA1E27E5D1B807BB /* Extensions */,
 			);
@@ -1827,6 +2140,9 @@
 			name = OpenMates_iOS;
 			packageProductDependencies = (
 				8FC7D47DA7AECCBB2EBDABE9 /* LucideIcons */,
+				D00D00000000000000000011 /* Sodium */,
+				D00D00000000000000000012 /* Yams */,
+				D00D00000000000000000013 /* ZIPFoundation */,
 			);
 			productName = OpenMates_iOS;
 			productReference = BE1031D79B03616FF9E0E7F7 /* OpenMates.app */;
@@ -1919,6 +2235,9 @@
 			name = OpenMates_macOS;
 			packageProductDependencies = (
 				47F26F17E3084624A8B0C927 /* LucideIcons */,
+				D00D00000000000000000021 /* Sodium */,
+				D00D00000000000000000022 /* Yams */,
+				D00D00000000000000000023 /* ZIPFoundation */,
 			);
 			productName = OpenMates_macOS;
 			productReference = 6B67074848688485A446BC5C /* OpenMates.app */;
@@ -1962,6 +2281,26 @@
 			);
 			productName = OpenMatesMacUITests;
 			productReference = C0FFEE000000000000043003 /* OpenMatesMacUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		C0FFEE000000000000054006 /* OpenMatesWatchUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0FFEE000000000000054011 /* Build configuration list for PBXNativeTarget "OpenMatesWatchUITests" */;
+			buildPhases = (
+				C0FFEE000000000000054005 /* Sources */,
+				C0FFEE000000000000054008 /* Resources */,
+				C0FFEE000000000000054007 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C0FFEE000000000000054013 /* PBXTargetDependency */,
+			);
+			name = OpenMatesWatchUITests;
+			packageProductDependencies = (
+			);
+			productName = OpenMatesWatchUITests;
+			productReference = C0FFEE000000000000054003 /* OpenMatesWatchUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 		C0FFEE000000000000002006 /* OpenMatesTests */ = {
@@ -2017,6 +2356,9 @@
 					C0FFEE000000000000043006 = {
 						DevelopmentTeam = Z9B2YFKN2X;
 					};
+					C0FFEE000000000000054006 = {
+						DevelopmentTeam = Z9B2YFKN2X;
+					};
 					C0FFEE000000000000002006 = {
 						DevelopmentTeam = Z9B2YFKN2X;
 					};
@@ -2033,6 +2375,9 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				9F629A6D9D36C641EE6F558A /* XCRemoteSwiftPackageReference "lucide-icons-swift" */,
+				D00D00000000000000000001 /* XCRemoteSwiftPackageReference "swift-sodium" */,
+				D00D00000000000000000002 /* XCRemoteSwiftPackageReference "Yams" */,
+				D00D00000000000000000003 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AA17F1DC1A7C9E6EE61B6010 /* Products */;
@@ -2048,6 +2393,7 @@
 				C0FFEE000000000000002006 /* OpenMatesTests */,
 				C0FFEE000000000000001006 /* OpenMatesUITests */,
 				C0FFEE000000000000043006 /* OpenMatesMacUITests */,
+				C0FFEE000000000000054006 /* OpenMatesWatchUITests */,
 				B0B9102F4329EFF5F54A8395 /* OpenMates_macOS */,
 			);
 		};
@@ -2073,7 +2419,6 @@
 				D5FD84D2FCAAD032743CE93D /* Assets.xcassets in Resources */,
 				7675A0D015804E636ECA75FD /* Fonts in Resources */,
 				B2F0023ACAE268FD9B9C1669 /* Icons.xcassets in Resources */,
-				C0FFEE000000000000046007 /* TiptapComposer in Resources */,
 				6CB6A43B33E73A8305CF731E /* Videos in Resources */,
 				49F82188554FE3B88DAE1495 /* example_chats in Resources */,
 				F94B4062D71DF2D1EF35A604 /* i18n in Resources */,
@@ -2089,7 +2434,6 @@
 				C7109C0A3B0CBE9D553F6844 /* Assets.xcassets in Resources */,
 				62CC43487382E796C443CCE1 /* Fonts in Resources */,
 				D7B6ED7F307EAE39934B3226 /* Icons.xcassets in Resources */,
-				C0FFEE000000000000046009 /* TiptapComposer in Resources */,
 				D271A1BD7661638C8B677477 /* Videos in Resources */,
 				22E7991F2249003E9DFE35DD /* example_chats in Resources */,
 				8F7EBA59C5DFF62A8F768F31 /* i18n in Resources */,
@@ -2111,6 +2455,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C0FFEE000000000000054008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C0FFEE000000000000002008 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -2122,7 +2473,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C0FFEE00000000000004600C /* TiptapComposer in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2130,7 +2480,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C0FFEE00000000000004600D /* TiptapComposer in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2177,6 +2526,13 @@
 				9313EC17123E6C994EEF6E47 /* BackgroundChatSender.swift in Sources */,
 				F387E8E87488BEEBEAB2BF21 /* CryptoManager.swift in Sources */,
 				EDECD1214A6907A3ED0095BA /* KeychainHelper.swift in Sources */,
+				C0FFEE000000000000050060 /* ComposerDocument.swift in Sources */,
+				C0FFEE000000000000050063 /* AppleComposerRendererRegistry.swift in Sources */,
+				C0FFEE000000000000050065 /* ComposerEmbedLifecycle.swift in Sources */,
+				C0FFEE000000000000050067 /* ComposerTextAttachment.swift in Sources */,
+				C0FFEE000000000000050069 /* NativeComposerController.swift in Sources */,
+				C0FFEE00000000000005006B /* NativeComposerSession.swift in Sources */,
+				C0FFEE00000000000005006D /* NativeComposerTextView.swift in Sources */,
 				52834EBA1CD7FB37EE4A9463 /* MacShareViewController.swift in Sources */,
 				652975DA634D0799D49A89CA /* OpenMatesSharedEnvironment.swift in Sources */,
 				2B8DE36C8A872EB9E546F549 /* ServerConfiguration.swift in Sources */,
@@ -2195,6 +2551,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C0FFEE00000000000003600A /* WorkflowAPI.swift in Sources */,
+				C0FFEE000000000000036009 /* WorkflowModels.swift in Sources */,
+				C0FFEE00000000000003600B /* WorkflowStore.swift in Sources */,
+				C0FFEE00000000000003600C /* WorkflowViews.swift in Sources */,
 				F21BC1FE5F7050B7957FA9C4 /* AITypingIndicator.swift in Sources */,
 				81C03DD57797F7494E8BC99E /* APIClient.swift in Sources */,
 				C0DE00000000000000000003 /* CodeRunService.swift in Sources */,
@@ -2223,12 +2583,15 @@
 				11AA657DBA58D817D0969838 /* ChatImportView.swift in Sources */,
 				9847067BF30DFA7BC22F9483 /* ChatKeyManager.swift in Sources */,
 				0D059F14E00015EF9968496C /* ChatListRow.swift in Sources */,
+				59AA00000000000000000002 /* ChatHistoryRenderDocument.swift in Sources */,
 				299F491D32ECBFB2859E67A0 /* ChatManagementIntents.swift in Sources */,
 				BA2CEDCC52997D7A2F55B0A9 /* ChatModels.swift in Sources */,
 				D1A6D1A6D1A6D1A6D1A60003 /* NativeDiagnostics.swift in Sources */,
 				DD26A49438933FC88A097561 /* ChatPaginationView.swift in Sources */,
 				9AA0DAEE4312F4FD5D4B93BC /* ChatSearchView.swift in Sources */,
 				B44ADF2FE2103DD5D3D4DE8F /* ChatShareView.swift in Sources */,
+				F76400000000000000000003 /* ShareLinkCrypto.swift in Sources */,
+				F76400000000000000000005 /* AppleSharePanel.swift in Sources */,
 				160675982DDF9FEA819708A4 /* ChatStore.swift in Sources */,
 				970F714FA8D6B70D27C6CDD3 /* ChatView.swift in Sources */,
 				62551C9057B4C346B711D337 /* ChatViewModel.swift in Sources */,
@@ -2247,6 +2610,7 @@
 				8C94593CE3B587A1600D1CC4 /* DevPreviewLaunchConfiguration.swift in Sources */,
 				6359A0406AF920E9C6A36555 /* DeviceVerificationView.swift in Sources */,
 				FDF2F216BD4BFA3837BD72C2 /* DraftService.swift in Sources */,
+				D5AF70000000000000000002 /* DraftSyncCoordinator.swift in Sources */,
 				BA00EE4DED4B707CF5CF8BA4 /* EditMessageStore.swift in Sources */,
 				3C9F5DE67796019C44060644 /* EmailLookupView.swift in Sources */,
 				E73346551237F0719ED33BFA /* EmbedBasicInfoBar.swift in Sources */,
@@ -2309,12 +2673,28 @@
 				77F5787BA1CA6159CB2E3BE6 /* NutritionSearchIntent.swift in Sources */,
 				1AE4F40CB96111DE493AF333 /* OMButtonStyles.swift in Sources */,
 				C0FFEE000000000000046002 /* MessageComposerView.swift in Sources */,
-				C0FFEE000000000000046004 /* TiptapComposerWebView.swift in Sources */,
+				C0FFEE000000000000050002 /* ComposerDocument.swift in Sources */,
+				C0FFEE00000000000005001E /* AppleComposerRendererRegistry.swift in Sources */,
+				C0FFEE000000000000050024 /* ComposerDraftRepository.swift in Sources */,
+				C0FFEE000000000000050029 /* ComposerEmbedLifecycle.swift in Sources */,
+				C0FFEE00000000000005002C /* ComposerPendingSendCoordinator.swift in Sources */,
+				C0FFEE000000000000050035 /* ComposerSubmitPolicy.swift in Sources */,
+				C0FFEE000000000000050038 /* ComposerPasteService.swift in Sources */,
+				C0FFEE00000000000005003B /* ComposerMentionService.swift in Sources */,
+				C0FFEE00000000000005003E /* ComposerPIIDecorations.swift in Sources */,
+				C0FFEE000000000000050021 /* AppleComposerEmbedPreview.swift in Sources */,
+				C0FFEE000000000000050013 /* ComposerTextAttachment.swift in Sources */,
+				C0FFEE000000000000050016 /* ComposerAttachmentViewProvider.swift in Sources */,
+				C0FFEE00000000000005000A /* NativeComposerController.swift in Sources */,
+				C0FFEE000000000000050019 /* NativeComposerTextView.swift in Sources */,
+				C0FFEE000000000000050051 /* NativeComposerEditorView.swift in Sources */,
+				C0FFEE000000000000050056 /* NativeComposerSession.swift in Sources */,
 				033A6721A553CE34ADB246BA /* OMDesignPrimitives.swift in Sources */,
 				D3FBB64A5CD7FE15DC4EAF62 /* OfflineStore.swift in Sources */,
 				BD39ADEB1143AFB7A91C5EB4 /* OfflineSyncBridge.swift in Sources */,
 				C0FFEE000000000000037002 /* PendingAssistantResponseQueue.swift in Sources */,
 				0FAE66BBAFAEF660A11C0001 /* AnonymousFreeUsageService.swift in Sources */,
+				0FAE66BBAFAEF660A11C0011 /* ChatCompletionRecoveryCoordinator.swift in Sources */,
 				F2862F8645CA164C75FA6A04 /* OpenMatesApp.swift in Sources */,
 				60648E65A03DA89373DFBB9D /* OpenMatesSharedEnvironment.swift in Sources */,
 				8CD29BDF95C08BC345F649E3 /* OpenMatesShortcuts.swift in Sources */,
@@ -2352,8 +2732,17 @@
 				327AD82FCCAE7C0344853EB2 /* SettingsDevicesView.swift in Sources */,
 				0799383785A4BA6A304DEC02 /* SettingsEmailView.swift in Sources */,
 				20E1E4156A3D7B78FE408865 /* SettingsExportAccountView.swift in Sources */,
+				D00D00000000000000000072 /* SettingsProjectsView.swift in Sources */,
+				D00D00000000000000000051 /* AccountSecurityService.swift in Sources */,
+				D00D00000000000000000053 /* PasskeyRegistrationCoordinator.swift in Sources */,
 				DD05C56256EF1B375FF04CC4 /* SettingsHidePersonalDataView.swift in Sources */,
 				DFCEBCE4565A07FC1B635D33 /* SettingsIncognitoInfoView.swift in Sources */,
+				A22E00000000000000000011 /* SettingsModeModels.swift in Sources */,
+				A22E00000000000000000013 /* SettingsLearningModeView.swift in Sources */,
+				B70000000000000000000011 /* PrivacySettingsModels.swift in Sources */,
+				B70000000000000000000012 /* SettingsPrivacyContentView.swift in Sources */,
+				B70000000000000000000013 /* SettingsAutoDeletionView.swift in Sources */,
+				B70000000000000000000014 /* SettingsConnectedAccountsView.swift in Sources */,
 				E10BCE73CD91C5A9F0797A74 /* SettingsLogsView.swift in Sources */,
 				2DE7FA10431C56F2D7CDE898 /* SettingsMatesView.swift in Sources */,
 				99687DEFC4FF7390CDBC2387 /* SettingsMemoriesFull.swift in Sources */,
@@ -2438,12 +2827,15 @@
 				ED68C36CB2B59960BAF97944 /* ChatImportView.swift in Sources */,
 				94F65E02256250AD6CE9D3B6 /* ChatKeyManager.swift in Sources */,
 				CA1F3A16641229B3A5CF236E /* ChatListRow.swift in Sources */,
+				59AA00000000000000000003 /* ChatHistoryRenderDocument.swift in Sources */,
 				3A690A1E74206FCB478DA8D6 /* ChatManagementIntents.swift in Sources */,
 				1BCCD61384E7BD33CC980AF3 /* ChatModels.swift in Sources */,
 				D1A6D1A6D1A6D1A6D1A60002 /* NativeDiagnostics.swift in Sources */,
 				31E2D37AB5BCAE9C588CDD35 /* ChatPaginationView.swift in Sources */,
 				F00B62B6169A0248631F2C0F /* ChatSearchView.swift in Sources */,
 				83F909D23614C7551F699A60 /* ChatShareView.swift in Sources */,
+				F76400000000000000000004 /* ShareLinkCrypto.swift in Sources */,
+				F76400000000000000000006 /* AppleSharePanel.swift in Sources */,
 				7494FFB680B36D61FA3B5132 /* ChatStore.swift in Sources */,
 				EC00D69F3D477073B8F2181F /* ChatView.swift in Sources */,
 				7668BDEE4DFA644309DAEBBD /* ChatViewModel.swift in Sources */,
@@ -2462,6 +2854,7 @@
 				9F95A1AF1C7A31B7C1457464 /* DevPreviewLaunchConfiguration.swift in Sources */,
 				F41A2ED1BB247017E78B42BF /* DeviceVerificationView.swift in Sources */,
 				153BF46087163F93EAD508B6 /* DraftService.swift in Sources */,
+				D5AF70000000000000000003 /* DraftSyncCoordinator.swift in Sources */,
 				054A74F600EA9DCABA103B0A /* EditMessageStore.swift in Sources */,
 				2774EAEBB100919DC4271F92 /* EmailLookupView.swift in Sources */,
 				0FD5C9343DD03830A8A1D0DC /* EmbedBasicInfoBar.swift in Sources */,
@@ -2525,12 +2918,28 @@
 				0BA7A4B79D29807CCFE43528 /* NutritionSearchIntent.swift in Sources */,
 				E84BB9B91F18230E57348D8B /* OMButtonStyles.swift in Sources */,
 				C0FFEE000000000000046003 /* MessageComposerView.swift in Sources */,
-				C0FFEE000000000000046005 /* TiptapComposerWebView.swift in Sources */,
+				C0FFEE000000000000050003 /* ComposerDocument.swift in Sources */,
+				C0FFEE00000000000005001F /* AppleComposerRendererRegistry.swift in Sources */,
+				C0FFEE000000000000050025 /* ComposerDraftRepository.swift in Sources */,
+				C0FFEE00000000000005002A /* ComposerEmbedLifecycle.swift in Sources */,
+				C0FFEE00000000000005002D /* ComposerPendingSendCoordinator.swift in Sources */,
+				C0FFEE000000000000050036 /* ComposerSubmitPolicy.swift in Sources */,
+				C0FFEE000000000000050039 /* ComposerPasteService.swift in Sources */,
+				C0FFEE00000000000005003C /* ComposerMentionService.swift in Sources */,
+				C0FFEE00000000000005003F /* ComposerPIIDecorations.swift in Sources */,
+				C0FFEE000000000000050022 /* AppleComposerEmbedPreview.swift in Sources */,
+				C0FFEE000000000000050014 /* ComposerTextAttachment.swift in Sources */,
+				C0FFEE000000000000050017 /* ComposerAttachmentViewProvider.swift in Sources */,
+				C0FFEE00000000000005000B /* NativeComposerController.swift in Sources */,
+				C0FFEE00000000000005001A /* NativeComposerTextView.swift in Sources */,
+				C0FFEE000000000000050052 /* NativeComposerEditorView.swift in Sources */,
+				C0FFEE000000000000050057 /* NativeComposerSession.swift in Sources */,
 				896CD28E397C1F666609BB1E /* OMDesignPrimitives.swift in Sources */,
 				25468B39379E6020F76E58A4 /* OfflineStore.swift in Sources */,
 				02C2F9D9D1747B51FD08AF8F /* OfflineSyncBridge.swift in Sources */,
 				C0FFEE000000000000037003 /* PendingAssistantResponseQueue.swift in Sources */,
 				0FAE66BBAFAEF660A11C0002 /* AnonymousFreeUsageService.swift in Sources */,
+				0FAE66BBAFAEF660A11C0012 /* ChatCompletionRecoveryCoordinator.swift in Sources */,
 				F24AABC9FF504F337AE8A394 /* OpenMatesApp.swift in Sources */,
 				8EF96D6DF01E60DD1D952AAA /* OpenMatesSharedEnvironment.swift in Sources */,
 				6B70F67D0D296932288BA70D /* OpenMatesShortcuts.swift in Sources */,
@@ -2567,8 +2976,17 @@
 				8740E875A59D8D4445F2E0CC /* SettingsDevicesView.swift in Sources */,
 				B5235C7666366F0D9792715C /* SettingsEmailView.swift in Sources */,
 				E1C78FC783CF532F39DC2563 /* SettingsExportAccountView.swift in Sources */,
+				D00D00000000000000000073 /* SettingsProjectsView.swift in Sources */,
+				D00D00000000000000000052 /* AccountSecurityService.swift in Sources */,
+				D00D00000000000000000054 /* PasskeyRegistrationCoordinator.swift in Sources */,
 				D02C464DD8BC7CB2FE2BFE20 /* SettingsHidePersonalDataView.swift in Sources */,
 				8685DC828E2CE573C2032001 /* SettingsIncognitoInfoView.swift in Sources */,
+				A22E00000000000000000012 /* SettingsModeModels.swift in Sources */,
+				A22E00000000000000000014 /* SettingsLearningModeView.swift in Sources */,
+				B70000000000000000000015 /* PrivacySettingsModels.swift in Sources */,
+				B70000000000000000000016 /* SettingsPrivacyContentView.swift in Sources */,
+				B70000000000000000000017 /* SettingsAutoDeletionView.swift in Sources */,
+				B70000000000000000000018 /* SettingsConnectedAccountsView.swift in Sources */,
 				0007B5C7FCB6FC85F1DD7107 /* SettingsLogsView.swift in Sources */,
 				946B914E1E6CDFACB2C0A829 /* SettingsMatesView.swift in Sources */,
 				CCB5B8394774A2F1EAF18DCE /* SettingsMemoriesFull.swift in Sources */,
@@ -2613,6 +3031,8 @@
 				D3A477A6406FCE23703E6B45 /* VoiceRecordingView.swift in Sources */,
 				C0FFEE000000000000036004 /* WorkflowAPI.swift in Sources */,
 				C0FFEE000000000000036003 /* WorkflowModels.swift in Sources */,
+				C0FFEE000000000000036007 /* WorkflowStore.swift in Sources */,
+				C0FFEE000000000000036008 /* WorkflowViews.swift in Sources */,
 				E2B960DAD0E7CBE03D8E3A15 /* WebReadEmbedRenderer.swift in Sources */,
 				3B6412DCFB407F1FD95C8D21 /* WebSearchEmbedRenderer.swift in Sources */,
 				5FA4A9B8A99A3D148F2B7FD4 /* WebSearchIntent.swift in Sources */,
@@ -2631,6 +3051,13 @@
 				CA87A69207971B1FF3795C9F /* BackgroundChatSender.swift in Sources */,
 				7B57E05E2076A6077BAB312D /* CryptoManager.swift in Sources */,
 				9F7F11EF6A6C833E5F9AA7B6 /* KeychainHelper.swift in Sources */,
+				C0FFEE000000000000050061 /* ComposerDocument.swift in Sources */,
+				C0FFEE000000000000050062 /* AppleComposerRendererRegistry.swift in Sources */,
+				C0FFEE000000000000050064 /* ComposerEmbedLifecycle.swift in Sources */,
+				C0FFEE000000000000050066 /* ComposerTextAttachment.swift in Sources */,
+				C0FFEE000000000000050068 /* NativeComposerController.swift in Sources */,
+				C0FFEE00000000000005006A /* NativeComposerSession.swift in Sources */,
+				C0FFEE00000000000005006C /* NativeComposerTextView.swift in Sources */,
 				08EAA1E22A555C852FE8D981 /* OpenMatesSharedEnvironment.swift in Sources */,
 				E06458ADE0296F3CBCE7E65B /* ServerConfiguration.swift in Sources */,
 				24297CA925C3F4E644CBAFCE /* ShareViewController.swift in Sources */,
@@ -2662,20 +3089,29 @@
 				C0FFEE000000000000009004 /* ChatResponsiveParityUITests.swift in Sources */,
 				C0FFEE000000000000010004 /* ChatShellResponsiveParityUITests.swift in Sources */,
 				C0FFEE000000000000011004 /* EmbedRenderingParityUITests.swift in Sources */,
+				50AD00000000000000000006 /* ChatHistoryAudioParityUITests.swift in Sources */,
+				50AD00000000000000000008 /* ChatHistoryFullParityUITests.swift in Sources */,
+				C0FFEE000000000000051002 /* NativeComposerInlineEmbedUITests.swift in Sources */,
+				C0FFEE000000000000052002 /* NativeComposerDraftEditUITests.swift in Sources */,
 				C0FFEE000000000000014004 /* ChatManagementSharingParityUITests.swift in Sources */,
 				C0FFEE000000000000016004 /* AuthSecurityParityUITests.swift in Sources */,
 				C0FFEE000000000000018004 /* SettingsBillingParityUITests.swift in Sources */,
 				C0FFEE000000000000020004 /* RemindersPublicContentParityUITests.swift in Sources */,
 				C0FFEE000000000000022004 /* SkillApplicationParityUITests.swift in Sources */,
 				C0FFEE000000000000025004 /* SettingsAppsParityUITests.swift in Sources */,
+				B66000000000000000000005 /* SettingsMemoriesParityUITests.swift in Sources */,
+				B66000000000000000000006 /* SettingsMatesParityUITests.swift in Sources */,
 				C0FFEE000000000000026004 /* SettingsIPadLayoutParityUITests.swift in Sources */,
 				C0FFEE000000000000027004 /* SettingsFullParityUITests.swift in Sources */,
+				A22E00000000000000000016 /* SettingsModesParityUITests.swift in Sources */,
+				B7000000000000000000001A /* SettingsPrivacyParityUITests.swift in Sources */,
 				C0FFEE000000000000028004 /* SettingsBillingStoreKitParityUITests.swift in Sources */,
 				C0FFEE000000000000029004 /* SettingsSensitiveActionsParityUITests.swift in Sources */,
 				C0FFEE000000000000030004 /* SettingsInterfaceLanguageParityUITests.swift in Sources */,
 				C0FFEE000000000000036014 /* WorkflowsParityUITests.swift in Sources */,
 				C0FFEE000000000000004004 /* ChatFlowRealAccountUITests.swift in Sources */,
 				C0FFEE000000000000003004 /* ChatFlowParityUITests.swift in Sources */,
+				C0FFEE000000000000055004 /* ChatNavigationParityUITests.swift in Sources */,
 				C0FFEE000000000000001004 /* ChatOpeningScalabilityUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -2685,7 +3121,18 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0FFEE000000000000043004 /* MacMenuBarQuickCaptureUITests.swift in Sources */,
+				A11E00000000000000000002 /* SettingsMacShellParityUITests.swift in Sources */,
+				50AD0000000000000000000A /* ChatHistoryMacParityUITests.swift in Sources */,
+				B7000000000000000000001B /* SettingsMacPrivacyParityUITests.swift in Sources */,
 				C0FFEE000000000000090005 /* TooltipHelpParityUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0FFEE000000000000054005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C0FFEE000000000000054002 /* WatchChatLayoutUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2694,25 +3141,46 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */,
+				C0FFEE000000000000053002 /* ChatCompletionRecoveryTests.swift in Sources */,
 				C0FFEE000000000000048024 /* WatchPairLoginRuntimeTests.swift in Sources */,
 				C0FFEE000000000000049008 /* WatchChatRuntimeTests.swift in Sources */,
+				C0FFEE000000000000049031 /* WatchAuthStoreTests.swift in Sources */,
 				C0FFEE000000000000049018 /* WatchEmbedPreviewTests.swift in Sources */,
 				C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */,
 				C0FFEE000000000000038002 /* ChatStreamingLifecycleParityTests.swift in Sources */,
 				C0FFEE000000000000039002 /* BackgroundChatSenderParityTests.swift in Sources */,
 				C0FFEE000000000000045002 /* MessageComposerConfigurationTests.swift in Sources */,
-				C0FFEE00000000000004600B /* TiptapComposerBridgeTests.swift in Sources */,
+				C0FFEE000000000000050006 /* NativeComposerDocumentTests.swift in Sources */,
+				C0FFEE000000000000050008 /* NativeComposerControllerTests.swift in Sources */,
+				C0FFEE000000000000050011 /* NativeComposerTextViewAdapterTests.swift in Sources */,
+				C0FFEE00000000000005001C /* AppleComposerRendererRegistryTests.swift in Sources */,
+				C0FFEE00000000000005000E /* NativeComposerEncryptionCompatibilityTests.swift in Sources */,
+				C0FFEE00000000000005000F /* NativeComposerDraftEncryptionTests.swift in Sources */,
+				C0FFEE000000000000050027 /* NativeComposerEmbedLifecycleTests.swift in Sources */,
+				C0FFEE00000000000005002F /* NativeComposerSubmitTests.swift in Sources */,
+				C0FFEE000000000000050031 /* NativeComposerPasteTests.swift in Sources */,
+				C0FFEE000000000000050033 /* NativeComposerMentionPIITests.swift in Sources */,
+				C0FFEE000000000000050054 /* NativeComposerSessionTests.swift in Sources */,
+				C0FFEE000000000000050059 /* NativeComposerFailureRecoveryTests.swift in Sources */,
+				C0FFEE00000000000005005B /* NativeComposerPerformanceTests.swift in Sources */,
+				C0FFEE00000000000005005D /* VoiceRecorderTests.swift in Sources */,
 				C0FFEE000000000000040002 /* AnonymousChatStreamingParityTests.swift in Sources */,
 				C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */,
+				D5AF70000000000000000012 /* DraftSyncParityTests.swift in Sources */,
 				C0FFEE000000000000013004 /* SubChatProcessingTests.swift in Sources */,
 				C0FFEE000000000000015004 /* ChatManagementSharingParityTests.swift in Sources */,
 				C0FFEE000000000000017004 /* AuthSecurityParityTests.swift in Sources */,
+				F0CF00000000000000000004 /* CryptoFailureTests.swift in Sources */,
 				C0FFEE000000000000019004 /* SettingsBillingParityTests.swift in Sources */,
 				C0FFEE000000000000021004 /* RemindersPublicContentParityTests.swift in Sources */,
 				C0FFEE000000000000023004 /* SkillApplicationParityTests.swift in Sources */,
 				C0FFEE000000000000024004 /* SettingsFullParityTests.swift in Sources */,
+				B66000000000000000000004 /* SettingsMemoriesMatesParityTests.swift in Sources */,
+				A22E00000000000000000015 /* SettingsModesParityTests.swift in Sources */,
+				B70000000000000000000019 /* SettingsPrivacyParityTests.swift in Sources */,
 				C0FFEE000000000000033004 /* InteractiveQuestionsParityTests.swift in Sources */,
 				C0FFEE000000000000034004 /* EmbedDiffEditingParityTests.swift in Sources */,
+				50AD00000000000000000002 /* ChatHistoryRenderDocumentTests.swift in Sources */,
 				C0FFEE000000000000036012 /* WorkflowsParityTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -2759,6 +3227,11 @@
 			isa = PBXTargetDependency;
 			target = C0FFEE000000000000047018 /* OpenMatesWatch */;
 			targetProxy = C0FFEE000000000000049022 /* PBXContainerItemProxy */;
+		};
+		C0FFEE000000000000054013 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C0FFEE000000000000047018 /* OpenMatesWatch */;
+			targetProxy = C0FFEE000000000000054014 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -2853,6 +3326,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.sharemacos;
 				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) OPENMATES_SHARE_EXTENSION";
 				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
@@ -2882,6 +3356,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.share;
 				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) OPENMATES_SHARE_EXTENSION";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -2900,6 +3375,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.sharemacos;
 				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) OPENMATES_SHARE_EXTENSION";
 				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
@@ -3013,7 +3489,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.14.0;
+				MARKETING_VERSION = 0.15.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -3037,6 +3513,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.share;
 				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) OPENMATES_SHARE_EXTENSION";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -3093,7 +3570,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.14.0;
+				MARKETING_VERSION = 0.15.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -3244,6 +3721,54 @@
 			};
 			name = Release;
 		};
+		C0FFEE000000000000054009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = Z9B2YFKN2X;
+				ENABLE_TESTING_SEARCH_PATHS = YES;
+				INFOPLIST_FILE = OpenMatesUITests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.watchuitests;
+				PRODUCT_NAME = OpenMatesWatchUITests;
+				SDKROOT = watchos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = OpenMatesWatch;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		C0FFEE000000000000054010 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = Z9B2YFKN2X;
+				ENABLE_TESTING_SEARCH_PATHS = YES;
+				INFOPLIST_FILE = OpenMatesUITests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.watchuitests;
+				PRODUCT_NAME = OpenMatesWatchUITests;
+				SDKROOT = watchos;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = OpenMatesWatch;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 		C0FFEE000000000000002009 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -3387,6 +3912,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		C0FFEE000000000000054011 /* Build configuration list for PBXNativeTarget "OpenMatesWatchUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0FFEE000000000000054009 /* Debug */,
+				C0FFEE000000000000054010 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		C0FFEE000000000000002011 /* Build configuration list for PBXNativeTarget "OpenMatesTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -3407,6 +3941,30 @@
 				minimumVersion = 1.8.0;
 			};
 		};
+		D00D00000000000000000001 /* XCRemoteSwiftPackageReference "swift-sodium" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jedisct1/swift-sodium.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.1;
+			};
+		};
+		D00D00000000000000000002 /* XCRemoteSwiftPackageReference "Yams" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jpsim/Yams.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.1.3;
+			};
+		};
+		D00D00000000000000000003 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.19;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -3419,6 +3977,36 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9F629A6D9D36C641EE6F558A /* XCRemoteSwiftPackageReference "lucide-icons-swift" */;
 			productName = LucideIcons;
+		};
+		D00D00000000000000000011 /* Sodium */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00D00000000000000000001 /* XCRemoteSwiftPackageReference "swift-sodium" */;
+			productName = Sodium;
+		};
+		D00D00000000000000000012 /* Yams */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00D00000000000000000002 /* XCRemoteSwiftPackageReference "Yams" */;
+			productName = Yams;
+		};
+		D00D00000000000000000013 /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00D00000000000000000003 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
+		};
+		D00D00000000000000000021 /* Sodium */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00D00000000000000000001 /* XCRemoteSwiftPackageReference "swift-sodium" */;
+			productName = Sodium;
+		};
+		D00D00000000000000000022 /* Yams */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00D00000000000000000002 /* XCRemoteSwiftPackageReference "Yams" */;
+			productName = Yams;
+		};
+		D00D00000000000000000023 /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00D00000000000000000003 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

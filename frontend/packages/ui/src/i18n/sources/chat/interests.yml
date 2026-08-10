@@ -25,26 +25,26 @@ eyebrow:
 title:
   context: Prompt shown after "Hey there!" once logged-out tag selection is skipped or completed
   en: "Explore what you can do:"
-  de: "Wähle, was dir wichtig ist. Deine Auswahl bleibt in dieser Browsersitzung."
-  zh: "选择你关心的内容。你的选择只保留在此浏览器会话中。"
-  es: "Elige lo que te importa. Tus elecciones se quedan en esta sesión del navegador."
-  fr: "Choisissez ce qui vous intéresse. Vos choix restent dans cette session de navigateur."
-  pt: "Escolha o que importa para você. Suas escolhas ficam nesta sessão do navegador."
-  ru: "Выберите, что вам интересно. Ваш выбор останется только в этой сессии браузера."
-  ja: "関心のあるものを選んでください。選択内容はこのブラウザーセッション内に留まります。"
-  ko: "관심 있는 항목을 선택하세요. 선택 내용은 이 브라우저 세션에만 저장됩니다."
-  it: "Scegli ciò che ti interessa. Le scelte restano in questa sessione del browser."
-  tr: "Önemsediğin konuları seç. Seçimlerin bu tarayıcı oturumunda kalır."
-  vi: "Chọn điều bạn quan tâm. Lựa chọn chỉ ở trong phiên trình duyệt này."
-  id: "Pilih hal yang Anda pedulikan. Pilihan tetap di sesi browser ini."
-  pl: "Wybierz, co Cię interesuje. Wybory zostają w tej sesji przeglądarki."
-  nl: "Kies wat je belangrijk vindt. Je keuzes blijven in deze browsersessie."
-  ar: "اختر ما يهمك. تبقى اختياراتك في جلسة المتصفح هذه."
-  hi: "जो आपके लिए मायने रखता है उसे चुनें। आपकी पसंद इसी ब्राउज़र सत्र में रहती है।"
-  th: "เลือกสิ่งที่คุณสนใจ ตัวเลือกจะอยู่ในเซสชันเบราว์เซอร์นี้เท่านั้น"
-  cs: "Vyberte, na čem vám záleží. Volby zůstanou v této relaci prohlížeče."
-  sv: "Välj vad du bryr dig om. Dina val stannar i den här webbläsarsessionen."
-  he: "בחר מה חשוב לך. הבחירות נשארות בסשן הדפדפן הזה."
+  de: "Entdecke, was du tun kannst:"
+  zh: 探索你可以做些什么：
+  es: "Explora lo que puedes hacer:"
+  fr: "Explore ce que tu peux faire :"
+  pt: "Explora o que podes fazer:"
+  ru: "Узнай, что ты можешь сделать:"
+  ja: できることをチェック：
+  ko: "무엇을 할 수 있는지 살펴보세요:"
+  it: "Esplora cosa puoi fare:"
+  tr: "Neler yapabileceğini keşfet:"
+  vi: "Khám phá những gì bạn có thể làm:"
+  id: "Jelajahi apa yang bisa kamu lakukan:"
+  pl: "Odkryj, co możesz zrobić:"
+  nl: "Ontdek wat je kunt doen:"
+  ar: "استكشف ما يمكنك فعله:"
+  hi: "देखें कि आप क्या कर सकते हैं:"
+  th: "สำรวจสิ่งที่คุณทำได้:"
+  cs: "Prozkoumej, co můžeš dělat:"
+  sv: "Utforska vad du kan göra:"
+  he: "גלו מה אפשר לעשות:"
   verified_by_human: []
 active_title:
   context: Prompt shown after "Hey there!" while logged-out interest tag selection is active
@@ -1197,4 +1197,724 @@ discuss_videos:
   cs: "diskutovat o videích"
   sv: "diskutera videor"
   he: "לדון בסרטונים"
+  verified_by_human: []
+marketing:
+  context: Guest interest tag for marketing work
+  en: "marketing"
+  de: Marketing
+  zh: 市场营销
+  es: marketing
+  fr: marketing
+  ru: маркетинг
+  ja: マーケティング
+  ko: 마케팅
+  it: marketing
+  tr: pazarlama
+  vi: marketing
+  id: pemasaran
+  pl: marketing
+  nl: marketing
+  ar: التسويق
+  hi: मार्केटिंग
+  th: การตลาด
+  cs: marketing
+  sv: marknadsföring
+  he: שיווק
+  pt: marketing
+  verified_by_human: []
+finance_bookkeeping:
+  context: Guest interest tag for small-business finance and bookkeeping
+  en: "finance & bookkeeping"
+  de: "Finanzen & Buchhaltung"
+  zh: 财务与记账
+  es: finanzas y contabilidad
+  fr: finance et comptabilité
+  ru: финансы и бухгалтерия
+  ja: 財務・簿記
+  ko: 재무 및 회계
+  it: finanza e contabilità
+  tr: finans ve muhasebe
+  vi: "tài chính & kế toán"
+  id: "keuangan & pembukuan"
+  pl: finanse i księgowość
+  nl: "financiën & boekhouding"
+  ar: المالية ومسك الدفاتر
+  hi: फाइनेंस और बुककीपिंग
+  th: การเงินและการทำบัญชี
+  cs: finance a účetnictví
+  sv: "ekonomi & bokföring"
+  he: כספים והנהלת חשבונות
+  pt: finanças e contabilidade
+  verified_by_human: []
+ui_ux_design:
+  context: Guest interest tag for user interface and user experience design
+  en: "UI/UX design"
+  de: UI/UX-Design
+  zh: UI/UX 设计
+  es: diseño UI/UX
+  fr: design UI/UX
+  ru: UI/UX дизайн
+  ja: UI/UXデザイン
+  ko: UI/UX 디자인
+  it: design UI/UX
+  tr: UI/UX tasarımı
+  vi: thiết kế UI/UX
+  id: desain UI/UX
+  pl: projektowanie UI/UX
+  nl: UI/UX design
+  ar: تصميم UI/UX
+  hi: UI/UX डिज़ाइन
+  th: การออกแบบ UI/UX
+  cs: UI/UX design
+  sv: UI/UX-design
+  he: עיצוב UI/UX
+  pt: design de UI/UX
+  verified_by_human: []
+business_planning:
+  context: Guest interest tag for planning a solo or small business
+  en: "business planning"
+  de: Business-Planung
+  zh: 商业规划
+  es: planificación de negocios
+  fr: "planification d'entreprise"
+  ru: бизнес-планирование
+  ja: ビジネスプランニング
+  ko: 비즈니스 기획
+  it: pianificazione aziendale
+  tr: iş planlama
+  vi: lập kế hoạch kinh doanh
+  id: perencanaan bisnis
+  pl: planowanie biznesowe
+  nl: businessplanning
+  ar: تخطيط الأعمال
+  hi: बिज़नेस प्लानिंग
+  th: การวางแผนธุรกิจ
+  cs: podnikatelské plánování
+  sv: affärsplanering
+  he: תכנון עסקי
+  pt: planejamento de negócios
+  verified_by_human: []
+content_creation:
+  context: Guest interest tag for creating written and visual content
+  en: "content creation"
+  de: Content-Erstellung
+  zh: 内容创作
+  es: creación de contenido
+  fr: création de contenu
+  ru: создание контента
+  ja: コンテンツ制作
+  ko: 콘텐츠 제작
+  it: creazione di contenuti
+  tr: içerik üretimi
+  vi: sáng tạo nội dung
+  id: pembuatan konten
+  pl: tworzenie treści
+  nl: contentcreatie
+  ar: صناعة المحتوى
+  hi: कंटेंट क्रिएशन
+  th: การสร้างคอนเทนต์
+  cs: tvorba obsahu
+  sv: innehållsskapande
+  he: יצירת תוכן
+  pt: criação de conteúdo
+  verified_by_human: []
+project_management:
+  context: Guest interest tag for managing projects
+  en: "project management"
+  de: Projektmanagement
+  zh: 项目管理
+  es: gestión de proyectos
+  fr: gestion de projet
+  ru: управление проектами
+  ja: プロジェクト管理
+  ko: 프로젝트 관리
+  it: gestione dei progetti
+  tr: proje yönetimi
+  vi: quản lý dự án
+  id: manajemen proyek
+  pl: zarządzanie projektami
+  nl: projectmanagement
+  ar: إدارة المشاريع
+  hi: प्रोजेक्ट मैनेजमेंट
+  th: การบริหารจัดการโครงการ
+  cs: projektové řízení
+  sv: projektledning
+  he: ניהול פרויקטים
+  pt: gestão de projetos
+  verified_by_human: []
+admin_operations:
+  context: Guest interest tag for administration and business operations
+  en: "admin & operations"
+  de: "Admin & Operations"
+  zh: 行政与运营
+  es: administración y operaciones
+  fr: admin et opérations
+  ru: администрирование и операции
+  ja: 事務・運営
+  ko: 행정 및 운영
+  it: amministrazione e operazioni
+  tr: yönetim ve operasyon
+  vi: "hành chính & vận hành"
+  id: "admin & operasional"
+  pl: administracja i operacje
+  nl: "administratie & operations"
+  ar: الإدارة والعمليات
+  hi: एडमिन और ऑपरेशन्स
+  th: งานธุรการและการดำเนินงาน
+  cs: administrativa a provoz
+  sv: "administration & drift"
+  he: ניהול ותפעול
+  pt: administração e operações
+  verified_by_human: []
+find_local_events:
+  context: Guest interest tag for finding local events and activities
+  en: "find local events"
+  de: Lokale Events finden
+  zh: 寻找当地活动
+  es: buscar eventos locales
+  fr: trouver des événements locaux
+  ru: поиск местных мероприятий
+  ja: 地元のイベントを探す
+  ko: 지역 이벤트 찾기
+  it: trovare eventi locali
+  tr: yerel etkinlikleri bulma
+  vi: tìm sự kiện địa phương
+  id: cari acara lokal
+  pl: znajdź lokalne wydarzenia
+  nl: lokale evenementen vinden
+  ar: البحث عن فعاليات محلية
+  hi: लोकल इवेंट्स खोजें
+  th: ค้นหากิจกรรมในท้องถิ่น
+  cs: hledání místních akcí
+  sv: hitta lokala evenemang
+  he: חיפוש אירועים מקומיים
+  pt: encontrar eventos locais
+  verified_by_human: []
+writing_editing:
+  context: Guest interest tag for professional writing and editing
+  en: "writing & editing"
+  de: "Schreiben & Lektorat"
+  zh: 写作与编辑
+  es: escritura y edición
+  fr: rédaction et édition
+  ru: написание и редактура
+  ja: ライティング・編集
+  ko: 글쓰기 및 편집
+  it: scrittura e revisione
+  tr: yazma ve düzenleme
+  vi: "viết lách & biên tập"
+  id: "penulisan & penyuntingan"
+  pl: pisanie i edycja
+  nl: "schrijven & redigeren"
+  ar: الكتابة والتحرير
+  hi: राइटिंग और एडिटिंग
+  th: การเขียนและการแก้ไข
+  cs: psaní a editace
+  sv: "skrivande & redigering"
+  he: כתיבה ועריכה
+  pt: escrita e edição
+  verified_by_human: []
+sales:
+  context: Guest interest tag for sales work
+  en: "sales"
+  de: Vertrieb
+  zh: 销售
+  es: ventas
+  fr: ventes
+  ru: продажи
+  ja: セールス
+  ko: 영업
+  it: vendite
+  tr: satış
+  vi: bán hàng
+  id: penjualan
+  pl: sprzedaż
+  nl: sales
+  ar: المبيعات
+  hi: सेल्स
+  th: การขาย
+  cs: prodej
+  sv: försäljning
+  he: מכירות
+  pt: vendas
+  verified_by_human: []
+customer_support:
+  context: Guest interest tag for customer support work
+  en: "customer support"
+  de: Kundensupport
+  zh: 客户支持
+  es: atención al cliente
+  fr: support client
+  ru: поддержка клиентов
+  ja: カスタマーサポート
+  ko: 고객 지원
+  it: assistenza clienti
+  tr: müşteri desteği
+  vi: hỗ trợ khách hàng
+  id: dukungan pelanggan
+  pl: obsługa klienta
+  nl: klantenservice
+  ar: دعم العملاء
+  hi: कस्टमर सपोर्ट
+  th: การสนับสนุนลูกค้า
+  cs: zákaznická podpora
+  sv: kundsupport
+  he: שירות לקוחות
+  pt: suporte ao cliente
+  verified_by_human: []
+research_analysis:
+  context: Guest interest tag for professional research and analysis
+  en: "research & analysis"
+  de: "Recherche & Analyse"
+  zh: 研究与分析
+  es: investigación y análisis
+  fr: recherche et analyse
+  ru: исследования и анализ
+  ja: リサーチ・分析
+  ko: 조사 및 분석
+  it: ricerca e analisi
+  tr: araştırma ve analiz
+  vi: "nghiên cứu & phân tích"
+  id: "riset & analisis"
+  pl: badania i analiza
+  nl: "onderzoek & analyse"
+  ar: البحث والتحليل
+  hi: रिसर्च और एनालिसिस
+  th: การวิจัยและการวิเคราะห์
+  cs: výzkum a analýza
+  sv: "research & analys"
+  he: מחקר וניתוח נתונים
+  pt: pesquisa e análise
+  verified_by_human: []
+data_spreadsheets:
+  context: Guest interest tag for data and spreadsheet work
+  en: "data & spreadsheets"
+  de: "Daten & Tabellen"
+  zh: 数据与电子表格
+  es: datos y hojas de cálculo
+  fr: données et tableurs
+  ru: данные и таблицы
+  ja: データ・スプレッドシート
+  ko: 데이터 및 스프레드시트
+  it: dati e fogli di calcolo
+  tr: veri ve e-tablolar
+  vi: "dữ liệu & bảng tính"
+  id: "data & spreadsheet"
+  pl: dane i arkusze kalkulacyjne
+  nl: "data & spreadsheets"
+  ar: البيانات والجداول الحسابية
+  hi: डेटा और स्प्रेडशीट
+  th: ข้อมูลและสเปรดชีต
+  cs: data a tabulky
+  sv: "data & kalkylblad"
+  he: נתונים וגיליונות אלקטרוניים
+  pt: dados e planilhas
+  verified_by_human: []
+legal_compliance:
+  context: Guest interest tag for legal and compliance work
+  en: "legal & compliance"
+  de: "Recht & Compliance"
+  zh: 法律与合规
+  es: legal y cumplimiento
+  fr: juridique et conformité
+  ru: право и комплаенс
+  ja: 法務・コンプライアンス
+  ko: 법률 및 컴플라이언스
+  it: legale e conformità
+  tr: hukuk ve uyumluluk
+  vi: "pháp lý & tuân thủ"
+  id: "hukum & kepatuhan"
+  pl: prawo i zgodność
+  nl: "juridisch & compliance"
+  ar: الشؤون القانونية والامتثال
+  hi: लीगल और कंप्लायंस
+  th: กฎหมายและการปฏิบัติตามกฎระเบียบ
+  cs: právo a compliance
+  sv: "juridik & regelefterlevnad"
+  he: משפטים ורגולציה
+  pt: jurídico e conformidade
+  verified_by_human: []
+events_networking:
+  context: Guest interest tag for professional events and networking
+  en: "events & networking"
+  de: "Events & Networking"
+  zh: 活动与社交
+  es: eventos y networking
+  fr: événements et réseautage
+  ru: мероприятия и нетворкинг
+  ja: イベント・ネットワーキング
+  ko: 이벤트 및 네트워킹
+  it: eventi e networking
+  tr: etkinlikler ve ağ kurma
+  vi: "sự kiện & kết nối mạng lưới"
+  id: "acara & jejaring"
+  pl: wydarzenia i networking
+  nl: "evenementen & netwerken"
+  ar: الفعاليات والتواصل
+  hi: इवेंट्स और नेटवर्किंग
+  th: กิจกรรมและการสร้างเครือข่าย
+  cs: akce a networking
+  sv: "evenemang & nätverkande"
+  he: אירועים ונטוורקינג
+  pt: eventos e networking
+  verified_by_human: []
+websites_online_shops:
+  context: Guest interest tag for websites and online shops
+  en: "websites & online shops"
+  de: "Websites & Onlineshops"
+  zh: 网站与网店
+  es: sitios web y tiendas online
+  fr: sites web et boutiques en ligne
+  ru: сайты и интернет-магазины
+  ja: ウェブサイト・オンラインショップ
+  ko: 웹사이트 및 온라인 쇼핑몰
+  it: siti web e negozi online
+  tr: web siteleri ve online mağazalar
+  vi: "website & cửa hàng trực tuyến"
+  id: "situs web & toko online"
+  pl: strony i sklepy internetowe
+  nl: "websites & webshops"
+  ar: المواقع والمتاجر الإلكترونية
+  hi: वेबसाइट और ऑनलाइन शॉप्स
+  th: เว็บไซต์และร้านค้าออนไลน์
+  cs: webové stránky a e-shopy
+  sv: "webbplatser & webbutiker"
+  he: אתרים וחנויות מקוונות
+  pt: websites e lojas online
+  verified_by_human: []
+automation_workflows:
+  context: Guest interest tag for automations and workflows
+  en: "automation & workflows"
+  de: "Automatisierung & Workflows"
+  zh: 自动化与工作流
+  es: automatización y flujos de trabajo
+  fr: automatisation et workflows
+  ru: автоматизация и рабочие процессы
+  ja: 自動化・ワークフロー
+  ko: 자동화 및 워크플로우
+  it: automazione e flussi di lavoro
+  tr: otomasyon ve iş akışları
+  vi: "tự động hóa & quy trình làm việc"
+  id: "otomatisasi & alur kerja"
+  pl: automatyzacja i procesy
+  nl: "automatisering & workflows"
+  ar: الأتمتة وسير العمل
+  hi: ऑटोमेशन और वर्कफ़्लो
+  th: ระบบอัตโนมัติและเวิร์กโฟลว์
+  cs: automatizace a workflow
+  sv: "automatisering & arbetsflöden"
+  he: אוטומציה ותהליכי עבודה
+  pt: automação e fluxos de trabalho
+  verified_by_human: []
+client_work_proposals:
+  context: Guest interest tag for client work and proposals
+  en: "client work & proposals"
+  de: "Kundenarbeit & Angebote"
+  zh: 客户工作与提案
+  es: trabajo con clientes y propuestas
+  fr: travail client et propositions
+  ru: работа с клиентами и предложения
+  ja: クライアントワーク・提案
+  ko: 클라이언트 업무 및 제안서
+  it: lavoro con i clienti e proposte
+  tr: müşteri işleri ve teklifler
+  vi: "công việc khách hàng & đề xuất"
+  id: "pekerjaan klien & proposal"
+  pl: praca z klientem i oferty
+  nl: "klantwerk & voorstellen"
+  ar: عمل العملاء والمقترحات
+  hi: क्लाइंट वर्क और प्रपोज़ल
+  th: งานลูกค้าและข้อเสนอโครงการ
+  cs: práce pro klienty a nabídky
+  sv: "kundarbete & offerter"
+  he: עבודה מול לקוחות והצעות מחיר
+  pt: trabalho com clientes e propostas
+  verified_by_human: []
+branding_images:
+  context: Guest interest tag for branding and image creation
+  en: "branding & images"
+  de: "Branding & Bilder"
+  zh: 品牌与图像
+  es: branding e imágenes
+  fr: branding et images
+  ru: брендинг и изображения
+  ja: ブランディング・画像
+  ko: 브랜딩 및 이미지
+  it: branding e immagini
+  tr: markalaşma ve görseller
+  vi: "thương hiệu & hình ảnh"
+  id: "branding & gambar"
+  pl: branding i grafika
+  nl: "branding & afbeeldingen"
+  ar: العلامة التجارية والصور
+  hi: ब्रांडिंग और इमेज
+  th: การสร้างแบรนด์และรูปภาพ
+  cs: branding a obrázky
+  sv: "branding & bilder"
+  he: מיתוג ותמונות
+  pt: branding e imagens
+  verified_by_human: []
+video_social_media:
+  context: Guest interest tag for video and social media work
+  en: "video & social media"
+  de: "Video & Social Media"
+  zh: 视频与社交媒体
+  es: video y redes sociales
+  fr: vidéo et réseaux sociaux
+  ru: видео и соцсети
+  ja: 動画・ソーシャルメディア
+  ko: 영상 및 소셜 미디어
+  it: video e social media
+  tr: video ve sosyal medya
+  vi: "video & mạng xã hội"
+  id: "video & media sosial"
+  pl: wideo i media społecznościowe
+  nl: "video & social media"
+  ar: الفيديو ووسائل التواصل الاجتماعي
+  hi: वीडियो और सोशल मीडिया
+  th: วิดีโอและโซเชียลมีเดีย
+  cs: video a sociální sítě
+  sv: "video & sociala medier"
+  he: וידאו ורשתות חברתיות
+  pt: vídeo e redes sociais
+  verified_by_human: []
+productivity_organization:
+  context: Guest interest tag for productivity and organization
+  en: "productivity & organization"
+  de: "Produktivität & Organisation"
+  zh: 生产力与组织
+  es: productividad y organización
+  fr: productivité et organisation
+  ru: продуктивность и организация
+  ja: 生産性・整理
+  ko: 생산성 및 정리
+  it: produttività e organizzazione
+  tr: üretkenlik ve organizasyon
+  vi: "năng suất & tổ chức"
+  id: "produktivitas & organisasi"
+  pl: produktywność i organizacja
+  nl: "productiviteit & organisatie"
+  ar: الإنتاجية والتنظيم
+  hi: प्रोडक्टिविटी और ऑर्गनाइजेशन
+  th: ประสิทธิภาพและการจัดระเบียบ
+  cs: produktivita a organizace
+  sv: "produktivitet & organisering"
+  he: פרודוקטיביות וארגון
+  pt: produtividade e organização
+  verified_by_human: []
+learning_new_skills:
+  context: Guest interest tag for learning new skills
+  en: "learning new skills"
+  de: Neue Skills lernen
+  zh: 学习新技能
+  es: aprender nuevas habilidades
+  fr: apprendre de nouvelles compétences
+  ru: обучение новым навыкам
+  ja: 新しいスキルの習得
+  ko: 새로운 기술 배우기
+  it: imparare nuove abilità
+  tr: yeni beceriler öğrenme
+  vi: học kỹ năng mới
+  id: belajar keterampilan baru
+  pl: nauka nowych umiejętności
+  nl: nieuwe vaardigheden leren
+  ar: تعلم مهارات جديدة
+  hi: नई स्किल्स सीखना
+  th: การเรียนรู้ทักษะใหม่ๆ
+  cs: učení se novým dovednostem
+  sv: lära sig nya färdigheter
+  he: למידת מיומנויות חדשות
+  pt: aprender novas habilidades
+  verified_by_human: []
+health_wellbeing:
+  context: Guest interest tag for health and wellbeing
+  en: "health & wellbeing"
+  de: "Gesundheit & Wohlbefinden"
+  zh: 健康与福祉
+  es: salud y bienestar
+  fr: santé et bien-être
+  ru: здоровье и благополучие
+  ja: 健康・ウェルビーイング
+  ko: 건강 및 웰빙
+  it: salute e benessere
+  tr: sağlık ve esenlik
+  vi: "sức khỏe & hạnh phúc"
+  id: "kesehatan & kesejahteraan"
+  pl: zdrowie i dobrostan
+  nl: "gezondheid & welzijn"
+  ar: الصحة والرفاهية
+  hi: हेल्थ और वेलबीइंग
+  th: สุขภาพและความเป็นอยู่ที่ดี
+  cs: zdraví a wellbeing
+  sv: "hälsa & välbefinnande"
+  he: בריאות ורווחה אישית
+  pt: saúde e bem-estar
+  verified_by_human: []
+find_trains_flights:
+  context: Guest interest tag for finding train and flight connections
+  en: "find trains & flights"
+  de: "Züge & Flüge finden"
+  zh: 寻找火车与航班
+  es: buscar trenes y vuelos
+  fr: trouver des trains et des vols
+  ru: поиск поездов и авиарейсов
+  ja: 電車・フライトを探す
+  ko: 기차 및 항공편 찾기
+  it: trovare treni e voli
+  tr: tren ve uçuş bulma
+  vi: "tìm tàu hỏa & chuyến bay"
+  id: "cari kereta & penerbangan"
+  pl: znajdź pociągi i loty
+  nl: "treinen & vluchten vinden"
+  ar: البحث عن قطارات ورحلات طيران
+  hi: ट्रेन और फ्लाइट खोजें
+  th: ค้นหารถไฟและเที่ยวบิน
+  cs: hledání vlaků a letů
+  sv: "hitta tåg & flyg"
+  he: חיפוש רכבות וטיסות
+  pt: encontrar trens e voos
+  verified_by_human: []
+find_restaurants_cafes:
+  context: Guest interest tag for finding restaurants and cafes
+  en: "find restaurants & cafes"
+  de: "Restaurants & Cafés finden"
+  zh: 寻找餐厅与咖啡馆
+  es: buscar restaurantes y cafeterías
+  fr: trouver des restaurants et des cafés
+  ru: поиск ресторанов и кафе
+  ja: レストラン・カフェを探す
+  ko: 맛집 및 카페 찾기
+  it: trovare ristoranti e caffè
+  tr: restoran ve kafe bulma
+  vi: "tìm nhà hàng & quán cà phê"
+  id: "cari restoran & kafe"
+  pl: znajdź restauracje i kawiarnie
+  nl: "restaurants & cafés vinden"
+  ar: البحث عن مطاعم ومقاهٍ
+  hi: रेस्टोरेंट और कैफे खोजें
+  th: ค้นหาร้านอาหารและคาเฟ่
+  cs: hledání restaurací a kaváren
+  sv: "hitta restauranger & kaféer"
+  he: חיפוש מסעדות ובתי קפה
+  pt: encontrar restaurantes e cafés
+  verified_by_human: []
+personal_finances:
+  context: Guest interest tag for personal finances
+  en: "personal finances"
+  de: Private Finanzen
+  zh: 个人理财
+  es: finanzas personales
+  fr: finances personnelles
+  ru: личные финансы
+  ja: 個人財務
+  ko: 개인 재무
+  it: finanze personali
+  tr: kişisel finans
+  vi: tài chính cá nhân
+  id: keuangan pribadi
+  pl: finanse osobiste
+  nl: persoonlijke financiën
+  ar: التمويل الشخصي
+  hi: पर्सनल फाइनेंस
+  th: การเงินส่วนบุคคล
+  cs: osobní finance
+  sv: privatekonomi
+  he: פיננסים אישיים
+  pt: finanças pessoais
+  verified_by_human: []
+cooking_meal_planning:
+  context: Guest interest tag for cooking and meal planning
+  en: "cooking & meal planning"
+  de: "Kochen & Essensplanung"
+  zh: 烹饪与膳食计划
+  es: cocina y planificación de comidas
+  fr: cuisine et planification de repas
+  ru: кулинария и планирование питания
+  ja: 料理・献立作成
+  ko: 요리 및 식단 계획
+  it: cucina e pianificazione dei pasti
+  tr: yemek pişirme ve öğün planlama
+  vi: "nấu ăn & lập kế hoạch bữa ăn"
+  id: "memasak & perencanaan makan"
+  pl: gotowanie i planowanie posiłków
+  nl: "koken & maaltijdplanning"
+  ar: الطبخ وتخطيط الوجبات
+  hi: कुकिंग और मील प्लानिंग
+  th: การทำอาหารและการวางแผนมื้ออาหาร
+  cs: vaření a plánování jídel
+  sv: "matlagning & måltidsplanering"
+  he: בישול ותכנון ארוחות
+  pt: cozinhar e planejamento de refeições
+  verified_by_human: []
+news_current_events:
+  context: Guest interest tag for news and current events
+  en: "news & current events"
+  de: "News & Zeitgeschehen"
+  zh: 新闻与时事
+  es: noticias y actualidad
+  fr: actualités et événements
+  ru: новости и текущие события
+  ja: ニュース・時事
+  ko: 뉴스 및 시사
+  it: notizie e attualità
+  tr: haberler ve güncel olaylar
+  vi: "tin tức & sự kiện thời sự"
+  id: "berita & peristiwa terkini"
+  pl: wiadomości i aktualności
+  nl: "nieuws & actualiteiten"
+  ar: الأخبار والأحداث الجارية
+  hi: न्यूज़ और करंट इवेंट्स
+  th: ข่าวและเหตุการณ์ปัจจุบัน
+  cs: zprávy a aktuální dění
+  sv: "nyheter & aktuella händelser"
+  he: חדשות ואקטואליה
+  pt: notícias e atualidades
+  verified_by_human: []
+diy_electronics:
+  context: Guest interest tag for DIY and electronics projects
+  en: "DIY & electronics"
+  de: "DIY & Elektronik"
+  zh: DIY 与电子产品
+  es: bricolaje y electrónica
+  fr: bricolage et électronique
+  ru: DIY и электроника
+  ja: DIY・電子工作
+  ko: DIY 및 전자공학
+  it: fai da te ed elettronica
+  tr: kendin yap ve elektronik
+  vi: "DIY & điện tử"
+  id: "DIY & elektronik"
+  pl: DIY i elektronika
+  nl: "DIY & elektronica"
+  ar: الأعمال اليدوية والإلكترونيات
+  hi: DIY और इलेक्ट्रॉनिक्स
+  th: DIY และอิเล็กทรอนิกส์
+  cs: DIY a elektronika
+  sv: "DIY & elektronik"
+  he: עשה זאת בעצמך ואלקטרוניקה
+  pt: DIY e eletrônica
+  verified_by_human: []
+privacy_personal_data:
+  context: Guest interest tag for privacy and personal data
+  en: "privacy & personal data"
+  de: "Datenschutz & persönliche Daten"
+  zh: 隐私与个人数据
+  es: privacidad y datos personales
+  fr: confidentialité et données personnelles
+  ru: конфиденциальность и личные данные
+  ja: プライバシー・個人データ
+  ko: 개인정보 및 데이터
+  it: privacy e dati personali
+  tr: gizlilik ve kişisel veriler
+  vi: "quyền riêng tư & dữ liệu cá nhân"
+  id: "privasi & data pribadi"
+  pl: prywatność i dane osobowe
+  nl: "privacy & persoonsgegevens"
+  ar: الخصوصية والبيانات الشخصية
+  hi: प्राइवेसी और पर्सनल डेटा
+  th: ความเป็นส่วนตัวและข้อมูลส่วนบุคคล
+  cs: soukromí a osobní údaje
+  sv: "integritet & personuppgifter"
+  he: פרטיות ומידע אישי
+  pt: privacidade e dados pessoais
   verified_by_human: []

@@ -123,6 +123,7 @@ test.describe('App: Health / Skill: search_appointments', () => {
 		await resultCards.first().click();
 		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint);
 
+		await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay').last());
 		await closeFullscreen(page, fullscreenOverlay);
 		await verifySavedMemoryEntry(page, 'health', 'appointments', savedTitle, logCheckpoint);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'health-appointments');

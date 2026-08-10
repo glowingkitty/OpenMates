@@ -52,6 +52,8 @@
     uploadError?: string;
     /** Whether to use mobile layout */
     isMobile?: boolean;
+    /** Local-only anonymous PDF preview; no backend screenshot/fullscreen exists yet. */
+    needsSignup?: boolean;
     /** Called when the user clicks the stop button during upload */
     onStop?: () => void;
     /**
@@ -68,6 +70,7 @@
     pageCount,
     uploadError,
     isMobile = false,
+    needsSignup = false,
     onStop,
     onFullscreen,
   }: Props = $props();
@@ -302,6 +305,7 @@
       return $text('app_skills.pdf.view.processing');
     }
     if (status === 'finished') {
+      if (needsSignup) return $text('app_skills.pdf.view.signup_to_upload');
       if (pc && pc > 0) {
         return pc === 1 ? '1 page' : `${pc} pages`;
       }
@@ -311,7 +315,7 @@
   });
 
   let showStop = $derived((status === 'uploading' || status === 'processing') && !!onStop);
-  let handleFullscreen = $derived(status === 'finished' ? onFullscreen : undefined);
+  let handleFullscreen = $derived(status === 'finished' && !needsSignup ? onFullscreen : undefined);
 </script>
 
 <UnifiedEmbedPreview

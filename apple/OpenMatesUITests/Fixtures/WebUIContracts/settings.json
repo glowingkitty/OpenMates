@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 1,
+  "surface": "settings",
+  "generatedAt": "2026-07-11T00:00:00Z",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "states": [
+    {
+      "id": "authenticated-root-expanded",
+      "description": "Authenticated compact settings root with the profile header fully expanded.",
+      "elements": [
+        {
+          "semanticId": "authenticated-settings-root",
+          "testId": "settings-menu",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "childTestIds": [
+              "settings-banner-shell",
+              "credits-row",
+              "credits-amount",
+              "incognito-toggle-wrapper",
+              "learning-mode-toggle-wrapper"
+            ]
+          },
+          "computedStyle": {
+            "display": "flex",
+            "width": "323px",
+            "border-radius": "17px"
+          },
+          "boundingBox": {
+            "width": 323,
+            "height": 769
+          }
+        },
+        {
+          "semanticId": "settings-root-header",
+          "testId": "settings-banner-shell",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "childTestIds": ["credits-row", "credits-amount"]
+          },
+          "computedStyle": {
+            "width": "323px",
+            "height": "190px"
+          },
+          "boundingBox": {
+            "width": 323,
+            "height": 190
+          }
+        },
+        {
+          "semanticId": "settings-close-button",
+          "testId": "icon-button-close",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {"childTestIds": []},
+          "computedStyle": {"display": "flex"}
+        },
+        {
+          "semanticId": "settings-credits-row",
+          "testId": "credits-row",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "classList": ["credits-container", "credits-row"],
+            "childTestIds": ["credits-amount"]
+          },
+          "computedStyle": {"display": "flex"}
+        },
+        {
+          "semanticId": "settings-incognito-row",
+          "testId": "incognito-toggle-wrapper",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {"childTestIds": []},
+          "computedStyle": {"display": "block"}
+        },
+        {
+          "semanticId": "settings-learning-mode-row",
+          "testId": "learning-mode-toggle-wrapper",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {"childTestIds": []},
+          "computedStyle": {"display": "block"}
+        }
+      ]
+    },
+    {
+      "id": "authenticated-root-collapsed",
+      "description": "Authenticated compact settings root after scrolling collapses the profile header.",
+      "elements": [
+        {
+          "semanticId": "authenticated-settings-root",
+          "testId": "settings-menu",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {"childTestIds": ["settings-banner-shell", "credits-row"]},
+          "computedStyle": {"display": "flex", "width": "323px"}
+        },
+        {
+          "semanticId": "settings-root-header",
+          "testId": "settings-banner-shell",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {"childTestIds": ["credits-row", "credits-amount"]},
+          "computedStyle": {"width": "323px", "height": "72px"},
+          "boundingBox": {"width": 323, "height": 72}
+        },
+        {
+          "semanticId": "settings-close-button",
+          "testId": "icon-button-close",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {"childTestIds": []},
+          "computedStyle": {"display": "flex"}
+        },
+        {
+          "semanticId": "settings-credits-row",
+          "testId": "credits-row",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "classList": ["credits-container", "credits-row", "credits-row-collapsed"],
+            "childTestIds": ["credits-amount"]
+          },
+          "computedStyle": {"display": "flex"}
+        },
+        {
+          "semanticId": "settings-incognito-row",
+          "testId": "incognito-toggle-wrapper",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {"childTestIds": []},
+          "computedStyle": {"display": "block"}
+        },
+        {
+          "semanticId": "settings-learning-mode-row",
+          "testId": "learning-mode-toggle-wrapper",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {"childTestIds": []},
+          "computedStyle": {"display": "block"}
+        }
+      ]
+    },
+    {
+      "id": "account-destination-header",
+      "description": "Representative authenticated Account destination with its compact settings header.",
+      "elements": [
+        {
+          "semanticId": "account-settings-destination",
+          "testId": "settings-menu",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {"childTestIds": ["settings-banner-shell"]},
+          "computedStyle": {"display": "flex", "width": "323px"}
+        },
+        {
+          "semanticId": "settings-destination-header",
+          "testId": "settings-banner-shell",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {"childTestIds": []},
+          "computedStyle": {"width": "323px", "height": "190px"},
+          "boundingBox": {"width": 323, "height": 190}
+        },
+        {
+          "semanticId": "settings-close-button",
+          "testId": "icon-button-close",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {"childTestIds": []},
+          "computedStyle": {"display": "flex"}
+        }
+      ]
+    }
+  ]
+}

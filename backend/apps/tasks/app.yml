@@ -1,0 +1,113 @@
+name_translation_key: tasks
+description_translation_key: tasks.description
+icon_image: task.svg
+category: productivity
+last_updated: "2026-07-15"
+settings_and_memories: []
+embed_types:
+  - id: create
+    category: app-skill-use
+    skill_id: create
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: task
+    child_frontend_type: tasks-task
+    groupable: true
+    preview_component: tasks/TaskCreateEmbedPreview.svelte
+    fullscreen_component: tasks/TaskCreateEmbedFullscreen.svelte
+    child_preview_component: tasks/TaskEmbedPreview.svelte
+    child_fullscreen_component: tasks/TaskEmbedFullscreen.svelte
+    icon: task
+    gradient_var: "--color-app-tasks"
+    i18n_namespace: embeds.tasks.create
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: task
+    child_frontend_type: tasks-task
+    groupable: true
+    preview_component: tasks/TaskSearchEmbedPreview.svelte
+    fullscreen_component: tasks/TaskSearchEmbedFullscreen.svelte
+    child_preview_component: tasks/TaskEmbedPreview.svelte
+    child_fullscreen_component: tasks/TaskEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-tasks"
+    i18n_namespace: embeds.tasks.search
+instructions:
+  - instruction: |
+      **Task Skills**
+      - Use Tasks create when the user asks to create, capture, or break down trackable work.
+      - If the user does not clearly assign execution to OpenMates, create tasks assigned to the user.
+      - Only work on tasks assigned to OpenMates.
+      - Use Tasks search when the user asks to find existing tasks; private task search requires a connected capable client.
+skills:
+  - id: create
+    name_translation_key: tasks.skills.create
+    description_translation_key: tasks.skills.create.description
+    icon_image: task.svg
+    preprocessor_hint: >
+      Create one or more user-visible tasks. Use this for planning, task capture,
+      or breaking a request into trackable work. Default unclear assignees to the user.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    class_path: backend.apps.tasks.skills.create_skill.CreateSkill
+    tool_schema:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                type: string
+              description:
+                type: string
+              assignee:
+                type: string
+                enum:
+                  - user
+                  - openmates
+              status:
+                type: string
+                enum:
+                  - backlog
+                  - todo
+                  - in_progress
+                  - blocked
+        title:
+          type: string
+          description: Single-task title when not using tasks[].
+        description:
+          type: string
+        assignee:
+          type: string
+          enum:
+            - user
+            - openmates
+      required: []
+
+  - id: search
+    name_translation_key: tasks.skills.search
+    description_translation_key: tasks.skills.search.description
+    icon_image: search.svg
+    preprocessor_hint: >
+      Search the user's encrypted tasks through a connected capable client. Do
+      not use server-visible metadata as a private task-content search fallback.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    class_path: backend.apps.tasks.skills.search_skill.SearchSkill
+    tool_schema:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Private task text to search for on a connected client.
+      required:
+        - query

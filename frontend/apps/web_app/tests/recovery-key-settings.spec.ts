@@ -164,12 +164,26 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	await takeStepScreenshot(page, 'settings-open');
 	logCheckpoint('Opened settings menu.');
 
-	// Navigate: Account -> Security -> Recovery Key
+	// Navigate: Account -> Security -> Password. This catches regressions where
+	// auth capability discovery is accidentally hidden behind optional billing.
 	await page.getByRole('menuitem', { name: /account/i }).click();
 	logCheckpoint('Navigated to Account settings.');
 
 	await page.getByRole('menuitem', { name: /security/i }).click();
 	logCheckpoint('Navigated to Security settings.');
+
+	const authMethodsResponse = page.waitForResponse(
+		(response: any) => response.url().endsWith('/v1/auth/methods') && response.request().method() === 'GET'
+	);
+	await page.getByRole('menuitem', { name: /^password/i }).click();
+	const authMethods = await authMethodsResponse;
+	expect(authMethods.ok(), `Auth methods request failed with ${authMethods.status()}`).toBe(true);
+	await expect(page.getByTestId('password-settings-container')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('password-settings-error')).toHaveCount(0);
+	logCheckpoint('Password settings loaded from the core auth endpoint.');
+
+	await page.getByTestId('banner-back-button').first().click();
+	await expect(page.getByRole('menuitem', { name: /recovery.*key/i })).toBeVisible({ timeout: 10000 });
 
 	await page.getByRole('menuitem', { name: /recovery.*key/i }).click();
 	await takeStepScreenshot(page, 'recovery-key-overview');

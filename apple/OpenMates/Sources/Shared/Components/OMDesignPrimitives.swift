@@ -48,8 +48,8 @@ extension EnvironmentValues {
 // `.message-field`, `.message-field.inline-compact`, and ActionButtons slot.
 
 struct OMMessageInputField<ActionButtons: View>: View {
-    @Binding var text: String
-    let isFocused: FocusState<Bool>.Binding
+    @ObservedObject var session: NativeComposerSession
+    let isFocused: Binding<Bool>
     let compact: Bool
     let placeholder: String
     var compactHeight: CGFloat = 48
@@ -57,6 +57,9 @@ struct OMMessageInputField<ActionButtons: View>: View {
     var showActionButtonsWhenCompact = false
     var expandedMinHeight: CGFloat = 100
     var accessibilityHint: String
+    var isComposerEditable = true
+    var piiDecorations: [NativeComposerPIIDecoration] = []
+    var onExcludePII: (String) -> Void = { _ in }
     var inlineFieldContent: AnyView? = nil
     var overlayContent: AnyView? = nil
     var onSubmit: () -> Void
@@ -70,13 +73,19 @@ struct OMMessageInputField<ActionButtons: View>: View {
         compact ? compactHeight : expandedMinHeight
     }
 
-    private var resolvedFieldHeight: CGFloat? {
+    private var fieldMaxHeight: CGFloat {
+        compact ? compactHeight : max(expandedMinHeight, MessageComposerMetric.expandedMaxHeight)
+    }
+
+    private var resolvedFieldHeight: CGFloat {
         if compact { return compactHeight }
-        if inlineFieldContent != nil { return nil }
-        if text.isEmpty && expandedMinHeight <= MessageComposerMetric.focusedEmptyHeight {
-            return MessageComposerMetric.focusedEmptyHeight
+        if expandedMinHeight > MessageComposerMetric.focusedEmptyHeight {
+            return expandedMinHeight
         }
-        return nil
+        if session.controller.document.nodes.contains(where: { $0.kind == "embed" }) {
+            return fieldMaxHeight
+        }
+        return MessageComposerMetric.focusedEmptyHeight
     }
 
     private var cornerRadius: CGFloat {
@@ -108,16 +117,32 @@ struct OMMessageInputField<ActionButtons: View>: View {
                         .padding(.top, compact ? .spacing2 : .spacing4)
                 }
 
-                TiptapComposerWebView(
-                    text: $text,
+                NativeComposerEditorView(
+                    session: session,
                     isFocused: isFocused,
-                    compact: compact,
-                    placeholder: placeholder,
-                    minHeight: textEditorMinHeight,
+                    isEditable: isComposerEditable,
                     accessibilityHint: accessibilityHint,
+                    piiDecorations: piiDecorations,
+                    onExcludePII: onExcludePII,
                     onSubmit: onSubmit
                 )
+                .accessibilityIdentifier("message-editor")
+                .overlay(alignment: compact ? .center : .topLeading) {
+                    if MessageComposerPresentation.showsPlaceholder(
+                        markdown: session.canonicalMarkdown,
+                        isFocused: isFocused.wrappedValue
+                    ) {
+                        Text(placeholder)
+                            .font(.omP)
+                            .foregroundStyle(Color.fontSecondary)
+                            .padding(.horizontal, .spacing4)
+                            .padding(.vertical, compact ? 0 : .spacing6)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
+                }
                 .padding(.top, inlineFieldContent == nil ? 0 : .spacing2)
+                .padding(.bottom, compact ? 0 : expandedBottomPadding)
                 .frame(maxWidth: .infinity, minHeight: textEditorMinHeight, alignment: compact ? .center : .topLeading)
             }
             .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: compact ? .center : .topLeading)
@@ -129,11 +154,18 @@ struct OMMessageInputField<ActionButtons: View>: View {
             }
 
             if let overlayContent {
-                overlayContent
+                ZStack(alignment: .topTrailing) {
+                    overlayContent
+                }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .zIndex(3)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: fieldHeight, maxHeight: resolvedFieldHeight)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: resolvedFieldHeight,
+            maxHeight: resolvedFieldHeight
+        )
         .background(Color.greyBlue)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
@@ -159,6 +191,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
 struct OMToggle: View {
     @Binding var isOn: Bool
     var disabled = false
+    var accessibilityIdentifier = ""
 
     private let trackWidth: CGFloat = 52
     private let trackHeight: CGFloat = 32
@@ -208,6 +241,7 @@ struct OMToggle: View {
         .allowsHitTesting(!disabled)
         .accessibilityAddTraits(.isToggle)
         .accessibilityValue(isOn ? "On" : "Off")
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }
 

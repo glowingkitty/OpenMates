@@ -15,6 +15,14 @@ struct ServerProfile: Equatable, Codable {
     let webSocketBaseURL: URL
     let uploadBaseURL: URL
 
+    var diagnosticsKind: String {
+        switch id {
+        case "production": return "production"
+        case "development": return "development"
+        default: return "self_hosted"
+        }
+    }
+
     var endpointConfiguration: ServerEndpointConfiguration {
         ServerEndpointConfiguration(
             selectedDomain: displayDomain,
@@ -28,6 +36,26 @@ struct ServerProfile: Equatable, Codable {
     static func custom(domain: String) -> ServerProfile {
         let normalized = ServerEndpointConfiguration.normalizedDomain(domain)
         return ServerProfile(domain: normalized, id: "custom:\(normalized)")
+    }
+
+    static func validatedSelfHostedURL(_ rawValue: String) throws -> ServerProfile {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.lowercased().hasPrefix("http://") else {
+            throw ServerProfileValidationError.invalidHTTPSURL
+        }
+        let urlString = trimmed.lowercased().hasPrefix("https://") ? trimmed : "https://\(trimmed)"
+        guard let components = URLComponents(string: urlString),
+              components.scheme == "https",
+              components.host?.isEmpty == false,
+              components.user == nil,
+              components.password == nil,
+              components.port == nil,
+              components.path.isEmpty || components.path == "/",
+              components.query == nil,
+              components.fragment == nil else {
+            throw ServerProfileValidationError.invalidHTTPSURL
+        }
+        return custom(domain: components.host ?? "")
     }
 
     static func current() -> ServerProfile {
@@ -103,6 +131,40 @@ struct ServerProfile: Equatable, Codable {
 
     private static func uploadBaseURL(for id: String, apiBaseURL: URL) -> URL {
         id == "production" ? ServerEndpointConfiguration.uploadBaseURL : apiBaseURL
+    }
+}
+
+enum ServerProfileValidationError: Error {
+    case invalidHTTPSURL
+}
+
+struct WatchServerProfileStore {
+    private static let successfulProfileKey = "openmates.watch.successfulServerProfile"
+
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    func currentProfile() -> ServerProfile {
+        guard let data = defaults.data(forKey: Self.successfulProfileKey),
+              let profile = try? JSONDecoder().decode(ServerProfile.self, from: data) else {
+            return .production
+        }
+        return profile
+    }
+
+    func saveSuccessfulProfile(_ profile: ServerProfile) {
+        guard profile != .production, let data = try? JSONEncoder().encode(profile) else {
+            resetToProduction()
+            return
+        }
+        defaults.set(data, forKey: Self.successfulProfileKey)
+    }
+
+    func resetToProduction() {
+        defaults.removeObject(forKey: Self.successfulProfileKey)
     }
 }
 

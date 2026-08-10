@@ -85,6 +85,8 @@ function summarizeJsonToolBlocks(content: string): string {
 			const payload = JSON.parse(match[1]);
 			if (payload?.type === 'app_skill_use' && payload.app_id && payload.skill_id) {
 				summaries.push(`Used ${payload.app_id}.${payload.skill_id} to retrieve app results.`);
+			} else if (payload?.type === 'notebook' && payload.embed_id) {
+				summaries.push('Created the requested Jupyter notebook artifact.');
 			}
 		} catch {
 			continue;

@@ -15,10 +15,51 @@ const defaultProps = {
   onFullscreen: () => {},
 };
 
+const MEDIA_TEST_KEY = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
+const MEDIA_TEST_NONCE = "AAECAwQFBgcICQoL";
+const mediaFile = {
+  width: 64,
+  height: 64,
+  size_bytes: 0,
+  format: "png",
+};
+
 export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  /** Frozen legacy external-nonce reader contract for deployed E2E coverage. */
+  legacyEncrypted: {
+    ...defaultProps,
+    id: "preview-image-embed-legacy-encrypted",
+    filename: "legacy-encrypted.png",
+    s3BaseUrl: "https://fixture.invalid",
+    s3Files: {
+      preview: {
+        ...mediaFile,
+        s3_key: "e2e/media-encryption/legacy.png",
+      },
+    },
+    aesKey: MEDIA_TEST_KEY,
+    aesNonce: MEDIA_TEST_NONCE,
+  },
+
+  /** Explicit nonce-prefixed v2 reader contract for deployed E2E coverage. */
+  v2Encrypted: {
+    ...defaultProps,
+    id: "preview-image-embed-v2-encrypted",
+    filename: "v2-encrypted.png",
+    s3BaseUrl: "https://fixture.invalid",
+    s3Files: {
+      preview: {
+        ...mediaFile,
+        s3_key: "e2e/media-encryption/v2.png",
+        encryption: "aes-gcm-nonce-prefixed-v1",
+      },
+    },
+    aesKey: MEDIA_TEST_KEY,
+  },
+
   /** Uploading state */
   uploading: {
     ...defaultProps,

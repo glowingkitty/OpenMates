@@ -1,0 +1,239 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-18'
+generated_at: '2026-07-09T15:21:06+00:00'
+range:
+  since: '2026-05-18T00:00:00+00:00'
+  until: '2026-05-18T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 2
+  section_counts:
+    features: 0
+    bug_fixes: 2
+    improvements: 0
+    docs: 0
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 1
+  user_facing_items: 1
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: search shared uploaded embeds'
+    section: bug_fixes
+    commits:
+    - 9219a3838
+    authored_at: '2026-05-18T06:46:27+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: recover multiline code embeds'
+    section: bug_fixes
+    commits:
+    - 6635075a7
+    authored_at: '2026-05-18T06:20:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedResolver.test.ts
+    - frontend/packages/ui/src/services/embedResolver.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: search shared uploaded embeds'
+    commits:
+    - 9219a3838
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: search shared uploaded embeds'
+    commits:
+    - 9219a3838
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 9219a3838a7e2c722e48add97ba8fbc891436692
+    short_sha: 9219a3838
+    authored_at: '2026-05-18T06:46:27+00:00'
+    subject: 'fix: search shared uploaded embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 6635075a78cdd9023e887fe7aafc40a9b74cd6a5
+    short_sha: 6635075a7
+    authored_at: '2026-05-18T06:20:34+00:00'
+    subject: 'fix: recover multiline code embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedResolver.test.ts
+    - frontend/packages/ui/src/services/embedResolver.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates improved the reliability and discoverability of shared content by fixing search suggestions for uploaded
+    embeds and resolving issues with multiline code recovery.
+  released_changes: []
+  bug_fixes:
+  - text: OpenMates fixed an issue where shared uploaded embeds were not appearing in chat search suggestions.
+    evidence:
+      commits:
+      - 9219a3838
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: The project addressed an internal logic error to ensure multiline code embeds are recovered correctly.
+    evidence:
+      commits:
+      - 6635075a7
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Search shared uploaded embeds
+      evidence:
+        commits:
+        - 9219a3838
+      reason: This fix improves the discoverability of shared content and is ready for public communication.
+    exclude:
+    - text: Recover multiline code embeds
+      evidence:
+        commits:
+        - 6635075a7
+      reason: This fix is classified as not user-facing.
+    rationale: The update focuses on refining the search experience for shared content, which is a key user-facing improvement.
+  social_video_recommendations:
+  - idea: A short clip demonstrating how shared uploaded embeds now appear instantly in search suggestions.
+    priority: medium
+    reason: This highlights a tangible improvement to the collaborative search experience.
+    evidence:
+      commits:
+      - 9219a3838
+  quality_notes:
+  - The updates focus on the stability of the embed system and the accuracy of search indexing for shared assets.
+  validation_warnings: []

@@ -6,6 +6,20 @@ import { EmbedNodeAttributes } from "./types";
 // Special marker to indicate a duplicate embed reference that should be removed from the document
 const DUPLICATE_EMBED_MARKER = Symbol("DUPLICATE_EMBED");
 const PROTOCOL_EMBED_MARKER = Symbol("PROTOCOL_EMBED");
+const PROTOCOL_JSON_QUOTE = String.raw`["\u201c\u201d]`;
+const PROTOCOL_JSON_NOT_QUOTE = String.raw`[^"\u201c\u201d]*`;
+const PROTOCOL_JSON_TYPE_PATTERN = new RegExp(
+  `${PROTOCOL_JSON_QUOTE}type${PROTOCOL_JSON_QUOTE}` +
+    String.raw`\s*:\s*` +
+    `${PROTOCOL_JSON_QUOTE}(?:app[-_]skill[-_]use|sub[-_]chat[-_]batch)${PROTOCOL_JSON_QUOTE}`,
+);
+const PROTOCOL_JSON_EMBED_ID_PATTERN = new RegExp(
+  `${PROTOCOL_JSON_QUOTE}embed_id${PROTOCOL_JSON_QUOTE}` +
+    String.raw`\s*:\s*` +
+    `${PROTOCOL_JSON_QUOTE}([a-f0-9-]+)${PROTOCOL_JSON_QUOTE}`,
+  "i",
+);
+const INTERACTIVE_QUESTION_LANGUAGE = "interactive_question";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // TipTap document structure types (loosely typed to accommodate various node types)
@@ -420,6 +434,10 @@ function findMatchingEmbedForCodeBlock(
   | null {
   // Extract text content from the code block
   const codeText = codeBlockNode.content?.[0]?.text || "";
+  const codeBlockLanguage = codeBlockNode.attrs?.language;
+  const normalizedCodeBlockLanguage = typeof codeBlockLanguage === "string"
+    ? codeBlockLanguage.trim().split(/\s+/, 1)[0].toLowerCase()
+    : "";
 
   console.debug("[findMatchingEmbedForCodeBlock] Checking code block:", {
     codeText: codeText.substring(0, 100),
@@ -431,11 +449,39 @@ function findMatchingEmbedForCodeBlock(
     return null;
   }
 
+  if (normalizedCodeBlockLanguage === "embeds_map_view" || normalizedCodeBlockLanguage === "embeds_results_view") {
+    const matchingMapView = embedNodes.find(
+      (node) => node.type === "embeds-map-view",
+    );
+    if (matchingMapView) {
+      embedNodes.splice(embedNodes.indexOf(matchingMapView), 1);
+      return matchingMapView;
+    }
+    if (mode === "read") {
+      return PROTOCOL_EMBED_MARKER;
+    }
+  }
+
   // Try to parse as JSON to check if it's an embed reference
   try {
     const parsed = JSON.parse(codeText.trim());
 
     console.debug("[findMatchingEmbedForCodeBlock] Parsed JSON:", parsed);
+
+    if (parsed.type === "sub_chat_batch" && parsed.batch_id) {
+      const renderedBatchKey = `sub-chat-batch:${parsed.batch_id}`;
+      if (renderedEmbedIds.has(renderedBatchKey)) {
+        return DUPLICATE_EMBED_MARKER;
+      }
+      const matchingBatch = embedNodes.find(
+        (node) => node.contentRef === renderedBatchKey,
+      );
+      if (matchingBatch) {
+        renderedEmbedIds.add(renderedBatchKey);
+        return matchingBatch;
+      }
+      if (mode === "read") return PROTOCOL_EMBED_MARKER;
+    }
 
     // Check if this is an embed reference with type and embed_id
     if (parsed.type && parsed.embed_id) {
@@ -509,6 +555,14 @@ function findMatchingEmbedForCodeBlock(
       }
     }
   } catch {
+    if (
+      mode === "read" &&
+      normalizedCodeBlockLanguage === "json" &&
+      PROTOCOL_JSON_TYPE_PATTERN.test(codeText)
+    ) {
+      return PROTOCOL_EMBED_MARKER;
+    }
+
     // Not JSON, might be a regular code block - this is expected for actual code blocks
     console.debug(
       "[findMatchingEmbedForCodeBlock] Not JSON, treating as code block",
@@ -519,8 +573,6 @@ function findMatchingEmbedForCodeBlock(
   // Match by checking if there's a code-code embed with similar content
   const codeEmbeds = embedNodes.filter((node) => node.type === "code-code");
   if (codeEmbeds.length > 0) {
-    const codeBlockLanguage = codeBlockNode.attrs?.language;
-
     // For preview embeds (contentRef starts with 'preview:'), match by language AND code content
     // For real embeds, match by language only (content is in EmbedStore)
     const matchingCodeEmbed = codeEmbeds.find((embed) => {
@@ -567,6 +619,13 @@ function findMatchingEmbedForCodeBlock(
       const index = embedNodes.indexOf(matchingCodeEmbed);
       if (index > -1) {
         embedNodes.splice(index, 1);
+      }
+      if (normalizedCodeBlockLanguage === INTERACTIVE_QUESTION_LANGUAGE) {
+        return {
+          ...matchingCodeEmbed,
+          code: codeText.trim(),
+          language: matchingCodeEmbed.language || normalizedCodeBlockLanguage,
+        };
       }
       return matchingCodeEmbed;
     }
@@ -794,7 +853,7 @@ function removeRenderedJsonEmbedReferences(
 
   while ((fencedMatch = fencedJsonRegex.exec(text)) !== null) {
     const fencedBlock = fencedMatch[0];
-    const embedIdMatch = fencedBlock.match(/"embed_id"\s*:\s*"([a-f0-9-]+)"/i);
+    const embedIdMatch = fencedBlock.match(PROTOCOL_JSON_EMBED_ID_PATTERN);
     if (embedIdMatch && renderedEmbedIds.has(embedIdMatch[1])) {
       fencedMatches.push({
         fullMatch: fencedBlock,
@@ -827,8 +886,18 @@ function removeRenderedJsonEmbedReferences(
   // Match JSON objects that look like embed references: {"type": "...", "embed_id": "uuid"}
   // This regex matches JSON-like strings with type and embed_id fields
   // We use a non-greedy match to handle multiple references in the same text
-  const jsonEmbedRefRegex =
-    /\{[\s]*"type"[\s]*:[\s]*"[^"]*"[\s]*,[\s]*"embed_id"[\s]*:[\s]*"([a-f0-9-]+)"[\s]*(?:,[\s]*[^}]*)?\}/gi;
+  const jsonEmbedRefRegex = new RegExp(
+    String.raw`\{[\s]*` +
+      `${PROTOCOL_JSON_QUOTE}type${PROTOCOL_JSON_QUOTE}` +
+      String.raw`[\s]*:[\s]*` +
+      `${PROTOCOL_JSON_QUOTE}${PROTOCOL_JSON_NOT_QUOTE}${PROTOCOL_JSON_QUOTE}` +
+      String.raw`[\s]*,[\s]*` +
+      `${PROTOCOL_JSON_QUOTE}embed_id${PROTOCOL_JSON_QUOTE}` +
+      String.raw`[\s]*:[\s]*` +
+      `${PROTOCOL_JSON_QUOTE}([a-f0-9-]+)${PROTOCOL_JSON_QUOTE}` +
+      String.raw`[\s]*(?:,[\s]*[^}]*)?\}`,
+    "gi",
+  );
 
   let result = jsonText;
   let match;

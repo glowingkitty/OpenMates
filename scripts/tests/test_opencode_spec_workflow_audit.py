@@ -16,6 +16,15 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 AUDIT_PATH = ROOT / "scripts/audit_opencode_spec_workflow.py"
+COORDINATION_PLUGIN_FIXTURE = " ".join(
+    [
+        "OPENCODE_SESSION_ID",
+        'runBridge("PreToolUse"',
+        "edit-lease",
+        'OPENMATES_ROOT_GUARD || "strict"',
+        "Docker Compose mutations require",
+    ]
+)
 
 
 def load_audit_module():
@@ -45,7 +54,22 @@ def test_opencode_spec_workflow_audit_requires_plan_agent():
     assert any("agent.plan" in failure for failure in failures)
 
 
-def test_opencode_spec_workflow_audit_requires_read_only_plan_agent():
+def test_opencode_spec_workflow_audit_allows_plan_mode_to_edit_only_executable_specs():
+    audit = load_audit_module()
+    config = audit._load_opencode_config()
+    config["agent"]["plan"] = dict(config["agent"]["plan"])
+    config["agent"]["plan"]["permission"] = dict(config["agent"]["plan"]["permission"])
+    config["agent"]["plan"]["permission"]["edit"] = {
+        "*": "deny",
+        "docs/specs/**/spec.yml": "allow",
+    }
+
+    failures = audit.audit_config(config)
+
+    assert not any("agent.plan.permission.edit" in failure for failure in failures)
+
+
+def test_opencode_spec_workflow_audit_rejects_broad_plan_mode_edit_access():
     audit = load_audit_module()
     config = audit._load_opencode_config()
     config["agent"]["plan"] = dict(config["agent"]["plan"])
@@ -54,7 +78,22 @@ def test_opencode_spec_workflow_audit_requires_read_only_plan_agent():
 
     failures = audit.audit_config(config)
 
-    assert "agent.plan.permission.edit must be deny" in failures
+    assert any("spec-only edit access" in failure for failure in failures)
+
+
+def test_opencode_spec_workflow_audit_rejects_reversed_plan_mode_edit_precedence():
+    audit = load_audit_module()
+    config = audit._load_opencode_config()
+    config["agent"]["plan"] = dict(config["agent"]["plan"])
+    config["agent"]["plan"]["permission"] = dict(config["agent"]["plan"]["permission"])
+    config["agent"]["plan"]["permission"]["edit"] = {
+        "docs/specs/**/spec.yml": "allow",
+        "*": "deny",
+    }
+
+    failures = audit.audit_config(config)
+
+    assert any("spec-only edit access" in failure for failure in failures)
 
 
 def test_opencode_spec_workflow_audit_detects_skill_mirror_drift(tmp_path):
@@ -69,3 +108,114 @@ def test_opencode_spec_workflow_audit_detects_skill_mirror_drift(tmp_path):
     failures = audit.audit_skill_mirrors(tmp_path)
 
     assert any("mirror drifted" in failure for failure in failures)
+
+
+def test_opencode_spec_workflow_audit_requires_coordination_plugin(tmp_path):
+    audit = load_audit_module()
+
+    failures = audit.audit_opencode_coordination(tmp_path)
+
+    assert failures == ["missing OpenCode session coordination plugin"]
+
+
+def test_opencode_spec_workflow_audit_rejects_blocking_lease_coordinator(tmp_path):
+    audit = load_audit_module()
+    plugin = tmp_path / ".opencode" / "plugins" / "openmates-hooks.js"
+    plugin.parent.mkdir(parents=True)
+    plugin.write_text(COORDINATION_PLUGIN_FIXTURE, encoding="utf-8")
+    warning_guard = tmp_path / ".claude" / "hooks" / "pre-edit-guard.sh"
+    warning_guard.parent.mkdir(parents=True)
+    warning_guard.write_text("additionalContext WARNING: File exit 0", encoding="utf-8")
+    lease_script = tmp_path / "scripts" / "opencode_file_leases.py"
+    lease_script.parent.mkdir(parents=True)
+    lease_script.write_text("blocking lease coordinator", encoding="utf-8")
+
+    failures = audit.audit_opencode_coordination(tmp_path)
+
+    assert "blocking OpenCode file lease coordinator must remain removed" in failures
+
+
+def test_opencode_spec_workflow_audit_rejects_idle_spec_continuation(tmp_path):
+    audit = load_audit_module()
+    plugin = tmp_path / ".opencode" / "plugins" / "openmates-hooks.js"
+    plugin.parent.mkdir(parents=True)
+    plugin.write_text(
+        f"{COORDINATION_PLUGIN_FIXTURE} session.idle client.session.prompt(",
+        encoding="utf-8",
+    )
+    warning_guard = tmp_path / ".claude" / "hooks" / "pre-edit-guard.sh"
+    warning_guard.parent.mkdir(parents=True)
+    warning_guard.write_text("additionalContext WARNING: File exit 0", encoding="utf-8")
+
+    failures = audit.audit_opencode_coordination(tmp_path)
+
+    assert any("must not prompt" in failure for failure in failures)
+
+
+def test_opencode_spec_workflow_audit_allows_passive_idle_presence(tmp_path):
+    audit = load_audit_module()
+    plugin = tmp_path / ".opencode" / "plugins" / "openmates-hooks.js"
+    plugin.parent.mkdir(parents=True)
+    plugin.write_text(f"{COORDINATION_PLUGIN_FIXTURE} session.idle", encoding="utf-8")
+    warning_guard = tmp_path / ".claude" / "hooks" / "pre-edit-guard.sh"
+    warning_guard.parent.mkdir(parents=True)
+    warning_guard.write_text("additionalContext WARNING: File exit 0", encoding="utf-8")
+
+    assert audit.audit_opencode_coordination(tmp_path) == []
+
+
+def test_opencode_spec_workflow_audit_requires_modern_edit_lease_contract(tmp_path):
+    audit = load_audit_module()
+    plugin = tmp_path / ".opencode" / "plugins" / "openmates-hooks.js"
+    plugin.parent.mkdir(parents=True)
+    plugin.write_text('OPENCODE_SESSION_ID runBridge("PreToolUse"', encoding="utf-8")
+    warning_guard = tmp_path / ".claude" / "hooks" / "pre-edit-guard.sh"
+    warning_guard.parent.mkdir(parents=True)
+    warning_guard.write_text("additionalContext WARNING: File exit 0", encoding="utf-8")
+
+    failures = audit.audit_opencode_coordination(tmp_path)
+
+    assert any("edit-lease" in failure for failure in failures)
+    assert any("OPENMATES_ROOT_GUARD" in failure for failure in failures)
+    assert any("Docker Compose mutations require" in failure for failure in failures)
+
+
+def test_opencode_spec_workflow_audit_requires_demonstration_plan_terms():
+    audit = load_audit_module()
+
+    assert {
+        "narration outline",
+        "frame-only review",
+        "Discord publication",
+    }.issubset(audit.PLAN_PROMPT_TERMS)
+
+
+def test_opencode_spec_workflow_audit_requires_demonstration_skill_terms():
+    audit = load_audit_module()
+    expected = {
+        ".claude/skills/specify/SKILL.md": {"narration outline", "demonstration eligibility"},
+        ".claude/skills/plan-from-spec/SKILL.md": {"capture source", "full video"},
+        ".claude/skills/tasks-from-spec/SKILL.md": {"demonstration review", "Discord publication"},
+        ".claude/skills/verify-spec/SKILL.md": {"frame-only", "publication_pending"},
+    }
+
+    for path, terms in expected.items():
+        assert terms.issubset(audit.SKILL_TERMS[path])
+
+
+def test_opencode_spec_workflow_audit_requires_demonstration_instruction_terms():
+    audit = load_audit_module()
+
+    assert "demonstration review" in audit.INSTRUCTION_TERMS["docs/contributing/guides/spec-driven-development.md"]
+    assert "full video" in audit.INSTRUCTION_TERMS["docs/contributing/guides/agent-workflow-core.md"]
+
+
+def test_opencode_spec_workflow_audit_requires_cross_runtime_retrospective_terms():
+    audit = load_audit_module()
+
+    for path in ("AGENTS.md", "CLAUDE.md", "docs/contributing/guides/agent-workflow-core.md"):
+        assert {
+            "Agent Workflow Retrospective",
+            "task-closing",
+            "None observed",
+        }.issubset(audit.INSTRUCTION_TERMS[path])

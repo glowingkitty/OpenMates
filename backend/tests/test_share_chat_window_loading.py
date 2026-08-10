@@ -7,6 +7,7 @@ trigger AI inference to create or exercise long chats.
 
 import json
 import importlib
+import inspect
 import sys
 import types
 
@@ -64,20 +65,38 @@ get_shared_chat_manifest = getattr(
     "__wrapped__",
     share_routes.get_shared_chat_manifest,
 )
+get_shared_chat = getattr(
+    share_routes.get_shared_chat,
+    "__wrapped__",
+    share_routes.get_shared_chat,
+)
 get_shared_chat_message_window = getattr(
     share_routes.get_shared_chat_message_window,
     "__wrapped__",
     share_routes.get_shared_chat_message_window,
 )
+get_shared_sub_chats = share_routes.get_shared_sub_chats
+DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT = share_routes.DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT
 
 
 class FakeEmbedMethods:
+    def __init__(self) -> None:
+        self.chat_embeds = [{"embed_id": "parent-1", "hashed_chat_id": ""}]
+        self.key_embeds = []
+        self.embed_keys = []
+
     async def get_embeds_by_hashed_chat_id(self, hashed_chat_id: str):
-        return [{"embed_id": "parent-1", "hashed_chat_id": hashed_chat_id}]
+        return [dict(embed, hashed_chat_id=embed.get("hashed_chat_id") or hashed_chat_id) for embed in self.chat_embeds]
 
     async def get_embed_keys_by_hashed_chat_id(self, hashed_chat_id: str, include_master_keys: bool = False):
         assert include_master_keys is False
-        return [{"hashed_chat_id": hashed_chat_id, "key_type": "chat"}]
+        if self.embed_keys:
+            return self.embed_keys
+        return [{"hashed_chat_id": hashed_chat_id, "key_type": "chat", "hashed_embed_id": "parent-hash"}]
+
+    async def get_embeds_by_hashed_embed_ids(self, hashed_embed_ids: list[str]):
+        requested = set(hashed_embed_ids)
+        return [embed for embed in self.key_embeds if embed.get("hashed_embed_id") in requested]
 
 
 class FakeChatMethods:
@@ -105,6 +124,7 @@ class FakeChatMethods:
             "encrypted_chat_summary": "encrypted-summary",
             "encrypted_icon": "encrypted-icon",
             "encrypted_category": "encrypted-category",
+            "messages_v": 82,
             "is_private": False,
             "share_pii": False,
             "share_highlights": True,
@@ -137,6 +157,14 @@ class FakeChatMethods:
         rows.reverse()
         return [json.dumps({**row, "message_id": row["client_message_id"]}) for row in rows]
 
+    async def get_all_messages_for_chat(self, chat_id: str, decrypt_content: bool = False):
+        assert decrypt_content is False
+        return [
+            json.dumps({**row, "message_id": row["client_message_id"]})
+            for row in self.messages
+            if row["chat_id"] == chat_id
+        ]
+
     async def get_message_for_chat_by_client_id(self, chat_id: str, message_id: str):
         return next(
             (
@@ -153,18 +181,49 @@ class FakeDirectusService:
     def __init__(self) -> None:
         self.chat = FakeChatMethods()
         self.embed = FakeEmbedMethods()
+        self.checkpoints = [
+            {
+                "id": "checkpoint-1",
+                "chat_id": "chat-shared",
+                "encrypted_summary": "encrypted-checkpoint-summary",
+                "compressed_up_to_timestamp": 80,
+                "compressed_message_count": 80,
+                "summary_token_estimate": 123,
+                "key_version": 1,
+                "created_at": 1000,
+                "updated_at": 1001,
+            }
+        ]
 
-    async def get_items(self, collection: str, params: dict, admin_required: bool = False):
+    async def get_items(
+        self,
+        collection: str,
+        params: dict,
+        admin_required: bool = False,
+        return_none_on_403: bool = False,
+    ):
         if collection == "message_highlights":
             return [{"id": "highlight-1", "chat_id": "chat-shared"}]
         if collection == "code_run_outputs":
             return []
         if collection == "chats":
             return []
+        if collection == "chat_compression_checkpoints":
+            checkpoint_filter = params.get("filter") or {}
+            chat_id_filter = checkpoint_filter.get("chat_id") or {}
+            checkpoint_id_filter = checkpoint_filter.get("id") or {}
+            rows = [
+                row
+                for row in self.checkpoints
+                if not chat_id_filter or row["chat_id"] == chat_id_filter.get("_eq")
+            ]
+            if checkpoint_id_filter:
+                rows = [row for row in rows if row["id"] == checkpoint_id_filter.get("_eq")]
+            return rows
         return []
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_chat_manifest_omits_full_messages():
     directus = FakeDirectusService()
 
@@ -181,7 +240,63 @@ async def test_shared_chat_manifest_omits_full_messages():
     assert payload["message_highlights"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
+async def test_shared_chat_manifest_includes_key_addressable_embeds():
+    directus = FakeDirectusService()
+    directus.embed.chat_embeds = [{"embed_id": "image-embed", "hashed_embed_id": "image-hash"}]
+    directus.embed.key_embeds = [
+        {"embed_id": "image-embed", "hashed_embed_id": "image-hash"},
+        {"embed_id": "pdf-embed", "hashed_embed_id": "pdf-hash", "encrypted_content": "cipher-pdf"},
+    ]
+    directus.embed.embed_keys = [
+        {"hashed_chat_id": "hashed-chat", "key_type": "chat", "hashed_embed_id": "image-hash"},
+        {"hashed_chat_id": "hashed-chat", "key_type": "chat", "hashed_embed_id": "pdf-hash"},
+    ]
+
+    payload = await get_shared_chat_manifest(
+        request=None,
+        chat_id="chat-shared",
+        directus_service=directus,
+    )
+
+    assert [embed["embed_id"] for embed in payload["embeds"]] == ["image-embed", "pdf-embed"]
+
+
+@pytest.mark.anyio
+async def test_shared_chat_manifest_includes_compression_checkpoints():
+    directus = FakeDirectusService()
+
+    payload = await get_shared_chat_manifest(
+        request=None,
+        chat_id="chat-shared",
+        directus_service=directus,
+    )
+
+    assert payload["compression_checkpoints"] == directus.checkpoints
+
+
+@pytest.mark.anyio
+async def test_shared_chat_legacy_payload_includes_compression_checkpoints():
+    directus = FakeDirectusService()
+
+    payload = await get_shared_chat(
+        request=None,
+        chat_id="chat-shared",
+        directus_service=directus,
+    )
+
+    assert payload["compression_checkpoints"] == directus.checkpoints
+
+
+@pytest.mark.anyio
+async def test_shared_chat_message_window_default_limit_is_thirty():
+    limit_default = inspect.signature(share_routes.get_shared_chat_message_window).parameters["limit"].default
+
+    assert limit_default.default == DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT
+    assert DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT == 30
+
+
+@pytest.mark.anyio
 async def test_shared_chat_message_window_is_bounded_and_sanitized():
     directus = FakeDirectusService()
 
@@ -201,7 +316,25 @@ async def test_shared_chat_message_window_is_bounded_and_sanitized():
     assert "encrypted_pii_mappings" not in payload["messages"][0]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
+async def test_shared_chat_message_window_uses_durable_rows_when_messages_v_is_stale():
+    directus = FakeDirectusService()
+
+    payload = await get_shared_chat_message_window(
+        request=None,
+        chat_id="chat-shared",
+        before_timestamp=2147483647,
+        limit=DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT,
+        directus_service=directus,
+    )
+
+    assert directus.chat.requested_limits == [DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT + 1]
+    assert len(payload["messages"]) == DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT
+    assert payload["has_more"] is True
+    assert payload["messages_v"] == 82
+
+
+@pytest.mark.anyio
 async def test_shared_chat_message_window_can_anchor_target_message():
     directus = FakeDirectusService()
 
@@ -218,7 +351,27 @@ async def test_shared_chat_message_window_can_anchor_target_message():
     assert json.loads(payload["messages"][-1])["message_id"] == "msg-42"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
+async def test_shared_chat_message_window_can_page_forgotten_checkpoint_messages():
+    directus = FakeDirectusService()
+
+    payload = await get_shared_chat_message_window(
+        request=None,
+        chat_id="chat-shared",
+        before_timestamp=100,
+        checkpoint_id="checkpoint-1",
+        limit=10,
+        directus_service=directus,
+    )
+
+    assert payload["checkpoint_id"] == "checkpoint-1"
+    assert payload["checkpoint_boundary_timestamp"] == 80
+    assert payload["is_forgotten_page"] is True
+    assert len(payload["messages"]) == 10
+    assert json.loads(payload["messages"][-1])["message_id"] == "msg-80"
+
+
+@pytest.mark.anyio
 async def test_shared_chat_message_window_compound_cursor_preserves_duplicate_timestamps():
     directus = FakeDirectusService()
     directus.chat.messages = [
@@ -240,7 +393,7 @@ async def test_shared_chat_message_window_compound_cursor_preserves_duplicate_ti
     assert [json.loads(message)["message_id"] for message in payload["messages"]] == ["msg-a", "msg-b"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_chat_window_preserves_non_enumeration_dummy_response():
     directus = FakeDirectusService()
 
@@ -259,3 +412,37 @@ async def test_shared_chat_window_preserves_non_enumeration_dummy_response():
     assert messages["chat_id"] == "missing-chat"
     assert messages["messages"]
     assert messages["has_more"] is False
+
+
+@pytest.mark.anyio
+async def test_shared_sub_chats_retry_without_metadata_v_on_directus_permission_denial():
+    class MetadataDeniedDirectus(FakeDirectusService):
+        def __init__(self) -> None:
+            super().__init__()
+            self.requested_fields: list[str] = []
+
+        async def get_items(
+            self,
+            collection: str,
+            params: dict,
+            admin_required: bool = False,
+            return_none_on_403: bool = False,
+        ):
+            if collection != "chats":
+                return await super().get_items(
+                    collection, params, admin_required, return_none_on_403
+                )
+            self.requested_fields.append(params["fields"])
+            if "metadata_v" in params["fields"]:
+                assert return_none_on_403 is True
+                return None
+            return [{"id": "sub-chat-1", "title_v": 1}]
+
+    directus = MetadataDeniedDirectus()
+
+    sub_chats = await get_shared_sub_chats("chat-shared", directus)
+
+    assert sub_chats == [{"id": "sub-chat-1", "title_v": 1}]
+    assert len(directus.requested_fields) == 2
+    assert "metadata_v" in directus.requested_fields[0]
+    assert "metadata_v" not in directus.requested_fields[1]

@@ -14,7 +14,6 @@ from __future__ import annotations
 import argparse
 import base64
 import fcntl
-import hashlib
 import importlib.util
 import json
 import os
@@ -38,7 +37,6 @@ TMP_DIR = PROJECT_ROOT / "scripts" / ".tmp" / "auto-fix"
 PROMPT_TEMPLATE = PROJECT_ROOT / "scripts" / "prompts" / "auto-fix-failed-test-group.md"
 TESTS_CONTROL_SCRIPT = PROJECT_ROOT / "scripts" / "tests.py"
 LOCKFILE = Path("/tmp/openmates-auto-fix-failed-tests.lock")
-STATE_FILE = RESULTS_DIR / "auto-fix-state.json"
 GH_BRANCH = "dev"
 
 DEFAULT_TIMEOUT_SECONDS = 1800
@@ -62,6 +60,8 @@ class FixGroup:
     suite: str
     tests: list[dict[str, Any]]
     verify_command: list[str]
+    campaign_key: str
+    debug_group_key: str
 
 
 def log(message: str) -> None:
@@ -194,93 +194,44 @@ def log_dirty_worktree_context() -> None:
         log(f"Worktree has {len(dirty)} unrelated non-ignored change(s); continuing with session-scoped deploy.")
 
 
-def load_failed_tests() -> tuple[str, list[dict[str, Any]]]:
-    path = RESULTS_DIR / "last-failed-tests.json"
-    if not path.is_file():
-        raise FileNotFoundError(f"{path} not found")
-    data = json.loads(path.read_text())
-    tests = [t for t in data.get("tests", []) if t.get("status") == "failed"]
-    return str(data.get("run_id", "unknown")), tests
-
-
-def load_triaged_groups() -> tuple[str, list[FixGroup]]:
-    """Load deterministic failure groups from scripts/tests.py when available."""
+def load_tests_control_module():
     if not TESTS_CONTROL_SCRIPT.is_file():
-        return "unknown", []
+        raise RuntimeError(f"Missing test control plane: {TESTS_CONTROL_SCRIPT}")
     spec = importlib.util.spec_from_file_location("openmates_tests_control", TESTS_CONTROL_SCRIPT)
     if spec is None or spec.loader is None:
-        return "unknown", []
+        raise RuntimeError(f"Could not load test control plane: {TESTS_CONTROL_SCRIPT}")
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
+    return module
+
+
+def load_triaged_groups(session_id: str) -> tuple[str, list[FixGroup]]:
+    """Create or resume the canonical campaign and return its durable groups."""
+    module = load_tests_control_module()
+    campaign = module.start_debug_campaign(session_id=session_id)
     triage = module.build_triage()
-    grouped: dict[str, list[dict[str, Any]]] = {}
-    for entry in triage.get("entries") or []:
-        grouped.setdefault(str(entry["group_id"]), []).append(entry)
+    entries_by_key = {str(entry.get("key")): entry for entry in triage.get("entries") or []}
     groups = []
-    for group_id, entries in grouped.items():
+    for durable_group in module.debug_groups_for_campaign(campaign["campaign_key"]):
+        if durable_group.get("status") in {"green", "blocked"}:
+            continue
+        entries = [entries_by_key[key] for key in durable_group.get("member_test_keys") or [] if key in entries_by_key]
+        if not entries:
+            continue
         first = entries[0]
-        command = shlex.split(str(first.get("verification_command") or "python3 scripts/tests.py run --only-failed"))
+        command = shlex.split(str(durable_group.get("verification_command")))
         if command and command[0] == "python3":
             command[0] = sys.executable
         groups.append(FixGroup(
-            id=group_id,
+            id=str(durable_group["group_key"]),
             suite=str(first.get("suite") or "unknown"),
             tests=entries[:MAX_FAILURES_PER_GROUP],
             verify_command=command,
+            campaign_key=str(campaign["campaign_key"]),
+            debug_group_key=str(durable_group["group_key"]),
         ))
     return str(triage.get("run_id") or "unknown"), groups
-
-
-def normalize_error(error: str) -> str:
-    lines = [line.strip() for line in (error or "").splitlines() if line.strip()]
-    interesting = []
-    for line in lines:
-        if line.startswith(("E   ", "Error:", "AssertionError", "RuntimeError", "ImportError", "AttributeError")):
-            interesting.append(line)
-        if len(interesting) >= 2:
-            break
-    basis = "\n".join(interesting or lines[:2])
-    return re.sub(r"0x[0-9a-fA-F]+|\d+\.\d+s|\d+ms", "<var>", basis)[:500]
-
-
-def group_failures(tests: list[dict[str, Any]]) -> list[FixGroup]:
-    buckets: dict[str, list[dict[str, Any]]] = {}
-    for test in tests:
-        suite = str(test.get("suite") or "unknown")
-        file_name = str(test.get("file") or test.get("name") or "unknown")
-        if suite == "playwright":
-            key = f"{suite}:{file_name}"
-        else:
-            key = f"{suite}:{normalize_error(str(test.get('error') or ''))}"
-        buckets.setdefault(key, []).append(test)
-
-    groups: list[FixGroup] = []
-    for index, (key, grouped_tests) in enumerate(buckets.items(), start=1):
-        digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:8]
-        group_id = f"g{index:02d}-{digest}"
-        suite = str(grouped_tests[0].get("suite") or "unknown")
-        groups.append(
-            FixGroup(
-                id=group_id,
-                suite=suite,
-                tests=grouped_tests[:MAX_FAILURES_PER_GROUP],
-                verify_command=verification_command(suite, grouped_tests),
-            )
-        )
-    return groups
-
-
-def verification_command(suite: str, tests: list[dict[str, Any]]) -> list[str]:
-    if suite == "playwright":
-        spec = str(tests[0].get("file") or tests[0].get("name") or "").strip()
-        if spec.endswith(".spec.ts"):
-            return [sys.executable, "scripts/tests.py", "run", "--spec", spec]
-        return [sys.executable, "scripts/tests.py", "run", "--suite", "playwright", "--only-failed"]
-    if suite.startswith("pytest"):
-        return [sys.executable, "scripts/tests.py", "run", "--suite", "pytest"]
-    if suite.startswith("vitest"):
-        return [sys.executable, "scripts/tests.py", "run", "--suite", "vitest"]
-    return [sys.executable, "scripts/tests.py", "run", "--only-failed"]
 
 
 def start_controller_session(group: FixGroup) -> str:
@@ -320,6 +271,7 @@ def render_prompt(
     replacements = {
         "{{SESSION_ID}}": session_id,
         "{{GROUP_ID}}": group.id,
+        "{{CAMPAIGN_ID}}": group.campaign_key,
         "{{RUN_ID}}": run_id,
         "{{ATTEMPT_NUMBER}}": str(attempt),
         "{{MAX_ATTEMPTS}}": str(max_attempts),
@@ -667,11 +619,6 @@ def post_discord(summary: dict[str, Any], color: int = 0x3B82F6) -> bool:
     return False
 
 
-def save_state(state: dict[str, Any]) -> None:
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
-
-
 def discord_smoke() -> int:
     summary = {
         "group_id": "discord-smoke",
@@ -698,6 +645,35 @@ def compact_attempt_feedback(summary: dict[str, Any]) -> dict[str, Any]:
         "safety_check": summary.get("safety_check", ""),
         "opencode_chat": summary.get("opencode_chat", ""),
     }
+
+
+def persist_campaign_attempt(group: FixGroup, summary: dict[str, Any]) -> None:
+    module = load_tests_control_module()
+    verification_result = str(summary.get("verification_result") or "not_run")
+    outcome = "green" if verification_result == "passed" else str(summary.get("status") or "failed")
+    if outcome not in {"failed", "blocked", "green", "rejected"}:
+        outcome = "failed"
+    safe_summary = str(summary.get("reason") or "")[:500]
+    if not safe_summary:
+        safe_summary = f"Controller verification {verification_result}."
+    safe_summary = re.sub(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", "<REDACTED_EMAIL>", safe_summary)
+    module.append_debug_group_attempt(
+        group.debug_group_key,
+        approach=str(summary.get("root_cause") or "Automated root-cause fix attempt"),
+        outcome=outcome,
+        summary=safe_summary,
+        run_keys=[str(summary["verification_run_key"])] if summary.get("verification_run_key") else [],
+        changed_files=[str(path) for path in summary.get("changed_files") or []],
+    )
+
+
+def persist_campaign_blocker(group: FixGroup, summary: dict[str, Any]) -> None:
+    load_tests_control_module().block_debug_group(
+        group.debug_group_key,
+        reason=str(summary.get("reason") or "Automated fix requires human approval"),
+        question="What product or environment decision should unblock this test group?",
+        next_action=f"Resume campaign {group.campaign_key} and inspect group {group.debug_group_key}.",
+    )
 
 
 def process_group(group: FixGroup, run_id: str, args: argparse.Namespace) -> dict[str, Any]:
@@ -766,6 +742,9 @@ def process_group(group: FixGroup, run_id: str, args: argparse.Namespace) -> dic
                 summary.setdefault("reason", safety_reason)
                 summary["verification_result"] = "not_run"
                 summary["attempts"] = attempts + [compact_attempt_feedback(summary)]
+                persist_campaign_attempt(group, summary)
+                if summary.get("status") == "blocked" or summary.get("scope_classification") == "requires_human_approval":
+                    persist_campaign_blocker(group, summary)
                 post_discord(summary, color=0xF59E0B)
                 return summary
 
@@ -773,6 +752,7 @@ def process_group(group: FixGroup, run_id: str, args: argparse.Namespace) -> dic
             summary["verification_result"] = verify_status
             summary["verification_exit_code"] = verify_rc
             summary["verification_output_tail"] = verify_output
+            persist_campaign_attempt(group, summary)
 
             if verify_status == "passed":
                 break
@@ -803,6 +783,19 @@ def process_group(group: FixGroup, run_id: str, args: argparse.Namespace) -> dic
             summary["attempts"] = attempts + [compact_attempt_feedback(summary)]
             post_discord(summary, color=0xEF4444)
             return summary
+
+        verify_status, verify_rc, verify_output = run_verification(group, args.verify_timeout_seconds)
+        summary["verification_result"] = verify_status
+        summary["verification_exit_code"] = verify_rc
+        summary["verification_output_tail"] = verify_output
+        persist_campaign_attempt(group, summary)
+        if verify_status != "passed":
+            summary["status"] = "failed"
+            summary["reason"] = "post-deploy campaign verification failed"
+            post_discord(summary, color=0xEF4444)
+            return summary
+
+        load_tests_control_module().complete_debug_group(group.debug_group_key, commit=deploy_detail)
 
         summary["status"] = "fixed"
         summary["session_closed_by_deploy"] = True
@@ -845,30 +838,24 @@ def main() -> int:
         if not args.dry_run:
             log_dirty_worktree_context()
 
-        run_id, groups = load_triaged_groups()
+        campaign_session_id = "auto-fix-daily"
+        try:
+            run_id, groups = load_triaged_groups(campaign_session_id)
+        except RuntimeError as exc:
+            log(str(exc))
+            return 1
         if not groups:
-            run_id, tests = load_failed_tests()
-            if not tests:
-                log("No failed tests found; nothing to fix.")
-                return 0
-            groups = group_failures(tests)
+            log("No pending campaign groups found; nothing to fix.")
+            return 0
         selected = groups[: max(0, args.max_groups)]
-        state: dict[str, Any] = {
-            "run_id": run_id,
-            "started_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "total_failed_tests": sum(len(group.tests) for group in groups),
-            "total_groups": len(groups),
-            "processed": [],
-        }
-        save_state(state)
 
         for group in selected:
             result = process_group(group, run_id, args)
-            state["processed"].append(result)
-            state["last_updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            save_state(state)
-            if result.get("status") in {"blocked", "failed"}:
-                log(f"Finished {group.id} with {result.get('status')}; continuing to next independent group.")
+            if result.get("status") == "blocked":
+                log(f"Campaign blocked by {group.id}; stopping with a durable resume point.")
+                break
+            if result.get("status") == "failed":
+                log(f"Finished {group.id} with failed status; continuing to the next recorded group.")
 
         return 0
 

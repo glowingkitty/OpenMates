@@ -23,6 +23,7 @@ def test_core_ask_skill_request_preserves_runtime_flags() -> None:
         user_task_id="task-1",
         connected_account_directory=[{"provider": "calendar"}],
         connected_account_token_refs=[{"turn_token_ref": "ref-1"}],
+        has_image_upload_embed=True,
     )
 
     dumped = request.model_dump()
@@ -31,3 +32,4 @@ def test_core_ask_skill_request_preserves_runtime_flags() -> None:
     assert dumped["user_task_id"] == "task-1"
     assert dumped["connected_account_directory"] == [{"provider": "calendar"}]
     assert dumped["connected_account_token_refs"] == [{"turn_token_ref": "ref-1"}]
+    assert dumped["has_image_upload_embed"] is True

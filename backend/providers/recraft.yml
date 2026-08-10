@@ -20,6 +20,13 @@
 
 provider_id: "recraft"
 name: "Recraft"
+required_keys:
+  - env_key: "SECRET__RECRAFT__API_KEY"
+    vault_path: "kv/data/providers/recraft"
+    vault_key: "api_key"
+    description: "Recraft API key for raster and vector image generation."
+    setup_url: "https://www.recraft.ai/docs"
+    docs_url: "https://www.recraft.ai/docs"
 description: "State-of-the-art image generation for both raster (PNG/JPG) and vector (SVG) output. The only AI capable of producing true SVG vector graphics from text prompts."
 logo_svg: "icons/recraft.svg"
 privacy_policy: "https://www.recraft.ai/privacy" # verified 2026-05-24

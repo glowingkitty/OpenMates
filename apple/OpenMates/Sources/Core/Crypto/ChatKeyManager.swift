@@ -46,6 +46,10 @@ final class ChatKeyManager: ObservableObject {
         chatKeys[chatId] != nil
     }
 
+    func markInitialSyncReady() {
+        isReady = true
+    }
+
     // MARK: - Bulk loading
 
     /// Unwrap and cache chat keys for a batch of chats.
@@ -244,6 +248,16 @@ final class EmbedKeyManager {
         entriesByHashedEmbedId.removeAll()
         keyCache.removeAll()
         chatIdHashCache.removeAll()
+    }
+
+    func removeKeys(for chatId: String) {
+        let hashedChatId = chatIdHash(chatId)
+        entriesByHashedEmbedId = entriesByHashedEmbedId.compactMapValues { entries in
+            let retained = entries.filter { $0.hashedChatId != hashedChatId }
+            return retained.isEmpty ? nil : retained
+        }
+        keyCache = keyCache.filter { !$0.key.hasSuffix(":\(chatId)") }
+        chatIdHashCache.removeValue(forKey: chatId)
     }
 
     private func currentMasterKey() async -> SymmetricKey? {

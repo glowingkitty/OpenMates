@@ -440,6 +440,8 @@ export async function decryptChatFromStorage(
 // CHAT CRUD OPERATIONS
 // ============================================================================
 
+const CHAT_TRANSACTION_TIMEOUT_MS = 10_000;
+
 /**
  * Add or update a chat in the database
  */
@@ -466,7 +468,9 @@ export async function addChat(
     throw new Error("Cannot create encrypted chat during forced logout");
   }
 
-  await dbInstance.init();
+  if (!dbInstance.db || get(isLoggingOut)) {
+    await dbInstance.init();
+  }
 
   // CRITICAL FIX: Ensure draft_v always defaults to 0 if undefined
   // This prevents warnings during decryption and ensures consistency
@@ -503,6 +507,36 @@ export async function addChat(
   delete chatToSave.messages;
 
   return new Promise<void>((resolve, reject) => {
+    let activeTransaction: IDBTransaction | null = transaction ?? null;
+    let ownsActiveTransaction = false;
+    let settled = false;
+
+    function resolveOnce() {
+      if (settled) return;
+      settled = true;
+      clearTimeout(transactionTimeout);
+      resolve();
+    }
+    function rejectOnce(error: unknown) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(transactionTimeout);
+      reject(error);
+    }
+    const transactionTimeout = setTimeout(() => {
+      const timeoutError = new Error(
+        `IndexedDB transaction timed out while saving chat ${chatToSave.chat_id}`,
+      );
+      rejectOnce(timeoutError);
+      if (activeTransaction && ownsActiveTransaction) {
+        try {
+          activeTransaction.abort();
+        } catch {
+          // The transaction may have completed just before the timeout fired.
+        }
+      }
+    }, CHAT_TRANSACTION_TIMEOUT_MS);
+
     (async () => {
       // CRITICAL FIX: Check if external transaction is still active before using it
       if (usesExternalTransaction && transaction) {
@@ -526,6 +560,9 @@ export async function addChat(
             dbInstance.CHATS_STORE_NAME,
             "readwrite",
           );
+          if (settled) return;
+          activeTransaction = newTransaction;
+          ownsActiveTransaction = true;
 
           // CRITICAL FIX: Set up transaction handlers BEFORE queuing any operations
           newTransaction.oncomplete = () => {
@@ -533,7 +570,7 @@ export async function addChat(
               "[ChatDatabase] ✅ New transaction for addChat completed successfully for chat:",
               chatToSave.chat_id,
             );
-            resolve();
+            resolveOnce();
           };
 
           newTransaction.onerror = () => {
@@ -543,7 +580,7 @@ export async function addChat(
               "Error:",
               newTransaction.error,
             );
-            reject(newTransaction.error);
+            rejectOnce(newTransaction.error);
           };
 
           newTransaction.onabort = () => {
@@ -551,7 +588,7 @@ export async function addChat(
               "[ChatDatabase] ❌ New transaction for addChat aborted for chat:",
               chatToSave.chat_id,
             );
-            reject(new Error("Transaction aborted"));
+            rejectOnce(new Error("Transaction aborted"));
           };
 
           const store = newTransaction.objectStore(dbInstance.CHATS_STORE_NAME);
@@ -589,6 +626,9 @@ export async function addChat(
           dbInstance.CHATS_STORE_NAME,
           "readwrite",
         ));
+      if (settled) return;
+      activeTransaction = currentTransaction;
+      ownsActiveTransaction = !usesExternalTransaction;
 
       console.debug(
         `[ChatDatabase] Using ${usesExternalTransaction ? "external" : "internal"} transaction for chat ${chatToSave.chat_id}`,
@@ -604,7 +644,7 @@ export async function addChat(
               "[ChatDatabase] ✅ Transaction for addChat completed successfully for chat:",
               chatToSave.chat_id,
             );
-            resolve();
+            resolveOnce();
           };
           currentTransaction.onerror = () => {
             const error = currentTransaction.error;
@@ -615,7 +655,7 @@ export async function addChat(
               `[ChatDatabase] ❌ Transaction for addChat failed for chat: ${chatToSave.chat_id}, Error: ${errorName} - ${errorMessage}`,
               error,
             );
-            reject(error || new Error("Transaction error"));
+            rejectOnce(error || new Error("Transaction error"));
           };
           currentTransaction.onabort = () => {
             const error = currentTransaction.error;
@@ -637,7 +677,9 @@ export async function addChat(
               );
             }
 
-            reject(error || new Error(`Transaction aborted: ${errorMessage}`));
+            rejectOnce(
+              error || new Error(`Transaction aborted: ${errorMessage}`),
+            );
           };
         }
 
@@ -667,7 +709,7 @@ export async function addChat(
             );
             // CRITICAL FIX: Don't resolve yet! The transaction might not be committed.
             // The calling code should wait for transaction.oncomplete
-            resolve(); // Resolve to indicate the operation was queued successfully
+            resolveOnce(); // Resolve to indicate the operation was queued successfully
           }
           // For internal transactions, resolve() is called in oncomplete handler above
         };
@@ -691,7 +733,7 @@ export async function addChat(
             );
           }
 
-          reject(error); // This will also cause the transaction to abort if not handled
+          rejectOnce(error); // This will also cause the transaction to abort if not handled
         };
       } catch (error) {
         // Transaction is no longer active (InvalidStateError or similar)
@@ -709,6 +751,9 @@ export async function addChat(
               dbInstance.CHATS_STORE_NAME,
               "readwrite",
             );
+            if (settled) return;
+            activeTransaction = newTransaction;
+            ownsActiveTransaction = true;
 
             // CRITICAL FIX: Set up transaction handlers BEFORE queuing any operations
             newTransaction.oncomplete = () => {
@@ -716,7 +761,7 @@ export async function addChat(
                 "[ChatDatabase] ✅ New transaction for addChat completed successfully for chat:",
                 chatToSave.chat_id,
               );
-              resolve();
+              resolveOnce();
             };
 
             newTransaction.onerror = () => {
@@ -726,7 +771,7 @@ export async function addChat(
                 "Error:",
                 newTransaction.error,
               );
-              reject(newTransaction.error);
+              rejectOnce(newTransaction.error);
             };
 
             newTransaction.onabort = () => {
@@ -734,7 +779,7 @@ export async function addChat(
                 "[ChatDatabase] ❌ New transaction for addChat aborted for chat:",
                 chatToSave.chat_id,
               );
-              reject(new Error("Transaction aborted"));
+              rejectOnce(new Error("Transaction aborted"));
             };
 
             const store = newTransaction.objectStore(
@@ -762,7 +807,7 @@ export async function addChat(
               `[ChatDatabase] Failed to create new transaction for chat ${chatToSave.chat_id}:`,
               retryError,
             );
-            reject(retryError);
+            rejectOnce(retryError);
           }
         } else {
           // Some other error - rethrow it
@@ -770,10 +815,10 @@ export async function addChat(
             `[ChatDatabase] Unexpected error in addChat for chat ${chatToSave.chat_id}:`,
             error,
           );
-          reject(error);
+          rejectOnce(error);
         }
       }
-    })();
+    })().catch(rejectOnce);
   });
 }
 
@@ -1009,7 +1054,9 @@ export async function getChat(
     return null;
   }
 
-  await dbInstance.init();
+  if (!dbInstance.db || get(isLoggingOut)) {
+    await dbInstance.init();
+  }
   return new Promise((resolve, reject) => {
     const execute = async () => {
       try {
@@ -1051,6 +1098,156 @@ export async function getChat(
       } catch (error) {
         console.error(
           `[ChatDatabase] Error in getChat for chat_id ${chat_id}:`,
+          error,
+        );
+        reject(error);
+      }
+    };
+    execute();
+  });
+}
+
+/**
+ * Get a single chat by ID without decrypting chat-key encrypted metadata.
+ *
+ * Use this only for encrypted-field update paths that must not depend on the
+ * local chat key being available, such as synced draft broadcasts. Most callers
+ * should use getChat() so they receive decrypted display metadata.
+ */
+export async function getRawChat(
+  dbInstance: ChatDatabaseInstance,
+  chat_id: string,
+  transaction?: IDBTransaction,
+): Promise<Chat | null> {
+  if (
+    get(forcedLogoutInProgress) &&
+    !isPublicChat(chat_id) &&
+    !isAnonymousChatId(chat_id)
+  ) {
+    console.debug(
+      `[ChatDatabase] Skipping getRawChat for encrypted chat ${chat_id} during forced logout - returning null`,
+    );
+    return null;
+  }
+
+  if (!dbInstance.db) {
+    await dbInstance.init();
+  }
+  return new Promise((resolve, reject) => {
+    const execute = async () => {
+      try {
+        const currentTransaction =
+          transaction ||
+          dbInstance.db?.transaction(dbInstance.CHATS_STORE_NAME, "readonly");
+        if (!currentTransaction) {
+          throw new Error("Database not initialized for raw chat read");
+        }
+        const store = currentTransaction.objectStore(
+          dbInstance.CHATS_STORE_NAME,
+        );
+        const request = store.get(chat_id);
+
+        request.onsuccess = () => {
+          const chatData = request.result;
+          if (!chatData) {
+            resolve(null);
+            return;
+          }
+          const rawChat = { ...chatData } as Chat;
+          delete rawChat.messages;
+          resolve(rawChat);
+        };
+        request.onerror = () => {
+          console.error(
+            `[ChatDatabase] Error getting raw chat ${chat_id}:`,
+            request.error,
+          );
+          reject(request.error);
+        };
+      } catch (error) {
+        console.error(
+          `[ChatDatabase] Error in getRawChat for chat_id ${chat_id}:`,
+          error,
+        );
+        reject(error);
+      }
+    };
+    execute();
+  });
+}
+
+/**
+ * Write already-encrypted chat metadata without chat-key recovery or generation.
+ *
+ * This is intentionally narrow: use it for sync payloads whose encrypted fields
+ * are already server-authoritative and do not require local chat-key access.
+ */
+export async function upsertRawChat(
+  dbInstance: ChatDatabaseInstance,
+  chat: Chat,
+  transaction?: IDBTransaction,
+): Promise<void> {
+  if (
+    get(forcedLogoutInProgress) &&
+    !isPublicChat(chat.chat_id ?? "") &&
+    !isAnonymousChatId(chat.chat_id)
+  ) {
+    console.error(
+      `[ChatDatabase] Refusing to upsertRawChat during forced logout - chat ${chat.chat_id}`,
+    );
+    throw new Error("Cannot write encrypted chat during forced logout");
+  }
+
+  if (!dbInstance.db) {
+    await dbInstance.init();
+  }
+  const chatToSave: Chat = {
+    ...chat,
+    draft_v: chat.draft_v ?? 0,
+    title_v: chat.title_v ?? 0,
+    messages_v: chat.messages_v ?? 0,
+    last_edited_overall_timestamp:
+      chat.last_edited_overall_timestamp ??
+      chat.updated_at ??
+      chat.created_at ??
+      Math.floor(Date.now() / 1000),
+  };
+  delete chatToSave.messages;
+
+  return new Promise<void>((resolve, reject) => {
+    const execute = async () => {
+      try {
+        const currentTransaction =
+          transaction ||
+          dbInstance.db?.transaction(dbInstance.CHATS_STORE_NAME, "readwrite");
+        if (!currentTransaction) {
+          throw new Error("Database not initialized for raw chat write");
+        }
+        const store = currentTransaction.objectStore(
+          dbInstance.CHATS_STORE_NAME,
+        );
+        const request = store.put(chatToSave);
+
+        request.onsuccess = () => {
+          if (transaction) resolve();
+        };
+        request.onerror = () => {
+          console.error(
+            `[ChatDatabase] Error in raw chat store.put operation for ${chatToSave.chat_id}:`,
+            request.error,
+          );
+          reject(request.error);
+        };
+
+        if (!transaction) {
+          currentTransaction.oncomplete = () => resolve();
+          currentTransaction.onerror = () => reject(currentTransaction.error);
+          currentTransaction.onabort = () =>
+            reject(currentTransaction.error ?? new Error("Transaction aborted"));
+        }
+      } catch (error) {
+        console.error(
+          `[ChatDatabase] Error in upsertRawChat for chat_id ${chatToSave.chat_id}:`,
           error,
         );
         reject(error);
@@ -1508,18 +1705,37 @@ export async function batchSaveMetadataChats(
   const prepared: Chat[] = [];
   for (const chat of chats) {
     try {
-      const chatToSave = await encryptChatForStorage(dbInstance, {
-        ...chat,
-        is_metadata_only: true,
-        draft_v: chat.draft_v ?? 0,
-        title_v: chat.title_v ?? 0,
-        messages_v: chat.messages_v ?? 0,
-        last_edited_overall_timestamp:
-          chat.last_edited_overall_timestamp ??
-          chat.updated_at ??
-          chat.created_at ??
-          Math.floor(Date.now() / 1000),
-      });
+      const isPublicChat =
+        chat.chat_id?.startsWith("demo-") || chat.chat_id?.startsWith("legal-");
+      const existingChat = chat.chat_id ? await dbInstance.getChat(chat.chat_id) : null;
+      if (
+        !chat.encrypted_chat_key &&
+        !existingChat?.encrypted_chat_key &&
+        !chat.is_anonymous &&
+        !chat.anonymous_encrypted_chat_key &&
+        !isPublicChat
+      ) {
+        console.warn(
+          `[ChatDatabase] Skipping metadata-only synced chat ${chat.chat_id}: missing encrypted_chat_key`,
+        );
+        continue;
+      }
+      const chatToSave = await encryptChatForStorage(
+        dbInstance,
+        {
+          ...chat,
+          is_metadata_only: true,
+          draft_v: chat.draft_v ?? 0,
+          title_v: chat.title_v ?? 0,
+          messages_v: chat.messages_v ?? 0,
+          last_edited_overall_timestamp:
+            chat.last_edited_overall_timestamp ??
+            chat.updated_at ??
+            chat.created_at ??
+            Math.floor(Date.now() / 1000),
+        },
+        { isFromSync: true, forceIncomingEncryptedChatKey: false },
+      );
       delete chatToSave.messages;
       prepared.push(chatToSave);
     } catch (error) {

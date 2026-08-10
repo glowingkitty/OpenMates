@@ -5,12 +5,11 @@
 # memory access, so request-level context must survive while message history
 # remains in the encrypted chat cache.
 
-import json
+import asyncio
 import importlib
+import json
 import sys
 from types import ModuleType, SimpleNamespace
-
-import pytest
 
 cache_stub = ModuleType("backend.core.api.app.services.cache")
 cache_stub.CacheService = object
@@ -58,6 +57,7 @@ class _FakeCache:
             },
             "current_chat_title": "Coding help",
             "embed_file_path_index": {"snippet.py": "embed-1"},
+            "has_image_upload_embed": True,
         }
 
     async def get_ai_messages_history(self, user_id, chat_id):
@@ -90,8 +90,7 @@ class _FakeEncryption:
         return "Use my code preferences."
 
 
-@pytest.mark.asyncio
-async def test_app_settings_memories_continuation_preserves_request_context(monkeypatch):
+def test_app_settings_memories_continuation_preserves_request_context(monkeypatch):
     fake_task = _FakeApplyAsyncTask()
     fake_task_module = ModuleType("backend.apps.ai.tasks.ask_skill_task")
     fake_task_module.process_ai_skill_ask_task = fake_task
@@ -99,14 +98,16 @@ async def test_app_settings_memories_continuation_preserves_request_context(monk
     monkeypatch.setattr(handler, "_load_ask_skill_config_from_app_yml", lambda: {"default_llms": {}})
 
     cache = _FakeCache()
-    await handler._trigger_continuation(
-        cache_service=cache,
-        directus_service=SimpleNamespace(),
-        encryption_service=_FakeEncryption(),
-        user_id="user-1",
-        chat_id="chat-1",
-        device_fingerprint_hash="device-1",
-        is_rejection=False,
+    asyncio.run(
+        handler._trigger_continuation(
+            cache_service=cache,
+            directus_service=SimpleNamespace(),
+            encryption_service=_FakeEncryption(),
+            user_id="user-1",
+            chat_id="chat-1",
+            device_fingerprint_hash="device-1",
+            is_rejection=False,
+        )
     )
 
     assert len(fake_task.calls) == 1
@@ -118,6 +119,7 @@ async def test_app_settings_memories_continuation_preserves_request_context(monk
     assert request_payload["current_user_content"] == "Use my code preferences."
     assert request_payload["current_chat_title"] == "Coding help"
     assert request_payload["embed_file_path_index"] == {"snippet.py": "embed-1"}
+    assert request_payload["has_image_upload_embed"] is True
     assert request_payload["app_settings_memories_metadata"] == ["code-preferred_technologies"]
     assert request_payload["is_app_settings_memories_continuation"] is True
     assert cache.deleted == [("chat-1", "user-1")]

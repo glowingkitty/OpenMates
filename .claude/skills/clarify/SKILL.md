@@ -42,8 +42,22 @@ Ask the highest-value unknown question for each round. Adapt based on what you a
 **Rules for asking questions:**
 - One question per round. Never bundle two questions in one message.
 - Keep the question short — one or two sentences.
+- Include `Recommendation:` with the evidence-based preferred answer and a brief
+  reason in every round. If the evidence is incomplete, recommend the safest
+  reversible default and state the uncertainty.
+- Include `Examples:` with 1-3 concrete options, flows, or outcomes related to
+  that round's question. The recommendation and examples are context, not extra
+  questions.
 - If the user's answer to an earlier round already covers a later round's topic, skip that round and ask the next unknown question instead. Still complete exactly 5 rounds total (or fewer if all topics are covered).
 - Do not rephrase or repeat a question the user already answered.
+
+Use this shape for each round:
+
+```markdown
+Recommendation: <preferred answer or direction, with reason>
+Examples: <task-specific example A>; <task-specific example B>
+Question N of 5: <one clarifying question>
+```
 
 ---
 

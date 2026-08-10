@@ -138,6 +138,14 @@ class TestRealCodeFenceDetection:
         result = _should_process_chunk_as_code_block(chunk, aggregated, in_code_block=True)
         assert result is False
 
+    def test_embeds_results_view_fence_is_not_code_embed(self):
+        """Results-view fences stay as message text for the frontend renderer."""
+        aggregated = "Here are the mapped results:\n\n"
+        for language in ("embeds_results_view", "embeds_map_view"):
+            chunk = f"```{language}\ntitle: Berlin AI events\nembeds: event-one-111111\n```"
+            result = _should_process_chunk_as_code_block(chunk, aggregated, in_code_block=False)
+            assert result is False
+
 
 class TestGeneratedApplicationManifestDetection:
     """Test conservative grouping of generated code files into an app manifest."""
@@ -449,6 +457,23 @@ console.log('hello');
         assert "src/App.svelte" in paths
         assert "vite.config.ts" in paths
         assert "@sveltejs/vite-plugin-svelte" in by_path["package.json"]["content"]
+        assert 'src="/src/main.ts"' in by_path["index.html"]["content"]
+
+    def test_loose_svelte_application_synthesizes_svelte5_runtime_files(self):
+        files, cleaned = _extract_loose_application_preview_files_from_text(
+            "Here is the recipe manager app.\n\n"
+            "svelte:src/App.svelte\n"
+            "<main>Recipe Manager</main>\n"
+        )
+
+        by_path = {file["filename"]: file for file in files}
+        assert cleaned == "Here is the recipe manager app."
+        assert '"vite": "^5.4.21"' in by_path["package.json"]["content"]
+        assert '"svelte": "^5.55.7"' in by_path["package.json"]["content"]
+        assert '"typescript": "^5.9.2"' in by_path["package.json"]["content"]
+        assert "latest" not in by_path["package.json"]["content"]
+        assert "import { mount } from 'svelte';" in by_path["src/main.ts"]["content"]
+        assert "new App" not in by_path["src/main.ts"]["content"]
         assert 'src="/src/main.ts"' in by_path["index.html"]["content"]
 
 

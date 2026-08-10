@@ -11,7 +11,7 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { openSignupInterface } = require('./helpers/chat-test-helpers');
-const { getE2EDebugUrl, setToggleChecked } = require('./signup-flow-helpers');
+const { getE2EDebugUrl, setToggleChecked, validateSignupInviteIfRequired } = require('./signup-flow-helpers');
 
 type FreeTestingPromotion = {
 	active: boolean;
@@ -54,6 +54,7 @@ async function openSignupBasics(page: any, path: string = '/') {
 
 	await page.getByRole('button', { name: /continue/i }).click();
 	await expect(page.getByRole('heading', { name: /sign up/i })).toBeVisible({ timeout: 10000 });
+	await validateSignupInviteIfRequired(page);
 }
 
 test('signup basics shows Free credits for testing while promotion is active', async ({ page }: { page: any }) => {

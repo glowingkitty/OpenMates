@@ -1,0 +1,375 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-15'
+generated_at: '2026-07-09T15:20:09+00:00'
+range:
+  since: '2026-05-15T00:00:00+00:00'
+  until: '2026-05-15T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 4
+  section_counts:
+    features: 0
+    bug_fixes: 3
+    improvements: 0
+    docs: 0
+    tests: 0
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 3
+  user_facing_items: 3
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: match compact event continue cards'
+    section: bug_fixes
+    commits:
+    - 27f54a983
+    authored_at: '2026-05-15T15:01:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: compact continue embeds on mobile'
+    section: bug_fixes
+    commits:
+    - b62d52671
+    authored_at: '2026-05-15T14:23:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: include bank transfer revenue in daily stats'
+    section: bug_fixes
+    commits:
+    - 696257fac
+    authored_at: '2026-05-15T12:57:48+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/scripts/server_stats_query.py
+    - scripts/update_obsidian_daily_note.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure:
+  - title: 'ci: harden npm supply chain protections'
+    section: infrastructure
+    commits:
+    - c801fe784
+    authored_at: '2026-05-15T12:58:23+00:00'
+    changed_paths:
+    - .github/workflows/dependency-review.yml
+    - .github/workflows/npm-audit.yml
+    - .github/workflows/playwright-spec.yml
+    - .github/workflows/prod-smoke.yml
+    - .github/workflows/publish-cli.yml
+    - .github/workflows/supply-chain-guard.yml
+    - .github/workflows/vitest.yml
+    - .npmrc
+    - backend/status/frontend/package-lock.json
+    - backend/status/frontend/package.json
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    - pnpm-workspace.yaml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: match compact event continue cards'
+    commits:
+    - 27f54a983
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: compact continue embeds on mobile'
+    commits:
+    - b62d52671
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: include bank transfer revenue in daily stats'
+    commits:
+    - 696257fac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: match compact event continue cards'
+    commits:
+    - 27f54a983
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: compact continue embeds on mobile'
+    commits:
+    - b62d52671
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: include bank transfer revenue in daily stats'
+    commits:
+    - 696257fac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 27f54a983176e41b05ee6e7348d27592e7409a61
+    short_sha: 27f54a983
+    authored_at: '2026-05-15T15:01:50+00:00'
+    subject: 'fix: match compact event continue cards'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: b62d52671a2570ff7e3215f454d4bba36b1c0b57
+    short_sha: b62d52671
+    authored_at: '2026-05-15T14:23:31+00:00'
+    subject: 'fix: compact continue embeds on mobile'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: c801fe784338dbac8f466e3be2a735eacae40aa7
+    short_sha: c801fe784
+    authored_at: '2026-05-15T12:58:23+00:00'
+    subject: 'ci: harden npm supply chain protections'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/dependency-review.yml
+    - .github/workflows/npm-audit.yml
+    - .github/workflows/playwright-spec.yml
+    - .github/workflows/prod-smoke.yml
+    - .github/workflows/publish-cli.yml
+    - .github/workflows/supply-chain-guard.yml
+    - .github/workflows/vitest.yml
+    - .npmrc
+    - backend/status/frontend/package-lock.json
+    - backend/status/frontend/package.json
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    - pnpm-workspace.yaml
+    related_feature_ids: []
+  - sha: 696257fac2ef32c9e244401f89c634d96e418694
+    short_sha: 696257fac
+    authored_at: '2026-05-15T12:57:48+00:00'
+    subject: 'fix: include bank transfer revenue in daily stats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/scripts/server_stats_query.py
+    - scripts/update_obsidian_daily_note.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the mobile chat experience and improving the accuracy of administrative revenue
+    reporting. Key updates include UI fixes for event cards and the inclusion of bank transfer data in daily statistics.
+  released_changes:
+  - text: The chat interface now correctly displays compact event cards and embeds on mobile layouts.
+    evidence:
+      commits:
+      - 27f54a983
+      - b62d52671
+    release_status: released_main
+  - text: Daily statistics reporting now includes revenue generated via bank transfers.
+    evidence:
+      commits:
+      - 696257fac
+    release_status: released_main
+  bug_fixes:
+  - text: Fixed a display issue where compact event continue cards did not match the intended UI design.
+    evidence:
+      commits:
+      - 27f54a983
+    release_status: released_main
+  - text: Corrected the layout of compact continue embeds to ensure they display properly on mobile devices.
+    evidence:
+      commits:
+      - b62d52671
+    release_status: released_main
+  - text: Resolved a bug in the daily statistics query that caused bank transfer revenue to be omitted from reports.
+    evidence:
+      commits:
+      - 696257fac
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: OpenMates hardened the npm supply chain protections by implementing new security workflows and audit guards.
+    evidence:
+      commits:
+      - c801fe784
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Mobile chat UI refinements for event cards and embeds
+      evidence:
+        commits:
+        - 27f54a983
+        - b62d52671
+      reason: These updates improve the visual consistency of the chat interface for mobile users.
+    - text: Improved accuracy for daily revenue statistics
+      evidence:
+        commits:
+        - 696257fac
+      reason: This ensures administrative revenue tracking is accurate for bank transfers.
+    exclude:
+    - text: npm supply chain hardening
+      evidence:
+        commits:
+        - c801fe784
+      reason: This is an internal infrastructure and security update that is not user-facing.
+    rationale: The updates focus on polishing the mobile chat experience and ensuring financial reporting accuracy, which
+      are valuable for both users and administrators.
+  social_video_recommendations:
+  - idea: A quick demonstration of the refined mobile chat UI showing compact event cards.
+    priority: low
+    reason: While these are helpful refinements, they are minor visual fixes rather than major new features.
+    evidence:
+      commits:
+      - 27f54a983
+      - b62d52671
+  quality_notes:
+  - The mobile chat interface is now more consistent with the desktop experience regarding compact event cards.
+  - Administrative data integrity is improved with the inclusion of previously missing revenue streams.
+  validation_warnings: []

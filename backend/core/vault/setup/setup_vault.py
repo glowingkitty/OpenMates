@@ -237,6 +237,12 @@ async def setup_vault():
                 original_token = client.vault_token
                 client.update_token(temp_root)
                 try:
+                    if not await policy_manager.create_api_policy():
+                        logger.error("Failed to create/ensure API service policy with temporary root token")
+                        sys.exit(1)
+                    if not await policy_manager.create_api_encryption_policy():
+                        logger.error("Failed to create/ensure API encryption policy with temporary root token")
+                        sys.exit(1)
                     await secrets_manager.add_new_secrets_to_vault()
                 finally:
                     # Restore API token and revoke the temporary root token

@@ -289,6 +289,29 @@ final class OfflineSyncBridge: ObservableObject {
         ])
     }
 
+    func queueDraftUpdate(_ record: ComposerDraftRecord) {
+        offlineStore.queueOfflineAction(type: "update_draft", payload: [
+            "chat_id": record.chatId,
+            "encrypted_draft_md": record.encryptedMarkdown,
+            "encrypted_draft_preview": record.encryptedPreview,
+            "revision": record.revision,
+            "draft_v": record.draftVersion,
+        ])
+    }
+
+    func queueDraftDelete(chatId: String) {
+        offlineStore.queueOfflineAction(type: "delete_draft", payload: ["chat_id": chatId])
+    }
+
+    func cascadeDeleteChat(chatId: String) {
+        offlineStore.deleteChat(chatId)
+        ChatKeyManager.shared.removeKey(for: chatId)
+        EmbedKeyManager.shared.removeKeys(for: chatId)
+        PendingUploadStore.shared.clearForChat(chatId)
+        UnreadMessagesStore.shared.clearUnread(chatId: chatId)
+        SpotlightIndexer.shared.removeChat(chatId)
+    }
+
     // MARK: - Replay pending actions on reconnect
 
     func replayPendingActions() async {
@@ -319,6 +342,10 @@ final class OfflineSyncBridge: ObservableObject {
                     try await replayArchiveChat(payload)
                 case "hide_chat":
                     try await replayHideChat(payload)
+                case "update_draft":
+                    try await replayDraftUpdate(payload)
+                case "delete_draft":
+                    try await replayDraftDelete(payload)
                 default:
                     break
                 }
@@ -375,6 +402,31 @@ final class OfflineSyncBridge: ObservableObject {
         )
     }
 
+    private func replayDraftUpdate(_ payload: [String: Any]) async throws {
+        guard let chatId = payload["chat_id"] as? String,
+              let encryptedMarkdown = payload["encrypted_draft_md"] as? String,
+              let encryptedPreview = payload["encrypted_draft_preview"] as? String else {
+            throw OfflineDraftReplayError.invalidEncryptedPayload
+        }
+        guard let wsManager else { throw OfflineDraftReplayError.transportUnavailable }
+        try await wsManager.sendDraftSyncMessage(DraftSyncMessage(type: "update_draft", payload: [
+            "chat_id": chatId,
+            "encrypted_draft_md": encryptedMarkdown,
+            "encrypted_draft_preview": encryptedPreview,
+        ]))
+    }
+
+    private func replayDraftDelete(_ payload: [String: Any]) async throws {
+        guard let chatId = payload["chat_id"] as? String else {
+            throw OfflineDraftReplayError.invalidEncryptedPayload
+        }
+        guard let wsManager else { throw OfflineDraftReplayError.transportUnavailable }
+        try await wsManager.sendDraftSyncMessage(DraftSyncMessage(
+            type: "delete_draft",
+            payload: ["chat_id": chatId]
+        ))
+    }
+
     // MARK: - Clear on logout
 
     func clearOnLogout() {
@@ -382,6 +434,13 @@ final class OfflineSyncBridge: ObservableObject {
         offlinePrefetchCursor = 10
         offlineStore.clearAll()
     }
+}
+
+extension OfflineSyncBridge: DraftSyncOfflineActions {}
+
+private enum OfflineDraftReplayError: Error {
+    case invalidEncryptedPayload
+    case transportUnavailable
 }
 
 private struct OfflinePrefetchRequest: Encodable {

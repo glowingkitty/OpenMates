@@ -531,8 +531,22 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
     if (attrs.referenceOnly) ref.reference_only = true;
     return ref;
   };
+  const refLine = (key: string, refs: string[] | undefined): string => {
+    if (!refs || refs.length === 0) return "";
+    return `${key}: ${refs.join(", ")}\n`;
+  };
 
   switch (attrs.type) {
+    case "embeds-map-view":
+      return (
+        "```embeds_results_view\n" +
+        `title: ${attrs.title || "Results view"}\n` +
+        refLine("embeds", attrs.mapEmbedRefs) +
+        refLine("sources", attrs.mapSourceRefs) +
+        refLine("highlight", attrs.mapHighlightRefs) +
+        "```"
+      );
+
     case "web-website":
       {
       // Check if this is a proper embed with embed_id (stored in EmbedStore)

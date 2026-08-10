@@ -11,6 +11,11 @@ import { groupConsecutiveEmbedsInDocument } from "./embedGrouping";
 import { migrateEmbedNodes, needsMigration } from "./migration";
 import { resolveEmbedDisplayText } from "../utils/embedDisplayText";
 import { parseEmbedLinkTarget } from "../utils/embedFragmentUtils";
+import {
+  resolveEmbedRefIndexReference,
+  resolveEmbedRefIndexEntry,
+  type EmbedRefIndexEntry,
+} from "../services/embedRefIndex";
 
 // ─── Inline embed-link conversion ─────────────────────────────────────────────
 //
@@ -33,28 +38,136 @@ import { parseEmbedLinkTarget } from "../utils/embedFragmentUtils";
 //   document to use as a fallback when the in-memory ref index is empty.
 //
 // Pass 2 — convert embed: link marks to embedInline nodes.
-//   Primary:  resolveAppIdByRef() — works during live streaming once the ref has
-//             been registered via chatSyncServiceHandlersAI.
+//   Primary:  embedRefIndex — works during live streaming once the ref has been
+//             registered via chatSyncServiceHandlersAI.
 //   Fallback: app_id collected from sibling embed nodes (Pass 1) — always available,
 //             gives instant correct colour/icon on page reload without any async wait.
 //
 // This means inline badges render with the correct gradient on the SAME render pass
 // as the embed preview card, with zero additional async work.
 
-// Lazy singleton reference to embedStore (populated on first call).
-// Used only for the secondary resolveAppIdByRef() lookup (live-streaming path).
-let _embedStoreRef: import("../services/embedStore").EmbedStore | null = null;
-async function _ensureEmbedStore(): Promise<void> {
-  if (!_embedStoreRef) {
-    const mod = await import("../services/embedStore");
-    _embedStoreRef = mod.embedStore;
-  }
-}
-function _getEmbedStore(): import("../services/embedStore").EmbedStore | null {
-  return _embedStoreRef;
+const INLINE_CODE_EMBED_LINK_RE = /^\[([^\]\n]*)\]\(embed:([^)\n]+)\)$/;
+const BARE_EMBED_SOURCE_LABEL_PREFIX = "Source: ";
+const BARE_EMBED_REF_HYPHEN_SOURCE = String.raw`[\-\u2010\u2011\u2012\u2013\u2014\u2015\u2212]`;
+const BARE_EMBED_REF_SUFFIX_SOURCE = String.raw`[A-Za-z0-9]{2,4}`;
+const BARE_EMBED_REF_TOKEN_SOURCE = String.raw`(?:[A-Za-z0-9._~:][A-Za-z0-9._~:-]*${BARE_EMBED_REF_HYPHEN_SOURCE}${BARE_EMBED_REF_SUFFIX_SOURCE}|${BARE_EMBED_REF_HYPHEN_SOURCE}${BARE_EMBED_REF_SUFFIX_SOURCE})`;
+const BARE_EMBED_REF_TOKEN_RE = new RegExp(
+  `^${BARE_EMBED_REF_TOKEN_SOURCE}$`,
+);
+const BARE_DOMAIN_EMBED_REF_TOKEN_RE = /^[A-Za-z0-9][-A-Za-z0-9.]*\.[A-Za-z]{2,}(?:\.[A-Za-z]{2,})?-[A-Za-z0-9]{2,4}$/;
+const BARE_EMBED_REF_GROUP_RE = new RegExp(
+  "\\[((?:" + BARE_EMBED_REF_TOKEN_SOURCE + ")(?:\\s*,\\s*(?:" +
+    BARE_EMBED_REF_TOKEN_SOURCE + "))*)\\](?!\\()",
+  "g",
+);
+
+function hasCodeOrLinkMark(node: any): boolean {
+  return Array.isArray(node?.marks) && node.marks.some(
+    (mark: any) => mark?.type === "code" || mark?.type === "link",
+  );
 }
 
-const INLINE_CODE_EMBED_LINK_RE = /^\[([^\]\n]*)\]\(embed:([^)\n]+)\)$/;
+function createMarkedTextNode(text: string, sourceNode: any): any | null {
+  if (!text) return null;
+  const textNode: any = { type: "text", text };
+  if (Array.isArray(sourceNode?.marks) && sourceNode.marks.length > 0) {
+    textNode.marks = sourceNode.marks;
+  }
+  return textNode;
+}
+
+function createInlineEmbedNodeFromRawRef(
+  rawRef: string,
+  fallbackAppId: string | null,
+): any {
+  const { cleanRef, lineStart, lineEnd, highlightQuoteText, sheetRange } =
+    parseEmbedLinkTarget(rawRef);
+  const resolvedRef = resolveEmbedRefIndexReference(cleanRef);
+  const refEntry = resolvedRef?.entry ?? null;
+  const embedRef = resolvedRef?.embedRef ?? cleanRef;
+  const displayText = resolveEmbedDisplayText(embedRef, embedRef);
+  return {
+    type: "embedInline",
+    attrs: {
+      embedRef,
+      embedId: refEntry?.embedId ?? null,
+      displayText: `${BARE_EMBED_SOURCE_LABEL_PREFIX}${displayText}`,
+      appId: refEntry?.appId ?? fallbackAppId,
+      focusLineStart: lineStart,
+      focusLineEnd: lineEnd,
+      highlightQuoteText,
+      focusSheetRange: sheetRange,
+    },
+  };
+}
+
+function convertBareEmbedRefGroupsInTextNode(
+  node: any,
+  fallbackAppId: string | null,
+): any | any[] {
+  if (node.type !== "text" || typeof node.text !== "string") return node;
+  if (hasCodeOrLinkMark(node)) return node;
+
+  BARE_EMBED_REF_GROUP_RE.lastIndex = 0;
+  if (!BARE_EMBED_REF_GROUP_RE.test(node.text)) return node;
+
+  BARE_EMBED_REF_GROUP_RE.lastIndex = 0;
+  const output: any[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = BARE_EMBED_REF_GROUP_RE.exec(node.text)) !== null) {
+    const refs = match[1]
+      .split(",")
+      .map((ref) => ref.trim())
+      .filter((ref) => BARE_EMBED_REF_TOKEN_RE.test(ref));
+    const resolvedRefs = refs
+      .map((ref) => {
+        const resolvedRef = resolveEmbedRefIndexReference(ref)?.embedRef;
+        if (resolvedRef) return resolvedRef;
+        // Cold shared-chat loads may parse messages before encrypted child embeds
+        // warm the in-memory ref index. Domain-shaped refs are already specific
+        // enough to render as inline links and self-repair through EmbedInlineLink.
+        return BARE_DOMAIN_EMBED_REF_TOKEN_RE.test(ref) ? ref : null;
+      })
+      .filter((ref): ref is string => typeof ref === "string" && ref.length > 0);
+
+    if (resolvedRefs.length === 0) continue;
+
+    const before = createMarkedTextNode(
+      node.text.slice(lastIndex, match.index),
+      node,
+    );
+    if (before) output.push(before);
+
+    resolvedRefs.forEach((ref, index) => {
+      if (index > 0) output.push({ type: "text", text: ", " });
+      output.push(createInlineEmbedNodeFromRawRef(ref, fallbackAppId));
+    });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (output.length === 0) return node;
+  const after = createMarkedTextNode(node.text.slice(lastIndex), node);
+  if (after) output.push(after);
+  return output;
+}
+
+function createCompactAppSkillEmbedNode(
+  refEntry: EmbedRefIndexEntry,
+  fallbackAppId: string | null,
+): any {
+  const attrs: any = {
+    id: refEntry.embedId,
+    type: "app-skill-use",
+    status: "finished",
+    contentRef: `embed:${refEntry.embedId}`,
+  };
+  const appId = refEntry.appId ?? fallbackAppId;
+  if (appId) attrs.app_id = appId;
+  if (refEntry.skillId) attrs.skill_id = refEntry.skillId;
+  return { type: "embed", attrs };
+}
 
 function stripWriteModeLinkMarks(node: any): any {
   if (!node || typeof node !== "object") return node;
@@ -129,6 +242,8 @@ function convertEmbedLinksInNode(
   node: any,
   fallbackAppId: string | null,
 ): any | any[] {
+  if (node.type === "codeBlock") return node;
+
   // Leaf text node — check for embed: or wiki: link mark
   if (node.type === "text" && Array.isArray(node.marks)) {
     const codeMarkIndex = node.marks.findIndex((m: any) => m.type === "code");
@@ -140,8 +255,9 @@ function convertEmbedLinksInNode(
         const { cleanRef, lineStart, lineEnd, highlightQuoteText, sheetRange } =
           parseEmbedLinkTarget(rawRef);
         const resolvedDisplayText = resolveEmbedDisplayText(displayText, cleanRef);
-        const resolvedEmbedId = _getEmbedStore()?.resolveByRef(cleanRef) ?? null;
-        const resolvedLiveAppId = _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
+        const refEntry = resolveEmbedRefIndexEntry(cleanRef);
+        const resolvedEmbedId = refEntry?.embedId ?? null;
+        const resolvedLiveAppId = refEntry?.appId ?? null;
         const appId = resolvedLiveAppId ?? fallbackAppId;
 
         return {
@@ -206,9 +322,13 @@ function convertEmbedLinksInNode(
       if (displayText === "!") {
         // Strip any accidental #L suffix (preview cards don't use line highlighting)
         const { cleanRef } = parseEmbedLinkTarget(rawRef);
-        const resolvedId = _getEmbedStore()?.resolveByRef(cleanRef) ?? null;
-        const resolvedAppId =
-          _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
+        const refEntry = resolveEmbedRefIndexEntry(cleanRef);
+        if (refEntry?.type && isAppSkillEmbedType(refEntry.type)) {
+          return createCompactAppSkillEmbedNode(refEntry, fallbackAppId);
+        }
+
+        const resolvedId = refEntry?.embedId ?? null;
+        const resolvedAppId = refEntry?.appId ?? null;
         return {
           type: "embedPreviewLarge",
           attrs: {
@@ -234,10 +354,9 @@ function convertEmbedLinksInNode(
       // Primary: check the in-memory ref index (populated during live streaming).
       // Fallback: use app_id from sibling embed nodes collected in Pass 1 —
       //   always available on first parse, even on page reload, with no async work.
-      const resolvedEmbedId =
-        _getEmbedStore()?.resolveByRef(cleanRef) ?? null;
-      const resolvedLiveAppId =
-        _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
+      const refEntry = resolveEmbedRefIndexEntry(cleanRef);
+      const resolvedEmbedId = refEntry?.embedId ?? null;
+      const resolvedLiveAppId = refEntry?.appId ?? null;
       const appId = resolvedLiveAppId ?? fallbackAppId;
 
       return {
@@ -254,6 +373,14 @@ function convertEmbedLinksInNode(
         },
       };
     }
+  }
+
+  const bareEmbedRefConversion = convertBareEmbedRefGroupsInTextNode(
+    node,
+    fallbackAppId,
+  );
+  if (Array.isArray(bareEmbedRefConversion) || bareEmbedRefConversion !== node) {
+    return bareEmbedRefConversion;
   }
 
   // Recurse into children
@@ -282,12 +409,6 @@ function convertEmbedLinksInNode(
  */
 function convertEmbedLinks(doc: any): any {
   if (!doc || !doc.content) return doc;
-  // Warm up the embedStore ref asynchronously so the live-streaming path works
-  // on subsequent renders. The result is intentionally not awaited — this function
-  // must remain synchronous. The ref will be ready for the next render cycle.
-  _ensureEmbedStore().catch(() => {
-    /* ignore — embedStore may not be loaded in SSR/test envs */
-  });
   // Pass 1: collect app_id from embed nodes already in the document.
   const fallbackAppId = collectEmbedAppIds(doc);
   // Pass 2: convert embed: links, using fallbackAppId when ref index has no entry.
@@ -306,8 +427,8 @@ function convertEmbedLinks(doc: any): any {
 //
 // Hoisting handles three scenarios:
 //   1. Paragraph with ONLY embed links → hoist each embed as a block node.
-//   2. Paragraph with text THEN trailing embed links → split: keep text in
-//      the paragraph, hoist embeds as separate block nodes.
+//   2. Paragraph with embed links mixed with surrounding text/punctuation →
+//      split text into paragraph chunks and hoist embeds as separate blocks.
 //   3. Embeds inside list items / blockquotes → recurse into nested content.
 //
 // After hoisting, Phase B groups consecutive embedPreviewLarge nodes into
@@ -334,8 +455,8 @@ function _isEmptyParagraph(node: any): boolean {
 /**
  * Phase A: Hoist embedPreviewLarge nodes out of paragraphs.
  *
- * For each paragraph, determine if it contains only embeds (hoist all) or
- * text followed by trailing embeds (split — keep text, hoist embeds).
+ * For each paragraph, split content around block previews so text remains in
+ * paragraph nodes while previews can be grouped as top-level carousel blocks.
  * Recurses into list items, blockquotes, and other container nodes.
  */
 function _hoistEmbeds(nodes: any[]): any[] {
@@ -358,64 +479,51 @@ function _hoistEmbeds(nodes: any[]): any[] {
       continue;
     }
 
-    // Separate meaningful children from ignorable separators.
-    const meaningful = node.content.filter(
-      (c: any) => !_isIgnorableInlineNode(c),
+    const hasBlockPreview = node.content.some((c: any) =>
+      BLOCK_EMBED_PREVIEW_TYPES.has(c.type),
     );
-
-    // Case 1: paragraph contains ONLY block-preview embeds → hoist all.
-    const allBlockPreviews =
-      meaningful.length > 0 &&
-      meaningful.every((c: any) => BLOCK_EMBED_PREVIEW_TYPES.has(c.type));
-    if (allBlockPreviews) {
-      for (const embedNode of meaningful) {
-        result.push(embedNode);
-      }
+    if (!hasBlockPreview) {
+      result.push(node);
       continue;
     }
 
-    // Case 2: paragraph has text content then TRAILING embed(s).
-    // Split at the boundary: text stays in the paragraph, embeds are hoisted.
-    // Find the index of the first embedPreviewLarge in the original content.
-    const firstEmbedIdx = node.content.findIndex(
-      (c: any) => c.type === "embedPreviewLarge",
-    );
-    if (firstEmbedIdx > 0) {
-      // Check that everything from firstEmbedIdx onward is either an embed
-      // or an ignorable separator (whitespace, breaks).
-      const tail = node.content.slice(firstEmbedIdx);
-      const tailMeaningful = tail.filter(
-        (c: any) => !_isIgnorableInlineNode(c),
-      );
-      const allTailEmbeds =
-        tailMeaningful.length > 0 &&
-        tailMeaningful.every((c: any) =>
-          BLOCK_EMBED_PREVIEW_TYPES.has(c.type),
-        );
+    const paragraphContent: any[] = [];
 
-      if (allTailEmbeds) {
-        // Keep the text portion as a paragraph (strip trailing whitespace/breaks)
-        const headContent = node.content.slice(0, firstEmbedIdx);
-        // Remove trailing whitespace-only text and breaks from the head
-        while (
-          headContent.length > 0 &&
-          _isIgnorableInlineNode(headContent[headContent.length - 1])
-        ) {
-          headContent.pop();
-        }
-        if (headContent.length > 0) {
-          result.push({ ...node, content: headContent });
-        }
-        // Hoist each embed from the tail
-        for (const embedNode of tailMeaningful) {
-          result.push(embedNode);
-        }
+    const flushParagraphContent = (): void => {
+      while (
+        paragraphContent.length > 0 &&
+        _isIgnorableInlineNode(paragraphContent[0])
+      ) {
+        paragraphContent.shift();
+      }
+      while (
+        paragraphContent.length > 0 &&
+        _isIgnorableInlineNode(paragraphContent[paragraphContent.length - 1])
+      ) {
+        paragraphContent.pop();
+      }
+      if (paragraphContent.length === 0) return;
+      result.push({ ...node, content: paragraphContent.splice(0) });
+    };
+
+    for (const child of node.content) {
+      if (BLOCK_EMBED_PREVIEW_TYPES.has(child.type)) {
+        flushParagraphContent();
+        result.push(child);
         continue;
       }
+
+      // Hard/soft breaks and whitespace around hoisted preview blocks are layout
+      // separators, not content. Drop them so consecutive previews remain a
+      // contiguous carousel run even when the model adds line breaks.
+      if (_isIgnorableInlineNode(child) && paragraphContent.length === 0) {
+        continue;
+      }
+
+      paragraphContent.push(child);
     }
 
-    // Case 3: no embeds or embeds mixed into the middle of text → keep as-is.
-    result.push(node);
+    flushParagraphContent();
   }
 
   return result;
@@ -843,7 +951,11 @@ function getEmbedBaseType(type: string): string {
 }
 
 function isAppSkillEmbedType(type: string): boolean {
-  return type === "app-skill-use" || type === "app-skill-use-group";
+  return (
+    type === "app-skill-use" ||
+    type === "app-skill-use-group" ||
+    type === "app_skill_use"
+  );
 }
 
 function extractEmbedId(attrs: any): string | null {
@@ -1022,7 +1134,16 @@ export function parse_message(
   }
 
   // Parse normal embed nodes
-  const embedNodes = parseEmbedNodes(markdown, mode);
+  const embedNodes = parseEmbedNodes(markdown, mode).map((node) => {
+    if (node.type !== "sub-chat-batch") return node;
+    const currentChatId = typeof opts.chatId === "string" ? opts.chatId : "";
+    if (!currentChatId) return node;
+    return {
+      ...node,
+      parentChatId: currentChatId,
+      subChatIds: node.parentChatId && node.parentChatId !== currentChatId ? [] : node.subChatIds,
+    };
+  });
 
   // Handle streaming semantics for partial/unclosed blocks
   const streamingData = handleStreamingSemantics(markdown, mode);
@@ -1055,6 +1176,10 @@ export function parse_message(
   // blockquotes that are source quotes and convert them (read mode only)
   if (mode === "read") {
     unifiedDoc = convertEmbedLinks(unifiedDoc);
+    // Link-based app-skill refs (`[!](embed:ref)`) are only known after
+    // convertEmbedLinks(), so run grouping again to preserve the compact
+    // horizontal app-skill row instead of rendering vertical single cards.
+    unifiedDoc = groupConsecutiveEmbedsInDocument(unifiedDoc);
     unifiedDoc = convertSourceQuotes(unifiedDoc);
   }
 

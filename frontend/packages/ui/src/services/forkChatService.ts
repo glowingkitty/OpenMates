@@ -352,8 +352,9 @@ async function runForkAsync(
     duration: 12000,
     dismissible: true,
     onAction: () => {
-      activeChatStore.setActiveChat(newChatId);
-      forkProgressStore.reset();
+      void openChatWhenAvailable(newChatId).finally(() => {
+        forkProgressStore.reset();
+      });
     },
     actionLabel: $text("chats.fork.complete_notification"),
   });
@@ -424,8 +425,15 @@ async function createCleanExplanationChat(prompt: string): Promise<string> {
 
 async function openChatWhenAvailable(chatId: string): Promise<void> {
   for (let attempt = 0; attempt < 60; attempt += 1) {
-    if (await chatDB.getChat(chatId)) {
+    const chat = await chatDB.getChat(chatId);
+    if (chat) {
+      window.dispatchEvent(new CustomEvent("chatHeaderNavigation", {
+        detail: { chat, scrollToTop: false },
+      }));
       activeChatStore.setActiveChat(chatId);
+      void chatSyncService.sendSetActiveChat(chatId).catch((error) => {
+        console.warn("[ForkChatService] Failed to persist opened explanation chat:", error);
+      });
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, 250));

@@ -23,6 +23,8 @@ extension AppQuickAction {
         switch shortcutItem.type {
         case AppQuickAction.askType, AppQuickAction.legacyNewChatType:
             self = .ask
+        case AppQuickAction.recordRequestType:
+            self = .recordRequest
         case AppQuickAction.askAboutPhotoType:
             self = .askAboutPhoto
         case AppQuickAction.searchType:
@@ -97,10 +99,14 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         switch activity.activityType {
         case HandoffManager.viewChatActivityType:
             if let chatId = activity.userInfo?["chatId"] as? String {
+                var userInfo: [String: Any] = ["chatId": chatId]
+                if let embedId = activity.userInfo?["embedId"] as? String {
+                    userInfo["embedId"] = embedId
+                }
                 NotificationCenter.default.post(
                     name: .handoffChatReceived,
                     object: nil,
-                    userInfo: ["chatId": chatId]
+                    userInfo: userInfo
                 )
             }
         case HandoffManager.browseChatsActivityType:

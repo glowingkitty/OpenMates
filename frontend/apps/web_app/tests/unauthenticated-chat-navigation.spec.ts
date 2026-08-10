@@ -32,13 +32,16 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const CYCLES = 5;
 const CHAT_LOAD_TIMEOUT = 12000;
 const SETTINGS_TIMEOUT = 8000;
+const SLIDE_NAVIGATION_TIMEOUT = 5000;
 
-async function openForEveryoneIntroChat(page: any) {
+function getNewChatButton(page: any) {
+	return page.locator('[data-testid="new-chat-cta-fullwidth"], [data-testid="new-chat-button"]').first();
+}
+
+async function openFirstIntroOrExampleChat(page: any) {
 	const skipInterests = page.getByTestId('guest-interest-skip');
-	const forEveryoneCard = page
-		.locator('[data-testid="resume-chat-large-card"][data-chat-id="demo-for-everyone"], [data-testid="resume-chat-card"][data-chat-id="demo-for-everyone"]')
-		.first();
-	const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
+	const firstCard = page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first();
+	const newChatButton = getNewChatButton(page);
 
 	if (await skipInterests.isVisible({ timeout: 5000 }).catch(() => false)) {
 		await skipInterests.click();
@@ -46,11 +49,52 @@ async function openForEveryoneIntroChat(page: any) {
 	}
 
 	if (!(await newChatButton.isVisible({ timeout: 1000 }).catch(() => false))) {
-		await expect(forEveryoneCard).toBeVisible({ timeout: 10000 });
-		await forEveryoneCard.click();
+		await expect(firstCard).toBeVisible({ timeout: 10000 });
+		await firstCard.click();
 	}
 
 	await expect(newChatButton).toBeVisible({ timeout: 15000 });
+}
+
+async function expectBlankFocusedComposer(page: any) {
+	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
+	await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeFocused({ timeout: 5000 });
+}
+
+async function expectCurrentLandingSlide(page: any, slideIndex: number, inspirationId: string) {
+	await expect(page.locator('[data-testid="daily-inspiration-mounted-slide"][data-current="true"]')).toHaveAttribute(
+		'data-slide-index',
+		String(slideIndex),
+		{ timeout: SLIDE_NAVIGATION_TIMEOUT }
+	);
+	const banner = page.getByTestId('daily-inspiration-banner');
+	await expect(banner).toHaveAttribute('data-current-inspiration-id', inspirationId, {
+		timeout: SLIDE_NAVIGATION_TIMEOUT
+	});
+	await expect(banner).toHaveAttribute('data-guest-slide-phase', 'idle', {
+		timeout: SLIDE_NAVIGATION_TIMEOUT
+	});
+}
+
+async function expectLandingCarouselNavigatesBothDirections(page: any) {
+	const banner = page.getByTestId('daily-inspiration-banner');
+	await expect(banner).toBeVisible({ timeout: 10000 });
+	const inspirationIds = (await banner.getAttribute('data-visible-inspiration-ids'))
+		?.split(',')
+		.filter(Boolean) ?? [];
+	expect(inspirationIds.length, 'guest landing carousel should contain multiple slides').toBeGreaterThan(1);
+
+	await expectCurrentLandingSlide(page, 0, inspirationIds[0]);
+	for (let slideIndex = 1; slideIndex < inspirationIds.length; slideIndex += 1) {
+		await page.getByTestId('daily-inspiration-next').click();
+		await expectCurrentLandingSlide(page, slideIndex, inspirationIds[slideIndex]);
+	}
+
+	for (let slideIndex = inspirationIds.length - 2; slideIndex >= 0; slideIndex -= 1) {
+		await page.getByTestId('daily-inspiration-previous').click();
+		await expectCurrentLandingSlide(page, slideIndex, inspirationIds[slideIndex]);
+	}
+	await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: SLIDE_NAVIGATION_TIMEOUT });
 }
 
 test.describe('Unauthenticated chat navigation stays reactive', () => {
@@ -75,18 +119,23 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 10000 });
 		expect(await page.evaluate(() => window.location.hash)).not.toContain('demo-for-everyone');
 		console.log('[chat-nav] Initial logged-out welcome screen loaded');
-		await openForEveryoneIntroChat(page);
-		console.log('[chat-nav] Intro chat opened after guest-interest onboarding');
+		await openFirstIntroOrExampleChat(page);
+		console.log('[chat-nav] Intro/example chat opened after guest-interest onboarding');
 
 		// ─── 2. Cycle: new chat → intro/example chat card, CYCLES times ──────
 		for (let cycle = 1; cycle <= CYCLES; cycle++) {
 			console.log(`[chat-nav] === Cycle ${cycle}/${CYCLES} ===`);
 
 			// ── 2a. Click "New Chat" CTA (fullwidth on intro/demo chats) ────
-			const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
+			const newChatButton = getNewChatButton(page);
 			await expect(newChatButton).toBeVisible({ timeout: 8000 });
 			await newChatButton.click();
 			console.log(`[chat-nav] [${cycle}] Clicked New Chat button`);
+			await expectBlankFocusedComposer(page);
+			console.log(`[chat-nav] [${cycle}] Blank composer focused after New Chat click`);
+			const composer = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
+			await composer.blur();
+			await expect(composer).not.toBeFocused();
 
 			// Wait for the welcome screen: message editor and chat cards appear.
 			// The message editor is always present but the nonAuth chat cards only
@@ -122,9 +171,13 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		console.log(`[chat-nav] All ${CYCLES} cycles completed — UI remained reactive throughout`);
 
 		// ─── 3. Navigate back to new chat one final time ──────────────────────
-		const finalNewChatButton = page.getByTestId('new-chat-cta-fullwidth');
+		const finalNewChatButton = getNewChatButton(page);
 		await expect(finalNewChatButton).toBeVisible({ timeout: 8000 });
 		await finalNewChatButton.click();
+		await expectBlankFocusedComposer(page);
+		await page.getByTestId('daily-inspiration-previous').click();
+		await expectLandingCarouselNavigatesBothDirections(page);
+		console.log('[chat-nav] Guest landing carousel navigated from first to last slide and back');
 
 		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 8000 });
@@ -139,6 +192,7 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 
 		const settingsMenu = page.getByTestId('settings-menu');
 		await expect(settingsMenu).toBeVisible({ timeout: SETTINGS_TIMEOUT });
+		await expect(settingsMenu.getByTestId('learning-mode-toggle-wrapper')).toHaveCount(0);
 		console.log('[chat-nav] Settings menu opened — settings panel is reactive');
 
 		// ─── 5. Close the settings panel ─────────────────────────────────────

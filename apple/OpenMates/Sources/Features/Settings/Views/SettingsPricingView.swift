@@ -51,6 +51,7 @@ struct SettingsPricingView: View {
                 .padding(.vertical, .spacing4)
             }
         }
+        .accessibilityIdentifier("settings-pricing-page")
         .task { await storeManager.loadProducts() }
     }
 

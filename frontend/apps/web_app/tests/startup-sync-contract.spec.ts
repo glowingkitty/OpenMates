@@ -16,13 +16,55 @@ const { getTestAccount } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const STARTUP_SYNC_FRAME_TIMEOUT_MS = 30_000;
+const STARTUP_SYNC_DIAGNOSTIC_TAIL = 25;
 
-async function waitForSyncComplete(page: any): Promise<void> {
-	const syncingIndicator = page.getByTestId('syncing-indicator');
+function tail<T>(items: T[]): T[] {
+	return items.slice(Math.max(0, items.length - STARTUP_SYNC_DIAGNOSTIC_TAIL));
+}
+
+function countTypes(types: string[]): Record<string, number> {
+	return types.reduce((counts: Record<string, number>, type) => {
+		counts[type] = (counts[type] || 0) + 1;
+		return counts;
+	}, {});
+}
+
+function redactedPageUrl(rawUrl: string): string {
 	try {
-		await expect(syncingIndicator).not.toBeVisible({ timeout: 30000 });
+		const url = new URL(rawUrl);
+		if (url.hash) url.hash = '#<redacted>';
+		return url.toString();
 	} catch {
-		console.log('WARNING: Syncing indicator still visible after 30s; continuing with captured events.');
+		return '<unavailable>';
+	}
+}
+
+function phase2PayloadSummary(payload: any): Record<string, unknown> {
+	return {
+		chat_count: payload?.chat_count,
+		total_chat_count: payload?.total_chat_count,
+		chats_length: Array.isArray(payload?.chats) ? payload.chats.length : null,
+		deleted_chat_ids_count: Array.isArray(payload?.deleted_chat_ids) ? payload.deleted_chat_ids.length : null,
+		phase: payload?.phase
+	};
+}
+
+async function waitForStartupSyncFrames(
+	receivedTypes: string[],
+	getDiagnostics: () => Record<string, unknown>
+): Promise<void> {
+	try {
+		await expect.poll(() => ({
+			phase1b: receivedTypes.includes('phase_1b_chat_content_ready'),
+			phase2: receivedTypes.includes('phase_2_last_20_chats_ready')
+		}), {
+			timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+			message: 'Startup sync should receive Phase 1b content and Phase 2 metadata frames'
+		}).toEqual({ phase1b: true, phase2: true });
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		throw new Error(`${message}\nStartup sync diagnostics: ${JSON.stringify(getDiagnostics(), null, 2)}`);
 	}
 }
 
@@ -63,6 +105,7 @@ async function getLocalChatWithNoMessages(page: any): Promise<string | null> {
 	});
 }
 
+// contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only
 test('startup sync is bounded and older content hydrates on demand', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(180000);
@@ -71,9 +114,49 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	const receivedTypes: string[] = [];
 	const phase1bChatCounts: number[] = [];
 	const phase2Payloads: any[] = [];
+	const syncStatusPayloads: any[] = [];
+	const metadataResponsePayloads: any[] = [];
 	const sentTypes: string[] = [];
+	const onDemandRequestUrls: string[] = [];
+	const consoleErrors: string[] = [];
+	const pageErrors: string[] = [];
+	const websocketEvents: string[] = [];
+
+	const diagnostics = () => ({
+		url: redactedPageUrl(page.url()),
+		receivedTypeCounts: countTypes(receivedTypes),
+		receivedTypesTail: tail(receivedTypes),
+		sentTypeCounts: countTypes(sentTypes),
+		sentTypesTail: tail(sentTypes),
+		phase1bChatCounts,
+		phase2Payloads: phase2Payloads.map(phase2PayloadSummary),
+		syncStatusPayloads: tail(syncStatusPayloads),
+		metadataResponsePayloads: tail(metadataResponsePayloads),
+		consoleErrors: tail(consoleErrors),
+		pageErrors: tail(pageErrors),
+		websocketEvents: tail(websocketEvents)
+	});
+
+	page.on('console', (message: any) => {
+		if (!['error', 'warning'].includes(message.type())) return;
+		consoleErrors.push(`${message.type()}: ${message.text().slice(0, 500)}`);
+	});
+
+	page.on('pageerror', (error: Error) => {
+		pageErrors.push((error?.message || String(error)).slice(0, 500));
+	});
+
+	page.on('request', (request: any) => {
+		const url = request.url();
+		if (url.includes('/messages/window')) {
+			onDemandRequestUrls.push(url);
+		}
+	});
 
 	page.on('websocket', (ws: any) => {
+		websocketEvents.push('opened');
+		ws.on('close', () => websocketEvents.push('closed'));
+
 		ws.on('framesent', (frame: any) => {
 			try {
 				const parsed = JSON.parse(String(frame.payload));
@@ -98,6 +181,21 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 				if (type === 'phase_2_last_20_chats_ready') {
 					phase2Payloads.push(payload);
 				}
+				if (type === 'sync_status_response') {
+					syncStatusPayloads.push({
+						is_primed: payload?.is_primed,
+						chat_count: payload?.chat_count,
+						timestamp: payload?.timestamp
+					});
+				}
+				if (type === 'sync_metadata_chats_response' || type === 'sync_metadata_chats_error') {
+					metadataResponsePayloads.push({
+						type,
+						chat_count: Array.isArray(payload?.chats) ? payload.chats.length : null,
+						total_count: payload?.total_count,
+						error: typeof payload?.error === 'string' ? payload.error.slice(0, 300) : null
+					});
+				}
 			} catch {
 				// Ignore non-JSON frames.
 			}
@@ -105,8 +203,7 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	});
 
 	await loginToTestAccount(page);
-	await waitForSyncComplete(page);
-	await page.waitForTimeout(3000);
+	await waitForStartupSyncFrames(receivedTypes, diagnostics);
 
 	expect(receivedTypes).toContain('phase_1b_chat_content_ready');
 	expect(receivedTypes).toContain('phase_2_last_20_chats_ready');
@@ -114,6 +211,7 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	expect(Math.max(...phase1bChatCounts)).toBeLessThanOrEqual(10);
 
 	for (const payload of phase2Payloads) {
+		expect(payload?.chat_count).toBe((payload?.chats || []).length);
 		expect(payload?.embeds).toBeUndefined();
 		expect(payload?.embed_keys).toBeUndefined();
 		expect(payload?.code_run_outputs).toBeUndefined();
@@ -132,7 +230,11 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || new URL(page.url()).origin;
 	await page.goto(`${baseUrl}/#chat-id=${metadataOnlyChatId}`);
 
-	await expect.poll(() => sentTypes.includes('request_chat_content_batch'), {
+	await expect.poll(() => {
+		const expectedRestPath = `/v1/chats/${encodeURIComponent(metadataOnlyChatId)}/messages/window`;
+		return sentTypes.includes('request_chat_content_batch') ||
+			onDemandRequestUrls.some((url) => url.includes(expectedRestPath));
+	}, {
 		timeout: 15000,
 		message: 'Opening metadata-only chat should request on-demand content hydration'
 	}).toBe(true);

@@ -4,10 +4,98 @@
 // local pending message snapshots before watchOS UI tests exercise the shell.
 
 import XCTest
+import CryptoKit
 @testable import OpenMates
 
 @MainActor
 final class WatchChatRuntimeTests: XCTestCase {
+    func testLiveReservedAccountLoginLoadsAndOpensWatchChat() async throws {
+        let credentials = try WatchLiveAccountCredentials.fromEnvironment(preferredReservedSlot: 14)
+        ServerConfiguration.current = ServerProfile.development.endpointConfiguration
+
+        let authManager = AuthManager()
+        let lookup = try await authManager.lookup(email: credentials.email, stayLoggedIn: true)
+        do {
+            try await authManager.loginWithPassword(
+                email: credentials.email,
+                password: credentials.password,
+                userEmailSalt: lookup.userEmailSalt,
+                stayLoggedIn: true
+            )
+        } catch AuthError.tfaRequired {
+            var lastOTPError: Error?
+            for offset in [0, -1, 1, 0, -1] {
+                WatchLiveTOTP.waitPastBoundaryIfNeeded()
+                do {
+                    try await authManager.loginWithPassword(
+                        email: credentials.email,
+                        password: credentials.password,
+                        userEmailSalt: lookup.userEmailSalt,
+                        tfaCode: WatchLiveTOTP.generate(secret: credentials.otpKey, windowOffset: offset),
+                        codeType: "otp",
+                        stayLoggedIn: true
+                    )
+                    lastOTPError = nil
+                    break
+                } catch AuthError.invalidTwoFactorCode {
+                    lastOTPError = AuthError.invalidTwoFactorCode
+                    try await Task.sleep(nanoseconds: 3_000_000_000)
+                }
+            }
+            if let lastOTPError {
+                throw lastOTPError
+            }
+        }
+
+        XCTAssertEqual(authManager.state, .authenticated)
+        let loggedInUser = try XCTUnwrap(authManager.currentUser)
+        let masterKey = try await CryptoManager.shared.loadMasterKey(for: loggedInUser.id)
+        XCTAssertNotNil(masterKey)
+
+        let watchSession: SessionResponse = try await APIClient.shared.request(
+            .post,
+            path: "/v1/auth/session",
+            body: SessionRequest(
+                sessionId: WatchCompatibleSession.nativeSessionId,
+                deviceInfo: WatchCompatibleSession.makeNativeDeviceInfo()
+            )
+        )
+        XCTAssertTrue(watchSession.isAuthenticated)
+        XCTAssertEqual(watchSession.user?.id, loggedInUser.id)
+
+        let runtime = WatchChatRuntime(
+            currentUserId: loggedInUser.id,
+            syncSocket: nil,
+            syncSession: nil
+        )
+        await runtime.refresh()
+
+        XCTAssertFalse(runtime.isOffline, runtime.errorMessage ?? "Watch chat refresh unexpectedly went offline")
+        XCTAssertFalse(runtime.chats.isEmpty, "Real Apple test account must keep at least one decryptable saved chat for Watch smoke coverage")
+
+        var openedMessageCount = 0
+        for chat in runtime.chats.prefix(5) {
+            await runtime.openChat(chat)
+            XCTAssertEqual(runtime.selectedChatId, chat.id)
+            if !runtime.selectedMessages.isEmpty {
+                openedMessageCount = runtime.selectedMessages.count
+                break
+            }
+        }
+
+        XCTAssertGreaterThan(openedMessageCount, 0, "Opening a Watch chat must load at least one message from the real account")
+        XCTAssertFalse(runtime.isOffline, runtime.errorMessage ?? "Watch chat open unexpectedly went offline")
+    }
+
+    func testWatchCryptoCanOmitHiddenChatCandidates() throws {
+        let appleRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let runtimeURL = appleRoot.appendingPathComponent("OpenMates/Sources/Core/Watch/WatchChatRuntime.swift")
+        let source = try String(contentsOf: runtimeURL, encoding: .utf8)
+
+        XCTAssertTrue(source.contains("func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary?"))
+        XCTAssertTrue(source.contains("if let decrypted = await crypto.decryptChat(chat)"))
+    }
+
     func testOfflineCacheRoundTripsSnapshot() async throws {
         let directory = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -43,6 +131,43 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual(runtime.selectedChatId, "pinned")
         let cached = await cache.loadSnapshot()
         XCTAssertEqual(cached.chats.map(\.id), ["pinned", "older"])
+    }
+
+    func testRefreshRetriesTransientNetworkLoss() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let api = FakeWatchChatAPI(
+            chats: [Self.remoteChat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")],
+            transientChatFetchFailures: 1
+        )
+        let runtime = WatchChatRuntime(
+            api: api,
+            cache: WatchChatOfflineCache(directory: directory),
+            crypto: FakeWatchChatCrypto()
+        )
+
+        await runtime.refresh()
+
+        XCTAssertFalse(runtime.isOffline)
+        XCTAssertEqual(runtime.chats.map(\.id), ["chat-a"])
+        XCTAssertEqual(api.fetchRecentChatsCallCount, 2)
+    }
+
+    func testRefreshExcludesChatsThatNormalMasterKeyCannotDecrypt() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let runtime = WatchChatRuntime(
+            api: FakeWatchChatAPI(chats: [
+                Self.remoteChat(id: "visible", title: "Visible", lastMessageAt: "2026-07-06T10:00:00Z"),
+                Self.remoteChat(id: "hidden", title: nil, lastMessageAt: "2026-07-06T11:00:00Z"),
+            ]),
+            cache: WatchChatOfflineCache(directory: directory),
+            crypto: FakeWatchChatCrypto(omittedChatIds: ["hidden"])
+        )
+
+        await runtime.refresh()
+
+        XCTAssertEqual(runtime.chats.map(\.id), ["visible"])
     }
 
     func testRefreshFallsBackToCachedChatsWhenAPIThrows() async throws {
@@ -88,6 +213,27 @@ final class WatchChatRuntimeTests: XCTestCase {
         let cached = await cache.loadSnapshot()
         XCTAssertEqual(cached.messagesByChatId["chat-a"]?.last?.content, "Pending reply")
         XCTAssertEqual(cached.pendingTextSends.count, 1)
+    }
+
+    func testOpenChatRetriesTransientNetworkLoss() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let chat = Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")
+        let api = FakeWatchChatAPI(
+            messagesByChatId: ["chat-a": [Self.remoteMessage(id: "msg-a", chatId: "chat-a", content: "Remote")]],
+            transientMessageFetchFailures: 1
+        )
+        let runtime = WatchChatRuntime(
+            api: api,
+            cache: WatchChatOfflineCache(directory: directory),
+            crypto: FakeWatchChatCrypto()
+        )
+
+        await runtime.openChat(chat)
+
+        XCTAssertFalse(runtime.isOffline)
+        XCTAssertEqual(runtime.selectedMessages.map(\.content), ["Remote"])
+        XCTAssertEqual(api.fetchMessagesCallCount, 2)
     }
 
     func testQueuedLocalTextReplaysAndClearsPendingSnapshotWhenOnline() async throws {
@@ -146,6 +292,78 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual(runtime.chats.first?.title, "Decrypted title")
         XCTAssertEqual(runtime.chats.first?.preview, "Decrypted summary")
         XCTAssertEqual(runtime.selectedMessages.first?.content, "Decrypted message")
+    }
+
+    func testOpenChatPreservesEmbedRefsForWatchPreviews() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let chat = Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")
+        let embedRef = WatchEmbedRef(
+            id: "embed-web-1",
+            type: EmbedType.webWebsite.rawValue,
+            status: "finished",
+            data: [
+                "title": AnyCodable("Watch-sized preview"),
+                "url": AnyCodable("https://example.invalid/post"),
+            ]
+        )
+        let api = FakeWatchChatAPI(
+            messagesByChatId: [
+                "chat-a": [Self.remoteMessage(
+                    id: "msg-a",
+                    chatId: "chat-a",
+                    content: "```json\n{\"type\":\"web-website\",\"embed_id\":\"embed-web-1\"}\n```",
+                    embedRefs: [embedRef]
+                )]
+            ]
+        )
+        let runtime = WatchChatRuntime(
+            api: api,
+            cache: WatchChatOfflineCache(directory: directory),
+            crypto: FakeWatchChatCrypto()
+        )
+
+        await runtime.openChat(chat)
+
+        let message = try XCTUnwrap(runtime.selectedMessages.first)
+        XCTAssertEqual(message.embedRefs, [embedRef])
+        XCTAssertNil(message.watchDisplayContent)
+        XCTAssertEqual(message.watchEmbedRecords.first?.id, "embed-web-1")
+        let preview = try XCTUnwrap(message.watchEmbedRecords.first.map {
+            WatchEmbedPreviewMapper.makeModel(for: $0, chatId: message.chatId)
+        })
+        XCTAssertEqual(preview.title, "Watch-sized preview")
+        XCTAssertEqual(preview.continuation.chatId, "chat-a")
+    }
+
+    func testOpenChatBuildsWatchEmbedRefsFromInlineJsonWhenApiOmitsRefs() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let chat = Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")
+        let api = FakeWatchChatAPI(
+            messagesByChatId: [
+                "chat-a": [Self.remoteMessage(
+                    id: "msg-a",
+                    chatId: "chat-a",
+                    content: "```json\n{\"type\":\"web-website\",\"embed_id\":\"embed-web-1\",\"title\":\"Inline preview\"}\n```"
+                )]
+            ]
+        )
+        let runtime = WatchChatRuntime(
+            api: api,
+            cache: WatchChatOfflineCache(directory: directory),
+            crypto: FakeWatchChatCrypto()
+        )
+
+        await runtime.openChat(chat)
+
+        let message = try XCTUnwrap(runtime.selectedMessages.first)
+        XCTAssertNil(message.watchDisplayContent)
+        let ref = try XCTUnwrap(message.embedRefs?.first)
+        XCTAssertEqual(ref.id, "embed-web-1")
+        XCTAssertEqual(ref.type, EmbedType.webWebsite.rawValue)
+        XCTAssertEqual(ref.data?["title"]?.value as? String, "Inline preview")
+        XCTAssertEqual(message.watchEmbedRecords.first?.id, "embed-web-1")
     }
 
     func testRealtimeSyncUsesCachedWatchClientStateWithoutIncognitoChats() async throws {
@@ -236,12 +454,13 @@ final class WatchChatRuntimeTests: XCTestCase {
     }
 
     private static func message(id: String, chatId: String, content: String) -> WatchChatMessage {
-        WatchChatMessage(
+        return WatchChatMessage(
             id: id,
             chatId: chatId,
             role: .assistant,
             content: content,
             encryptedContent: nil,
+            embedRefs: nil,
             createdAt: "2026-07-06T10:00:00Z",
             isPending: false
         )
@@ -272,7 +491,8 @@ final class WatchChatRuntimeTests: XCTestCase {
         id: String,
         chatId: String,
         content: String?,
-        encryptedContent: String? = nil
+        encryptedContent: String? = nil,
+        embedRefs: [WatchEmbedRef]? = nil
     ) -> WatchRemoteMessage {
         WatchRemoteMessage(
             id: id,
@@ -280,6 +500,7 @@ final class WatchChatRuntimeTests: XCTestCase {
             role: .assistant,
             content: content,
             encryptedContent: encryptedContent,
+            embedRefs: embedRefs,
             createdAt: "2026-07-06T10:00:00Z"
         )
     }
@@ -319,6 +540,10 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
     private let chats: [WatchRemoteChat]
     private let messagesByChatId: [String: [WatchRemoteMessage]]
     private let uploadedAudio: WatchUploadedAudio?
+    private var transientChatFetchFailures: Int
+    private var transientMessageFetchFailures: Int
+    private(set) var fetchRecentChatsCallCount = 0
+    private(set) var fetchMessagesCallCount = 0
     private(set) var sentMessages: [WatchPendingTextSend] = []
     private(set) var uploadedAudioRequests: [FakeAudioUploadRequest] = []
     private(set) var transcribedAudioIds: [String] = []
@@ -328,21 +553,35 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
         messagesByChatId: [String: [WatchRemoteMessage]] = [:],
         shouldThrow: Bool = false,
         shouldThrowOnSend: Bool = false,
+        transientChatFetchFailures: Int = 0,
+        transientMessageFetchFailures: Int = 0,
         uploadedAudio: WatchUploadedAudio? = nil
     ) {
         self.chats = chats
         self.messagesByChatId = messagesByChatId
         self.shouldThrow = shouldThrow
         self.shouldThrowOnSend = shouldThrowOnSend
+        self.transientChatFetchFailures = transientChatFetchFailures
+        self.transientMessageFetchFailures = transientMessageFetchFailures
         self.uploadedAudio = uploadedAudio
     }
 
     func fetchRecentChats(limit: Int) async throws -> [WatchRemoteChat] {
+        fetchRecentChatsCallCount += 1
+        if transientChatFetchFailures > 0 {
+            transientChatFetchFailures -= 1
+            throw URLError(.networkConnectionLost)
+        }
         if shouldThrow { throw URLError(.notConnectedToInternet) }
         return Array(chats.prefix(limit))
     }
 
     func fetchMessages(chatId: String) async throws -> [WatchRemoteMessage] {
+        fetchMessagesCallCount += 1
+        if transientMessageFetchFailures > 0 {
+            transientMessageFetchFailures -= 1
+            throw URLError(.networkConnectionLost)
+        }
         if shouldThrow { throw URLError(.notConnectedToInternet) }
         return messagesByChatId[chatId] ?? []
     }
@@ -366,6 +605,113 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
     }
 }
 
+private struct WatchLiveAccountCredentials {
+    let email: String
+    let password: String
+    let otpKey: String
+
+    static func fromEnvironment(preferredReservedSlot slot: Int) throws -> WatchLiveAccountCredentials {
+        let environment = ProcessInfo.processInfo.environment
+        if let credentials = read(environment: environment, prefix: "OPENMATES_TEST_ACCOUNT_\(slot)") {
+            return credentials
+        }
+        for fallbackSlot in 1...20 where fallbackSlot != slot {
+            if let credentials = read(environment: environment, prefix: "OPENMATES_TEST_ACCOUNT_\(fallbackSlot)") {
+                return credentials
+            }
+        }
+        if let credentials = read(environment: environment, prefix: "OPENMATES_TEST_ACCOUNT") {
+            return credentials
+        }
+        let fileEnvironment = readCredentialFile()
+        if let credentials = read(environment: fileEnvironment, prefix: "OPENMATES_TEST_ACCOUNT_\(slot)") {
+            return credentials
+        }
+        for fallbackSlot in 1...20 where fallbackSlot != slot {
+            if let credentials = read(environment: fileEnvironment, prefix: "OPENMATES_TEST_ACCOUNT_\(fallbackSlot)") {
+                return credentials
+            }
+        }
+        if let credentials = read(environment: fileEnvironment, prefix: "OPENMATES_TEST_ACCOUNT") {
+            return credentials
+        }
+        throw XCTSkip("Missing OPENMATES_TEST_ACCOUNT or reserved Apple slot \(slot) credentials")
+    }
+
+    private static func read(environment: [String: String], prefix: String) -> WatchLiveAccountCredentials? {
+        guard let email = environment["\(prefix)_EMAIL"], !email.isEmpty,
+              let password = environment["\(prefix)_PASSWORD"], !password.isEmpty,
+              let otpKey = environment["\(prefix)_OTP_KEY"], !otpKey.isEmpty else {
+            return nil
+        }
+        return WatchLiveAccountCredentials(email: email, password: password, otpKey: otpKey)
+    }
+
+    private static func readCredentialFile() -> [String: String] {
+        let sourceFileURL = URL(fileURLWithPath: #filePath)
+        let credentialFileURL = sourceFileURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent(".openmates-live-test-account.env")
+        guard let contents = try? String(contentsOf: credentialFileURL, encoding: .utf8) else {
+            return [:]
+        }
+
+        var values: [String: String] = [:]
+        for rawLine in contents.split(separator: "\n") {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty, !line.hasPrefix("#") else { continue }
+            let parts = line.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            guard parts.count == 2 else { continue }
+            values[String(parts[0])] = String(parts[1])
+        }
+        return values
+    }
+}
+
+private enum WatchLiveTOTP {
+    static func waitPastBoundaryIfNeeded(date: Date = Date()) {
+        let secondsIntoWindow = Int(date.timeIntervalSince1970) % 30
+        guard secondsIntoWindow >= 25 else { return }
+        Thread.sleep(forTimeInterval: TimeInterval(30 - secondsIntoWindow + 2))
+    }
+
+    static func generate(secret: String, windowOffset: Int = 0, date: Date = Date()) -> String {
+        let key = SymmetricKey(data: base32Decode(secret))
+        let counter = UInt64(Int64(floor(date.timeIntervalSince1970 / 30.0)) + Int64(windowOffset))
+        var counterBigEndian = counter.bigEndian
+        let counterData = Data(bytes: &counterBigEndian, count: MemoryLayout<UInt64>.size)
+        let hash = HMAC<Insecure.SHA1>.authenticationCode(for: counterData, using: key)
+        let bytes = Array(hash)
+        let offset = Int(bytes[19] & 0x0f)
+        let code = (UInt32(bytes[offset] & 0x7f) << 24)
+            | (UInt32(bytes[offset + 1]) << 16)
+            | (UInt32(bytes[offset + 2]) << 8)
+            | UInt32(bytes[offset + 3])
+        return String(format: "%06u", code % 1_000_000)
+    }
+
+    private static func base32Decode(_ value: String) -> Data {
+        let alphabet = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567")
+        let lookup = Dictionary(uniqueKeysWithValues: alphabet.enumerated().map { ($1, $0) })
+        var bits = 0
+        var bitBuffer = 0
+        var output = Data()
+
+        for character in value.uppercased() where character != "=" && character != " " {
+            guard let index = lookup[character] else { continue }
+            bitBuffer = (bitBuffer << 5) | index
+            bits += 5
+            if bits >= 8 {
+                bits -= 8
+                output.append(UInt8((bitBuffer >> bits) & 0xff))
+            }
+        }
+
+        return output
+    }
+}
+
 @MainActor
 private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
     private(set) var connectedSession: WatchSyncSession?
@@ -385,13 +731,16 @@ private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
 @MainActor
 private final class FakeWatchChatCrypto: WatchChatCrypto {
     private let decryptedValues: [String: String]
+    private let omittedChatIds: Set<String>
 
-    init(decryptedValues: [String: String] = [:]) {
+    init(decryptedValues: [String: String] = [:], omittedChatIds: Set<String> = []) {
         self.decryptedValues = decryptedValues
+        self.omittedChatIds = omittedChatIds
     }
 
-    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary {
-        WatchChatSummary(
+    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary? {
+        guard !omittedChatIds.contains(chat.id) else { return nil }
+        return WatchChatSummary(
             id: chat.id,
             title: chat.encryptedTitle.flatMap { decryptedValues[$0] } ?? chat.title,
             lastMessageAt: chat.lastMessageAt ?? chat.updatedAt,
@@ -404,12 +753,15 @@ private final class FakeWatchChatCrypto: WatchChatCrypto {
     }
 
     func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage {
-        WatchChatMessage(
+        let content = message.encryptedContent.flatMap { decryptedValues[$0] } ?? message.content
+        let embedRefs = message.embedRefs ?? WatchMessageContentSanitizer.inlineEmbedRefs(content: content)
+        return WatchChatMessage(
             id: message.id,
             chatId: message.chatId,
             role: message.role,
-            content: message.encryptedContent.flatMap { decryptedValues[$0] } ?? message.content,
+            content: content,
             encryptedContent: message.encryptedContent,
+            embedRefs: embedRefs.isEmpty ? nil : embedRefs,
             createdAt: message.createdAt,
             isPending: false
         )

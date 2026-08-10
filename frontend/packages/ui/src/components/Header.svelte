@@ -56,9 +56,7 @@
 
     let headerDiv: HTMLElement;
 
-    // Temporary rollout gate: workspace tabs do not match the current product
-    // requirements. Flip this when the redesigned switcher is ready to ship.
-    const WORKSPACE_SWITCHER_ENABLED = false;
+    const WORKSPACE_SWITCHER_ENABLED = true;
 
     // Simplify the websiteNavItems - remove isTranslationsReady check using Svelte 5 runes
     let websiteNavItems = $derived([
@@ -495,6 +493,7 @@
                                     class:active={item.active}
                                     data-testid={item.testId}
                                     aria-label={item.label}
+                                    aria-current={item.active ? 'page' : undefined}
                                     onclick={(e) => handleClick(e, item.href)}
                                     onmouseenter={() => handleWorkspaceIntent(item, index)}
                                     onmouseleave={() => { hoveredWorkspaceIndex = null; }}
@@ -527,7 +526,8 @@
                 {#if !docsMode}
                     <div
                         class="right-section"
-                        class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen || $introBannerVisible}
+                        class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen}
+                        class:signup-cta-hidden={$introBannerVisible}
                     >
                         <a
                             class="github-repo-button"
@@ -540,6 +540,7 @@
                         </a>
                         <button
                             class="login-signup-button"
+                            class:cta-hidden={$introBannerVisible}
                             data-testid="header-login-signup-btn"
                             onclick={(e) => {
                                 e.preventDefault();
@@ -893,11 +894,16 @@
         align-items: center;
         gap: 0.75rem; /* Add gap between sign in button and language icon */
         transition:
+            gap var(--duration-normal) var(--easing-default),
             opacity var(--duration-normal) var(--easing-default),
             visibility var(--duration-normal) var(--easing-default),
             transform var(--duration-normal) var(--easing-default);
         margin-right: var(--spacing-5);
         /* Absolutely positioned so it doesn't affect header height, but we keep it rendered for smooth transitions */
+    }
+
+    .right-section.signup-cta-hidden {
+        gap: 0;
     }
 
     /* Hide the right section visually but keep it rendered to prevent layout shifts */
@@ -947,11 +953,14 @@
     .login-signup-button {
         border: none;
         margin: 0;
+        min-width: 0;
         padding: var(--spacing-4) var(--spacing-6);
         border-radius: var(--radius-3);
         background: var(--color-button-primary);
         color: var(--color-font-button, white);
         cursor: pointer;
+        max-width: 240px;
+        overflow: hidden;
         transition: all var(--duration-normal) var(--easing-default);
         white-space: nowrap;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -965,6 +974,16 @@
         background-color: var(--color-button-primary-pressed);
         transform: scale(0.98);
         box-shadow: none;
+    }
+
+    .login-signup-button.cta-hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        max-width: 0;
+        padding-inline: 0;
+        box-shadow: none;
+        transform: translateX(16px);
     }
 
     /* Docs/Chat tab toggle — centered in header when in docs mode */

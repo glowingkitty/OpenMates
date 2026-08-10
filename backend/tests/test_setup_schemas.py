@@ -10,12 +10,14 @@ primary-key columns.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import sys
-from types import SimpleNamespace
+from types import ModuleType
 from pathlib import Path
 from typing import Any
 
 import yaml
+import pytest
 
 
 class FakeResponse:
@@ -33,7 +35,20 @@ class FakeResponse:
 
 
 def load_setup_schemas_module():
-    sys.modules.setdefault("dotenv", SimpleNamespace(load_dotenv=lambda: None))
+    if "requests" not in sys.modules and importlib.util.find_spec("requests") is None:
+        requests_stub = ModuleType("requests")
+
+        def unexpected_request(*_args: Any, **_kwargs: Any) -> None:
+            raise AssertionError("Setup schema unit tests must stub HTTP requests")
+
+        requests_stub.get = unexpected_request
+        requests_stub.post = unexpected_request
+        requests_stub.patch = unexpected_request
+        sys.modules["requests"] = requests_stub
+    if "dotenv" not in sys.modules and importlib.util.find_spec("dotenv") is None:
+        dotenv_stub = ModuleType("dotenv")
+        dotenv_stub.load_dotenv = lambda *_args, **_kwargs: None
+        sys.modules["dotenv"] = dotenv_stub
     return importlib.import_module("backend.core.directus.setup.setup_schemas")
 
 
@@ -75,6 +90,43 @@ def test_create_collection_preserves_string_primary_key(monkeypatch, tmp_path: P
     assert primary_field["type"] == "string"
     assert primary_field["meta"]["special"] == []
     assert primary_field["schema"]["data_type"] == "varchar(64)"
+
+
+def test_create_collection_processes_all_top_level_collections(monkeypatch, tmp_path: Path) -> None:
+    setup_schemas = load_setup_schemas_module()
+    schema_file = tmp_path / "multi_collection.yml"
+    schema_file.write_text(
+        yaml.safe_dump(
+            {
+                "user_tasks": {
+                    "type": "collection",
+                    "fields": {"encrypted_title": {"type": "text"}},
+                },
+                "user_task_key_wrappers": {
+                    "type": "collection",
+                    "fields": {"encrypted_task_key": {"type": "text"}},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    posted_collections: list[str] = []
+
+    monkeypatch.setattr(setup_schemas, "collection_exists", lambda token, collection_name: False)
+    monkeypatch.setattr(setup_schemas, "create_or_update_field", lambda *args, **kwargs: False)
+
+    def fake_post(url: str, json: dict[str, Any], headers: dict[str, str]) -> FakeResponse:
+        posted_collections.append(json["collection"])
+        return FakeResponse(200)
+
+    monkeypatch.setattr(setup_schemas.requests, "post", fake_post)
+    monkeypatch.setattr(setup_schemas.time, "sleep", lambda seconds: None)
+
+    success, newly_created = setup_schemas.create_collection("token", str(schema_file))
+
+    assert success is True
+    assert newly_created is True
+    assert set(posted_collections) == {"user_tasks", "user_task_key_wrappers"}
 
 
 def test_repair_primary_field_metadata_removes_stale_uuid_special(monkeypatch) -> None:
@@ -162,4 +214,253 @@ def test_ensure_backend_collection_permissions_creates_missing_crud(monkeypatch)
         "anonymous_free_usage_reservations": {"create", "read", "update", "delete"},
         "free_testing_credit_grants": {"create", "read", "update", "delete"},
         "free_testing_credits_budget": {"create", "read", "update", "delete"},
+        "user_plan_key_wrappers": {"create", "read", "update", "delete"},
+        "user_task_key_wrappers": {"create", "read", "update", "delete"},
     }
+
+
+def test_chat_recovery_migration_executes_and_verifies_all_indexes(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    setup_schemas = load_setup_schemas_module()
+    migration = tmp_path / "migrate_chat_recovery_unique_indexes.sql"
+    migration.write_text("CREATE UNIQUE INDEX recovery_test ON test_table (id);", encoding="utf-8")
+    executed: list[tuple[str, Any]] = []
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def execute(self, query, params=None):
+            executed.append((str(query), params))
+
+        def fetchall(self):
+            return [(name,) for name in setup_schemas.CHAT_RECOVERY_INDEXES]
+
+    class FakeConnection:
+        autocommit = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def cursor(self):
+            return FakeCursor()
+
+    monkeypatch.setattr(setup_schemas, "CHAT_RECOVERY_MIGRATION_PATH", str(migration))
+    monkeypatch.setattr(setup_schemas, "connect_database", lambda: FakeConnection())
+
+    setup_schemas.apply_and_verify_chat_recovery_indexes()
+
+    assert executed[0][0] == migration.read_text(encoding="utf-8")
+    assert "FROM pg_indexes" in executed[1][0]
+    assert executed[1][1] == (list(setup_schemas.CHAT_RECOVERY_INDEXES),)
+
+
+def test_usage_overview_migration_executes_and_verifies_all_indexes(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    setup_schemas = load_setup_schemas_module()
+    migration = tmp_path / "migrate_usage_overview_indexes.sql"
+    migration.write_text("CREATE INDEX usage_overview_test ON usage (id);", encoding="utf-8")
+    executed: list[tuple[str, Any]] = []
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def execute(self, query, params=None):
+            executed.append((str(query), params))
+
+        def fetchall(self):
+            return [(name,) for name in setup_schemas.USAGE_OVERVIEW_INDEXES]
+
+    class FakeConnection:
+        autocommit = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def cursor(self):
+            return FakeCursor()
+
+    monkeypatch.setattr(setup_schemas, "USAGE_OVERVIEW_MIGRATION_PATH", str(migration))
+    monkeypatch.setattr(setup_schemas, "connect_database", lambda: FakeConnection())
+
+    setup_schemas.apply_and_verify_usage_overview_indexes()
+
+    assert executed[0][0] == migration.read_text(encoding="utf-8")
+    assert "FROM pg_indexes" in executed[1][0]
+    assert executed[1][1] == (list(setup_schemas.USAGE_OVERVIEW_INDEXES),)
+
+
+def test_project_owner_context_migration_executes_and_verifies_all_indexes(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    setup_schemas = load_setup_schemas_module()
+    migration = tmp_path / "migrate_project_owner_context.sql"
+    migration.write_text("CREATE INDEX project_context_test ON projects (id);", encoding="utf-8")
+    executed: list[tuple[str, Any]] = []
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def execute(self, query, params=None):
+            executed.append((str(query), params))
+
+        def fetchall(self):
+            return [(name,) for name in setup_schemas.PROJECT_OWNER_CONTEXT_INDEXES]
+
+    class FakeConnection:
+        autocommit = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def cursor(self):
+            return FakeCursor()
+
+    monkeypatch.setattr(setup_schemas, "PROJECT_OWNER_CONTEXT_MIGRATION_PATH", str(migration))
+    monkeypatch.setattr(setup_schemas, "connect_database", lambda: FakeConnection())
+
+    setup_schemas.apply_and_verify_project_owner_context()
+
+    assert executed[0][0] == migration.read_text(encoding="utf-8")
+    assert "FROM pg_indexes" in executed[1][0]
+    assert executed[1][1] == (list(setup_schemas.PROJECT_OWNER_CONTEXT_INDEXES),)
+
+
+def test_project_owner_context_migration_backfills_orphaned_personal_child_actors() -> None:
+    migration_path = (
+        Path(__file__).resolve().parents[1]
+        / "core/directus/setup/migrate_project_owner_context.sql"
+    )
+    sql = migration_path.read_text(encoding="utf-8")
+    child_actor_fields = {
+        "project_folders": "created_by_user_hash",
+        "project_items": "attached_by_user_hash",
+        "project_sources": "attached_by_user_hash",
+        "project_settings": "updated_by_user_hash",
+    }
+
+    for table, actor_field in child_actor_fields.items():
+        personal_backfill = f"""UPDATE public.{table}
+SET {actor_field} = hashed_user_id
+WHERE {actor_field} IS NULL
+  AND hashed_team_id IS NULL
+  AND hashed_user_id IS NOT NULL;"""
+        not_null_constraint = (
+            f"ALTER TABLE public.{table} ALTER COLUMN {actor_field} SET NOT NULL;"
+        )
+
+        assert personal_backfill in sql
+        assert sql.index(personal_backfill) < sql.index(not_null_constraint)
+
+
+def test_usage_summary_unique_indexes_are_required() -> None:
+    setup_schemas = load_setup_schemas_module()
+
+    required_indexes = {
+        "usage_monthly_chat_user_chat_month_uq",
+        "usage_monthly_app_user_app_month_uq",
+        "usage_monthly_api_key_user_api_key_month_uq",
+        "usage_daily_chat_user_chat_date_uq",
+        "usage_daily_app_user_app_date_uq",
+        "usage_daily_api_key_user_api_key_date_uq",
+    }
+
+    assert required_indexes.issubset(set(setup_schemas.USAGE_OVERVIEW_INDEXES))
+
+
+def test_usage_overview_migration_repairs_duplicates_before_unique_indexes() -> None:
+    migration_path = (
+        Path(__file__).resolve().parents[1]
+        / "core/directus/setup/migrate_usage_overview_indexes.sql"
+    )
+    sql = migration_path.read_text(encoding="utf-8")
+
+    requirements = [
+        ("usage_monthly_chat_summaries", "chat_id", "year_month", "usage_monthly_chat_user_chat_month_uq"),
+        ("usage_monthly_app_summaries", "app_id", "year_month", "usage_monthly_app_user_app_month_uq"),
+        ("usage_monthly_api_key_summaries", "api_key_hash", "year_month", "usage_monthly_api_key_user_api_key_month_uq"),
+        ("usage_daily_chat_summaries", "chat_id", "date", "usage_daily_chat_user_chat_date_uq"),
+        ("usage_daily_app_summaries", "app_id", "date", "usage_daily_app_user_app_date_uq"),
+        ("usage_daily_api_key_summaries", "api_key_hash", "date", "usage_daily_api_key_user_api_key_date_uq"),
+    ]
+
+    assert "usage_summary_duplicate_groups" in sql
+    assert "ROW_NUMBER() OVER" in sql
+    assert "DELETE FROM" in sql
+
+    first_unique_index_position = len(sql)
+    for table, identifier, period, index_name in requirements:
+        create_statement = f"CREATE UNIQUE INDEX IF NOT EXISTS {index_name}"
+        index_position = sql.index(create_statement)
+        first_unique_index_position = min(first_unique_index_position, index_position)
+        assert f"ON {table} (user_id_hash, {identifier}, {period})" in sql
+        assert f"{identifier} IS NOT NULL" in sql
+        assert f"{identifier} <> ''" in sql
+
+    assert sql.index("usage_summary_duplicate_groups") < first_unique_index_position
+
+
+def test_chat_recovery_endpoint_health_uses_internal_token(monkeypatch) -> None:
+    setup_schemas = load_setup_schemas_module()
+    requests_seen: list[dict[str, Any]] = []
+
+    def fake_post(url, headers, json, timeout):
+        requests_seen.append({"url": url, "headers": headers, "json": json, "timeout": timeout})
+        return FakeResponse(200, {"data": {"jobs": []}})
+
+    monkeypatch.setattr(setup_schemas, "INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    monkeypatch.setattr(setup_schemas.requests, "post", fake_post)
+
+    setup_schemas.verify_chat_recovery_endpoint()
+
+    assert requests_seen == [{
+        "url": "http://cms:8055/chat-recovery-transaction/",
+        "headers": {"X-Internal-Service-Token": "test-internal-token"},
+        "json": {
+            "operation": "list_available_jobs",
+            "data": {
+                "protocol_version": 1,
+                "hashed_user_id": "0" * 64,
+                "device_hash": "setup-health-check",
+            },
+        },
+        "timeout": 10,
+    }]
+
+
+def test_chat_recovery_migration_is_required(monkeypatch, tmp_path: Path) -> None:
+    setup_schemas = load_setup_schemas_module()
+    missing_migration = tmp_path / "missing.sql"
+    monkeypatch.setattr(
+        setup_schemas,
+        "CHAT_RECOVERY_MIGRATION_PATH",
+        str(missing_migration),
+    )
+
+    with pytest.raises(RuntimeError, match="Required chat recovery migration is missing"):
+        setup_schemas.apply_and_verify_chat_recovery_indexes()

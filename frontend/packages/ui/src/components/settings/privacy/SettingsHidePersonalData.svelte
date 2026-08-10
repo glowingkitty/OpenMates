@@ -41,22 +41,29 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
     let hasPasskey = $state(false);
     let hasPassword = $state(false);
     let has2FA = $state(false);
+    let authMethodsLoaded = $state(false);
+    let authMethodsError = $state<string | null>(null);
 
     async function fetchAuthMethods() {
+        authMethodsLoaded = false;
+        authMethodsError = null;
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.getUserAuthMethods), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.methods), {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include'
             });
-            if (response.ok) {
-                const data = await response.json();
-                hasPasskey = data.has_passkey || false;
-                hasPassword = data.has_password || false;
-                has2FA = data.has_2fa || false;
+            if (!response.ok) {
+                throw new Error('Failed to load authentication methods');
             }
+            const data = await response.json();
+            hasPasskey = data.has_passkey || false;
+            hasPassword = data.has_password || false;
+            has2FA = data.has_2fa || false;
+            authMethodsLoaded = true;
         } catch (error) {
             console.error('[SettingsHidePersonalData] Failed to fetch auth methods:', error);
+            authMethodsError = error instanceof Error ? error.message : 'Failed to load authentication methods';
         }
     }
 
@@ -154,6 +161,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
             // Grace period still valid — navigate directly without re-auth
             navigateToEditEntry(entry);
         } else {
+            if (!authMethodsLoaded) return;
             // Need fresh verification
             pendingEditEntry = entry;
             showAuthModal = true;
@@ -208,6 +216,15 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
         });
     }
 </script>
+
+{#if authMethodsError}
+    <div data-testid="personal-data-auth-methods-error" role="alert">
+        <p>{authMethodsError}</p>
+        <button data-testid="personal-data-auth-methods-retry" onclick={fetchAuthMethods}>
+            {$text('common.retry')}
+        </button>
+    </div>
+{/if}
 
 <!-- SecurityAuth modal — shown when user clicks a contact/custom entry without recent verification -->
 {#if showAuthModal}

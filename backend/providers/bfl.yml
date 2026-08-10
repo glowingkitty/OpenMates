@@ -8,6 +8,14 @@ description: "High-performance image generation models including FLUX.2."
 logo_svg: "icons/blackforestlabs.svg"
 privacy_policy: "https://blackforestlabs.ai/privacy-policy/"
 
+required_keys:
+  - env_key: "SECRET__FAL__API_KEY"
+    vault_path: "kv/data/providers/fal"
+    vault_key: "api_key"
+    description: "fal.ai API key used to run hosted FLUX/BFL image models."
+    setup_url: "https://fal.ai/dashboard/keys"
+    docs_url: "https://fal.ai/docs"
+
 models:
   - id: "flux-2-klein"
     name: "FLUX.2 [klein] 9B"

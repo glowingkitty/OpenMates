@@ -291,6 +291,10 @@
     }
   }
 
+  function handleButtonPointerDown(event: PointerEvent) {
+    event.stopPropagation();
+  }
+
   /**
    * Add scroll handler to close menu on scroll
    */
@@ -365,6 +369,7 @@
     {#if showView}
       <button
         class="menu-item view"
+        onpointerdown={handleButtonPointerDown}
         onclick={(event) => handleButtonClick('view', event)}
       >
         <div class="clickable-icon icon_fullscreen"></div>
@@ -376,6 +381,7 @@
     {#if showShare}
       <button
         class="menu-item share"
+        onpointerdown={handleButtonPointerDown}
         onclick={(event) => handleButtonClick('share', event)}
       >
         <div class="clickable-icon icon_share"></div>
@@ -387,6 +393,7 @@
     {#if showCopy}
       <button
         class="menu-item copy"
+        onpointerdown={handleButtonPointerDown}
         onclick={(event) => handleButtonClick('copy', event)}
       >
         <div class="clickable-icon icon_copy"></div>
@@ -398,6 +405,7 @@
     {#if showDownload}
       <button
         class="menu-item download"
+        onpointerdown={handleButtonPointerDown}
         onclick={(event) => handleButtonClick('download', event)}
       >
         <div class="clickable-icon icon_download"></div>
@@ -409,6 +417,7 @@
     {#if showAddMemory}
       <button
         class="menu-item add-memory"
+        onpointerdown={handleButtonPointerDown}
         onclick={(event) => handleButtonClick('add-memory', event)}
       >
         <div class="clickable-icon icon_settings"></div>
@@ -420,6 +429,7 @@
     {#if showDeactivate}
       <button
         class="menu-item deactivate"
+        onpointerdown={handleButtonPointerDown}
         onclick={(event) => handleButtonClick('deactivate', event)}
       >
         <div class="clickable-icon icon_pause"></div>
@@ -431,6 +441,7 @@
     {#if showDetails}
       <button
         class="menu-item details"
+        onpointerdown={handleButtonPointerDown}
         onclick={(event) => handleButtonClick('details', event)}
       >
         <div class="clickable-icon icon_info"></div>

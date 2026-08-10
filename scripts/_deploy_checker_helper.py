@@ -363,6 +363,7 @@ def run() -> None:
         job_type="deploy-fix",
         context_summary=f"Vercel deployment {deploy_id} failed ({state_val})",
         linear_task=False,
+        requires_human_approval=True,
     )
 
     if returncode == 0:

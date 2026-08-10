@@ -92,8 +92,16 @@
   let iframeSrcdoc = $derived.by(() => {
     if (previewType !== 'html') return '';
     const sanitized = DOMPurify.sanitize(code, HTML_SANITIZE_OPTIONS);
+    const previewScrollStyle = `<style data-openmates-preview-scroll>
+  html, body { min-width: 100%; min-height: 100%; overflow: auto !important; }
+</style>`;
     // If the source HTML already has its own styles, use it as-is
-    if (sanitized.includes('<style')) return sanitized;
+    if (sanitized.includes('<style')) {
+      if (sanitized.includes('</head>')) {
+        return sanitized.replace('</head>', previewScrollStyle + '</head>');
+      }
+      return previewScrollStyle + sanitized;
+    }
     // Otherwise inject a basic fallback stylesheet for readability
     const fallbackStyle = `<style>
   body { margin: var(--spacing-8); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; }
@@ -106,9 +114,9 @@
 </style>`;
     // Inject before </head> if present, otherwise prepend
     if (sanitized.includes('</head>')) {
-      return sanitized.replace('</head>', fallbackStyle + '</head>');
+      return sanitized.replace('</head>', previewScrollStyle + fallbackStyle + '</head>');
     }
-    return fallbackStyle + sanitized;
+    return previewScrollStyle + fallbackStyle + sanitized;
   });
 </script>
 
@@ -138,7 +146,7 @@
     position: absolute;
     inset: 0;
     overflow: auto;
-    background-color: var(--color-grey-15);
+    background-color: var(--color-grey-20);
   }
 
   /* ── Markdown preview ── */
@@ -279,6 +287,6 @@
     width: 100%;
     height: 100%;
     border: none;
-    background: var(--color-grey-15);
+    background: var(--color-grey-20);
   }
 </style>

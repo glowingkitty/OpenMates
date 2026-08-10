@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from celery import Celery, signals
 from kombu import Queue
 import os
@@ -5,7 +7,7 @@ import logging
 import sys
 import importlib
 import time
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from urllib.parse import quote
 import asyncio
 from datetime import timedelta
@@ -15,11 +17,13 @@ from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from pythonjsonlogger import jsonlogger  # Import the JSON formatter
 from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.request_context import set_request_id
-from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService as _CacheService
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 
 # Set up logging with a direct approach for Celery
 logger = logging.getLogger(__name__)
@@ -147,6 +151,7 @@ TASK_CONFIG = [
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
     {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
+    {'name': 'app_images',  'module': 'backend.apps.models3d.tasks'},  # 3D generation tasks share media worker resources
     {'name': 'app_music',   'module': 'backend.apps.music.tasks'},  # Music generation tasks
     {'name': 'app_videos',  'module': 'backend.apps.videos.tasks'},  # Video generation tasks
     {'name': 'app_code',    'module': 'backend.apps.code.tasks'},  # Code Run sandbox execution tasks
@@ -166,8 +171,10 @@ TASK_CONFIG = [
     {'name': 'push',        'module': 'backend.core.api.app.tasks.push_notification_task'},  # Browser Web Push notifications
     {'name': 'email',       'module': 'backend.core.api.app.tasks.linear_issue_task'},  # Auto-create Linear issues from user reports (routed to email queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.ephemeral_log_promotion_tasks'},  # Promote ephemeral client logs on error to long-retention stream
-    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 run/event/cleanup tasks
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 scheduled/cleanup tasks
+    {'name': 'workflow',    'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 manual run tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_scheduler'},  # Tasks V1 due AI task scheduler
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_archive_task'},  # Tasks V1 completed-task archival
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.daily_issue_digest_task'},  # Daily top issue digest
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.newsletter_campaign_task'},  # Scheduled newsletter campaign sender
  ]
@@ -272,8 +279,18 @@ redis_retry_on_timeout = True
 
 
 
-# Dynamically generate configuration values from TASK_CONFIG
-include_modules = [config['module'] for config in TASK_CONFIG]
+def _task_configs_for_worker_queues(worker_queues_env: str) -> list[dict[str, str]]:
+    """Return task configs active for the current worker queue filter."""
+    if not worker_queues_env:
+        return TASK_CONFIG
+
+    designated_queue_names = {q.strip() for q in worker_queues_env.split(',') if q.strip()}
+    return [config for config in TASK_CONFIG if config['name'] in designated_queue_names]
+
+
+def _task_modules_for_worker_queues(worker_queues_env: str) -> list[str]:
+    """Return Celery task modules that should be imported by this process."""
+    return [config['module'] for config in _task_configs_for_worker_queues(worker_queues_env)]
 
 # =================================================================
 # WORKER-SPECIFIC QUEUE FILTERING
@@ -288,13 +305,13 @@ include_modules = [config['module'] for config in TASK_CONFIG]
 # For API/scheduler processes, we need ALL queues for routing tasks.
 
 worker_queues_env = os.getenv('CELERY_QUEUES', '')
+active_task_config = _task_configs_for_worker_queues(worker_queues_env)
+include_modules = _task_modules_for_worker_queues(worker_queues_env)
 if worker_queues_env:
     # Worker mode: Only include designated queues
-    designated_queue_names = {q.strip() for q in worker_queues_env.split(',')}
     task_queues = tuple(
         Queue(config['name'], exchange=config['name'], routing_key=config['name'])
-        for config in TASK_CONFIG
-        if config['name'] in designated_queue_names
+        for config in active_task_config
     )
     logger.info(f"[WORKER_QUEUE_FILTER] Worker mode - filtered queues to: {[q.name for q in task_queues]}")
 else:
@@ -477,6 +494,8 @@ async def initialize_services():
 
         # Now initialize services that depend on SecretsManager
         if invoice_ninja_service is None:
+            from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
+
             logger.info("Initializing InvoiceNinjaService for worker process...")
             try:
                 invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager)
@@ -973,6 +992,8 @@ task_routes = {
     # Explicit routing for tasks with custom names that don't match module patterns
     # These must come first to ensure they take precedence over pattern-based routing
     "apps.ai.tasks.skill_ask": {'queue': 'app_ai'},
+    "runtime_health.worker_probe": {'queue': 'app_ai'},
+    "runtime_health.scheduler_heartbeat": {'queue': 'health_check'},
     "health_check.check_all_providers": {'queue': 'health_check'},  # Explicit routing for health check task
     "health_check.check_all_apps": {'queue': 'health_check'},  # Explicit routing for app health check task
     "health_check.send_degraded_services_discord_report": {'queue': 'health_check'},
@@ -986,6 +1007,10 @@ task_routes = {
     "demo.*": {'queue': 'demo'},
     # Reminder tasks use custom names like "reminder.*"
     "reminder.*": {'queue': 'reminder'},
+    # Manual workflow runs must not wait behind persistence/scheduled-trigger backlog.
+    "workflows.run": {'queue': 'workflow'},
+    # Workflow tasks use custom names like "workflows.run" instead of module paths.
+    "workflows.*": {'queue': 'persistence'},
     # Add other explicitly named tasks here as needed
 }
 
@@ -1022,6 +1047,8 @@ _EXPLICIT_TASK_ROUTES = {
     "apps.ai.tasks.skill_ask": "app_ai",
     "apps.ai.tasks.rate_limit_followup": "app_ai",
     "apps.ai.tasks.focus_mode_auto_confirm": "app_ai",
+    "runtime_health.worker_probe": "app_ai",
+    "runtime_health.scheduler_heartbeat": "health_check",
     
     # Health check tasks
     "health_check.check_all_providers": "health_check",
@@ -1054,6 +1081,7 @@ _EXPLICIT_TASK_ROUTES = {
     # Persistence tasks (custom names starting with app.tasks.persistence_tasks.*)
     "app.tasks.persistence_tasks.persist_chat_title": "persistence",
     "app.tasks.persistence_tasks.persist_chat_pinned": "persistence",
+    "app.tasks.persistence_tasks.cleanup_expired_chat_recovery_jobs": "persistence",
     "app.tasks.persistence_tasks.persist_user_draft": "persistence",
     "app.tasks.persistence_tasks.persist_new_chat_message": "persistence",
     "app.tasks.persistence_tasks.persist_chat_and_draft_on_logout": "persistence",
@@ -1105,6 +1133,9 @@ _EXPLICIT_TASK_ROUTES = {
 
      # Browser Web Push notification task
      "app.tasks.push_notification_task.send_push_notification": "push",
+
+     # Workflow tasks
+     "workflows.run": "workflow",
  }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:
@@ -1208,13 +1239,23 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
+    'runtime-health-scheduler-heartbeat': {
+        'task': 'runtime_health.scheduler_heartbeat',
+        'schedule': timedelta(seconds=300),
+        'options': {'queue': 'health_check'},
+    },
+    'cleanup-expired-chat-recovery-jobs': {
+        'task': 'app.tasks.persistence_tasks.cleanup_expired_chat_recovery_jobs',
+        'schedule': timedelta(hours=1),
+        'options': {'queue': 'persistence'},
+    },
     # --- Health checks that feed /v1/health (used by the Apps) ---
     # NOTE: The independent status service (backend/status/) handles the status PAGE,
     # but the core API's /v1/health endpoint reads from these Redis cache keys.
     # Removing these breaks app availability in the frontend Apps.
     'health-check-all-providers': {
         'task': 'health_check.check_all_providers',
-        'schedule': timedelta(seconds=300),  # 5 minutes
+        'schedule': timedelta(minutes=30),
         'options': {'queue': 'health_check'},
     },
     'health-check-all-apps': {
@@ -1266,6 +1307,11 @@ app.conf.beat_schedule = {
     'process-due-ai-user-tasks': {
         'task': 'user_tasks.process_due_ai_tasks',
         'schedule': timedelta(seconds=60),
+        'options': {'queue': 'persistence'},
+    },
+    'archive-completed-user-tasks-daily': {
+        'task': 'user_tasks.archive_completed_tasks',
+        'schedule': crontab(hour=4, minute=0),
         'options': {'queue': 'persistence'},
     },
     'password-security-reminders-daily': {
@@ -1339,6 +1385,11 @@ app.conf.beat_schedule = {
     'cleanup-expired-temporary-workflows': {
         'task': 'workflows.cleanup_expired_temporary',
         'schedule': timedelta(seconds=3600),  # Every hour
+        'options': {'queue': 'persistence'},
+    },
+    'scan-due-workflow-triggers': {
+        'task': 'workflows.scan_due_triggers',
+        'schedule': timedelta(seconds=60),
         'options': {'queue': 'persistence'},
     },
     # Weekly storage billing - charges 3 credits/GB/week for storage above 1 GB free tier.

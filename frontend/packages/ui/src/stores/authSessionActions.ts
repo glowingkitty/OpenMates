@@ -836,18 +836,14 @@ export async function checkAuth(
           "[AuthSessionActions] Completed shared local logout cleanup on session expiry",
         );
 
-        // Clear shared chat keys in the background (async, non-blocking)
-        clearAllSharedChatKeys().catch((e) =>
-          console.warn(
-            "[AuthSessionActions] Failed to clear shared chat keys on session expiry:",
-            e,
-          ),
-        );
+        // Keep persisted shared-chat keys on auto logout. Shared chats are public
+        // link-based content and remain valid without the user's master key.
 
         // Show notification that user was logged out with hint about "Stay logged in"
         // This helps users understand they can avoid frequent logouts by enabling "Stay logged in"
         const $text = get(text);
-        notificationStore.autoLogout(
+        let autoLogoutNotificationId = "";
+        autoLogoutNotificationId = notificationStore.autoLogout(
           $text("login.auto_logout_notification.message"),
           undefined, // No secondary message needed
           0, // Persist so the user can act on the login CTA
@@ -855,6 +851,9 @@ export async function checkAuth(
           {
             actionLabel: $text("login.auto_logout_notification.login_again_action"),
             onAction: () => {
+              if (autoLogoutNotificationId) {
+                notificationStore.removeNotification(autoLogoutNotificationId);
+              }
               loginStayLoggedInRequested.set(true);
               loginInterfaceOpen.set(true);
             },
@@ -915,6 +914,10 @@ export async function checkAuth(
         // Use setTimeout to defer deletion and avoid blocking the auth initialization
         // The UI state has already been cleared via the event above
         setTimeout(async () => {
+          if (typeof localStorage !== "undefined") {
+            localStorage.setItem("openmates_needs_cleanup", "true");
+          }
+
           try {
             await userDB.deleteDatabase();
             console.debug(
@@ -991,13 +994,8 @@ export async function checkAuth(
           "[AuthSessionActions] ORPHANED DATABASE CLEANUP: Found cleanup marker - triggering database deletion",
         );
 
-        // CRITICAL: Clear the cleanup marker immediately to prevent showing this notification again
-        if (typeof localStorage !== "undefined") {
-          localStorage.removeItem("openmates_needs_cleanup");
-          console.debug(
-            "[AuthSessionActions] Cleared cleanup marker to prevent repeated notifications",
-          );
-        }
+        // Keep the cleanup marker until the IndexedDB delete helpers confirm
+        // success. If another tab blocks deletion, the next app boot must retry.
 
         // CRITICAL: Set isLoggingOut flag to true for orphaned database cleanup
         isLoggingOut.set(true);
@@ -1019,6 +1017,10 @@ export async function checkAuth(
 
         // Clear IndexedDB databases asynchronously without blocking UI
         setTimeout(async () => {
+          if (typeof localStorage !== "undefined") {
+            localStorage.setItem("openmates_needs_cleanup", "true");
+          }
+
           try {
             await userDB.deleteDatabase();
             console.debug(

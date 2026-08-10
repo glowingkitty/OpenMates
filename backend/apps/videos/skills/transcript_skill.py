@@ -56,6 +56,8 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+TRANSCRIPT_FETCH_TIMEOUT_SECONDS = 45.0
+
 
 class TranscriptRequestItem(BaseModel):
     """
@@ -702,7 +704,10 @@ class TranscriptSkill(BaseSkill):
         # Run in thread pool to avoid blocking async event loop
         loop = asyncio.get_event_loop()
         try:
-            result = await loop.run_in_executor(None, _fetch_sync)
+            result = await asyncio.wait_for(
+                loop.run_in_executor(None, _fetch_sync),
+                timeout=TRANSCRIPT_FETCH_TIMEOUT_SECONDS,
+            )
             
             # Format transcript with timestamps if fetch was successful
             if result.get("success") and "transcript_items" in result:
@@ -717,6 +722,17 @@ class TranscriptSkill(BaseSkill):
                 result["transcript"] = formatted_transcript
             
             return result
+        except asyncio.TimeoutError:
+            logger.error(
+                "Transcript fetch timed out for video %s after %.1fs",
+                video_id,
+                TRANSCRIPT_FETCH_TIMEOUT_SECONDS,
+            )
+            return {
+                "success": False,
+                "url": url,
+                "error": f"Transcript fetch timed out after {TRANSCRIPT_FETCH_TIMEOUT_SECONDS:g}s",
+            }
         except Exception as e:
             logger.error(f"Error in thread pool execution for transcript fetch: {e}", exc_info=True)
             return {

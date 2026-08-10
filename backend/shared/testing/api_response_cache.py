@@ -15,7 +15,6 @@
 import hashlib
 import json
 import logging
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -102,6 +101,38 @@ class ApiResponseCache:
             logger.warning(f"[LiveMock] Failed to load cache {path}: {e}")
             return None
 
+    def load_compatible_llm_response(
+        self,
+        group_id: str,
+        category: str,
+        request_summary: Dict[str, Any],
+        excluded_fingerprint: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Load a compatible LLM cassette when exact fingerprinting drifts."""
+        for candidate_category in self._compatible_llm_categories(category, request_summary):
+            cache_dir = self._cache_dir(group_id, candidate_category)
+            if not cache_dir.exists():
+                continue
+
+            for path in sorted(cache_dir.glob("*.json")):
+                if excluded_fingerprint and path.stem == excluded_fingerprint:
+                    continue
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                except (json.JSONDecodeError, OSError) as e:
+                    logger.warning(f"[LiveMock] Failed to inspect cache {path}: {e}")
+                    continue
+
+                if self._llm_request_summary_matches(request_summary, data.get("request", {})):
+                    logger.info(
+                        f"[LiveMock] Cache FALLBACK HIT: {candidate_category}/{path.stem} "
+                        f"(group={group_id}, exact_miss={excluded_fingerprint or '?'})"
+                    )
+                    return data
+
+        return None
+
     def save(
         self,
         group_id: str,
@@ -187,7 +218,7 @@ class ApiResponseCache:
         Hashes method, URL path, query params, and request body.
         Ignores auth headers, cookies, user-agent, and other volatile fields.
         """
-        from urllib.parse import urlparse, urlencode
+        from urllib.parse import urlparse
 
         parsed = urlparse(url)
 
@@ -268,6 +299,63 @@ class ApiResponseCache:
             else:
                 normalized.append(tool)
         return normalized
+
+    @staticmethod
+    def _llm_request_summary_matches(expected: Dict[str, Any], candidate: Any) -> bool:
+        if not isinstance(candidate, dict):
+            return False
+
+        # Tool availability can drift as companion skills and account settings
+        # evolve. The mock group plus exact final message still scopes replay to
+        # the intended test flow without invalidating otherwise compatible data.
+        stable_keys = ("model", "tool_choice")
+        for key in stable_keys:
+            candidate_value = candidate.get(key)
+            expected_value = expected.get(key)
+            if key == "model":
+                candidate_value = ApiResponseCache._normalize_llm_model_for_match(candidate_value)
+                expected_value = ApiResponseCache._normalize_llm_model_for_match(expected_value)
+            if candidate_value != expected_value:
+                return False
+
+        expected_last = expected.get("last_message_preview")
+        candidate_last = candidate.get("last_message_preview")
+        expected_last_hash = expected.get("last_message_hash")
+        candidate_last_hash = candidate.get("last_message_hash")
+        if expected_last_hash and candidate_last_hash:
+            return expected_last_hash == candidate_last_hash
+        if expected_last is None and candidate_last is None:
+            return True
+        if not isinstance(expected_last, dict) or not isinstance(candidate_last, dict):
+            return False
+
+        return (
+            candidate_last.get("role") == expected_last.get("role")
+            and candidate_last.get("content") == expected_last.get("content")
+        )
+
+    @staticmethod
+    def _compatible_llm_categories(category: str, request_summary: Dict[str, Any]) -> list[str]:
+        categories = [category]
+        model = request_summary.get("model")
+        if isinstance(model, str):
+            normalized = ApiResponseCache._normalize_llm_model_for_match(model)
+            if normalized and normalized != model:
+                categories.append(f"llm/{normalized}")
+
+        if category.startswith("llm/"):
+            category_model = category.removeprefix("llm/")
+            normalized = ApiResponseCache._normalize_llm_model_for_match(category_model)
+            if normalized and normalized != category_model:
+                categories.append(f"llm/{normalized}")
+
+        return list(dict.fromkeys(categories))
+
+    @staticmethod
+    def _normalize_llm_model_for_match(model: Any) -> Any:
+        if not isinstance(model, str):
+            return model
+        return model.rsplit("/", 1)[-1]
 
 
 # Singleton cache instance

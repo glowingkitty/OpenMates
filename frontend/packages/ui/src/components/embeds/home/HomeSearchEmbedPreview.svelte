@@ -271,11 +271,7 @@
         <div class="ds-search-results-info">
           {#if flatResults.length === 0}
             <span class="no-results-text" data-testid="search-no-results-message">
-              {#if localQuery}
-                {$text('embeds.search_no_results_for_query').replace('{query}', localQuery)}
-              {:else}
-                {$text('embeds.search_no_results')}
-              {/if}
+              {$text('embeds.search_no_results')}
             </span>
           {:else}
             <!-- Listing thumbnails row -->

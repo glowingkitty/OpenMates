@@ -1,0 +1,82 @@
+# Durable sealed assistant-completion recovery state.
+# sealed_payload is an authenticated client-openable envelope, never plaintext.
+# Lease tokens are returned once and persisted only as SHA-256 digests.
+chat_completion_recovery_jobs:
+  type: collection
+  note: "Internal sealed completion jobs with fenced recovery leases"
+  fields:
+    id:
+      type: uuid
+      primary: true
+    hashed_user_id:
+      type: string
+      length: 64
+      required: true
+    chat_id:
+      type: uuid
+      required: true
+    turn_id:
+      type: uuid
+      required: true
+    preflight_id:
+      type: uuid
+      required: true
+    inference_task_id:
+      type: uuid
+      required: true
+    assistant_message_id:
+      type: string
+      length: 255
+      required: true
+    chat_key_version:
+      type: integer
+      required: true
+    sealed_payload:
+      type: text
+      nullable: true
+      note: "AES-256-GCM recovery envelope serialized as strict JSON"
+    sealed_payload_digest:
+      type: string
+      length: 64
+      nullable: true
+    state:
+      type: string
+      length: 16
+      required: true
+    lease_generation:
+      type: integer
+      required: true
+      default: 0
+    lease_token_digest:
+      type: string
+      length: 64
+      nullable: true
+    lease_holder_hash:
+      type: string
+      length: 128
+      nullable: true
+    lease_expires_at:
+      type: datetime
+      nullable: true
+    tenure_started_at:
+      type: datetime
+      nullable: true
+    terminal_ciphertext_digest:
+      type: string
+      length: 64
+      nullable: true
+    created_at:
+      type: datetime
+      required: true
+    expires_at:
+      type: datetime
+      required: true
+    completed_at:
+      type: datetime
+      nullable: true
+    tombstone_expires_at:
+      type: datetime
+      nullable: true
+    invalidated_at:
+      type: datetime
+      nullable: true

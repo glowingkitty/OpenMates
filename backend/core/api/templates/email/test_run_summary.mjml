@@ -21,7 +21,7 @@
       <mj-section>
         <mj-column>
           <!-- Status icon: checkmark for success, warning for failure -->
-          {% if failed == 0 %}
+          {% if not has_problems %}
           <mj-image width="50px" height="50px" src="icons/checkmark.png" align="center" css-class="email-icon-50" />
           {% else %}
           <mj-image width="50px" height="50px" src="icons/warning.png" align="center" css-class="email-icon-50" />
@@ -29,7 +29,7 @@
 
           <!-- Headline -->
           <mj-text font-size="30px" padding-bottom="30px">
-            {% if failed == 0 %}
+            {% if not has_problems %}
             <mark>{{ summary_copy.header_success }}</mark>
             {% else %}
             <mark>{{ summary_copy.header_failure | replace("{failed}", failed | string) | replace("{total}", total | string) }}</mark>
@@ -44,8 +44,8 @@
 
           <!-- Overall status badge -->
           <mj-text font-size="18px" padding-bottom="20px">
-            <span style="background-color: {% if failed == 0 %}#4CAF50{% else %}#F44336{% endif %}; color: #ffffff; padding: 4px 16px; border-radius: 4px; font-weight: bold;">
-              {% if failed == 0 %}✓ {{ summary_copy.status_success }}{% else %}✗ {{ summary_copy.status_failure | replace("{failed}", failed | string) | replace("{total}", total | string) }}{% endif %}
+            <span style="background-color: {% if not has_problems %}#4CAF50{% else %}#F44336{% endif %}; color: #ffffff; padding: 4px 16px; border-radius: 4px; font-weight: bold;">
+              {% if not has_problems %}✓ {{ summary_copy.status_success }}{% else %}✗ {{ summary_copy.status_failure | replace("{failed}", failed | string) | replace("{total}", total | string) }}{% endif %}
             </span>
           </mj-text>
 
@@ -119,12 +119,31 @@
           </mj-text>
 
           <!-- Failed Tests section (only shown when there are failures) -->
-          {% if failed_tests %}
+          {% if failure_groups %}
+          <mj-text font-size="18px" padding-bottom="10px" font-weight="bold">
+            Failures by suite and product area
+          </mj-text>
+
+          {% for group in failure_groups %}
+          <mj-text font-size="14px" padding-bottom="12px">
+            <div style="font-family: monospace; font-size: 14px; font-weight: bold; text-align: left; color: #F44336; padding-top: 4px;">
+              {{ group.title }}
+            </div>
+            <div style="font-family: monospace; font-size: 13px; text-align: left; white-space: pre-wrap; padding-top: 6px;">{{ group.description }}</div>
+          </mj-text>
+          {% endfor %}
+          {% elif failed_tests %}
           <mj-text font-size="18px" padding-bottom="10px" font-weight="bold">
             {{ summary_copy.failed_tests_label }}
           </mj-text>
 
-          {% for test in failed_tests %}
+          {% for group in failed_test_groups %}
+          <mj-text font-size="14px" padding-bottom="6px">
+            <div style="font-family: monospace; font-size: 14px; font-weight: bold; text-align: left; color: #F44336; padding-top: 4px;">
+              {{ group.label }} ({{ group.count }})
+            </div>
+          </mj-text>
+          {% for test in group.tests %}
           <mj-text font-size="14px" padding-bottom="12px">
             <div style="background-color: {% if darkmode %}#2d1a1a{% else %}#fff5f5{% endif %}; border-left: 4px solid #F44336; padding: 10px 14px; border-radius: 0 4px 4px 0; text-align: left;">
               <div style="font-family: monospace; font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #F44336;">
@@ -135,6 +154,7 @@
               {% endif %}
             </div>
           </mj-text>
+          {% endfor %}
           {% endfor %}
           {% endif %}
 
@@ -159,6 +179,12 @@
             </div>
           </mj-text>
           {% endfor %}
+          {% endif %}
+
+          {% if all_tests_omitted_count > 0 %}
+          <mj-text font-size="13px" padding-bottom="20px" color="{% if darkmode %}#bdbdbd{% else %}#4b5563{% endif %}">
+            Full per-test list omitted from this email because {{ all_tests_omitted_count }} tests exceed the {{ all_tests_limit }}-test email render limit. Failed tests and suite totals are shown above.
+          </mj-text>
           {% endif %}
 
           <!-- Footer note -->

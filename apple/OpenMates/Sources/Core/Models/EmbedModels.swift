@@ -128,12 +128,21 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         context: String
     ) -> [EmbedRecord] {
         guard !referencedIds.isEmpty, !embeds.isEmpty else { return [] }
-        _ = dictionaryById(embeds, context: context)
+        let records = deduplicatedById(embeds, context: context)
         var includedIds = referencedIds
         var changed = true
         while changed {
             changed = false
-            for embed in embeds {
+            for embed in records {
+                if includedIds.contains(embed.id) {
+                    if let parentEmbedId = embed.parentEmbedId,
+                       includedIds.insert(parentEmbedId).inserted {
+                        changed = true
+                    }
+                    for childEmbedId in embed.childEmbedIds where includedIds.insert(childEmbedId).inserted {
+                        changed = true
+                    }
+                }
                 let referencesIncludedParent = embed.parentEmbedId.map { includedIds.contains($0) } ?? false
                 let referencesIncludedChild = !Set(embed.childEmbedIds).isDisjoint(with: includedIds)
                 if (referencesIncludedParent || referencesIncludedChild), includedIds.insert(embed.id).inserted {
@@ -141,11 +150,37 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
                 }
             }
         }
-        return embeds.filter { embed in
-            includedIds.contains(embed.id) ||
-            (embed.parentEmbedId.map { includedIds.contains($0) } ?? false) ||
-            !Set(embed.childEmbedIds).isDisjoint(with: includedIds)
-        }
+        return records.filter { includedIds.contains($0.id) }
+    }
+
+    static func unresolvedCompositeParentIds(
+        referencedIds: Set<String>,
+        from embeds: [EmbedRecord],
+        context: String
+    ) -> Set<String> {
+        let related = relatedRecords(referencedIds: referencedIds, from: embeds, context: context)
+        let availableIds = Set(related.map(\.id))
+        let childIdsByParent: [String: Set<String>] = Dictionary(grouping: related.compactMap { child in
+            child.parentEmbedId.map { ($0, child.id) }
+        }, by: \.0).mapValues { Set($0.map(\.1)) }
+        return Set(related.compactMap { parent in
+            guard parent.isAppSkillUse else { return nil }
+            let declaredChildren = Set(parent.childEmbedIds)
+            let linkedChildren = childIdsByParent[parent.id] ?? []
+            let appId = parent.appId ?? parent.rawData?["app_id"]?.value as? String
+            let skillId = parent.skillId ?? parent.rawData?["skill_id"]?.value as? String
+            let semanticType = appId.flatMap { appId in
+                skillId.flatMap { EmbedType.normalized(rawValue: "app:\(appId):\($0)") }
+            }
+            let hasInlinePreviewResults = parent.rawData?["preview_results"] != nil
+            let requiresExternalChildren = !declaredChildren.isEmpty ||
+                (semanticType?.isComposite == true && !hasInlinePreviewResults)
+            guard requiresExternalChildren else { return nil }
+            if declaredChildren.isEmpty {
+                return linkedChildren.isEmpty ? parent.id : nil
+            }
+            return declaredChildren.isSubset(of: availableIds) ? nil : parent.id
+        })
     }
 
     init(
@@ -244,7 +279,11 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
 
         if let decodedData = try container.decodeIfPresent(EmbedData.self, forKey: .data) {
             data = decodedData
-            type = decodedType ?? decodedData.rawType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId)
+            type = Self.normalizedType(
+                decodedType ?? decodedData.rawType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId),
+                appId: decodedAppId,
+                skillId: decodedSkillId
+            )
             if decodedEmbedIds == nil, case .raw(let raw) = decodedData {
                 decodedEmbedIds = Self.embedIdsString(from: raw["embed_ids"]?.value)
                     ?? Self.embedIdsString(from: raw["embedIds"]?.value)
@@ -252,7 +291,11 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         } else if let content = try container.decodeIfPresent(String.self, forKey: .content) {
             var raw = Self.parseToonContent(content)
             let contentType = raw["type"] as? String
-            type = decodedType ?? contentType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId)
+            type = Self.normalizedType(
+                decodedType ?? contentType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId),
+                appId: decodedAppId ?? raw["app_id"] as? String,
+                skillId: decodedSkillId ?? raw["skill_id"] as? String
+            )
             decodedEmbedIds = decodedEmbedIds
                 ?? Self.embedIdsString(from: raw["embed_ids"])
                 ?? Self.embedIdsString(from: raw["embedIds"])
@@ -374,6 +417,8 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         switch rawType {
         case "image_result":
             return EmbedType.imagesImageResult.rawValue
+        case "company_financial_result":
+            return EmbedType.businessCompanyFinancialResult.rawValue
         case "website", "web_result", "search_result":
             return EmbedType.webWebsite.rawValue
         default:
@@ -385,6 +430,9 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         }
         if (appId == "web" || appId == "news"), skillId == "website" || skillId == "web_result" {
             return EmbedType.webWebsite.rawValue
+        }
+        if appId == "business", skillId == "company_financial_result" {
+            return EmbedType.businessCompanyFinancialResult.rawValue
         }
         return rawType
     }
@@ -572,25 +620,40 @@ enum EmbedType: String, CaseIterable {
     case codeRepo = "code-repo"
     case codeCode = "code-code"
     case codeApplication = "code-application"
+    case designIconResult = "design-icon-result"
     case docsDoc = "docs-doc"
     case diagramsMermaid = "diagrams-mermaid"
     case mindmapsMindmap = "mindmaps-mindmap"
+    case electronicsPcbSchematic = "electronics-pcb-schematic"
     case electronicsComponent = "electronics-component"
+    case fitnessLocation = "fitness-location"
+    case fitnessClass = "fitness-class"
     case image
     case mailEmail = "mail-email"
     case maps
     case mathPlot = "math-plot"
     case pdf
+    case models3dModelResult = "models3d-model-result"
     case sheetsSheet = "sheets-sheet"
     case focusModeActivation = "focus-mode-activation"
     case socialMediaPost = "social-media-post"
+    case tasksTask = "tasks-task"
     case weatherDay = "weather-day"
+    case workflowsWorkflow = "workflows-workflow"
+    case businessCompanyFinancialResult = "business-company-financial-result"
 
     // Composite search embeds
     case codeRepoSearch = "app:code:search_repos"
+    case calendarGetEvents = "app:calendar:get-events"
+    case calendarCreateEvent = "app:calendar:create-event"
+    case calendarUpdateEvent = "app:calendar:update-event"
+    case calendarDeleteEvent = "app:calendar:delete-event"
+    case designSearchIcons = "app:design:search_icons"
     case electronicsSearch = "app:electronics:search_components"
     case eventsSearch = "app:events:search"
     case eventsEvent = "events-event"
+    case fitnessSearchLocations = "app:fitness:search_locations"
+    case fitnessSearchClasses = "app:fitness:search_classes"
     case healthSearch = "app:health:search_appointments"
     case healthAppointment = "health-appointment"
     case homeSearch = "app:home:search"
@@ -601,6 +664,8 @@ enum EmbedType: String, CaseIterable {
     case mapsSearch = "app:maps:search"
     case mapsPlace = "maps-place"
     case musicGenerate = "app:music:generate"
+    case models3dSearch = "app:models3d:search"
+    case models3dGenerate = "app:models3d:generate"
     case newsSearch = "app:news:search"
     case nutritionSearch = "app:nutrition:search_recipes"
     case nutritionRecipe = "nutrition-recipe"
@@ -620,36 +685,47 @@ enum EmbedType: String, CaseIterable {
     case webSearch = "app:web:search"
     case webWebsite = "web-website"
     case webRead = "app:web:read"
+    case businessCompanyFinancials = "app:business:company_financials"
     case wiki
     case weatherForecast = "app:weather:forecast"
+    case weatherRainRadar = "app:weather:rain_radar"
 
     // App skill use embeds
     case codeGetDocs = "app:code:get_docs"
     case imagesGenerate = "app:images:generate"
     case imagesGenerateDraft = "app:images:generate_draft"
+    case financeCheckAccounts = "app:finance:check_accounts"
     case mathCalculate = "app:math:calculate"
     case reminderSet = "app:reminder:set-reminder"
     case reminderList = "app:reminder:list-reminders"
     case reminderCancel = "app:reminder:cancel-reminder"
     case socialMediaGetPosts = "app:social_media:get-posts"
     case socialMediaSearch = "app:social_media:search"
+    case tasksCreate = "app:tasks:create"
+    case tasksSearch = "app:tasks:search"
+    case workflowsCreateOrModify = "app:workflows:create-or-modify"
+    case workflowsSearch = "app:workflows:search"
 
     static func normalized(rawValue: String) -> EmbedType? {
         switch rawValue {
         case "audio-recording": return .recording
         case "images-image": return .image
+        case "company_financial_result": return .businessCompanyFinancialResult
         default: return EmbedType(rawValue: rawValue)
         }
     }
 
     var isComposite: Bool {
         switch self {
-        case .codeRepoSearch, .electronicsSearch,
-             .eventsSearch, .healthSearch, .homeSearch, .imagesSearch,
-             .mailSearch, .mapsSearch, .newsSearch, .nutritionSearch,
-             .shoppingSearch, .socialMediaGetPosts, .socialMediaSearch,
-             .travelConnections, .travelStays, .videosSearch, .weatherForecast,
-             .webSearch:
+        case .codeRepoSearch, .designSearchIcons, .electronicsSearch,
+              .businessCompanyFinancials, .eventsSearch, .healthSearch, .homeSearch, .imagesSearch,
+              .fitnessSearchLocations, .fitnessSearchClasses,
+              .models3dSearch,
+              .mailSearch, .mapsSearch, .newsSearch, .nutritionSearch,
+              .shoppingSearch, .socialMediaGetPosts, .socialMediaSearch,
+              .tasksCreate, .tasksSearch,
+              .travelConnections, .travelStays, .videosSearch, .weatherForecast,
+              .webSearch, .workflowsCreateOrModify, .workflowsSearch:
             return true
         default:
             return false
@@ -659,21 +735,28 @@ enum EmbedType: String, CaseIterable {
     var childType: EmbedType? {
         switch self {
         case .codeRepoSearch: return .codeRepo
+        case .businessCompanyFinancials: return .businessCompanyFinancialResult
+        case .designSearchIcons: return .designIconResult
         case .electronicsSearch: return .electronicsComponent
         case .eventsSearch: return .eventsEvent
+        case .fitnessSearchLocations: return .fitnessLocation
+        case .fitnessSearchClasses: return .fitnessClass
         case .healthSearch: return .healthAppointment
         case .homeSearch: return .homeListing
         case .imagesSearch: return .imagesImageResult
         case .mapsSearch: return .mapsPlace
+        case .models3dSearch: return .models3dModelResult
         case .newsSearch: return .webWebsite
         case .nutritionSearch: return .nutritionRecipe
         case .shoppingSearch: return .shoppingProduct
         case .socialMediaGetPosts, .socialMediaSearch: return .socialMediaPost
+        case .tasksCreate, .tasksSearch: return .tasksTask
         case .travelConnections: return .travelConnection
         case .travelStays: return .travelStay
         case .videosSearch: return .videosVideo
         case .weatherForecast: return .weatherDay
         case .webSearch: return .webWebsite
+        case .workflowsCreateOrModify, .workflowsSearch: return .workflowsWorkflow
         default: return nil
         }
     }
@@ -683,18 +766,22 @@ enum EmbedType: String, CaseIterable {
         guard raw.hasPrefix("app:") else {
             switch self {
             case .codeRepo, .codeCode, .codeApplication: return "code"
+            case .designIconResult: return "design"
             case .docsDoc: return "docs"
             case .diagramsMermaid: return "diagrams"
             case .mindmapsMindmap: return "mindmaps"
-            case .electronicsComponent: return "electronics"
+            case .electronicsPcbSchematic, .electronicsComponent: return "electronics"
+            case .fitnessLocation, .fitnessClass: return "fitness"
             case .recording: return "audio"
             case .image, .imagesImageResult: return "images"
             case .maps, .mapsPlace: return "maps"
             case .mailEmail: return "mail"
             case .mathPlot: return "math"
+            case .models3dModelResult: return "models3d"
             case .pdf: return "pdf"
             case .sheetsSheet: return "sheets"
             case .webWebsite: return "web"
+            case .businessCompanyFinancialResult: return "business"
             case .wiki: return "study"
             case .videosVideo: return "videos"
             case .eventsEvent: return "events"
@@ -703,8 +790,10 @@ enum EmbedType: String, CaseIterable {
             case .nutritionRecipe: return "nutrition"
             case .shoppingProduct: return "shopping"
             case .socialMediaPost: return "social_media"
+            case .tasksTask: return "tasks"
             case .travelConnection, .travelStay: return "travel"
             case .weatherDay: return "weather"
+            case .workflowsWorkflow: return "workflows"
             default: return nil
             }
         }
@@ -715,6 +804,8 @@ enum EmbedType: String, CaseIterable {
     var displayName: String {
         switch self {
         case .webSearch, .newsSearch: return "Search"
+        case .businessCompanyFinancials: return "Get company financials"
+        case .businessCompanyFinancialResult: return "Company financial result"
         case .webRead: return "Read"
         case .webWebsite: return "Website"
         case .wiki: return "Wikipedia"
@@ -723,20 +814,32 @@ enum EmbedType: String, CaseIterable {
         case .codeCode: return "Code"
         case .codeApplication: return "Application"
         case .codeGetDocs: return "Docs"
+        case .designSearchIcons: return "Icon Search"
+        case .designIconResult: return "Icon"
         case .docsDoc: return "Document"
         case .diagramsMermaid: return "Diagram"
         case .mindmapsMindmap: return "Mind Map"
+        case .electronicsPcbSchematic: return "PCB Schematic"
         case .electronicsSearch: return "Component Search"
         case .electronicsComponent: return "Component"
+        case .calendarGetEvents, .calendarCreateEvent, .calendarUpdateEvent, .calendarDeleteEvent: return "Calendar"
+        case .fitnessSearchLocations: return "Fitness Locations"
+        case .fitnessSearchClasses: return "Fitness Classes"
+        case .fitnessLocation: return "Fitness Location"
+        case .fitnessClass: return "Fitness Class"
         case .image: return "Image"
         case .imagesSearch: return "Image Search"
         case .imagesGenerate, .imagesGenerateDraft: return "Generated Image"
         case .imagesImageResult: return "Image"
+        case .financeCheckAccounts: return "Check accounts"
         case .maps, .mapsSearch: return "Map"
         case .mapsPlace: return "Place"
         case .mailEmail, .mailSearch: return "Email"
         case .mathPlot: return "Plot"
         case .mathCalculate: return "Calculate"
+        case .models3dSearch: return "3D Model Search"
+        case .models3dGenerate: return "Generated 3D Model"
+        case .models3dModelResult: return "3D Model"
         case .musicGenerate: return "Music"
         case .pdf: return "PDF"
         case .sheetsSheet: return "Sheet"
@@ -759,6 +862,9 @@ enum EmbedType: String, CaseIterable {
         case .socialMediaGetPosts: return "Posts"
         case .socialMediaSearch: return "Social Search"
         case .socialMediaPost: return "Post"
+        case .tasksCreate: return "Created Tasks"
+        case .tasksSearch: return "Task Search"
+        case .tasksTask: return "Task"
         case .travelConnections: return "Connections"
         case .travelConnection: return "Connection"
         case .travelStays: return "Stays"
@@ -768,7 +874,11 @@ enum EmbedType: String, CaseIterable {
         case .focusModeActivation: return "Focus Mode"
         case .reminderSet, .reminderList, .reminderCancel: return "Reminder"
         case .weatherForecast: return "Forecast"
+        case .weatherRainRadar: return "Rain Radar"
         case .weatherDay: return "Weather"
+        case .workflowsCreateOrModify: return "Created Workflow"
+        case .workflowsSearch: return "Workflow Search"
+        case .workflowsWorkflow: return "Workflow"
         }
     }
 }

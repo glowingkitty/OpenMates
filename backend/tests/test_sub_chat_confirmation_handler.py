@@ -5,6 +5,7 @@
 # tests validate behavior without creating real child chats or dispatching
 # Celery tasks.
 
+import asyncio
 import sys
 import types
 from typing import Any
@@ -26,6 +27,12 @@ class FakeCache:
 
     async def get(self, key: str) -> dict[str, Any] | None:
         return self.context
+
+    async def get_and_delete(self, key: str) -> dict[str, Any] | None:
+        context = self.context
+        self.context = None
+        self.deleted.append(key)
+        return context
 
     async def delete(self, key: str) -> None:
         self.deleted.append(key)
@@ -88,19 +95,18 @@ def pending_context(sub_chat_count: int) -> dict[str, Any]:
     }
 
 
-@pytest.mark.asyncio
-async def test_sub_chat_confirmation_cancel_consumes_pending_context() -> None:
+def test_sub_chat_confirmation_cancel_consumes_pending_context() -> None:
     cache = FakeCache(pending_context(4))
     manager = FakeManager()
 
-    await handle_sub_chat_confirmation(
+    asyncio.run(handle_sub_chat_confirmation(
         manager=manager,
         user_id="user-1",
         device_fingerprint_hash="device-1",
         payload={"chat_id": "parent-chat", "task_id": "task-1", "action": "cancel"},
         cache_service=cache,  # type: ignore[arg-type]
         directus_service=FakeDirectus(),  # type: ignore[arg-type]
-    )
+    ))
 
     assert cache.deleted
     assert manager.messages == [
@@ -111,26 +117,24 @@ async def test_sub_chat_confirmation_cancel_consumes_pending_context() -> None:
     ]
 
 
-@pytest.mark.asyncio
-async def test_sub_chat_confirmation_revalidates_parallel_capacity_on_approval() -> None:
+def test_sub_chat_confirmation_revalidates_parallel_capacity_on_approval() -> None:
     cache = FakeCache(pending_context(21))
     manager = FakeManager()
 
-    await handle_sub_chat_confirmation(
+    asyncio.run(handle_sub_chat_confirmation(
         manager=manager,
         user_id="user-1",
         device_fingerprint_hash="device-1",
         payload={"chat_id": "parent-chat", "task_id": "task-1", "action": "approve"},
         cache_service=cache,  # type: ignore[arg-type]
         directus_service=FakeDirectus(existing_sub_chats=0),  # type: ignore[arg-type]
-    )
+    ))
 
     assert manager.messages[0]["type"] == "sub_chat_confirmation_resolved"
     assert manager.messages[0]["payload"]["status"] == "limit_exceeded"
 
 
-@pytest.mark.asyncio
-async def test_sub_chat_confirmation_allows_large_sequential_queue(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sub_chat_confirmation_rejects_sequential_queue_above_root_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     cache = FakeCache({**pending_context(25), "execution_mode": "sequential"})
     manager = FakeManager()
     calls: dict[str, Any] = {}
@@ -162,17 +166,15 @@ async def test_sub_chat_confirmation_allows_large_sequential_queue(monkeypatch: 
     fake_stream_consumer_module = types.SimpleNamespace(_store_sub_chat_pending_context=lambda **_: None)
     monkeypatch.setitem(sys.modules, "backend.apps.ai.tasks.stream_consumer", fake_stream_consumer_module)
 
-    await handle_sub_chat_confirmation(
+    asyncio.run(handle_sub_chat_confirmation(
         manager=manager,
         user_id="user-1",
         device_fingerprint_hash="device-1",
         payload={"chat_id": "parent-chat", "task_id": "task-1", "action": "approve"},
         cache_service=cache,  # type: ignore[arg-type]
         directus_service=FakeDirectus(existing_sub_chats=200),  # type: ignore[arg-type]
-    )
+    ))
 
-    assert calls["created"] == 25
-    assert calls["dispatched"] == "child-0"
+    assert calls == {}
     assert manager.messages[-1]["type"] == "sub_chat_confirmation_resolved"
-    assert manager.messages[-1]["payload"]["status"] == "approved"
-    assert manager.messages[-1]["payload"]["approved_count"] == 25
+    assert manager.messages[-1]["payload"]["status"] == "limit_exceeded"

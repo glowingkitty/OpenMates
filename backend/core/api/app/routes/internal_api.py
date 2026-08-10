@@ -23,6 +23,7 @@ from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.billing_service import BillingService
+from backend.core.api.app.services.team_billing_service import TeamBillingService, TeamInsufficientCreditsError
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.server_stats_service import ServerStatsService
 from backend.core.api.app.services.s3.service import S3UploadService
@@ -82,6 +83,12 @@ def get_billing_service(
     server_stats_service: ServerStatsService = Depends(get_server_stats_service)
 ) -> BillingService:
     return BillingService(cache_service, directus_service, encryption_service, server_stats_service)
+
+
+def get_team_billing_service(
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> TeamBillingService:
+    return TeamBillingService(directus_service)
 
 def get_s3_service(request: Request) -> S3UploadService:
     if not hasattr(request.app.state, 's3_service'):
@@ -520,10 +527,20 @@ class CreditChargePayload(BaseModel):
     credits: int
     skill_id: str
     app_id: str
-    idempotency_key: Optional[str] = None
+    idempotency_key: str = Field(..., min_length=1, max_length=255)
     usage_details: Optional[Dict[str, Any]] = None
     api_key_hash: Optional[str] = None  # SHA-256 hash of API key for tracking
     device_hash: Optional[str] = None  # SHA-256 hash of device for tracking
+
+
+class TeamCreditChargePayload(BaseModel):
+    team_id: str
+    actor_user_id: str
+    credits: int
+    skill_id: str
+    app_id: str
+    idempotency_key: str = Field(..., min_length=1, max_length=255)
+    usage_details: Optional[Dict[str, Any]] = None
 
 @router.get("/billing/balance")
 async def get_user_credit_balance(
@@ -570,12 +587,13 @@ async def charge_credits_route(
         return {"status": "skipped", "reason": "Non-positive credits"}
 
     try:
-        await billing_service.charge_user_credits(
+        charge_result = await billing_service.charge_user_credits(
             user_id=payload.user_id,
             credits_to_deduct=payload.credits,
             user_id_hash=payload.user_id_hash,
             app_id=payload.app_id,
             skill_id=payload.skill_id,
+            idempotency_key=payload.idempotency_key,
             usage_details=payload.usage_details,
             api_key_hash=payload.api_key_hash,  # API key hash for tracking which API key created this usage
             device_hash=payload.device_hash,  # Device hash for tracking which device created this usage
@@ -583,7 +601,9 @@ async def charge_credits_route(
         
         return {
             "status": "success",
-            "charged_credits": payload.credits,
+            "charge_id": charge_result.get("charge_id", payload.idempotency_key),
+            "charged_credits": charge_result.get("charged_credits", payload.credits),
+            "idempotent": bool(charge_result.get("idempotent")),
         }
     except HTTPException as e:
         # Forward HTTP exceptions from the service
@@ -591,6 +611,41 @@ async def charge_credits_route(
     except Exception as e:
         logger.error(f"Error charging credits for user {payload.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error charging credits: {str(e)}")
+
+
+@router.post("/billing/team/charge")
+async def charge_team_credits_route(
+    payload: TeamCreditChargePayload,
+    team_billing_service: TeamBillingService = Depends(get_team_billing_service),
+) -> Dict[str, Any]:
+    logger.info(
+        "Internal API: Charging %s team credits for team '%s', app '%s', skill '%s'.",
+        payload.credits,
+        payload.team_id,
+        payload.app_id,
+        payload.skill_id,
+    )
+    if payload.credits <= 0:
+        return {"status": "skipped", "reason": "Non-positive credits"}
+    usage_details = payload.usage_details or {}
+    event_id = payload.idempotency_key
+    try:
+        result = await team_billing_service.charge_team_credits(
+            team_id=payload.team_id,
+            actor_user_id=payload.actor_user_id,
+            event_id=event_id,
+            credits=payload.credits,
+            workspace_type=str(usage_details.get("workspace_type") or "chat"),
+            object_id_hash=usage_details.get("object_id_hash"),
+            encrypted_metadata=usage_details.get("encrypted_metadata"),
+            usage_details=usage_details,
+        )
+        return {"status": "success", "charged_credits": payload.credits, "team_usage_event_id": result["usage_event"].get("id")}
+    except TeamInsufficientCreditsError as exc:
+        raise HTTPException(status_code=402, detail="INSUFFICIENT_TEAM_CREDITS") from exc
+    except Exception as exc:
+        logger.error("Error charging team credits for team %s: %s", payload.team_id, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error charging team credits") from exc
 
 
 class CreditRefundPayload(BaseModel):
@@ -1109,6 +1164,28 @@ class UploadCheckDuplicateResponse(BaseModel):
     record: Optional[Dict[str, Any]] = Field(None, description="Existing upload record if duplicate")
 
 
+def _upload_record_s3_keys_are_embed_scoped(record: Dict[str, Any], embed_id: str) -> bool:
+    """Return true when every stored S3 object key is namespaced by embed_id."""
+    files_metadata = record.get("files_metadata")
+    if not isinstance(files_metadata, dict) or not files_metadata:
+        return False
+
+    s3_keys: List[str] = []
+    for metadata in files_metadata.values():
+        if not isinstance(metadata, dict):
+            return False
+        s3_key = metadata.get("s3_key")
+        if not isinstance(s3_key, str) or not s3_key:
+            return False
+        s3_keys.append(s3_key)
+
+    # New upload keys are <user-hash>/<content-hash>/<embed-id>/<timestamp>_<variant>.bin.
+    # Legacy records without this segment can point at encrypted bytes overwritten by
+    # another same-hash upload, so they are not safe for dedup reuse.
+    embed_segment = f"/{embed_id}/"
+    return bool(s3_keys) and all(embed_segment in s3_key for s3_key in s3_keys)
+
+
 @router.post("/uploads/check-duplicate", response_model=UploadCheckDuplicateResponse)
 async def check_upload_duplicate(
     payload: UploadCheckDuplicateRequest,
@@ -1126,11 +1203,12 @@ async def check_upload_duplicate(
     returned to the uploading client.
 
     Validation: For any upload that has an embed_id, we verify that the corresponding
-    embed record exists in Directus with status='finished'. If the embed is missing or
-    not finished (e.g. a previous upload failed mid-way after storing the upload_files
-    record but before OCR/processing completed), we discard the stale record and return
-    duplicate=False so the uploads service falls through to a fresh upload + processing run.
-    This prevents the UI from hanging forever on 'Processing…' with no WS event arriving.
+    embed record exists in Directus with status='finished' and that stored S3 keys are
+    scoped under that same embed ID. If the embed is missing, not finished, or points to
+    legacy shared S3 keys, we discard the stale record and return duplicate=False so the
+    uploads service falls through to a fresh upload + processing run. This prevents the
+    UI from hanging forever on 'Processing…' with no WS event arriving and prevents stale
+    encrypted bytes from being reused after same-hash key collisions.
     """
     log_prefix = f"[UploadDedup] [user:{payload.user_id[:8]}...]"
     logger.debug(f"{log_prefix} Checking duplicate for hash {payload.content_hash[:16]}...")
@@ -1155,27 +1233,44 @@ async def check_upload_duplicate(
         # Stale detection applies to all uploads with an embed_id regardless of file type.
 
         # For any upload with an embed_id, validate that the embed actually exists
-        # in Directus with status='finished'. A stale record with no corresponding
-        # finished embed means a previous upload failed after storing the upload_files
-        # row but before processing completed — returning it as a dedup hit would
-        # leave the frontend stuck on 'Processing…' indefinitely.
+        # in Directus with status='finished' and belongs to the same canonical
+        # user hash. A stale record with no corresponding finished embed, or a
+        # legacy embed stored with the old email-hash owner, cannot be safely
+        # reused because later store_embed writes would be rejected.
         if embed_id:
             try:
+                expected_owner_hash = hashlib.sha256(payload.user_id.encode()).hexdigest()
                 embed_params = {
                     "filter[embed_id][_eq]": embed_id,
-                    "fields": "embed_id,status",
+                    "fields": "embed_id,status,hashed_user_id",
                     "limit": 1,
                 }
                 embed_items = await directus_service.get_items("embeds", embed_params)
-                embed_status = embed_items[0].get("status") if embed_items else None
+                embed_item = embed_items[0] if embed_items else None
+                embed_status = embed_item.get("status") if embed_item else None
+                embed_owner_hash = embed_item.get("hashed_user_id") if embed_item else None
 
-                if embed_status != "finished":
+                if embed_status != "finished" or embed_owner_hash != expected_owner_hash:
                     logger.warning(
                         f"{log_prefix} Stale dedup record detected: upload_files has embed_id={embed_id} "
-                        f"but embed status is {embed_status!r} (expected 'finished'). "
+                        f"but embed status is {embed_status!r} and owner hash matches expected: "
+                        f"{embed_owner_hash == expected_owner_hash}. "
                         f"Discarding stale record — fresh upload will be performed."
                     )
                     # Clean up the stale upload_files record so it won't block future uploads.
+                    try:
+                        await directus_service.delete_item("upload_files", record["id"])
+                        logger.info(f"{log_prefix} Deleted stale upload_files record id={record['id']}")
+                    except Exception as del_err:
+                        logger.warning(f"{log_prefix} Could not delete stale record: {del_err}")
+                    return UploadCheckDuplicateResponse(duplicate=False, record=None)
+
+                if not _upload_record_s3_keys_are_embed_scoped(record, embed_id):
+                    logger.warning(
+                        f"{log_prefix} Stale dedup record detected: upload_files has embed_id={embed_id} "
+                        "but its S3 keys are not scoped by embed_id. Discarding stale record — "
+                        "fresh upload will be performed."
+                    )
                     try:
                         await directus_service.delete_item("upload_files", record["id"])
                         logger.info(f"{log_prefix} Deleted stale upload_files record id={record['id']}")
@@ -1264,7 +1359,7 @@ class UploadStoreRecordRequest(BaseModel):
     file_size_bytes: int = Field(..., description="Original file size in bytes")
     s3_base_url: str = Field(..., description="S3 base URL for constructing full file URLs")
     files_metadata: Dict[str, Any] = Field(..., description="Stored file variants metadata")
-    aes_key: str = Field(..., description="Base64 AES-256 key for client-side decryption")
+    aes_key: Optional[str] = Field(None, description="Legacy raw AES key; omitted for wrapped-key-only v2 media")
     aes_nonce: str = Field(..., description="Base64 AES-GCM nonce")
     vault_wrapped_aes_key: str = Field(..., description="Vault-wrapped AES key for server-side access")
     malware_scan: str = Field(default="clean", description="ClamAV scan result")
@@ -1298,7 +1393,7 @@ async def store_upload_record(
     logger.info(f"{log_prefix} Storing upload record (hash={payload.content_hash[:16]}...)")
 
     try:
-        record = payload.model_dump()
+        record = payload.model_dump(exclude_none=True)
         await directus_service.create_item("upload_files", record)
         logger.info(f"{log_prefix} Upload record stored successfully")
 
@@ -1464,6 +1559,7 @@ class TestRunSummaryEmailPayload(BaseModel):
     opencode_chat_url: Optional[str] = None  # Shareable opencode session URL for failure analysis
     subject_override: Optional[str] = None  # Used only for urgent essential-flow failure emails
     summary_copy: Optional[Dict[str, str]] = None  # Optional labels for non-test summary emails
+    failure_groups: Optional[List[Dict[str, str]]] = None  # Canonical suite/product-area email grouping
 
 
 class TestRunOpenObservePayload(BaseModel):
@@ -1528,6 +1624,7 @@ async def dispatch_test_summary_email(
                 "opencode_chat_url": payload.opencode_chat_url,
                 "subject_override": payload.subject_override,
                 "summary_copy": payload.summary_copy,
+                "failure_groups": payload.failure_groups,
             },
             queue="email",
         )

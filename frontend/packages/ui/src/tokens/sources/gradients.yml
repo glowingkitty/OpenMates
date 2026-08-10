@@ -40,6 +40,10 @@ apps:
   calendar:          { start: "#007a6e", end: "#3cc4b6" }
   mail:              { start: "#a82e1c", end: "#ef6a58" }
   reminder:          { start: "#8b0000", end: "#ff6f00" }
+  plans:             { start_ref: "color-primary-start", end_ref: "color-primary-end" }
+  projects:          { start_ref: "color-primary-start", end_ref: "color-primary-end" }
+  tasks:             { start_ref: "color-primary-start", end_ref: "color-primary-end" }
+  workflows:         { start_ref: "color-primary-start", end_ref: "color-primary-end" }
   business:          { start: "#004040", end: "#008080" }
   web:               { start: "#de1e66", end: "#ff763b" }
   videos:            { start: "#8a0806", end: "#f44a3c", dark_start: "#c92220" }
@@ -75,6 +79,7 @@ apps:
   calculator:        { start: "#067c02", end: "#40c45e" }
   games:             { start: "#0d1b31", end: "#167aaa" }
   3dmodels:          { start: "#ea7600", end: "#fbab59" }
+  models3d:          { start: "#ea7600", end: "#fbab59" }
   math:              { start: "#4c1d95", end: "#7c3aed" }
   # These two use var() refs to --color-primary-* (not raw hex)
   openmates:         { start_ref: "color-primary-start", end_ref: "color-primary-end" }

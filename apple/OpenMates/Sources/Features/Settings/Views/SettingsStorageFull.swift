@@ -1,221 +1,181 @@
-// Full storage management — overview with breakdown and per-category file list.
-// Mirrors the web app's SettingsStorage.svelte + SettingsStorageFiles.svelte.
+// Native account storage overview and per-category file management.
+// Uses the same overview/list/delete endpoints and loaded, empty, error, and
+// destructive confirmation states as the web account storage settings.
+
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/account/SettingsStorage.svelte
+//          frontend/packages/ui/src/components/settings/account/SettingsStorageFiles.svelte
+// CSS:     frontend/packages/ui/src/styles/settings.css
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 
 struct SettingsStorageFullView: View {
     @State private var overview: StorageOverview?
+    @State private var files: [StorageFileRecord] = []
+    @State private var selectedCategory: StorageCategoryRecord?
+    @State private var pendingDeletion: StorageFileRecord?
     @State private var isLoading = true
-    @State private var selectedCategory: StorageCategory?
-    @State private var showFiles = false
-
-    struct StorageOverview: Decodable {
-        let totalBytes: Int
-        let totalFiles: Int
-        let freeBytes: Int?
-        let billableGb: Double?
-        let weeklyCostCredits: Double?
-        let breakdown: [StorageCategory]
-    }
-
-    struct StorageCategory: Identifiable, Decodable {
-        let category: String
-        let bytesUsed: Int
-        let fileCount: Int
-
-        var id: String { category }
-
-        var icon: String {
-            switch category {
-            case "images": return "photo"
-            case "videos": return "video"
-            case "audio": return "waveform"
-            case "pdf": return "doc.richtext"
-            case "code": return "chevron.left.forwardslash.chevron.right"
-            case "docs": return "doc.text"
-            case "sheets": return "tablecells"
-            case "archives": return "archivebox"
-            default: return "doc"
-            }
-        }
-
-        var formattedSize: String {
-            ByteCountFormatter.string(fromByteCount: Int64(bytesUsed), countStyle: .file)
-        }
-    }
+    @State private var errorMessage: String?
 
     var body: some View {
-        List {
+        OMSettingsPage(title: selectedCategory.map { AppStrings.storageCategory($0.category) } ?? AppStrings.storage) {
             if isLoading {
-                ProgressView()
+                HStack(spacing: .spacing3) {
+                    ProgressView()
+                    Text(AppStrings.storageLoading).font(.omSmall)
+                }
+                .padding(.spacing8)
+            } else if let errorMessage {
+                VStack(alignment: .leading, spacing: .spacing4) {
+                    Text(errorMessage).font(.omSmall).foregroundStyle(Color.error)
+                    Button(AppStrings.retry) { Task { await reload() } }
+                        .buttonStyle(OMSecondaryButtonStyle())
+                }
+                .padding(.spacing6)
+            } else if let selectedCategory {
+                fileList(category: selectedCategory)
             } else if let overview {
-                Section(LocalizationManager.shared.text("settings.storage.overview")) {
-                    VStack(alignment: .leading, spacing: .spacing3) {
-                        ProgressView(
-                            value: Double(overview.totalBytes),
-                            total: Double(max(overview.totalBytes, overview.freeBytes ?? 1_073_741_824))
-                        )
-                        .tint(Color.buttonPrimary)
-                        .accessibilityHidden(true)
-
-                        HStack {
-                            Text("\(LocalizationManager.shared.text("settings.storage.used")): \(ByteCountFormatter.string(fromByteCount: Int64(overview.totalBytes), countStyle: .file))")
-                                .font(.omSmall)
-                            Spacer()
-                            Text("\(overview.totalFiles) \(LocalizationManager.shared.text("settings.storage.files"))")
-                                .font(.omSmall).foregroundStyle(Color.fontSecondary)
-                        }
-                        .accessibilityElement(children: .combine)
-
-                        if let cost = overview.weeklyCostCredits, cost > 0 {
-                            Text("\(LocalizationManager.shared.text("settings.storage.weekly_cost")): \(String(format: "%.4f", cost)) \(LocalizationManager.shared.text("common.credits"))")
-                                .font(.omXs).foregroundStyle(Color.fontTertiary)
-                        }
-                    }
-                }
-
-                Section(LocalizationManager.shared.text("settings.storage.by_category")) {
-                    ForEach(overview.breakdown.sorted(by: { $0.bytesUsed > $1.bytesUsed })) { cat in
-                        Button {
-                            selectedCategory = cat
-                            showFiles = true
-                        } label: {
-                            HStack {
-                                Image(systemName: cat.icon)
-                                    .frame(width: 24)
-                                    .foregroundStyle(Color.fontSecondary)
-                                    .accessibilityHidden(true)
-                                Text(cat.category.capitalized)
-                                    .font(.omSmall)
-                                    .foregroundStyle(Color.fontPrimary)
-                                Spacer()
-                                VStack(alignment: .trailing) {
-                                    Text(cat.formattedSize)
-                                        .font(.omXs).foregroundStyle(Color.fontSecondary)
-                                    Text("\(cat.fileCount) files")
-                                        .font(.omTiny).foregroundStyle(Color.fontTertiary)
-                                }
-                                Image(systemName: "chevron.right")
-                                    .font(.caption).foregroundStyle(Color.fontTertiary)
-                                    .accessibilityHidden(true)
-                            }
-                        }
-                        .accessibleButton(
-                            "\(cat.category.capitalized), \(cat.formattedSize), \(cat.fileCount) files",
-                            hint: LocalizationManager.shared.text("settings.storage.view_files_hint")
-                        )
-                    }
-                }
+                overviewContent(overview)
             }
         }
-        .navigationTitle(AppStrings.storage)
         .task { await loadOverview() }
-        .sheet(isPresented: $showFiles) {
-            if let cat = selectedCategory {
-                StorageFilesView(category: cat.category)
+        .overlay {
+            if let pendingDeletion {
+                OMConfirmDialog(
+                    title: AppStrings.storageDeleteFile,
+                    message: AppStrings.storageDeleteConfirm,
+                    confirmTitle: AppStrings.delete,
+                    isDestructive: true,
+                    onConfirm: { self.pendingDeletion = nil; deleteFile(pendingDeletion) },
+                    onCancel: { self.pendingDeletion = nil }
+                )
             }
         }
+        .accessibilityIdentifier("settings-storage-page")
+    }
+
+    private func overviewContent(_ value: StorageOverview) -> some View {
+        Group {
+            OMSettingsSection(AppStrings.storage, icon: "cloud") {
+                VStack(alignment: .leading, spacing: .spacing4) {
+                    ProgressView(value: Double(value.totalBytes), total: Double(max(value.freeBytes, 1)))
+                        .tint(Color.buttonPrimary)
+                    OMSettingsStaticRow(
+                        title: AppStrings.storage,
+                        value: ByteCountFormatter.string(fromByteCount: Int64(value.totalBytes), countStyle: .file)
+                    )
+                    OMSettingsStaticRow(title: AppStrings.credits, value: String(format: "%.4f", value.weeklyCostCredits))
+                }
+                .padding(.spacing6)
+            }
+
+            OMSettingsSection(AppStrings.storageBreakdown, icon: "cloud") {
+                ForEach(value.breakdown.filter { $0.fileCount > 0 }) { category in
+                    OMSettingsRow(
+                        title: AppStrings.storageCategory(category.category),
+                        icon: categoryIcon(category.category),
+                        value: "\(AppStrings.storageFilesCount(category.fileCount)) · \(ByteCountFormatter.string(fromByteCount: Int64(category.bytesUsed), countStyle: .file))",
+                        accessibilityIdentifier: "settings-storage-category-\(category.category)"
+                    ) {
+                        selectedCategory = category
+                        Task { await loadFiles(category: category.category) }
+                    }
+                }
+            }
+        }
+    }
+
+    private func fileList(category: StorageCategoryRecord) -> some View {
+        Group {
+            OMSettingsSection {
+                OMSettingsRow(title: AppStrings.back, icon: "back", showsChevron: false) {
+                    selectedCategory = nil
+                    files = []
+                    Task { await loadOverview() }
+                }
+            }
+            OMSettingsSection(AppStrings.storageCategory(category.category), icon: categoryIcon(category.category)) {
+                if files.isEmpty {
+                    Text(AppStrings.storageNoFiles)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                        .padding(.spacing6)
+                } else {
+                    ForEach(files) { file in
+                        VStack(alignment: .leading, spacing: .spacing2) {
+                            Text(file.filename ?? AppStrings.untitled)
+                                .font(.omP.weight(.medium))
+                                .foregroundStyle(Color.fontPrimary)
+                            Text(ByteCountFormatter.string(fromByteCount: Int64(file.sizeBytes), countStyle: .file))
+                                .font(.omXs)
+                                .foregroundStyle(Color.fontSecondary)
+                            OMSettingsRow(
+                                title: AppStrings.storageDeleteFile,
+                                icon: "trash",
+                                isDestructive: true,
+                                showsChevron: false,
+                                accessibilityIdentifier: "settings-storage-delete-\(file.id)"
+                            ) { pendingDeletion = file }
+                        }
+                        .padding(.spacing6)
+                    }
+                }
+            }
+        }
+    }
+
+    private func reload() async {
+        if let selectedCategory { await loadFiles(category: selectedCategory.category) }
+        else { await loadOverview() }
     }
 
     private func loadOverview() async {
+        isLoading = true
+        errorMessage = nil
         do {
-            overview = try await APIClient.shared.request(.get, path: "/v1/settings/storage")
+            overview = try await AccountSecurityService.shared.storageOverview()
         } catch {
-            print("[Settings] Failed to load storage: \(error)")
-        }
-        isLoading = false
-    }
-}
-
-struct StorageFilesView: View {
-    let category: String
-    @State private var files: [StorageFile] = []
-    @State private var isLoading = true
-    @Environment(\.dismiss) var dismiss
-
-    struct StorageFile: Identifiable, Decodable {
-        let id: String
-        let filename: String?
-        let size: Int
-        let createdAt: String?
-        let embedId: String?
-
-        var formattedSize: String {
-            ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
-        }
-    }
-
-    var body: some View {
-        NavigationStack {
-            List {
-                if isLoading {
-                    ProgressView()
-                } else if files.isEmpty {
-                    Text(LocalizationManager.shared.text("settings.storage.no_files"))
-                        .foregroundStyle(Color.fontSecondary)
-                } else {
-                    ForEach(files) { file in
-                        HStack {
-                            VStack(alignment: .leading, spacing: .spacing1) {
-                                Text(file.filename ?? "Unnamed")
-                                    .font(.omSmall).fontWeight(.medium)
-                                    .lineLimit(1)
-                                HStack(spacing: .spacing3) {
-                                    Text(file.formattedSize)
-                                        .font(.omXs).foregroundStyle(Color.fontTertiary)
-                                    if let date = file.createdAt {
-                                        Text(date)
-                                            .font(.omXs).foregroundStyle(Color.fontTertiary)
-                                    }
-                                }
-                            }
-                            Spacer()
-                        }
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("\(file.filename ?? "Unnamed"), \(file.formattedSize)")
-                        .accessibilityHint(LocalizationManager.shared.text("settings.swipe_left_to_delete"))
-                        .swipeActions {
-                            Button(role: .destructive) {
-                                deleteFile(file.id)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    }
-                }
-            }
-            .navigationTitle(category.capitalized)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(AppStrings.done) { dismiss() }
-                        .accessibleButton(AppStrings.done)
-                }
-            }
-            .task { await loadFiles() }
-        }
-    }
-
-    private func loadFiles() async {
-        do {
-            files = try await APIClient.shared.request(
-                .get, path: "/v1/settings/storage/files?category=\(category)"
-            )
-        } catch {
-            print("[Settings] Failed to load files: \(error)")
+            errorMessage = error.localizedDescription
+            NativeDiagnostics.error("Storage overview request failed", category: "settings.account")
         }
         isLoading = false
     }
 
-    private func deleteFile(_ id: String) {
+    private func loadFiles(category: String) async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            files = try await AccountSecurityService.shared.storageFiles(category: category)
+        } catch {
+            errorMessage = error.localizedDescription
+            NativeDiagnostics.error("Storage file request failed", category: "settings.account")
+        }
+        isLoading = false
+    }
+
+    private func deleteFile(_ file: StorageFileRecord) {
         Task {
-            try? await APIClient.shared.request(
-                .delete, path: "/v1/settings/storage/files",
-                body: ["file_ids": [id]]
-            ) as Data
-            files.removeAll { $0.id == id }
+            do {
+                _ = try await AccountSecurityService.shared.deleteStorageFiles(ids: [file.id])
+                files.removeAll { $0.id == file.id }
+            } catch {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Storage file deletion failed", category: "settings.account")
+            }
+        }
+    }
+
+    private func categoryIcon(_ category: String) -> String {
+        switch category {
+        case "images": "image"
+        case "videos": "video"
+        case "audio": "audio"
+        case "code": "code"
+        case "archives": "archive"
+        default: "files"
         }
     }
 }

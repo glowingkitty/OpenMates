@@ -18,6 +18,7 @@ import SwiftUI
 struct DevChatOpeningPreviewView: View {
     private let fixture = DevChatOpeningFixture.make()
     private let forceRecordingOverlay: Bool
+    @Environment(\.layoutDirection) private var layoutDirection
     @StateObject private var chatStore = ChatStore()
     @StateObject private var uiTestRecorder = VoiceRecorder()
     @State private var seeded = false
@@ -35,7 +36,9 @@ struct DevChatOpeningPreviewView: View {
 
     var body: some View {
         Group {
-            if isUITestPIIComposerBannerFixtureEnabled {
+            if isUITestMessageEditFixtureEnabled {
+                DevMessageEditFixtureView()
+            } else if isUITestPIIComposerBannerFixtureEnabled {
                 DevPIIComposerBannerFixtureView()
             } else if isUITestPIIVisibilityFixtureEnabled {
                 DevPIIVisibilityFixtureView()
@@ -44,7 +47,6 @@ struct DevChatOpeningPreviewView: View {
             }
         }
         .background(Color.grey0.ignoresSafeArea())
-        .accessibilityIdentifier("dev-chat-opening-preview")
         .onAppear(perform: seedIfNeeded)
         .task {
             await updatePerformanceMetricsForUITest()
@@ -76,6 +78,7 @@ struct DevChatOpeningPreviewView: View {
                         chatStore: chatStore,
                         onReportIssue: { reportIssuePrefill = $0 }
                     )
+                    .environment(\.layoutDirection, uiTestLayoutDirection)
                 } else {
                     ProgressView()
                         .tint(.fontSecondary)
@@ -118,6 +121,17 @@ struct DevChatOpeningPreviewView: View {
                 .allowsHitTesting(false)
             }
         }
+    }
+
+    private var uiTestLayoutDirection: LayoutDirection {
+        ProcessInfo.processInfo.environment["UI_TEST_LAYOUT_DIRECTION"] == "rtl"
+            ? .rightToLeft
+            : layoutDirection
+    }
+
+    private var isUITestMessageEditFixtureEnabled: Bool {
+        ProcessInfo.processInfo.environment["UI_TEST_MESSAGE_EDIT_FIXTURE"] == "1"
+            || ProcessInfo.processInfo.arguments.contains("--ui-test-message-edit-fixture")
     }
 
     private var header: some View {
@@ -409,6 +423,51 @@ private struct DevPIIVisibilityFixtureView: View {
                 .accessibilityIdentifier("pii-visibility-fixture-message")
 
             Spacer()
+        }
+        .padding(.spacing6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.grey20)
+    }
+}
+
+struct DevMessageEditFixtureView: View {
+    private static let originalContent = "Original message content"
+
+    @State private var content = Self.originalContent
+    @State private var isEditing = true
+
+    private var message: Message {
+        Message(
+            id: "ui-test-edit-message",
+            chatId: "ui-test-edit-chat",
+            role: .user,
+            content: Self.originalContent,
+            encryptedContent: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            appId: nil,
+            isStreaming: false,
+            embedRefs: nil
+        )
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            if isEditing {
+                MessageEditView(
+                    message: message,
+                    onSave: { editedContent in
+                        content = editedContent
+                        isEditing = false
+                    },
+                    onCancel: {
+                        isEditing = false
+                    }
+                )
+            } else {
+                Text(content)
+                    .accessibilityIdentifier("native-message-edit-fixture-content")
+            }
         }
         .padding(.spacing6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

@@ -167,6 +167,52 @@ async def test_event_schedule_provider_allows_conference_without_query(monkeypat
     assert response.results[0]["results"][0]["title"] == "GPN24 schedule overview"
 
 
+async def test_event_results_require_usable_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    """CLI and embed cards should not receive null event URLs."""
+
+    skill = _make_skill()
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    async def fake_sanitize(payload: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
+        return payload
+
+    async def fake_meetup(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
+        return [
+            {
+                "id": "booking-only",
+                "provider": "meetup",
+                "title": "Booking URL Event",
+                "url": None,
+                "booking_url": "https://example.com/book",
+                "date_start": "2026-07-20T18:00:00+02:00",
+            },
+            {
+                "id": "missing-url",
+                "provider": "meetup",
+                "title": "Missing URL Event",
+                "url": None,
+                "date_start": "2026-07-21T18:00:00+02:00",
+            },
+        ], 2, None
+
+    monkeypatch.setattr(
+        "backend.apps.events.skills.search_skill.sanitize_long_text_fields_in_payload",
+        fake_sanitize,
+    )
+    monkeypatch.setattr(skill, "_search_meetup", fake_meetup)
+
+    response = await skill.execute(
+        SearchRequest(
+            provider="Meetup",
+            requests=[{"query": "AI", "lat": 52.52, "lon": 13.405}],
+        )
+    )
+
+    events = response.results[0]["results"]
+    assert [event["title"] for event in events] == ["Booking URL Event"]
+    assert events[0]["url"] == "https://example.com/book"
+
+
 async def test_gpn24_conference_search_supports_ai_query(monkeypatch: pytest.MonkeyPatch) -> None:
     """Users should be able to search for a topic at the GPN24 conference."""
 

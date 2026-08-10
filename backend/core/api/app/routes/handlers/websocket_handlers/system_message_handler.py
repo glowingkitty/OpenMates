@@ -24,6 +24,10 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.routes.handlers.websocket_handlers.task_update_job_handlers import (
+    SYSTEM_MESSAGE_CONFIRMATION_TTL_SECONDS,
+    system_message_confirmation_cache_key,
+)
 from backend.core.api.app.tasks.celery_config import app as celery_app_instance
 
 logger = logging.getLogger(__name__)
@@ -105,6 +109,7 @@ async def handle_chat_system_message_added(
             # status preserves the originating device's message status (e.g., "waiting_for_user")
             # so other devices store and display the correct state after cross-device sync
             message_status = message_payload.get("status")
+            task_update_job_id = message_payload.get("task_update_job_id")
             encrypted_chat_key = payload.get(
                 "encrypted_chat_key"
             ) or message_payload.get("encrypted_chat_key")
@@ -201,7 +206,21 @@ async def handle_chat_system_message_added(
                 queue='persistence'
             )
             logger.info(f"[SystemMessage] Dispatched Celery task to persist system message {message_id}")
-        
+
+            confirmed_marker_set = await cache_service.set(
+                system_message_confirmation_cache_key(user_id, chat_id, message_id),
+                {
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "user_message_id": user_message_id,
+                    "task_update_job_id": task_update_job_id,
+                    "messages_v": new_messages_v,
+                },
+                ttl=SYSTEM_MESSAGE_CONFIRMATION_TTL_SECONDS,
+            )
+            if confirmed_marker_set is False:
+                logger.error("[SystemMessage] Failed to cache confirmation marker for system message %s", message_id)
+
             # Send confirmation to sender
             await manager.send_personal_message(
                 {

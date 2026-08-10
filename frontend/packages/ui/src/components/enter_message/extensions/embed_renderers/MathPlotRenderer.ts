@@ -18,6 +18,7 @@ import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import { mount, unmount } from "svelte";
 import MathPlotEmbedPreview from "../../../embeds/math/MathPlotEmbedPreview.svelte";
 import { resolveEmbed } from "../../../../services/embedResolver";
+import { dispatchEmbedFullscreen } from "../../../../services/embedFullscreenController";
 import { chatSyncService } from "../../../../services/chatSyncService";
 import { unmarkEmbedAsProcessed } from "../../../../services/chatSyncServiceHandlersAI";
 import { embedStore } from "../../../../services/embedStore";
@@ -130,18 +131,13 @@ export class MathPlotRenderer implements EmbedRenderer {
       // by UnifiedEmbedPreview.refetchFromStore() after mount, which calls
       // onEmbedDataUpdated → handleEmbedDataUpdated in MathPlotEmbedPreview.
       const handleFullscreen = () => {
-        document.dispatchEvent(
-          new CustomEvent("embedfullscreen", {
-            bubbles: true,
-            detail: {
-              embedType: "math-plot",
-              embedId,
-              attrs: { status },
-              embedData: { type: "math-plot", status },
-              decodedContent: { status },
-            },
-          }),
-        );
+        dispatchEmbedFullscreen({
+          embedType: "math-plot",
+          embedId,
+          attrs: { status },
+          embedData: { type: "math-plot", status },
+          decodedContent: { status },
+        });
       };
 
       const component = mount(MathPlotEmbedPreview, {

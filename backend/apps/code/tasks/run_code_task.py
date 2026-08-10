@@ -114,8 +114,8 @@ async def _charge_run_credits(
             "code_run_filenames": file_names,
             **usage_details,
         },
-        "api_key_hash": None,
-        "device_hash": None,
+        "api_key_hash": payload.get("api_key_hash"),
+        "device_hash": payload.get("device_hash"),
     }
     headers = {"Content-Type": "application/json"}
     if INTERNAL_API_SHARED_TOKEN:

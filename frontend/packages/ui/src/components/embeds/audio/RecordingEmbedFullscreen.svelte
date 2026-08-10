@@ -33,6 +33,8 @@
   import { fetchAndDecryptAudio, releaseCachedAudio, AudioFetchError, AudioNetworkError, AudioDecryptError } from './audioEmbedCrypto';
   import { getModelDisplayName } from '../../../utils/modelDisplayName';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { normalizeWaveformData } from '../../../utils/audioWaveform';
+  import { selectAudioTranscriptText } from './audioTranscriptSelection';
 
   /** Max chars for filename display in the info bar */
   const MAX_FILENAME_LENGTH = 40;
@@ -97,9 +99,11 @@
 
   let dc = $derived(data.decodedContent);
   let transcriptProp = $derived(typeof dc.transcript === 'string' ? dc.transcript : undefined);
+  let title = $derived(typeof dc.title === 'string' ? dc.title : undefined);
   let blobUrl = $derived(typeof dc.blob_url === 'string' ? dc.blob_url : undefined);
   let filename = $derived(typeof dc.filename === 'string' ? dc.filename : 'voice_note.webm');
   let duration = $derived(typeof dc.duration === 'string' ? dc.duration : undefined);
+  let waveform = $derived(normalizeWaveformData(dc.waveform));
   let s3Files = $derived(
     (typeof dc.s3_files === 'object' && dc.s3_files !== null)
       ? dc.s3_files as Record<string, { s3_key: string; size_bytes: number }>
@@ -131,12 +135,34 @@
 
   // Sync editableTranscript whenever transcriptProp, transcriptOriginal, transcriptCorrected, or useCorrectedState changes
   $effect(() => {
-    if (transcriptOriginal && transcriptCorrected) {
-      editableTranscript = useCorrectedState ? (transcriptCorrected ?? '') : (transcriptOriginal ?? '');
-    } else {
-      editableTranscript = transcriptProp ?? '';
-    }
+    editableTranscript = selectAudioTranscriptText(
+      {
+        transcript: transcriptProp,
+        transcriptOriginal,
+        transcriptCorrected,
+      },
+      useCorrectedState,
+    );
   });
+
+  function handleUseCorrectedChange(event: CustomEvent<{ checked: boolean }>) {
+    const nextVal = event.detail.checked;
+    useCorrectedState = nextVal;
+    const transcript = selectAudioTranscriptText(
+      {
+        transcript: transcriptProp,
+        transcriptOriginal,
+        transcriptCorrected,
+      },
+      nextVal,
+    );
+    if (isEditable && embedId && onAttrsChange) {
+      onAttrsChange(embedId, {
+        useCorrected: nextVal,
+        transcript,
+      });
+    }
+  }
 
   function handleTranscriptInput(e: Event) {
     const value = (e.currentTarget as HTMLTextAreaElement).value;
@@ -184,11 +210,14 @@
   let isPlaying = $state(false);
   let currentTime = $state(0);
   let totalDuration = $state(0);
+  let playbackAnimationFrame: number | null = null;
 
   /** Retained S3 key for cache release on unmount */
   let retainedS3Key: string | undefined = undefined;
+  let lastResolvedAudioSrc: string | undefined = undefined;
 
   onDestroy(() => {
+    stopPlaybackProgressLoop();
     if (audioEl) audioEl.pause();
     if (retainedS3Key) {
       releaseCachedAudio(retainedS3Key);
@@ -205,8 +234,14 @@
     s3Files?.original?.s3_key ?? Object.values(s3Files ?? {})[0]?.s3_key,
   );
 
+  let audioDownloadFilename = $derived.by(() => {
+    const rawFilename = filename || 'voice_note.webm';
+    return rawFilename.replace(/[/\\]/g, '_');
+  });
+
   /** Truncated filename for the info bar */
   let infoBarTitle = $derived.by(() => {
+    if (title) return title;
     if (!filename) return 'Voice Note';
     if (filename.length <= MAX_FILENAME_LENGTH) return filename;
     const lastDot = filename.lastIndexOf('.');
@@ -231,9 +266,19 @@
   });
 
   /** Progress bar fill percentage (0–100) */
-  let progressPercent = $derived(
-    totalDuration > 0 ? Math.round((currentTime / totalDuration) * 100) : 0,
-  );
+  let progressPercent = $derived.by(() => {
+    const durationSeconds = totalDuration || waveform?.duration_seconds || 0;
+    if (durationSeconds <= 0) return 0;
+    return Math.round(Math.max(0, Math.min(100, (currentTime / durationSeconds) * 100)));
+  });
+
+  $effect(() => {
+    if (resolvedAudioSrc === lastResolvedAudioSrc) return;
+    lastResolvedAudioSrc = resolvedAudioSrc;
+    stopPlaybackProgressLoop();
+    currentTime = 0;
+    totalDuration = waveform?.duration_seconds ?? 0;
+  });
 
   // -------------------------------------------------------------------------
   // Lazy audio fetch from S3 (read-only context)
@@ -246,8 +291,9 @@
       return;
     }
 
-    // Missing S3 data — skip
-    if (!audioS3Key || !s3BaseUrl || !aesKey || !aesNonce) return;
+    // Missing encrypted file data — skip. s3BaseUrl is no longer required
+    // because fetchAndDecryptAudio uses the presigned URL service by S3 key.
+    if (!audioS3Key || !aesKey) return;
 
     // Avoid re-fetching if already resolved
     if (retainedS3Key === audioS3Key && resolvedAudioSrc) return;
@@ -261,7 +307,7 @@
     const filenameExt = (filename ?? '').split('.').pop()?.toLowerCase() ?? '';
     const mimeType = filenameExt === 'mp4' ? 'audio/mp4' : filenameExt === 'ogg' ? 'audio/ogg' : 'audio/webm';
 
-    fetchAndDecryptAudio(s3BaseUrl, audioS3Key, aesKey, aesNonce, mimeType)
+    fetchAndDecryptAudio(s3BaseUrl ?? '', audioS3Key, aesKey, aesNonce ?? '', mimeType)
       .then((url) => {
         resolvedAudioSrc = url;
         retainedS3Key = audioS3Key;
@@ -297,17 +343,61 @@
     }
   }
 
-  function handleAudioPlay() { isPlaying = true; }
-  function handleAudioPause() { isPlaying = false; }
-  function handleAudioEnded() { isPlaying = false; currentTime = 0; }
-  function handleAudioTimeUpdate() { if (audioEl) currentTime = audioEl.currentTime; }
-  function handleAudioLoadedMetadata() { if (audioEl) totalDuration = audioEl.duration; }
+  function handleAudioPlay() {
+    isPlaying = true;
+    startPlaybackProgressLoop();
+  }
+
+  function handleAudioPause() {
+    isPlaying = false;
+    updatePlaybackProgressFromAudio();
+    stopPlaybackProgressLoop();
+  }
+
+  function handleAudioEnded() {
+    isPlaying = false;
+    currentTime = 0;
+    stopPlaybackProgressLoop();
+  }
+
+  function handleAudioTimeUpdate() { updatePlaybackProgressFromAudio(); }
+
+  function handleAudioLoadedMetadata() {
+    updatePlaybackProgressFromAudio();
+  }
+
+  function updatePlaybackProgressFromAudio() {
+    if (!audioEl) return;
+    currentTime = audioEl.currentTime;
+    totalDuration = Number.isFinite(audioEl.duration) && audioEl.duration > 0
+      ? audioEl.duration
+      : (totalDuration || waveform?.duration_seconds || 0);
+  }
+
+  function startPlaybackProgressLoop() {
+    stopPlaybackProgressLoop();
+    const tick = () => {
+      updatePlaybackProgressFromAudio();
+      if (audioEl && !audioEl.paused && !audioEl.ended) {
+        playbackAnimationFrame = requestAnimationFrame(tick);
+      }
+    };
+    playbackAnimationFrame = requestAnimationFrame(tick);
+  }
+
+  function stopPlaybackProgressLoop() {
+    if (playbackAnimationFrame !== null) {
+      cancelAnimationFrame(playbackAnimationFrame);
+      playbackAnimationFrame = null;
+    }
+  }
 
   function handleProgressClick(e: MouseEvent) {
-    if (!audioEl || !totalDuration) return;
+    const durationSeconds = totalDuration || waveform?.duration_seconds || 0;
+    if (!audioEl || !durationSeconds) return;
     const bar = e.currentTarget as HTMLElement;
     const rect = bar.getBoundingClientRect();
-    audioEl.currentTime = ((e.clientX - rect.left) / rect.width) * totalDuration;
+    audioEl.currentTime = ((e.clientX - rect.left) / rect.width) * durationSeconds;
   }
 
   function formatSeconds(s: number): string {
@@ -315,6 +405,10 @@
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60);
     return `${m}:${sec.toString().padStart(2, '0')}`;
+  }
+
+  function noopDownload(): void {
+    // UnifiedEmbedFullscreen requires an onDownload callback to render the native anchor.
   }
 </script>
 
@@ -325,6 +419,9 @@
   embedHeaderTitle={infoBarTitle}
   embedHeaderSubtitle={infoBarSubtitle}
   showShare={false}
+  onDownload={resolvedAudioSrc ? noopDownload : undefined}
+  downloadHref={resolvedAudioSrc ?? null}
+  downloadFilename={audioDownloadFilename}
   {onClose}
   {hasPreviousEmbed}
   {hasNextEmbed}
@@ -374,18 +471,44 @@
 
             <!-- Seek bar + time -->
             <div class="progress-area">
-              <button
-                class="progress-bar"
-                type="button"
-                role="slider"
-                aria-label="Seek audio"
-                aria-valuenow={progressPercent}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                onclick={handleProgressClick}
-              >
-                <div class="progress-fill" style="width: {progressPercent}%"></div>
-              </button>
+              {#if waveform}
+                <button
+                  class="waveform-seek"
+                  type="button"
+                  role="slider"
+                  aria-label="Seek audio"
+                  aria-valuenow={progressPercent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  onclick={handleProgressClick}
+                  data-testid="recording-fullscreen-waveform"
+                  data-progress={progressPercent}
+                  style={`--waveform-progress: ${progressPercent}%`}
+                >
+                  <div class="waveform-bars">
+                    {#each waveform.samples as sample, index (index)}
+                      <span
+                        class="waveform-bar"
+                        style:height={`${Math.max(6, sample)}%`}
+                      ></span>
+                    {/each}
+                  </div>
+                  <span class="waveform-playhead"></span>
+                </button>
+              {:else}
+                <button
+                  class="progress-bar"
+                  type="button"
+                  role="slider"
+                  aria-label="Seek audio"
+                  aria-valuenow={progressPercent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  onclick={handleProgressClick}
+                >
+                  <div class="progress-fill" style="width: {progressPercent}%"></div>
+                </button>
+              {/if}
               <span class="time-label">
                 {formatSeconds(currentTime)} / {formatSeconds(totalDuration || 0)}
               </span>
@@ -413,17 +536,9 @@
             <span class="toggle-label">Auto-Corrected Transcript</span>
             <div class="toggle-container" style="pointer-events: auto !important;">
               <Toggle
-                checked={useCorrectedState}
-                onchange={() => {
-                  const nextVal = !useCorrectedState;
-                  useCorrectedState = nextVal;
-                  if (isEditable && embedId && onAttrsChange) {
-                    onAttrsChange(embedId, {
-                      useCorrected: nextVal,
-                      transcript: nextVal ? transcriptCorrected : transcriptOriginal,
-                    });
-                  }
-                }}
+                bind:checked={useCorrectedState}
+                on:change={handleUseCorrectedChange}
+                testId="recording-transcript-auto-correct-toggle"
               />
             </div>
           </div>
@@ -481,7 +596,7 @@
   .player-section {
     padding: var(--spacing-12) var(--spacing-16) var(--spacing-10);
     flex-shrink: 0;
-    border-bottom: 1px solid var(--color-grey-15, #f0f0f0);
+    border-bottom: 1px solid var(--color-grey-20, #f0f0f0);
   }
 
   .player-row {
@@ -558,6 +673,51 @@
     transition: height 0.1s;
   }
 
+  .waveform-seek {
+    height: 48px;
+    width: 100%;
+    padding: 0;
+    min-width: 0;
+    border: none;
+    border-radius: 0;
+    filter: none;
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    color: var(--color-app-audio, #e05555);
+    overflow: hidden;
+  }
+
+  .waveform-bars {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    opacity: 0.82;
+  }
+
+  .waveform-bar {
+    flex: 1 1 1px;
+    min-width: 1px;
+    max-width: 5px;
+    background: currentColor;
+    border-radius: var(--radius-full, 9999px);
+  }
+
+  .waveform-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--waveform-progress, 0%);
+    width: 2px;
+    background: currentColor;
+    border-radius: var(--radius-full, 9999px);
+    opacity: 0.95;
+    transform: translateX(-1px);
+    transition: left 0.1s linear;
+  }
+
   .progress-bar:hover {
     height: 8px;
   }
@@ -591,7 +751,7 @@
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-20, #f0f0f0);
     flex-shrink: 0;
     animation: pulse 1.5s ease-in-out infinite;
   }
@@ -605,7 +765,7 @@
 
   .skeleton-line {
     height: 10px;
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-20, #f0f0f0);
     border-radius: var(--radius-1);
     animation: pulse 1.5s ease-in-out infinite;
   }
@@ -641,7 +801,7 @@
     align-items: center;
     gap: var(--spacing-4, 12px);
     margin-bottom: var(--spacing-8, 20px);
-    border-bottom: 1px dashed var(--color-grey-15, #f0f0f0);
+    border-bottom: 1px dashed var(--color-grey-20, #f0f0f0);
     padding-bottom: var(--spacing-6, 15px);
   }
 

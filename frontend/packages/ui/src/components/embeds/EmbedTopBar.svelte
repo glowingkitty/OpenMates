@@ -25,6 +25,10 @@
     showCopy?: boolean;
     /** Whether to show the download button (truthy = show). */
     showDownload?: boolean;
+    /** Optional prepared download URL. When set, the download action renders as a native anchor. */
+    downloadHref?: string | null;
+    /** Suggested filename for native anchor downloads. */
+    downloadFilename?: string;
     /** Whether to show the add-to-calendar button (truthy = show). */
     showCalendar?: boolean;
     /** Whether to show the preview/render button (for markdown/HTML code embeds). */
@@ -66,6 +70,8 @@
     showShare = true,
     showCopy = false,
     showDownload = false,
+    downloadHref = null,
+    downloadFilename = 'download',
     showCalendar = false,
     showPreview = false,
     showRun = false,
@@ -135,12 +141,24 @@
     <!-- Download -->
     {#if showDownload && onDownload}
       <div class="button-wrapper">
-        <button
-          class="clickable-icon icon_download top-button"
-          onclick={onDownload}
-          aria-label="Download"
-          title="Download"
-        ></button>
+        {#if downloadHref}
+          <a
+            class="clickable-icon icon_download top-button"
+            data-testid="embed-download-button"
+            href={downloadHref}
+            download={downloadFilename}
+            aria-label="Download"
+            title="Download"
+          ></a>
+        {:else}
+          <button
+            class="clickable-icon icon_download top-button"
+            data-testid="embed-download-button"
+            onclick={onDownload}
+            aria-label="Download"
+            title="Download"
+          ></button>
+        {/if}
       </div>
     {/if}
 
@@ -307,6 +325,20 @@
   .button-wrapper:active {
     transform: scale(0.95);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  :global(a.clickable-icon.top-button) {
+    display: block;
+    width: 25px;
+    height: 25px;
+    cursor: pointer;
+    background: var(--color-primary);
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: contain;
   }
 
   /* Preview toggle: primary tint when preview mode is active */

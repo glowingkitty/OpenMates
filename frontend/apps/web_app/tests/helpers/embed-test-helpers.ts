@@ -110,11 +110,42 @@ async function waitForEmbedFinished(
  * Returns the fullscreen overlay locator.
  */
 async function openFullscreen(page: any, embedLocator: any): Promise<any> {
-	await embedLocator.click();
-	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
+	const overlays = page.getByTestId('embed-fullscreen-overlay');
+	const overlayCountBeforeOpen = await overlays.count();
+	await expect(async () => {
+		if (await overlays.count() > overlayCountBeforeOpen) return;
+		await dismissVisibleNotifications(page);
+		await embedLocator.scrollIntoViewIfNeeded();
+		await embedLocator.click();
+		await expect(async () => {
+			const overlayCountAfterOpen = await overlays.count();
+			expect(overlayCountAfterOpen).toBeGreaterThan(overlayCountBeforeOpen);
+		}).toPass({ timeout: 1000 });
+	}).toPass({ timeout: 10000 });
+	const fullscreenOverlay = overlays.nth(overlayCountBeforeOpen);
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 10000 });
-	await page.waitForTimeout(500); // animation
 	return fullscreenOverlay;
+}
+
+async function dismissVisibleNotifications(page: any): Promise<void> {
+	const dismissButtons = page.getByTestId('notification-dismiss');
+	for (let index = await dismissButtons.count() - 1; index >= 0; index -= 1) {
+		const button = dismissButtons.nth(index);
+		if (await button.isVisible({ timeout: 250 }).catch(() => false)) {
+			await button.click({ timeout: 1000 }).catch(() => undefined);
+		}
+	}
+
+	const chatNotifications = page.getByTestId('chat-notification');
+	for (let index = await chatNotifications.count() - 1; index >= 0; index -= 1) {
+		const notification = chatNotifications.nth(index);
+		if (await notification.isVisible({ timeout: 250 }).catch(() => false)) {
+			await notification
+				.getByRole('button', { name: 'Dismiss notification' })
+				.click({ timeout: 1000 })
+				.catch(() => undefined);
+		}
+	}
 }
 
 /**
@@ -143,23 +174,54 @@ async function verifySearchGrid(
  * Verifies the overlay is no longer visible.
  */
 async function closeFullscreen(page: any, fullscreenOverlay: any): Promise<void> {
-	const minimizeButton = fullscreenOverlay.getByTestId('embed-minimize');
-	const hasMinimize = await minimizeButton.isVisible({ timeout: 3000 }).catch(() => false);
+	const overlays = page.getByTestId('embed-fullscreen-overlay');
+	if (!await fullscreenOverlay.isVisible({ timeout: 500 }).catch(() => false)) {
+		return;
+	}
+	const overlayCountBeforeClose = await overlays.count();
+	const countVisibleOverlays = async (): Promise<number> => {
+		const count = await overlays.count();
+		let visible = 0;
+		for (let i = 0; i < count; i += 1) {
+			if (await overlays.nth(i).isVisible().catch(() => false)) visible += 1;
+		}
+		return visible;
+	};
+	const visibleOverlaysBeforeClose = await countVisibleOverlays();
+	const clickVisibleMinimize = async (buttons: any): Promise<boolean> => {
+		const buttonCount = await buttons.count().catch(() => 0);
+		for (let i = buttonCount - 1; i >= 0; i -= 1) {
+			const button = buttons.nth(i);
+			if (await button.isVisible({ timeout: 500 }).catch(() => false)) {
+				if (await button.click({ timeout: 1500 }).then(() => true).catch(() => false)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	};
 
-	if (hasMinimize) {
-		await minimizeButton.click();
-	} else {
+	const closedViaButton = await clickVisibleMinimize(page.getByTestId('embed-minimize'))
+		|| await clickVisibleMinimize(fullscreenOverlay.getByTestId('embed-minimize'));
+	if (!closedViaButton) {
 		await page.keyboard.press('Escape');
 	}
 
-	await page.waitForTimeout(500);
-	await expect(fullscreenOverlay).not.toBeVisible({ timeout: 5000 });
+	await expect(async () => {
+		const overlayCountAfterClose = await overlays.count();
+		const visibleOverlaysAfterClose = await countVisibleOverlays();
+		expect(
+			overlayCountAfterClose < overlayCountBeforeClose
+				|| visibleOverlaysAfterClose < visibleOverlaysBeforeClose
+		).toBe(true);
+	}).toPass({ timeout: 10000 });
 }
 
 module.exports = {
 	EXPECTED_DT_HEADINGS,
 	verifyEmbedPreviewPage,
 	waitForEmbedFinished,
+	dismissVisibleNotifications,
 	openFullscreen,
 	verifySearchGrid,
 	closeFullscreen

@@ -1,0 +1,585 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-23'
+generated_at: '2026-07-09T15:10:41+00:00'
+range:
+  since: '2026-04-23T00:00:00+00:00'
+  until: '2026-04-23T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 10
+  section_counts:
+    features: 2
+    bug_fixes: 7
+    improvements: 1
+    docs: 0
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 5
+  user_facing_items: 5
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add backfill_newsletter_deliveries script + fix sent_at guard'
+    section: features
+    commits:
+    - 1d2519c7e
+    authored_at: '2026-04-23T17:24:37+00:00'
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    - backend/scripts/backfill_newsletter_deliveries.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add force_migrate flag to setup_schemas.py for automatic field type migrations'
+    section: features
+    commits:
+    - 83a282c7c
+    authored_at: '2026-04-23T11:54:19+00:00'
+    changed_paths:
+    - backend/core/directus/schemas/issues.yml
+    - backend/core/directus/setup/setup_schemas.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: allow ai_response_completed and post_processing_metadata for new chats when persist task is in flight'
+    section: bug_fixes
+    commits:
+    - 2953fb0b2
+    authored_at: '2026-04-23T22:56:27+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: disable Polar provider in PaymentService (OPE-471)'
+    section: bug_fixes
+    commits:
+    - 7e9f0975a
+    authored_at: '2026-04-23T22:47:40+00:00'
+    changed_paths:
+    - backend/core/api/app/services/payment/payment_service.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: deactivate Polar, fix bank transfer empty encryption key (OPE-471)'
+    section: bug_fixes
+    commits:
+    - 142e5544c
+    authored_at: '2026-04-23T22:47:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    - frontend/packages/ui/src/components/settings/giftcards/SettingsGiftCardsBuyPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: queue ai_response_completed on WS disconnect to prevent permanent message loss'
+    section: bug_fixes
+    commits:
+    - 70638ca77
+    authored_at: '2026-04-23T22:42:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/pendingAIResponses.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: defensive title truncation before Directus write in issue report route (OPE-459)'
+    section: bug_fixes
+    commits:
+    - bead5354a
+    authored_at: '2026-04-23T11:01:38+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: truncate long issue titles and show user ID for authenticated reporters (OPE-459)'
+    section: bug_fixes
+    commits:
+    - 7d2629447
+    authored_at: '2026-04-23T11:01:11+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/linear_issue_task.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: prevent Directus write failure and anonymous attribution in issue reports (OPE-459)'
+    section: bug_fixes
+    commits:
+    - 05e4ff10a
+    authored_at: '2026-04-23T11:00:25+00:00'
+    changed_paths:
+    - backend/core/directus/schemas/issues.yml
+    - backend/core/directus/setup/setup_schemas.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  improvements:
+  - title: 'refactor: comment out Polar code instead of removing (OPE-471)'
+    section: improvements
+    commits:
+    - fe412d37d
+    authored_at: '2026-04-23T22:53:09+00:00'
+    changed_paths:
+    - backend/core/api/app/services/payment/payment_service.py
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    - frontend/packages/ui/src/components/settings/giftcards/SettingsGiftCardsBuyPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  docs: []
+  tests: []
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: allow ai_response_completed and post_processing_metadata for new chats when persist task is in flight'
+    commits:
+    - 2953fb0b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: allow ai_response_completed and post_processing_metadata for new chats when persist task is in flight'
+    commits:
+    - 2953fb0b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'refactor: comment out Polar code instead of removing (OPE-471)'
+    commits:
+    - fe412d37d
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: deactivate Polar, fix bank transfer empty encryption key (OPE-471)'
+    commits:
+    - 142e5544c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: queue ai_response_completed on WS disconnect to prevent permanent message loss'
+    commits:
+    - 70638ca77
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: defensive title truncation before Directus write in issue report route (OPE-459)'
+    commits:
+    - bead5354a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: allow ai_response_completed and post_processing_metadata for new chats when persist task is in flight'
+    commits:
+    - 2953fb0b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'refactor: comment out Polar code instead of removing (OPE-471)'
+    commits:
+    - fe412d37d
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: deactivate Polar, fix bank transfer empty encryption key (OPE-471)'
+    commits:
+    - 142e5544c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: queue ai_response_completed on WS disconnect to prevent permanent message loss'
+    commits:
+    - 70638ca77
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: defensive title truncation before Directus write in issue report route (OPE-459)'
+    commits:
+    - bead5354a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 2953fb0b249a80c83e911a494cebf3f381fafd68
+    short_sha: 2953fb0b2
+    authored_at: '2026-04-23T22:56:27+00:00'
+    subject: 'fix: allow ai_response_completed and post_processing_metadata for new chats when persist task is in flight'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    related_feature_ids: []
+  - sha: fe412d37d05c4e926e71db4b38b22aacc32d4921
+    short_sha: fe412d37d
+    authored_at: '2026-04-23T22:53:09+00:00'
+    subject: 'refactor: comment out Polar code instead of removing (OPE-471)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/payment/payment_service.py
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    - frontend/packages/ui/src/components/settings/giftcards/SettingsGiftCardsBuyPayment.svelte
+    related_feature_ids: []
+  - sha: 7e9f0975a227af62b5d9992b32bebda0ac297e1f
+    short_sha: 7e9f0975a
+    authored_at: '2026-04-23T22:47:40+00:00'
+    subject: 'fix: disable Polar provider in PaymentService (OPE-471)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/payment/payment_service.py
+    related_feature_ids: []
+  - sha: 142e5544cac2c402d3292fb30ce29bd5c2a7bacc
+    short_sha: 142e5544c
+    authored_at: '2026-04-23T22:47:06+00:00'
+    subject: 'fix: deactivate Polar, fix bank transfer empty encryption key (OPE-471)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    - frontend/packages/ui/src/components/settings/giftcards/SettingsGiftCardsBuyPayment.svelte
+    related_feature_ids: []
+  - sha: 70638ca7713a46e103624e9d10aa8b09eee6e282
+    short_sha: 70638ca77
+    authored_at: '2026-04-23T22:42:11+00:00'
+    subject: 'fix: queue ai_response_completed on WS disconnect to prevent permanent message loss'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/pendingAIResponses.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    related_feature_ids: []
+  - sha: 1d2519c7e24e46dca38b7e1f7e701bc7316a4186
+    short_sha: 1d2519c7e
+    authored_at: '2026-04-23T17:24:37+00:00'
+    subject: 'feat: add backfill_newsletter_deliveries script + fix sent_at guard'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    - backend/scripts/backfill_newsletter_deliveries.py
+    related_feature_ids: []
+  - sha: 83a282c7cfb3d831c50bccc1ca0b0292acab833b
+    short_sha: 83a282c7c
+    authored_at: '2026-04-23T11:54:19+00:00'
+    subject: 'feat: add force_migrate flag to setup_schemas.py for automatic field type migrations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/schemas/issues.yml
+    - backend/core/directus/setup/setup_schemas.py
+    related_feature_ids: []
+  - sha: bead5354a5f51463f6ec267687e461813aabc70b
+    short_sha: bead5354a
+    authored_at: '2026-04-23T11:01:38+00:00'
+    subject: 'fix: defensive title truncation before Directus write in issue report route (OPE-459)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    related_feature_ids: []
+  - sha: 7d26294474279f6bec51bfce2f1a4bfdc4b75719
+    short_sha: 7d2629447
+    authored_at: '2026-04-23T11:01:11+00:00'
+    subject: 'fix: truncate long issue titles and show user ID for authenticated reporters (OPE-459)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/linear_issue_task.py
+    related_feature_ids: []
+  - sha: 05e4ff10a3001bac6198c7fae2aa70b3c68d753c
+    short_sha: 05e4ff10a
+    authored_at: '2026-04-23T11:00:25+00:00'
+    subject: 'fix: prevent Directus write failure and anonymous attribution in issue reports (OPE-459)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/schemas/issues.yml
+    - backend/core/directus/setup/setup_schemas.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on chat reliability and system robustness, introducing fixes to prevent message loss during
+    network interruptions and improving the stability of the issue reporting system. The project also transitioned away from
+    the Polar payment provider.
+  released_changes:
+  - text: The chat synchronization service now queues AI responses during WebSocket disconnections to ensure message delivery.
+    evidence:
+      commits:
+      - 70638ca77
+    release_status: released_main
+  - text: The Polar payment provider has been deactivated across billing and gift card settings.
+    evidence:
+      commits:
+      - fe412d37d
+      - 142e5544c
+    release_status: released_main
+  - text: Issue reporting now automatically truncates long titles to ensure successful submission.
+    evidence:
+      commits:
+      - bead5354a
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved an issue where AI response completion and metadata were blocked for new chats while persistence tasks were
+      in flight.
+    evidence:
+      commits:
+      - 2953fb0b2
+    release_status: released_main
+  - text: Fixed a bug causing permanent message loss when a WebSocket disconnected before an AI response was fully processed
+      by implementing a queuing mechanism.
+    evidence:
+      commits:
+      - 70638ca77
+    release_status: released_main
+  - text: Corrected a bug where bank transfers could fail due to empty encryption keys.
+    evidence:
+      commits:
+      - 142e5544c
+    release_status: released_main
+  - text: Implemented defensive title truncation in the issue reporting route to prevent database write failures.
+    evidence:
+      commits:
+      - bead5354a
+    release_status: released_main
+  unreleased_progress:
+  - text: A new force_migrate flag was added to schema setup tools for automated field type migrations.
+    evidence:
+      commits:
+      - 83a282c7c
+    release_status: released_main
+  - text: Internal scripts were developed to backfill newsletter deliveries and manage sent timestamps.
+    evidence:
+      commits:
+      - 1d2519c7e
+    release_status: released_main
+  - text: Internal issue reporting logic was refined to include authenticated user IDs and handle long titles in task management
+      integrations.
+    evidence:
+      commits:
+      - 7d2629447
+      - 05e4ff10a
+    release_status: released_main
+  internal_progress:
+  - text: The Polar payment provider was disabled within the backend PaymentService.
+    evidence:
+      commits:
+      - 7e9f0975a
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Chat reliability and synchronization improvements.
+      evidence:
+        commits:
+        - 2953fb0b2
+        - 70638ca77
+      reason: These changes significantly improve the reliability of the core chat experience by preventing message loss.
+    - text: Enhanced issue reporting stability.
+      evidence:
+        commits:
+        - bead5354a
+      reason: Improves the robustness of the user feedback loop.
+    exclude:
+    - text: Deactivation of Polar payment provider.
+      evidence:
+        commits:
+        - fe412d37d
+        - 142e5544c
+      reason: These items involve the deactivation of a payment provider, which is generally not a promotional highlight for
+        a general audience.
+    rationale: The focus is on user-facing stability improvements in the chat and feedback systems, while excluding the removal
+      of payment options.
+  social_video_recommendations:
+  - idea: A demonstration of chat resilience showing a message successfully appearing even after a simulated connection drop.
+    priority: medium
+    reason: Provides a concrete 'peace of mind' story for users concerned about losing AI responses.
+    evidence:
+      commits:
+      - 70638ca77
+  quality_notes:
+  - The update prioritizes data integrity in the chat synchronization layer.
+  - Backend schema management was improved with more automated migration flags.
+  validation_warnings: []

@@ -4,9 +4,9 @@ export {};
 /**
  * Account export E2E test for Settings > Account > Export.
  *
- * Verifies the full data-portability flow: authenticated navigation, selectable
- * export categories, browser ZIP download, expected archive structure, included
- * chat data, and exclusion of secret key material.
+ * Verifies the data-portability flow: authenticated navigation, selectable
+ * export categories, browser ZIP download, V1 archive structure, selected
+ * account export domains, and exclusion of secret key material.
  *
  * User guide: docs/user-guide/export-account.md
  */
@@ -14,6 +14,7 @@ export {};
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const childProcess = require('child_process');
 const { test, expect } = require('./helpers/cookie-audit');
 const {
 	createSignupLogger,
@@ -28,16 +29,27 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const EXPORT_GUIDE_PATH = 'docs/user-guide/export-account.md';
-const IMPORT_CHAT_TITLE_1 = 'Playwright Import Test Chat 1';
-const IMPORT_CHAT_TITLE_2 = 'Playwright Import Test Chat 2';
-const IMPORT_CHAT_TITLES = [IMPORT_CHAT_TITLE_1, IMPORT_CHAT_TITLE_2];
-
+const REPO_ROOT = path.resolve(__dirname, '../../../..');
+const ACCOUNT_EXPORT_JOB_STORAGE_KEY = 'openmates.account_export.resume_job';
 type ZipEntry = {
 	name: string;
 	method: number;
 	compressedSize: number;
 	uncompressedSize: number;
 	localHeaderOffset: number;
+};
+
+type AccountExportMockConfig = {
+	exportId: string;
+	selectedDomains: string[];
+	completeStatus?: string;
+	failures?: Array<Record<string, unknown>>;
+};
+
+type AccountExportMockCall = {
+	method: string;
+	path: string;
+	body: Record<string, unknown> | null;
 };
 
 function readUInt16(buffer: Buffer, offset: number): number {
@@ -103,6 +115,123 @@ function requireZipEntry(entries: Map<string, ZipEntry>, name: string): ZipEntry
 	return entry;
 }
 
+function runStandaloneArchiveVerifier(zipPath: string): void {
+	childProcess.execFileSync(
+		'python3',
+		[path.join(REPO_ROOT, 'scripts/verify_account_export_archive.py'), '--zip', zipPath, '--layout-v1', '--forbid-secrets'],
+		{ cwd: REPO_ROOT, stdio: 'pipe' }
+	);
+}
+
+function readManifestJson(zipBuffer: Buffer, entries: Map<string, ZipEntry>): Record<string, unknown> {
+	return JSON.parse(readZipEntry(zipBuffer, requireZipEntry(entries, 'manifest.json')));
+}
+
+async function waitForAccountExportDownload(page: any, timeout = 180000): Promise<any> {
+	const errorLocator = page.getByText(/export failed|not authenticated|account export request failed|missing or invalid token/i).first();
+	const downloadPromise = page.waitForEvent('download', { timeout });
+	const errorPromise = errorLocator.waitFor({ state: 'visible', timeout }).then(async () => {
+		throw new Error(`Account export UI showed an error before download: ${await errorLocator.innerText()}`);
+	});
+	return await Promise.race([downloadPromise, errorPromise]);
+}
+
+async function installAccountExportMock(page: any, config: AccountExportMockConfig): Promise<AccountExportMockCall[]> {
+	const calls: AccountExportMockCall[] = [];
+	const chunks = config.selectedDomains.map((domain: string, index: number) => ({
+		chunk_id: `${domain}-chunk-1`,
+		domain,
+		sequence: index + 1,
+		status: 'ready',
+		payload: buildMockDomainPayload(domain),
+	}));
+	const domains = Object.fromEntries(chunks.map((chunk: Record<string, unknown>) => [chunk.domain, {
+		status: 'ready',
+		count: payloadCount(chunk.payload as Record<string, unknown>),
+		source: mockDomainSource(String(chunk.domain)),
+	}]));
+	const manifest = {
+		schema_version: 'account-export-v1',
+		selected_domains: config.selectedDomains,
+		filters: {},
+		domains,
+		report: {
+			status: config.completeStatus === 'partial' ? 'partial' : 'complete',
+			failures: config.failures ?? [],
+			partial_requires_acceptance: config.completeStatus === 'partial',
+			redactions: ['api_credentials'],
+		},
+	};
+
+	await page.route('**/v1/account-exports**', async (route: any) => {
+		const request = route.request();
+		const url = new URL(request.url());
+		let body: Record<string, unknown> | null = null;
+		try {
+			body = request.postData() ? JSON.parse(request.postData() || '{}') : null;
+		} catch {
+			body = null;
+		}
+		calls.push({ method: request.method(), path: url.pathname, body });
+
+		if (request.method() === 'POST' && url.pathname === '/v1/account-exports') {
+			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ export: { export_id: config.exportId, status: 'queued', selected_domains: body?.domains ?? config.selectedDomains } }) });
+			return;
+		}
+		if (request.method() === 'GET' && url.pathname === `/v1/account-exports/${config.exportId}`) {
+			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ export: { export_id: config.exportId, status: 'queued', selected_domains: config.selectedDomains } }) });
+			return;
+		}
+		if (request.method() === 'GET' && url.pathname === `/v1/account-exports/${config.exportId}/manifest`) {
+			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ manifest }) });
+			return;
+		}
+		if (request.method() === 'GET' && url.pathname === `/v1/account-exports/${config.exportId}/chunks`) {
+			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ chunks: chunks.map(({ chunk_id, domain, sequence, status }: Record<string, unknown>) => ({ chunk_id, domain, sequence, status })) }) });
+			return;
+		}
+		const chunk = chunks.find((candidate: Record<string, unknown>) => url.pathname === `/v1/account-exports/${config.exportId}/chunks/${candidate.chunk_id}`);
+		if (request.method() === 'GET' && chunk) {
+			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ chunk }) });
+			return;
+		}
+		if (request.method() === 'POST' && url.pathname === `/v1/account-exports/${config.exportId}/complete`) {
+			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ export: { export_id: config.exportId, status: config.completeStatus ?? 'complete' } }) });
+			return;
+		}
+		if (request.method() === 'POST' && url.pathname === `/v1/account-exports/${config.exportId}/accept-partial`) {
+			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ export: { export_id: config.exportId, status: 'partial_accepted' } }) });
+			return;
+		}
+		if (request.method() === 'POST' && url.pathname === `/v1/account-exports/${config.exportId}/cancel`) {
+			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ export: { export_id: config.exportId, status: 'cancelled' } }) });
+			return;
+		}
+		await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ detail: `Unhandled mock route ${request.method()} ${url.pathname}` }) });
+	});
+	return calls;
+}
+
+function buildMockDomainPayload(domain: string): Record<string, unknown> {
+	if (domain === 'usage') {
+		return { source: 'usage+usage_archives', items: [{ id: 'usage-row-1', usage_type: 'chat', credits_charged: 1 }], archives: [] };
+	}
+	if (domain === 'chats') {
+		return { source: 'chats+messages+embeds', items: [{ id: 'chat-row-1', title: 'Mock chat', messages: [{ role: 'user', content: 'Hello export' }], embeds: [] }] };
+	}
+	return { source: mockDomainSource(domain), items: [{ id: `${domain}-row-1` }] };
+}
+
+function mockDomainSource(domain: string): string {
+	return ({ usage: 'usage+usage_archives', chats: 'chats+messages+embeds' } as Record<string, string>)[domain] ?? domain;
+}
+
+function payloadCount(payload: Record<string, unknown>): number {
+	const items = Array.isArray(payload.items) ? payload.items.length : 0;
+	const runs = Array.isArray(payload.runs) ? payload.runs.length : 0;
+	return items + runs;
+}
+
 async function openExportSettings(page: any, log: (message: string) => void): Promise<void> {
 	const settingsMenuButton = page.getByTestId('profile-container');
 	await expect(settingsMenuButton).toBeVisible({ timeout: 15000 });
@@ -117,90 +246,10 @@ async function openExportSettings(page: any, log: (message: string) => void): Pr
  log('Opened Settings > Account > Export.');
 }
 
-async function openImportSettings(page: any, log: (message: string) => void): Promise<void> {
- const settingsMenuButton = page.getByTestId('profile-container');
- await expect(settingsMenuButton).toBeVisible({ timeout: 15000 });
- await settingsMenuButton.click();
-
- const settingsMenu = page.getByTestId('settings-menu');
- await expect(settingsMenu).toBeVisible({ timeout: 10000 });
- await settingsMenu.getByRole('menuitem', { name: /^account$/i }).click();
- await settingsMenu.getByRole('menuitem', { name: /import/i }).click();
-
- await expect(page.locator('#import-file-input')).toBeAttached({ timeout: 15000 });
- log('Opened Settings > Account > Import.');
-}
-
-async function deleteChatByTitle(page: any, title: string): Promise<void> {
- for (let attempt = 0; attempt < 6; attempt++) {
-  const chatTitle = page
-   .getByTestId('chat-item-wrapper')
-   .getByTestId('chat-title')
-   .filter({ hasText: title })
-   .first();
-  const exists = await chatTitle.isVisible({ timeout: 1500 }).catch(() => false);
-  if (!exists) return;
-
-  const chatItem = chatTitle.locator('xpath=ancestor::*[@data-testid="chat-item-wrapper"]').first();
-  await chatItem.click({ button: 'right' });
-
-  const deleteButton = page.getByTestId('chat-context-delete');
-  await expect(deleteButton).toBeVisible({ timeout: 5000 });
-  await deleteButton.click();
-  await deleteButton.click();
-
-  await expect(chatTitle).not.toBeVisible({ timeout: 10000 });
-  await page.waitForTimeout(700);
- }
-}
-
-async function importKnownChats(page: any, log: (message: string, details?: unknown) => void, screenshot: any): Promise<void> {
- for (const title of IMPORT_CHAT_TITLES) {
-  await deleteChatByTitle(page, title);
- }
-
- await openImportSettings(page, log);
- await screenshot(page, 'import-page');
-
- const zipFilePath = path.resolve(__dirname, 'fixtures', 'import-chats-test.zip');
- await page.setInputFiles('#import-file-input', zipFilePath);
- log('Uploaded import ZIP file.', { zipFilePath });
-
- const importSelectionSection = page.getByTestId('import-select-section');
- await expect(importSelectionSection).toBeVisible({ timeout: 15000 });
- await expect(importSelectionSection.getByTestId('chat-item')).toHaveCount(2, { timeout: 15000 });
- await expect(
-  importSelectionSection.locator('[data-testid="chat-item"] [data-testid="chat-title"]', {
-   hasText: IMPORT_CHAT_TITLE_1
-  })
- ).toBeVisible();
- await expect(
-  importSelectionSection.locator('[data-testid="chat-item"] [data-testid="chat-title"]', {
-   hasText: IMPORT_CHAT_TITLE_2
-  })
- ).toBeVisible();
-
- const importButton = page.getByRole('button', { name: /import selected chats/i });
- await expect(importButton).toBeEnabled({ timeout: 10000 });
- await importButton.click();
- log('Started chat import.');
-
-const resultsContainer = page.getByTestId('import-results-container');
-	await expect(resultsContainer).toBeVisible({ timeout: 45000 });
-	await expect(resultsContainer).toContainText(/import complete!/i, { timeout: 45000 });
-	await expect(resultsContainer.getByTestId('import-result-item').filter({ hasText: IMPORT_CHAT_TITLE_1 })).toBeVisible();
-	await expect(resultsContainer.getByTestId('import-result-item').filter({ hasText: IMPORT_CHAT_TITLE_2 })).toBeVisible();
-	await screenshot(page, 'import-success');
-
-	// Close the settings menu after import so openExportSettings can work
-	// without the close-icon-container overlaying profile-container.
-	// Click the visible close button (data-testid="icon-button-close") which
-	// calls toggleMenu() directly via Svelte's onclick handler.
-	const closeButton = page.getByTestId('icon-button-close');
-	await expect(closeButton).toBeVisible({ timeout: 5000 });
-	await closeButton.click();
-	await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 5000 });
-	log('Closed settings menu after import.');
+async function loginAndOpenExportSettings(page: any, log: (message: string) => void, screenshot?: (page: any, name: string) => Promise<void>): Promise<void> {
+	await loginToTestAccount(page, log, screenshot ?? (async () => undefined));
+	log('Logged in to test account.');
+	await openExportSettings(page, log);
 }
 
 test('exports account data ZIP from account settings', async ({ page }: { page: any }, testInfo: any) => {
@@ -213,12 +262,10 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'export-account' });
 	await archiveExistingScreenshots(log);
 
- await loginToTestAccount(page, log, screenshot);
- log('Logged in to test account.');
+  await loginToTestAccount(page, log, screenshot);
+  log('Logged in to test account.');
 
- await importKnownChats(page, log, screenshot);
-
- await openExportSettings(page, log);
+  await openExportSettings(page, log);
 	await screenshot(page, 'export-options');
 	await docCheckpoint(page, {
 		id: 'export-options',
@@ -246,9 +293,8 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 	const artifactsDir = path.dirname(exportPath);
 	fs.mkdirSync(artifactsDir, { recursive: true });
 
-	const downloadPromise = page.waitForEvent('download', { timeout: 180000 });
 	await exportButton.click();
-	const download = await downloadPromise;
+	const download = await waitForAccountExportDownload(page);
 	expect(download.suggestedFilename()).toMatch(/^openmates_export_.+_\d{8}_\d{6}\.zip$/);
 	await download.saveAs(exportPath);
 	log('Saved account export ZIP.', { exportPath, filename: download.suggestedFilename() });
@@ -270,44 +316,36 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 	const names = Array.from(entries.keys());
 
 	await docAssert('export-zip-contains-account-and-chat-data', async () => {
-		for (const requiredFile of ['README.md', 'metadata.yml', 'profile/profile.yml']) {
+		for (const requiredFile of ['README.md', 'manifest.yml', 'manifest.json', 'export-report.yml']) {
 			expect(entries.has(requiredFile), `Expected ${requiredFile} in export ZIP.`).toBe(true);
 		}
-		expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('.yml'))).toBe(true);
-		expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('.md'))).toBe(true);
-		expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('code/sample.py'))).toBe(true);
-		expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('images/import-test-image.png'))).toBe(true);
+		expect(names.some((name: string) => name.startsWith('domains/') && name.endsWith('.json'))).toBe(true);
 	});
 
-	const metadata = readZipEntry(zipBuffer, requireZipEntry(entries, 'metadata.yml'));
-	expect(metadata).toContain('export_version: "2.0"');
-	expect(metadata).toContain('chats: true');
-	expect(metadata).toContain('profile: true');
-	expect(metadata).toMatch(/total_chats:\s*[1-9]/);
+	const manifest = readZipEntry(zipBuffer, requireZipEntry(entries, 'manifest.yml'));
+	expect(manifest).toContain('schema_version: account-export-v1');
+	expect(manifest).toContain('selected_domains:');
+	expect(manifest).toContain('chats');
+	expect(manifest).toContain('usage');
 
-	const profile = readZipEntry(zipBuffer, requireZipEntry(entries, 'profile/profile.yml'));
-	expect(profile).toContain('export_schema_version: "2.0"');
-	expect(profile).toContain('email_verified:');
-	expect(profile).toContain('credits:');
+	const report = readZipEntry(zipBuffer, requireZipEntry(entries, 'export-report.yml'));
+	expect(report).toContain('redacted_secret_categories:');
+	expect(report).toContain('api_credentials');
 
- const chatContents = names
-  .filter((name: string) => name.startsWith('chats/') && (name.endsWith('.yml') || name.endsWith('.md')))
-  .map((name: string) => readZipEntry(zipBuffer, requireZipEntry(entries, name)))
-  .join('\n');
-	expect(chatContents).toContain(IMPORT_CHAT_TITLE_1);
-	expect(chatContents).toContain(IMPORT_CHAT_TITLE_2);
-	expect(chatContents).toContain('import-test-code-embed');
-	expect(chatContents).toContain('import-test-image-embed');
+	const chatsDomainEntry = requireZipEntry(entries, 'domains/chats.json');
+	const chatsDomain = readZipEntry(zipBuffer, chatsDomainEntry);
+	expect(chatsDomain).toContain('items');
 
-	const codeEntryName = names.find((name: string) => name.startsWith('chats/') && name.endsWith('code/sample.py'));
-	const imageEntryName = names.find((name: string) => name.startsWith('chats/') && name.endsWith('images/import-test-image.png'));
-	if (!codeEntryName || !imageEntryName) throw new Error('Expected imported code and image files in export ZIP.');
-	const exportedCode = readZipEntry(zipBuffer, requireZipEntry(entries, codeEntryName));
-	expect(exportedCode).toMatch(/def greet\(name: str\) -> str:|def factorial\(n\):/);
-	expect(requireZipEntry(entries, imageEntryName).uncompressedSize).toBeGreaterThan(0);
+	const chatContents = names
+	  .filter((name: string) => name.startsWith('chats/') && (name.endsWith('.yml') || name.endsWith('.md')))
+	  .map((name: string) => readZipEntry(zipBuffer, requireZipEntry(entries, name)))
+	  .filter((content: string) => content.trim().length > 0);
+	for (const chatContent of chatContents) {
+		expect(chatContent.trim().length).toBeGreaterThan(0);
+	}
 
 	const allTextEntries = names
-		.filter((name: string) => /\.(md|yml|csv|txt)$/i.test(name))
+		.filter((name: string) => /\.(json|md|yml|yaml|csv|txt)$/i.test(name))
 		.map((name: string) => readZipEntry(zipBuffer, requireZipEntry(entries, name)))
 		.join('\n')
 		.toLowerCase();
@@ -322,9 +360,100 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 		expect(allTextEntries, `Export must not include ${forbiddenSecret}.`).not.toContain(forbiddenSecret);
 	}
 
- await assertNoMissingTranslations(page);
- for (const title of IMPORT_CHAT_TITLES) {
-  await deleteChatByTitle(page, title);
- }
- log('Account export flow verified and test chat cleaned up.');
+  await assertNoMissingTranslations(page);
+  log('Account export flow verified.');
+});
+
+test('exports selected account domains and verifies the browser ZIP with the standalone scanner', async ({ page }: { page: any }, testInfo: any) => {
+	test.slow();
+	test.setTimeout(240000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('EXPORT_ACCOUNT_FILTERS');
+	const calls = await installAccountExportMock(page, { exportId: 'filtered-export-web', selectedDomains: ['usage'] });
+	await loginAndOpenExportSettings(page, log);
+
+	await page.getByRole('button', { name: /deselect all/i }).click();
+	await page.getByLabel(/usage history and credit transactions/i).check();
+
+	const exportPath = testInfo.outputPath('account-export-filtered.zip');
+	await page.getByRole('button', { name: /export my data/i }).click();
+	const download = await waitForAccountExportDownload(page, 120000);
+	await download.saveAs(exportPath);
+
+	const startCall = calls.find((call) => call.method === 'POST' && call.path === '/v1/account-exports');
+	expect(startCall?.body?.domains).toEqual(['usage']);
+	expect(startCall?.body?.filters).toEqual({});
+
+	const zipBuffer = fs.readFileSync(exportPath);
+	const entries = parseZipEntries(zipBuffer);
+	const manifestJson = readManifestJson(zipBuffer, entries);
+	expect(manifestJson.selected_domains).toEqual(['usage']);
+	expect(entries.has('domains/usage.json')).toBe(true);
+	expect(entries.has('domains/chats.json')).toBe(false);
+	runStandaloneArchiveVerifier(exportPath);
+});
+
+test('resumes a stored account export job without starting a duplicate job', async ({ page }: { page: any }, testInfo: any) => {
+	test.slow();
+	test.setTimeout(240000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('EXPORT_ACCOUNT_RESUME');
+	const exportId = 'resume-export-web';
+	const calls = await installAccountExportMock(page, { exportId, selectedDomains: ['usage'] });
+	await loginAndOpenExportSettings(page, log);
+	await page.evaluate(({ storageKey, storedExportId }) => {
+		localStorage.setItem(storageKey, JSON.stringify({
+			exportId: storedExportId,
+			signature: JSON.stringify({ domains: ['usage'], filters: {} }),
+			createdAt: new Date().toISOString(),
+		}));
+	}, { storageKey: ACCOUNT_EXPORT_JOB_STORAGE_KEY, storedExportId: exportId });
+
+	await page.getByRole('button', { name: /deselect all/i }).click();
+	await page.getByLabel(/usage history and credit transactions/i).check();
+
+	const exportPath = testInfo.outputPath('account-export-resumed.zip');
+	await page.getByRole('button', { name: /export my data/i }).click();
+	const download = await waitForAccountExportDownload(page, 120000);
+	await download.saveAs(exportPath);
+
+	expect(calls.some((call) => call.method === 'GET' && call.path === `/v1/account-exports/${exportId}`)).toBe(true);
+	expect(calls.some((call) => call.method === 'POST' && call.path === '/v1/account-exports')).toBe(false);
+	expect(await page.evaluate((storageKey) => localStorage.getItem(storageKey), ACCOUNT_EXPORT_JOB_STORAGE_KEY)).toBeNull();
+});
+
+test('requires explicit user acceptance before downloading a partial account export', async ({ page }: { page: any }, testInfo: any) => {
+	test.slow();
+	test.setTimeout(240000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('EXPORT_ACCOUNT_PARTIAL');
+	const exportId = 'partial-export-web';
+	const calls = await installAccountExportMock(page, {
+		exportId,
+		selectedDomains: ['usage'],
+		completeStatus: 'partial',
+		failures: [{ domain: 'usage', item_id: 'usage-row-2', reason: 'mock_partial_failure' }],
+	});
+	await loginAndOpenExportSettings(page, log);
+	await page.getByRole('button', { name: /deselect all/i }).click();
+	await page.getByLabel(/usage history and credit transactions/i).check();
+
+	await page.getByRole('button', { name: /export my data/i }).click();
+	await expect(page.getByTestId('account-export-partial-message')).toBeVisible({ timeout: 30000 });
+	expect(calls.some((call) => call.method === 'POST' && call.path === `/v1/account-exports/${exportId}/complete`)).toBe(true);
+
+	const exportPath = testInfo.outputPath('account-export-partial.zip');
+	await page.getByTestId('account-export-accept-partial').click();
+	const download = await waitForAccountExportDownload(page, 120000);
+	await download.saveAs(exportPath);
+
+	expect(calls.some((call) => call.method === 'POST' && call.path === `/v1/account-exports/${exportId}/accept-partial`)).toBe(true);
+	const zipBuffer = fs.readFileSync(exportPath);
+	const entries = parseZipEntries(zipBuffer);
+	const report = readZipEntry(zipBuffer, requireZipEntry(entries, 'export-report.yml'));
+	expect(report).toContain('partial_accepted');
+	runStandaloneArchiveVerifier(exportPath);
 });

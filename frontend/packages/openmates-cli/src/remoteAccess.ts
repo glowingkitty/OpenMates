@@ -11,11 +11,35 @@
  */
 
 import { homedir } from "node:os";
-import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { spawn } from "node:child_process";
+import {
+  chmodSync,
+  closeSync,
+  constants,
+  existsSync,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readdirSync,
+  readSync,
+  realpathSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
 import { join, resolve, relative } from "node:path";
 
 import { classifyProjectFileRisk, PROJECT_HIGH_RISK_GLOBS } from "./projectFileRisk.js";
+import { decryptWithAesGcmCombined, encryptWithAesGcmCombined } from "./crypto.js";
+import {
+  createRemoteAccessHandshake,
+  deriveRemoteAccessSessionKey,
+  sealRemoteAccessEnvelope,
+  type RemoteAccessCryptoIdentity,
+  type RemoteAccessHandshake,
+} from "./remoteAccessCrypto.js";
+import type { OpenMatesClient } from "./client.js";
+import { WebSocketProtocolError, type ProjectRemoteAccessRequestFrame } from "./ws.js";
 
 export interface RemoteAccessSearchMatch {
   path: string;
@@ -70,6 +94,14 @@ export interface StoredRemoteAccessSearchOptions {
 }
 
 const DEFAULT_MAX_SEARCH_RESULTS = 20;
+const MAX_SEARCH_SNIPPET_CHARS = 500;
+const SEARCH_TIMEOUT_MS = 10_000;
+const MAX_FALLBACK_SEARCH_FILES = 10_000;
+const MAX_APPROVED_ROOTS = 16;
+const DEFAULT_MAX_DIRECTORY_ENTRIES = 500;
+const DEFAULT_MAX_READ_BYTES = 200 * 1024;
+const DEFAULT_MAX_READ_LINES = 4_000;
+const BINARY_PROBE_BYTES = 8 * 1024;
 const MAX_SOURCE_ID_LENGTH = 128;
 const BINARY_EXTENSIONS = new Set([
   ".png",
@@ -86,6 +118,438 @@ const BINARY_EXTENSIONS = new Set([
   ".mov",
 ]);
 
+export interface RemoteAccessRepositoryCandidate {
+  rootPath: string;
+  displayName: string;
+}
+
+export interface RemoteAccessDirectoryEntry {
+  path: string;
+  kind: "file" | "directory";
+}
+
+export interface LiveRemoteAccessBinding {
+  source: RemoteAccessSourceRecord;
+  projectKey: Uint8Array;
+  keyEpoch: number;
+  teamId?: string;
+}
+
+export interface RemoteAccessLifecycleEvent {
+  state: "connecting" | "connected" | "reconnecting" | "disconnected";
+  attempt?: number;
+  delayMs?: number;
+}
+
+export function resolveRemoteAccessRoots(
+  pathFlag: string | undefined,
+  cwd = process.cwd(),
+): string[] {
+  const requested = pathFlag === undefined ? [cwd] : pathFlag.split("\n");
+  if (requested.some((value) => !value)) throw new Error("--path requires a non-empty folder value");
+  if (requested.length > MAX_APPROVED_ROOTS) {
+    throw new Error(`remote-access accepts at most ${MAX_APPROVED_ROOTS} approved roots`);
+  }
+  const roots: string[] = [];
+  for (const value of requested) {
+    const candidate = resolve(cwd, value);
+    if (!existsSync(candidate) || !statSync(candidate).isDirectory()) {
+      throw new Error(`Remote source path does not exist or is not a directory: ${candidate}`);
+    }
+    const canonical = realpathSync(candidate);
+    if (!roots.includes(canonical)) roots.push(canonical);
+  }
+  return roots;
+}
+
+export function discoverRemoteAccessRepositories(roots: string[]): {
+  repositories: RemoteAccessRepositoryCandidate[];
+  permissionDenied: string[];
+} {
+  const repositoryRoots = new Set<string>();
+  const permissionDenied: string[] = [];
+
+  const visit = (directory: string, approvedRoot: string): void => {
+    let entries;
+    try {
+      entries = readdirSync(directory, { withFileTypes: true });
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "EACCES" || code === "EPERM") {
+        permissionDenied.push(relative(approvedRoot, directory) || ".");
+        return;
+      }
+      throw error;
+    }
+    if (entries.some((entry) => entry.name === ".git" && (entry.isDirectory() || entry.isFile()))) {
+      repositoryRoots.add(realpathSync(directory));
+    }
+    for (const entry of entries) {
+      if (entry.name === ".git" || entry.isSymbolicLink() || !entry.isDirectory()) continue;
+      visit(join(directory, entry.name), approvedRoot);
+    }
+  };
+
+  for (const root of roots) visit(root, root);
+  return {
+    repositories: [...repositoryRoots]
+      .sort()
+      .map((rootPath) => ({ rootPath, displayName: rootPath.split(/[\\/]/).filter(Boolean).pop() ?? rootPath })),
+    permissionDenied: permissionDenied.sort(),
+  };
+}
+
+export function remoteAccessSourceType(rootPath: string): RemoteAccessSourceRecord["sourceType"] {
+  const gitMarker = join(rootPath, ".git");
+  return existsSync(gitMarker) ? "local_git_repository" : "local_folder";
+}
+
+export function listRemoteAccessDirectory(options: {
+  sourceRoot: string;
+  relativePath: string;
+  maxEntries?: number;
+  userProtectedPatterns?: string[];
+}): { entries: RemoteAccessDirectoryEntry[]; omitted: number; excluded: number } {
+  const root = realpathSync(options.sourceRoot);
+  const directory = resolveApprovedPath(root, options.relativePath);
+  if (!statSync(directory).isDirectory()) throw new Error("Remote source path is not a directory");
+  const maxEntries = options.maxEntries ?? DEFAULT_MAX_DIRECTORY_ENTRIES;
+  if (!Number.isInteger(maxEntries) || maxEntries <= 0 || maxEntries > DEFAULT_MAX_DIRECTORY_ENTRIES) {
+    throw new Error(`Remote directory entry limit must be between 1 and ${DEFAULT_MAX_DIRECTORY_ENTRIES}`);
+  }
+  const entries: RemoteAccessDirectoryEntry[] = [];
+  let omitted = 0;
+  let excluded = 0;
+  for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const entryPath = relative(root, join(directory, entry.name)).replace(/\\/g, "/");
+    if (
+      entry.name === ".git"
+      || entry.isSymbolicLink()
+      || isGitIgnoredPath(root, entryPath)
+      || classifyProjectFileRisk(entryPath, options.userProtectedPatterns ?? []).isHighRisk
+      || (entry.isFile() && isBinaryFile(join(directory, entry.name)))
+    ) {
+      excluded += 1;
+      continue;
+    }
+    if (!entry.isFile() && !entry.isDirectory()) {
+      excluded += 1;
+      continue;
+    }
+    if (entries.length >= maxEntries) {
+      omitted += 1;
+      continue;
+    }
+    entries.push({ path: entryPath, kind: entry.isDirectory() ? "directory" : "file" });
+  }
+  return { entries, omitted, excluded };
+}
+
+export function readRemoteAccessTextFile(options: {
+  sourceRoot: string;
+  relativePath: string;
+  maxBytes?: number;
+  maxLines?: number;
+  userProtectedPatterns?: string[];
+  beforeOpen?: () => void;
+}): { content: string; truncated: boolean; sizeBytes: number; lineCount: number } {
+  const root = realpathSync(options.sourceRoot);
+  const normalizedRelative = options.relativePath.replace(/\\/g, "/");
+  if (classifyProjectFileRisk(normalizedRelative, options.userProtectedPatterns ?? []).isHighRisk) {
+    throw new Error("Remote source file is protected");
+  }
+  if (isGitIgnoredPath(root, normalizedRelative)) throw new Error("Remote source file is ignored");
+  const requested = resolveApprovedPath(root, normalizedRelative);
+  options.beforeOpen?.();
+  const maxBytes = normalizeBound(options.maxBytes, DEFAULT_MAX_READ_BYTES, "byte");
+  const maxLines = normalizeBound(options.maxLines, DEFAULT_MAX_READ_LINES, "line");
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(requested, constants.O_RDONLY | constants.O_NOFOLLOW);
+    const openedPath = openedDescriptorPath(descriptor, requested);
+    assertInsideRoot(root, openedPath);
+    const stats = fstatSync(descriptor);
+    if (!stats.isFile()) throw new Error("Remote source path is not a regular file");
+    const bytesToRead = Math.min(stats.size, maxBytes + 1);
+    const buffer = Buffer.alloc(bytesToRead);
+    const bytesRead = readSync(descriptor, buffer, 0, bytesToRead, 0);
+    const bytes = new Uint8Array(buffer.subarray(0, bytesRead));
+    if (bytes.subarray(0, BINARY_PROBE_BYTES).includes(0)) throw new Error("Remote source file is binary or unsupported");
+    let decoded: string;
+    try {
+      decoded = new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, Math.min(bytes.length, maxBytes)));
+    } catch {
+      throw new Error("Remote source file is binary or unsupported");
+    }
+    const lines = decoded.split(/(?<=\n)/);
+    const content = lines.slice(0, maxLines).join("");
+    return {
+      content,
+      truncated: stats.size > maxBytes || lines.length > maxLines,
+      sizeBytes: stats.size,
+      lineCount: decoded.length === 0 ? 0 : decoded.split("\n").length,
+    };
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ELOOP") throw new Error("Remote source path is a symbolic link");
+    throw error;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+}
+
+export async function runRemoteAccessBridge(options: {
+  client: OpenMatesClient;
+  sourceSessionId: string;
+  bindings: LiveRemoteAccessBinding[];
+  signal: AbortSignal;
+  confirmedTakeover?: boolean;
+  onLifecycle?: (event: RemoteAccessLifecycleEvent) => void;
+}): Promise<void> {
+  let reconnectAttempt = 0;
+  while (!options.signal.aborted) {
+    options.onLifecycle?.({ state: reconnectAttempt === 0 ? "connecting" : "reconnecting", attempt: reconnectAttempt });
+    let ws: Awaited<ReturnType<OpenMatesClient["openProjectRemoteAccessWebSocket"]>>["ws"] | null = null;
+    let removeRequestListener: (() => void) | null = null;
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+    try {
+      const opened = await options.client.openProjectRemoteAccessWebSocket();
+      ws = opened.ws;
+      const lifecyclePayload = projectRemoteAccessLifecyclePayload(options.sourceSessionId, options.bindings);
+      await ws.sendAsync("project_remote_access_register", {
+        ...lifecyclePayload,
+        confirmed_takeover: options.confirmedTakeover === true,
+        bindings: options.bindings.map((binding) => ({
+          project_id: binding.source.projectId,
+          source_id: binding.source.sourceId,
+          capabilities: ["read", "search", "import"],
+          key_epoch: binding.keyEpoch,
+        })),
+      });
+      await ws.waitForMessage("project_remote_access_registered", undefined, 20_000);
+      reconnectAttempt = 0;
+      options.onLifecycle?.({ state: "connected" });
+      removeRequestListener = ws.onProjectRemoteAccessRequest((frame) => {
+        void handleLiveRemoteAccessRequest(ws!, opened.ownerId, options.sourceSessionId, options.bindings, frame);
+      });
+      heartbeatTimer = setInterval(() => {
+        void ws?.sendAsync("project_remote_access_heartbeat", lifecyclePayload);
+      }, 15_000);
+      await Promise.race([ws.waitForClose(), waitForAbort(options.signal)]);
+      if (options.signal.aborted) {
+        await ws.sendAsync("project_remote_access_disconnect", lifecyclePayload).catch(() => undefined);
+        options.onLifecycle?.({ state: "disconnected" });
+        return;
+      }
+    } catch (error) {
+      if (error instanceof WebSocketProtocolError) throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      if (/session expired|invalid|not logged in/i.test(message)) throw error;
+    } finally {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      removeRequestListener?.();
+      ws?.close();
+    }
+    reconnectAttempt += 1;
+    const delayMs = reconnectDelayMs(reconnectAttempt);
+    options.onLifecycle?.({ state: "reconnecting", attempt: reconnectAttempt, delayMs });
+    await waitForAbort(options.signal, delayMs);
+  }
+}
+
+export function projectRemoteAccessLifecyclePayload(
+  sourceSessionId: string,
+  bindings: LiveRemoteAccessBinding[],
+): { source_session_id: string; team_id?: string } {
+  const teamId = bindings[0]?.teamId;
+  return {
+    source_session_id: sourceSessionId,
+    ...(teamId ? { team_id: teamId } : {}),
+  };
+}
+
+export function projectRemoteAccessCryptoIdentity(
+  ownerId: string,
+  sourceSessionId: string,
+  binding: Pick<LiveRemoteAccessBinding, "teamId">,
+  frame: Pick<
+    ProjectRemoteAccessRequestFrame,
+    "project_id" | "source_id" | "requesting_client_id" | "key_epoch" | "routing_identity"
+  >,
+): RemoteAccessCryptoIdentity {
+  const routingIdentity = binding.teamId ? frame.routing_identity : undefined;
+  return {
+    ownerId: routingIdentity?.context_id_hash ?? ownerId,
+    ...(routingIdentity ? {
+      contextType: "team" as const,
+      contextId: routingIdentity.context_id_hash,
+      hostMemberId: routingIdentity.host_member_hash,
+      hostDeviceId: routingIdentity.host_device_fingerprint_hash,
+      requesterMemberId: routingIdentity.requester_member_hash,
+      requesterDeviceId: routingIdentity.requester_device_fingerprint_hash,
+    } : {}),
+    projectId: frame.project_id,
+    sourceId: frame.source_id,
+    sourceSessionId,
+    requestingClientId: frame.requesting_client_id,
+    keyEpoch: frame.key_epoch,
+  };
+}
+
+async function handleLiveRemoteAccessRequest(
+  ws: Awaited<ReturnType<OpenMatesClient["openProjectRemoteAccessWebSocket"]>>["ws"],
+  ownerId: string,
+  sourceSessionId: string,
+  bindings: LiveRemoteAccessBinding[],
+  frame: ProjectRemoteAccessRequestFrame,
+): Promise<void> {
+  const binding = bindings.find((item) =>
+    item.source.sourceId === frame.source_id && item.source.projectId === frame.project_id
+  );
+  if (!binding || frame.source_session_id !== sourceSessionId || frame.key_epoch !== binding.keyEpoch) return;
+  const bootstrapText = await decryptWithAesGcmCombined(frame.encrypted_envelope, binding.projectKey);
+  if (!bootstrapText) return;
+  let bootstrap: {
+    type?: string;
+    nonce?: string;
+    requesting_client_id?: string;
+    requester_handshake?: RemoteAccessHandshake;
+    operation?: ProjectRemoteAccessRequestFrame["operation"];
+    arguments?: Record<string, unknown>;
+  };
+  try {
+    bootstrap = JSON.parse(bootstrapText) as typeof bootstrap;
+  } catch {
+    return;
+  }
+  if (
+    bootstrap.type === "routing_discovery"
+    && bootstrap.requesting_client_id === frame.requesting_client_id
+    && bootstrap.nonce
+  ) {
+    await ws.sendAsync("project_remote_access_complete", {
+      source_session_id: sourceSessionId,
+      ...(binding.teamId ? { team_id: binding.teamId } : {}),
+      project_id: frame.project_id,
+      source_id: frame.source_id,
+      request_id: frame.request_id,
+      key_epoch: binding.keyEpoch,
+      encrypted_envelope: await encryptWithAesGcmCombined(
+        JSON.stringify({ type: "routing_discovery_result", nonce: bootstrap.nonce }),
+        binding.projectKey,
+      ),
+    });
+    return;
+  }
+  if (
+    !bootstrap.requesting_client_id
+    || bootstrap.requesting_client_id !== frame.requesting_client_id
+    || !bootstrap.requester_handshake
+    || bootstrap.operation !== frame.operation
+    || !bootstrap.arguments
+  ) return;
+  if (binding.teamId && frame.routing_identity?.context_type !== "team") return;
+  const identity = projectRemoteAccessCryptoIdentity(ownerId, sourceSessionId, binding, frame);
+  try {
+    const sourceHandshake = await createRemoteAccessHandshake(binding.projectKey, identity, "source");
+    const sessionKey = await deriveRemoteAccessSessionKey(
+      binding.projectKey,
+      identity,
+      "source",
+      sourceHandshake.privateKey,
+      sourceHandshake.handshake,
+      bootstrap.requester_handshake,
+    );
+    let response: Record<string, unknown>;
+    try {
+      response = {
+        ok: true,
+        result: await executeRemoteAccessOperation(binding.source.rootPath, frame.operation, bootstrap.arguments),
+      };
+    } catch (error) {
+      response = { ok: false, error: remoteAccessOperationErrorCode(error) };
+    }
+    const envelope = await sealRemoteAccessEnvelope(
+      sessionKey,
+      identity,
+      frame.request_id,
+      "result",
+      new TextEncoder().encode(JSON.stringify(response)),
+    );
+    await ws.sendAsync("project_remote_access_complete", {
+      source_session_id: sourceSessionId,
+      ...(binding.teamId ? { team_id: binding.teamId } : {}),
+      project_id: frame.project_id,
+      source_id: frame.source_id,
+      request_id: frame.request_id,
+      key_epoch: binding.keyEpoch,
+      encrypted_envelope: JSON.stringify({ source_handshake: sourceHandshake.handshake, envelope }),
+    });
+  } catch {
+    // Invalid or unauthorized encrypted requests fail closed without plaintext diagnostics.
+  }
+}
+
+async function executeRemoteAccessOperation(
+  sourceRoot: string,
+  operation: ProjectRemoteAccessRequestFrame["operation"],
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  const relativePath = typeof args.path === "string" ? args.path : ".";
+  if (operation === "list") {
+    return listRemoteAccessDirectory({ sourceRoot, relativePath });
+  }
+  if (operation === "read_text") {
+    return readRemoteAccessTextFile({ sourceRoot, relativePath });
+  }
+  const query = typeof args.query === "string" ? args.query : "";
+  if (!query) throw new Error("Search query is required");
+  return searchRemoteSource({ query, sourceRoot, runRg: runRgCommand });
+}
+
+function remoteAccessOperationErrorCode(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (/protected|ignored/i.test(message)) return "protected_path";
+  if (/binary|unsupported/i.test(message)) return "unsupported_file";
+  if (/symbolic link|approved source root|not a directory|not a regular file|ENOENT/i.test(message)) return "invalid_path";
+  if (/Search query is required/i.test(message)) return "search_query_required";
+  return "operation_failed";
+}
+
+function isGitIgnoredPath(sourceRoot: string, relativePath: string): boolean {
+  if (!existsSync(join(sourceRoot, ".git"))) return false;
+  const result = spawnSync("git", ["check-ignore", "--quiet", "--", relativePath], {
+    cwd: sourceRoot,
+    stdio: "ignore",
+  });
+  if (result.error) throw result.error;
+  if (result.status === 0) return true;
+  if (result.status === 1) return false;
+  throw new Error("Could not evaluate Git ignored-file policy");
+}
+
+function reconnectDelayMs(attempt: number): number {
+  const base = Math.min(30_000, 1_000 * (2 ** Math.max(0, attempt - 1)));
+  return Math.round(base * (0.8 + Math.random() * 0.4));
+}
+
+function waitForAbort(signal: AbortSignal, timeoutMs?: number): Promise<void> {
+  if (signal.aborted) return Promise.resolve();
+  return new Promise((resolvePromise) => {
+    const onAbort = () => {
+      if (timer) clearTimeout(timer);
+      resolvePromise();
+    };
+    const timer = timeoutMs === undefined
+      ? undefined
+      : setTimeout(() => {
+          signal.removeEventListener("abort", onAbort);
+          resolvePromise();
+        }, timeoutMs);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 export function resolveRemoteCachePath(sourceId: string, homeDirectory = homedir()): string {
   assertSafeSourceId(sourceId);
   return join(homeDirectory, ".openmates", "remote-cache", sourceId);
@@ -94,10 +558,11 @@ export function resolveRemoteCachePath(sourceId: string, homeDirectory = homedir
 export function startRemoteAccessSource(input: StartRemoteAccessSourceInput): RemoteAccessSourceRecord {
   assertSafeSourceId(input.sourceId);
   const homeDirectory = input.homeDirectory ?? homedir();
-  const rootPath = resolve(input.rootPath);
-  if (!existsSync(rootPath) || !statSync(rootPath).isDirectory()) {
-    throw new Error(`Remote source path does not exist or is not a directory: ${rootPath}`);
+  const requestedRootPath = resolve(input.rootPath);
+  if (!existsSync(requestedRootPath) || !statSync(requestedRootPath).isDirectory()) {
+    throw new Error(`Remote source path does not exist or is not a directory: ${requestedRootPath}`);
   }
+  const rootPath = realpathSync(requestedRootPath);
   const now = Math.floor(Date.now() / 1000);
   const source: RemoteAccessSourceRecord = {
     sourceId: input.sourceId,
@@ -106,7 +571,7 @@ export function startRemoteAccessSource(input: StartRemoteAccessSourceInput): Re
     rootPath,
     displayName: input.displayName ?? input.sourceId,
     cachePath: resolveRemoteCachePath(input.sourceId, homeDirectory),
-    status: "connected",
+    status: "offline",
     createdAt: now,
     updatedAt: now,
   };
@@ -149,11 +614,17 @@ export async function searchStoredRemoteAccessSource(options: StoredRemoteAccess
 export async function searchRemoteSource(options: RemoteAccessSearchOptions): Promise<RemoteAccessSearchResult> {
   const sourceRoot = resolve(options.sourceRoot);
   const maxResults = normalizeMaxResults(options.maxResults);
-  const output = await options.runRg(
-    buildRgSearchArgs(options.query, options.userProtectedPatterns ?? []),
-    sourceRoot,
-    maxResults + 1,
-  );
+  let output: string;
+  try {
+    output = await options.runRg(
+      buildRgSearchArgs(options.query, options.userProtectedPatterns ?? []),
+      sourceRoot,
+      maxResults + 1,
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    return searchRemoteSourceWithoutRg(options.query, sourceRoot, maxResults, options.userProtectedPatterns ?? []);
+  }
   const matches: RemoteAccessSearchMatch[] = [];
   let omitted = 0;
   let excluded = 0;
@@ -176,6 +647,80 @@ export async function searchRemoteSource(options: RemoteAccessSearchOptions): Pr
   return { matches, omitted, excluded };
 }
 
+function searchRemoteSourceWithoutRg(
+  query: string,
+  sourceRoot: string,
+  maxResults: number,
+  userProtectedPatterns: string[],
+): RemoteAccessSearchResult {
+  const root = realpathSync(sourceRoot);
+  const deadline = Date.now() + SEARCH_TIMEOUT_MS;
+  const directories = [root];
+  const matches: RemoteAccessSearchMatch[] = [];
+  let inspectedFiles = 0;
+  let omitted = 0;
+  let excluded = 0;
+
+  while (directories.length > 0) {
+    if (Date.now() >= deadline) throw new Error("Remote source search timed out");
+    const directory = directories.pop()!;
+    let entries;
+    try {
+      entries = readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name));
+    } catch {
+      excluded += 1;
+      continue;
+    }
+    for (const entry of entries) {
+      const absolutePath = join(directory, entry.name);
+      const relativePath = relative(root, absolutePath).replace(/\\/g, "/");
+      if (
+        entry.name === ".git"
+        || entry.isSymbolicLink()
+        || isGitIgnoredPath(root, relativePath)
+        || classifyProjectFileRisk(relativePath, userProtectedPatterns).isHighRisk
+      ) {
+        excluded += 1;
+        continue;
+      }
+      if (entry.isDirectory()) {
+        directories.push(absolutePath);
+        continue;
+      }
+      if (!entry.isFile() || isBinaryFile(absolutePath)) {
+        excluded += 1;
+        continue;
+      }
+      inspectedFiles += 1;
+      if (inspectedFiles > MAX_FALLBACK_SEARCH_FILES) {
+        omitted += 1;
+        return { matches, omitted, excluded };
+      }
+      let content: string;
+      try {
+        content = readRemoteAccessTextFile({
+          sourceRoot: root,
+          relativePath,
+          userProtectedPatterns,
+        }).content;
+      } catch {
+        excluded += 1;
+        continue;
+      }
+      const lines = content.split(/(?<=\n)/);
+      for (let index = 0; index < lines.length; index += 1) {
+        if (!lines[index].includes(query)) continue;
+        if (matches.length >= maxResults) {
+          omitted += 1;
+          return { matches, omitted, excluded };
+        }
+        matches.push({ path: relativePath, line: index + 1, snippet: lines[index].slice(0, MAX_SEARCH_SNIPPET_CHARS) });
+      }
+    }
+  }
+  return { matches, omitted, excluded };
+}
+
 function assertSafeSourceId(sourceId: string): void {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(sourceId) || sourceId.length > MAX_SOURCE_ID_LENGTH) {
     throw new Error("Remote source ID must be 1-128 characters and contain only letters, numbers, dot, underscore, or hyphen");
@@ -184,8 +729,8 @@ function assertSafeSourceId(sourceId: string): void {
 
 function normalizeMaxResults(value: number | undefined): number {
   const maxResults = value ?? DEFAULT_MAX_SEARCH_RESULTS;
-  if (!Number.isInteger(maxResults) || maxResults <= 0) {
-    throw new Error("Remote source search limit must be a positive integer");
+  if (!Number.isInteger(maxResults) || maxResults <= 0 || maxResults > DEFAULT_MAX_SEARCH_RESULTS) {
+    throw new Error(`Remote source search limit must be between 1 and ${DEFAULT_MAX_SEARCH_RESULTS}`);
   }
   return maxResults;
 }
@@ -214,6 +759,11 @@ export async function runRgCommand(args: string[], cwd: string, maxOutputMatches
     let pendingStdout = "";
     let matchCount = 0;
     let killedForCap = false;
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, SEARCH_TIMEOUT_MS);
 
     child.stdout.setEncoding("utf-8");
     child.stdout.on("data", (chunk: string) => {
@@ -237,9 +787,17 @@ export async function runRgCommand(args: string[], cwd: string, maxOutputMatches
     child.stderr.setEncoding("utf-8");
     child.stderr.on("data", (chunk: string) => stderrChunks.push(chunk));
 
-    child.on("error", reject);
+    child.on("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
     child.on("close", (code) => {
+      clearTimeout(timeout);
       if (pendingStdout) stdoutLines.push(pendingStdout);
+      if (timedOut) {
+        reject(new Error("Remote source search timed out"));
+        return;
+      }
       if (code === 0 || code === 1 || killedForCap) {
         resolvePromise(stdoutLines.join("\n"));
         return;
@@ -286,10 +844,62 @@ function parseRgMatch(line: string): RemoteAccessSearchMatch | null {
     if (typeof path !== "string" || typeof lineNumber !== "number" || typeof snippet !== "string") {
       return null;
     }
-    return { path, line: lineNumber, snippet };
+    return { path, line: lineNumber, snippet: snippet.slice(0, MAX_SEARCH_SNIPPET_CHARS) };
   } catch {
     return null;
   }
+}
+
+function resolveApprovedPath(sourceRoot: string, relativePath: string): string {
+  if (!relativePath || relativePath.includes("\0")) throw new Error("Remote source path is invalid");
+  const lexical = resolve(sourceRoot, relativePath);
+  assertInsideRoot(sourceRoot, lexical);
+  const canonical = realpathSync(lexical);
+  assertInsideRoot(sourceRoot, canonical);
+  return canonical;
+}
+
+function assertInsideRoot(sourceRoot: string, path: string): void {
+  const relation = relative(sourceRoot, path);
+  if (relation.startsWith("..") || resolve(sourceRoot, relation) !== resolve(path)) {
+    throw new Error("Remote source path escapes the approved source root");
+  }
+}
+
+function openedDescriptorPath(descriptor: number, requestedPath: string): string {
+  const procPath = `/proc/self/fd/${descriptor}`;
+  if (existsSync(procPath)) return realpathSync(procPath);
+  return realpathSync(requestedPath);
+}
+
+function isBinaryFile(path: string): boolean {
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    const stats = fstatSync(descriptor);
+    const buffer = Buffer.alloc(Math.min(stats.size, BINARY_PROBE_BYTES));
+    const bytesRead = readSync(descriptor, buffer, 0, buffer.length, 0);
+    const bytes = new Uint8Array(buffer.subarray(0, bytesRead));
+    if (bytes.includes(0)) return true;
+    try {
+      new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      return false;
+    } catch {
+      return true;
+    }
+  } catch {
+    return true;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+}
+
+function normalizeBound(value: number | undefined, maximum: number, label: string): number {
+  const result = value ?? maximum;
+  if (!Number.isInteger(result) || result <= 0 || result > maximum) {
+    throw new Error(`Remote source ${label} limit must be between 1 and ${maximum}`);
+  }
+  return result;
 }
 
 function remoteAccessStorePath(homeDirectory: string): string {

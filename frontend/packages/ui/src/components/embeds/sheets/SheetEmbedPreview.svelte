@@ -47,6 +47,8 @@
     onFullscreen: () => void;
     /** Table content (markdown format) */
     tableContent?: string;
+    /** Local-only anonymous file preview that cannot upload until signup. */
+    needsSignup?: boolean;
   }
   
   let {
@@ -58,7 +60,8 @@
     taskId: taskIdProp,
     isMobile = false,
     onFullscreen,
-    tableContent: tableContentProp = ''
+    tableContent: tableContentProp = '',
+    needsSignup = false
   }: Props = $props();
   
   // Local reactive state — can be updated via onEmbedDataUpdated callback
@@ -202,6 +205,8 @@
   
   // Build status text: dimensions
   let statusText = $derived.by(() => {
+    if (needsSignup && status === 'finished') return $text('app_skills.pdf.view.signup_to_upload');
+
     if (actualRowCount === 0 && actualColCount === 0) return '';
     return formatTableDimensions(actualRowCount, actualColCount);
   });

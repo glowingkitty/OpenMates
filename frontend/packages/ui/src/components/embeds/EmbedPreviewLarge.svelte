@@ -89,6 +89,19 @@
     runRef = '',
   }: Props = $props();
 
+  export function updatePresentation(next: Props): void {
+    embedRef = next.embedRef;
+    embedId = next.embedId ?? null;
+    _appId = next.appId ?? null;
+    receiver = next.receiver ?? null;
+    subject = next.subject ?? null;
+    content = next.content ?? null;
+    footer = next.footer ?? null;
+    carouselIndex = next.carouselIndex;
+    carouselTotal = next.carouselTotal;
+    runRef = next.runRef ?? '';
+  }
+
   // ── Carousel state ──────────────────────────────────────────────────────
   let runKey = $derived(
     runRef && runRef.length > 0 ? runRef : embedRef,
@@ -216,6 +229,12 @@
     return embedId || embedStore.resolveByRef(embedRef) || deepResolvedEmbedId || null;
   });
 
+  let isResolvedAppSkillRef = $derived.by(() => {
+    void $embedRefIndexVersion;
+    const refType = embedStore.resolveTypeByRef(embedRef);
+    return refType === 'app-skill-use' || refType === 'app_skill_use';
+  });
+
   $effect(() => {
     if (!shouldHydrateSlide) return;
     void $embedRefIndexVersion;
@@ -278,11 +297,14 @@
 
 </script>
 
-{#if isFirstCard}
+{#if isFirstCard && isResolvedAppSkillRef}
+  <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} {receiver} {subject} {content} {footer} variant="small" />
+{:else if isFirstCard}
   <!-- First card: always-visible carousel shell -->
   <div
     bind:this={wrapperEl}
     use:registerSwipeSurface
+    data-testid="embed-preview-large"
     class="embed-preview-large-wrapper"
     class:embed-preview-large-wrapper--has-dots={hasMultiple}
     style="min-height: {shellMinHeight}px;"
@@ -361,6 +383,7 @@
   .embed-preview-large-wrapper {
     position: relative;
     width: 100%;
+    margin-top: var(--spacing-4);
     touch-action: pan-y;
   }
 

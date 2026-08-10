@@ -1,0 +1,198 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "successful-thinking-response",
+      "chat_id": "e2e-chat-response-parity",
+      "task_id": "e2e-task-response-parity",
+      "user_message_id": "e2e-user-response-parity",
+      "assistant_message_id": "e2e-task-response-parity",
+      "seed": {
+        "title": "Synthetic response lifecycle",
+        "user_content": "Explain the synthetic lifecycle fixture."
+      },
+      "stages": [
+        {
+          "id": "task-initiated",
+          "events": [
+            {
+              "type": "ai_task_initiated",
+              "payload": {
+                "chat_id": "e2e-chat-response-parity",
+                "ai_task_id": "e2e-task-response-parity",
+                "user_message_id": "e2e-user-response-parity",
+                "status": "processing_started"
+              }
+            }
+          ]
+        },
+        {
+          "id": "preprocessing",
+          "events": [
+            {
+              "type": "preprocessing_step",
+              "payload": {
+                "chat_id": "e2e-chat-response-parity",
+                "step": "mate_selected",
+                "skipped": false,
+                "data": {
+                  "mate_id": "ai",
+                  "mate_name": "OpenMates",
+                  "mate_category": "ai"
+                }
+              }
+            },
+            {
+              "type": "preprocessing_step",
+              "payload": {
+                "chat_id": "e2e-chat-response-parity",
+                "step": "model_selected",
+                "skipped": false,
+                "data": {
+                  "model_name": "Synthetic Reasoning Model",
+                  "provider_name": "Synthetic Provider",
+                  "server_region": "EU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "typing",
+          "events": [
+            {
+              "type": "ai_typing_started",
+              "payload": {
+                "chat_id": "e2e-chat-response-parity",
+                "message_id": "e2e-task-response-parity",
+                "task_id": "e2e-task-response-parity",
+                "user_message_id": "e2e-user-response-parity",
+                "category": "ai",
+                "model_name": "Synthetic Reasoning Model",
+                "provider_name": "Synthetic Provider",
+                "server_region": "EU"
+              }
+            }
+          ]
+        },
+        {
+          "id": "thinking-first",
+          "events": [
+            {
+              "type": "thinking_chunk",
+              "payload": {
+                "chat_id": "e2e-chat-response-parity",
+                "task_id": "e2e-task-response-parity",
+                "message_id": "e2e-task-response-parity",
+                "content": "Synthetic provider summary: inspect the fixture."
+              }
+            }
+          ]
+        },
+        {
+          "id": "thinking-second",
+          "events": [
+            {
+              "type": "thinking_chunk",
+              "payload": {
+                "chat_id": "e2e-chat-response-parity",
+                "task_id": "e2e-task-response-parity",
+                "message_id": "e2e-task-response-parity",
+                "content": "\n\nSynthetic provider summary: select a safe answer."
+              }
+            }
+          ]
+        },
+        {
+          "id": "thinking-complete",
+          "events": [
+            {
+              "type": "thinking_complete",
+              "payload": {
+                "chat_id": "e2e-chat-response-parity",
+                "task_id": "e2e-task-response-parity",
+                "message_id": "e2e-task-response-parity",
+                "signature": "synthetic-signature",
+                "total_tokens": 12
+              }
+            }
+          ]
+        },
+        {
+          "id": "answer-first",
+          "events": [
+            {
+              "type": "ai_message_update",
+              "payload": {
+                "type": "ai_message_chunk",
+                "chat_id": "e2e-chat-response-parity",
+                "task_id": "e2e-task-response-parity",
+                "message_id": "e2e-task-response-parity",
+                "user_message_id": "e2e-user-response-parity",
+                "sequence": 1,
+                "full_content_so_far": "A deterministic **answer",
+                "is_final_chunk": false,
+                "category": "ai",
+                "model_name": "Synthetic Reasoning Model"
+              }
+            }
+          ]
+        },
+        {
+          "id": "answer-rich",
+          "events": [
+            {
+              "type": "ai_message_update",
+              "payload": {
+                "type": "ai_message_chunk",
+                "chat_id": "e2e-chat-response-parity",
+                "task_id": "e2e-task-response-parity",
+                "message_id": "e2e-task-response-parity",
+                "user_message_id": "e2e-user-response-parity",
+                "sequence": 2,
+                "full_content_so_far": "A deterministic **answer** with [a synthetic link](https://example.test).",
+                "is_final_chunk": false,
+                "category": "ai",
+                "model_name": "Synthetic Reasoning Model"
+              }
+            }
+          ]
+        },
+        {
+          "id": "final",
+          "events": [
+            {
+              "type": "ai_message_update",
+              "payload": {
+                "type": "ai_message_chunk",
+                "chat_id": "e2e-chat-response-parity",
+                "task_id": "e2e-task-response-parity",
+                "message_id": "e2e-task-response-parity",
+                "user_message_id": "e2e-user-response-parity",
+                "sequence": 3,
+                "full_content_so_far": "A deterministic **answer** with [a synthetic link](https://example.test).",
+                "is_final_chunk": true,
+                "category": "ai",
+                "model_name": "Synthetic Reasoning Model"
+              }
+            },
+            {
+              "type": "ai_message_ready",
+              "payload": {
+                "chat_id": "e2e-chat-response-parity",
+                "message_id": "e2e-task-response-parity"
+              }
+            },
+            {
+              "type": "ai_typing_ended",
+              "payload": {
+                "chat_id": "e2e-chat-response-parity",
+                "message_id": "e2e-task-response-parity"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

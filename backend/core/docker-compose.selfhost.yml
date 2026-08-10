@@ -1,7 +1,7 @@
 name: openmates-core
 
 x-openmates-api-image: &openmates-api-image
-  image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-v0.14.0}
+  image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-v0.15.0}
 
 x-openmates-worker-base: &openmates-worker-base
   <<: *openmates-api-image
@@ -18,8 +18,12 @@ x-openmates-worker-base: &openmates-worker-base
     VAULT_URL: "http://vault:8200"
     PROVIDER_CONFIG_DIR: "/app_config/providers"
     BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+    OPENMATES_CLOUD_OVERLAY_ENABLED: "false"
+    OPENMATES_CLOUD_OVERLAY_PACKAGE: ""
+    OPENMATES_DEPLOYMENT_MODE: "self_host"
     LOG_LEVEL: ${LOG_LEVEL:-info}
     SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+    MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-false}"
   volumes:
     - api-logs:/app/logs
     - ../../config:/app_config
@@ -57,6 +61,10 @@ services:
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
       TUNNEL_TRIGGER_SECRET: "${TUNNEL_TRIGGER_SECRET}"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "false"
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: ""
+      OPENMATES_DEPLOYMENT_MODE: "self_host"
+      MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-false}"
       APPLICATION_PREVIEW_ORIGIN: "${APPLICATION_PREVIEW_ORIGIN:-}"
       CORE_SIDECAR_URL: "http://admin-sidecar:8001"
       PROVIDER_CONFIG_DIR: "/app_config/providers"
@@ -89,7 +97,7 @@ services:
 
   cms:
     container_name: cms
-    image: directus/directus:11.5
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-directus:${OPENMATES_IMAGE_TAG:-v0.15.0}
     restart: unless-stopped
     env_file: ../../.env
     environment:
@@ -103,6 +111,7 @@ services:
       DB_DATABASE: "${DATABASE_NAME}"
       DB_USER: "${DATABASE_USERNAME}"
       DB_PASSWORD: "${DATABASE_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
       PUBLIC_URL: "http://localhost:8055"
       LOG_LEVEL: "info"
       CACHE_ENABLED: "true"
@@ -116,15 +125,14 @@ services:
       CACHE_AUTO_PURGE: "true"
     volumes:
       - directus-uploads:/directus/uploads
-      - directus-extensions:/directus/extensions
     networks:
       - openmates
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8055/server/ping"]
+      test: ["CMD", "/usr/local/bin/openmates-directus-health"]
       interval: 10s
-      timeout: 5s
-      start_period: 30s
-      retries: 5
+      timeout: 8s
+      start_period: 60s
+      retries: 12
     depends_on:
       cms-database:
         condition: service_healthy
@@ -152,13 +160,20 @@ services:
 
   cms-setup:
     container_name: cms-setup
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-cms-setup:${OPENMATES_IMAGE_TAG:-v0.14.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-cms-setup:${OPENMATES_IMAGE_TAG:-v0.15.0}
     env_file: ../../.env
     environment:
       ADMIN_EMAIL: ${DATABASE_ADMIN_EMAIL}
       ADMIN_PASSWORD: ${DATABASE_ADMIN_PASSWORD}
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
       SCHEMAS_DIR: "/usr/src/app/schemas"
+      CHAT_RECOVERY_MIGRATION_PATH: "/usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql"
+      WORKFLOW_RUNTIME_MIGRATION_PATH: "/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql"
+      USER_TASK_MIGRATION_PATH: "/usr/src/app/migrations/migrate_user_task_indexes.sql"
+      USAGE_OVERVIEW_MIGRATION_PATH: "/usr/src/app/migrations/migrate_usage_overview_indexes.sql"
+      PROJECT_OWNER_CONTEXT_MIGRATION_PATH: "/usr/src/app/migrations/migrate_project_owner_context.sql"
+      SUB_CHAT_ORCHESTRATION_MIGRATION_PATH: "/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql"
     networks:
       - openmates
     depends_on:
@@ -171,12 +186,51 @@ services:
     mem_limit: "${TASK_WORKER_MEMORY_LIMIT:-3g}"
     environment:
       <<: *openmates-worker-env
-      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,reminder,push"
+      CELERY_QUEUES: "email"
       CELERY_AUTOSCALE_MAX: "${TASK_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-3}}"
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
       CELERY_METRICS_PORT: "9101"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  user-init-worker:
+    <<: *openmates-worker-base
+    container_name: user-init-worker
+    mem_limit: "${USER_INIT_WORKER_MEMORY_LIMIT:-1536m}"
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "user_init"
+      CELERY_AUTOSCALE_MAX: "${USER_INIT_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-2}}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9110"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=user_init --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  core-worker:
+    <<: *openmates-worker-base
+    container_name: core-worker
+    mem_limit: "${CORE_WORKER_MEMORY_LIMIT:-3g}"
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "persistence,health_check,server_stats,demo,e2e_tests,reminder,push"
+      CELERY_AUTOSCALE_MAX: "${CORE_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-3}}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9109"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=persistence,health_check,server_stats,demo,e2e_tests,reminder,push --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  workflow-worker:
+    <<: *openmates-worker-base
+    container_name: workflow-worker
+    mem_limit: "${WORKFLOW_WORKER_MEMORY_LIMIT:-1536m}"
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "workflow"
+      CELERY_AUTOSCALE_MAX: "${WORKFLOW_WORKER_CONCURRENCY:-2}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9108"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=workflow --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   task-scheduler:
     <<: *openmates-worker-base
@@ -247,7 +301,7 @@ services:
 
   app-docs-worker:
     <<: *openmates-worker-base
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-docs-worker:${OPENMATES_IMAGE_TAG:-v0.14.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-docs-worker:${OPENMATES_IMAGE_TAG:-v0.15.0}
     container_name: app-docs-worker
     mem_limit: "${APP_DOCS_WORKER_MEMORY_LIMIT:-1536m}"
     environment:
@@ -324,7 +378,7 @@ services:
 
   vault-setup:
     container_name: vault-setup
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-vault-setup:${OPENMATES_IMAGE_TAG:-v0.14.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-vault-setup:${OPENMATES_IMAGE_TAG:-v0.15.0}
     env_file: ../../.env
     environment:
       VAULT_ADDR: "http://vault:8200"
@@ -360,9 +414,26 @@ services:
     healthcheck:
       disable: true
 
+  promtail:
+    container_name: promtail
+    image: grafana/promtail:3.2.1
+    restart: unless-stopped
+    env_file: ../../.env
+    volumes:
+      - ./monitoring/promtail:/etc/promtail:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - api-logs:/var/log/api:ro
+    command:
+      - "-config.file=/etc/promtail/promtail-config.yaml"
+      - "-config.expand-env=true"
+    depends_on:
+      - openobserve
+    networks:
+      - openmates
+
   admin-sidecar:
     container_name: core-admin-sidecar
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-v0.14.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-v0.15.0}
     restart: unless-stopped
     environment:
       ADMIN_LOG_API_KEY: "${SECRET__CORE_SERVER__ADMIN_LOG_API_KEY:-}"
@@ -398,7 +469,7 @@ services:
 
   webapp:
     container_name: webapp
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-webapp:${OPENMATES_IMAGE_TAG:-v0.14.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-webapp:${OPENMATES_IMAGE_TAG:-v0.15.0}
     restart: unless-stopped
     ports:
       - "5173:5173"
@@ -424,8 +495,6 @@ volumes:
     name: openmates-postgres-data
   directus-uploads:
     name: openmates-directus-uploads
-  directus-extensions:
-    name: openmates-directus-extensions
   cache-data:
     name: openmates-cache-data
   openobserve-data:

@@ -963,6 +963,8 @@
 	}
 
 	.preview-container {
+		position: relative;
+		isolation: isolate;
 		flex: 1;
 		overflow: auto;
 		padding: 24px;

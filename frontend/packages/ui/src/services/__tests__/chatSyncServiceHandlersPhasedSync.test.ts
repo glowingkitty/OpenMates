@@ -4,13 +4,66 @@
 // but local IndexedDB is empty and the cache primed flag has expired.
 // The frontend must retry after backend rewarming instead of staying empty.
 
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
 import type { ChatSynchronizationService } from "../chatSyncService";
+
+const mocks = vi.hoisted(() => ({
+  chatDB: {
+    getChat: vi.fn(),
+    addChat: vi.fn(),
+    batchSaveMetadataChats: vi.fn(),
+    getMessageCountForChat: vi.fn(),
+    getMetadataOnlyChatIds: vi.fn(),
+  },
+  userDB: {
+    getUserProfile: vi.fn(),
+  },
+  chatListCache: {
+    upsertChat: vi.fn(),
+  },
+  unreadMessagesStore: {
+    setUnread: vi.fn(),
+  },
+  chatKeyManager: {
+    removeKey: vi.fn(),
+    withKey: vi.fn(),
+  },
+  pendingChatDeletions: {
+    getPendingChatDeletionsSet: vi.fn(),
+  },
+  updateTotalChatCount: vi.fn(),
+}));
+
+vi.mock("../db", () => ({ chatDB: mocks.chatDB }));
+vi.mock("../userDB", () => ({ userDB: mocks.userDB }));
+vi.mock("../chatListCache", () => ({ chatListCache: mocks.chatListCache }));
+vi.mock("../../stores/userProfile", () => ({
+  updateTotalChatCount: mocks.updateTotalChatCount,
+  userProfile: {
+    subscribe: (run: (value: { user_id: string }) => void) => {
+      run({ user_id: "user-1" });
+      return () => undefined;
+    },
+  },
+}));
+vi.mock("../../stores/unreadMessagesStore", () => ({
+  unreadMessagesStore: mocks.unreadMessagesStore,
+}));
+vi.mock("../encryption/ChatKeyManager", () => ({
+  chatKeyManager: mocks.chatKeyManager,
+}));
+vi.mock("../pendingChatDeletions", () => mocks.pendingChatDeletions);
+
 import {
   ChatSynchronizationService as ChatSynchronizationServiceClass,
 } from "../chatSyncService";
-import { handleSyncStatusResponseImpl } from "../chatSyncServiceHandlersPhasedSync";
+import {
+  handleLoadMoreChatsResponseImpl,
+  handlePhase2RecentChatsImpl,
+  handleSyncMetadataChatsResponseImpl,
+  handleSyncStatusResponseImpl,
+} from "../chatSyncServiceHandlersPhasedSync";
 import { phasedSyncState } from "../../stores/phasedSyncStateStore";
 
 type ServiceStub = {
@@ -27,6 +80,8 @@ type RetryServiceHarness = Pick<
   ChatSynchronizationService,
   "scheduleCacheStatusRetry_FOR_HANDLERS_ONLY"
 > & {
+  CACHE_STATUS_MAX_RETRIES: number;
+  CACHE_STATUS_RETRY_INTERVAL_MS: number;
   cachePrimed: boolean;
   cacheStatusRetryCount: number;
   cacheStatusServerChatCount: number;
@@ -49,7 +104,16 @@ function createService(overrides: Partial<ServiceStub> = {}): ServiceStub {
   };
 }
 
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.userDB.getUserProfile.mockResolvedValue({ user_id: "user-1" });
+  mocks.pendingChatDeletions.getPendingChatDeletionsSet.mockReturnValue(new Set());
+  mocks.chatDB.getChat.mockResolvedValue(null);
+  mocks.chatDB.batchSaveMetadataChats.mockResolvedValue(0);
+});
+
 describe("handleSyncStatusResponseImpl", () => {
+  // contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases,chat-navigation.draft-only.addressable
   it("retries cache status when sync status reports an unprimed cache", async () => {
     const service = createService();
     phasedSyncState.markSyncCompleted();
@@ -69,6 +133,7 @@ describe("handleSyncStatusResponseImpl", () => {
     phasedSyncState.reset();
   });
 
+  // contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases
   it("starts initial sync when sync status reports a primed cache", async () => {
     const service = createService();
 
@@ -84,7 +149,295 @@ describe("handleSyncStatusResponseImpl", () => {
   });
 });
 
+describe("handlePhase2RecentChatsImpl", () => {
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,sync.surface.semantic-parity
+  it("continues after one chat fails to persist", async () => {
+    const service = createService();
+    mocks.chatDB.addChat
+      .mockRejectedValueOnce(new Error("IndexedDB transaction timed out"))
+      .mockResolvedValueOnce(undefined);
+
+    await handlePhase2RecentChatsImpl(
+      service as unknown as ChatSynchronizationService,
+      {
+        chats: [
+          {
+            chat_details: {
+              id: "failed-phase2-chat",
+              encrypted_title: "failed-title",
+              encrypted_chat_key: "failed-key",
+              messages_v: 1,
+              title_v: 1,
+            },
+            server_message_count: 1,
+          },
+          {
+            chat_details: {
+              id: "saved-phase2-chat",
+              encrypted_title: "saved-title",
+              encrypted_chat_key: "saved-key",
+              messages_v: 1,
+              title_v: 1,
+            },
+            server_message_count: 1,
+          },
+        ],
+        chat_count: 2,
+        total_chat_count: 2,
+        phase: "phase2",
+      },
+    );
+
+    expect(mocks.chatDB.addChat).toHaveBeenCalledTimes(2);
+    expect(mocks.chatListCache.upsertChat).toHaveBeenCalledWith(
+      expect.objectContaining({ chat_id: "saved-phase2-chat" }),
+    );
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "phase_2_last_20_chats_ready" }),
+    );
+  });
+
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,chats.persistence.client-encrypted
+  it("skips new synced metadata rows without encrypted_chat_key", async () => {
+    const service = createService();
+
+    await handlePhase2RecentChatsImpl(
+      service as unknown as ChatSynchronizationService,
+      {
+        chats: [
+          {
+            chat_details: {
+              id: "keyless-phase2",
+              encrypted_title: "title",
+              messages_v: 1,
+              title_v: 1,
+            },
+            server_message_count: 1,
+          },
+        ],
+        chat_count: 1,
+        total_chat_count: 1,
+        phase: "phase2",
+      },
+    );
+
+    expect(mocks.chatDB.addChat).not.toHaveBeenCalled();
+    expect(mocks.chatListCache.upsertChat).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,chats.persistence.client-encrypted
+  it("keeps synced metadata when a local encrypted_chat_key already exists", async () => {
+    const service = createService();
+    mocks.chatDB.getChat.mockResolvedValue({
+      chat_id: "local-keyed-phase2",
+      encrypted_chat_key: "local-key",
+      messages_v: 0,
+      title_v: 0,
+      created_at: 100,
+      updated_at: 100,
+      last_edited_overall_timestamp: 100,
+    });
+
+    await handlePhase2RecentChatsImpl(
+      service as unknown as ChatSynchronizationService,
+      {
+        chats: [
+          {
+            chat_details: {
+              id: "local-keyed-phase2",
+              encrypted_title: "server-title",
+              messages_v: 1,
+              title_v: 1,
+            },
+            server_message_count: 1,
+          },
+        ],
+        chat_count: 1,
+        total_chat_count: 1,
+        phase: "phase2",
+      },
+    );
+
+    expect(mocks.chatDB.addChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chat_id: "local-keyed-phase2",
+        encrypted_chat_key: "local-key",
+      }),
+      undefined,
+      { isFromSync: true, forceIncomingEncryptedChatKey: false },
+    );
+  });
+});
+
+describe("handleSyncMetadataChatsResponseImpl", () => {
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,chats.persistence.client-encrypted
+  it("does not batch-save metadata-only chats without encrypted_chat_key", async () => {
+    const service = createService();
+
+    await handleSyncMetadataChatsResponseImpl(
+      service as unknown as ChatSynchronizationService,
+      {
+        chats: [
+          {
+            chat_details: {
+              id: "keyless-metadata-only",
+              encrypted_title: "title",
+              messages_v: 1,
+              title_v: 1,
+            },
+          },
+        ],
+        total_count: 1,
+      },
+    );
+
+    expect(mocks.chatDB.batchSaveMetadataChats).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "metadata_chats_ready" }),
+    );
+  });
+
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only
+  it("allows public metadata-only chats without encrypted_chat_key", async () => {
+    const service = createService();
+    mocks.chatDB.batchSaveMetadataChats.mockResolvedValue(1);
+
+    await handleSyncMetadataChatsResponseImpl(
+      service as unknown as ChatSynchronizationService,
+      {
+        chats: [
+          {
+            chat_details: {
+              id: "demo-example",
+              encrypted_title: null,
+              messages_v: 1,
+              title_v: 0,
+            },
+          },
+        ],
+        total_count: 1,
+      },
+    );
+
+    expect(mocks.chatDB.batchSaveMetadataChats).toHaveBeenCalledWith([
+      expect.objectContaining({ chat_id: "demo-example" }),
+    ]);
+  });
+
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,chats.persistence.client-encrypted
+  it("preserves metadata-only chats without a server key when a local key exists", async () => {
+    const service = createService();
+    mocks.chatDB.getChat.mockResolvedValueOnce({
+      chat_id: "local-keyed-metadata-only",
+      encrypted_chat_key: "local-key",
+    });
+    mocks.chatDB.batchSaveMetadataChats.mockResolvedValue(1);
+
+    await handleSyncMetadataChatsResponseImpl(
+      service as unknown as ChatSynchronizationService,
+      {
+        chats: [
+          {
+            chat_details: {
+              id: "local-keyed-metadata-only",
+              encrypted_title: "server-title",
+              messages_v: 1,
+              title_v: 1,
+            },
+          },
+        ],
+        total_count: 1,
+      },
+    );
+
+    expect(mocks.chatDB.batchSaveMetadataChats).toHaveBeenCalledWith([
+      expect.objectContaining({
+        chat_id: "local-keyed-metadata-only",
+        encrypted_chat_key: "local-key",
+      }),
+    ]);
+  });
+
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,chats.persistence.client-encrypted
+  it("preserves anonymous metadata-only chat key fields", async () => {
+    const service = createService();
+    mocks.chatDB.batchSaveMetadataChats.mockResolvedValue(1);
+
+    await handleSyncMetadataChatsResponseImpl(
+      service as unknown as ChatSynchronizationService,
+      {
+        chats: [
+          {
+            chat_details: {
+              id: "anon-metadata-only",
+              encrypted_title: "anonymous-title",
+              anonymous_encrypted_chat_key: "anonymous-key",
+              is_anonymous: true,
+              messages_v: 1,
+              title_v: 1,
+            },
+          },
+        ],
+        total_count: 1,
+      },
+    );
+
+    expect(mocks.chatDB.batchSaveMetadataChats).toHaveBeenCalledWith([
+      expect.objectContaining({
+        chat_id: "anon-metadata-only",
+        anonymous_encrypted_chat_key: "anonymous-key",
+        is_anonymous: true,
+      }),
+    ]);
+  });
+});
+
+describe("handleLoadMoreChatsResponseImpl", () => {
+  // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,chats.persistence.client-encrypted
+  it("keeps load-more metadata without a server key when a local key exists", async () => {
+    const service = createService();
+    mocks.chatDB.getChat.mockResolvedValueOnce({
+      chat_id: "local-keyed-load-more",
+      encrypted_chat_key: "local-key",
+    });
+
+    await handleLoadMoreChatsResponseImpl(
+      service as unknown as ChatSynchronizationService,
+      {
+        chats: [
+          {
+            chat_details: {
+              id: "local-keyed-load-more",
+              encrypted_title: "server-title",
+              messages_v: 1,
+              title_v: 1,
+            },
+          },
+        ],
+        has_more: false,
+        total_count: 1,
+        offset: 100,
+      },
+    );
+
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "load_more_chats_ready",
+        detail: expect.objectContaining({
+          chats: [
+            expect.objectContaining({
+              chat_id: "local-keyed-load-more",
+              encrypted_chat_key: "local-key",
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+});
+
 describe("ChatSynchronizationService cache status retry", () => {
+  // contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases
   it("does not mark sync complete when cache is cold but server reports chats", () => {
     vi.useFakeTimers();
     const service = Object.create(
@@ -92,6 +445,8 @@ describe("ChatSynchronizationService cache status retry", () => {
     ) as RetryServiceHarness;
 
     service.cachePrimed = false;
+    service.CACHE_STATUS_MAX_RETRIES = 10;
+    service.CACHE_STATUS_RETRY_INTERVAL_MS = 3000;
     service.cacheStatusRetryCount = 10;
     service.cacheStatusServerChatCount = 1;
     service.cacheStatusRetryTimer = null;

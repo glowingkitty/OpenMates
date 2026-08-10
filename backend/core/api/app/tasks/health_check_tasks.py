@@ -31,6 +31,26 @@ from backend.apps.ai.utils.llm_utils import (
 
 logger = logging.getLogger(__name__)
 
+RUNTIME_HEALTH_SCHEDULER_KEY = "runtime_health:scheduler:last_seen"
+
+
+@app.task(name="runtime_health.scheduler_heartbeat")
+def runtime_health_scheduler_heartbeat() -> Dict[str, Any]:
+    """Write a no-spend heartbeat proving Celery Beat can reach a worker."""
+    async def write_heartbeat() -> int:
+        timestamp = int(time.time())
+        cache = CacheService()
+        try:
+            client = await cache.client
+            if client is None:
+                raise RuntimeError("cache_unavailable")
+            await client.set(RUNTIME_HEALTH_SCHEDULER_KEY, str(timestamp), ex=900)
+            return timestamp
+        finally:
+            await cache.close()
+
+    return {"completed_at": asyncio.run(write_heartbeat())}
+
 # Flag to track if DirectusService is available for health event recording
 # This is set to True once the service is properly initialized during startup
 _directus_service_available = False
@@ -126,10 +146,12 @@ HEALTH_CHECK_APP_CACHE_KEY_PREFIX = "health_check:app:"
 HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX = "health_check:external:"
 # Cache TTL: 10 minutes (longer than check intervals to ensure availability)
 HEALTH_CHECK_CACHE_TTL = 600
+# Provider probes run every 30 minutes, so their status must survive between runs.
+PROVIDER_HEALTH_CHECK_CACHE_TTL = 3600
 
 # Health check intervals (in seconds)
 HEALTH_CHECK_INTERVAL_WITH_ENDPOINT = 60  # 1 minute for providers with /health endpoint
-HEALTH_CHECK_INTERVAL_WITHOUT_ENDPOINT = 300  # 5 minutes for providers without /health endpoint
+HEALTH_CHECK_INTERVAL_WITHOUT_ENDPOINT = 1800  # 30 minutes for providers without /health endpoint
 
 # Consecutive failures required before marking a provider "unhealthy".
 # A single transient failure (e.g. network blip, 15s timeout) is no longer enough to
@@ -144,6 +166,9 @@ HEALTH_CHECK_FAILURE_THRESHOLD = 3
 SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS = 7200  # 2 hours
 SIGHTENGINE_USAGE_LIMIT_ERROR = "usage_limit"
 CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID = "gpt-oss-120b"
+CELERY_WORKER_INSPECT_TIMEOUT_SECONDS = 5.0
+GOOGLE_PROVIDER_HEALTH_ID = "google"
+GOOGLE_AI_STUDIO_SERVER_ID = "google_ai_studio"
 
 # Minimal 8×8 white JPEG (631 bytes) used as the health check probe image for Sightengine.
 #
@@ -216,6 +241,22 @@ def _get_cerebras_health_check_model_id() -> str:
         "CEREBRAS_HEALTH_CHECK_MODEL_ID",
         CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID,
     ).strip() or CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID
+
+
+def _get_active_provider_health_ids(provider_ids: list[str]) -> list[str]:
+    """Return provider IDs that need distinct active inference probes.
+
+    Google models default to AI Studio, so probing both the canonical ``google``
+    health entry and the ``google_ai_studio`` server entry sends the same request
+    twice. Keep the canonical key consumed by status and skill availability.
+    """
+    if GOOGLE_PROVIDER_HEALTH_ID not in provider_ids:
+        return provider_ids
+    return [
+        provider_id
+        for provider_id in provider_ids
+        if provider_id != GOOGLE_AI_STUDIO_SERVER_ID
+    ]
 
 
 def _sanitize_error_message(error_message: Optional[str]) -> Optional[str]:
@@ -895,7 +936,7 @@ async def _check_provider_health(provider_id: str, health_endpoint: Optional[str
                 await client.set(
                     cache_key,
                     json.dumps(health_data),
-                    ex=HEALTH_CHECK_CACHE_TTL
+                    ex=PROVIDER_HEALTH_CHECK_CACHE_TTL
                 )
                 logger.debug(f"Health check: Stored health status for '{provider_id}' in cache: {status}")
             else:
@@ -1133,7 +1174,71 @@ async def _check_app_api_health(app_id: str, port: int = 8000) -> tuple[bool, Op
         return False, _sanitize_error_message(str(e))
 
 
-async def _check_app_worker_health(app_id: str) -> tuple[bool, Optional[str]]:
+def _get_app_worker_queue_names(app_id: str) -> set[str]:
+    module_name = f"backend.apps.{app_id}.tasks"
+    try:
+        from backend.core.api.app.tasks.celery_config import TASK_CONFIG
+
+        queues = {
+            config["name"]
+            for config in TASK_CONFIG
+            if config.get("module") == module_name
+        }
+    except Exception:
+        queues = set()
+
+    return queues or {f"app_{app_id}"}
+
+
+def _inspect_active_worker_queues() -> Optional[Dict[str, Any]]:
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+
+    inspect = celery_app.control.inspect(timeout=CELERY_WORKER_INSPECT_TIMEOUT_SECONDS)
+    return inspect.active_queues()
+
+
+def _active_queue_names(active_workers: Optional[Dict[str, Any]]) -> set[str]:
+    if not active_workers:
+        return set()
+    return {
+        queue.get("name")
+        for queues in active_workers.values()
+        for queue in queues or []
+        if isinstance(queue, dict) and isinstance(queue.get("name"), str)
+    }
+
+
+async def _inspect_active_worker_queues_with_retry(app_ids: list[str]) -> Optional[Dict[str, Any]]:
+    """Merge a fresh retry when Celery returns only a partial worker snapshot."""
+    active_workers = await asyncio.to_thread(_inspect_active_worker_queues)
+    expected_queues = {
+        queue_name
+        for app_id in app_ids
+        for queue_name in _get_app_worker_queue_names(app_id)
+    }
+    missing_queues = expected_queues - _active_queue_names(active_workers)
+    if not missing_queues:
+        return active_workers
+
+    logger.info(
+        "Health check: Celery worker inspection missed queues %s; retrying with a fresh snapshot",
+        sorted(missing_queues),
+    )
+    retry_workers = await asyncio.to_thread(_inspect_active_worker_queues)
+    if not active_workers:
+        return retry_workers
+    if retry_workers:
+        active_workers.update(retry_workers)
+    remaining_queues = expected_queues - _active_queue_names(active_workers)
+    if remaining_queues:
+        logger.warning(
+            "Health check: Celery worker inspection remained incomplete after retry; missing queues %s",
+            sorted(remaining_queues),
+        )
+    return active_workers
+
+
+async def _check_app_worker_health(app_id: str, active_workers: Optional[Dict[str, Any]] = None) -> tuple[bool, Optional[str]]:
     """
     Check app worker health via Celery worker inspection.
     
@@ -1144,16 +1249,10 @@ async def _check_app_worker_health(app_id: str) -> tuple[bool, Optional[str]]:
         Tuple of (is_healthy, error_message)
     """
     try:
-        from backend.core.api.app.tasks.celery_config import app as celery_app
-        
-        # Worker queue name follows pattern: app_{app_id}
-        queue_name = f"app_{app_id}"
-        
-        # Inspect active workers
-        inspect = celery_app.control.inspect()
-        
-        # Get active workers (workers that are currently processing tasks)
-        active_workers = inspect.active_queues()
+        expected_queue_names = _get_app_worker_queue_names(app_id)
+
+        if active_workers is None:
+            active_workers = await asyncio.to_thread(_inspect_active_worker_queues)
         
         if not active_workers:
             return False, "No active Celery workers found"
@@ -1163,8 +1262,8 @@ async def _check_app_worker_health(app_id: str) -> tuple[bool, Optional[str]]:
         for worker_name, queues in active_workers.items():
             if queues:
                 # queues is a list of queue dicts with 'name' key
-                queue_names = [q.get('name') for q in queues if isinstance(q, dict)]
-                if queue_name in queue_names:
+                worker_queue_names = {q.get('name') for q in queues if isinstance(q, dict)}
+                if expected_queue_names.intersection(worker_queue_names):
                     worker_found = True
                     break
         
@@ -1204,7 +1303,7 @@ def _app_has_workers(app_id: str) -> bool:
     return len(actual_task_files) > 0
 
 
-async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
+async def _check_app_health(app_id: str, port: int = 8000, active_workers: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Check health of a single app (API and optionally worker) with double-attempt logic.
     
@@ -1250,7 +1349,7 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
     
     if has_workers:
         # Check worker health (first attempt)
-        worker_attempt1_success, worker_attempt1_error = await _check_app_worker_health(app_id)
+        worker_attempt1_success, worker_attempt1_error = await _check_app_worker_health(app_id, active_workers=active_workers)
         
         # If first attempt failed, retry once
         if not worker_attempt1_success:
@@ -1263,7 +1362,7 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
             else:
                 logger.warning(first_attempt_message)
             await asyncio.sleep(1)
-            worker_attempt2_success, worker_attempt2_error = await _check_app_worker_health(app_id)
+            worker_attempt2_success, worker_attempt2_error = await _check_app_worker_health(app_id, active_workers=active_workers)
             worker_healthy = worker_attempt2_success
             worker_error = worker_attempt2_error or worker_attempt1_error
         else:
@@ -2120,7 +2219,7 @@ def check_all_apps_health(self):
     # Use distributed lock to prevent concurrent health checks
     # This prevents multiple API instances or retries from running duplicate checks
     lock_key = "health_check:lock:apps"
-    lock_ttl = 600  # 10 minutes - longer than the check interval to prevent overlap
+    lock_ttl = 600  # 10 minutes is sufficient to prevent overlapping probe executions
     
     async def acquire_lock_and_run():
         cache_service = CacheService()
@@ -2222,9 +2321,11 @@ def check_all_apps_health(self):
             
             # Run async health checks
             async def run_checks():
+                worker_app_ids = [app_id for app_id in app_ids if _app_has_workers(app_id)]
+                active_workers = await _inspect_active_worker_queues_with_retry(worker_app_ids)
                 tasks = []
                 for app_id in app_ids:
-                    task = _check_app_health(app_id)
+                    task = _check_app_health(app_id, active_workers=active_workers)
                     tasks.append(task)
                 
                 # Run all checks concurrently
@@ -2288,8 +2389,7 @@ def check_all_providers_health(self):
     Periodic task to check health of all LLM providers and Brave Search.
     This task is scheduled by Celery Beat.
     
-    Checks providers with /health endpoints every 1 minute.
-    Checks providers without /health endpoints every 5 minutes.
+    Checks providers without /health endpoints every 30 minutes.
     
     Uses a distributed lock to prevent multiple concurrent executions.
     """
@@ -2320,7 +2420,9 @@ def check_all_providers_health(self):
                 logger.info("=" * 80)
 
                 # Get all providers from registry
-                providers = list(PROVIDER_CLIENT_REGISTRY.keys())
+                providers = _get_active_provider_health_ids(
+                    list(PROVIDER_CLIENT_REGISTRY.keys())
+                )
                 if not providers:
                     logger.warning("Health check: No providers found in registry. Skipping health checks.")
                     return

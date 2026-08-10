@@ -16,12 +16,14 @@ under load (see OPE-349).
 | --- | --- | --- |
 | `dev-smoke/dev-smoke-reachability.spec.ts` | this dir | Cheap pre-flight: root + login + signup pages render. Fails fast if dev is down. |
 | `settings-buy-credits-stripe-managed.spec.ts` | `tests/` | Login → buy credits via Stripe (test card). Catches Stripe + checkout regressions. |
-| `signup-flow-polar.spec.ts` | `tests/` | Cold-boot signup → Polar checkout. Catches Polar + signup regressions. |
+| `signup-flow-stripe-managed.spec.ts` | `tests/` | Cold-boot signup → managed Stripe checkout. Catches signup + payment regressions. |
 | `chat-flow.spec.ts` | `tests/` | Login → send message → AI reply → cleanup. Catches end-to-end chat breakage. |
 
-The list is hard-coded in `scripts/run_tests.py` (`HOURLY_DEV_SPECS`). Keep it
+The list is hard-coded in `scripts/run_tests.py` (`CORE_JOURNEY_SPECS`). Keep it
 **short** — every spec adds ~2-5 min to the hourly wall time. Anything that is
 not "core user flow that must keep working" belongs in the nightly run, not here.
+The matching `CORE_JOURNEY_ACCOUNT_SLOTS` allocation uses healthy persistent
+accounts 2, 3, 5, and 6; change it only with account-preflight evidence.
 
 ## Required env vars
 
@@ -30,7 +32,7 @@ the dev server. The hourly cron sources `.env` before running.
 
 - `PLAYWRIGHT_TEST_BASE_URL` — dev base URL (e.g. `https://app.dev.openmates.org`)
 - `OPENMATES_TEST_ACCOUNT_*_EMAIL/PASSWORD/OTP_KEY` — used by chat-flow + Stripe specs
-- `MAILOSAUR_API_KEY`, `MAILOSAUR_SERVER_ID`, `SIGNUP_TEST_EMAIL_DOMAINS` — used by Polar signup
+- `MAILOSAUR_API_KEY`, `MAILOSAUR_SERVER_ID`, `SIGNUP_TEST_EMAIL_DOMAINS` — used by managed Stripe signup
 - `DISCORD_WEBHOOK_DEV_SMOKE` — failure notifications (post-on-failure only; silence = healthy)
 
 ## On failure
@@ -53,3 +55,24 @@ python3 scripts/tests.py run --hourly-dev --dry-run-notify
 
 Results are archived to `test-results/hourly-dev/run-<UTC-timestamp>.json`
 (rotated to last 7 days).
+
+## Release gate
+
+The dev-to-main release gate includes chat and reachability from this suite plus
+every signup and billing spec selected by `RELEASE_GATE_SPEC_PATTERNS` in
+`scripts/run_tests.py`. New matching specs therefore become release-blocking by
+default without making the hourly suite longer. Before a manual bootstrap run or
+promotion PR, prepare the Docker-backed dev services and publish their exact-commit
+status:
+
+```bash
+python3 scripts/prepare_release_candidate.py --session <SESSION_ID> --expected-commit <FULL_SHA>
+python3 scripts/tests.py run --core-journeys --gate-deploy --expected-commit <FULL_SHA>
+```
+
+The first promotion that introduces the workflow to `main` must use this
+control-plane bootstrap because GitHub does not register a brand-new workflow
+from a non-default branch. Later dev-to-main PRs run the aggregate workflow
+automatically. The stable aggregate result is `Release Gate / Core Journeys`,
+which the separate main-only ruleset can require without depending on matrix job
+names.

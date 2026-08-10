@@ -60,6 +60,9 @@ test.describe('CLI default model settings contract', () => {
 		try {
 			await setSimpleDefault(MISTRAL_MODEL_ID);
 			const pinned = await sendQuestion('default_model_mistral');
+			if (typeof pinned.modelName !== 'string') {
+				throw new Error(`Pinned CLI output omitted modelName: ${JSON.stringify(pinned, null, 2)}`);
+			}
 			expect(pinned.modelName).toContain(MISTRAL_MODEL_NAME);
 
 			await setSimpleDefault('auto');

@@ -9,6 +9,7 @@ description: "Semiconductor and embedded systems provider behind WEBENCH Power D
 logo_svg: "logos/texas_instruments.svg"
 region: "US"
 privacy_policy: "https://www.ti.com/legal/terms-conditions/privacy-policy.html"  # verified 2026-05-27
+no_api_key: true
 
 pricing:
   per_request_credits: 5

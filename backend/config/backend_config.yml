@@ -18,8 +18,16 @@
 feature_overrides:
   enabled: []
   disabled:
-    # Empty / no implemented skills or focus modes declared
-    - "app:3d"
+    # Unreleased product surfaces remain available through backend_config.dev.yml.
+    - "platform:teams"
+    - "platform:projects"
+    - "platform:tasks"
+    - "platform:plans"
+    - "platform:workflows"
+    - "app:projects"
+    - "app:tasks"
+    - "app:plans"
+    - "app:workflows"
     # Placeholder app folders without implemented runtime behavior yet
     - "app:life_coaching"
     - "app:plants"

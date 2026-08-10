@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 # backend/tests/test_phased_sync_handler.py
 """
 Regression tests for Phase 1a chat metadata assembly.
@@ -7,7 +8,24 @@ When Redis is partially warm, missing encrypted header fields must be filled
 from Directus so the client has metadata to decrypt on cold boot.
 """
 
+import asyncio
+import sys
+import types
 from types import SimpleNamespace
+
+
+if "redis.asyncio" not in sys.modules:
+    redis_module = types.ModuleType("redis")
+    redis_asyncio_module = types.ModuleType("redis.asyncio")
+
+    class FakeRedis:
+        pass
+
+    redis_asyncio_module.Redis = FakeRedis
+    redis_module.asyncio = redis_asyncio_module
+    redis_module.exceptions = SimpleNamespace(RedisError=Exception, ConnectionError=Exception, TimeoutError=Exception)
+    sys.modules["redis"] = redis_module
+    sys.modules["redis.asyncio"] = redis_asyncio_module
 
 import pytest
 
@@ -15,11 +33,228 @@ from backend.core.api.app.routes.handlers.websocket_handlers import phased_sync_
 from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler import (
     _count_directus_filled_metadata_fields,
     _handle_phase1_sync,
+    _handle_phase1b_sync,
     _is_parent_chat_details,
     _merge_partial_cache_chat_details,
+    _phase2_metadata_is_current,
     _phase1_metadata_invariant_violations,
     handle_phased_sync_request,
 )
+
+
+@pytest.mark.anyio
+async def test_phase2_uses_batched_draft_metadata_without_per_chat_lookup() -> None:
+    calls = []
+
+    async def load_draft(cache_service, directus_service, user_id, chat_id):
+        calls.append(chat_id)
+        raise AssertionError("batched draft metadata should not need per-chat lookup")
+
+    wrappers = [
+        {
+            "chat_details": {"id": "chat-with-draft"},
+            "user_encrypted_draft_content": "directus-cipher",
+            "user_draft_version_db": 4,
+        },
+        {
+            "chat_details": {
+                "id": "chat-without-draft",
+                "draft_v": 3,
+                "encrypted_draft_md": "stale-cipher",
+                "encrypted_draft_preview": "stale-preview",
+            },
+            "user_encrypted_draft_content": None,
+            "user_draft_version_db": 0,
+        },
+    ]
+
+    await phased_sync_handler._apply_phase2_authoritative_drafts(
+        wrappers,
+        cache_service=object(),
+        directus_service=object(),
+        user_id="user-1",
+        draft_loader=load_draft,
+    )
+
+    assert calls == []
+    assert wrappers[0]["chat_details"]["draft_v"] == 4
+    assert wrappers[0]["chat_details"]["encrypted_draft_md"] == "directus-cipher"
+    assert wrappers[0]["chat_details"]["encrypted_draft_preview"] is None
+    assert wrappers[1]["chat_details"]["draft_v"] == 0
+    assert wrappers[1]["chat_details"]["encrypted_draft_md"] is None
+    assert wrappers[1]["chat_details"]["encrypted_draft_preview"] is None
+
+
+@pytest.mark.anyio
+async def test_phase2_overlays_cache_draft_candidates_without_directus_lookup() -> None:
+    directus_calls = []
+
+    async def load_draft(cache_service, directus_service, user_id, chat_id):
+        directus_calls.append(chat_id)
+        raise AssertionError("cache draft candidates should not fall back to Directus per chat")
+
+    class FakeCache:
+        def __init__(self):
+            self.reads = []
+            self.cached_drafts = {
+                "cache-newer": ("cache-cipher", 5, "cache-preview"),
+                "directus-newer": ("cache-old", 3, "cache-old-preview"),
+                "tombstoned": (None, 6, None),
+            }
+
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            self.reads.append(chat_id)
+            return self.cached_drafts.get(chat_id)
+
+        async def is_user_draft_tombstoned(self, user_id, chat_id):
+            return chat_id == "tombstoned"
+
+    wrappers = [
+        {
+            "chat_details": {"id": "cache-newer"},
+            "user_encrypted_draft_content": "directus-cipher",
+            "user_draft_version_db": 4,
+        },
+        {
+            "chat_details": {"id": "directus-newer"},
+            "user_encrypted_draft_content": "directus-current",
+            "user_draft_version_db": 4,
+        },
+        {
+            "chat_details": {"id": "tombstoned"},
+            "user_encrypted_draft_content": "directus-stale",
+            "user_draft_version_db": 4,
+        },
+        {
+            "chat_details": {"id": "no-cache-key"},
+            "user_encrypted_draft_content": "directus-only",
+            "user_draft_version_db": 2,
+        },
+    ]
+    cache = FakeCache()
+
+    await phased_sync_handler._apply_phase2_authoritative_drafts(
+        wrappers,
+        cache_service=cache,
+        directus_service=object(),
+        user_id="user-1",
+        draft_loader=load_draft,
+        cache_draft_chat_ids={"cache-newer", "directus-newer", "tombstoned"},
+    )
+
+    by_id = {wrapper["chat_details"]["id"]: wrapper["chat_details"] for wrapper in wrappers}
+    assert directus_calls == []
+    assert set(cache.reads) == {"cache-newer", "directus-newer", "tombstoned"}
+    assert by_id["cache-newer"]["draft_v"] == 5
+    assert by_id["cache-newer"]["encrypted_draft_md"] == "cache-cipher"
+    assert by_id["cache-newer"]["encrypted_draft_preview"] == "cache-preview"
+    assert by_id["directus-newer"]["draft_v"] == 4
+    assert by_id["directus-newer"]["encrypted_draft_md"] == "directus-current"
+    assert by_id["tombstoned"]["draft_v"] == 0
+    assert by_id["tombstoned"]["encrypted_draft_md"] is None
+    assert by_id["no-cache-key"]["draft_v"] == 2
+    assert by_id["no-cache-key"]["encrypted_draft_md"] == "directus-only"
+
+
+@pytest.mark.anyio
+async def test_phase2_draft_lookups_are_bounded_and_concurrent() -> None:
+    active = 0
+    max_active = 0
+
+    async def load_draft(cache_service, directus_service, user_id, chat_id):
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        await asyncio.sleep(0.01)
+        active -= 1
+        if chat_id == "chat-0":
+            return None
+        if chat_id == "chat-1":
+            raise RuntimeError("draft unavailable")
+        return f"cipher-{chat_id}", 1, None
+
+    wrappers = [
+        {
+            "chat_details": {
+                "id": f"chat-{index}",
+                "draft_v": 9,
+                "encrypted_draft_md": "stale-cipher",
+                "encrypted_draft_preview": "stale-preview",
+            }
+        }
+        for index in range(25)
+    ]
+
+    await phased_sync_handler._apply_phase2_authoritative_drafts(
+        wrappers,
+        cache_service=object(),
+        directus_service=object(),
+        user_id="user-1",
+        draft_loader=load_draft,
+    )
+
+    assert max_active > 1
+    assert max_active <= phased_sync_handler.PHASE2_DRAFT_LOOKUP_CONCURRENCY
+    assert wrappers[0]["chat_details"]["draft_v"] == 0
+    assert wrappers[0]["chat_details"]["encrypted_draft_md"] is None
+    assert wrappers[1]["chat_details"]["draft_v"] == 9
+    assert wrappers[1]["chat_details"]["encrypted_draft_md"] == "stale-cipher"
+    assert all(wrapper["chat_details"]["draft_v"] == 1 for wrapper in wrappers[2:])
+
+
+@pytest.mark.anyio
+async def test_phase2_draft_only_discovery_is_bounded_and_concurrent() -> None:
+    active = 0
+    max_active = 0
+
+    async def build_wrapper(cache_service, directus_service, user_id, chat_id):
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        await asyncio.sleep(0.01)
+        active -= 1
+        return {"chat_details": {"id": chat_id}}
+
+    chat_ids = [f"chat-{index}" for index in range(25)]
+    wrappers = await phased_sync_handler._build_phase2_draft_only_wrappers(
+        cache_service=object(),
+        directus_service=object(),
+        user_id="user-1",
+        chat_ids=chat_ids,
+        wrapper_builder=build_wrapper,
+    )
+
+    assert max_active > 1
+    assert max_active <= phased_sync_handler.PHASE2_DRAFT_LOOKUP_CONCURRENCY
+    assert [wrapper["chat_details"]["id"] for wrapper in wrappers] == chat_ids
+
+
+@pytest.mark.anyio
+async def test_phase2_draft_only_discovery_settles_batch_before_raising() -> None:
+    active = 0
+    completed = 0
+
+    async def build_wrapper(cache_service, directus_service, user_id, chat_id):
+        nonlocal active, completed
+        if chat_id == "chat-0":
+            raise RuntimeError("draft unavailable")
+        active += 1
+        await asyncio.sleep(0.01)
+        active -= 1
+        completed += 1
+        return {"chat_details": {"id": chat_id}}
+
+    with pytest.raises(RuntimeError, match="draft unavailable"):
+        await phased_sync_handler._build_phase2_draft_only_wrappers(
+            cache_service=object(),
+            directus_service=object(),
+            user_id="user-1",
+            chat_ids=[f"chat-{index}" for index in range(10)],
+            wrapper_builder=build_wrapper,
+        )
+
+    assert active == 0
+    assert completed == 9
 
 
 def test_phase1_partial_cache_metadata_is_filled_from_directus(doc_assert) -> None:
@@ -71,7 +306,214 @@ def test_phase1_partial_cache_metadata_is_filled_from_directus(doc_assert) -> No
     assert _phase1_metadata_invariant_violations(merged) == []
 
 
-def test_phase1_partial_cache_keeps_cached_versions_when_present() -> None:
+@pytest.mark.anyio
+async def test_sync_status_recovers_missing_primed_flag_when_chat_index_matches_directus(monkeypatch) -> None:
+    rewarm_calls = []
+
+    async def fake_rewarm(cache_service, user_id):
+        rewarm_calls.append((cache_service, user_id))
+
+    monkeypatch.setattr(
+        phased_sync_handler,
+        "_trigger_cache_rewarming_if_needed",
+        fake_rewarm,
+    )
+
+    class FakeCache:
+        def __init__(self):
+            self.primed_users = []
+            self.deleted_keys = []
+
+        async def is_user_cache_primed(self, user_id):
+            return False
+
+        async def get_chat_ids_versions(self, user_id, with_scores=False):
+            return ["chat-1", "chat-2"]
+
+        async def set_user_cache_primed_flag(self, user_id):
+            self.primed_users.append(user_id)
+
+        async def delete(self, key):
+            self.deleted_keys.append(key)
+            return True
+
+    class FakeDirectusChat:
+        async def get_user_chat_count(self, user_id):
+            return 2
+
+    class FakeDirectus:
+        def __init__(self):
+            self.chat = FakeDirectusChat()
+
+    manager = SimpleNamespace(sent=[])
+
+    async def send_personal_message(message, user_id, device_fingerprint_hash):
+        manager.sent.append(message)
+
+    manager.send_personal_message = send_personal_message
+    cache = FakeCache()
+
+    await phased_sync_handler.handle_sync_status_request(
+        websocket=None,
+        manager=manager,
+        cache_service=cache,
+        directus_service=FakeDirectus(),
+        encryption_service=SimpleNamespace(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        payload={},
+    )
+
+    assert rewarm_calls == []
+    assert cache.primed_users == ["user-1"]
+    assert cache.deleted_keys == ["cache_warming_in_progress:user-1"]
+    assert manager.sent == [
+        {
+            "type": "sync_status_response",
+            "payload": {
+                "is_primed": True,
+                "chat_count": 2,
+                "timestamp": manager.sent[0]["payload"]["timestamp"],
+            },
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    ("cached_chat_count", "db_chat_count", "expected"),
+    [
+        (0, 0, True),
+        (100, 99, True),
+        (100, 100, True),
+        (99, 2368, False),
+        (100, 2368, True),
+    ],
+)
+def test_cache_index_covers_startup_window_boundaries(cached_chat_count, db_chat_count, expected) -> None:
+    assert phased_sync_handler._cache_index_covers_startup_window(
+        cached_chat_count,
+        db_chat_count,
+    ) is expected
+
+
+@pytest.mark.anyio
+async def test_sync_status_recovers_when_bounded_startup_cache_covers_large_account(monkeypatch) -> None:
+    rewarm_calls = []
+
+    async def fake_rewarm(cache_service, user_id):
+        rewarm_calls.append((cache_service, user_id))
+
+    monkeypatch.setattr(
+        phased_sync_handler,
+        "_trigger_cache_rewarming_if_needed",
+        fake_rewarm,
+    )
+
+    class FakeCache:
+        def __init__(self):
+            self.primed_users = []
+            self.deleted_keys = []
+
+        async def is_user_cache_primed(self, user_id):
+            return False
+
+        async def get_chat_ids_versions(self, user_id, with_scores=False):
+            return [f"chat-{index}" for index in range(100)]
+
+        async def set_user_cache_primed_flag(self, user_id):
+            self.primed_users.append(user_id)
+
+        async def delete(self, key):
+            self.deleted_keys.append(key)
+            return True
+
+    class FakeDirectusChat:
+        async def get_user_chat_count(self, user_id):
+            return 2368
+
+    class FakeDirectus:
+        def __init__(self):
+            self.chat = FakeDirectusChat()
+
+    manager = SimpleNamespace(sent=[])
+
+    async def send_personal_message(message, user_id, device_fingerprint_hash):
+        manager.sent.append(message)
+
+    manager.send_personal_message = send_personal_message
+    cache = FakeCache()
+
+    await phased_sync_handler.handle_sync_status_request(
+        websocket=None,
+        manager=manager,
+        cache_service=cache,
+        directus_service=FakeDirectus(),
+        encryption_service=SimpleNamespace(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        payload={},
+    )
+
+    assert rewarm_calls == []
+    assert cache.primed_users == ["user-1"]
+    assert cache.deleted_keys == ["cache_warming_in_progress:user-1"]
+    assert manager.sent[0]["payload"]["is_primed"] is True
+    assert manager.sent[0]["payload"]["chat_count"] == 2368
+
+
+@pytest.mark.anyio
+async def test_sync_status_rewarms_when_large_account_startup_cache_is_incomplete(monkeypatch) -> None:
+    rewarm_calls = []
+
+    async def fake_rewarm(cache_service, user_id):
+        rewarm_calls.append((cache_service, user_id))
+
+    monkeypatch.setattr(
+        phased_sync_handler,
+        "_trigger_cache_rewarming_if_needed",
+        fake_rewarm,
+    )
+
+    class FakeCache:
+        async def is_user_cache_primed(self, user_id):
+            return False
+
+        async def get_chat_ids_versions(self, user_id, with_scores=False):
+            return [f"chat-{index}" for index in range(99)]
+
+    class FakeDirectusChat:
+        async def get_user_chat_count(self, user_id):
+            return 2368
+
+    class FakeDirectus:
+        def __init__(self):
+            self.chat = FakeDirectusChat()
+
+    manager = SimpleNamespace(sent=[])
+
+    async def send_personal_message(message, user_id, device_fingerprint_hash):
+        manager.sent.append(message)
+
+    manager.send_personal_message = send_personal_message
+    cache = FakeCache()
+
+    await phased_sync_handler.handle_sync_status_request(
+        websocket=None,
+        manager=manager,
+        cache_service=cache,
+        directus_service=FakeDirectus(),
+        encryption_service=SimpleNamespace(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        payload={},
+    )
+
+    assert rewarm_calls == [(cache, "user-1")]
+    assert manager.sent[0]["payload"]["is_primed"] is False
+    assert manager.sent[0]["payload"]["chat_count"] == 2368
+
+
+def test_phase1_partial_cache_keeps_cached_message_version_when_present() -> None:
     cached_details = {
         "id": "chat-1",
         "encrypted_title": None,
@@ -92,7 +534,120 @@ def test_phase1_partial_cache_keeps_cached_versions_when_present() -> None:
     assert merged["encrypted_title"] == "directus-title"
     assert merged["encrypted_chat_key"] == "cached-key"
     assert merged["messages_v"] == 4
-    assert merged["title_v"] == 1
+    assert merged["title_v"] == 2
+
+
+def test_phase1_merge_prefers_newer_directus_metadata_fields() -> None:
+    cached_details = {
+        "id": "chat-1",
+        "encrypted_title": "stale-title",
+        "encrypted_chat_key": "cached-key",
+        "encrypted_icon": "stale-icon",
+        "encrypted_category": "stale-category",
+        "encrypted_chat_summary": "stale-summary",
+        "messages_v": 10,
+        "title_v": 5,
+        "metadata_v": 7,
+        "unread_count": 3,
+    }
+    directus_details = {
+        "id": "chat-1",
+        "encrypted_title": "fresh-title",
+        "encrypted_chat_key": "directus-key",
+        "encrypted_icon": "fresh-icon",
+        "encrypted_category": "fresh-category",
+        "encrypted_chat_summary": "fresh-summary",
+        "messages_v": 9,
+        "title_v": 5,
+        "metadata_v": 8,
+        "unread_count": 0,
+    }
+
+    merged = _merge_partial_cache_chat_details(cached_details, directus_details)
+
+    assert merged["encrypted_title"] == "fresh-title"
+    assert merged["encrypted_icon"] == "fresh-icon"
+    assert merged["encrypted_category"] == "fresh-category"
+    assert merged["encrypted_chat_summary"] == "fresh-summary"
+    assert merged["encrypted_chat_key"] == "cached-key"
+    assert merged["messages_v"] == 10
+    assert merged["unread_count"] == 3
+    assert merged["metadata_v"] == 8
+
+
+def test_phase1_merge_preserves_cached_metadata_on_equal_version() -> None:
+    cached_details = {
+        "id": "chat-1",
+        "encrypted_title": "cached-current-title",
+        "encrypted_chat_key": "cached-key",
+        "encrypted_icon": "cached-icon",
+        "encrypted_category": "cached-category",
+        "encrypted_chat_summary": "manual-summary-from-live-sync",
+        "messages_v": 10,
+        "title_v": 5,
+        "metadata_v": 7,
+        "updated_at": 200,
+        "last_edited_overall_timestamp": 200,
+    }
+    directus_details = {
+        "id": "chat-1",
+        "encrypted_title": "directus-title-same-version",
+        "encrypted_chat_key": "directus-key",
+        "encrypted_icon": "directus-icon-same-version",
+        "encrypted_category": "directus-category-same-version",
+        "encrypted_chat_summary": "stale-generated-summary",
+        "messages_v": 9,
+        "title_v": 5,
+        "metadata_v": 7,
+        "updated_at": 100,
+        "last_edited_overall_timestamp": 100,
+    }
+
+    merged = _merge_partial_cache_chat_details(cached_details, directus_details)
+
+    assert merged["encrypted_title"] == "cached-current-title"
+    assert merged["encrypted_icon"] == "cached-icon"
+    assert merged["encrypted_category"] == "cached-category"
+    assert merged["encrypted_chat_summary"] == "manual-summary-from-live-sync"
+    assert merged["encrypted_chat_key"] == "cached-key"
+    assert merged["messages_v"] == 10
+    assert merged["metadata_v"] == 7
+    assert merged["updated_at"] == 200
+
+
+def test_phase1_merge_rejects_older_directus_metadata_fields() -> None:
+    cached_details = {
+        "id": "chat-1",
+        "encrypted_title": "cached-current-title",
+        "encrypted_chat_key": "cached-key",
+        "encrypted_chat_summary": "cached-current-summary",
+        "messages_v": 10,
+        "title_v": 5,
+        "metadata_v": 8,
+    }
+    directus_details = {
+        "id": "chat-1",
+        "encrypted_title": "directus-old-title",
+        "encrypted_chat_summary": "directus-old-summary",
+        "messages_v": 9,
+        "title_v": 5,
+        "metadata_v": 7,
+    }
+
+    merged = _merge_partial_cache_chat_details(cached_details, directus_details)
+
+    assert merged["encrypted_title"] == "cached-current-title"
+    assert merged["encrypted_chat_summary"] == "cached-current-summary"
+    assert merged["messages_v"] == 10
+    assert merged["metadata_v"] == 8
+
+
+def test_phase2_metadata_current_handles_missing_cached_message_version() -> None:
+    assert _phase2_metadata_is_current(
+        {"messages_v": 3, "title_v": 1, "metadata_v": 1, "draft_v": 0},
+        SimpleNamespace(messages_v=None, title_v=1, metadata_v=1),
+        {"messages_v": 3, "draft_v": 0},
+    ) is True
 
 
 def test_phase1_metadata_invariant_reports_missing_titled_header() -> None:
@@ -167,10 +722,79 @@ async def test_phase_all_does_not_run_phase3_background_content_sync(monkeypatch
 
 
 @pytest.mark.anyio
+async def test_phase1b_refetches_directus_when_sync_cache_is_partial(monkeypatch, doc_assert) -> None:
+    doc_assert("phase1b-partial-sync-cache-refetches-directus")
+
+    class FakeCache:
+        async def get_chat_versions(self, user_id, chat_id):
+            return SimpleNamespace(messages_v=3)
+
+        async def get_sync_messages_history(self, user_id, chat_id):
+            return ["cached-user-message"]
+
+        async def get_sync_embeds_for_chat(self, chat_id):
+            return []
+
+    class FakeDirectusChat:
+        async def get_message_count_for_chat(self, chat_id):
+            return 2
+
+        async def get_all_messages_for_chat(self, chat_id, decrypt_content=False):
+            return ["directus-user-message", "directus-assistant-message"]
+
+    class FakeDirectusEmbed:
+        async def get_embeds_by_hashed_chat_id(self, hashed_chat_id):
+            return []
+
+        async def get_embed_keys_by_hashed_chat_ids_batch(self, hashed_chat_ids):
+            return []
+
+    class FakeDirectus:
+        def __init__(self):
+            self.chat = FakeDirectusChat()
+            self.embed = FakeDirectusEmbed()
+
+    async def fake_checkpoint(*args, **kwargs):
+        return None
+
+    async def fake_code_outputs(*args, **kwargs):
+        return []
+
+    async def fake_key_wrappers(*args, **kwargs):
+        return []
+
+    monkeypatch.setattr(phased_sync_handler, "get_latest_chat_compression_checkpoint", fake_checkpoint)
+    monkeypatch.setattr(phased_sync_handler, "_fetch_code_run_outputs_for_chats", fake_code_outputs)
+    monkeypatch.setattr(phased_sync_handler, "_fetch_chat_key_wrappers_for_chats", fake_key_wrappers)
+
+    manager = SimpleNamespace(sent=[])
+
+    async def send_personal_message(message, user_id, device_fingerprint_hash):
+        manager.sent.append(message)
+
+    manager.send_personal_message = send_personal_message
+
+    await _handle_phase1b_sync(
+        manager=manager,
+        cache_service=FakeCache(),
+        directus_service=FakeDirectus(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        phase1_chat_ids=["chat-1"],
+        client_chat_versions={"chat-1": {"messages_v": 0}},
+        sent_embed_ids=set(),
+    )
+
+    payload_chat = manager.sent[0]["payload"]["chats"][0]
+    assert payload_chat["messages"] == ["directus-user-message", "directus-assistant-message"]
+    assert payload_chat["server_message_count"] == 2
+
+
+@pytest.mark.anyio
 async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(doc_assert) -> None:
     doc_assert("phase1-full-content-limited-to-recent-parent-chats")
     parent_ids = [f"parent-{idx}" for idx in range(12)]
-    recent_ids = []
+    recent_ids = ["last-sub"]
     for idx, parent_id in enumerate(parent_ids):
         recent_ids.append(parent_id)
         recent_ids.append(f"sub-{idx}")
@@ -246,6 +870,10 @@ async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(doc_as
         async def get_new_chat_suggestions_for_user(self, hashed_user_id, limit=30):
             return []
 
+        async def get_user_chats_metadata(self, user_id, limit=100, sort=None, admin_required=True, team_id=None):
+            del user_id, sort, admin_required, team_id
+            return [metadata[chat_id] for chat_id in recent_ids[:limit] if chat_id in metadata]
+
         async def get_chats_metadata_batch(self, chat_ids):
             return {chat_id: metadata[chat_id] for chat_id in chat_ids if chat_id in metadata}
 
@@ -289,3 +917,191 @@ async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(doc_as
     assert "preview-0" in sent_metadata_ids
     assert "sub-0" not in content_ids
     assert "last-sub" not in content_ids
+
+
+@pytest.mark.anyio
+async def test_phase1_emits_keyless_metadata_rows_for_client_key_recovery(doc_assert) -> None:
+    doc_assert("phase1-emits-keyless-metadata-rows-for-client-key-recovery")
+
+    metadata = {
+        "keyless-parent": {
+            "id": "keyless-parent",
+            "encrypted_title": "title-keyless",
+            "encrypted_icon": "icon-keyless",
+            "encrypted_category": "category-keyless",
+            "messages_v": 2,
+            "title_v": 1,
+            "parent_id": None,
+            "is_sub_chat": False,
+        },
+        "valid-parent": {
+            "id": "valid-parent",
+            "encrypted_title": "title-valid",
+            "encrypted_chat_key": "key-valid",
+            "encrypted_icon": "icon-valid",
+            "encrypted_category": "category-valid",
+            "messages_v": 1,
+            "title_v": 1,
+            "parent_id": None,
+            "is_sub_chat": False,
+        },
+    }
+
+    class FakeCache:
+        async def get_new_chat_suggestions(self, hashed_user_id):
+            return []
+
+        async def get_daily_inspirations_sync(self, hashed_user_id):
+            return []
+
+        async def get_user_by_id(self, user_id):
+            return {"last_opened": "chats/keyless-parent"}
+
+        async def get_batch_chat_list_item_data(self, user_id, chat_ids):
+            return {}
+
+        async def get_batch_chat_versions(self, user_id, chat_ids):
+            return {}
+
+    class FakeDirectusChat:
+        async def get_user_chats_metadata(
+            self, user_id, limit=100, sort=None, admin_required=True, team_id=None
+        ):
+            del user_id, limit, sort, admin_required, team_id
+            return [metadata["keyless-parent"], metadata["valid-parent"]]
+
+        async def get_chats_metadata_batch(self, chat_ids):
+            return {
+                chat_id: metadata[chat_id]
+                for chat_id in chat_ids
+                if chat_id in metadata
+            }
+
+        async def get_chat_metadata(self, chat_id):
+            return metadata.get(chat_id)
+
+    class FakeDirectus:
+        def __init__(self):
+            self.chat = FakeDirectusChat()
+
+        async def get_items(self, collection, params, admin_required=True):
+            return []
+
+    manager = SimpleNamespace(sent=[])
+
+    async def send_personal_message(message, user_id, device_fingerprint_hash):
+        manager.sent.append(message)
+
+    manager.send_personal_message = send_personal_message
+
+    content_ids = await _handle_phase1_sync(
+        manager=manager,
+        cache_service=FakeCache(),
+        directus_service=FakeDirectus(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        client_chat_versions={},
+        client_chat_ids=[],
+        sent_embed_ids=set(),
+    )
+
+    assert content_ids == ["keyless-parent", "valid-parent"]
+    phase1_payload = manager.sent[0]["payload"]
+    assert phase1_payload["chat_id"] == "keyless-parent"
+    assert phase1_payload["chat_details"]["id"] == "keyless-parent"
+    sent_metadata_ids = {chat["id"] for chat in phase1_payload["recent_chat_metadata"]}
+    assert "valid-parent" in sent_metadata_ids
+
+
+@pytest.mark.anyio
+async def test_phase1_emits_keyless_direct_sub_chat_metadata_for_client_key_recovery(doc_assert) -> None:
+    doc_assert("phase1-emits-keyless-direct-sub-chat-metadata-for-client-key-recovery")
+
+    metadata = {
+        "valid-parent": {
+            "id": "valid-parent",
+            "encrypted_title": "title-valid",
+            "encrypted_chat_key": "key-valid",
+            "encrypted_icon": "icon-valid",
+            "encrypted_category": "category-valid",
+            "messages_v": 1,
+            "title_v": 1,
+            "parent_id": None,
+            "is_sub_chat": False,
+        },
+        "keyless-sub": {
+            "id": "keyless-sub",
+            "encrypted_title": "title-keyless-sub",
+            "encrypted_icon": "icon-keyless-sub",
+            "encrypted_category": "category-keyless-sub",
+            "messages_v": 1,
+            "title_v": 1,
+            "parent_id": "valid-parent",
+            "is_sub_chat": True,
+        },
+    }
+
+    class FakeCache:
+        async def get_new_chat_suggestions(self, hashed_user_id):
+            return []
+
+        async def get_daily_inspirations_sync(self, hashed_user_id):
+            return []
+
+        async def get_user_by_id(self, user_id):
+            return {"last_opened": "chats/valid-parent"}
+
+        async def get_batch_chat_list_item_data(self, user_id, chat_ids):
+            return {}
+
+        async def get_batch_chat_versions(self, user_id, chat_ids):
+            return {}
+
+    class FakeDirectusChat:
+        async def get_user_chats_metadata(
+            self, user_id, limit=100, sort=None, admin_required=True, team_id=None
+        ):
+            del user_id, limit, sort, admin_required, team_id
+            return [metadata["valid-parent"]]
+
+        async def get_chats_metadata_batch(self, chat_ids):
+            return {
+                chat_id: metadata[chat_id]
+                for chat_id in chat_ids
+                if chat_id in metadata
+            }
+
+        async def get_chat_metadata(self, chat_id):
+            return metadata.get(chat_id)
+
+    class FakeDirectus:
+        def __init__(self):
+            self.chat = FakeDirectusChat()
+
+        async def get_items(self, collection, params, admin_required=True):
+            return [
+                {"id": "keyless-sub", "parent_id": "valid-parent", "is_sub_chat": True}
+            ]
+
+    manager = SimpleNamespace(sent=[])
+
+    async def send_personal_message(message, user_id, device_fingerprint_hash):
+        manager.sent.append(message)
+
+    manager.send_personal_message = send_personal_message
+
+    content_ids = await _handle_phase1_sync(
+        manager=manager,
+        cache_service=FakeCache(),
+        directus_service=FakeDirectus(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        client_chat_versions={},
+        client_chat_ids=[],
+        sent_embed_ids=set(),
+    )
+
+    assert content_ids == ["valid-parent"]
+    phase1_payload = manager.sent[0]["payload"]
+    sent_metadata_ids = {chat["id"] for chat in phase1_payload["recent_chat_metadata"]}
+    assert "keyless-sub" in sent_metadata_ids

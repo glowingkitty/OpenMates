@@ -3,10 +3,11 @@ Shared dependencies for authentication routes.
 This file contains functions that provide services to all auth-related endpoints,
 including retrieving the currently authenticated user.
 """
+import hashlib
 import logging
 import time
 from fastapi import Request, Response, HTTPException, Depends, Cookie
-from typing import Optional
+from typing import Any, Optional
 
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
 from backend.core.api.app.routes.auth_routes.auth_common import preserve_rotated_session_metadata
@@ -19,6 +20,126 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.models.user import User
 
 logger = logging.getLogger(__name__)
+
+API_KEY_BLOCKED_PRODUCT_PREFIXES = ("/v1/user-tasks", "/v1/user-plans")
+API_KEY_ALLOWED_METADATA_SUFFIX = "/metadata"
+API_KEY_FIRST_PARTY_SDK_PRODUCT_PREFIXES = {
+    "/v1/user-tasks": ("tasks", "task"),
+    "/v1/user-plans": ("plans", "plan"),
+    "/v1/projects": ("projects", "project"),
+}
+FIRST_PARTY_SDK_NAMES = {"npm", "pip"}
+WORKFLOW_EXECUTION_PATH_PARTS = ("/run", "/steps/", "/runs/", "/input")
+
+
+def _set_auth_state(request: Request | None, auth_info: dict[str, Any]) -> None:
+    if request is None:
+        return
+    request.state.auth_info = auth_info
+    request.state.auth_source = auth_info.get("auth_source")
+    request.state.api_key_metadata = auth_info.get("api_key_metadata")
+
+
+async def _set_session_auth_state(
+    request: Request | None,
+    cache_service: CacheService,
+    user_id: str,
+    refresh_token: str | None,
+) -> None:
+    if request is None or not refresh_token:
+        return
+    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+    token_map = await cache_service.get(f"user_tokens:{user_id}") or {}
+    metadata = token_map.get(token_hash) if isinstance(token_map, dict) else None
+    _set_auth_state(
+        request,
+        {
+            "auth_source": "session",
+            "user_id": user_id,
+            "device_hash": metadata.get("device_hash") if isinstance(metadata, dict) else None,
+            "connection_hash": metadata.get("connection_hash") if isinstance(metadata, dict) else None,
+        },
+    )
+
+
+def _workflow_scope_for_request(method: str, path: str) -> str:
+    if method.upper() == "GET":
+        return "workflow:read"
+    if any(part in path for part in WORKFLOW_EXECUTION_PATH_PARTS):
+        return "workflow:execute"
+    return "workflow:write"
+
+
+def _sdk_product_scope_for_request(method: str) -> str:
+    return "read" if method.upper() == "GET" else "write"
+
+
+def _is_first_party_sdk_request(request: Request) -> bool:
+    return request.headers.get("x-openmates-sdk", "").strip().lower() in FIRST_PARTY_SDK_NAMES
+
+
+def _enforce_api_key_route_policy(request: Request | None, api_key_info: dict[str, Any]) -> None:
+    if request is None:
+        return
+
+    path = request.url.path
+    for prefix, scope_config in API_KEY_FIRST_PARTY_SDK_PRODUCT_PREFIXES.items():
+        if not (path == prefix or path.startswith(f"{prefix}/")):
+            continue
+        if not path.endswith(API_KEY_ALLOWED_METADATA_SUFFIX):
+            if _is_first_party_sdk_request(request):
+                from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService, ApiKeyScopeError
+
+                group, scope_prefix = scope_config
+                required_scope = f"{scope_prefix}:{_sdk_product_scope_for_request(request.method)}"
+                try:
+                    ApiKeyAuthorizationService().require_scope(
+                        api_key_info.get("api_key_metadata") or {},
+                        group,
+                        required_scope,
+                    )
+                except ApiKeyScopeError as exc:
+                    raise HTTPException(
+                        status_code=403,
+                        detail={"error": "missing_scope", "missing_scope": exc.missing_scope},
+                    ) from exc
+                return
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "developer_api_access_not_classified"},
+            )
+        break
+
+    if path == "/v1/workflows" or path.startswith("/v1/workflows/"):
+        from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService, ApiKeyScopeError
+
+        required_scope = _workflow_scope_for_request(request.method, path)
+        try:
+            ApiKeyAuthorizationService().require_scope(
+                api_key_info.get("api_key_metadata") or {},
+                "workflows",
+                required_scope,
+            )
+        except ApiKeyScopeError as exc:
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "missing_scope", "missing_scope": exc.missing_scope},
+            ) from exc
+
+    if path == "/v1/account-imports" or path.startswith("/v1/account-imports/"):
+        from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService, ApiKeyScopeError
+
+        try:
+            ApiKeyAuthorizationService().require_scope(
+                api_key_info.get("api_key_metadata") or {},
+                "account",
+                "account:import",
+            )
+        except ApiKeyScopeError as exc:
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "missing_scope", "missing_scope": exc.missing_scope},
+            ) from exc
 
 # All functions now accept Request and fetch services from backend.core.api.app.state
 # (Keep existing service getters)
@@ -87,7 +208,9 @@ async def get_current_user(
             logger.warning(f"Corrupt cached session data (missing: {missing}) — falling through to DB lookup")
             cached_data = None
         else:
+            await directus_service.admin.repair_cached_admin_status(cached_user_id, cached_data)
             # Ensure all fields expected by the User model are present, providing defaults if necessary
+            await _set_session_auth_state(request, cache_service, cached_user_id, refresh_token)
             return User(
                 id=cached_user_id,
                 username=cached_username,
@@ -164,6 +287,8 @@ async def get_current_user(
     if not success or not user_data:
         logger.error(f"Failed to fetch user profile for user {user_id}: {profile_message}")
         raise HTTPException(status_code=500, detail=f"Could not fetch user data: {profile_message}")
+
+    await directus_service.admin.repair_cached_admin_status(user_id, user_data)
 
     # Rebuild the cache so subsequent requests don't need another refresh
     if "user_id" not in user_data and "id" in user_data:
@@ -305,6 +430,7 @@ async def get_current_user(
         user_data_for_cache.pop("gifted_credits_for_signup", None)
 
     await cache_service.set_user(user_data_for_cache, refresh_token=refresh_token, ttl=cache_ttl)
+    await _set_session_auth_state(request, cache_service, user.id, refresh_token)
     
     return user
 
@@ -350,13 +476,15 @@ async def get_current_user_or_api_key(
     # Try session authentication first
     if refresh_token:
         try:
-            return await get_current_user(
+            user = await get_current_user(
                 directus_service=directus_service,
                 cache_service=cache_service,
                 refresh_token=refresh_token,
                 response=response,
                 request=request,
             )
+            _set_auth_state(request, {"auth_source": "session", "user_id": user.id})
+            return user
         except HTTPException:
             # Session auth failed, try API key auth
             pass
@@ -374,6 +502,9 @@ async def get_current_user_or_api_key(
             api_key = auth_header[7:]  # Remove "Bearer " prefix
             
             user_info = await api_key_auth_service.authenticate_api_key(api_key, request=request)
+            user_info = {**user_info, "auth_source": "api_key"}
+            _enforce_api_key_route_policy(request, user_info)
+            _set_auth_state(request, user_info)
             user_id = user_info.get("user_id")
             
             if user_id:
@@ -386,7 +517,9 @@ async def get_current_user_or_api_key(
                     
                     if not profile_username or not profile_vault_key_id:
                         raise HTTPException(status_code=500, detail="User data incomplete")
-                    
+
+                    await directus_service.admin.repair_cached_admin_status(user_id, user_data)
+
                     return User(
                         id=user_id,
                         username=profile_username,

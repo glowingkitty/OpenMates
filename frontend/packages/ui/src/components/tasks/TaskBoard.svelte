@@ -6,16 +6,22 @@
 
 <script lang="ts">
   import TaskCard from './TaskCard.svelte';
-  import type { UserTaskStatus, UserTaskViewModel } from '../../services/userTaskService';
+  import type { TasksBoardItem, UserTaskStatus } from '../../services/userTaskService';
 
   let {
     tasks,
     onMove,
     onStartAI,
+    onSkip,
+    onDelete,
+    onCancelWorkflowRun,
   }: {
-    tasks: UserTaskViewModel[];
-    onMove: (task: UserTaskViewModel, status: UserTaskStatus) => void;
-    onStartAI: (task: UserTaskViewModel) => void;
+    tasks: TasksBoardItem[];
+    onMove: (task: TasksBoardItem, status: UserTaskStatus) => void;
+    onStartAI: (task: TasksBoardItem) => void;
+    onSkip: (task: TasksBoardItem) => void;
+    onDelete: (task: TasksBoardItem) => void;
+    onCancelWorkflowRun: (task: TasksBoardItem) => void;
   } = $props();
 
   const columns: Array<{ status: UserTaskStatus; title: string; description: string }> = [
@@ -26,7 +32,7 @@
     { status: 'done', title: 'Done', description: 'Completed' },
   ];
 
-  function tasksFor(status: UserTaskStatus): UserTaskViewModel[] {
+  function tasksFor(status: UserTaskStatus): TasksBoardItem[] {
     return tasks.filter((task) => task.status === status).sort((a, b) => a.position - b.position);
   }
 
@@ -58,7 +64,7 @@
 
       <div class="task-column-list">
         {#each tasksFor(column.status) as task (task.task_id)}
-          <TaskCard {task} {onMove} {onStartAI} />
+          <TaskCard {task} {onMove} {onStartAI} {onSkip} {onDelete} {onCancelWorkflowRun} />
         {:else}
           <div class="task-column-empty" data-testid="task-column-empty">
             No tasks here.
@@ -72,12 +78,15 @@
 <style>
   .task-board {
     display: grid;
-    grid-template-columns: repeat(5, minmax(240px, 1fr));
+    grid-template-columns: repeat(5, minmax(260px, 280px));
     gap: 14px;
     align-items: start;
-    min-width: min(100%, 1240px);
-    overflow-x: auto;
+    width: 100%;
+    min-width: 0;
+    max-height: min(62vh, 720px);
+    overflow: auto;
     padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
   }
 
   .task-column {
@@ -141,12 +150,12 @@
 
   @media (max-width: 900px) {
     .task-board {
-      grid-template-columns: minmax(260px, 1fr);
-      overflow: visible;
+      grid-template-columns: repeat(5, minmax(252px, 270px));
+      max-height: 58vh;
     }
 
     .task-column {
-      min-height: auto;
+      min-height: 300px;
     }
   }
 </style>

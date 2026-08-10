@@ -6,19 +6,34 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
   import TaskBoard from './TaskBoard.svelte';
+  import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
+  import WorkspacePromptComposer from '../workspace/WorkspacePromptComposer.svelte';
+  import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import { featureAvailabilityStore, initializeFeatureAvailability } from '../../stores/appSkillsStore';
+  import type { DailyInspiration } from '../../stores/dailyInspirationStore';
   import { notificationStore } from '../../stores/notificationStore';
+  import { userProfile } from '../../stores/userProfile';
   import {
+    blockUserTask,
+    completeUserTask,
     createUserTask,
+    deleteUserTask,
+    cancelWorkflowRunTaskProjection,
     extractUserTaskProposals,
-    listUserTasks,
+    isWorkflowRunTaskProjectionViewModel,
+    listTaskBoardItems,
+    reorderUserTasks,
+    skipUserTask,
     startUserTaskWithAI,
+    unblockUserTask,
     updateUserTask,
     type ListUserTasksFilters,
     type UserTaskProposal,
     type UserTaskStatus,
     type UserTaskViewModel,
+    type TasksBoardItem,
   } from '../../services/userTaskService';
   import {
     activateUserPlan,
@@ -40,7 +55,7 @@
     focus?: 'tasks' | 'plans';
   } = $props();
 
-  let tasks = $state<UserTaskViewModel[]>([]);
+  let tasks = $state<TasksBoardItem[]>([]);
   let plans = $state<UserPlanViewModel[]>([]);
   let isLoading = $state(true);
   let isLoadingPlans = $state(true);
@@ -54,17 +69,82 @@
   let assignToAI = $state(false);
   let transcriptText = $state('');
   let correctedTranscriptText = $state('');
+  let taskPromptValue = $state('');
+  let pendingTaskDelete = $state<{ task: TasksBoardItem; request: string } | null>(null);
   let isExtracting = $state(false);
   let extractedProposals = $state<UserTaskProposal[]>([]);
+  let tasksPageWidth = $state(900);
+  let searchTerm = $state('');
   let featureAvailabilityReady = $derived($featureAvailabilityStore.initialized && $featureAvailabilityStore.disabledById !== null);
   let tasksEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true);
   let plansEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true);
+  let isCentralTasksWorkspace = $derived(!compact && focus === 'tasks');
 
   const totalCount = $derived(tasks.length);
   const activeCount = $derived(tasks.filter((task) => task.status === 'in_progress').length);
   const doneCount = $derived(tasks.filter((task) => task.status === 'done').length);
   const activePlans = $derived(plans.filter((plan) => !['completed', 'archived'].includes(plan.status)));
   const completedPlanCount = $derived(plans.filter((plan) => plan.status === 'completed').length);
+  const greetingName = $derived(formatGreetingName($userProfile.username));
+  const taskFilterChips = $derived(resolveTaskFilterChips(tasks));
+  const visibleTasks = $derived(filterTasks(tasks, searchTerm));
+
+  function formatGreetingName(username: string): string {
+    const trimmed = username.trim();
+    if (!trimmed) return 'there';
+    return trimmed.split(/\s+/)[0];
+  }
+
+  function resolveTaskFilterChips(items: TasksBoardItem[]): string[] {
+    const tags = Array.from(new Set(items.flatMap((task) => task.tags))).filter(Boolean).slice(0, 3);
+    return tags.length > 0 ? tags : ['my-tasks', 'software', 'hardware'];
+  }
+
+  function filterTasks(items: TasksBoardItem[], query: string): TasksBoardItem[] {
+    const normalized = query.trim().replace(/^#/, '').toLowerCase();
+    if (!normalized) return items;
+    return items.filter((task) => [
+      task.title,
+      task.description,
+      task.assigneeType,
+      ...task.tags,
+    ].some((value) => value.toLowerCase().includes(normalized)));
+  }
+
+  function findTaskMention(request: string): TasksBoardItem | null {
+    const normalized = request.toLowerCase();
+    const matches = tasks
+      .filter((task) => !isWorkflowRunTaskProjectionViewModel(task) && task.title.trim())
+      .filter((task) => normalized.includes(task.title.toLowerCase()))
+      .sort((a, b) => b.title.length - a.title.length);
+    return matches[0] ?? null;
+  }
+
+  function parseTaskStatus(request: string): UserTaskStatus | null {
+    const normalized = request.toLowerCase();
+    if (/\b(done|complete|completed)\b/.test(normalized)) return 'done';
+    if (/\b(block|blocked)\b/.test(normalized)) return 'blocked';
+    if (/\b(in progress|start|started|working)\b/.test(normalized)) return 'in_progress';
+    if (/\b(to do|todo|ready)\b/.test(normalized)) return 'todo';
+    if (/\b(backlog|skip|later)\b/.test(normalized)) return 'backlog';
+    return null;
+  }
+
+  function looksLikeTaskManagementRequest(request: string): boolean {
+    return /\b(rename|retitle|edit|update|move|mark|delete|remove|complete|block|start|skip)\b/i.test(request);
+  }
+
+  function parseRenameTitle(request: string): string | null {
+    if (!/\b(rename|retitle)\b/i.test(request)) return null;
+    const index = request.toLowerCase().lastIndexOf(' to ');
+    if (index === -1) return null;
+    return request.slice(index + 4).trim() || null;
+  }
+
+  function parseDescriptionUpdate(request: string): string | null {
+    const match = request.match(/\b(?:description|details)\s+(?:to|as)\s+(.+)$/i);
+    return match?.[1]?.trim() || null;
+  }
 
   function filters(): ListUserTasksFilters {
     return {
@@ -96,7 +176,7 @@
     isLoading = true;
     try {
       hasLoadError = false;
-      tasks = await listUserTasks(filters());
+      tasks = await listTaskBoardItems(filters());
     } catch (error) {
       hasLoadError = true;
       console.error('[TasksPage] Failed to load tasks:', error);
@@ -151,6 +231,97 @@
     } finally {
       isSaving = false;
     }
+  }
+
+  async function handleTaskPromptSubmit(value: string): Promise<void> {
+    if (!tasksEnabled || isSaving) return;
+    const mentionedTask = findTaskMention(value);
+    const normalized = value.toLowerCase();
+    if (/\b(delete|remove)\b/.test(normalized)) {
+      if (!mentionedTask) {
+        notificationStore.error('Name the task to delete first.');
+        return;
+      }
+      pendingTaskDelete = { task: mentionedTask, request: value };
+      taskPromptValue = '';
+      return;
+    }
+
+    if (mentionedTask && !isWorkflowRunTaskProjectionViewModel(mentionedTask)) {
+      const renamedTitle = parseRenameTitle(value);
+      const description = parseDescriptionUpdate(value);
+      const targetStatus = parseTaskStatus(value);
+      if (renamedTitle) {
+        await updateTaskFromPrompt(mentionedTask, { title: renamedTitle }, 'Task renamed');
+        taskPromptValue = '';
+        return;
+      }
+      if (description) {
+        await updateTaskFromPrompt(mentionedTask, { description }, 'Task details updated');
+        taskPromptValue = '';
+        return;
+      }
+      if (targetStatus) {
+        await handleMove(mentionedTask, targetStatus);
+        taskPromptValue = '';
+        return;
+      }
+    }
+
+    if (looksLikeTaskManagementRequest(value)) {
+      notificationStore.error('I could not find a matching task. Include the exact task title.');
+      return;
+    }
+
+    await createTaskFromPrompt(value);
+    taskPromptValue = '';
+  }
+
+  async function createTaskFromPrompt(value: string): Promise<void> {
+    isSaving = true;
+    try {
+      const assignedToAI = /\b(ai|mate)\b/i.test(value) && /\b(assign|start)\b/i.test(value);
+      const task = await createUserTask({
+        title: value,
+        description: value.split(/\s+/).length > 10 ? value : '',
+        assigneeType: assignedToAI ? 'ai' : 'user',
+        primaryChatId: chatId,
+        linkedProjectIds: projectId ? [projectId] : [],
+      });
+      tasks = [task, ...tasks];
+      broadcastTasksChanged();
+      notificationStore.success(assignedToAI ? 'AI task started' : 'Task created');
+    } catch (error) {
+      console.error('[TasksPage] Failed to create task from prompt:', error);
+      notificationStore.error('Failed to create task');
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  async function updateTaskFromPrompt(task: UserTaskViewModel, patch: Parameters<typeof updateUserTask>[1], successMessage: string): Promise<void> {
+    try {
+      const updated = await updateUserTask(task, patch);
+      tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
+      broadcastTasksChanged();
+      notificationStore.success(successMessage);
+    } catch (error) {
+      console.error('[TasksPage] Failed to update task from prompt:', error);
+      notificationStore.error('Failed to update task');
+    }
+  }
+
+  async function confirmTaskDelete(): Promise<void> {
+    if (!pendingTaskDelete) return;
+    const task = pendingTaskDelete.task;
+    pendingTaskDelete = null;
+    await handleDelete(task);
+  }
+
+  function handleStartTaskInspiration(inspiration: DailyInspiration): void {
+    taskPromptValue = inspiration.phrase;
+    title = inspiration.phrase;
+    description = inspiration.assistant_response ?? '';
   }
 
   async function handleExtractTasks(): Promise<void> {
@@ -228,11 +399,30 @@
     }
   }
 
-  async function handleMove(task: UserTaskViewModel, status: UserTaskStatus): Promise<void> {
+  async function handleMove(task: TasksBoardItem, status: UserTaskStatus): Promise<void> {
+    if (isWorkflowRunTaskProjectionViewModel(task)) return;
     const previous = tasks;
     tasks = tasks.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status } : candidate);
     try {
-      const updated = await updateUserTask(task, { status });
+      let updated: UserTaskViewModel;
+      if (status === 'done' && task.status !== 'done') {
+        updated = await completeUserTask(task);
+      } else if (status === 'blocked' && task.status !== 'blocked') {
+        updated = await blockUserTask(task);
+      } else if (task.status === 'blocked' && status !== 'blocked') {
+        updated = await unblockUserTask(task);
+        if (status !== 'todo') {
+          const [moved] = await reorderUserTasks([{ task: updated, status }]);
+          if (!moved) throw new Error('Task reorder returned no task');
+          updated = moved;
+        }
+      } else if (status === 'backlog' && task.status !== 'backlog') {
+        updated = await skipUserTask(task);
+      } else {
+        const [moved] = await reorderUserTasks([{ task, status }]);
+        if (!moved) throw new Error('Task reorder returned no task');
+        updated = moved;
+      }
       tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
       broadcastTasksChanged();
     } catch (error) {
@@ -242,7 +432,38 @@
     }
   }
 
-  async function handleStartAI(task: UserTaskViewModel): Promise<void> {
+  async function handleSkip(task: TasksBoardItem): Promise<void> {
+    if (isWorkflowRunTaskProjectionViewModel(task)) return;
+    const previous = tasks;
+    tasks = tasks.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status: 'backlog' } : candidate);
+    try {
+      const updated = await skipUserTask(task);
+      tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
+      broadcastTasksChanged();
+    } catch (error) {
+      tasks = previous;
+      console.error('[TasksPage] Failed to skip task:', error);
+      notificationStore.error('Failed to skip task');
+    }
+  }
+
+  async function handleDelete(task: TasksBoardItem): Promise<void> {
+    if (isWorkflowRunTaskProjectionViewModel(task) && !task.canDelete) return;
+    const previous = tasks;
+    tasks = tasks.filter((candidate) => candidate.task_id !== task.task_id);
+    try {
+      await deleteUserTask(task);
+      broadcastTasksChanged();
+      notificationStore.success(isWorkflowRunTaskProjectionViewModel(task) ? 'Next workflow run skipped' : 'Task deleted');
+    } catch (error) {
+      tasks = previous;
+      console.error('[TasksPage] Failed to delete task:', error);
+      notificationStore.error('Failed to delete task');
+    }
+  }
+
+  async function handleStartAI(task: TasksBoardItem): Promise<void> {
+    if (isWorkflowRunTaskProjectionViewModel(task)) return;
     try {
       const updated = await startUserTaskWithAI(task);
       tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
@@ -251,6 +472,18 @@
     } catch (error) {
       console.error('[TasksPage] Failed to start AI task:', error);
       notificationStore.error('Failed to start AI task');
+    }
+  }
+
+  async function handleCancelWorkflowRun(task: TasksBoardItem): Promise<void> {
+    if (!isWorkflowRunTaskProjectionViewModel(task)) return;
+    try {
+      await cancelWorkflowRunTaskProjection(task);
+      await refreshTasks();
+      notificationStore.success('Workflow run cancellation requested');
+    } catch (error) {
+      console.error('[TasksPage] Failed to cancel workflow run:', error);
+      notificationStore.error('Failed to cancel workflow run');
     }
   }
 
@@ -288,6 +521,9 @@
 
   onMount(() => {
     void initializeFeatureAvailability();
+    if (!isCentralTasksWorkspace) {
+      void loadDefaultInspirations({ surface: 'tasks', allowIndexedDB: false });
+    }
   });
 
   $effect(() => {
@@ -309,12 +545,20 @@
     </div>
   </section>
 {:else}
-<section class="tasks-page" class:compact data-testid={compact ? 'project-tasks-page' : focus === 'plans' ? 'plans-page' : 'tasks-page'}>
-  {#if !compact}
+<section class="tasks-page" class:compact class:figma-layout={isCentralTasksWorkspace} data-testid={compact ? 'project-tasks-page' : focus === 'plans' ? 'plans-page' : 'tasks-page'} bind:clientWidth={tasksPageWidth}>
+  {#if !compact && !isCentralTasksWorkspace}
+    <div class="daily-inspiration-area tasks-daily-inspiration-area" data-testid="tasks-daily-inspiration-area">
+      <DailyInspirationBanner
+        surface="tasks"
+        onStartChat={handleStartTaskInspiration}
+        containerWidth={Math.min(tasksPageWidth || 900, 1320)}
+      />
+    </div>
+
     <header class="tasks-hero">
       <div>
         <p class="eyebrow">{focus === 'plans' ? 'Plans' : 'Tasks'}</p>
-        <h1>{focus === 'plans' ? 'Coordinate complex work with structured plans.' : 'Plan work for you and your AI mates.'}</h1>
+        <h1>{focus === 'plans' ? 'Coordinate complex work with structured plans.' : 'Manage tasks for you and your AI mates.'}</h1>
         <p>{focus === 'plans' ? 'Create private encrypted plans, keep active work aligned, and connect verification tasks when execution starts.' : 'Create private encrypted tasks, move them through a Kanban flow, and hand focused work to AI when it is ready.'}</p>
       </div>
       <div class="task-stats" aria-label="Task summary">
@@ -331,6 +575,92 @@
     </header>
   {/if}
 
+  {#if isCentralTasksWorkspace}
+    <section class="tasks-figma-workspace" data-testid="tasks-figma-workspace" aria-label="Tasks workspace">
+      <div class="tasks-shell-frame">
+        <WorkspaceHomeShell
+          surface="tasks"
+          testId="tasks-workspace-home"
+          centerTestId="task-greeting"
+          heading={`Hey ${greetingName}!`}
+          subtitle="What task is next?"
+          showReportIssue
+          onStartInspiration={handleStartTaskInspiration}
+        >
+          <svelte:fragment slot="composer">
+            <WorkspacePromptComposer
+              surface="tasks"
+              bind:value={taskPromptValue}
+              placeholder="Click to add or update tasks"
+              submitLabel="Send"
+              submittingLabel="Saving..."
+              disabled={!tasksEnabled || isSaving}
+              submitting={isSaving}
+              testId="task-workspace-composer"
+              inputTestId="task-workspace-input"
+              submitTestId="task-workspace-submit"
+              micTestId="task-workspace-mic"
+              onSubmit={handleTaskPromptSubmit}
+              onMicClick={() => { notificationStore.error('Voice task input is not available yet'); }}
+            />
+            {#if pendingTaskDelete}
+              <div class="task-confirmation" data-testid="task-delete-confirmation">
+                <span>Delete "{pendingTaskDelete.task.title}"? This cannot be undone.</span>
+                <button type="button" onclick={() => void confirmTaskDelete()} data-testid="task-delete-confirm">Delete</button>
+                <button type="button" onclick={() => { pendingTaskDelete = null; }} data-testid="task-delete-cancel">Cancel</button>
+              </div>
+            {/if}
+          </svelte:fragment>
+        </WorkspaceHomeShell>
+      </div>
+
+      <section class="task-board-panel" data-testid="tasks-board-workspace" aria-label="Tasks board">
+        <div class="task-workspace-toolbar">
+          <div class="task-board-summary">
+            <p class="eyebrow">Tasks</p>
+            <h1>Task board</h1>
+            <p>{totalCount} total, {activeCount} active, {doneCount} done</p>
+          </div>
+          <div class="task-search-cluster" aria-label="Task search and filters">
+            <label class="task-search-field" for="task-search">
+              <span class="search-icon" aria-hidden="true"></span>
+              <input id="task-search" bind:value={searchTerm} placeholder="Search" data-testid="task-search-input" />
+            </label>
+            <div class="task-filter-chips" aria-label="Task filters">
+              {#each taskFilterChips as chip}
+                <button type="button" class:active={searchTerm.replace(/^#/, '') === chip} onclick={() => { searchTerm = searchTerm.replace(/^#/, '') === chip ? '' : chip; }}>#{chip}</button>
+              {/each}
+            </div>
+          </div>
+        </div>
+
+        {#if isLoading}
+          <div class="tasks-state" data-testid="tasks-loading">Loading tasks...</div>
+        {:else if hasLoadError}
+          <div class="tasks-state" data-testid="tasks-load-error">
+            <p>Tasks could not be loaded.</p>
+            <button type="button" onclick={() => void refreshTasks()}>Retry</button>
+          </div>
+        {:else}
+          <div class="task-board-stage">
+            <TaskBoard
+              tasks={visibleTasks}
+              onMove={(task, status) => void handleMove(task, status)}
+              onStartAI={(task) => void handleStartAI(task)}
+              onSkip={(task) => void handleSkip(task)}
+              onDelete={(task) => void handleDelete(task)}
+              onCancelWorkflowRun={(task) => void handleCancelWorkflowRun(task)}
+            />
+            {#if visibleTasks.length === 0 && searchTerm.trim()}
+              <div class="tasks-filter-empty" data-testid="tasks-filter-empty">No tasks match that filter.</div>
+            {:else if visibleTasks.length === 0}
+              <div class="tasks-filter-empty" data-testid="tasks-empty">Click above to add your first task.</div>
+            {/if}
+          </div>
+        {/if}
+      </section>
+    </section>
+  {:else}
   {#if plansEnabled}
   <section class="plans-strip" data-testid="linked-plans-section" aria-label="Linked plans">
     <div class="plans-strip-heading">
@@ -361,6 +691,7 @@
               {/if}
             </div>
             <div class="plan-actions">
+              <a href={`/plans/${encodeURIComponent(plan.plan_id)}`} data-testid="plan-detail-link">Open</a>
               {#if plan.status === 'draft' || plan.status === 'awaiting_confirmation'}
                 <button type="button" disabled={planActionId === plan.plan_id} onclick={() => void handleActivatePlan(plan)} data-testid="plan-activate-button">
                   {planActionId === plan.plan_id ? 'Activating...' : 'Activate'}
@@ -471,13 +802,22 @@
       <p>Create your first task above to start planning work.</p>
     </div>
   {:else}
-    <TaskBoard {tasks} onMove={(task, status) => void handleMove(task, status)} onStartAI={(task) => void handleStartAI(task)} />
+    <TaskBoard
+      {tasks}
+      onMove={(task, status) => void handleMove(task, status)}
+      onStartAI={(task) => void handleStartAI(task)}
+      onSkip={(task) => void handleSkip(task)}
+      onDelete={(task) => void handleDelete(task)}
+      onCancelWorkflowRun={(task) => void handleCancelWorkflowRun(task)}
+    />
+  {/if}
   {/if}
 </section>
 {/if}
 
 <style>
   .tasks-page {
+    position: relative;
     flex: 1;
     min-width: 0;
     height: 100%;
@@ -490,6 +830,11 @@
   .tasks-page.compact {
     padding: 0;
     overflow: visible;
+  }
+
+  .tasks-page.figma-layout {
+    background: var(--color-grey-0);
+    padding: clamp(12px, 2.6vw, 30px);
   }
 
   .tasks-hero,
@@ -510,6 +855,244 @@
     gap: 24px;
     padding: clamp(24px, 5vw, 54px);
     margin-bottom: 18px;
+  }
+
+  .tasks-daily-inspiration-area {
+    margin-bottom: 18px;
+  }
+
+  .tasks-page.figma-layout .tasks-daily-inspiration-area {
+    margin-bottom: clamp(18px, 3vw, 34px);
+  }
+
+  .tasks-figma-workspace {
+    position: relative;
+    display: flex;
+    min-height: 100%;
+    min-width: 0;
+    flex-direction: column;
+    gap: 18px;
+    overflow: auto;
+    border-radius: 28px;
+    border: 1px solid var(--color-grey-20);
+    background: var(--color-grey-0);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.14);
+    padding: clamp(12px, 2.4vw, 28px);
+  }
+
+  .tasks-shell-frame {
+    min-height: clamp(330px, 42vh, 470px);
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+    border-radius: 17px;
+    background: var(--color-grey-0);
+  }
+
+  .tasks-shell-frame :global(.daily-inspiration-banner) {
+    --daily-inspiration-regular-height: clamp(112px, 14vh, 135px);
+    min-height: 0;
+  }
+
+  .tasks-shell-frame :global(.workspace-center-content.center-content) {
+    top: calc(50% + 8vh);
+  }
+
+  .tasks-shell-frame :global(.workspace-composer-slot) {
+    bottom: 10px;
+    z-index: var(--z-index-dropdown);
+  }
+
+  .task-board-panel {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .task-workspace-toolbar {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  .task-board-summary h1,
+  .task-board-summary p {
+    margin: 0;
+  }
+
+  .task-board-summary h1 {
+    font-size: clamp(1.5rem, 3vw, 2.2rem);
+    letter-spacing: -0.04em;
+  }
+
+  .task-board-summary p:not(.eyebrow) {
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-small);
+  }
+
+  .task-search-cluster {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: min(100%, 620px);
+  }
+
+  .task-search-field {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    min-height: 44px;
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-full);
+    background: var(--color-grey-10);
+    padding: 8px 12px;
+    color: var(--color-font-secondary);
+  }
+
+  .search-icon {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    border: 3px solid currentColor;
+    border-radius: 999px;
+    opacity: 0.65;
+  }
+
+  .search-icon::after {
+    content: '';
+    position: absolute;
+    right: -8px;
+    bottom: -7px;
+    width: 9px;
+    height: 3px;
+    border-radius: 999px;
+    background: currentColor;
+    transform: rotate(45deg);
+  }
+
+  .task-search-field input {
+    width: min(100%, 190px);
+    border: 0;
+    background: transparent;
+    padding: 6px 0;
+    color: var(--color-font-primary);
+    font-size: 1.08rem;
+    font-weight: 700;
+  }
+
+  .task-search-field input::placeholder {
+    color: var(--color-font-secondary);
+    opacity: 0.9;
+  }
+
+  .task-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .task-filter-chips button {
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: var(--color-font-button);
+    padding: 5px 12px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    box-shadow: none;
+  }
+
+  .task-filter-chips button.active {
+    background: var(--color-button-primary);
+  }
+
+  .task-board-stage {
+    position: relative;
+    z-index: 1;
+    min-height: 0;
+  }
+
+  .task-board-stage :global(.task-board) {
+    grid-template-columns: repeat(5, minmax(260px, 280px));
+    gap: 14px;
+    width: 100%;
+    min-width: 0;
+    max-height: min(62vh, 720px);
+    overflow: auto;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .task-board-stage :global(.task-column) {
+    min-height: 410px;
+    border: 0;
+    border-radius: 26px;
+    background: transparent;
+    padding: 18px;
+  }
+
+  .task-board-stage :global([data-testid='task-column-backlog']) {
+    background: var(--color-grey-10);
+  }
+
+  .task-board-stage :global(.task-column header p),
+  .task-board-stage :global(.task-column header span) {
+    display: none;
+  }
+
+  .task-board-stage :global(.task-column h2) {
+    font-size: clamp(1.25rem, 1.6vw, 1.55rem);
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+  }
+
+  .task-board-stage :global(.task-card) {
+    border: 0;
+    border-radius: 16px;
+    box-shadow: 0 8px 14px rgba(0, 0, 0, 0.16);
+  }
+
+  .task-board-stage :global(.task-actions) {
+    opacity: 0.78;
+  }
+
+  .tasks-filter-empty {
+    margin-top: 12px;
+    border: 1px dashed var(--color-grey-30);
+    border-radius: 20px;
+    padding: 12px 16px;
+    color: var(--color-font-secondary);
+    background: var(--color-grey-0);
+  }
+
+  .task-confirmation {
+    display: flex;
+    max-width: min(620px, calc(100vw - 40px));
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid var(--color-grey-20);
+    border-radius: 18px;
+    padding: 10px 12px;
+    background: color-mix(in srgb, var(--color-grey-0) 92%, transparent);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+    color: var(--color-font-primary);
+    font-size: var(--font-size-small);
+  }
+
+  .task-confirmation button:first-of-type {
+    background: var(--color-error, #c83a32);
+    color: var(--color-grey-0);
   }
 
   .plans-strip {
@@ -604,6 +1187,17 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .plan-actions a {
+    display: grid;
+    min-width: 44px;
+    min-height: 44px;
+    place-items: center;
+    border-radius: var(--radius-full);
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+    font-size: var(--font-size-xs);
   }
 
   .eyebrow {
@@ -780,6 +1374,35 @@
     .task-create-card {
       grid-template-columns: 1fr;
       flex-direction: column;
+    }
+
+    .tasks-figma-workspace {
+      min-height: 0;
+      padding: 18px;
+    }
+
+    .task-workspace-toolbar {
+      flex-direction: column;
+    }
+
+    .task-search-cluster {
+      align-items: center;
+      justify-content: flex-start;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .task-filter-chips {
+      justify-content: flex-start;
+    }
+
+    .task-board-stage :global(.task-board) {
+      grid-template-columns: repeat(5, minmax(252px, 270px));
+      max-height: 58vh;
+    }
+
+    .task-board-stage :global(.task-column) {
+      min-height: auto;
     }
 
     .task-stats {

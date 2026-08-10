@@ -20,7 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_LOCKFILE = REPO_ROOT / "pnpm-lock.yaml"
 LOCKFILE_ENTRY_RE = re.compile(r"^\s{2}(['\"]?[^:'\"]+@[^:'\"]+['\"]?):", re.MULTILINE)
 PINNED_PACKAGE_VERSIONS = {
-    "@sveltejs/kit": "2.60.1",
+    "@sveltejs/kit": "2.69.1",
     "prosemirror-model": "1.25.7",
     "prosemirror-view": "1.41.8",
 }

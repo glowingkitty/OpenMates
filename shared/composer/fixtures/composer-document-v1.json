@@ -1,0 +1,259 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "text-embed-text",
+      "canonical_markdown": "Before image\n\n```json\n{\n  \"type\": \"image\",\n  \"embed_id\": \"fixture-image-1\"\n}\n```\n\nAfter image",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "text",
+            "id": "composer:text:0",
+            "source": "Before image\n\n"
+          },
+          {
+            "kind": "embed",
+            "id": "composer:embed:0",
+            "embedType": "image",
+            "status": "finished",
+            "contentRef": "embed:fixture-image-1",
+            "referenceOnly": false,
+            "canonicalSource": "```json\n{\n  \"type\": \"image\",\n  \"embed_id\": \"fixture-image-1\"\n}\n```",
+            "display": {
+              "title": "Image",
+              "mediaKind": "image"
+            }
+          },
+          {
+            "kind": "text",
+            "id": "composer:text:1",
+            "source": "\n\nAfter image"
+          }
+        ]
+      },
+      "selection_fixtures": [
+        {
+          "label": "after-emoji-safe-prefix",
+          "source": "A\ud83d\udc4d\ud83c\udffd",
+          "utf16_offset": 5
+        }
+      ]
+    },
+    {
+      "id": "unicode-mention-and-break",
+      "canonical_markdown": "Hello @mate:sophia \ud83d\udc4b\n\u0645\u0631\u062d\u0628\u0627 e\u0301",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "text",
+            "id": "composer:text:0",
+            "source": "Hello "
+          },
+          {
+            "kind": "mention",
+            "id": "composer:mention:0",
+            "mentionKind": "mate",
+            "targetId": "sophia",
+            "canonicalSyntax": "@mate:sophia",
+            "displayLabel": "@Sophia"
+          },
+          {
+            "kind": "text",
+            "id": "composer:text:1",
+            "source": " \ud83d\udc4b\n\u0645\u0631\u062d\u0628\u0627 e\u0301"
+          }
+        ]
+      },
+      "selection_fixtures": [
+        {
+          "label": "after-wave",
+          "source": " \ud83d\udc4b",
+          "utf16_offset": 3
+        },
+        {
+          "label": "after-combining-mark",
+          "source": "e\u0301",
+          "utf16_offset": 2
+        }
+      ]
+    },
+    {
+      "id": "unknown-markdown-lossless",
+      "canonical_markdown": ":::future-directive\nvalue = 1\n:::",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "text",
+            "id": "composer:text:0",
+            "source": ":::future-directive\nvalue = 1\n:::"
+          }
+        ]
+      },
+      "selection_fixtures": [
+        {
+          "label": "cjk-multiline",
+          "source": "\u6f22\u5b57\n\u30c6\u30b9\u30c8",
+          "utf16_offset": 6
+        }
+      ]
+    },
+    {
+      "id": "grouped-embed",
+      "canonical_markdown": "```json\n{\n  \"type\": \"web-website-group\",\n  \"embed_id\": \"group-1\",\n  \"embed_ids\": [\"site-1\", \"site-2\"]\n}\n```",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "embed",
+            "id": "composer:embed:0",
+            "embedType": "web-website-group",
+            "status": "finished",
+            "contentRef": "embed:group-1",
+            "referenceOnly": false,
+            "canonicalSource": "```json\n{\n  \"type\": \"web-website-group\",\n  \"embed_id\": \"group-1\",\n  \"embed_ids\": [\"site-1\", \"site-2\"]\n}\n```",
+            "display": {
+              "title": "Web Website Group",
+              "mediaKind": "web-website-group"
+            }
+          }
+        ]
+      },
+      "selection_fixtures": []
+    },
+    {
+      "id": "unknown-embed-type",
+      "canonical_markdown": "```json\n{\n  \"type\": \"future-widget\",\n  \"embed_id\": \"future-1\"\n}\n```",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "embed",
+            "id": "composer:embed:0",
+            "embedType": "future-widget",
+            "status": "finished",
+            "contentRef": "embed:future-1",
+            "referenceOnly": false,
+            "canonicalSource": "```json\n{\n  \"type\": \"future-widget\",\n  \"embed_id\": \"future-1\"\n}\n```",
+            "display": {
+              "title": "Future Widget",
+              "mediaKind": "future-widget"
+            }
+          }
+        ]
+      },
+      "selection_fixtures": []
+    },
+    {
+      "id": "legacy-website-embed",
+      "canonical_markdown": "```json_embed\n{\"type\":\"website\",\"url\":\"https://example.com\",\"title\":\"Example\"}\n```",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "embed",
+            "id": "composer:embed:0",
+            "embedType": "web-website",
+            "status": "finished",
+            "referenceOnly": false,
+            "canonicalSource": "```json_embed\n{\"type\":\"website\",\"url\":\"https://example.com\",\"title\":\"Example\"}\n```",
+            "display": {
+              "title": "Example",
+              "mediaKind": "web-website"
+            }
+          }
+        ]
+      },
+      "selection_fixtures": []
+    },
+    {
+      "id": "invalid-embed-fence-lossless",
+      "canonical_markdown": "```json\n{\"type\":\"image\"}\n```",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "text",
+            "id": "composer:text:0",
+            "source": "```json\n{\"type\":\"image\"}\n```"
+          }
+        ]
+      },
+      "selection_fixtures": []
+    },
+    {
+      "id": "literal-mention-in-opaque-markdown",
+      "canonical_markdown": "```text\n@mate:not-a-mention\n```\n:::future\n@mate:also-literal\n:::\nAfter @mate:sophia",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "text",
+            "id": "composer:text:0",
+            "source": "```text\n@mate:not-a-mention\n```"
+          },
+          {
+            "kind": "text",
+            "id": "composer:text:1",
+            "source": "\n"
+          },
+          {
+            "kind": "text",
+            "id": "composer:text:2",
+            "source": ":::future\n@mate:also-literal\n:::"
+          },
+          {
+            "kind": "text",
+            "id": "composer:text:3",
+            "source": "\nAfter "
+          },
+          {
+            "kind": "mention",
+            "id": "composer:mention:0",
+            "mentionKind": "mate",
+            "targetId": "sophia",
+            "canonicalSyntax": "@mate:sophia",
+            "displayLabel": "@Sophia"
+          }
+        ]
+      },
+      "selection_fixtures": []
+    }
+  ],
+  "invalid_documents": [
+    {
+      "id": "unsupported-version",
+      "expected_error": "unsupported-version",
+      "document": { "version": 2, "nodes": [] }
+    },
+    {
+      "id": "missing-text-source",
+      "expected_error": "invalid-node",
+      "document": {
+        "version": 1,
+        "nodes": [{ "kind": "text", "id": "composer:text:0" }]
+      }
+    },
+    {
+      "id": "unknown-node-kind",
+      "expected_error": "unsupported-node",
+      "document": {
+        "version": 1,
+        "nodes": [{ "kind": "future", "id": "composer:future:0" }]
+      }
+    },
+    {
+      "id": "duplicate-node-id",
+      "expected_error": "duplicate-node-id",
+      "document": {
+        "version": 1,
+        "nodes": [
+          { "kind": "text", "id": "composer:text:0", "source": "A" },
+          { "kind": "text", "id": "composer:text:0", "source": "B" }
+        ]
+      }
+    }
+  ]
+}

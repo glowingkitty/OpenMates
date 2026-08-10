@@ -25,3 +25,6 @@ __pycache__
 !.env.example
 *.log
 *.tmp
+
+# Official-cloud operator helpers stay out of self-host build contexts.
+scripts/revolut_business_setup.py

@@ -48,6 +48,24 @@ const EMAIL_ENCRYPTED_WITH_MASTER_KEY = "openmates_email_encrypted_master";
 const AES_KEY_LENGTH = 256; // 256-bit keys
 const AES_IV_LENGTH = 12; // 12 bytes for GCM mode
 const PBKDF2_ITERATIONS = 100000;
+const UNSUPPORTED_CLIENT_CRYPTO_CODE = "unsupported_client_crypto";
+
+export class UnsupportedClientCryptoError extends Error {
+  readonly code = UNSUPPORTED_CLIENT_CRYPTO_CODE;
+
+  constructor(operation: string) {
+    super(`${operation} requires the Web Crypto API`);
+    this.name = "UnsupportedClientCryptoError";
+  }
+}
+
+function requireSubtleCrypto(operation: string): SubtleCrypto {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) {
+    throw new UnsupportedClientCryptoError(operation);
+  }
+  return subtle;
+}
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -373,32 +391,29 @@ export async function deriveKeyFromPassword(
   password: string,
   salt: Uint8Array,
 ): Promise<Uint8Array> {
-  if (typeof window !== "undefined") {
-    const encoder = new TextEncoder();
-    const keyMaterial = await crypto.subtle.importKey(
-      "raw",
-      encoder.encode(password),
-      "PBKDF2",
-      false,
-      ["deriveKey", "deriveBits"],
-    );
+  const subtle = requireSubtleCrypto("Password key derivation");
+  const encoder = new TextEncoder();
+  const keyMaterial = await subtle.importKey(
+    "raw",
+    encoder.encode(password),
+    "PBKDF2",
+    false,
+    ["deriveKey", "deriveBits"],
+  );
 
-    // Ensure salt is a proper BufferSource
-    const saltBuffer = new Uint8Array(salt);
-    const derivedBits = await crypto.subtle.deriveBits(
-      {
-        name: "PBKDF2",
-        salt: saltBuffer,
-        iterations: PBKDF2_ITERATIONS,
-        hash: "SHA-256",
-      },
-      keyMaterial,
-      256,
-    );
+  const saltBuffer = new Uint8Array(salt);
+  const derivedBits = await subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: saltBuffer,
+      iterations: PBKDF2_ITERATIONS,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    256,
+  );
 
-    return new Uint8Array(derivedBits);
-  }
-  return new Uint8Array(32);
+  return new Uint8Array(derivedBits);
 }
 
 /**
@@ -537,20 +552,16 @@ export async function deriveEmailEncryptionKey(
   email: string,
   salt: Uint8Array,
 ): Promise<Uint8Array> {
-  if (typeof window !== "undefined") {
-    const encoder = new TextEncoder();
-    const emailBytes = encoder.encode(email);
+  const subtle = requireSubtleCrypto("Email key derivation");
+  const encoder = new TextEncoder();
+  const emailBytes = encoder.encode(email);
 
-    // Combine email and salt
-    const combined = new Uint8Array(emailBytes.length + salt.length);
-    combined.set(emailBytes);
-    combined.set(salt, emailBytes.length);
+  const combined = new Uint8Array(emailBytes.length + salt.length);
+  combined.set(emailBytes);
+  combined.set(salt, emailBytes.length);
 
-    // Hash the combined value with SHA-256
-    const hashBuffer = await crypto.subtle.digest("SHA-256", combined);
-    return new Uint8Array(hashBuffer);
-  }
-  return new Uint8Array(32);
+  const hashBuffer = await subtle.digest("SHA-256", combined);
+  return new Uint8Array(hashBuffer);
 }
 
 /**
@@ -915,8 +926,6 @@ export function generateSecureRecoveryKey(length = 24): string {
   const allChars = uppercaseChars + lowercaseChars + numberChars + specialChars;
 
   // Generate random bytes using cryptographically secure RNG
-  const randomBytes = crypto.getRandomValues(new Uint8Array(length));
-
   // Ensure we have at least one character from each set by reserving positions
   const result: string[] = new Array(length);
 
@@ -930,26 +939,32 @@ export function generateSecureRecoveryKey(length = 24): string {
 
   // Fill mandatory positions with secure randomness
   for (const charSet of charSets) {
-    const randomByte = crypto.getRandomValues(new Uint8Array(1))[0];
-    result[charSet.index] = charSet.chars.charAt(
-      randomByte % charSet.chars.length,
-    );
+    result[charSet.index] = charSet.chars.charAt(secureRandomIndex(charSet.chars.length));
   }
 
   // Fill remaining positions with secure random characters from all sets
   for (let i = 4; i < length; i++) {
-    result[i] = allChars.charAt(randomBytes[i] % allChars.length);
+    result[i] = allChars.charAt(secureRandomIndex(allChars.length));
   }
 
   // Shuffle using Fisher-Yates with cryptographically secure randomness
   for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(
-      (crypto.getRandomValues(new Uint8Array(1))[0] / 256) * (i + 1),
-    );
+    const j = secureRandomIndex(i + 1);
     [result[i], result[j]] = [result[j], result[i]];
   }
 
   return result.join("");
+}
+
+function secureRandomIndex(upperBound: number): number {
+  if (!Number.isInteger(upperBound) || upperBound <= 0 || upperBound > 256) {
+    throw new RangeError("secure random upper bound must be between 1 and 256");
+  }
+  const maxUnbiasedValue = Math.floor(256 / upperBound) * upperBound;
+  while (true) {
+    const value = crypto.getRandomValues(new Uint8Array(1))[0];
+    if (value < maxUnbiasedValue) return value % upperBound;
+  }
 }
 
 /**
@@ -1129,10 +1144,7 @@ export async function hkdf(
   info: string,
   length: number = 32,
 ): Promise<Uint8Array> {
-  if (typeof window === "undefined") {
-    return new Uint8Array(length);
-  }
-
+  const subtle = requireSubtleCrypto("Passkey HKDF derivation");
   const encoder = new TextEncoder();
   const infoBytes = encoder.encode(info);
 
@@ -1140,7 +1152,7 @@ export async function hkdf(
   // PRK = HMAC-Hash(salt, IKM)
   // Ensure salt is a proper BufferSource by creating a new Uint8Array
   const saltBuffer = new Uint8Array(salt);
-  const extractKey = await crypto.subtle.importKey(
+  const extractKey = await subtle.importKey(
     "raw",
     saltBuffer,
     { name: "HMAC", hash: "SHA-256" },
@@ -1150,12 +1162,12 @@ export async function hkdf(
 
   // Ensure ikm is a proper BufferSource
   const ikmBuffer = new Uint8Array(ikm);
-  const prk = await crypto.subtle.sign("HMAC", extractKey, ikmBuffer);
+  const prk = await subtle.sign("HMAC", extractKey, ikmBuffer);
   const prkArray = new Uint8Array(prk);
 
   // Step 2: Expand (HKDF-Expand)
   // OKM = HKDF-Expand(PRK, info, L)
-  const expandKey = await crypto.subtle.importKey(
+  const expandKey = await subtle.importKey(
     "raw",
     prkArray,
     { name: "HMAC", hash: "SHA-256" },
@@ -1183,7 +1195,7 @@ export async function hkdf(
     offset += infoBytes.length;
     tInput[offset] = counter;
 
-    const t = await crypto.subtle.sign("HMAC", expandKey, tInput);
+    const t = await subtle.sign("HMAC", expandKey, tInput);
     const tArray = new Uint8Array(t);
 
     const toTake = Math.min(remaining, tArray.length);

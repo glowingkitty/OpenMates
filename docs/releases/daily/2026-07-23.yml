@@ -1,0 +1,3085 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-23'
+generated_at: '2026-08-06T13:17:20+00:00'
+range:
+  since: '2026-07-23T00:00:00+00:00'
+  until: '2026-07-24T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 67
+  section_counts:
+    features: 3
+    bug_fixes: 29
+    improvements: 0
+    docs: 11
+    tests: 24
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 30
+  dev_only_items: 67
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add remembered forgotten message drafts'
+    section: features
+    commits:
+    - 40033c66c
+    authored_at: '2026-07-23T14:53:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/rememberMessage.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/rememberMessage.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/stores/pendingRememberMessageStore.ts
+    - frontend/packages/ui/src/utils/__tests__/rememberMessage.test.ts
+    - frontend/packages/ui/src/utils/rememberMessage.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add actionable landing event slide'
+    section: features
+    commits:
+    - 50437d678
+    authored_at: '2026-07-23T01:18:06+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: ship code image-to-html example'
+    section: features
+    commits:
+    - 07fb53f57
+    authored_at: '2026-07-23T00:36:22+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/image_to_html_skill.py
+    - backend/apps/code/tasks/image_to_html_task.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/shared/providers/image_to_html_generator.py
+    - backend/shared/python_utils/code_html_validation.py
+    - backend/shared/python_utils/encrypted_embed_images.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_code_html_validation.py
+    - backend/tests/test_code_image_to_html_billing.py
+    - backend/tests/test_code_image_to_html_skill.py
+    - backend/tests/test_code_image_to_html_task.py
+    - backend/tests/test_encrypted_embed_images.py
+    - backend/tests/test_image_to_html_generator.py
+    - backend/tests/test_preprocessor.py
+    - backend/tests/test_usage_entries.py
+    - docs/specs/code-image-to-html/spec.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/screenshot-to-html-pricing-card.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/screenshot_to_html_pricing_card.yml
+    - scripts/create-example-chat-from-share.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: skill:code:image_to_html
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:code, skill:code:image_to_html'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: tune landing chat row by orientation'
+    section: bug_fixes
+    commits:
+    - 0382b2e2c
+    authored_at: '2026-07-23T23:12:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align fixed chat row header offset'
+    section: bug_fixes
+    commits:
+    - 30385b30b
+    authored_at: '2026-07-23T23:02:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore landing mobile bottom gap'
+    section: bug_fixes
+    commits:
+    - 8c7a2389a
+    authored_at: '2026-07-23T22:53:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep active chat fixed with settings open'
+    section: bug_fixes
+    commits:
+    - a619b965b
+    authored_at: '2026-07-23T22:34:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: floor daily inspiration banner height'
+    section: bug_fixes
+    commits:
+    - 12052b47c
+    authored_at: '2026-07-23T18:03:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize landing intro viewport metrics'
+    section: bug_fixes
+    commits:
+    - '236989379'
+    authored_at: '2026-07-23T17:38:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve landing actionable banner height'
+    section: bug_fixes
+    commits:
+    - c9cd7ebd2
+    authored_at: '2026-07-23T17:26:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enlarge mobile landing intro icon'
+    section: bug_fixes
+    commits:
+    - d77a315f0
+    authored_at: '2026-07-23T17:21:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enlarge mobile landing intro icon'
+    section: bug_fixes
+    commits:
+    - b9b54bc7a
+    authored_at: '2026-07-23T17:06:51+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/app_skill/GenericAppSkillEmbedPreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: insert remembered message drafts'
+    section: bug_fixes
+    commits:
+    - 0fa5b82b2
+    authored_at: '2026-07-23T16:57:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: polish screenshot HTML example embeds'
+    section: bug_fixes
+    commits:
+    - 2eb66efd6
+    authored_at: '2026-07-23T15:27:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/app_skill/GenericAppSkillEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodePreviewPane.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:images:image'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: fit landing intro across viewports'
+    section: bug_fixes
+    commits:
+    - 0b7847ae6
+    authored_at: '2026-07-23T14:47:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render shared chat settings for guests'
+    section: bug_fixes
+    commits:
+    - 89cabe170
+    authored_at: '2026-07-23T14:37:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show read-only shared chat settings'
+    section: bug_fixes
+    commits:
+    - e1a4bb0d5
+    authored_at: '2026-07-23T14:17:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    - frontend/packages/ui/src/services/sharedChatDetailsService.ts
+    - frontend/packages/ui/src/services/sharedChatKeyStorage.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render screenshot HTML example artifacts'
+    section: bug_fixes
+    commits:
+    - 1be2995b7
+    authored_at: '2026-07-23T14:06:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/store-examples/screenshot-to-html-pricing-card.svg
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/ImageRenderer.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/screenshot-to-html-pricing-card.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/screenshot_to_html_pricing_card.yml
+    - scripts/audit_example_chats.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent audio shortcut focus outline'
+    section: bug_fixes
+    commits:
+    - 9d02a2ad5
+    authored_at: '2026-07-23T13:56:52+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep landing intro within chat container'
+    section: bug_fixes
+    commits:
+    - bf2b0ca0e
+    authored_at: '2026-07-23T13:49:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/packages/ui/src/components/KeyboardShortcuts.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render screenshot HTML example embeds'
+    section: bug_fixes
+    commits:
+    - 01af0f3d8
+    authored_at: '2026-07-23T12:58:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/screenshot-to-html-pricing-card.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/screenshot_to_html_pricing_card.yml
+    - scripts/audit_example_chats.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refine landing intro and Luma CTA'
+    section: bug_fixes
+    commits:
+    - 0d0a6b5fe
+    authored_at: '2026-07-23T12:02:07+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show compressed example history correctly'
+    section: bug_fixes
+    commits:
+    - ade3ab6ac
+    authored_at: '2026-07-23T10:30:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-local-ai-workspace.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/privacy_first_local_ai_workspace.yml
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/extract-shared-chat.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sync chat settings tab clicks to route'
+    section: bug_fixes
+    commits:
+    - 04d243307
+    authored_at: '2026-07-23T10:15:21+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: export example chat compression checkpoints'
+    section: bug_fixes
+    commits:
+    - ebf48f43c
+    authored_at: '2026-07-23T10:00:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use valid chat share icon'
+    section: bug_fixes
+    commits:
+    - 980f369ed
+    authored_at: '2026-07-23T09:54:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render real chat settings metadata'
+    section: bug_fixes
+    commits:
+    - 8963394ec
+    authored_at: '2026-07-23T09:45:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/stores/chatSettingsStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refine landing intro action slide'
+    section: bug_fixes
+    commits:
+    - f02fd182b
+    authored_at: '2026-07-23T09:41:34+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sync chat settings route tab'
+    section: bug_fixes
+    commits:
+    - 3c999b53c
+    authored_at: '2026-07-23T03:08:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent landing intro iPad rail gaps'
+    section: bug_fixes
+    commits:
+    - a21b1c6e4
+    authored_at: '2026-07-23T00:37:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enable older messages for long example chat'
+    section: bug_fixes
+    commits:
+    - a61ef45dd
+    authored_at: '2026-07-23T00:34:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent landing intro rail clipping'
+    section: bug_fixes
+    commits:
+    - c2f214172
+    authored_at: '2026-07-23T00:17:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record landing settings regression evidence'
+    section: docs
+    commits:
+    - 8381f06b7
+    authored_at: '2026-07-23T23:21:13+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record landing viewport verification'
+    section: docs
+    commits:
+    - b6a3938a6
+    authored_at: '2026-07-23T18:24:40+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record landing Firecrawl evidence'
+    section: docs
+    commits:
+    - b649419e2
+    authored_at: '2026-07-23T14:11:50+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record compressed example UX decision'
+    section: docs
+    commits:
+    - 1b3c1052d
+    authored_at: '2026-07-23T13:09:39+00:00'
+    changed_paths:
+    - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: update long chat compression evidence'
+    section: docs
+    commits:
+    - 5ca909b7e
+    authored_at: '2026-07-23T12:12:20+00:00'
+    changed_paths:
+    - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record landing Luma CTA evidence'
+    section: docs
+    commits:
+    - c771c9ab6
+    authored_at: '2026-07-23T12:11:09+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record landing visual evidence'
+    section: docs
+    commits:
+    - 13434dab5
+    authored_at: '2026-07-23T09:52:17+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record chat settings green evidence'
+    section: docs
+    commits:
+    - b0a62db75
+    authored_at: '2026-07-23T04:19:36+00:00'
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record landing actionable slide evidence'
+    section: docs
+    commits:
+    - 808fe3eba
+    authored_at: '2026-07-23T01:32:13+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record long example verification evidence'
+    section: docs
+    commits:
+    - eb32b352e
+    authored_at: '2026-07-23T01:29:15+00:00'
+    changed_paths:
+    - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record scalable chat windowing verification'
+    section: docs
+    commits:
+    - ff9a8a515
+    authored_at: '2026-07-23T00:19:17+00:00'
+    changed_paths:
+    - docs/specs/scalable-chat-message-windowing/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: cover settings active chat layout'
+    section: tests
+    commits:
+    - 110d8e758
+    authored_at: '2026-07-23T22:44:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: relax landing actionable height guard'
+    section: tests
+    commits:
+    - 4d2acb050
+    authored_at: '2026-07-23T18:12:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: measure landing actionable layout height'
+    section: tests
+    commits:
+    - 41099d283
+    authored_at: '2026-07-23T17:52:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: fix compressed example remember assertion'
+    section: tests
+    commits:
+    - 2a4747179
+    authored_at: '2026-07-23T15:16:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: close shared chat settings via close button'
+    section: tests
+    commits:
+    - 6d30af817
+    authored_at: '2026-07-23T15:02:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify forgotten example history reveal'
+    section: tests
+    commits:
+    - 13ad68fc9
+    authored_at: '2026-07-23T11:48:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: harden example chat compression checks'
+    section: tests
+    commits:
+    - be5f469b2
+    authored_at: '2026-07-23T11:38:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert visible compression summary metadata'
+    section: tests
+    commits:
+    - 14270cf25
+    authored_at: '2026-07-23T11:26:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: logout during email roundtrip reset'
+    section: tests
+    commits:
+    - bf93710dd
+    authored_at: '2026-07-23T11:13:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: avoid occupied email roundtrip alias'
+    section: tests
+    commits:
+    - 113b79f51
+    authored_at: '2026-07-23T10:51:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert compressed example history controls'
+    section: tests
+    commits:
+    - 533689adf
+    authored_at: '2026-07-23T10:44:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: make email roundtrip retry recoverable'
+    section: tests
+    commits:
+    - 4a6b04db4
+    authored_at: '2026-07-23T10:31:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: harden settings email login'
+    section: tests
+    commits:
+    - 067c50e24
+    authored_at: '2026-07-23T10:12:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: click chat share button directly'
+    section: tests
+    commits:
+    - b3a001a8b
+    authored_at: '2026-07-23T04:00:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover chat settings helper panels'
+    section: tests
+    commits:
+    - bfb240621
+    authored_at: '2026-07-23T03:35:55+00:00'
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/chats/__tests__/chatUsageRows.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: guard chat share observer setup'
+    section: tests
+    commits:
+    - 50e25d130
+    authored_at: '2026-07-23T02:48:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: observe chat share result in browser'
+    section: tests
+    commits:
+    - 05b9baeee
+    authored_at: '2026-07-23T02:33:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: automate chat share panel controls'
+    section: tests
+    commits:
+    - 0ca5a86b3
+    authored_at: '2026-07-23T02:19:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: initialize chat share fallback earlier'
+    section: tests
+    commits:
+    - 9da531209
+    authored_at: '2026-07-23T01:30:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stub chat share short link fallback'
+    section: tests
+    commits:
+    - 90f5d752e
+    authored_at: '2026-07-23T01:04:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert visible older example window'
+    section: tests
+    commits:
+    - 41100e482
+    authored_at: '2026-07-23T01:03:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: schedule chat share generation click'
+    section: tests
+    commits:
+    - 47e814794
+    authored_at: '2026-07-23T00:49:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: dispatch chat share generation click'
+    section: tests
+    commits:
+    - 94b20db6d
+    authored_at: '2026-07-23T00:18:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align long chat history window expectations'
+    section: tests
+    commits:
+    - 04777d833
+    authored_at: '2026-07-23T00:03:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'docs: record landing settings regression evidence'
+    commits:
+    - 8381f06b7
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: tune landing chat row by orientation'
+    commits:
+    - 0382b2e2c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: align fixed chat row header offset'
+    commits:
+    - 30385b30b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore landing mobile bottom gap'
+    commits:
+    - 8c7a2389a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: cover settings active chat layout'
+    commits:
+    - 110d8e758
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep active chat fixed with settings open'
+    commits:
+    - a619b965b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record landing viewport verification'
+    commits:
+    - b6a3938a6
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: relax landing actionable height guard'
+    commits:
+    - 4d2acb050
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: floor daily inspiration banner height'
+    commits:
+    - 12052b47c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: measure landing actionable layout height'
+    commits:
+    - 41099d283
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize landing intro viewport metrics'
+    commits:
+    - '236989379'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve landing actionable banner height'
+    commits:
+    - c9cd7ebd2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: enlarge mobile landing intro icon'
+    commits:
+    - d77a315f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: enlarge mobile landing intro icon'
+    commits:
+    - b9b54bc7a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: insert remembered message drafts'
+    commits:
+    - 0fa5b82b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: polish screenshot HTML example embeds'
+    commits:
+    - 2eb66efd6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+  - title: 'test: fix compressed example remember assertion'
+    commits:
+    - 2a4747179
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: close shared chat settings via close button'
+    commits:
+    - 6d30af817
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add remembered forgotten message drafts'
+    commits:
+    - 40033c66c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: fit landing intro across viewports'
+    commits:
+    - 0b7847ae6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: render shared chat settings for guests'
+    commits:
+    - 89cabe170
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: show read-only shared chat settings'
+    commits:
+    - e1a4bb0d5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record landing Firecrawl evidence'
+    commits:
+    - b649419e2
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: render screenshot HTML example artifacts'
+    commits:
+    - 1be2995b7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: prevent audio shortcut focus outline'
+    commits:
+    - 9d02a2ad5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep landing intro within chat container'
+    commits:
+    - bf2b0ca0e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record compressed example UX decision'
+    commits:
+    - 1b3c1052d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: render screenshot HTML example embeds'
+    commits:
+    - 01af0f3d8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: update long chat compression evidence'
+    commits:
+    - 5ca909b7e
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record landing Luma CTA evidence'
+    commits:
+    - c771c9ab6
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: refine landing intro and Luma CTA'
+    commits:
+    - 0d0a6b5fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: verify forgotten example history reveal'
+    commits:
+    - 13ad68fc9
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: harden example chat compression checks'
+    commits:
+    - be5f469b2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: assert visible compression summary metadata'
+    commits:
+    - 14270cf25
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: logout during email roundtrip reset'
+    commits:
+    - bf93710dd
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: avoid occupied email roundtrip alias'
+    commits:
+    - 113b79f51
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: assert compressed example history controls'
+    commits:
+    - 533689adf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: make email roundtrip retry recoverable'
+    commits:
+    - 4a6b04db4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: show compressed example history correctly'
+    commits:
+    - ade3ab6ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: sync chat settings tab clicks to route'
+    commits:
+    - 04d243307
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: harden settings email login'
+    commits:
+    - 067c50e24
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: export example chat compression checkpoints'
+    commits:
+    - ebf48f43c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: use valid chat share icon'
+    commits:
+    - 980f369ed
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record landing visual evidence'
+    commits:
+    - 13434dab5
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: render real chat settings metadata'
+    commits:
+    - 8963394ec
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: refine landing intro action slide'
+    commits:
+    - f02fd182b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record chat settings green evidence'
+    commits:
+    - b0a62db75
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: click chat share button directly'
+    commits:
+    - b3a001a8b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover chat settings helper panels'
+    commits:
+    - bfb240621
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: sync chat settings route tab'
+    commits:
+    - 3c999b53c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: guard chat share observer setup'
+    commits:
+    - 50e25d130
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: observe chat share result in browser'
+    commits:
+    - 05b9baeee
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: automate chat share panel controls'
+    commits:
+    - 0ca5a86b3
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record landing actionable slide evidence'
+    commits:
+    - 808fe3eba
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: initialize chat share fallback earlier'
+    commits:
+    - 9da531209
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record long example verification evidence'
+    commits:
+    - eb32b352e
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add actionable landing event slide'
+    commits:
+    - 50437d678
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stub chat share short link fallback'
+    commits:
+    - 90f5d752e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: assert visible older example window'
+    commits:
+    - 41100e482
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: schedule chat share generation click'
+    commits:
+    - 47e814794
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent landing intro iPad rail gaps'
+    commits:
+    - a21b1c6e4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: ship code image-to-html example'
+    commits:
+    - 07fb53f57
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: skill:code:image_to_html
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'fix: enable older messages for long example chat'
+    commits:
+    - a61ef45dd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record scalable chat windowing verification'
+    commits:
+    - ff9a8a515
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: dispatch chat share generation click'
+    commits:
+    - 94b20db6d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent landing intro rail clipping'
+    commits:
+    - c2f214172
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: align long chat history window expectations'
+    commits:
+    - 04777d833
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: ship code image-to-html example'
+    commits:
+    - 07fb53f57
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: skill:code:image_to_html
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: tune landing chat row by orientation'
+    commits:
+    - 0382b2e2c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align fixed chat row header offset'
+    commits:
+    - 30385b30b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore landing mobile bottom gap'
+    commits:
+    - 8c7a2389a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep active chat fixed with settings open'
+    commits:
+    - a619b965b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: floor daily inspiration banner height'
+    commits:
+    - 12052b47c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize landing intro viewport metrics'
+    commits:
+    - '236989379'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve landing actionable banner height'
+    commits:
+    - c9cd7ebd2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: enlarge mobile landing intro icon'
+    commits:
+    - d77a315f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: enlarge mobile landing intro icon'
+    commits:
+    - b9b54bc7a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: insert remembered message drafts'
+    commits:
+    - 0fa5b82b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: polish screenshot HTML example embeds'
+    commits:
+    - 2eb66efd6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:images:image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    newsletter_ready: false
+  - title: 'feat: add remembered forgotten message drafts'
+    commits:
+    - 40033c66c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: fit landing intro across viewports'
+    commits:
+    - 0b7847ae6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: render shared chat settings for guests'
+    commits:
+    - 89cabe170
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: show read-only shared chat settings'
+    commits:
+    - e1a4bb0d5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: render screenshot HTML example artifacts'
+    commits:
+    - 1be2995b7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: prevent audio shortcut focus outline'
+    commits:
+    - 9d02a2ad5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep landing intro within chat container'
+    commits:
+    - bf2b0ca0e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refine landing intro and Luma CTA'
+    commits:
+    - 0d0a6b5fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: show compressed example history correctly'
+    commits:
+    - ade3ab6ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: sync chat settings tab clicks to route'
+    commits:
+    - 04d243307
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: use valid chat share icon'
+    commits:
+    - 980f369ed
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: render real chat settings metadata'
+    commits:
+    - 8963394ec
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refine landing intro action slide'
+    commits:
+    - f02fd182b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: sync chat settings route tab'
+    commits:
+    - 3c999b53c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add actionable landing event slide'
+    commits:
+    - 50437d678
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: prevent landing intro iPad rail gaps'
+    commits:
+    - a21b1c6e4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: ship code image-to-html example'
+    commits:
+    - 07fb53f57
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: skill:code:image_to_html
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix: enable older messages for long example chat'
+    commits:
+    - a61ef45dd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: prevent landing intro rail clipping'
+    commits:
+    - c2f214172
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 8381f06b7e68cdcdb4b227acdb946b70594b770b
+    short_sha: 8381f06b7
+    authored_at: '2026-07-23T23:21:13+00:00'
+    subject: 'docs: record landing settings regression evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    related_feature_ids: []
+  - sha: 0382b2e2c4747f6d65d269e31996275c9546a71b
+    short_sha: 0382b2e2c
+    authored_at: '2026-07-23T23:12:01+00:00'
+    subject: 'fix: tune landing chat row by orientation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: 30385b30bd9963a3160b41c8e46d8d1841ef3d80
+    short_sha: 30385b30b
+    authored_at: '2026-07-23T23:02:26+00:00'
+    subject: 'fix: align fixed chat row header offset'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: 8c7a2389a4029551ebd8645e4b5295e82a757767
+    short_sha: 8c7a2389a
+    authored_at: '2026-07-23T22:53:13+00:00'
+    subject: 'fix: restore landing mobile bottom gap'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: 110d8e758166793ddab9be021508ad6a3eae69e3
+    short_sha: 110d8e758
+    authored_at: '2026-07-23T22:44:21+00:00'
+    subject: 'test: cover settings active chat layout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    related_feature_ids: []
+  - sha: a619b965bfaba21d951d509942b1ba8a4c9d2028
+    short_sha: a619b965b
+    authored_at: '2026-07-23T22:34:14+00:00'
+    subject: 'fix: keep active chat fixed with settings open'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    related_feature_ids: []
+  - sha: b6a3938a6e8cac6e5f4172266b9e7bacd418e3c8
+    short_sha: b6a3938a6
+    authored_at: '2026-07-23T18:24:40+00:00'
+    subject: 'docs: record landing viewport verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    related_feature_ids: []
+  - sha: 4d2acb05004ab857a17df6bee3a4164e264496e3
+    short_sha: 4d2acb050
+    authored_at: '2026-07-23T18:12:42+00:00'
+    subject: 'test: relax landing actionable height guard'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    related_feature_ids: []
+  - sha: 12052b47c8666f993b05b7b35ac5e29ad01f5193
+    short_sha: 12052b47c
+    authored_at: '2026-07-23T18:03:19+00:00'
+    subject: 'fix: floor daily inspiration banner height'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 41099d283667b50d65bca864b9ec5456164a0f95
+    short_sha: 41099d283
+    authored_at: '2026-07-23T17:52:16+00:00'
+    subject: 'test: measure landing actionable layout height'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 23698937984b7a0c61a967703471738ab9124eeb
+    short_sha: '236989379'
+    authored_at: '2026-07-23T17:38:12+00:00'
+    subject: 'fix: stabilize landing intro viewport metrics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: c9cd7ebd256bf5c365500b9c13ed22d76997071d
+    short_sha: c9cd7ebd2
+    authored_at: '2026-07-23T17:26:04+00:00'
+    subject: 'fix: preserve landing actionable banner height'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: d77a315f0f44cbdbe7e37616c5daa01ef325bc1f
+    short_sha: d77a315f0
+    authored_at: '2026-07-23T17:21:25+00:00'
+    subject: 'fix: enlarge mobile landing intro icon'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: b9b54bc7abdf41bbb905a32dd0fc7829f7b20636
+    short_sha: b9b54bc7a
+    authored_at: '2026-07-23T17:06:51+00:00'
+    subject: 'fix: enlarge mobile landing intro icon'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/app_skill/GenericAppSkillEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 0fa5b82b22432380309e926b83ca33f5a0952f08
+    short_sha: 0fa5b82b2
+    authored_at: '2026-07-23T16:57:26+00:00'
+    subject: 'fix: insert remembered message drafts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 2eb66efd6d5086bd03c013f66ee0342b7f8fa26a
+    short_sha: 2eb66efd6
+    authored_at: '2026-07-23T15:27:19+00:00'
+    subject: 'fix: polish screenshot HTML example embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/app_skill/GenericAppSkillEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodePreviewPane.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    related_feature_ids:
+    - embed:images:image
+  - sha: 2a47471794f9c055392bfdec6023d22495f12ebe
+    short_sha: 2a4747179
+    authored_at: '2026-07-23T15:16:17+00:00'
+    subject: 'test: fix compressed example remember assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: 6d30af817c0c4ea87728fe8617e1bda8b9100a7a
+    short_sha: 6d30af817
+    authored_at: '2026-07-23T15:02:39+00:00'
+    subject: 'test: close shared chat settings via close button'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: 40033c66c5b98a235425101d62942c3389f685d8
+    short_sha: 40033c66c
+    authored_at: '2026-07-23T14:53:07+00:00'
+    subject: 'feat: add remembered forgotten message drafts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/rememberMessage.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/rememberMessage.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/stores/pendingRememberMessageStore.ts
+    - frontend/packages/ui/src/utils/__tests__/rememberMessage.test.ts
+    - frontend/packages/ui/src/utils/rememberMessage.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    related_feature_ids: []
+  - sha: 0b7847ae6f3c5892136efd3a5fa008f76e421491
+    short_sha: 0b7847ae6
+    authored_at: '2026-07-23T14:47:26+00:00'
+    subject: 'fix: fit landing intro across viewports'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 89cabe170a5947cdef0a5ebc316d5c982499578b
+    short_sha: 89cabe170
+    authored_at: '2026-07-23T14:37:34+00:00'
+    subject: 'fix: render shared chat settings for guests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: e1a4bb0d5d4c0667b2a46895c6623441d2087b66
+    short_sha: e1a4bb0d5
+    authored_at: '2026-07-23T14:17:48+00:00'
+    subject: 'fix: show read-only shared chat settings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    - frontend/packages/ui/src/services/sharedChatDetailsService.ts
+    - frontend/packages/ui/src/services/sharedChatKeyStorage.ts
+    related_feature_ids: []
+  - sha: b649419e239df38ecff531db5220f8f1ccc0d61c
+    short_sha: b649419e2
+    authored_at: '2026-07-23T14:11:50+00:00'
+    subject: 'docs: record landing Firecrawl evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    related_feature_ids: []
+  - sha: 1be2995b7be8388d9a37a4c1090b69d771b8c5bb
+    short_sha: 1be2995b7
+    authored_at: '2026-07-23T14:06:59+00:00'
+    subject: 'fix: render screenshot HTML example artifacts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/store-examples/screenshot-to-html-pricing-card.svg
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/ImageRenderer.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/screenshot-to-html-pricing-card.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/screenshot_to_html_pricing_card.yml
+    - scripts/audit_example_chats.py
+    related_feature_ids: []
+  - sha: 9d02a2ad5f50be7ed888540967ea46adbad0a035
+    short_sha: 9d02a2ad5
+    authored_at: '2026-07-23T13:56:52+00:00'
+    subject: 'fix: prevent audio shortcut focus outline'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: bf2b0ca0ed9f391889d94dfbae29d1319afc7e1c
+    short_sha: bf2b0ca0e
+    authored_at: '2026-07-23T13:49:39+00:00'
+    subject: 'fix: keep landing intro within chat container'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/packages/ui/src/components/KeyboardShortcuts.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    related_feature_ids: []
+  - sha: 1b3c1052d1869373ceda2d5ca49419cfa6638a59
+    short_sha: 1b3c1052d
+    authored_at: '2026-07-23T13:09:39+00:00'
+    subject: 'docs: record compressed example UX decision'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    related_feature_ids: []
+  - sha: 01af0f3d85ed292dce02f9a348a343bd16b03155
+    short_sha: 01af0f3d8
+    authored_at: '2026-07-23T12:58:54+00:00'
+    subject: 'fix: render screenshot HTML example embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/screenshot-to-html-pricing-card.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/screenshot_to_html_pricing_card.yml
+    - scripts/audit_example_chats.py
+    related_feature_ids: []
+  - sha: 5ca909b7ed94f1ab8f5d922e4ec36ce9721c9ad3
+    short_sha: 5ca909b7e
+    authored_at: '2026-07-23T12:12:20+00:00'
+    subject: 'docs: update long chat compression evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    related_feature_ids: []
+  - sha: c771c9ab6893c7dd2bb04268cd346ad8eda5dbcf
+    short_sha: c771c9ab6
+    authored_at: '2026-07-23T12:11:09+00:00'
+    subject: 'docs: record landing Luma CTA evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    related_feature_ids: []
+  - sha: 0d0a6b5fe5250c6edebe2d0a858a4488cbc3b103
+    short_sha: 0d0a6b5fe
+    authored_at: '2026-07-23T12:02:07+00:00'
+    subject: 'fix: refine landing intro and Luma CTA'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    related_feature_ids: []
+  - sha: 13ad68fc942cdd89baf8d0211b9fd0a6e72f25af
+    short_sha: 13ad68fc9
+    authored_at: '2026-07-23T11:48:13+00:00'
+    subject: 'test: verify forgotten example history reveal'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: be5f469b2c1bcea0cb05d141bb0a4b902d26fb29
+    short_sha: be5f469b2
+    authored_at: '2026-07-23T11:38:09+00:00'
+    subject: 'test: harden example chat compression checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: 14270cf259564ceb5bae6ae676f5c477c24ba5b8
+    short_sha: 14270cf25
+    authored_at: '2026-07-23T11:26:34+00:00'
+    subject: 'test: assert visible compression summary metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: bf93710dd21a8fdfe9f230c059080321f696ebfa
+    short_sha: bf93710dd
+    authored_at: '2026-07-23T11:13:52+00:00'
+    subject: 'test: logout during email roundtrip reset'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    related_feature_ids: []
+  - sha: 113b79f51b7c93481072451b4b935f4280a9fb34
+    short_sha: 113b79f51
+    authored_at: '2026-07-23T10:51:16+00:00'
+    subject: 'test: avoid occupied email roundtrip alias'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    related_feature_ids: []
+  - sha: 533689adfe944ffbb9dcbe0993495a3a645ef144
+    short_sha: 533689adf
+    authored_at: '2026-07-23T10:44:27+00:00'
+    subject: 'test: assert compressed example history controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: 4a6b04db4feaf4514b5461129978333e02972960
+    short_sha: 4a6b04db4
+    authored_at: '2026-07-23T10:31:05+00:00'
+    subject: 'test: make email roundtrip retry recoverable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    related_feature_ids: []
+  - sha: ade3ab6ac4eae11976ba2fa83980ff8a77582c53
+    short_sha: ade3ab6ac
+    authored_at: '2026-07-23T10:30:31+00:00'
+    subject: 'fix: show compressed example history correctly'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-local-ai-workspace.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/privacy_first_local_ai_workspace.yml
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/extract-shared-chat.mjs
+    related_feature_ids: []
+  - sha: 04d243307a9305300d0b777ee39b9f500a086544
+    short_sha: 04d243307
+    authored_at: '2026-07-23T10:15:21+00:00'
+    subject: 'fix: sync chat settings tab clicks to route'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    related_feature_ids: []
+  - sha: 067c50e240795572a6f46982ae6d1892a1947aaf
+    short_sha: 067c50e24
+    authored_at: '2026-07-23T10:12:53+00:00'
+    subject: 'test: harden settings email login'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    related_feature_ids: []
+  - sha: ebf48f43c41033c891166a8cd963fdb779061a42
+    short_sha: ebf48f43c
+    authored_at: '2026-07-23T10:00:46+00:00'
+    subject: 'fix: export example chat compression checkpoints'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    related_feature_ids: []
+  - sha: 980f369ed7c0110f634253fc34568eb1448a7bae
+    short_sha: 980f369ed
+    authored_at: '2026-07-23T09:54:49+00:00'
+    subject: 'fix: use valid chat share icon'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    related_feature_ids: []
+  - sha: 13434dab5daa32af71db8cdb51cc1d1696498a32
+    short_sha: 13434dab5
+    authored_at: '2026-07-23T09:52:17+00:00'
+    subject: 'docs: record landing visual evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    related_feature_ids: []
+  - sha: 8963394ec5107b83434033f8d89272b8348ca61c
+    short_sha: 8963394ec
+    authored_at: '2026-07-23T09:45:49+00:00'
+    subject: 'fix: render real chat settings metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/stores/chatSettingsStore.ts
+    related_feature_ids: []
+  - sha: f02fd182b76f459a5e9718bc7a1d46542d630464
+    short_sha: f02fd182b
+    authored_at: '2026-07-23T09:41:34+00:00'
+    subject: 'fix: refine landing intro action slide'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    related_feature_ids: []
+  - sha: b0a62db756cec3f691a1af891d816956e14b66a9
+    short_sha: b0a62db75
+    authored_at: '2026-07-23T04:19:36+00:00'
+    subject: 'docs: record chat settings green evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    related_feature_ids: []
+  - sha: b3a001a8bc7d9e2558ad12c316f75752f0fb0f67
+    short_sha: b3a001a8b
+    authored_at: '2026-07-23T04:00:14+00:00'
+    subject: 'test: click chat share button directly'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: bfb240621d9477b51b2079ba0396a25e846cc5d0
+    short_sha: bfb240621
+    authored_at: '2026-07-23T03:35:55+00:00'
+    subject: 'test: cover chat settings helper panels'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/chats/__tests__/chatUsageRows.test.ts
+    related_feature_ids: []
+  - sha: 3c999b53c12ee7af75f28273b1c537d1d72bf448
+    short_sha: 3c999b53c
+    authored_at: '2026-07-23T03:08:00+00:00'
+    subject: 'fix: sync chat settings route tab'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    related_feature_ids: []
+  - sha: 50e25d1302c95fdf54cb016d2978a313111ea1a2
+    short_sha: 50e25d130
+    authored_at: '2026-07-23T02:48:18+00:00'
+    subject: 'test: guard chat share observer setup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 05b9baeeeb533e9dbc4bbc7b016f3b32c74b61cb
+    short_sha: 05b9baeee
+    authored_at: '2026-07-23T02:33:26+00:00'
+    subject: 'test: observe chat share result in browser'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 0ca5a86b372320df5826d53608a54d4bef2944a4
+    short_sha: 0ca5a86b3
+    authored_at: '2026-07-23T02:19:56+00:00'
+    subject: 'test: automate chat share panel controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 808fe3ebab4d1a7ca7da698a26d2b940596a94ec
+    short_sha: 808fe3eba
+    authored_at: '2026-07-23T01:32:13+00:00'
+    subject: 'docs: record landing actionable slide evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    related_feature_ids: []
+  - sha: 9da5312090884e150595d314671d1cbe664a4fe9
+    short_sha: 9da531209
+    authored_at: '2026-07-23T01:30:59+00:00'
+    subject: 'test: initialize chat share fallback earlier'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: eb32b352e22f439e989a36b56d8e4933c44a4add
+    short_sha: eb32b352e
+    authored_at: '2026-07-23T01:29:15+00:00'
+    subject: 'docs: record long example verification evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    related_feature_ids: []
+  - sha: 50437d678af3fc100db9d6f48f21231d38345aa2
+    short_sha: 50437d678
+    authored_at: '2026-07-23T01:18:06+00:00'
+    subject: 'feat: add actionable landing event slide'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    related_feature_ids: []
+  - sha: 90f5d752e6cbda43d34c343fc60cb675c189fc55
+    short_sha: 90f5d752e
+    authored_at: '2026-07-23T01:04:34+00:00'
+    subject: 'test: stub chat share short link fallback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 41100e48235360d6974a1c1ec18daaeb69fa7df5
+    short_sha: 41100e482
+    authored_at: '2026-07-23T01:03:49+00:00'
+    subject: 'test: assert visible older example window'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: 47e814794f3bd7b04ced8a5b02251218218a2958
+    short_sha: 47e814794
+    authored_at: '2026-07-23T00:49:44+00:00'
+    subject: 'test: schedule chat share generation click'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: a21b1c6e468b429d0954a09896559875ee691fee
+    short_sha: a21b1c6e4
+    authored_at: '2026-07-23T00:37:31+00:00'
+    subject: 'fix: prevent landing intro iPad rail gaps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 07fb53f5707f64aa9dc211c870e9d0f9f0b11cc9
+    short_sha: 07fb53f57
+    authored_at: '2026-07-23T00:36:22+00:00'
+    subject: 'feat: ship code image-to-html example'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/image_to_html_skill.py
+    - backend/apps/code/tasks/image_to_html_task.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/shared/providers/image_to_html_generator.py
+    - backend/shared/python_utils/code_html_validation.py
+    - backend/shared/python_utils/encrypted_embed_images.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_code_html_validation.py
+    - backend/tests/test_code_image_to_html_billing.py
+    - backend/tests/test_code_image_to_html_skill.py
+    - backend/tests/test_code_image_to_html_task.py
+    - backend/tests/test_encrypted_embed_images.py
+    - backend/tests/test_image_to_html_generator.py
+    - backend/tests/test_preprocessor.py
+    - backend/tests/test_usage_entries.py
+    - docs/specs/code-image-to-html/spec.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/screenshot-to-html-pricing-card.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/screenshot_to_html_pricing_card.yml
+    - scripts/create-example-chat-from-share.mjs
+    related_feature_ids:
+    - app:ai
+    - app:code
+    - skill:code:image_to_html
+  - sha: a61ef45dd9acce5e66c6f9c88ad578ea71b85bfb
+    short_sha: a61ef45dd
+    authored_at: '2026-07-23T00:34:57+00:00'
+    subject: 'fix: enable older messages for long example chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: ff9a8a515138880d628b8cc7c16fb7bc4830948c
+    short_sha: ff9a8a515
+    authored_at: '2026-07-23T00:19:17+00:00'
+    subject: 'docs: record scalable chat windowing verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/scalable-chat-message-windowing/spec.yml
+    related_feature_ids: []
+  - sha: 94b20db6daa45b521365e1eb166b144715772360
+    short_sha: 94b20db6d
+    authored_at: '2026-07-23T00:18:49+00:00'
+    subject: 'test: dispatch chat share generation click'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: c2f2141724c394cd25d42b900f56ca9987ca5cd0
+    short_sha: c2f214172
+    authored_at: '2026-07-23T00:17:30+00:00'
+    subject: 'fix: prevent landing intro rail clipping'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 04777d83327c05b37fbf3a5548cc8713a5d20892
+    short_sha: 04777d833
+    authored_at: '2026-07-23T00:03:47+00:00'
+    subject: 'test: align long chat history window expectations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the landing page onboarding experience and polishing the chat settings interface.
+    Significant work was also done on example chat data persistence and message draft recovery.
+  released_changes: []
+  bug_fixes:
+  - text: The landing page onboarding experience received numerous layout refinements, including fixes for mobile bottom gaps,
+      banner height stabilization, and viewport metric consistency across devices.
+    evidence:
+      commits:
+      - 0382b2e2c
+      - 30385b30b
+      - 8c7a2389a
+      - a619b965b
+      - 12052b47c
+      - '236989379'
+      - c9cd7ebd2
+      - d77a315f0
+      - 0b7847ae6
+      - 0d0a6b5fe
+      - f02fd182b
+      - a21b1c6e4
+      - c2f214172
+    release_status: dev_only
+  - text: Chat settings were polished to ensure tab synchronization with routes, correct metadata rendering, and appropriate
+      read-only views for guests accessing shared chats.
+    evidence:
+      commits:
+      - 89cabe170
+      - e1a4bb0d5
+      - 04d243307
+      - 8963394ec
+      - 3c999b53c
+    release_status: dev_only
+  - text: Example chat functionality was improved by correcting history rendering for compressed chats and polishing artifact
+      embeds for screenshot-to-HTML examples.
+    evidence:
+      commits:
+      - 2eb66efd6
+      - 1be2995b7
+      - 01af0f3d8
+      - ade3ab6ac
+      - a61ef45dd
+    release_status: dev_only
+  - text: General UI polish included enlarging mobile landing icons, preventing focus outlines on audio shortcuts, and ensuring
+      valid icons are used in the chat share section.
+    evidence:
+      commits:
+      - b9b54bc7a
+      - 0fa5b82b2
+      - 9d02a2ad5
+      - bf2b0ca0e
+      - ebf48f43c
+      - 980f369ed
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added a feature to remember forgotten message drafts, ensuring user input is preserved.
+    evidence:
+      commits:
+      - 40033c66c
+      - 0fa5b82b2
+    release_status: dev_only
+  - text: A new actionable event slide was introduced to the landing page demo to improve user engagement.
+    evidence:
+      commits:
+      - 50437d678
+    release_status: dev_only
+  - text: The project added a code image-to-html skill example, showcasing advanced AI processing capabilities.
+    evidence:
+      commits:
+      - 07fb53f57
+    release_status: dev_only
+  internal_progress:
+  - text: Documentation was updated with verification evidence for landing page regressions, chat windowing scalability, and
+      chat settings redesigns.
+    evidence:
+      commits:
+      - 8381f06b7
+      - b6a3938a6
+      - b649419e2
+      - 1b3c1052d
+      - 5ca909b7e
+      - c771c9ab6
+      - 13434dab5
+      - b0a62db75
+      - 808fe3eba
+      - eb32b352e
+      - ff9a8a515
+    release_status: dev_only
+  - text: Test coverage was significantly expanded for chat sharing flows, email change roundtrips, and example chat compression
+      logic.
+    evidence:
+      commits:
+      - 110d8e758
+      - 4d2acb050
+      - 41099d283
+      - 2a4747179
+      - 6d30af817
+      - 13ad68fc9
+      - be5f469b2
+      - 14270cf25
+      - bf93710dd
+      - 113b79f51
+      - 533689adf
+      - 4a6b04db4
+      - 067c50e24
+      - b3a001a8b
+      - bfb240621
+      - 50e25d130
+      - 05b9baeee
+      - 0ca5a86b3
+      - 9da531209
+      - 90f5d752e
+      - 41100e482
+      - 47e814794
+      - 94b20db6d
+      - 04777d833
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Remembered forgotten message drafts
+      evidence:
+        commits:
+        - 40033c66c
+      reason: This feature is currently in development and has not been merged to the main branch.
+    - text: Actionable landing event slide
+      evidence:
+        commits:
+        - 50437d678
+      reason: This feature is currently in development and has not been merged to the main branch.
+    - text: Code image-to-html example skill
+      evidence:
+        commits:
+        - 07fb53f57
+      reason: This feature is currently in development and has not been merged to the main branch.
+    rationale: No items are eligible for the newsletter as all changes are currently restricted to the development branch
+      and have not reached the main release.
+  social_video_recommendations:
+  - idea: Showcase the new Image-to-HTML skill.
+    priority: High
+    reason: This provides a concrete product story demonstrating AI capabilities within the code app.
+    evidence:
+      commits:
+      - 07fb53f57
+  - idea: Demo the refreshed landing page onboarding.
+    priority: Medium
+    reason: The visual updates to the first-user experience are well-suited for a short video walkthrough.
+    evidence:
+      commits:
+      - 50437d678
+  quality_notes:
+  - High volume of bug fixes and tests indicates a stabilization phase for the landing page and settings redesigns.
+  - Extensive documentation of verification evidence suggests a rigorous approach to UI and layout consistency across viewports.
+  validation_warnings: []

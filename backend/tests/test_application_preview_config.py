@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
+from types import ModuleType
 from types import SimpleNamespace
 
 import pytest
@@ -33,6 +35,7 @@ from backend.core.api.app.routes.application_preview import (
     create_application_preview_session_and_dispatch,
     calculate_preview_charge_credits,
     get_application_preview_session,
+    get_application_preview_current_user,
     promote_application_preview_session,
     start_application_preview,
     stop_application_preview_session,
@@ -144,6 +147,48 @@ def test_preview_origin_allows_localhost_dev_ports() -> None:
     )
 
     assert origin == "http://localhost:8787"
+
+
+@pytest.mark.anyio
+async def test_preview_current_user_accepts_session_or_api_key_auth(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    async def fake_get_current_user_or_api_key(request, response, directus_service, cache_service, refresh_token):
+        captured.update(
+            {
+                "request": request,
+                "response": response,
+                "directus_service": directus_service,
+                "cache_service": cache_service,
+                "refresh_token": refresh_token,
+            }
+        )
+        return "user-from-combined-auth"
+
+    fake_auth_dependencies = ModuleType("backend.core.api.app.routes.auth_routes.auth_dependencies")
+    fake_auth_dependencies.get_current_user_or_api_key = fake_get_current_user_or_api_key
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.routes.auth_routes.auth_dependencies",
+        fake_auth_dependencies,
+    )
+
+    result = await get_application_preview_current_user(
+        request="request",
+        response="response",
+        directus_service="directus",
+        cache_service="cache",
+        refresh_token=None,
+    )
+
+    assert result == "user-from-combined-auth"
+    assert captured == {
+        "request": "request",
+        "response": "response",
+        "directus_service": "directus",
+        "cache_service": "cache",
+        "refresh_token": None,
+    }
 
 
 def test_preview_session_record_is_viewer_scoped_and_timeout_bounded() -> None:

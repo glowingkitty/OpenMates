@@ -1,9 +1,85 @@
 import os
 import logging
-from typing import Optional, Tuple
+from dataclasses import dataclass
+from importlib.util import find_spec
+from typing import Mapping, Optional, Tuple
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+OPENMATES_CLOUD_OVERLAY_ENABLED_ENV = "OPENMATES_CLOUD_OVERLAY_ENABLED"
+OPENMATES_DEPLOYMENT_MODE_ENV = "OPENMATES_DEPLOYMENT_MODE"
+OPENMATES_CLOUD_OVERLAY_PACKAGE_ENV = "OPENMATES_CLOUD_OVERLAY_PACKAGE"
+TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
+_VALID_DEPLOYMENT_MODES = {"self_host", "official_cloud"}
+
+
+@dataclass(frozen=True)
+class RuntimeDeploymentMode:
+    effective_mode: str
+    status: str
+    reason: str
+    environment: Optional[str] = None
+
+    @property
+    def billing_enabled(self) -> bool:
+        return self.effective_mode == "official_cloud" and self.status == "valid"
+
+
+def resolve_runtime_deployment_mode(
+    *,
+    env: Optional[Mapping[str, str]] = None,
+    allowed_domain: Optional[str] = None,
+    hosting_domain: Optional[str] = None,
+    overlay_importable: Optional[bool] = None,
+) -> RuntimeDeploymentMode:
+    """Resolve billing authority from local, fail-closed runtime witnesses."""
+    values = os.environ if env is None else env
+    raw_mode = values.get(OPENMATES_DEPLOYMENT_MODE_ENV)
+    if raw_mode is None or raw_mode == "":
+        return RuntimeDeploymentMode("self_host", "missing", "deployment_mode_missing")
+    if raw_mode not in _VALID_DEPLOYMENT_MODES:
+        return RuntimeDeploymentMode("self_host", "malformed", "deployment_mode_invalid")
+
+    overlay_enabled = values.get(OPENMATES_CLOUD_OVERLAY_ENABLED_ENV) == "true"
+    overlay_package = values.get(OPENMATES_CLOUD_OVERLAY_PACKAGE_ENV)
+    if raw_mode == "self_host":
+        if overlay_enabled or overlay_package == "OpenMatesCloud":
+            return RuntimeDeploymentMode("self_host", "conflicting", "self_host_overlay_conflict")
+        return RuntimeDeploymentMode("self_host", "valid", "self_host_explicit")
+
+    if not overlay_enabled or overlay_package != "OpenMatesCloud":
+        return RuntimeDeploymentMode("self_host", "conflicting", "official_cloud_overlay_conflict")
+
+    if overlay_importable is None:
+        try:
+            overlay_importable = find_spec("openmatescloud.api.billing_overlay") is not None
+        except (ImportError, ModuleNotFoundError, ValueError):
+            overlay_importable = False
+    if not overlay_importable:
+        return RuntimeDeploymentMode("self_host", "unavailable", "official_cloud_overlay_unavailable")
+
+    resolved_allowed_domain = allowed_domain or get_allowed_domain()
+    resolved_hosting_domain = hosting_domain or get_hosting_domain()
+    environment = values.get("SERVER_ENVIRONMENT")
+    if not resolved_allowed_domain and resolved_hosting_domain:
+        try:
+            from backend.core.api.app.services.domain_security import DomainSecurityService
+
+            DomainSecurityService().load_security_config()
+            resolved_allowed_domain = get_allowed_domain()
+        except Exception as exc:
+            logger.warning("Official-cloud domain witness could not be loaded: %s", type(exc).__name__)
+    if not resolved_allowed_domain or not resolved_hosting_domain:
+        return RuntimeDeploymentMode("self_host", "unavailable", "official_domain_policy_unavailable")
+    if not is_domain_allowed_or_subdomain(resolved_hosting_domain, resolved_allowed_domain):
+        return RuntimeDeploymentMode("self_host", "conflicting", "official_domain_mismatch")
+
+    expected_environment = "development" if is_dev_subdomain(resolved_hosting_domain, resolved_allowed_domain) else "production"
+    if environment != expected_environment:
+        return RuntimeDeploymentMode("self_host", "conflicting", "official_environment_mismatch")
+
+    return RuntimeDeploymentMode("official_cloud", "valid", "official_cloud_verified", expected_environment)
 
 def get_allowed_domain() -> Optional[str]:
     """
@@ -172,6 +248,23 @@ def is_payment_enabled() -> bool:
     
     # All other cases (self-hosted, or dev on custom domain) -> Disabled
     return False
+
+
+def is_openmates_cloud_overlay_enabled() -> bool:
+    """
+    Return whether this runtime explicitly loaded the OpenMatesCloud overlay.
+
+    Payment-domain eligibility alone is not enough to initialize official-cloud
+    charging/accounting providers. Self-host and core-only runtimes must fail
+    closed unless the CLI or deployment Compose opts into the cloud overlay.
+    """
+    value = os.getenv(OPENMATES_CLOUD_OVERLAY_ENABLED_ENV, "false")
+    return value.strip().lower() in TRUE_ENV_VALUES
+
+
+def is_cloud_billing_enabled() -> bool:
+    """Return true only when every local official-cloud witness agrees."""
+    return resolve_runtime_deployment_mode().billing_enabled
 
 def get_server_edition() -> str:
     """

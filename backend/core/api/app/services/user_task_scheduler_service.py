@@ -20,6 +20,9 @@ async def process_due_ai_tasks(task_methods: UserTaskMethods, *, now: int | None
     failed_task_ids: list[str] = []
 
     for task in due_tasks:
+        if task.get("version") is None:
+            logger.warning("Skipping due AI user task %s without version", task.get("task_id"))
+            continue
         try:
             updated = await task_methods.start_due_ai_task(task, current_time)
             if updated:

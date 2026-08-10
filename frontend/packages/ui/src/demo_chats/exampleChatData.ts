@@ -35,13 +35,13 @@ import { northstarMetricsSvgLogoChat } from "./data/example_chats/northstar-metr
 import { pythonSquaresCodeRunChat } from "./data/example_chats/python-squares-code-run";
 import { habitTrackerOnboardingDraftChat } from "./data/example_chats/habit-tracker-onboarding-draft";
 import { chickpeaSpinachProteinDinnersChat } from "./data/example_chats/chickpea-spinach-protein-dinners";
-import { openmatesAppSkillsEmbedsDocsChat } from "./data/example_chats/openmates-app-skills-embeds-docs";
 import { openmatesAddAppSkillDocChat } from "./data/example_chats/openmates-add-app-skill-doc";
 import { nonprofitEventPlanningUseCaseChat } from "./data/example_chats/nonprofit-event-planning-use-case";
 import { lh400FlightStatusCheckChat } from "./data/example_chats/lh400-flight-status-check";
 import { berlinDermatologyAppointmentsChat } from "./data/example_chats/berlin-dermatology-appointments";
 import { productLaunchSynthLoopChat } from "./data/example_chats/product-launch-synth-loop";
 import { privateWorkspaceDemoVideoChat } from "./data/example_chats/private-workspace-demo-video";
+import { referenceImage3DModelChat } from "./data/example_chats/reference-image-3d-model";
 import { upcomingRemindersListChat } from "./data/example_chats/upcoming-reminders-list";
 import { cancelTestReminderChat } from "./data/example_chats/cancel-test-reminder";
 import { fediverseActivitypubSocialSearchChat } from "./data/example_chats/fediverse-activitypub-social-search";
@@ -97,6 +97,19 @@ import { privacyFirstProductLaunchMindMapChat } from "./data/example_chats/priva
 import { housingPolicyDinnerDiscussionChat } from "./data/example_chats/housing-policy-dinner-discussion";
 import { urbanSportsFitnessStudiosBerlinChat } from "./data/example_chats/urban-sports-fitness-studios-berlin";
 import { urbanSportsYogaClassesBerlinChat } from "./data/example_chats/urban-sports-yoga-classes-berlin";
+import { habitGardenWebApplicationChat } from "./data/example_chats/habit-garden-web-application";
+import { printableBenchyPhoneStandModelsChat } from "./data/example_chats/printable-benchy-phone-stand-models";
+import { exampleChatTaskPlanningChecklistChat } from "./data/example_chats/example-chat-task-planning-checklist";
+import { libraryBookReturnWorkflowChat } from "./data/example_chats/library-book-return-workflow";
+import { dashboardSidebarSvgIconsChat } from "./data/example_chats/dashboard-sidebar-svg-icons";
+import { vitalFarmsSecFinancialsChat } from "./data/example_chats/vital-farms-sec-financials";
+import { financeCashFlowOverviewChat } from "./data/example_chats/finance-cash-flow-overview";
+import { privacyFirstLocalAiWorkspaceChat } from "./data/example_chats/privacy-first-local-ai-workspace";
+import { screenshotToHtmlPricingCardChat } from "./data/example_chats/screenshot-to-html-pricing-card";
+import { berlinAiFounderMeetupsMapChat } from "./data/example_chats/berlin-ai-founder-meetups-map";
+import { deutschlandticketTrainFareBreakdownChat } from "./data/example_chats/deutschlandticket-train-fare-breakdown";
+import { berlinMitteWorkFriendlyRestaurantsChat } from "./data/example_chats/berlin-mitte-work-friendly-restaurants";
+import { openMeteoWeatherNotebookChat } from "./data/example_chats/open-meteo-weather-notebook";
 
 export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   giganticAirplanesChat,
@@ -127,13 +140,13 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   pythonSquaresCodeRunChat,
   habitTrackerOnboardingDraftChat,
   chickpeaSpinachProteinDinnersChat,
-  openmatesAppSkillsEmbedsDocsChat,
   openmatesAddAppSkillDocChat,
   nonprofitEventPlanningUseCaseChat,
   lh400FlightStatusCheckChat,
   berlinDermatologyAppointmentsChat,
   productLaunchSynthLoopChat,
   privateWorkspaceDemoVideoChat,
+  referenceImage3DModelChat,
   upcomingRemindersListChat,
   cancelTestReminderChat,
   fediverseActivitypubSocialSearchChat,
@@ -188,6 +201,19 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   housingPolicyDinnerDiscussionChat,
   urbanSportsFitnessStudiosBerlinChat,
   urbanSportsYogaClassesBerlinChat,
+  habitGardenWebApplicationChat,
+  printableBenchyPhoneStandModelsChat,
+  exampleChatTaskPlanningChecklistChat,
+  libraryBookReturnWorkflowChat,
+  dashboardSidebarSvgIconsChat,
+  vitalFarmsSecFinancialsChat,
+  financeCashFlowOverviewChat,
+  privacyFirstLocalAiWorkspaceChat,
+  screenshotToHtmlPricingCardChat,
+  berlinAiFounderMeetupsMapChat,
+  deutschlandticketTrainFareBreakdownChat,
+  berlinMitteWorkFriendlyRestaurantsChat,
+  openMeteoWeatherNotebookChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 // Internal deterministic fixtures used by tests and direct hash navigation only.

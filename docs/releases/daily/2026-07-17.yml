@@ -1,0 +1,4439 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-17'
+generated_at: '2026-07-21T10:46:33+00:00'
+range:
+  since: '2026-07-17T00:00:00+00:00'
+  until: '2026-07-18T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 80
+  section_counts:
+    features: 4
+    bug_fixes: 55
+    improvements: 0
+    docs: 3
+    tests: 18
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 46
+  dev_only_items: 80
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add OpenAI-compatible chat API'
+    section: features
+    commits:
+    - b0e5f07af
+    authored_at: '2026-07-17T23:59:29+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/openai_compat.py
+    - backend/core/api/main.py
+    - backend/tests/test_openai_compatible_api_contract.py
+    - backend/tests/test_openai_compatible_tools_contract.py
+    - docs/specs/openai-compatible-api/spec.yml
+    - frontend/packages/openmates-cli/tests/openai-compatible-smoke.mjs
+    - scripts/openai_compat_opencode_smoke.py
+    - scripts/openai_compat_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add unified key wrapper architecture'
+    section: features
+    commits:
+    - 5a669ff2d
+    authored_at: '2026-07-17T14:46:03+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/sync_api.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/chat_key_wrapper_methods.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/directus/schemas/chat_key_wrappers.yml
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/schemas/embed_keys.yml
+    - backend/core/directus/schemas/projects.yml
+    - backend/core/directus/schemas/user_plans.yml
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/tests/test_key_wrapper_authorization.py
+    - backend/tests/test_key_wrapper_rotation.py
+    - backend/tests/test_project_task_plan_key_wrappers.py
+    - backend/tests/test_unified_key_wrappers.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_workflow_key_boundary.py
+    - docs/specs/unified-key-wrappers/spec.yml
+    - frontend/apps/web_app/tests/chat-key-wrapper-migration.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/tests/key-wrappers.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_key_wrappers.py
+    - packages/openmates-python/tests/test_tasks.py
+    - scripts/tests/test_key_wrapper_logging_audit.py
+    - scripts/verify_chat_key_wrapper_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add Cerebras Gemma model metadata'
+    section: features
+    commits:
+    - 8fca1d969
+    authored_at: '2026-07-17T09:06:49+00:00'
+    changed_paths:
+    - backend/data/models_leaderboard.yml
+    - backend/providers/google.yml
+    - backend/providers/zai.yml
+    - frontend/packages/openmates-cli/src/mentions.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add task workflow example chats'
+    section: features
+    commits:
+    - 1472d457e
+    authored_at: '2026-07-17T01:42:13+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_embed_service_composite.py
+    - frontend/apps/web_app/tests/task-workflow-example-chats.spec.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowCreateEmbedPreview.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/example-chat-publishing-workflow.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/example-chat-task-planning-checklist.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/library-book-return-workflow.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/example_chat_publishing_workflow.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/example_chat_task_planning_checklist.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/library_book_return_workflow.yml
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: keep CLI upload embed ids stable'
+    section: bug_fixes
+    commits:
+    - 58eb00913
+    authored_at: '2026-07-17T23:37:12+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prefer persisted chat keys during send'
+    section: bug_fixes
+    commits:
+    - b02e09c15
+    authored_at: '2026-07-17T23:36:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/services/encryption/__tests__/ChatKeyManager.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh CLI chat message sync'
+    section: bug_fixes
+    commits:
+    - e31c45823
+    authored_at: '2026-07-17T23:16:00+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: finalize CLI PDF embeds with chat context'
+    section: bug_fixes
+    commits:
+    - 3db2da199
+    authored_at: '2026-07-17T23:12:24+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: wait longer for send embeds'
+    section: bug_fixes
+    commits:
+    - fd2f72e5c
+    authored_at: '2026-07-17T22:48:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist active recovery completions'
+    section: bug_fixes
+    commits:
+    - d7e18f17e
+    authored_at: '2026-07-17T22:24:37+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/__tests__/activeChatUtils.test.ts
+    - frontend/packages/ui/src/components/activeChatUtils.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow shared encrypted embed assets'
+    section: bug_fixes
+    commits:
+    - 8f6547083
+    authored_at: '2026-07-17T22:08:51+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/scripts/debug_chat.py
+    - backend/shared/python_utils/chat_completion_integrity.py
+    - backend/tests/test_chat_completion_integrity.py
+    - backend/tests/test_embeds_presigned_url.py
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refetch partial sync message caches'
+    section: bug_fixes
+    commits:
+    - 2b706eef6
+    authored_at: '2026-07-17T21:55:32+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_message_hydration.py
+    - backend/core/api/app/routes/sync_api.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_sync_api.py
+    - backend/tests/test_sync_message_hydration.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: translate new example chat German entries'
+    section: bug_fixes
+    commits:
+    - b0dc2325a
+    authored_at: '2026-07-17T21:07:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/example_chats/example_chat_task_planning_checklist.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/library_book_return_workflow.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: wait for PDF embed data before send'
+    section: bug_fixes
+    commits:
+    - 344e38cb9
+    authored_at: '2026-07-17T20:42:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use native docx download links'
+    section: bug_fixes
+    commits:
+    - 7d8076010
+    authored_at: '2026-07-17T20:42:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prewarm docx embed downloads'
+    section: bug_fixes
+    commits:
+    - 3a401e6b5
+    authored_at: '2026-07-17T20:23:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make doc embed downloads observable'
+    section: bug_fixes
+    commits:
+    - b242f2564
+    authored_at: '2026-07-17T20:04:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retry recovery persistence conflicts'
+    section: bug_fixes
+    commits:
+    - '471502723'
+    authored_at: '2026-07-17T19:18:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: apply compact docx diff metadata'
+    section: bug_fixes
+    commits:
+    - 22e458d87
+    authored_at: '2026-07-17T18:41:20+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_diff_service.py
+    - backend/core/api/app/services/tests/test_embed_diff_service.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: avoid new-chat preflight metadata on follow-ups'
+    section: bug_fixes
+    commits:
+    - 2de44b12e
+    authored_at: '2026-07-17T18:05:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refetch stale problem test rows'
+    section: bug_fixes
+    commits:
+    - 94d452099
+    authored_at: '2026-07-17T17:43:31+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make recovery terminal persistence idempotent'
+    section: bug_fixes
+    commits:
+    - 0e19f6226
+    authored_at: '2026-07-17T17:41:50+00:00'
+    changed_paths:
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh stale test current state'
+    section: bug_fixes
+    commits:
+    - d9a212b71
+    authored_at: '2026-07-17T17:39:05+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: normalize task query defaults'
+    section: bug_fixes
+    commits:
+    - 2e4855238
+    authored_at: '2026-07-17T16:04:14+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/user_tasks.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden test control plane recording'
+    section: bug_fixes
+    commits:
+    - 3521ccd4b
+    authored_at: '2026-07-17T15:49:15+00:00'
+    changed_paths:
+    - backend/tests/test_workflow_app_skill_embeds.py
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: wait for CLI PDF auth state'
+    section: bug_fixes
+    commits:
+    - ae0414d20
+    authored_at: '2026-07-17T15:11:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize CLI PDF chat context'
+    section: bug_fixes
+    commits:
+    - 39831119e
+    authored_at: '2026-07-17T14:53:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: tolerate local connector cache outages'
+    section: bug_fixes
+    commits:
+    - df259f7e5
+    authored_at: '2026-07-17T14:51:22+00:00'
+    changed_paths:
+    - backend/core/api/app/services/connected_accounts_service.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: normalize lifecycle contact verified timestamp'
+    section: bug_fixes
+    commits:
+    - b20306a1e
+    authored_at: '2026-07-17T14:37:16+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_utils.py
+    - backend/tests/test_security_regressions.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: wait for CLI PDF response completion'
+    section: bug_fixes
+    commits:
+    - da6cd27fb
+    authored_at: '2026-07-17T14:28:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: trust valid dev api key for signup cleanup'
+    section: bug_fixes
+    commits:
+    - 77cd23769
+    authored_at: '2026-07-17T14:26:31+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/tests/test_auth_endpoints.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: avoid brittle CLI PDF embed id assertion'
+    section: bug_fixes
+    commits:
+    - ed3f75fd1
+    authored_at: '2026-07-17T14:11:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow dev cleanup api key without test env hashes'
+    section: bug_fixes
+    commits:
+    - 4aa682630
+    authored_at: '2026-07-17T14:06:31+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/tests/test_auth_endpoints.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: wait for CLI PDF assistant persistence'
+    section: bug_fixes
+    commits:
+    - 9ccbbd0f5
+    authored_at: '2026-07-17T13:58:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh api key for signup specs'
+    section: bug_fixes
+    commits:
+    - a29889489
+    authored_at: '2026-07-17T13:54:31+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: accept rotating test cleanup api key'
+    section: bug_fixes
+    commits:
+    - 33a6b3afd
+    authored_at: '2026-07-17T13:45:19+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/tests/test_auth_endpoints.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: type CLI PDF prompt before attachment'
+    section: bug_fixes
+    commits:
+    - f95cb3dfd
+    authored_at: '2026-07-17T13:40:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reuse robust login in CLI PDF spec'
+    section: bug_fixes
+    commits:
+    - 230a50ec6
+    authored_at: '2026-07-17T13:22:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clear security reminder on logout'
+    section: bug_fixes
+    commits:
+    - 2d6c53321
+    authored_at: '2026-07-17T13:10:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize settings email change test'
+    section: bug_fixes
+    commits:
+    - 863c210f6
+    authored_at: '2026-07-17T12:40:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hold pending settings deep links'
+    section: bug_fixes
+    commits:
+    - 097262255
+    authored_at: '2026-07-17T12:00:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve cold settings delete deep links'
+    section: bug_fixes
+    commits:
+    - bf9ebca69
+    authored_at: '2026-07-17T11:14:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-privacy-pii-deep-link.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: decrypt SDK task helpers'
+    section: bug_fixes
+    commits:
+    - dff10b1e8
+    authored_at: '2026-07-17T11:11:52+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/tests/test_user_tasks_api.py
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    - packages/openmates-python/tests/test_tasks.py
+    - scripts/verify_sdk_tasks_live_smoke.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent stale event loop cache errors'
+    section: bug_fixes
+    commits:
+    - f3548904b
+    authored_at: '2026-07-17T10:48:33+00:00'
+    changed_paths:
+    - backend/core/api/app/services/cache_base.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/tasks/base_task.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/tests/test_cache_base.py
+    - backend/tests/test_task_smoke.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render native chat embeds from inline references'
+    section: bug_fixes
+    commits:
+    - d65880ec3
+    authored_at: '2026-07-17T09:32:39+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize task workflow example chat spec'
+    section: bug_fixes
+    commits:
+    - a8c1e8080
+    authored_at: '2026-07-17T01:56:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/task-workflow-example-chats.spec.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowCreateEmbedFullscreen.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Tasks create payload batches'
+    section: bug_fixes
+    commits:
+    - 5ee8895e2
+    authored_at: '2026-07-17T01:08:33+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_app_skill_embeds.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route explicit Tasks app-skill aliases'
+    section: bug_fixes
+    commits:
+    - d1b2ec64c
+    authored_at: '2026-07-17T00:45:26+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: type erase chat focus lifecycle boundary'
+    section: bug_fixes
+    commits:
+    - 009d0aca2
+    authored_at: '2026-07-17T00:21:00+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: simplify chat focus watcher'
+    section: bug_fixes
+    commits:
+    - abbc30e62
+    authored_at: '2026-07-17T00:19:51+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: split chat view body'
+    section: bug_fixes
+    commits:
+    - 1172f217a
+    authored_at: '2026-07-17T00:18:51+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: extract chat view request handlers'
+    section: bug_fixes
+    commits:
+    - 01b62a974
+    authored_at: '2026-07-17T00:17:23+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: extract chat view lifecycle handlers'
+    section: bug_fixes
+    commits:
+    - a70638457
+    authored_at: '2026-07-17T00:16:21+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: simplify chat view disappear modifier'
+    section: bug_fixes
+    commits:
+    - 4f2e455a0
+    authored_at: '2026-07-17T00:14:42+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reduce chat view embed watcher type checking'
+    section: bug_fixes
+    commits:
+    - 1bb05defc
+    authored_at: '2026-07-17T00:13:41+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: initialize watch embed refs once'
+    section: bug_fixes
+    commits:
+    - a35dd0fa7
+    authored_at: '2026-07-17T00:11:53+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: add watch remote message initializer'
+    section: bug_fixes
+    commits:
+    - 99803eb49
+    authored_at: '2026-07-17T00:11:17+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: compile watch embed previews for archive'
+    section: bug_fixes
+    commits:
+    - e30e40783
+    authored_at: '2026-07-17T00:10:01+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render watch embed previews'
+    section: bug_fixes
+    commits:
+    - 2a4045d95
+    authored_at: '2026-07-17T00:01:11+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Extensions/AnyCodable.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    - apple/OpenMatesWatch/Sources/WatchLocalization.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record task workflow example evidence'
+    section: docs
+    commits:
+    - 22849d68f
+    authored_at: '2026-07-17T02:06:26+00:00'
+    changed_paths:
+    - docs/specs/tasks-workflows-app-skill-embeds/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Apple parity verification evidence'
+    section: docs
+    commits:
+    - f90cd1a9e
+    authored_at: '2026-07-17T01:33:06+00:00'
+    changed_paths:
+    - docs/specs/apple-ui-parity-program/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Apple chat contract evidence'
+    section: docs
+    commits:
+    - 50fbaf7cf
+    authored_at: '2026-07-17T01:01:37+00:00'
+    changed_paths:
+    - docs/specs/apple-ui-parity-program/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: wait for shared PDF embed finalization'
+    section: tests
+    commits:
+    - d54085e14
+    authored_at: '2026-07-17T22:50:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: target shared chat header badge'
+    section: tests
+    commits:
+    - e281aa6ad
+    authored_at: '2026-07-17T22:27:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: scope multi-tab decrypt errors to active chat'
+    section: tests
+    commits:
+    - 9ecae4781
+    authored_at: '2026-07-17T20:48:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: update connected account summary expectation'
+    section: tests
+    commits:
+    - 35977df31
+    authored_at: '2026-07-17T17:31:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize workflow schema boundary test'
+    section: tests
+    commits:
+    - 2e5a2c7e6
+    authored_at: '2026-07-17T16:05:17+00:00'
+    changed_paths:
+    - backend/tests/test_workflow_key_boundary.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: update sync chat wrapper fixture'
+    section: tests
+    commits:
+    - 920cb079b
+    authored_at: '2026-07-17T15:59:31+00:00'
+    changed_paths:
+    - backend/tests/test_sync_api.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: update native chat wrapper fixture'
+    section: tests
+    commits:
+    - 68ce01eef
+    authored_at: '2026-07-17T15:54:47+00:00'
+    changed_paths:
+    - backend/tests/test_native_chats_api.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reload real websocket module for metadata dispatch'
+    section: tests
+    commits:
+    - a3cfacbf1
+    authored_at: '2026-07-17T15:08:27+00:00'
+    changed_paths:
+    - backend/tests/test_websocket_metadata_dispatch.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: patch metadata sync scheduler binding'
+    section: tests
+    commits:
+    - 2f4cb4f91
+    authored_at: '2026-07-17T15:04:20+00:00'
+    changed_paths:
+    - backend/tests/test_websocket_metadata_dispatch.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: include chat wrappers in SDK API-key fixtures'
+    section: tests
+    commits:
+    - cf1b539c6
+    authored_at: '2026-07-17T14:58:27+00:00'
+    changed_paths:
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add default chat wrapper smoke seed'
+    section: tests
+    commits:
+    - 8cdfd3ce5
+    authored_at: '2026-07-17T14:55:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-key-wrapper-migration.spec.ts
+    - scripts/verify_chat_key_wrapper_smoke.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert native embed reference grouping'
+    section: tests
+    commits:
+    - ef554cc85
+    authored_at: '2026-07-17T10:50:04+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: return fake watch inline embed message'
+    section: tests
+    commits:
+    - 4ace6e3c8
+    authored_at: '2026-07-17T09:40:41+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: return watch inline embed fixture message'
+    section: tests
+    commits:
+    - 77a973f1c
+    authored_at: '2026-07-17T09:39:06+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: mirror watch inline embed fallback'
+    section: tests
+    commits:
+    - 13adfc739
+    authored_at: '2026-07-17T09:37:28+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: avoid focusing offscreen Apple chat composer'
+    section: tests
+    commits:
+    - 6d6c0c47a
+    authored_at: '2026-07-17T00:50:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: capture Apple chat shell before opening list'
+    section: tests
+    commits:
+    - d36624189
+    authored_at: '2026-07-17T00:35:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize Apple chat UI contract capture'
+    section: tests
+    commits:
+    - 77fb6939a
+    authored_at: '2026-07-17T00:21:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
+    - frontend/apps/web_app/tests/helpers/apple-ui-contract-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'feat: add OpenAI-compatible chat API'
+    commits:
+    - b0e5f07af
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep CLI upload embed ids stable'
+    commits:
+    - 58eb00913
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: prefer persisted chat keys during send'
+    commits:
+    - b02e09c15
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: refresh CLI chat message sync'
+    commits:
+    - e31c45823
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: finalize CLI PDF embeds with chat context'
+    commits:
+    - 3db2da199
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: wait for shared PDF embed finalization'
+    commits:
+    - d54085e14
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: wait longer for send embeds'
+    commits:
+    - fd2f72e5c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: target shared chat header badge'
+    commits:
+    - e281aa6ad
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: persist active recovery completions'
+    commits:
+    - d7e18f17e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: allow shared encrypted embed assets'
+    commits:
+    - 8f6547083
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: refetch partial sync message caches'
+    commits:
+    - 2b706eef6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: translate new example chat German entries'
+    commits:
+    - b0dc2325a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: scope multi-tab decrypt errors to active chat'
+    commits:
+    - 9ecae4781
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: wait for PDF embed data before send'
+    commits:
+    - 344e38cb9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: use native docx download links'
+    commits:
+    - 7d8076010
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: prewarm docx embed downloads'
+    commits:
+    - 3a401e6b5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: make doc embed downloads observable'
+    commits:
+    - b242f2564
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: retry recovery persistence conflicts'
+    commits:
+    - '471502723'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: apply compact docx diff metadata'
+    commits:
+    - 22e458d87
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: avoid new-chat preflight metadata on follow-ups'
+    commits:
+    - 2de44b12e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: refetch stale problem test rows'
+    commits:
+    - 94d452099
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: make recovery terminal persistence idempotent'
+    commits:
+    - 0e19f6226
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: refresh stale test current state'
+    commits:
+    - d9a212b71
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: update connected account summary expectation'
+    commits:
+    - 35977df31
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize workflow schema boundary test'
+    commits:
+    - 2e5a2c7e6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: normalize task query defaults'
+    commits:
+    - 2e4855238
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: update sync chat wrapper fixture'
+    commits:
+    - 920cb079b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: update native chat wrapper fixture'
+    commits:
+    - 68ce01eef
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden test control plane recording'
+    commits:
+    - 3521ccd4b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: wait for CLI PDF auth state'
+    commits:
+    - ae0414d20
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: reload real websocket module for metadata dispatch'
+    commits:
+    - a3cfacbf1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: patch metadata sync scheduler binding'
+    commits:
+    - 2f4cb4f91
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: include chat wrappers in SDK API-key fixtures'
+    commits:
+    - cf1b539c6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add default chat wrapper smoke seed'
+    commits:
+    - 8cdfd3ce5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize CLI PDF chat context'
+    commits:
+    - 39831119e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: tolerate local connector cache outages'
+    commits:
+    - df259f7e5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add unified key wrapper architecture'
+    commits:
+    - 5a669ff2d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: normalize lifecycle contact verified timestamp'
+    commits:
+    - b20306a1e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: wait for CLI PDF response completion'
+    commits:
+    - da6cd27fb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: trust valid dev api key for signup cleanup'
+    commits:
+    - 77cd23769
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: avoid brittle CLI PDF embed id assertion'
+    commits:
+    - ed3f75fd1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: allow dev cleanup api key without test env hashes'
+    commits:
+    - 4aa682630
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: wait for CLI PDF assistant persistence'
+    commits:
+    - 9ccbbd0f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: refresh api key for signup specs'
+    commits:
+    - a29889489
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: accept rotating test cleanup api key'
+    commits:
+    - 33a6b3afd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: type CLI PDF prompt before attachment'
+    commits:
+    - f95cb3dfd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: reuse robust login in CLI PDF spec'
+    commits:
+    - 230a50ec6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: clear security reminder on logout'
+    commits:
+    - 2d6c53321
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize settings email change test'
+    commits:
+    - 863c210f6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: hold pending settings deep links'
+    commits:
+    - 097262255
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve cold settings delete deep links'
+    commits:
+    - bf9ebca69
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: decrypt SDK task helpers'
+    commits:
+    - dff10b1e8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: assert native embed reference grouping'
+    commits:
+    - ef554cc85
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: prevent stale event loop cache errors'
+    commits:
+    - f3548904b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: return fake watch inline embed message'
+    commits:
+    - 4ace6e3c8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: return watch inline embed fixture message'
+    commits:
+    - 77a973f1c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: mirror watch inline embed fallback'
+    commits:
+    - 13adfc739
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: render native chat embeds from inline references'
+    commits:
+    - d65880ec3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: add Cerebras Gemma model metadata'
+    commits:
+    - 8fca1d969
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record task workflow example evidence'
+    commits:
+    - 22849d68f
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize task workflow example chat spec'
+    commits:
+    - a8c1e8080
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add task workflow example chats'
+    commits:
+    - 1472d457e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record Apple parity verification evidence'
+    commits:
+    - f90cd1a9e
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve Tasks create payload batches'
+    commits:
+    - 5ee8895e2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record Apple chat contract evidence'
+    commits:
+    - 50fbaf7cf
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: avoid focusing offscreen Apple chat composer'
+    commits:
+    - 6d6c0c47a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: route explicit Tasks app-skill aliases'
+    commits:
+    - d1b2ec64c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: capture Apple chat shell before opening list'
+    commits:
+    - d36624189
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize Apple chat UI contract capture'
+    commits:
+    - 77fb6939a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: type erase chat focus lifecycle boundary'
+    commits:
+    - 009d0aca2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: simplify chat focus watcher'
+    commits:
+    - abbc30e62
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: split chat view body'
+    commits:
+    - 1172f217a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: extract chat view request handlers'
+    commits:
+    - 01b62a974
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: extract chat view lifecycle handlers'
+    commits:
+    - a70638457
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: simplify chat view disappear modifier'
+    commits:
+    - 4f2e455a0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: reduce chat view embed watcher type checking'
+    commits:
+    - 1bb05defc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: initialize watch embed refs once'
+    commits:
+    - a35dd0fa7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: add watch remote message initializer'
+    commits:
+    - 99803eb49
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: compile watch embed previews for archive'
+    commits:
+    - e30e40783
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: render watch embed previews'
+    commits:
+    - 2a4045d95
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'test: reload real websocket module for metadata dispatch'
+    commits:
+    - a3cfacbf1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: patch metadata sync scheduler binding'
+    commits:
+    - 2f4cb4f91
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat: add OpenAI-compatible chat API'
+    commits:
+    - b0e5f07af
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep CLI upload embed ids stable'
+    commits:
+    - 58eb00913
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refresh CLI chat message sync'
+    commits:
+    - e31c45823
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: finalize CLI PDF embeds with chat context'
+    commits:
+    - 3db2da199
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: persist active recovery completions'
+    commits:
+    - d7e18f17e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: allow shared encrypted embed assets'
+    commits:
+    - 8f6547083
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refetch partial sync message caches'
+    commits:
+    - 2b706eef6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: wait for PDF embed data before send'
+    commits:
+    - 344e38cb9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: use native docx download links'
+    commits:
+    - 7d8076010
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: prewarm docx embed downloads'
+    commits:
+    - 3a401e6b5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: make doc embed downloads observable'
+    commits:
+    - b242f2564
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: normalize task query defaults'
+    commits:
+    - 2e4855238
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: wait for CLI PDF auth state'
+    commits:
+    - ae0414d20
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize CLI PDF chat context'
+    commits:
+    - 39831119e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add unified key wrapper architecture'
+    commits:
+    - 5a669ff2d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: normalize lifecycle contact verified timestamp'
+    commits:
+    - b20306a1e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: wait for CLI PDF response completion'
+    commits:
+    - da6cd27fb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: trust valid dev api key for signup cleanup'
+    commits:
+    - 77cd23769
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: avoid brittle CLI PDF embed id assertion'
+    commits:
+    - ed3f75fd1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: allow dev cleanup api key without test env hashes'
+    commits:
+    - 4aa682630
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: wait for CLI PDF assistant persistence'
+    commits:
+    - 9ccbbd0f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: accept rotating test cleanup api key'
+    commits:
+    - 33a6b3afd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: type CLI PDF prompt before attachment'
+    commits:
+    - f95cb3dfd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: reuse robust login in CLI PDF spec'
+    commits:
+    - 230a50ec6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: clear security reminder on logout'
+    commits:
+    - 2d6c53321
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize settings email change test'
+    commits:
+    - 863c210f6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hold pending settings deep links'
+    commits:
+    - 097262255
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve cold settings delete deep links'
+    commits:
+    - bf9ebca69
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: decrypt SDK task helpers'
+    commits:
+    - dff10b1e8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: render native chat embeds from inline references'
+    commits:
+    - d65880ec3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add Cerebras Gemma model metadata'
+    commits:
+    - 8fca1d969
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize task workflow example chat spec'
+    commits:
+    - a8c1e8080
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add task workflow example chats'
+    commits:
+    - 1472d457e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve Tasks create payload batches'
+    commits:
+    - 5ee8895e2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: route explicit Tasks app-skill aliases'
+    commits:
+    - d1b2ec64c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: type erase chat focus lifecycle boundary'
+    commits:
+    - 009d0aca2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: simplify chat focus watcher'
+    commits:
+    - abbc30e62
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: split chat view body'
+    commits:
+    - 1172f217a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: extract chat view request handlers'
+    commits:
+    - 01b62a974
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: extract chat view lifecycle handlers'
+    commits:
+    - a70638457
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: simplify chat view disappear modifier'
+    commits:
+    - 4f2e455a0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: reduce chat view embed watcher type checking'
+    commits:
+    - 1bb05defc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: initialize watch embed refs once'
+    commits:
+    - a35dd0fa7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: add watch remote message initializer'
+    commits:
+    - 99803eb49
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: compile watch embed previews for archive'
+    commits:
+    - e30e40783
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: render watch embed previews'
+    commits:
+    - 2a4045d95
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: b0e5f07afd4026fd222bd81acf0bc586496fcbce
+    short_sha: b0e5f07af
+    authored_at: '2026-07-17T23:59:29+00:00'
+    subject: 'feat: add OpenAI-compatible chat API'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/openai_compat.py
+    - backend/core/api/main.py
+    - backend/tests/test_openai_compatible_api_contract.py
+    - backend/tests/test_openai_compatible_tools_contract.py
+    - docs/specs/openai-compatible-api/spec.yml
+    - frontend/packages/openmates-cli/tests/openai-compatible-smoke.mjs
+    - scripts/openai_compat_opencode_smoke.py
+    - scripts/openai_compat_smoke.py
+    related_feature_ids: []
+  - sha: 58eb00913d3ca9d6f894af480281033b3cf627fe
+    short_sha: 58eb00913
+    authored_at: '2026-07-17T23:37:12+00:00'
+    subject: 'fix: keep CLI upload embed ids stable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    related_feature_ids: []
+  - sha: b02e09c157606514502aede67105b939c8097354
+    short_sha: b02e09c15
+    authored_at: '2026-07-17T23:36:18+00:00'
+    subject: 'fix: prefer persisted chat keys during send'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/services/encryption/__tests__/ChatKeyManager.test.ts
+    related_feature_ids: []
+  - sha: e31c458230301f91070664baf733944011e3f593
+    short_sha: e31c45823
+    authored_at: '2026-07-17T23:16:00+00:00'
+    subject: 'fix: refresh CLI chat message sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    related_feature_ids: []
+  - sha: 3db2da1992b2a0e40ced57f83ce75ce44dddbab0
+    short_sha: 3db2da199
+    authored_at: '2026-07-17T23:12:24+00:00'
+    subject: 'fix: finalize CLI PDF embeds with chat context'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    related_feature_ids: []
+  - sha: d54085e149c4c6e109c228e106d666846365b0fe
+    short_sha: d54085e14
+    authored_at: '2026-07-17T22:50:18+00:00'
+    subject: 'test: wait for shared PDF embed finalization'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: fd2f72e5ce83a642981c39ae8196fdcfc2773767
+    short_sha: fd2f72e5c
+    authored_at: '2026-07-17T22:48:12+00:00'
+    subject: 'fix: wait longer for send embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: e281aa6adf8e2222836ad8f5ebb06ba7ec1a3786
+    short_sha: e281aa6ad
+    authored_at: '2026-07-17T22:27:40+00:00'
+    subject: 'test: target shared chat header badge'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: d7e18f17e19b48462a39d11c65cd2946a5272ae1
+    short_sha: d7e18f17e
+    authored_at: '2026-07-17T22:24:37+00:00'
+    subject: 'fix: persist active recovery completions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/__tests__/activeChatUtils.test.ts
+    - frontend/packages/ui/src/components/activeChatUtils.ts
+    related_feature_ids: []
+  - sha: 8f65470833b09426978e52da915a9b4c907835ea
+    short_sha: 8f6547083
+    authored_at: '2026-07-17T22:08:51+00:00'
+    subject: 'fix: allow shared encrypted embed assets'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/scripts/debug_chat.py
+    - backend/shared/python_utils/chat_completion_integrity.py
+    - backend/tests/test_chat_completion_integrity.py
+    - backend/tests/test_embeds_presigned_url.py
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: 2b706eef6293167d0b01b753e57b751aed4cb09b
+    short_sha: 2b706eef6
+    authored_at: '2026-07-17T21:55:32+00:00'
+    subject: 'fix: refetch partial sync message caches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_message_hydration.py
+    - backend/core/api/app/routes/sync_api.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_sync_api.py
+    - backend/tests/test_sync_message_hydration.py
+    related_feature_ids: []
+  - sha: b0dc2325a66d9311f4dc56efeb2ea55ee6930dac
+    short_sha: b0dc2325a
+    authored_at: '2026-07-17T21:07:43+00:00'
+    subject: 'fix: translate new example chat German entries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/example_chats/example_chat_task_planning_checklist.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/library_book_return_workflow.yml
+    related_feature_ids: []
+  - sha: 9ecae4781f47112d9b3b6df9f461e0dd22d8485f
+    short_sha: 9ecae4781
+    authored_at: '2026-07-17T20:48:42+00:00'
+    subject: 'test: scope multi-tab decrypt errors to active chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    related_feature_ids: []
+  - sha: 344e38cb9b968ab23f80383949f06276ca88ef18
+    short_sha: 344e38cb9
+    authored_at: '2026-07-17T20:42:27+00:00'
+    subject: 'fix: wait for PDF embed data before send'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: 7d8076010ace5fb90fdc7be6a408ec63cbc5550b
+    short_sha: 7d8076010
+    authored_at: '2026-07-17T20:42:04+00:00'
+    subject: 'fix: use native docx download links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 3a401e6b533f312227336bd2e01af8e51569d35a
+    short_sha: 3a401e6b5
+    authored_at: '2026-07-17T20:23:11+00:00'
+    subject: 'fix: prewarm docx embed downloads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: b242f2564ae6ae4c587753d6d06b7fb8a63c86ab
+    short_sha: b242f2564
+    authored_at: '2026-07-17T20:04:04+00:00'
+    subject: 'fix: make doc embed downloads observable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 471502723b25b28269ca2cc8e335931b060a79cb
+    short_sha: '471502723'
+    authored_at: '2026-07-17T19:18:46+00:00'
+    subject: 'fix: retry recovery persistence conflicts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    related_feature_ids: []
+  - sha: 22e458d87ad89c8cd23df37a72c424f9b1b06090
+    short_sha: 22e458d87
+    authored_at: '2026-07-17T18:41:20+00:00'
+    subject: 'fix: apply compact docx diff metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_diff_service.py
+    - backend/core/api/app/services/tests/test_embed_diff_service.py
+    related_feature_ids: []
+  - sha: 2de44b12e776d342b0ae2fb7428558ee09ef7515
+    short_sha: 2de44b12e
+    authored_at: '2026-07-17T18:05:56+00:00'
+    subject: 'fix: avoid new-chat preflight metadata on follow-ups'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: 94d45209922a64aa31457cea2b25d5a285ca6d76
+    short_sha: 94d452099
+    authored_at: '2026-07-17T17:43:31+00:00'
+    subject: 'fix: refetch stale problem test rows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    related_feature_ids: []
+  - sha: 0e19f6226ff359ed482e7024c885963989c5a9ef
+    short_sha: 0e19f6226
+    authored_at: '2026-07-17T17:41:50+00:00'
+    subject: 'fix: make recovery terminal persistence idempotent'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    related_feature_ids: []
+  - sha: d9a212b71913b3b8ebe62e6439905b9f1394de74
+    short_sha: d9a212b71
+    authored_at: '2026-07-17T17:39:05+00:00'
+    subject: 'fix: refresh stale test current state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    related_feature_ids: []
+  - sha: 35977df31f41e9017483e0427a67361e40c689db
+    short_sha: 35977df31
+    authored_at: '2026-07-17T17:31:59+00:00'
+    subject: 'test: update connected account summary expectation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    related_feature_ids: []
+  - sha: 2e5a2c7e68afa55135125dc607156e6e56a6b1ee
+    short_sha: 2e5a2c7e6
+    authored_at: '2026-07-17T16:05:17+00:00'
+    subject: 'test: stabilize workflow schema boundary test'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_workflow_key_boundary.py
+    related_feature_ids: []
+  - sha: 2e4855238cac8213b4aa73b5ab162f3e17528f6b
+    short_sha: 2e4855238
+    authored_at: '2026-07-17T16:04:14+00:00'
+    subject: 'fix: normalize task query defaults'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/user_tasks.py
+    related_feature_ids:
+    - platform:tasks
+  - sha: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
+    short_sha: 920cb079b
+    authored_at: '2026-07-17T15:59:31+00:00'
+    subject: 'test: update sync chat wrapper fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_sync_api.py
+    related_feature_ids: []
+  - sha: 68ce01eef49e6599f3fbf68dbe25cf8be782c85d
+    short_sha: 68ce01eef
+    authored_at: '2026-07-17T15:54:47+00:00'
+    subject: 'test: update native chat wrapper fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_native_chats_api.py
+    related_feature_ids: []
+  - sha: 3521ccd4bbeb1145657979221940b9cc318bd042
+    short_sha: 3521ccd4b
+    authored_at: '2026-07-17T15:49:15+00:00'
+    subject: 'fix: harden test control plane recording'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_workflow_app_skill_embeds.py
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    related_feature_ids: []
+  - sha: ae0414d208c08790f0b5478803ccd2c1b4d0a442
+    short_sha: ae0414d20
+    authored_at: '2026-07-17T15:11:51+00:00'
+    subject: 'fix: wait for CLI PDF auth state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    related_feature_ids: []
+  - sha: a3cfacbf1906957e8d3f327a9236a7424cdbad09
+    short_sha: a3cfacbf1
+    authored_at: '2026-07-17T15:08:27+00:00'
+    subject: 'test: reload real websocket module for metadata dispatch'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_websocket_metadata_dispatch.py
+    related_feature_ids: []
+  - sha: 2f4cb4f91aa7c91e856034c942a0c2a7e27c215e
+    short_sha: 2f4cb4f91
+    authored_at: '2026-07-17T15:04:20+00:00'
+    subject: 'test: patch metadata sync scheduler binding'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_websocket_metadata_dispatch.py
+    related_feature_ids: []
+  - sha: cf1b539c6a11258f0a0da1f494e688478e22848d
+    short_sha: cf1b539c6
+    authored_at: '2026-07-17T14:58:27+00:00'
+    subject: 'test: include chat wrappers in SDK API-key fixtures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    related_feature_ids: []
+  - sha: 8cdfd3ce5acee4745c43bc1ceaadeb5b9cd23cd0
+    short_sha: 8cdfd3ce5
+    authored_at: '2026-07-17T14:55:53+00:00'
+    subject: 'test: add default chat wrapper smoke seed'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-key-wrapper-migration.spec.ts
+    - scripts/verify_chat_key_wrapper_smoke.py
+    related_feature_ids: []
+  - sha: 39831119e6570561b47a2dd560e42a52714d3d77
+    short_sha: 39831119e
+    authored_at: '2026-07-17T14:53:30+00:00'
+    subject: 'fix: stabilize CLI PDF chat context'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    related_feature_ids: []
+  - sha: df259f7e552903843bfa4bb2fb0c7c733fb2ca8a
+    short_sha: df259f7e5
+    authored_at: '2026-07-17T14:51:22+00:00'
+    subject: 'fix: tolerate local connector cache outages'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/connected_accounts_service.py
+    related_feature_ids: []
+  - sha: 5a669ff2dc9028d6b560a4abc1a8cbaac4ab0bbb
+    short_sha: 5a669ff2d
+    authored_at: '2026-07-17T14:46:03+00:00'
+    subject: 'feat: add unified key wrapper architecture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/sync_api.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/chat_key_wrapper_methods.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/directus/schemas/chat_key_wrappers.yml
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/schemas/embed_keys.yml
+    - backend/core/directus/schemas/projects.yml
+    - backend/core/directus/schemas/user_plans.yml
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/tests/test_key_wrapper_authorization.py
+    - backend/tests/test_key_wrapper_rotation.py
+    - backend/tests/test_project_task_plan_key_wrappers.py
+    - backend/tests/test_unified_key_wrappers.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_workflow_key_boundary.py
+    - docs/specs/unified-key-wrappers/spec.yml
+    - frontend/apps/web_app/tests/chat-key-wrapper-migration.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/tests/key-wrappers.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_key_wrappers.py
+    - packages/openmates-python/tests/test_tasks.py
+    - scripts/tests/test_key_wrapper_logging_audit.py
+    - scripts/verify_chat_key_wrapper_smoke.py
+    related_feature_ids:
+    - platform:tasks
+  - sha: b20306a1eab9c7eebaea75546859ee8877c03c14
+    short_sha: b20306a1e
+    authored_at: '2026-07-17T14:37:16+00:00'
+    subject: 'fix: normalize lifecycle contact verified timestamp'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_utils.py
+    - backend/tests/test_security_regressions.py
+    related_feature_ids: []
+  - sha: da6cd27fbe7d8242a5308510d3aada0fccdd1414
+    short_sha: da6cd27fb
+    authored_at: '2026-07-17T14:28:16+00:00'
+    subject: 'fix: wait for CLI PDF response completion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    related_feature_ids: []
+  - sha: 77cd23769d1272720f10e90c884b53328a3bb15b
+    short_sha: 77cd23769
+    authored_at: '2026-07-17T14:26:31+00:00'
+    subject: 'fix: trust valid dev api key for signup cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/tests/test_auth_endpoints.py
+    related_feature_ids: []
+  - sha: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+    short_sha: ed3f75fd1
+    authored_at: '2026-07-17T14:11:52+00:00'
+    subject: 'fix: avoid brittle CLI PDF embed id assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    related_feature_ids: []
+  - sha: 4aa6826300845e61ffc422ffa39616b83c65a248
+    short_sha: 4aa682630
+    authored_at: '2026-07-17T14:06:31+00:00'
+    subject: 'fix: allow dev cleanup api key without test env hashes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/tests/test_auth_endpoints.py
+    related_feature_ids: []
+  - sha: 9ccbbd0f599efc21ec4ca71abae6d4cb7bd15235
+    short_sha: 9ccbbd0f5
+    authored_at: '2026-07-17T13:58:06+00:00'
+    subject: 'fix: wait for CLI PDF assistant persistence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    related_feature_ids: []
+  - sha: a29889489eabd5ebcecce17ebaa11eac46d36e20
+    short_sha: a29889489
+    authored_at: '2026-07-17T13:54:31+00:00'
+    subject: 'fix: refresh api key for signup specs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    related_feature_ids: []
+  - sha: 33a6b3afd449e5babd938db8b51c54979761c1d7
+    short_sha: 33a6b3afd
+    authored_at: '2026-07-17T13:45:19+00:00'
+    subject: 'fix: accept rotating test cleanup api key'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/tests/test_auth_endpoints.py
+    related_feature_ids: []
+  - sha: f95cb3dfded6d10a31952ff4ff6afdf9d2c43765
+    short_sha: f95cb3dfd
+    authored_at: '2026-07-17T13:40:21+00:00'
+    subject: 'fix: type CLI PDF prompt before attachment'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    related_feature_ids: []
+  - sha: 230a50ec65b3608d7bd044682251623812511d2f
+    short_sha: 230a50ec6
+    authored_at: '2026-07-17T13:22:51+00:00'
+    subject: 'fix: reuse robust login in CLI PDF spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    related_feature_ids: []
+  - sha: 2d6c533210fef75c46032b8c456055a39ba4e92f
+    short_sha: 2d6c53321
+    authored_at: '2026-07-17T13:10:18+00:00'
+    subject: 'fix: clear security reminder on logout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    related_feature_ids: []
+  - sha: 863c210f694cef561e6182b3b82d888ef273937c
+    short_sha: 863c210f6
+    authored_at: '2026-07-17T12:40:50+00:00'
+    subject: 'fix: stabilize settings email change test'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: 097262255288c9ed75111914c9fd37725adefbec
+    short_sha: 097262255
+    authored_at: '2026-07-17T12:00:45+00:00'
+    subject: 'fix: hold pending settings deep links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: bf9ebca693c503d80c0859ab28cad045b3b26d8f
+    short_sha: bf9ebca69
+    authored_at: '2026-07-17T11:14:32+00:00'
+    subject: 'fix: preserve cold settings delete deep links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-privacy-pii-deep-link.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: dff10b1e8616d55953e587913d448e35f3b20952
+    short_sha: dff10b1e8
+    authored_at: '2026-07-17T11:11:52+00:00'
+    subject: 'fix: decrypt SDK task helpers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/tests/test_user_tasks_api.py
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    - packages/openmates-python/tests/test_tasks.py
+    - scripts/verify_sdk_tasks_live_smoke.mjs
+    related_feature_ids: []
+  - sha: ef554cc852ccb78ff902ec8613c7b989bfbf01c4
+    short_sha: ef554cc85
+    authored_at: '2026-07-17T10:50:04+00:00'
+    subject: 'test: assert native embed reference grouping'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f3548904b0e18674909e492bb395e0af33718908
+    short_sha: f3548904b
+    authored_at: '2026-07-17T10:48:33+00:00'
+    subject: 'fix: prevent stale event loop cache errors'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/cache_base.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/tasks/base_task.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/tests/test_cache_base.py
+    - backend/tests/test_task_smoke.py
+    related_feature_ids: []
+  - sha: 4ace6e3c8679d3fc7bd4f998566a43b6fcb19799
+    short_sha: 4ace6e3c8
+    authored_at: '2026-07-17T09:40:41+00:00'
+    subject: 'test: return fake watch inline embed message'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: 77a973f1c974ac75a75facea0b948f13c846e109
+    short_sha: 77a973f1c
+    authored_at: '2026-07-17T09:39:06+00:00'
+    subject: 'test: return watch inline embed fixture message'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: 13adfc73917e90e51fe70c157f64947e6b31d87a
+    short_sha: 13adfc739
+    authored_at: '2026-07-17T09:37:28+00:00'
+    subject: 'test: mirror watch inline embed fallback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: d65880ec33b3669ad02b576f04d2951769a421d0
+    short_sha: d65880ec3
+    authored_at: '2026-07-17T09:32:39+00:00'
+    subject: 'fix: render native chat embeds from inline references'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: 8fca1d96918c0d231b090ca37e2091f4f382a951
+    short_sha: 8fca1d969
+    authored_at: '2026-07-17T09:06:49+00:00'
+    subject: 'feat: add Cerebras Gemma model metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/data/models_leaderboard.yml
+    - backend/providers/google.yml
+    - backend/providers/zai.yml
+    - frontend/packages/openmates-cli/src/mentions.ts
+    related_feature_ids: []
+  - sha: 22849d68fd85a1798bd3ce18dfea65eb48a94c7d
+    short_sha: 22849d68f
+    authored_at: '2026-07-17T02:06:26+00:00'
+    subject: 'docs: record task workflow example evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/tasks-workflows-app-skill-embeds/spec.yml
+    related_feature_ids: []
+  - sha: a8c1e808048b9766f238ca86f9530dc8477392e7
+    short_sha: a8c1e8080
+    authored_at: '2026-07-17T01:56:04+00:00'
+    subject: 'fix: stabilize task workflow example chat spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/task-workflow-example-chats.spec.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowCreateEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 1472d457ea870f4c14cda952aae74f972da5e73c
+    short_sha: 1472d457e
+    authored_at: '2026-07-17T01:42:13+00:00'
+    subject: 'feat: add task workflow example chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_embed_service_composite.py
+    - frontend/apps/web_app/tests/task-workflow-example-chats.spec.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowCreateEmbedPreview.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/example-chat-publishing-workflow.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/example-chat-task-planning-checklist.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/library-book-return-workflow.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/example_chat_publishing_workflow.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/example_chat_task_planning_checklist.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/library_book_return_workflow.yml
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    related_feature_ids: []
+  - sha: f90cd1a9e308c3278e14a2b7106ae0270dfa02c8
+    short_sha: f90cd1a9e
+    authored_at: '2026-07-17T01:33:06+00:00'
+    subject: 'docs: record Apple parity verification evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-ui-parity-program/spec.yml
+    related_feature_ids: []
+  - sha: 5ee8895e2ebe2071b30034ace7bd1faad46bd038
+    short_sha: 5ee8895e2
+    authored_at: '2026-07-17T01:08:33+00:00'
+    subject: 'fix: preserve Tasks create payload batches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_app_skill_embeds.py
+    related_feature_ids: []
+  - sha: 50fbaf7cfd4ab521abea6cc45bb06a443cef1b6f
+    short_sha: 50fbaf7cf
+    authored_at: '2026-07-17T01:01:37+00:00'
+    subject: 'docs: record Apple chat contract evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-ui-parity-program/spec.yml
+    related_feature_ids: []
+  - sha: 6d6c0c47af35e4d403950db08607f475c75667b3
+    short_sha: 6d6c0c47a
+    authored_at: '2026-07-17T00:50:58+00:00'
+    subject: 'test: avoid focusing offscreen Apple chat composer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
+    related_feature_ids: []
+  - sha: d1b2ec64c8e310a2a4973fab1157f5dbe55b925a
+    short_sha: d1b2ec64c
+    authored_at: '2026-07-17T00:45:26+00:00'
+    subject: 'fix: route explicit Tasks app-skill aliases'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    related_feature_ids: []
+  - sha: d36624189441b6a49e47fe2b46fe7f1d2c971b13
+    short_sha: d36624189
+    authored_at: '2026-07-17T00:35:29+00:00'
+    subject: 'test: capture Apple chat shell before opening list'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
+    related_feature_ids: []
+  - sha: 77fb6939a2031e404921c91506470cc8ad1f7f9f
+    short_sha: 77fb6939a
+    authored_at: '2026-07-17T00:21:03+00:00'
+    subject: 'test: stabilize Apple chat UI contract capture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
+    - frontend/apps/web_app/tests/helpers/apple-ui-contract-helpers.ts
+    related_feature_ids: []
+  - sha: 009d0aca2ee968ff073469d5ad2cee19ddb08ef6
+    short_sha: 009d0aca2
+    authored_at: '2026-07-17T00:21:00+00:00'
+    subject: 'fix: type erase chat focus lifecycle boundary'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: abbc30e627ef4722181921b5b0bd5a91e3071f24
+    short_sha: abbc30e62
+    authored_at: '2026-07-17T00:19:51+00:00'
+    subject: 'fix: simplify chat focus watcher'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 1172f217a69215449b01b2dc2e97c763e6409323
+    short_sha: 1172f217a
+    authored_at: '2026-07-17T00:18:51+00:00'
+    subject: 'fix: split chat view body'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 01b62a974ad17a5cf2cc78d2b341c58e1764f6ed
+    short_sha: 01b62a974
+    authored_at: '2026-07-17T00:17:23+00:00'
+    subject: 'fix: extract chat view request handlers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a706384577d7ed4ffb68fe29ccc509cd612b32e5
+    short_sha: a70638457
+    authored_at: '2026-07-17T00:16:21+00:00'
+    subject: 'fix: extract chat view lifecycle handlers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 4f2e455a0ccf47ca105bc2e57e30c5f4f57edcf7
+    short_sha: 4f2e455a0
+    authored_at: '2026-07-17T00:14:42+00:00'
+    subject: 'fix: simplify chat view disappear modifier'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 1bb05defce2dae879bea6092987869dfb65983ef
+    short_sha: 1bb05defc
+    authored_at: '2026-07-17T00:13:41+00:00'
+    subject: 'fix: reduce chat view embed watcher type checking'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a35dd0fa74cdf4d00f25f435603941e3048c2e77
+    short_sha: a35dd0fa7
+    authored_at: '2026-07-17T00:11:53+00:00'
+    subject: 'fix: initialize watch embed refs once'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: 99803eb493409fe51d3c82a59d2cd1fc7a8b8a59
+    short_sha: 99803eb49
+    authored_at: '2026-07-17T00:11:17+00:00'
+    subject: 'fix: add watch remote message initializer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: e30e40783c4e35d4bbdf732bacb4786b51b58c2f
+    short_sha: e30e40783
+    authored_at: '2026-07-17T00:10:01+00:00'
+    subject: 'fix: compile watch embed previews for archive'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: 2a4045d95a327e62856c6e7f1e45c8e24648729d
+    short_sha: 2a4045d95
+    authored_at: '2026-07-17T00:01:11+00:00'
+    subject: 'fix: render watch embed previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Extensions/AnyCodable.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    - apple/OpenMatesWatch/Sources/WatchLocalization.swift
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+llm_summary:
+  overview: OpenMates focused on expanding developer interfaces and platform parity, notably adding an OpenAI-compatible chat
+    API and making significant progress on native rendering for Apple platforms. The update also introduced a unified key
+    wrapper architecture for future task and project management features.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: OpenMates added an OpenAI-compatible chat API, enabling standard tool and chat completion contracts.
+    evidence:
+      commits:
+      - b0e5f07af
+    release_status: dev_only
+  - text: Significant progress was made on Apple platform parity, including native chat embed rendering from inline references
+      and UI lifecycle refinements for iOS, macOS, and Apple Watch.
+    evidence:
+      commits:
+      - d65880ec3
+      - 009d0aca2
+      - abbc30e62
+      - 1172f217a
+      - 01b62a974
+      - a70638457
+      - 4f2e455a0
+      - 1bb05defc
+      - a35dd0fa7
+      - 99803eb49
+      - e30e40783
+      - 2a4045d95
+    release_status: dev_only
+  - text: A unified key wrapper architecture was introduced to handle authorization and rotation for tasks, projects, and
+      plans.
+    evidence:
+      commits:
+      - 5a669ff2d
+      - 2e4855238
+      - dff10b1e8
+    release_status: dev_only
+  - text: The CLI and SDK received multiple updates to stabilize PDF embeds, chat message synchronization, and authentication
+      states.
+    evidence:
+      commits:
+      - 58eb00913
+      - e31c45823
+      - 3db2da199
+      - 344e38cb9
+      - ae0414d20
+      - 39831119e
+      - da6cd27fb
+      - ed3f75fd1
+      - 9ccbbd0f5
+      - f95cb3dfd
+      - 230a50ec6
+      - d1b2ec64c
+    release_status: dev_only
+  - text: Security and encryption updates include clearing reminders on logout, normalizing contact verification timestamps,
+      and allowing shared encrypted embed assets.
+    evidence:
+      commits:
+      - b02e09c15
+      - 8f6547083
+      - 2d6c53321
+      - b20306a1e
+    release_status: dev_only
+  - text: UI improvements focused on document embed downloads, settings deep link preservation, and example chat workflows.
+    evidence:
+      commits:
+      - 7d8076010
+      - 3a401e6b5
+      - b242f2564
+      - 863c210f6
+      - 097262255
+      - bf9ebca69
+      - 1472d457e
+      - a8c1e8080
+    release_status: dev_only
+  - text: Chat synchronization and recovery logic was hardened with improved persistence for active completions and conflict
+      retry logic.
+    evidence:
+      commits:
+      - d7e18f17e
+      - 2b706eef6
+      - '471502723'
+      - 0e19f6226
+    release_status: dev_only
+  - text: Metadata for the Cerebras Gemma model was added to the leaderboard and provider configurations.
+    evidence:
+      commits:
+      - 8fca1d969
+    release_status: dev_only
+  internal_progress:
+  - text: Extensive test stabilization was performed across the web app, CLI, and Apple platform suites to ensure contract
+      parity and reliable CI runs.
+    evidence:
+      commits:
+      - d54085e14
+      - e281aa6ad
+      - 9ecae4781
+      - 35977df31
+      - 2e5a2c7e6
+      - 920cb079b
+      - 68ce01eef
+      - a3cfacbf1
+      - 2f4cb4f91
+      - cf1b539c6
+      - 8cdfd3ce5
+      - ef554cc85
+      - 4ace6e3c8
+      - 77a973f1c
+      - 13adfc739
+      - 6d6c0c47a
+      - d36624189
+      - 77fb6939a
+    release_status: dev_only
+  - text: Documentation was updated to record evidence for task workflows and Apple UI parity verification.
+    evidence:
+      commits:
+      - 22849d68f
+      - f90cd1a9e
+      - 50fbaf7cf
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: OpenAI-compatible chat API
+      evidence:
+        commits:
+        - b0e5f07af
+      reason: Feature is currently dev_only and not reachable from main.
+    - text: Apple platform parity progress
+      evidence:
+        commits:
+        - d65880ec3
+        - 2a4045d95
+      reason: Apple platforms (iOS, macOS, Watch) are currently disabled features.
+    - text: Unified key wrapper architecture
+      evidence:
+        commits:
+        - 5a669ff2d
+      reason: Tasks and related platform features are currently disabled.
+    rationale: All updates from this period are currently in development (dev_only) or related to disabled features, and are
+      not yet ready for public communication.
+  social_video_recommendations:
+  - idea: Demonstrate the new OpenAI-compatible API by connecting a standard AI tool to OpenMates.
+    priority: medium
+    reason: Shows interoperability and developer-friendliness.
+    evidence:
+      commits:
+      - b0e5f07af
+  - idea: A side-by-side comparison of chat rendering on the web app versus the Apple Watch.
+    priority: low
+    reason: Visual progress on platform parity, though the feature is currently unreleased.
+    evidence:
+      commits:
+      - 2a4045d95
+      - d65880ec3
+  quality_notes:
+  - Heavy emphasis on test stabilization for the CLI and Apple platform suites.
+  - Significant architectural work on encryption key management for upcoming platform features.
+  validation_warnings: []

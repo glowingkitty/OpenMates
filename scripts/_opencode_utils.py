@@ -14,15 +14,35 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import selectors
 import subprocess
 import sys
 import time
+from collections import deque
 import urllib.request
 from pathlib import Path
 
 
 _TMP_DIR_NAME = "scripts/.tmp"
 _INTERNAL_API_URL = os.environ.get("INTERNAL_API_URL", "http://localhost:8000")
+_RISKY_AUTOMATION_TERMS = (
+    "auth",
+    "payment",
+    "billing",
+    "encryption",
+    "sync",
+    "privacy",
+    "legal",
+    "migration",
+    "websocket",
+)
+_SESSION_ID_BYTES_RE = re.compile(rb'"sessionID"\s*:\s*"([^"]+)"')
+
+
+def _prompt_needs_human_approval(prompt: str) -> bool:
+    lower = prompt.lower()
+    return any(term in lower for term in _RISKY_AUTOMATION_TERMS)
 
 
 def _extract_opencode_session_id(output: str) -> str | None:
@@ -36,6 +56,78 @@ def _extract_opencode_session_id(output: str) -> str | None:
         if session_id:
             return str(session_id)
     return None
+
+
+def _run_bounded_output(
+    command: list[str],
+    *,
+    cwd: str,
+    env: dict[str, str],
+    timeout: int,
+    max_chars: int,
+) -> tuple[int, str, str | None, bool]:
+    """Run a JSONL command while retaining only a bounded output tail."""
+    if max_chars <= 0:
+        raise ValueError("max_chars must be positive")
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        cwd=cwd,
+        env=env,
+        bufsize=0,
+    )
+    chunks: deque[bytes] = deque()
+    retained_bytes = 0
+    session_id = None
+    deadline = time.monotonic() + timeout
+    timed_out = False
+
+    def retain(chunk: bytes) -> None:
+        nonlocal retained_bytes, session_id
+        if not session_id and (match := _SESSION_ID_BYTES_RE.search(chunk)):
+            session_id = match.group(1).decode("utf-8", errors="replace")
+        if len(chunk) > max_chars:
+            chunk = chunk[-max_chars:]
+        chunks.append(chunk)
+        retained_bytes += len(chunk)
+        while retained_bytes > max_chars and chunks:
+            excess = retained_bytes - max_chars
+            if len(chunks[0]) <= excess:
+                retained_bytes -= len(chunks.popleft())
+            else:
+                chunks[0] = chunks[0][excess:]
+                retained_bytes -= excess
+
+    try:
+        assert process.stdout is not None
+        selector = selectors.DefaultSelector()
+        selector.register(process.stdout, selectors.EVENT_READ)
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                timed_out = True
+                process.kill()
+                break
+            if process.poll() is not None:
+                break
+            if not selector.select(timeout=min(0.2, remaining)):
+                continue
+            chunk = os.read(process.stdout.fileno(), 65_536)
+            if chunk:
+                retain(chunk)
+        while chunk := os.read(process.stdout.fileno(), 65_536):
+            retain(chunk)
+        selector.close()
+        returncode = process.wait(timeout=10)
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=10)
+    output = b"".join(chunks).decode("utf-8", errors="replace").strip()
+    if not session_id:
+        session_id = _extract_opencode_session_id(output)
+    return (124 if timed_out else returncode), output, session_id, timed_out
 
 
 def _notify_session(
@@ -131,9 +223,12 @@ def run_opencode_session(
     linear_mode: str = "feature",
     kill_on_exit: bool = False,
     model: str | None = None,
+    requires_human_approval: bool = False,
+    capture_output_path: str | Path | None = None,
+    capture_output_max_chars: int = 2_000_000,
 ) -> tuple[int, str | None]:
     """Run a persisted OpenCode chat for a scheduled maintenance job."""
-    del allowed_tools, use_zellij, kill_on_exit, model
+    del allowed_tools, use_zellij, kill_on_exit
 
     tmp_dir = Path(project_root) / _TMP_DIR_NAME
     tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -151,8 +246,12 @@ def run_opencode_session(
     try:
         tmp_path.write_text(prompt, encoding="utf-8")
         message = f"Read {relative_path} in full and follow all the instructions precisely."
-        if agent == "plan":
-            message += " This is a read-only planning/review job: do not edit files, do not commit, and do not deploy."
+        if agent in {"plan", "cron-research"}:
+            message += (
+                " This is a read-only planning/review job: do not edit tracked files, "
+                "commit, or deploy. You may write only the designated gitignored report "
+                "paths named in the prompt."
+            )
 
         command = [
             "opencode",
@@ -162,7 +261,16 @@ def run_opencode_session(
             "--format",
             "json",
         ]
-        if agent != "plan":
+        if model:
+            command.extend(["--model", model])
+        if agent == "cron-research":
+            command.extend(["--agent", "cron-research"])
+        if agent not in {"plan", "cron-research"}:
+            if _prompt_needs_human_approval(prompt) and not requires_human_approval:
+                raise RuntimeError(
+                    "requires_human_approval is mandatory for permission-skipping OpenCode automation "
+                    "that mentions auth, billing, encryption, sync, privacy, legal, migrations, or websockets."
+                )
             command.append("--dangerously-skip-permissions")
         command.append(message)
 
@@ -192,17 +300,29 @@ def run_opencode_session(
                 print(f"{log_prefix} WARNING: Linear task creation failed: {error} (non-fatal)", file=sys.stderr)
 
         try:
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                cwd=project_root,
-                env=run_env,
-            )
-            returncode = result.returncode
-            combined = (result.stdout + result.stderr).strip()
-            session_id = _extract_opencode_session_id(combined)
+            if capture_output_path:
+                returncode, combined, session_id, timed_out = _run_bounded_output(
+                    command,
+                    cwd=project_root,
+                    env=run_env,
+                    timeout=timeout,
+                    max_chars=capture_output_max_chars,
+                )
+                if timed_out:
+                    status = "timeout"
+                    print(f"{log_prefix} ERROR: OpenCode timed out after {timeout}s", file=sys.stderr)
+            else:
+                result = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                    cwd=project_root,
+                    env=run_env,
+                )
+                returncode = result.returncode
+                combined = (result.stdout + result.stderr).strip()
+                session_id = _extract_opencode_session_id(combined)
         except subprocess.TimeoutExpired as error:
             status = "timeout"
             combined = ((error.stdout or "") + (error.stderr or "")).strip()
@@ -221,6 +341,11 @@ def run_opencode_session(
             returncode = 1
             combined = ""
             print(f"{log_prefix} ERROR: OpenCode failed to start: {error}", file=sys.stderr)
+
+        if capture_output_path:
+            capture_path = Path(capture_output_path)
+            capture_path.parent.mkdir(parents=True, exist_ok=True)
+            capture_path.write_text(combined + ("\n" if combined else ""), encoding="utf-8")
 
         if session_id:
             print(f"{log_prefix} OpenCode session: {session_id}")

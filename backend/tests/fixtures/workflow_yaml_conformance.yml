@@ -1,0 +1,23 @@
+valid:
+  - name: minimal manual workflow
+    source: |
+      title: Minimal
+      start_when:
+        manual: {}
+      steps:
+        - id: search
+          use_app_skill: web.search
+          input:
+            requests:
+              - query: OpenMates
+invalid:
+  - name: unknown top-level field
+    source: |
+      title: Invalid
+      start_when:
+        manual: {}
+      steps: []
+      surprise: true
+    diagnostics:
+      - code: UNKNOWN_FIELD
+        path: surprise

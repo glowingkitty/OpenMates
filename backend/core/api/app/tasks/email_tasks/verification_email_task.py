@@ -1,5 +1,4 @@
 import logging
-import random
 import asyncio
 
 # Import the Celery app
@@ -10,6 +9,7 @@ from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
+from backend.shared.python_utils.security_random import generate_digit_code
 
 # Setup loggers
 logger = logging.getLogger(__name__)
@@ -74,7 +74,7 @@ async def _async_generate_and_send_verification_email(
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
 
         # Generate a 6-digit code
-        verification_code = ''.join(random.choices('0123456789', k=6))
+        verification_code = generate_digit_code()
         logger.info(f"Generated verification code for {email[:2]}***")
 
         # Store the code in cache with 20 minute expiration

@@ -7,7 +7,66 @@ logger = logging.getLogger(__name__)
 
 # Connection-level errors that indicate CMS is temporarily unreachable.
 # These get exponential backoff with more retries than token refresh errors.
-_CONNECTION_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout, OSError)
+_CONNECTION_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout)
+_READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+_PLAINTEXT_PRIVATE_FIELDS_BY_COLLECTION = {
+    "chats": frozenset({
+        "active_focus_id",
+        "category",
+        "chat_summary",
+        "chat_tags",
+        "draft",
+        "follow_up_request_suggestions",
+        "icon",
+        "settings_memories_suggestions",
+        "share_cta_text",
+        "summary",
+        "title",
+        "top_recommended_apps_for_chat",
+        "user_id",
+    }),
+    "messages": frozenset({
+        "assistant_category",
+        "category",
+        "content",
+        "model_name",
+        "pii_mappings",
+        "sender_name",
+        "thinking",
+        "thinking_content",
+        "thinking_signature",
+        "thinking_tokens",
+        "user_id",
+    }),
+}
+
+
+def _plaintext_private_field_violation(collection: str, payload: dict) -> dict | None:
+    """Return a fail-closed Directus write violation for private plaintext fields."""
+    if not isinstance(payload, dict):
+        return None
+
+    private_fields = _PLAINTEXT_PRIVATE_FIELDS_BY_COLLECTION.get(collection)
+    if not private_fields:
+        return None
+
+    rejected_fields = sorted(
+        field for field in private_fields
+        if field in payload and payload.get(field) is not None
+    )
+    if not rejected_fields:
+        return None
+
+    return {
+        "error": "plaintext_private_fields_forbidden",
+        "collection": collection,
+        "fields": rejected_fields,
+        "message": (
+            f"Refusing Directus {collection} write with plaintext private fields: "
+            f"{', '.join(rejected_fields)}. Use client-encrypted encrypted_* fields."
+        ),
+    }
 
 async def _make_api_request(self, method, url, headers=None, **kwargs):
     """Make an API request with token refresh and connection retry capability.
@@ -57,15 +116,47 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
             connection_failures += 1
             if connection_failures < max_connection_retries:
                 backoff = min(2 ** connection_failures, 16)
-                logger.warning(f"CMS connection failed ({type(e).__name__}): {e}. "
-                               f"Retrying in {backoff}s ({connection_failures}/{max_connection_retries})...")
+                logger.warning(
+                    "CMS connection failed (%s). Retrying in %ss (%s/%s)...",
+                    type(e).__name__,
+                    backoff,
+                    connection_failures,
+                    max_connection_retries,
+                )
                 await asyncio.sleep(backoff)
             else:
                 logger.error(f"CMS unreachable after {max_connection_retries} connection retries: {e}")
                 raise e
+        except httpx.TransportError as e:
+            if method.upper() not in _READ_ONLY_METHODS:
+                logger.warning(
+                    "CMS mutation transport failed (%s); not retrying without an idempotency guarantee",
+                    type(e).__name__,
+                )
+                raise
+            connection_failures += 1
+            if connection_failures < max_connection_retries:
+                backoff = min(2 ** connection_failures, 16)
+                logger.warning(
+                    "CMS read transport failed (%s). Retrying in %ss (%s/%s)...",
+                    type(e).__name__,
+                    backoff,
+                    connection_failures,
+                    max_connection_retries,
+                )
+                await asyncio.sleep(backoff)
+            else:
+                logger.error("CMS read transport failed after %s retries (%s)", max_connection_retries, type(e).__name__)
+                raise
         except Exception as e:
+            if method.upper() not in _READ_ONLY_METHODS:
+                logger.warning(
+                    "CMS mutation request failed (%s); not retrying without an idempotency guarantee",
+                    type(e).__name__,
+                )
+                raise
             if attempt < self.max_retries - 1:
-                logger.warning(f"Request failed: {str(e)}. Retrying...")
+                logger.warning("CMS read request failed (%s). Retrying...", type(e).__name__)
                 await asyncio.sleep(1)
             else:
                 raise e
@@ -88,15 +179,23 @@ async def create_item(self, collection: str, payload: dict, admin_required: bool
         A tuple (bool, dict): (True, created_item_data) on success,
                                (False, error_details) on failure.
     """
+    violation = _plaintext_private_field_violation(collection, payload)
+    if violation:
+        logger.error(violation["message"])
+        return False, violation
+
     url = f"{self.base_url}/items/{collection}"
     logger.info(f"Attempting to create item in collection '{collection}'")
 
     try:
         headers = {}
         if admin_required:
-            # Use admin token for collections that require elevated privileges
-            # (e.g. analytics, server_stats, signup_funnel collections)
-            token = await self.login_admin()
+            # Use the shared cached admin-token path so service-only collection
+            # writes do not fall back to a regular user token on login failure.
+            token = await self.ensure_auth_token(admin_required=True)
+            if not token:
+                logger.error(f"Failed to get admin token for item creation in collection: {collection}")
+                return False, {"error": "admin_auth_unavailable"}
             headers["Authorization"] = f"Bearer {token}"
 
         # Use the internal _make_api_request helper for the POST request

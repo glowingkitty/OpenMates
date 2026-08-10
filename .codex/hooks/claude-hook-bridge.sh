@@ -10,6 +10,7 @@ EVENT="${1:-}"
 PROJECT_ROOT="/home/superdev/projects/OpenMates"
 HOOK_DIR="$PROJECT_ROOT/.claude/hooks"
 INPUT=$(cat)
+CALLER_CWD=$(echo "$INPUT" | jq -r --arg fallback "$PROJECT_ROOT" '.cwd // $fallback')
 
 if [ -z "$EVENT" ]; then
   exit 0
@@ -31,7 +32,7 @@ to_abs_path() {
   local file="$1"
   case "$file" in
     /*) printf '%s\n' "$file" ;;
-    *) printf '%s/%s\n' "$PROJECT_ROOT" "$file" ;;
+    *) printf '%s/%s\n' "$CALLER_CWD" "$file" ;;
   esac
 }
 
@@ -88,7 +89,7 @@ payload_for_file() {
   local event="$1"
   local file="$2"
   echo "$INPUT" | jq \
-    --arg cwd "$PROJECT_ROOT" \
+    --arg cwd "$CALLER_CWD" \
     --arg event "$event" \
     --arg file "$file" \
     '{cwd: $cwd, hook_event_name: $event, tool_name: (.tool_name // "Edit"), tool_input: ((.tool_input // {}) + {file_path: $file})}'
@@ -98,7 +99,7 @@ payload_for_bash() {
   local command
   command=$(tool_command)
   jq -n \
-    --arg cwd "$PROJECT_ROOT" \
+    --arg cwd "$CALLER_CWD" \
     --arg command "$command" \
     '{cwd: $cwd, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $command}}'
 }
@@ -123,9 +124,6 @@ run_for_files() {
 }
 
 case "$EVENT" in
-  SessionStart)
-    run_hook "tdd-session-context.sh" '{"cwd":"/home/superdev/projects/OpenMates","hook_event_name":"SessionStart","source":"startup"}' false
-    ;;
   PreToolUse)
     TOOL=$(tool_name)
     if [ "$TOOL" = "Bash" ] || [ "$TOOL" = "bash" ]; then
@@ -135,27 +133,14 @@ case "$EVENT" in
 
     case "$TOOL" in
       apply_patch|Edit|Write)
-        if [ "$TOOL" = "apply_patch" ]; then
-          run_hook "e2e-encryption-guard.sh" "$INPUT" true
-        fi
+        run_hook "e2e-encryption-guard.sh" "$INPUT" true
 
         run_for_files "PreToolUse" true \
           "pre-edit-guard.sh" \
-          "provider-registry-sync.sh" \
-          "analytics-sdk-forbidden.sh" \
-          "legal-text-lastupdated-bump.sh" \
           "pii-logger-guard.sh" \
-          "privacy-promise-guard.sh" \
-          "cli-credential-prompt-guard.sh" \
-          "external-resources-guard.sh" \
-          "cookie-consent-gate.sh" \
           "css-selector-in-specs.sh" \
-          "code-debt-pre-edit-guard.sh" \
           "svelte5-legacy-syntax.sh" \
-          "donation-language-guard.sh" \
-          "settings-canonical-elements.sh" \
-          "native-ios-control-guard.sh" \
-          "e2e-encryption-guard.sh"
+          "native-ios-control-guard.sh"
         ;;
     esac
     ;;
@@ -163,22 +148,12 @@ case "$EVENT" in
     TOOL=$(tool_name)
     case "$TOOL" in
       apply_patch|Edit|Write)
-        run_for_files "PostToolUse" true \
-          "skill-embed-registry-guard.sh"
-
         run_for_files "PostToolUse" false \
           "auto-track.sh" \
-          "docs-claims-impact.sh" \
-          "auto-rebuild-translations.sh" \
-          "testid-drift-detector.sh" \
-          "encryption-architecture-reminder.sh" \
-          "svelte-swift-counterpart-linker.sh"
+          "contract-test-impact.sh" \
+          "skill-embed-registry-guard.sh"
         ;;
     esac
-    ;;
-  UserPromptSubmit)
-    run_hook "session-gate.sh" "$INPUT" true
-    run_hook "linear-context-auto-prefetch.sh" "$INPUT" false
     ;;
   Stop)
     run_hook "check-uncommitted.sh" '{"cwd":"/home/superdev/projects/OpenMates","hook_event_name":"Stop","stop_hook_active":false}' false

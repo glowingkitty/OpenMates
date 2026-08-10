@@ -12,7 +12,7 @@ Commands:
     run-meeting     Full pipeline: gather data → start main meeting session
     dry-run         Gather data and print the meeting prompt (no Claude session)
     auto-confirm    Apply proposed priorities to Linear (called by timer)
-    spawn-planning  Spawn planning sessions for confirmed priorities
+    spawn-planning  Spawn planning chats for confirmed priorities
 
 State file: scripts/.daily-meeting-state.json
 
@@ -23,11 +23,10 @@ Data sources:
     D. OpenObserve errors (dev + prod)  — docker exec debug.py
     E. check-file-sizes.sh --ci         — subprocess
     F. Nightly job state files          — file reads (logs/nightly-reports/)
-    G. Workflow review (session quality) — import from _workflow_review_helper
-    H. User-reported issues             — docker exec debug_issue.py (Vault key)
-    I. Linear tasks                     — queried live by meeting session (MCP)
-    J. Milestone state                  — file read (.planning/)
-    K. Server stats                     — docker exec server_stats_query.py
+    G. User-reported issues             — docker exec debug_issue.py (Vault key)
+    H. Linear tasks                     — queried live by meeting session (MCP)
+    I. Milestone state                  — file read (.planning/)
+    J. Server stats                     — docker exec server_stats_query.py
     N. SEO health                       — HTTP requests to production sitemap + pages
 
 Importable from other helpers:
@@ -405,21 +404,6 @@ def gather_nightly_state_files() -> dict:
     return result
 
 
-def gather_session_quality(yesterday: str) -> str:
-    """Source G: session quality data from workflow review helper."""
-    try:
-        from _workflow_review_helper import build_session_digests
-        digest_text, count, chars = build_session_digests(yesterday, verbose=False)
-        if count == 0:
-            return "(No relevant Claude Code sessions found for yesterday.)"
-        MAX_SESSION_CHARS = 8000
-        if len(digest_text) > MAX_SESSION_CHARS:
-            digest_text = digest_text[:MAX_SESSION_CHARS] + "\n\n[...truncated for daily meeting...]"
-        return f"({count} sessions, {chars:,} chars total)\n\n{digest_text}"
-    except Exception as e:
-        return f"[DATA UNAVAILABLE: session quality — {e}]"
-
-
 def gather_user_issues(project_root: str) -> str:
     """Source H: user-reported issues via debug_issue.py inside Docker."""
     cmd = [
@@ -623,7 +607,7 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
     data = {}
     failures = []
 
-    print(f"{LOG_PREFIX} Gathering data from 15 sources...")
+    print(f"{LOG_PREFIX} Gathering data from 14 sources...")
 
     with ThreadPoolExecutor(max_workers=9) as pool:
         futures = {
@@ -634,7 +618,6 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
             pool.submit(gather_openobserve_errors, True): "openobserve_prod",
             pool.submit(gather_large_files, project_root): "large_files",
             pool.submit(gather_user_issues, project_root): "user_issues",
-            pool.submit(gather_session_quality, yesterday): "session_quality",
             pool.submit(gather_server_stats): "server_stats",
             pool.submit(gather_server_stats, True): "server_stats_prod",
             pool.submit(gather_ephemeral_error_context): "ephemeral_error_context",
@@ -726,7 +709,6 @@ def build_meeting_prompt(data: dict, today: str, yesterday: str) -> str:
         .replace("{{OBSIDIAN_DAILY_NOTE}}", obsidian_daily_note)
         .replace("{{GIT_LOG}}", data.get("git_log", "N/A"))
         .replace("{{NIGHTLY_REPORTS}}", nightly_text)
-        .replace("{{SESSION_QUALITY}}", data.get("session_quality", "N/A"))
         .replace("{{USER_ISSUES}}", data.get("user_issues", "N/A"))
         .replace("{{TEST_SUMMARY}}", test.get("summary", "N/A") if isinstance(test, dict) else str(test))
         .replace("{{FAILED_TESTS}}", test.get("failed_reports", "N/A") if isinstance(test, dict) else "N/A")
@@ -766,6 +748,7 @@ def run_meeting_session(data: dict, today: str, yesterday: str) -> tuple[int, st
         job_type="daily-meeting",
         context_summary="Daily standup meeting — review, health, priorities",
         linear_task=False,
+        requires_human_approval=True,
     )
 
     return returncode, session_id
@@ -807,7 +790,7 @@ def cmd_run_meeting(yesterday: str) -> None:
 
     if session_id:
         print(f"OPENCODE_SESSION_ID:{session_id}")
-        print(f"{LOG_PREFIX} Resume command: claude resume --dangerous {session_id}")
+        print(f"{LOG_PREFIX} Resume command: python3 scripts/sessions.py restore {session_id}")
 
     if returncode != 0:
         print(f"{LOG_PREFIX} Meeting session exited with code {returncode}", file=sys.stderr)
@@ -868,7 +851,7 @@ def cmd_auto_confirm() -> None:
     print(f"{LOG_PREFIX} Auto-confirm complete. Linear labels should be applied in next meeting session.")
 
 
-# ── Spawn planning sessions ─────────────────────────────────────────────────
+# ── Spawn planning chats ────────────────────────────────────────────────────
 
 
 def build_planning_prompt(issue_data: dict, meeting_summary: str, today: str) -> str:
@@ -896,8 +879,8 @@ def build_planning_prompt(issue_data: dict, meeting_summary: str, today: str) ->
 
 
 def cmd_spawn_planning() -> None:
-    """Spawn planning sessions for today's confirmed priorities."""
-    from _zellij_utils import spawn_claude_session, count_active_sessions, MAX_CONCURRENT_SESSIONS
+    """Spawn planning chats for today's confirmed priorities."""
+    from _zellij_utils import spawn_opencode_session
 
     state = load_meeting_state()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -929,17 +912,8 @@ def cmd_spawn_planning() -> None:
         if not linear_id:
             continue
 
-        active = count_active_sessions()
-        if active >= MAX_CONCURRENT_SESSIONS:
-            skipped.append(linear_id)
-            print(
-                f"{LOG_PREFIX} Skipping {linear_id} — "
-                f"{active} active sessions (max {MAX_CONCURRENT_SESSIONS})"
-            )
-            continue
-
         session_name = f"plan-{linear_id}-{today}"
-        print(f"{LOG_PREFIX} Spawning planning session for {linear_id}...")
+        print(f"{LOG_PREFIX} Spawning planning chat for {linear_id}...")
 
         issue_data = None
         if get_issue_with_comments:
@@ -956,33 +930,27 @@ def cmd_spawn_planning() -> None:
             }
 
         prompt = build_planning_prompt(issue_data, meeting_summary, today)
-        prompt_file = TMP_DIR / f"planning-prompt-{linear_id}.txt"
-        prompt_file.write_text(prompt, encoding="utf-8")
-
-        rel_path = prompt_file.relative_to(PROJECT_ROOT)
-        claude_prompt = f"Read {rel_path} in full and follow all the instructions precisely."
-
-        success = spawn_claude_session(
+        success = spawn_opencode_session(
             session_name=session_name,
-            prompt=claude_prompt,
+            prompt=prompt,
             cwd=str(PROJECT_ROOT),
             permission_mode="plan",
         )
 
         if success:
             spawned.append((linear_id, session_name))
-            print(f"{LOG_PREFIX}   → {session_name} (attach: zellij attach {session_name})")
+            print(f"{LOG_PREFIX}   → {session_name} (OpenCode Web sidebar)")
         else:
-            print(f"{LOG_PREFIX}   → FAILED to spawn for {linear_id}", file=sys.stderr)
+            print(f"{LOG_PREFIX}   → FAILED to spawn chat for {linear_id}", file=sys.stderr)
 
-    print(f"\n{LOG_PREFIX} Spawned {len(spawned)}/{len(priorities)} planning sessions.")
+    print(f"\n{LOG_PREFIX} Spawned {len(spawned)}/{len(priorities)} planning chats.")
     if skipped:
-        print(f"{LOG_PREFIX} Skipped {len(skipped)} due to session cap ({MAX_CONCURRENT_SESSIONS}): {', '.join(skipped)}")
+        print(f"{LOG_PREFIX} Skipped {len(skipped)}: {', '.join(skipped)}")
         print(f"{LOG_PREFIX} Use /next-task or sessions.py spawn-chat to pick these up later.")
     if spawned:
-        print(f"{LOG_PREFIX} Web UI: http://localhost:8082")
+        print(f"{LOG_PREFIX} OpenCode Web: project sidebar")
         for linear_id, name in spawned:
-            print(f"{LOG_PREFIX}   zellij attach {name}")
+            print(f"{LOG_PREFIX}   {linear_id}: {name}")
 
 
 # ── Entry point ──────────────────────────────────────────────────────────────

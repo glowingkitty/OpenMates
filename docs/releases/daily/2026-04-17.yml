@@ -1,0 +1,3953 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-17'
+generated_at: '2026-07-09T15:08:29+00:00'
+range:
+  since: '2026-04-17T00:00:00+00:00'
+  until: '2026-04-17T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 72
+  section_counts:
+    features: 31
+    bug_fixes: 33
+    improvements: 3
+    docs: 1
+    tests: 2
+    infrastructure: 2
+    internal: 0
+    other: 0
+  newsletter_ready_items: 45
+  user_facing_items: 51
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat(apple): add CLI pair authorize flow with PBKDF2+AES-GCM encryption and deep link support'
+    section: features
+    commits:
+    - 0fe0e60c8
+    authored_at: '2026-04-17T23:22:52+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+    - apple/OpenMates/Tests/UI/CLIPairingUITests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): add unread badges, pending upload queue, inline attachment previews, edit message store'
+    section: features
+    commits:
+    - 6f94ce63f
+    authored_at: '2026-04-17T23:05:36+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Services/EditMessageStore.swift
+    - apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+    - apple/OpenMates/Sources/Core/Services/UnreadMessagesStore.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): add camera, sketch, maps, drafts, highlight nav, chat header, processing details, input actions'
+    section: features
+    commits:
+    - b3ce82536
+    authored_at: '2026-04-17T22:59:02+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/CameraView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HighlightNavigationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InputActionButtons.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ProcessingDetailsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): add full settings, StoreKit payments, i18n, offline mode, share extension, accessibility, tests,
+      and privacy manifest'
+    section: features
+    commits:
+    - b3bad017f
+    authored_at: '2026-04-17T22:47:07+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Resources/OpenMates.storekit
+    - apple/OpenMates/Resources/PrivacyInfo.xcprivacy
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/I18n/LocalizationManager.swift
+    - apple/OpenMates/Sources/Core/I18n/LocalizedText.swift
+    - apple/OpenMates/Sources/Core/I18n/SupportedLanguage.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/StoreKit/StoreManager.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AccountRecoveryView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ExampleChatsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ForkProgressBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageEditView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageHighlightsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/NewChatSuggestionsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContextMenuView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/ShareEmbedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/NewsletterSettingsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAccountChatsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDevicesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsEmailView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsExportAccountView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsIncognitoInfoView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsLogsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProfilePictureView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsServerView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsShareDebugLogsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSupportView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Shared/Components/CopyMessageFormatter.swift
+    - apple/OpenMates/Sources/Shared/Components/KeyboardShortcuts.swift
+    - apple/OpenMates/Sources/Shared/Components/NotificationBanners.swift
+    - apple/OpenMates/Sources/Shared/Extensions/AccessibilityModifiers.swift
+    - apple/OpenMates/Tests/UI/AuthFlowUITests.swift
+    - apple/OpenMates/Tests/UI/ChatManagementUITests.swift
+    - apple/OpenMates/Tests/UI/ChatMessageUITests.swift
+    - apple/OpenMates/Tests/UI/FileAttachmentUITests.swift
+    - apple/OpenMates/Tests/UI/OfflineAndSyncUITests.swift
+    - apple/OpenMates/Tests/UI/PaymentUITests.swift
+    - apple/OpenMates/Tests/UI/ReminderUITests.swift
+    - apple/OpenMates/Tests/UI/SettingsUITests.swift
+    - apple/OpenMates/Tests/UI/ShareAndEmbedUITests.swift
+    - apple/OpenMates/Tests/Unit/APIClientTests.swift
+    - apple/OpenMates/Tests/Unit/AuthModelsTests.swift
+    - apple/OpenMates/Tests/Unit/ChatModelsTests.swift
+    - apple/OpenMates/Tests/Unit/CopyMessageFormatterTests.swift
+    - apple/OpenMates/Tests/Unit/CryptoManagerTests.swift
+    - apple/OpenMatesShareExtension/Info.plist
+    - apple/OpenMatesShareExtension/OpenMatesShareExtension.entitlements
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/project.yml
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/payment/apple_iap_service.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): add follow-up suggestions, PII detection, focus mode, reminders, daily inspiration, chat import,
+      pagination'
+    section: features
+    commits:
+    - da4577f2c
+    authored_at: '2026-04-17T19:55:52+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatImportView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatPaginationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FollowUpSuggestions.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ReminderView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add native Apple app source code (71 files, 10K lines Swift)'
+    section: features
+    commits:
+    - 43be73509
+    authored_at: '2026-04-17T19:51:57+00:00'
+    changed_paths:
+    - apple/.gitignore
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/KeychainHelper.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/BackupCodeView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/DeviceVerificationView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasskeyLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/RecoveryKeyView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatContextMenu.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageContextMenu.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/PlaceRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchResultsRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/LegalChatView.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatListView.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatModels.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatStore.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsStorageFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/AITypingIndicator.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Shared/Components/NetworkStatusView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMButtonStyles.swift
+    - apple/OpenMates/Sources/Shared/Components/ToastNotification.swift
+    - apple/OpenMates/Sources/Shared/Extensions/AnyCodable.swift
+    - apple/OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+    - apple/OpenMates/Sources/Shared/Extensions/FontRegistration.swift
+    - apple/OpenMates/Sources/Shared/Extensions/ThemeManager.swift
+    - apple/project.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add native Apple app (iOS/iPadOS/macOS) - Phase 1 foundation'
+    section: features
+    commits:
+    - 1b3175832
+    authored_at: '2026-04-17T19:51:15+00:00'
+    changed_paths:
+    - docs/architecture/frontend/native-apps.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add newsletter subscription section to debug.py user command'
+    section: features
+    commits:
+    - 868c15188
+    authored_at: '2026-04-17T16:41:22+00:00'
+    changed_paths:
+    - backend/scripts/debug_user.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add Bluesky social links to Footer, SettingsFooter, config, newsletter template, icon, i18n'
+    section: features
+    commits:
+    - 92fb629cd
+    authored_at: '2026-04-17T16:29:13+00:00'
+    changed_paths:
+    - backend/core/api/templates/email/newsletter.mjml
+    - frontend/packages/ui/src/components/Footer.svelte
+    - frontend/packages/ui/src/components/settings/SettingsFooter.svelte
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/static/icons/bluesky.svg
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add Bluesky social profile - frontend, email template, icon, i18n'
+    section: features
+    commits:
+    - 773918f99
+    authored_at: '2026-04-17T16:27:03+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/newsletter_email_task.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add Bluesky social profile to all social link locations'
+    section: features
+    commits:
+    - 355bf5eea
+    authored_at: '2026-04-17T16:26:28+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/email.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add text sanitizer for ASCII smuggling prevention in message input and deep links'
+    section: features
+    commits:
+    - f97972528
+    authored_at: '2026-04-17T15:42:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/utils/__tests__/textSanitizer.test.ts
+    - frontend/packages/ui/src/utils/textSanitizer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: rename announcement chat ID, native fullscreen autoplay, clickable media frame'
+    section: features
+    commits:
+    - 368bb7448
+    authored_at: '2026-04-17T14:29:17+00:00'
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/announcements_introducing_openmates_v09.ts
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: announcement improvements - video registry, autoplay deep links, hide input'
+    section: features
+    commits:
+    - ab87cb7d7
+    authored_at: '2026-04-17T13:36:01+00:00'
+    changed_paths:
+    - backend/scripts/send_newsletter.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/announcements_april_2026_update.ts
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/data/videos.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_april_2026_update.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: announcement improvements - video registry, autoplay deep links, hide input'
+    section: features
+    commits:
+    - 39837b726
+    authored_at: '2026-04-17T13:33:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/chatVideoFullscreenStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: announcement improvements - video registry, autoplay deep links, hide input'
+    section: features
+    commits:
+    - 24bef4093
+    authored_at: '2026-04-17T13:32:25+00:00'
+    changed_paths:
+    - backend/scripts/publish_newsletter.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: announcement improvements - video registry, autoplay deep links, hide input for legal/newsletter'
+    section: features
+    commits:
+    - 6ba8b5ab2
+    authored_at: '2026-04-17T13:31:52+00:00'
+    changed_paths:
+    - backend/newsletters/issues/april-2026-update.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat(newsletter): auto-subscribe authenticated users, always show category toggles'
+    section: features
+    commits:
+    - 1ecae5a84
+    authored_at: '2026-04-17T11:33:51+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/newsletter.py
+    - frontend/packages/ui/src/components/settings/SettingsNewsletter.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: update Memories page description with purpose explanation'
+    section: features
+    commits:
+    - 6d1e7c7d9
+    authored_at: '2026-04-17T10:26:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat(sidebar): announcements and tips_and_tricks section ordering in Chats.svelte'
+    section: features
+    commits:
+    - 16c4fc1a8
+    authored_at: '2026-04-17T10:21:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(sidebar): add announcements and tips & tricks sections to chat list'
+    section: features
+    commits:
+    - 63d867694
+    authored_at: '2026-04-17T10:19:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/utils/chatGroupUtils.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(sidebar): announcements (3 most recent) and tips & tricks sections'
+    section: features
+    commits:
+    - d27254770
+    authored_at: '2026-04-17T10:18:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/activity.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat(newsletter): manage-settings link for registered users, tips & tricks sidebar section'
+    section: features
+    commits:
+    - 642aa511e
+    authored_at: '2026-04-17T10:17:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: rename Memories + deep link aliases (apps, memories)'
+    section: features
+    commits:
+    - 95328a406
+    authored_at: '2026-04-17T09:54:41+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_app_deep_linking_instruction.md
+    - backend/apps/ai/instructions/base_app_settings_memories_usage_instruction.md
+    - backend/apps/ai/instructions/base_settings_memories_deep_link_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/testing/fixtures/ai_lang_turn1_german.json
+    - backend/apps/ai/testing/fixtures/ai_lang_turn2_english.json
+    - backend/apps/ai/testing/fixtures/code_gen_turn1.json
+    - backend/apps/ai/testing/fixtures/code_gen_turn2.json
+    - backend/apps/ai/testing/fixtures/code_gen_turn3.json
+    - backend/apps/ai/testing/fixtures/default_model_auto.json
+    - backend/apps/ai/testing/fixtures/default_model_mistral.json
+    - backend/apps/ai/testing/fixtures/fork_conversation_turn1.json
+    - backend/apps/ai/testing/fixtures/fork_conversation_turn2.json
+    - backend/apps/ai/testing/fixtures/share_embed_flow.json
+    - backend/apps/docs/app.yml
+    - backend/apps/health/README.md
+    - backend/apps/plants/focus_modes/plant-care-guide/SKILL.md
+    - backend/core/api/app/routes/auth_routes/auth_recovery.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_app_settings_memories_handler.py
+    - backend/core/api/app/schemas/auth_recovery.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/core/api/app/services/cache_user_mixin.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/email/renderer.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/api/templates/email/newsletter.mjml
+    - backend/core/directus/schemas/user_app_settings_and_memories.yml
+    - backend/core/docker-compose.override.yml
+    - backend/newsletters/issues/april-2026-first-update.yml
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - docs/architecture/ai/learning-mode.md
+    - docs/architecture/apps/cli-package.md
+    - docs/architecture/apps/cli-remote-access.md
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/architecture/core/account-backup.md
+    - docs/architecture/core/client-side-encryption.md
+    - docs/architecture/core/delete-account.md
+    - docs/architecture/core/encryption-architecture.md
+    - docs/architecture/core/security.md
+    - docs/architecture/data/sync.md
+    - docs/architecture/integrations/email-openmates.md
+    - docs/architecture/privacy/sensitive-data-redaction.md
+    - docs/cli/README.md
+    - docs/cli/apps-and-skills.md
+    - docs/cli/embeds-and-sharing.md
+    - docs/user-guide/apps/README.md
+    - docs/user-guide/apps/app-store.md
+    - docs/user-guide/apps/books.md
+    - docs/user-guide/apps/code.md
+    - docs/user-guide/apps/docs.md
+    - docs/user-guide/apps/health.md
+    - docs/user-guide/apps/images.md
+    - docs/user-guide/apps/mail.md
+    - docs/user-guide/apps/reminder.md
+    - docs/user-guide/apps/settings-and-memories.md
+    - docs/user-guide/apps/skills.md
+    - docs/user-guide/apps/study.md
+    - docs/user-guide/apps/travel.md
+    - docs/user-guide/apps/videos.md
+    - docs/user-guide/apps/web.md
+    - docs/user-guide/getting-started.md
+    - frontend/apps/web_app/src/lib/newsletters.ts
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/newsletter/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/newsletter/[slug]/+page.ts
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    - frontend/apps/web_app/tests/mention-dropdown-settings-memory.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/outputRedactor.ts
+    - frontend/packages/secret-scanner/src/index.ts
+    - frontend/packages/secret-scanner/src/types.ts
+    - frontend/packages/ui/src/components/AppSettingsMemoriesPermissionDialog.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/DemoMessageContent.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/chats/utils/chatGroupUtils.ts
+    - frontend/packages/ui/src/components/embeds/SettingsMemoriesGroup.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppDetailsHeader.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesCategory.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesCreateEntry.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAI.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAllApps.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMemoriesHub.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/ActiveRemindersList.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/AppEmbedsPanel.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/components/signup/steps/credits/CreditsTopContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/onetimecodes/OneTimeCodesBottomContent.svelte
+    - frontend/packages/ui/src/demo_chats/data/announcements_april_2026_first_update.ts
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/activity.yml
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/books.yml
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/code.yml
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/docs.yml
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_april_2026_first_update.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_developers.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    - frontend/packages/ui/src/i18n/sources/enter_message/mention_dropdown.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/artemis_ii_mission.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/creativity_drawing_meetups_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/flights_berlin_bangkok.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/plants_plant_care_guide.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_settings_memories.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/services/accountExportService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/appSettingsMemories.ts
+    - frontend/packages/ui/src/services/db/index.ts
+    - frontend/packages/ui/src/services/debugUtils.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/services/searchSettingsCatalog.ts
+    - frontend/packages/ui/src/stores/allAppsFilterStore.ts
+    - frontend/packages/ui/src/stores/appSettingsMemoriesPermissionStore.ts
+    - frontend/packages/ui/src/stores/pairSessionStore.ts
+    - frontend/packages/ui/src/types/apps.ts
+    - marketing/meetups/AI Learners/README.md
+    - marketing/videos/README.md
+    - scripts/consolidate_translations.py
+    - scripts/dependabot-processed.json
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: rename App Store to Apps throughout the codebase'
+    section: features
+    commits:
+    - 59319d871
+    authored_at: '2026-04-17T08:43:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - marketing/videos/README.md
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(chat-header): increase media frame max size for larger screens'
+    section: features
+    commits:
+    - 787745aa3
+    authored_at: '2026-04-17T08:26:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(chat-header): play button mounts video in-place with native browser fullscreen'
+    section: features
+    commits:
+    - ca70c7431
+    authored_at: '2026-04-17T08:23:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(chat-header): show decorative side icons in media/slideshow state'
+    section: features
+    commits:
+    - 2da3113c8
+    authored_at: '2026-04-17T08:19:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(chat-header): 16:9 media frame with centered play button, remove bg video element'
+    section: features
+    commits:
+    - 4b56c2a92
+    authored_at: '2026-04-17T07:49:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(chat-header): slideshow frames in 16:9 frame, remove bg video + unused props'
+    section: features
+    commits:
+    - 99099c360
+    authored_at: '2026-04-17T07:47:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(chat-header): put slideshow frames in 16:9 rounded container, center play button inside, title below'
+    section: features
+    commits:
+    - 2fef57cf1
+    authored_at: '2026-04-17T07:46:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: remove 404 slug validation test from seo-demo-chat spec'
+    section: bug_fixes
+    commits:
+    - 741ff5b2b
+    authored_at: '2026-04-17T23:49:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/seo-demo-chat.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: relax seo-demo-chat robots meta assertion for Vercel hostname'
+    section: bug_fixes
+    commits:
+    - 43fc1fbf4
+    authored_at: '2026-04-17T23:45:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/seo-demo-chat.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add missing chat-item testid to SettingsImportAccount list items'
+    section: bug_fixes
+    commits:
+    - b3178ea39
+    authored_at: '2026-04-17T23:40:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: upgrade math-codegen to 0.4.3 (GHSA-p6x5-p4xf-cc4r)'
+    section: bug_fixes
+    commits:
+    - 87ad5dd50
+    authored_at: '2026-04-17T23:31:24+00:00'
+    changed_paths:
+    - package.json
+    - pnpm-lock.yaml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: rewrite seo-demo-chat and example-chats-load specs for new architecture'
+    section: bug_fixes
+    commits:
+    - 33093d8b1
+    authored_at: '2026-04-17T23:28:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/seo-demo-chat.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: update outdated E2E specs for route rename and hardcoded example chats'
+    section: bug_fixes
+    commits:
+    - 137c78df5
+    authored_at: '2026-04-17T23:27:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/status-page.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add missing data-testid attributes and fix stale spec selectors'
+    section: bug_fixes
+    commits:
+    - 46e951ebb
+    authored_at: '2026-04-17T23:12:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/lib/components/docs/DocsContent.svelte
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-polar.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeaderCtaButton.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/security/SettingsRecoveryKey.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: guard window.addEventListener with SSR check in chatSyncService'
+    section: bug_fixes
+    commits:
+    - 360fa8a53
+    authored_at: '2026-04-17T23:04:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: resolve 8 root-cause groups from daily test failures (g1-g5, g7-g9)'
+    section: bug_fixes
+    commits:
+    - 2b9027b39
+    authored_at: '2026-04-17T22:49:00+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_2fa_verify.py
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/tests/test_quote_verification.py
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/message-highlights-touch.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve hyphens in ai/model deep link IDs and add apps alias to auth gate'
+    section: bug_fixes
+    commits:
+    - be9d2e911
+    authored_at: '2026-04-17T16:56:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide highlight feature for public chats (intro, example, legal, announcement, tips)'
+    section: bug_fixes
+    commits:
+    - 7f73cf5d6
+    authored_at: '2026-04-17T16:32:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show comment icon only on last mark of multi-element highlights'
+    section: bug_fixes
+    commits:
+    - 58308bbc1
+    authored_at: '2026-04-17T16:25:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide follow-up suggestions in legal chats'
+    section: bug_fixes
+    commits:
+    - 91ff93665
+    authored_at: '2026-04-17T15:40:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: app icon renders as white block on deep link to All Apps'
+    section: bug_fixes
+    commits:
+    - 265a43f20
+    authored_at: '2026-04-17T15:07:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: announcement video in header, restore smooth header transitions, revert embed fullscreen'
+    section: bug_fixes
+    commits:
+    - 320d69ba5
+    authored_at: '2026-04-17T14:19:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(celery): cap worker concurrency to prevent memory exhaustion'
+    section: bug_fixes
+    commits:
+    - 96085da22
+    authored_at: '2026-04-17T12:16:52+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/docker-compose.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: newsletter/announcement chats treated as encrypted user chats'
+    section: bug_fixes
+    commits:
+    - 50b76bd24
+    authored_at: '2026-04-17T12:07:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/demo_chats/convertToChat.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/searchService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: newsletter/announcement chats treated as encrypted user chats'
+    section: bug_fixes
+    commits:
+    - 4bb47b3bb
+    authored_at: '2026-04-17T12:02:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/index.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(highlights): replace focused outline with intermediate opacity yellow'
+    section: bug_fixes
+    commits:
+    - d0f33812a
+    authored_at: '2026-04-17T11:53:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(tests): extract Brevo token via HTTP instead of browser navigation'
+    section: bug_fixes
+    commits:
+    - 12db42a8c
+    authored_at: '2026-04-17T11:51:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/newsletter-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(tests): update newsletter specs for always-visible toggles and correct testid'
+    section: bug_fixes
+    commits:
+    - 1c337e11d
+    authored_at: '2026-04-17T11:43:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/newsletter-categories.spec.ts
+    - frontend/apps/web_app/tests/newsletter-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(highlights): group hover across fragments + remove border-radius'
+    section: bug_fixes
+    commits:
+    - fbae45887
+    authored_at: '2026-04-17T11:43:29+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(newsletter): prevent deep link double-fire, remove unused isDemoChat import'
+    section: bug_fixes
+    commits:
+    - f0aa1a406
+    authored_at: '2026-04-17T11:25:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/settings/SettingsNewsletter.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(highlights): robust embed exclusion test — skip UI elements'
+    section: bug_fixes
+    commits:
+    - c4d9aaeee
+    authored_at: '2026-04-17T11:09:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(highlights): stabilize after-delete assertion + NaN opacity guard'
+    section: bug_fixes
+    commits:
+    - 0b8f324fa
+    authored_at: '2026-04-17T11:00:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(highlights): skip embeds in wrapRange + portal popover to body'
+    section: bug_fixes
+    commits:
+    - b3f05ef77
+    authored_at: '2026-04-17T10:52:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    - frontend/packages/ui/src/components/HighlightCommentPopover.svelte
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(newsletter): resolve webapp URL from SERVER_ENVIRONMENT in email tasks'
+    section: bug_fixes
+    commits:
+    - 394bc0016
+    authored_at: '2026-04-17T10:31:45+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/newsletter_email_task.py
+    - backend/scripts/send_newsletter.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(newsletter): use SERVER_ENVIRONMENT for webapp URL resolution in email tasks'
+    section: bug_fixes
+    commits:
+    - fda1b84fe
+    authored_at: '2026-04-17T10:31:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsNewsletter.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add missing newsletter chat files for build'
+    section: bug_fixes
+    commits:
+    - aac5d5af1
+    authored_at: '2026-04-17T10:11:03+00:00'
+    changed_paths:
+    - backend/core/api/templates/email/newsletter.mjml
+    - backend/newsletters/issues/april-2026-update.yml
+    - backend/scripts/send_newsletter.py
+    - frontend/packages/ui/src/demo_chats/data/announcements_april_2026_update.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_april_2026_update.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(highlights): broken wrapRange + invisible text from global mark CSS'
+    section: bug_fixes
+    commits:
+    - cbaf1f5f0
+    authored_at: '2026-04-17T09:53:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(chat): inline <mark> highlights + portal toolbar to body'
+    section: bug_fixes
+    commits:
+    - b2be5ea27
+    authored_at: '2026-04-17T08:23:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(chat): scope highlight anchors to message body, skip embed text'
+    section: bug_fixes
+    commits:
+    - 6a4f96027
+    authored_at: '2026-04-17T07:57:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/utils/messageHighlights.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: upgrade protobufjs to 7.5.5 (GHSA-xq3m-2v4x-88gg)'
+    section: bug_fixes
+    commits:
+    - 1cdad0e9f
+    authored_at: '2026-04-17T06:34:05+00:00'
+    changed_paths:
+    - package.json
+    - pnpm-lock.yaml
+    - scripts/dependabot-processed.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  improvements:
+  - title: 'refactor(newsletter-settings): use canonical settings components with batch save'
+    section: improvements
+    commits:
+    - d0a5c0b78
+    authored_at: '2026-04-17T12:03:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsNewsletter.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'refactor: rename App Store to Apps (remaining files)'
+    section: improvements
+    commits:
+    - b9185f269
+    authored_at: '2026-04-17T09:01:55+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/core/api/app/routes/apps.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/providers/luma.yml
+    - backend/providers/meetup.yml
+    - docs/architecture/apps/action-confirmation.md
+    - docs/architecture/frontend/mobile-app-code-preview.md
+    - docs/self-hosting/proton-bridge.md
+    - docs/user-guide/apps/README.md
+    - docs/user-guide/apps/app-store.md
+    - docs/user-guide/apps/focus-modes.md
+    - docs/user-guide/apps/settings-and-memories.md
+    - docs/user-guide/apps/skills.md
+    - docs/user-guide/getting-started.md
+    - docs/user-guide/pricing.md
+    - docs/user-guide/search.md
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/embeds/AiModelsGroup.svelte
+    - frontend/packages/ui/src/components/embeds/AppStoreGroup.svelte
+    - frontend/packages/ui/src/components/embeds/FocusModesGroup.svelte
+    - frontend/packages/ui/src/components/embeds/SettingsMemoriesGroup.svelte
+    - frontend/packages/ui/src/components/embeds/SkillsGroup.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/AppDetailsHeader.svelte
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAllApps.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMemoriesHub.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPricing.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/pdf.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/i18n/sources/settings/pricing.yml
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/onboardingChatService.ts
+    - frontend/packages/ui/src/services/searchSettingsCatalog.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/stores/mostUsedAppsStore.ts
+    - frontend/packages/ui/src/types/apps.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'refactor: rename App Store to Apps throughout codebase'
+    section: improvements
+    commits:
+    - '385606569'
+    authored_at: '2026-04-17T08:46:19+00:00'
+    changed_paths:
+    - docs/architecture/frontend/native-apps.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - commit is reachable from main
+  docs:
+  - title: 'docs: add message highlights architecture doc'
+    section: docs
+    commits:
+    - 9b8507d02
+    authored_at: '2026-04-17T12:03:13+00:00'
+    changed_paths:
+    - docs/architecture/messaging/message-highlights.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test(apple): add 8 XCUITest suites and 4 unit test suites for full spec coverage'
+    section: tests
+    commits:
+    - bff3f05c9
+    authored_at: '2026-04-17T23:16:56+00:00'
+    changed_paths:
+    - apple/OpenMates/Tests/UI/AccessibilityUITests.swift
+    - apple/OpenMates/Tests/UI/AccountSettingsUITests.swift
+    - apple/OpenMates/Tests/UI/DeveloperSettingsUITests.swift
+    - apple/OpenMates/Tests/UI/EncryptionUITests.swift
+    - apple/OpenMates/Tests/UI/FocusModeUITests.swift
+    - apple/OpenMates/Tests/UI/LanguageUITests.swift
+    - apple/OpenMates/Tests/UI/NotificationUITests.swift
+    - apple/OpenMates/Tests/UI/SupportUITests.swift
+    - apple/OpenMates/Tests/Unit/DraftServiceTests.swift
+    - apple/OpenMates/Tests/Unit/EditMessageStoreTests.swift
+    - apple/OpenMates/Tests/Unit/SupportedLanguageTests.swift
+    - apple/OpenMates/Tests/Unit/UnreadMessagesStoreTests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add unauthenticated app load E2E spec with announcement click test'
+    section: tests
+    commits:
+    - 9da6172de
+    authored_at: '2026-04-17T12:14:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: gitignore directus uploads, add newsletter thumbnail script, settings hook, teams doc'
+    section: infrastructure
+    commits:
+    - cac8b6ee3
+    authored_at: '2026-04-17T14:40:41+00:00'
+    changed_paths:
+    - .claude/hooks/settings-canonical-elements.sh
+    - .gitignore
+    - backend/scripts/newsletter_thumbnail.py
+    - docs/architecture/teams.md
+    - frontend/apps/web_app/static/newsletter-assets/intro-thumbnail-DE.jpg
+    - frontend/apps/web_app/static/newsletter-assets/intro-thumbnail-EN.jpg
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'chore: remove old announcement files and unused chatVideoFullscreenStore'
+    section: infrastructure
+    commits:
+    - 2e211a9a4
+    authored_at: '2026-04-17T14:29:50+00:00'
+    changed_paths:
+    - backend/newsletters/issues/april-2026-update.yml
+    - frontend/packages/ui/src/demo_chats/data/announcements_april_2026_update.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_april_2026_update.yml
+    - frontend/packages/ui/src/stores/chatVideoFullscreenStore.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: rename Memories + deep link aliases (apps, memories)'
+    commits:
+    - 95328a406
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'refactor: rename App Store to Apps (remaining files)'
+    commits:
+    - b9185f269
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: remove 404 slug validation test from seo-demo-chat spec'
+    commits:
+    - 741ff5b2b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: relax seo-demo-chat robots meta assertion for Vercel hostname'
+    commits:
+    - 43fc1fbf4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add missing chat-item testid to SettingsImportAccount list items'
+    commits:
+    - b3178ea39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: rewrite seo-demo-chat and example-chats-load specs for new architecture'
+    commits:
+    - 33093d8b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: update outdated E2E specs for route rename and hardcoded example chats'
+    commits:
+    - 137c78df5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add missing data-testid attributes and fix stale spec selectors'
+    commits:
+    - 46e951ebb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: resolve 8 root-cause groups from daily test failures (g1-g5, g7-g9)'
+    commits:
+    - 2b9027b39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve hyphens in ai/model deep link IDs and add apps alias to auth gate'
+    commits:
+    - be9d2e911
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide highlight feature for public chats (intro, example, legal, announcement, tips)'
+    commits:
+    - 7f73cf5d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Bluesky social links to Footer, SettingsFooter, config, newsletter template, icon, i18n'
+    commits:
+    - 92fb629cd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Bluesky social profile to all social link locations'
+    commits:
+    - 355bf5eea
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show comment icon only on last mark of multi-element highlights'
+    commits:
+    - 58308bbc1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add text sanitizer for ASCII smuggling prevention in message input and deep links'
+    commits:
+    - f97972528
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide follow-up suggestions in legal chats'
+    commits:
+    - 91ff93665
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: app icon renders as white block on deep link to All Apps'
+    commits:
+    - 265a43f20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: rename announcement chat ID, native fullscreen autoplay, clickable media frame'
+    commits:
+    - 368bb7448
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: announcement video in header, restore smooth header transitions, revert embed fullscreen'
+    commits:
+    - 320d69ba5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: announcement improvements - video registry, autoplay deep links, hide input'
+    commits:
+    - ab87cb7d7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: announcement improvements - video registry, autoplay deep links, hide input'
+    commits:
+    - 39837b726
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: newsletter/announcement chats treated as encrypted user chats'
+    commits:
+    - 50b76bd24
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'refactor(newsletter-settings): use canonical settings components with batch save'
+    commits:
+    - d0a5c0b78
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(highlights): replace focused outline with intermediate opacity yellow'
+    commits:
+    - d0f33812a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(tests): extract Brevo token via HTTP instead of browser navigation'
+    commits:
+    - 12db42a8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(tests): update newsletter specs for always-visible toggles and correct testid'
+    commits:
+    - 1c337e11d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(highlights): group hover across fragments + remove border-radius'
+    commits:
+    - fbae45887
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(newsletter): auto-subscribe authenticated users, always show category toggles'
+    commits:
+    - 1ecae5a84
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(newsletter): prevent deep link double-fire, remove unused isDemoChat import'
+    commits:
+    - f0aa1a406
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(highlights): robust embed exclusion test — skip UI elements'
+    commits:
+    - c4d9aaeee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(highlights): stabilize after-delete assertion + NaN opacity guard'
+    commits:
+    - 0b8f324fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(highlights): skip embeds in wrapRange + portal popover to body'
+    commits:
+    - b3f05ef77
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(newsletter): use SERVER_ENVIRONMENT for webapp URL resolution in email tasks'
+    commits:
+    - fda1b84fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(sidebar): announcements and tips_and_tricks section ordering in Chats.svelte'
+    commits:
+    - 16c4fc1a8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(sidebar): add announcements and tips & tricks sections to chat list'
+    commits:
+    - 63d867694
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: rename Memories + deep link aliases (apps, memories)'
+    commits:
+    - 95328a406
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(highlights): broken wrapRange + invisible text from global mark CSS'
+    commits:
+    - cbaf1f5f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'refactor: rename App Store to Apps (remaining files)'
+    commits:
+    - b9185f269
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: rename App Store to Apps throughout the codebase'
+    commits:
+    - 59319d871
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(chat-header): increase media frame max size for larger screens'
+    commits:
+    - 787745aa3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(chat-header): play button mounts video in-place with native browser fullscreen'
+    commits:
+    - ca70c7431
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(chat): inline <mark> highlights + portal toolbar to body'
+    commits:
+    - b2be5ea27
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(chat-header): show decorative side icons in media/slideshow state'
+    commits:
+    - 2da3113c8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(chat): scope highlight anchors to message body, skip embed text'
+    commits:
+    - 6a4f96027
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(chat-header): 16:9 media frame with centered play button, remove bg video element'
+    commits:
+    - 4b56c2a92
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(chat-header): slideshow frames in 16:9 frame, remove bg video + unused props'
+    commits:
+    - 99099c360
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(chat-header): put slideshow frames in 16:9 rounded container, center play button inside, title below'
+    commits:
+    - 2fef57cf1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: remove 404 slug validation test from seo-demo-chat spec'
+    commits:
+    - 741ff5b2b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: relax seo-demo-chat robots meta assertion for Vercel hostname'
+    commits:
+    - 43fc1fbf4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add missing chat-item testid to SettingsImportAccount list items'
+    commits:
+    - b3178ea39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: rewrite seo-demo-chat and example-chats-load specs for new architecture'
+    commits:
+    - 33093d8b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: update outdated E2E specs for route rename and hardcoded example chats'
+    commits:
+    - 137c78df5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(apple): add CLI pair authorize flow with PBKDF2+AES-GCM encryption and deep link support'
+    commits:
+    - 0fe0e60c8
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: add missing data-testid attributes and fix stale spec selectors'
+    commits:
+    - 46e951ebb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(apple): add unread badges, pending upload queue, inline attachment previews, edit message store'
+    commits:
+    - 6f94ce63f
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): add camera, sketch, maps, drafts, highlight nav, chat header, processing details, input actions'
+    commits:
+    - b3ce82536
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: resolve 8 root-cause groups from daily test failures (g1-g5, g7-g9)'
+    commits:
+    - 2b9027b39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(apple): add full settings, StoreKit payments, i18n, offline mode, share extension, accessibility, tests,
+      and privacy manifest'
+    commits:
+    - b3bad017f
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): add follow-up suggestions, PII detection, focus mode, reminders, daily inspiration, chat import,
+      pagination'
+    commits:
+    - da4577f2c
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add native Apple app source code (71 files, 10K lines Swift)'
+    commits:
+    - 43be73509
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve hyphens in ai/model deep link IDs and add apps alias to auth gate'
+    commits:
+    - be9d2e911
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide highlight feature for public chats (intro, example, legal, announcement, tips)'
+    commits:
+    - 7f73cf5d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Bluesky social links to Footer, SettingsFooter, config, newsletter template, icon, i18n'
+    commits:
+    - 92fb629cd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Bluesky social profile to all social link locations'
+    commits:
+    - 355bf5eea
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show comment icon only on last mark of multi-element highlights'
+    commits:
+    - 58308bbc1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add text sanitizer for ASCII smuggling prevention in message input and deep links'
+    commits:
+    - f97972528
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide follow-up suggestions in legal chats'
+    commits:
+    - 91ff93665
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: app icon renders as white block on deep link to All Apps'
+    commits:
+    - 265a43f20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: rename announcement chat ID, native fullscreen autoplay, clickable media frame'
+    commits:
+    - 368bb7448
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: announcement video in header, restore smooth header transitions, revert embed fullscreen'
+    commits:
+    - 320d69ba5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: announcement improvements - video registry, autoplay deep links, hide input'
+    commits:
+    - ab87cb7d7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: announcement improvements - video registry, autoplay deep links, hide input'
+    commits:
+    - 39837b726
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: newsletter/announcement chats treated as encrypted user chats'
+    commits:
+    - 50b76bd24
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'refactor(newsletter-settings): use canonical settings components with batch save'
+    commits:
+    - d0a5c0b78
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(highlights): replace focused outline with intermediate opacity yellow'
+    commits:
+    - d0f33812a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(tests): extract Brevo token via HTTP instead of browser navigation'
+    commits:
+    - 12db42a8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(tests): update newsletter specs for always-visible toggles and correct testid'
+    commits:
+    - 1c337e11d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(highlights): group hover across fragments + remove border-radius'
+    commits:
+    - fbae45887
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(newsletter): auto-subscribe authenticated users, always show category toggles'
+    commits:
+    - 1ecae5a84
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(newsletter): prevent deep link double-fire, remove unused isDemoChat import'
+    commits:
+    - f0aa1a406
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(highlights): robust embed exclusion test — skip UI elements'
+    commits:
+    - c4d9aaeee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(highlights): stabilize after-delete assertion + NaN opacity guard'
+    commits:
+    - 0b8f324fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(highlights): skip embeds in wrapRange + portal popover to body'
+    commits:
+    - b3f05ef77
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(newsletter): use SERVER_ENVIRONMENT for webapp URL resolution in email tasks'
+    commits:
+    - fda1b84fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(sidebar): announcements and tips_and_tricks section ordering in Chats.svelte'
+    commits:
+    - 16c4fc1a8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(sidebar): add announcements and tips & tricks sections to chat list'
+    commits:
+    - 63d867694
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: rename Memories + deep link aliases (apps, memories)'
+    commits:
+    - 95328a406
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(highlights): broken wrapRange + invisible text from global mark CSS'
+    commits:
+    - cbaf1f5f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'refactor: rename App Store to Apps (remaining files)'
+    commits:
+    - b9185f269
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: rename App Store to Apps throughout the codebase'
+    commits:
+    - 59319d871
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(chat-header): increase media frame max size for larger screens'
+    commits:
+    - 787745aa3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(chat-header): play button mounts video in-place with native browser fullscreen'
+    commits:
+    - ca70c7431
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(chat): inline <mark> highlights + portal toolbar to body'
+    commits:
+    - b2be5ea27
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(chat-header): show decorative side icons in media/slideshow state'
+    commits:
+    - 2da3113c8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(chat): scope highlight anchors to message body, skip embed text'
+    commits:
+    - 6a4f96027
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(chat-header): 16:9 media frame with centered play button, remove bg video element'
+    commits:
+    - 4b56c2a92
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(chat-header): slideshow frames in 16:9 frame, remove bg video + unused props'
+    commits:
+    - 99099c360
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(chat-header): put slideshow frames in 16:9 rounded container, center play button inside, title below'
+    commits:
+    - 2fef57cf1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 741ff5b2b06f0210c175fe6d226d7c29089e0fe4
+    short_sha: 741ff5b2b
+    authored_at: '2026-04-17T23:49:15+00:00'
+    subject: 'fix: remove 404 slug validation test from seo-demo-chat spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/seo-demo-chat.spec.ts
+    related_feature_ids: []
+  - sha: 43fc1fbf4897f520f5479997ac08c29ec5ec5295
+    short_sha: 43fc1fbf4
+    authored_at: '2026-04-17T23:45:15+00:00'
+    subject: 'fix: relax seo-demo-chat robots meta assertion for Vercel hostname'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/seo-demo-chat.spec.ts
+    related_feature_ids: []
+  - sha: b3178ea39cc3d64c4bfdb2224dc81f1d22564dd7
+    short_sha: b3178ea39
+    authored_at: '2026-04-17T23:40:36+00:00'
+    subject: 'fix: add missing chat-item testid to SettingsImportAccount list items'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
+    related_feature_ids: []
+  - sha: 87ad5dd50c940d9d30c81c0c089def912e463497
+    short_sha: 87ad5dd50
+    authored_at: '2026-04-17T23:31:24+00:00'
+    subject: 'fix: upgrade math-codegen to 0.4.3 (GHSA-p6x5-p4xf-cc4r)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - package.json
+    - pnpm-lock.yaml
+    related_feature_ids: []
+  - sha: 33093d8b1f73c3a68f11ac8d4099f6f6e32e37f3
+    short_sha: 33093d8b1
+    authored_at: '2026-04-17T23:28:25+00:00'
+    subject: 'fix: rewrite seo-demo-chat and example-chats-load specs for new architecture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/seo-demo-chat.spec.ts
+    related_feature_ids: []
+  - sha: 137c78df57eb1c8cbd331cc2423c99d32494e35e
+    short_sha: 137c78df5
+    authored_at: '2026-04-17T23:27:41+00:00'
+    subject: 'fix: update outdated E2E specs for route rename and hardcoded example chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/status-page.spec.ts
+    related_feature_ids: []
+  - sha: 0fe0e60c827bc41f8f22a55f7f736a58690f8090
+    short_sha: 0fe0e60c8
+    authored_at: '2026-04-17T23:22:52+00:00'
+    subject: 'feat(apple): add CLI pair authorize flow with PBKDF2+AES-GCM encryption and deep link support'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+    - apple/OpenMates/Tests/UI/CLIPairingUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: bff3f05c92dca124cbd84fbc2a34813002b7f171
+    short_sha: bff3f05c9
+    authored_at: '2026-04-17T23:16:56+00:00'
+    subject: 'test(apple): add 8 XCUITest suites and 4 unit test suites for full spec coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Tests/UI/AccessibilityUITests.swift
+    - apple/OpenMates/Tests/UI/AccountSettingsUITests.swift
+    - apple/OpenMates/Tests/UI/DeveloperSettingsUITests.swift
+    - apple/OpenMates/Tests/UI/EncryptionUITests.swift
+    - apple/OpenMates/Tests/UI/FocusModeUITests.swift
+    - apple/OpenMates/Tests/UI/LanguageUITests.swift
+    - apple/OpenMates/Tests/UI/NotificationUITests.swift
+    - apple/OpenMates/Tests/UI/SupportUITests.swift
+    - apple/OpenMates/Tests/Unit/DraftServiceTests.swift
+    - apple/OpenMates/Tests/Unit/EditMessageStoreTests.swift
+    - apple/OpenMates/Tests/Unit/SupportedLanguageTests.swift
+    - apple/OpenMates/Tests/Unit/UnreadMessagesStoreTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 46e951ebb94dc5540486ffcb10dafdef34df095b
+    short_sha: 46e951ebb
+    authored_at: '2026-04-17T23:12:10+00:00'
+    subject: 'fix: add missing data-testid attributes and fix stale spec selectors'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/lib/components/docs/DocsContent.svelte
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-polar.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeaderCtaButton.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/security/SettingsRecoveryKey.svelte
+    related_feature_ids: []
+  - sha: 6f94ce63f452f182a71b2bbe3471117a8a090460
+    short_sha: 6f94ce63f
+    authored_at: '2026-04-17T23:05:36+00:00'
+    subject: 'feat(apple): add unread badges, pending upload queue, inline attachment previews, edit message store'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Services/EditMessageStore.swift
+    - apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+    - apple/OpenMates/Sources/Core/Services/UnreadMessagesStore.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 360fa8a5393280871dcf356c86f5b1b61429f6cb
+    short_sha: 360fa8a53
+    authored_at: '2026-04-17T23:04:18+00:00'
+    subject: 'fix: guard window.addEventListener with SSR check in chatSyncService'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    related_feature_ids: []
+  - sha: b3ce825361f33e4651065fe7d0ff165230caa280
+    short_sha: b3ce82536
+    authored_at: '2026-04-17T22:59:02+00:00'
+    subject: 'feat(apple): add camera, sketch, maps, drafts, highlight nav, chat header, processing details, input actions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/CameraView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HighlightNavigationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InputActionButtons.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ProcessingDetailsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2b9027b39d92a07b726470fd8b341295eb89a58b
+    short_sha: 2b9027b39
+    authored_at: '2026-04-17T22:49:00+00:00'
+    subject: 'fix: resolve 8 root-cause groups from daily test failures (g1-g5, g7-g9)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_2fa_verify.py
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/tests/test_quote_verification.py
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/message-highlights-touch.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    related_feature_ids: []
+  - sha: b3bad017fa6d12a9012fc36cea8be3cc03f18d79
+    short_sha: b3bad017f
+    authored_at: '2026-04-17T22:47:07+00:00'
+    subject: 'feat(apple): add full settings, StoreKit payments, i18n, offline mode, share extension, accessibility, tests,
+      and privacy manifest'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Resources/OpenMates.storekit
+    - apple/OpenMates/Resources/PrivacyInfo.xcprivacy
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/I18n/LocalizationManager.swift
+    - apple/OpenMates/Sources/Core/I18n/LocalizedText.swift
+    - apple/OpenMates/Sources/Core/I18n/SupportedLanguage.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/StoreKit/StoreManager.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AccountRecoveryView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ExampleChatsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ForkProgressBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageEditView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageHighlightsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/NewChatSuggestionsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContextMenuView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/ShareEmbedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/NewsletterSettingsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAccountChatsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDevicesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsEmailView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsExportAccountView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsIncognitoInfoView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsLogsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProfilePictureView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsServerView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsShareDebugLogsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSupportView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Shared/Components/CopyMessageFormatter.swift
+    - apple/OpenMates/Sources/Shared/Components/KeyboardShortcuts.swift
+    - apple/OpenMates/Sources/Shared/Components/NotificationBanners.swift
+    - apple/OpenMates/Sources/Shared/Extensions/AccessibilityModifiers.swift
+    - apple/OpenMates/Tests/UI/AuthFlowUITests.swift
+    - apple/OpenMates/Tests/UI/ChatManagementUITests.swift
+    - apple/OpenMates/Tests/UI/ChatMessageUITests.swift
+    - apple/OpenMates/Tests/UI/FileAttachmentUITests.swift
+    - apple/OpenMates/Tests/UI/OfflineAndSyncUITests.swift
+    - apple/OpenMates/Tests/UI/PaymentUITests.swift
+    - apple/OpenMates/Tests/UI/ReminderUITests.swift
+    - apple/OpenMates/Tests/UI/SettingsUITests.swift
+    - apple/OpenMates/Tests/UI/ShareAndEmbedUITests.swift
+    - apple/OpenMates/Tests/Unit/APIClientTests.swift
+    - apple/OpenMates/Tests/Unit/AuthModelsTests.swift
+    - apple/OpenMates/Tests/Unit/ChatModelsTests.swift
+    - apple/OpenMates/Tests/Unit/CopyMessageFormatterTests.swift
+    - apple/OpenMates/Tests/Unit/CryptoManagerTests.swift
+    - apple/OpenMatesShareExtension/Info.plist
+    - apple/OpenMatesShareExtension/OpenMatesShareExtension.entitlements
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/project.yml
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/payment/apple_iap_service.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: da4577f2cd36799f8e02d83db4c2219fed25184a
+    short_sha: da4577f2c
+    authored_at: '2026-04-17T19:55:52+00:00'
+    subject: 'feat(apple): add follow-up suggestions, PII detection, focus mode, reminders, daily inspiration, chat import,
+      pagination'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatImportView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatPaginationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FollowUpSuggestions.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ReminderView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 43be73509025a9fd3a48a62dcad2835e30f69737
+    short_sha: 43be73509
+    authored_at: '2026-04-17T19:51:57+00:00'
+    subject: 'feat: add native Apple app source code (71 files, 10K lines Swift)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/.gitignore
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/KeychainHelper.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/BackupCodeView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/DeviceVerificationView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasskeyLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/RecoveryKeyView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatContextMenu.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageContextMenu.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/PlaceRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchResultsRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/LegalChatView.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatListView.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatModels.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatStore.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsStorageFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/AITypingIndicator.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Shared/Components/NetworkStatusView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMButtonStyles.swift
+    - apple/OpenMates/Sources/Shared/Components/ToastNotification.swift
+    - apple/OpenMates/Sources/Shared/Extensions/AnyCodable.swift
+    - apple/OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+    - apple/OpenMates/Sources/Shared/Extensions/FontRegistration.swift
+    - apple/OpenMates/Sources/Shared/Extensions/ThemeManager.swift
+    - apple/project.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 1b317583204995603ba73c6e0d9211fd36d01180
+    short_sha: 1b3175832
+    authored_at: '2026-04-17T19:51:15+00:00'
+    subject: 'feat: add native Apple app (iOS/iPadOS/macOS) - Phase 1 foundation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/frontend/native-apps.md
+    related_feature_ids: []
+  - sha: be9d2e911de62d4b0072d203594fc58b7bd83f3e
+    short_sha: be9d2e911
+    authored_at: '2026-04-17T16:56:32+00:00'
+    subject: 'fix: preserve hyphens in ai/model deep link IDs and add apps alias to auth gate'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    related_feature_ids: []
+  - sha: 868c15188059ec6e3ca057fb1e9e1756c6426885
+    short_sha: 868c15188
+    authored_at: '2026-04-17T16:41:22+00:00'
+    subject: 'feat: add newsletter subscription section to debug.py user command'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/scripts/debug_user.py
+    related_feature_ids: []
+  - sha: 7f73cf5d63bfb4936ca9ab8204032ddfbdc488ea
+    short_sha: 7f73cf5d6
+    authored_at: '2026-04-17T16:32:08+00:00'
+    subject: 'fix: hide highlight feature for public chats (intro, example, legal, announcement, tips)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 92fb629cd23386808959dd5a3f66816a6f6960a9
+    short_sha: 92fb629cd
+    authored_at: '2026-04-17T16:29:13+00:00'
+    subject: 'feat: add Bluesky social links to Footer, SettingsFooter, config, newsletter template, icon, i18n'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/templates/email/newsletter.mjml
+    - frontend/packages/ui/src/components/Footer.svelte
+    - frontend/packages/ui/src/components/settings/SettingsFooter.svelte
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/static/icons/bluesky.svg
+    related_feature_ids: []
+  - sha: 773918f9916e7a6805f985f9efb236c90e2a5245
+    short_sha: 773918f99
+    authored_at: '2026-04-17T16:27:03+00:00'
+    subject: 'feat: add Bluesky social profile - frontend, email template, icon, i18n'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/newsletter_email_task.py
+    related_feature_ids: []
+  - sha: 355bf5eea90b58e41ceefa93a36163777cc601a9
+    short_sha: 355bf5eea
+    authored_at: '2026-04-17T16:26:28+00:00'
+    subject: 'feat: add Bluesky social profile to all social link locations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/email.py
+    related_feature_ids: []
+  - sha: 58308bbc1eb264919f2eeae294f8d520c5b3ddaf
+    short_sha: 58308bbc1
+    authored_at: '2026-04-17T16:25:56+00:00'
+    subject: 'fix: show comment icon only on last mark of multi-element highlights'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    related_feature_ids: []
+  - sha: f979725282ef0ed2fe547e726cd8453d3232ec00
+    short_sha: f97972528
+    authored_at: '2026-04-17T15:42:25+00:00'
+    subject: 'feat: add text sanitizer for ASCII smuggling prevention in message input and deep links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/utils/__tests__/textSanitizer.test.ts
+    - frontend/packages/ui/src/utils/textSanitizer.ts
+    related_feature_ids: []
+  - sha: 91ff93665f261e613cb1f17d0cfc2a3467878dd1
+    short_sha: 91ff93665
+    authored_at: '2026-04-17T15:40:26+00:00'
+    subject: 'fix: hide follow-up suggestions in legal chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 265a43f20f04eb02a4975ce59568cb96336b7382
+    short_sha: 265a43f20
+    authored_at: '2026-04-17T15:07:16+00:00'
+    subject: 'fix: app icon renders as white block on deep link to All Apps'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: cac8b6ee31fc72a3d675ed467d479ad8d80e7460
+    short_sha: cac8b6ee3
+    authored_at: '2026-04-17T14:40:41+00:00'
+    subject: 'chore: gitignore directus uploads, add newsletter thumbnail script, settings hook, teams doc'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/settings-canonical-elements.sh
+    - .gitignore
+    - backend/scripts/newsletter_thumbnail.py
+    - docs/architecture/teams.md
+    - frontend/apps/web_app/static/newsletter-assets/intro-thumbnail-DE.jpg
+    - frontend/apps/web_app/static/newsletter-assets/intro-thumbnail-EN.jpg
+    related_feature_ids: []
+  - sha: 2e211a9a4193502fc75765b3c88a9f4a8d65fdf9
+    short_sha: 2e211a9a4
+    authored_at: '2026-04-17T14:29:50+00:00'
+    subject: 'chore: remove old announcement files and unused chatVideoFullscreenStore'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/newsletters/issues/april-2026-update.yml
+    - frontend/packages/ui/src/demo_chats/data/announcements_april_2026_update.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_april_2026_update.yml
+    - frontend/packages/ui/src/stores/chatVideoFullscreenStore.ts
+    related_feature_ids: []
+  - sha: 368bb744826e282781cd6595d3b25313fd3f94e2
+    short_sha: 368bb7448
+    authored_at: '2026-04-17T14:29:17+00:00'
+    subject: 'feat: rename announcement chat ID, native fullscreen autoplay, clickable media frame'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/announcements_introducing_openmates_v09.ts
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    related_feature_ids: []
+  - sha: 320d69ba52d33fcee47f216aed929dfdf771131d
+    short_sha: 320d69ba5
+    authored_at: '2026-04-17T14:19:45+00:00'
+    subject: 'fix: announcement video in header, restore smooth header transitions, revert embed fullscreen'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: ab87cb7d7fcd48bd0c252dc3d57b98928a9bba20
+    short_sha: ab87cb7d7
+    authored_at: '2026-04-17T13:36:01+00:00'
+    subject: 'feat: announcement improvements - video registry, autoplay deep links, hide input'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/scripts/send_newsletter.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/announcements_april_2026_update.ts
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/data/videos.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_april_2026_update.yml
+    related_feature_ids: []
+  - sha: 39837b7268fa69f8642b32ee1bddb8a4c65454a5
+    short_sha: 39837b726
+    authored_at: '2026-04-17T13:33:34+00:00'
+    subject: 'feat: announcement improvements - video registry, autoplay deep links, hide input'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/chatVideoFullscreenStore.ts
+    related_feature_ids: []
+  - sha: 24bef40933ec9a033695084a51855ad05df1d338
+    short_sha: 24bef4093
+    authored_at: '2026-04-17T13:32:25+00:00'
+    subject: 'feat: announcement improvements - video registry, autoplay deep links, hide input'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/scripts/publish_newsletter.py
+    related_feature_ids: []
+  - sha: 6ba8b5ab2be3bd602f89ae1bab26ac868012d0c6
+    short_sha: 6ba8b5ab2
+    authored_at: '2026-04-17T13:31:52+00:00'
+    subject: 'feat: announcement improvements - video registry, autoplay deep links, hide input for legal/newsletter'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/newsletters/issues/april-2026-update.yml
+    related_feature_ids: []
+  - sha: 96085da2246561b8ea1e9d3b8566b5d62ddaf4cc
+    short_sha: 96085da22
+    authored_at: '2026-04-17T12:16:52+00:00'
+    subject: 'fix(celery): cap worker concurrency to prevent memory exhaustion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/docker-compose.yml
+    related_feature_ids: []
+  - sha: 9da6172de97e467813e90010d5aef96d0ff794bc
+    short_sha: 9da6172de
+    authored_at: '2026-04-17T12:14:32+00:00'
+    subject: 'test: add unauthenticated app load E2E spec with announcement click test'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 50b76bd248b3ff36703304c767e9fa4b19cf5950
+    short_sha: 50b76bd24
+    authored_at: '2026-04-17T12:07:25+00:00'
+    subject: 'fix: newsletter/announcement chats treated as encrypted user chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/demo_chats/convertToChat.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/searchService.ts
+    related_feature_ids: []
+  - sha: d0a5c0b7890d0537d8e630c8c7d1fb6179852047
+    short_sha: d0a5c0b78
+    authored_at: '2026-04-17T12:03:25+00:00'
+    subject: 'refactor(newsletter-settings): use canonical settings components with batch save'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsNewsletter.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    related_feature_ids: []
+  - sha: 9b8507d02c89ff819e86df9069c3b766f4deb162
+    short_sha: 9b8507d02
+    authored_at: '2026-04-17T12:03:13+00:00'
+    subject: 'docs: add message highlights architecture doc'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/messaging/message-highlights.md
+    related_feature_ids: []
+  - sha: 4bb47b3bbe78058d84f3da4c421352cbdbe5e938
+    short_sha: 4bb47b3bb
+    authored_at: '2026-04-17T12:02:48+00:00'
+    subject: 'fix: newsletter/announcement chats treated as encrypted user chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/index.ts
+    related_feature_ids: []
+  - sha: d0f33812af50b4169e722e6bb496173058c8675f
+    short_sha: d0f33812a
+    authored_at: '2026-04-17T11:53:13+00:00'
+    subject: 'fix(highlights): replace focused outline with intermediate opacity yellow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    related_feature_ids: []
+  - sha: 12db42a8ceb5b6fe21d447365c7aed3a4c7e432f
+    short_sha: 12db42a8c
+    authored_at: '2026-04-17T11:51:29+00:00'
+    subject: 'fix(tests): extract Brevo token via HTTP instead of browser navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/newsletter-flow.spec.ts
+    related_feature_ids: []
+  - sha: 1c337e11ddbca10b08ad97bc79c432de961841ba
+    short_sha: 1c337e11d
+    authored_at: '2026-04-17T11:43:29+00:00'
+    subject: 'fix(tests): update newsletter specs for always-visible toggles and correct testid'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/newsletter-categories.spec.ts
+    - frontend/apps/web_app/tests/newsletter-flow.spec.ts
+    related_feature_ids: []
+  - sha: fbae45887ac37c858fe29494336a0eca0a07ef98
+    short_sha: fbae45887
+    authored_at: '2026-04-17T11:43:29+00:00'
+    subject: 'fix(highlights): group hover across fragments + remove border-radius'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    related_feature_ids: []
+  - sha: 1ecae5a84bc9dc3b062ef7387a838af1aa515a8a
+    short_sha: 1ecae5a84
+    authored_at: '2026-04-17T11:33:51+00:00'
+    subject: 'feat(newsletter): auto-subscribe authenticated users, always show category toggles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/newsletter.py
+    - frontend/packages/ui/src/components/settings/SettingsNewsletter.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    related_feature_ids: []
+  - sha: f0aa1a406403505c7d7553a36f35c6ca683af200
+    short_sha: f0aa1a406
+    authored_at: '2026-04-17T11:25:43+00:00'
+    subject: 'fix(newsletter): prevent deep link double-fire, remove unused isDemoChat import'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/settings/SettingsNewsletter.svelte
+    related_feature_ids: []
+  - sha: c4d9aaeee6deeddd3b92993f45d573ab60a0b99d
+    short_sha: c4d9aaeee
+    authored_at: '2026-04-17T11:09:25+00:00'
+    subject: 'fix(highlights): robust embed exclusion test — skip UI elements'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    related_feature_ids: []
+  - sha: 0b8f324faebd6f3ad141754838d703624063f72d
+    short_sha: 0b8f324fa
+    authored_at: '2026-04-17T11:00:29+00:00'
+    subject: 'fix(highlights): stabilize after-delete assertion + NaN opacity guard'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    related_feature_ids: []
+  - sha: b3f05ef77b630a01ae3a5fdfd5a3f734f344f633
+    short_sha: b3f05ef77
+    authored_at: '2026-04-17T10:52:26+00:00'
+    subject: 'fix(highlights): skip embeds in wrapRange + portal popover to body'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    - frontend/packages/ui/src/components/HighlightCommentPopover.svelte
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    related_feature_ids: []
+  - sha: 394bc001600e15b6004f18ee3e16af6a67f76513
+    short_sha: 394bc0016
+    authored_at: '2026-04-17T10:31:45+00:00'
+    subject: 'fix(newsletter): resolve webapp URL from SERVER_ENVIRONMENT in email tasks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/newsletter_email_task.py
+    - backend/scripts/send_newsletter.py
+    related_feature_ids: []
+  - sha: fda1b84fe482a174cbb28a6c193d5b9d819e28d3
+    short_sha: fda1b84fe
+    authored_at: '2026-04-17T10:31:04+00:00'
+    subject: 'fix(newsletter): use SERVER_ENVIRONMENT for webapp URL resolution in email tasks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsNewsletter.svelte
+    related_feature_ids: []
+  - sha: 6d1e7c7d953ba2b7b094aa240f964101d8c87596
+    short_sha: 6d1e7c7d9
+    authored_at: '2026-04-17T10:26:05+00:00'
+    subject: 'feat: update Memories page description with purpose explanation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    related_feature_ids: []
+  - sha: 16c4fc1a8166cf19da8affe92e17777e19a8f419
+    short_sha: 16c4fc1a8
+    authored_at: '2026-04-17T10:21:11+00:00'
+    subject: 'feat(sidebar): announcements and tips_and_tricks section ordering in Chats.svelte'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: 63d86769485c77c80ac9ac9802f3c8060600b51c
+    short_sha: 63d867694
+    authored_at: '2026-04-17T10:19:41+00:00'
+    subject: 'feat(sidebar): add announcements and tips & tricks sections to chat list'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/utils/chatGroupUtils.ts
+    related_feature_ids: []
+  - sha: d272547705cd5163aa8e2fa40dc5ae656d85df7f
+    short_sha: d27254770
+    authored_at: '2026-04-17T10:18:15+00:00'
+    subject: 'feat(sidebar): announcements (3 most recent) and tips & tricks sections'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/activity.yml
+    related_feature_ids: []
+  - sha: 642aa511ecb47227f9756f91a1054e873c2e43af
+    short_sha: 642aa511e
+    authored_at: '2026-04-17T10:17:26+00:00'
+    subject: 'feat(newsletter): manage-settings link for registered users, tips & tricks sidebar section'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    related_feature_ids: []
+  - sha: aac5d5af15c00e5a7afdbd4392a4768a818cf421
+    short_sha: aac5d5af1
+    authored_at: '2026-04-17T10:11:03+00:00'
+    subject: 'fix: add missing newsletter chat files for build'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/templates/email/newsletter.mjml
+    - backend/newsletters/issues/april-2026-update.yml
+    - backend/scripts/send_newsletter.py
+    - frontend/packages/ui/src/demo_chats/data/announcements_april_2026_update.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_april_2026_update.yml
+    related_feature_ids: []
+  - sha: 95328a40633641236e6df9add8986b723f90c907
+    short_sha: 95328a406
+    authored_at: '2026-04-17T09:54:41+00:00'
+    subject: 'feat: rename Memories + deep link aliases (apps, memories)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_app_deep_linking_instruction.md
+    - backend/apps/ai/instructions/base_app_settings_memories_usage_instruction.md
+    - backend/apps/ai/instructions/base_settings_memories_deep_link_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/testing/fixtures/ai_lang_turn1_german.json
+    - backend/apps/ai/testing/fixtures/ai_lang_turn2_english.json
+    - backend/apps/ai/testing/fixtures/code_gen_turn1.json
+    - backend/apps/ai/testing/fixtures/code_gen_turn2.json
+    - backend/apps/ai/testing/fixtures/code_gen_turn3.json
+    - backend/apps/ai/testing/fixtures/default_model_auto.json
+    - backend/apps/ai/testing/fixtures/default_model_mistral.json
+    - backend/apps/ai/testing/fixtures/fork_conversation_turn1.json
+    - backend/apps/ai/testing/fixtures/fork_conversation_turn2.json
+    - backend/apps/ai/testing/fixtures/share_embed_flow.json
+    - backend/apps/docs/app.yml
+    - backend/apps/health/README.md
+    - backend/apps/plants/focus_modes/plant-care-guide/SKILL.md
+    - backend/core/api/app/routes/auth_routes/auth_recovery.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_app_settings_memories_handler.py
+    - backend/core/api/app/schemas/auth_recovery.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/core/api/app/services/cache_user_mixin.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/email/renderer.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/api/templates/email/newsletter.mjml
+    - backend/core/directus/schemas/user_app_settings_and_memories.yml
+    - backend/core/docker-compose.override.yml
+    - backend/newsletters/issues/april-2026-first-update.yml
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - docs/architecture/ai/learning-mode.md
+    - docs/architecture/apps/cli-package.md
+    - docs/architecture/apps/cli-remote-access.md
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/architecture/core/account-backup.md
+    - docs/architecture/core/client-side-encryption.md
+    - docs/architecture/core/delete-account.md
+    - docs/architecture/core/encryption-architecture.md
+    - docs/architecture/core/security.md
+    - docs/architecture/data/sync.md
+    - docs/architecture/integrations/email-openmates.md
+    - docs/architecture/privacy/sensitive-data-redaction.md
+    - docs/cli/README.md
+    - docs/cli/apps-and-skills.md
+    - docs/cli/embeds-and-sharing.md
+    - docs/user-guide/apps/README.md
+    - docs/user-guide/apps/app-store.md
+    - docs/user-guide/apps/books.md
+    - docs/user-guide/apps/code.md
+    - docs/user-guide/apps/docs.md
+    - docs/user-guide/apps/health.md
+    - docs/user-guide/apps/images.md
+    - docs/user-guide/apps/mail.md
+    - docs/user-guide/apps/reminder.md
+    - docs/user-guide/apps/settings-and-memories.md
+    - docs/user-guide/apps/skills.md
+    - docs/user-guide/apps/study.md
+    - docs/user-guide/apps/travel.md
+    - docs/user-guide/apps/videos.md
+    - docs/user-guide/apps/web.md
+    - docs/user-guide/getting-started.md
+    - frontend/apps/web_app/src/lib/newsletters.ts
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/newsletter/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/newsletter/[slug]/+page.ts
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    - frontend/apps/web_app/tests/mention-dropdown-settings-memory.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/outputRedactor.ts
+    - frontend/packages/secret-scanner/src/index.ts
+    - frontend/packages/secret-scanner/src/types.ts
+    - frontend/packages/ui/src/components/AppSettingsMemoriesPermissionDialog.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/DemoMessageContent.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/chats/utils/chatGroupUtils.ts
+    - frontend/packages/ui/src/components/embeds/SettingsMemoriesGroup.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppDetailsHeader.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesCategory.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesCreateEntry.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAI.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAllApps.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMemoriesHub.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/ActiveRemindersList.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/AppEmbedsPanel.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/components/signup/steps/credits/CreditsTopContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/onetimecodes/OneTimeCodesBottomContent.svelte
+    - frontend/packages/ui/src/demo_chats/data/announcements_april_2026_first_update.ts
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/activity.yml
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/books.yml
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/code.yml
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/docs.yml
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_april_2026_first_update.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_developers.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    - frontend/packages/ui/src/i18n/sources/enter_message/mention_dropdown.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/artemis_ii_mission.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/creativity_drawing_meetups_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/flights_berlin_bangkok.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/plants_plant_care_guide.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_settings_memories.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/services/accountExportService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/appSettingsMemories.ts
+    - frontend/packages/ui/src/services/db/index.ts
+    - frontend/packages/ui/src/services/debugUtils.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/services/searchSettingsCatalog.ts
+    - frontend/packages/ui/src/stores/allAppsFilterStore.ts
+    - frontend/packages/ui/src/stores/appSettingsMemoriesPermissionStore.ts
+    - frontend/packages/ui/src/stores/pairSessionStore.ts
+    - frontend/packages/ui/src/types/apps.ts
+    - marketing/meetups/AI Learners/README.md
+    - marketing/videos/README.md
+    - scripts/consolidate_translations.py
+    - scripts/dependabot-processed.json
+    related_feature_ids: []
+  - sha: cbaf1f5f0e64d8be1391b3f8d93b1e3d2e0ab068
+    short_sha: cbaf1f5f0
+    authored_at: '2026-04-17T09:53:29+00:00'
+    subject: 'fix(highlights): broken wrapRange + invisible text from global mark CSS'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    related_feature_ids: []
+  - sha: b9185f269d015cfe64435d1e6046f48daca6b293
+    short_sha: b9185f269
+    authored_at: '2026-04-17T09:01:55+00:00'
+    subject: 'refactor: rename App Store to Apps (remaining files)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/core/api/app/routes/apps.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/providers/luma.yml
+    - backend/providers/meetup.yml
+    - docs/architecture/apps/action-confirmation.md
+    - docs/architecture/frontend/mobile-app-code-preview.md
+    - docs/self-hosting/proton-bridge.md
+    - docs/user-guide/apps/README.md
+    - docs/user-guide/apps/app-store.md
+    - docs/user-guide/apps/focus-modes.md
+    - docs/user-guide/apps/settings-and-memories.md
+    - docs/user-guide/apps/skills.md
+    - docs/user-guide/getting-started.md
+    - docs/user-guide/pricing.md
+    - docs/user-guide/search.md
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/embeds/AiModelsGroup.svelte
+    - frontend/packages/ui/src/components/embeds/AppStoreGroup.svelte
+    - frontend/packages/ui/src/components/embeds/FocusModesGroup.svelte
+    - frontend/packages/ui/src/components/embeds/SettingsMemoriesGroup.svelte
+    - frontend/packages/ui/src/components/embeds/SkillsGroup.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/AppDetailsHeader.svelte
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAllApps.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMemoriesHub.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPricing.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/pdf.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/i18n/sources/settings/pricing.yml
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/onboardingChatService.ts
+    - frontend/packages/ui/src/services/searchSettingsCatalog.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/stores/mostUsedAppsStore.ts
+    - frontend/packages/ui/src/types/apps.ts
+    related_feature_ids: []
+  - sha: 3856065697d09406c9a697d91582b60044ee98c7
+    short_sha: '385606569'
+    authored_at: '2026-04-17T08:46:19+00:00'
+    subject: 'refactor: rename App Store to Apps throughout codebase'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/frontend/native-apps.md
+    related_feature_ids: []
+  - sha: 59319d87164871b096709ffeac99e1198bd6ce03
+    short_sha: 59319d871
+    authored_at: '2026-04-17T08:43:45+00:00'
+    subject: 'feat: rename App Store to Apps throughout the codebase'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - marketing/videos/README.md
+    related_feature_ids: []
+  - sha: 787745aa3b7152a2dcab20cc4775656e50b6ca49
+    short_sha: 787745aa3
+    authored_at: '2026-04-17T08:26:26+00:00'
+    subject: 'feat(chat-header): increase media frame max size for larger screens'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: ca70c743177df65049d9ad34984b10afc7e0d58e
+    short_sha: ca70c7431
+    authored_at: '2026-04-17T08:23:55+00:00'
+    subject: 'feat(chat-header): play button mounts video in-place with native browser fullscreen'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: b2be5ea274fd81c412408f8f6512383ba3be28f6
+    short_sha: b2be5ea27
+    authored_at: '2026-04-17T08:23:43+00:00'
+    subject: 'fix(chat): inline <mark> highlights + portal toolbar to body'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+    related_feature_ids: []
+  - sha: 2da3113c84fdabfcaf22e2e69819c82a10bf7f34
+    short_sha: 2da3113c8
+    authored_at: '2026-04-17T08:19:44+00:00'
+    subject: 'feat(chat-header): show decorative side icons in media/slideshow state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 6a4f9602786f501b3c3b027d6f9bd2ad02ce8f65
+    short_sha: 6a4f96027
+    authored_at: '2026-04-17T07:57:38+00:00'
+    subject: 'fix(chat): scope highlight anchors to message body, skip embed text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/utils/messageHighlights.ts
+    related_feature_ids: []
+  - sha: 4b56c2a92488988ecfdb8ff0a7416cae60f398fa
+    short_sha: 4b56c2a92
+    authored_at: '2026-04-17T07:49:34+00:00'
+    subject: 'feat(chat-header): 16:9 media frame with centered play button, remove bg video element'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 99099c3606a45629027686f7971aa5be19a075e1
+    short_sha: 99099c360
+    authored_at: '2026-04-17T07:47:56+00:00'
+    subject: 'feat(chat-header): slideshow frames in 16:9 frame, remove bg video + unused props'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 2fef57cf19d7469f5d3b71b69605798648f6bc3c
+    short_sha: 2fef57cf1
+    authored_at: '2026-04-17T07:46:20+00:00'
+    subject: 'feat(chat-header): put slideshow frames in 16:9 rounded container, center play button inside, title below'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 1cdad0e9fa42cdaa27a043fd1041669ce9a80757
+    short_sha: 1cdad0e9f
+    authored_at: '2026-04-17T06:34:05+00:00'
+    subject: 'fix: upgrade protobufjs to 7.5.5 (GHSA-xq3m-2v4x-88gg)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - package.json
+    - pnpm-lock.yaml
+    - scripts/dependabot-processed.json
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates underwent a significant branding update, renaming the 'App Store' to 'Apps' and 'Settings & Memories'
+    to 'Memories'. The project also introduced Bluesky social integration, enhanced the newsletter experience with auto-subscriptions
+    and dedicated sidebar sections, and implemented security measures against ASCII smuggling. Significant foundational work
+    was added for native Apple platforms, though these remain unreleased.
+  released_changes:
+  - text: OpenMates added Bluesky social links to the footer, settings, and newsletter templates.
+    evidence:
+      commits:
+      - 92fb629cd
+      - 355bf5eea
+    release_status: released_main
+  - text: The 'App Store' has been renamed to 'Apps' and 'Settings & Memories' is now 'Memories' across the web application
+      and documentation.
+    evidence:
+      commits:
+      - 59319d871
+      - b9185f269
+      - 95328a406
+    release_status: released_main
+  - text: The sidebar now features dedicated sections for announcements and tips & tricks, and authenticated users are now
+      automatically subscribed to the newsletter.
+    evidence:
+      commits:
+      - 1ecae5a84
+      - 16c4fc1a8
+      - 63d867694
+    release_status: released_main
+  - text: Chat headers now support 16:9 media frames with centered play buttons and native browser fullscreen video playback.
+    evidence:
+      commits:
+      - 368bb7448
+      - ca70c7431
+      - 4b56c2a92
+      - 2fef57cf1
+      - 787745aa3
+      - 2da3113c8
+      - 99099c360
+    release_status: released_main
+  - text: A new text sanitizer was implemented to prevent ASCII smuggling in message inputs and deep links.
+    evidence:
+      commits:
+      - f97972528
+    release_status: released_main
+  bug_fixes:
+  - text: Refined message highlights by fixing hover grouping across fragments, resolving invisible text issues, and scoping
+      anchors to the message body to avoid overlapping with embeds.
+    evidence:
+      commits:
+      - 58308bbc1
+      - d0f33812a
+      - fbae45887
+      - cbaf1f5f0
+      - b2be5ea27
+      - 6a4f96027
+    release_status: released_main
+  - text: Resolved newsletter issues including deep link double-firing and incorrect webapp URL resolution in email tasks.
+    evidence:
+      commits:
+      - f0aa1a406
+      - fda1b84fe
+    release_status: released_main
+  - text: Fixed UI glitches where app icons rendered as white blocks and ensured follow-up suggestions and highlights are
+      hidden in legal or public chats.
+    evidence:
+      commits:
+      - 265a43f20
+      - 91ff93665
+      - 7f73cf5d6
+    release_status: released_main
+  - text: Capped Celery worker concurrency to prevent memory exhaustion during background tasks.
+    evidence:
+      commits:
+      - 96085da22
+    release_status: released_main
+  unreleased_progress:
+  - text: Foundational work for native Apple platforms (iOS, iPadOS, macOS) progressed with the addition of 10k lines of Swift
+      code covering CLI pairing, StoreKit payments, offline sync, and PII detection.
+    evidence:
+      commits:
+      - 43be73509
+      - 0fe0e60c8
+      - b3bad017f
+      - da4577f2c
+      - 6f94ce63f
+      - b3ce82536
+      - 1b3175832
+      - bff3f05c9
+    release_status: released_main
+  internal_progress:
+  - text: Internal updates include newsletter thumbnail scripts, CLI debug command enhancements for subscriptions, and cleanup
+      of unused video store logic.
+    evidence:
+      commits:
+      - 868c15188
+      - 773918f99
+      - 24bef4093
+      - 6ba8b5ab2
+      - 394bc0016
+      - aac5d5af1
+      - cac8b6ee3
+      - 2e211a9a4
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Integration of Bluesky social links across the footer, settings, and email templates.
+      evidence:
+        commits:
+        - 92fb629cd
+        - 355bf5eea
+      reason: New social integration available to all users.
+    - text: Renaming of the 'App Store' to 'Apps' throughout the interface and documentation.
+      evidence:
+        commits:
+        - 59319d871
+        - b9185f269
+      reason: Significant branding change for the core platform.
+    - text: Renaming of 'Settings & Memories' to 'Memories' with updated deep link aliases.
+      evidence:
+        commits:
+        - 95328a406
+      reason: User-facing terminology update for settings.
+    - text: New sidebar sections for announcements and tips & tricks within the chat list.
+      evidence:
+        commits:
+        - 16c4fc1a8
+        - 63d867694
+      reason: Improves navigation and visibility of project updates.
+    - text: Introduction of a text sanitizer to prevent ASCII smuggling in message inputs and deep links.
+      evidence:
+        commits:
+        - f97972528
+      reason: Important security enhancement for message safety.
+    exclude:
+    - text: Native Apple app foundation and features.
+      evidence:
+        commits:
+        - 43be73509
+        - 0fe0e60c8
+        - b3bad017f
+        - da4577f2c
+        - 6f94ce63f
+        - b3ce82536
+        - 1b3175832
+        - bff3f05c9
+      reason: The native Apple platforms (iOS and macOS) are currently listed as disabled features.
+    - text: Security-related dependency upgrades for math-codegen and protobufjs.
+      evidence:
+        commits:
+        - 87ad5dd50
+        - 1cdad0e9f
+      reason: Dependency updates are generally not included in user-facing newsletters unless they provide a direct feature.
+    rationale: The newsletter focuses on the major branding shift from 'App Store' to 'Apps', the new Bluesky social presence,
+      and security improvements. Native Apple app work is excluded as those platforms remain disabled in the current configuration.
+  social_video_recommendations:
+  - idea: Demonstrate the new 16:9 chat header media frames and the seamless transition to native fullscreen video.
+    priority: medium
+    reason: Visual improvement to the announcement and media experience.
+    evidence:
+      commits:
+      - 368bb7448
+      - ca70c7431
+      - 4b56c2a92
+  - idea: A quick walkthrough of the renamed 'Apps' and 'Memories' sections to help users navigate the updated interface.
+    priority: low
+    reason: Helps users adjust to the new terminology.
+    evidence:
+      commits:
+      - 59319d871
+      - 95328a406
+  quality_notes:
+  - Extensive E2E test coverage was added or updated to reflect the new 'Apps' architecture and route renames.
+  - Native Apple app work includes a comprehensive suite of XCUITests and unit tests for future stability.
+  validation_warnings: []

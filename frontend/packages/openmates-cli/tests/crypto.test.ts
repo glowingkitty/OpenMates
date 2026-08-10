@@ -9,6 +9,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   base64ToBytes,
@@ -25,7 +26,131 @@ import {
   hashEmail,
   hashKey,
   hashItemKey,
+  buildRecoveryAssociatedData,
+  deriveChatCompletionRecoveryKeypair,
+  openChatCompletionRecoveryEnvelope,
+  sealChatCompletionRecoveryPayload,
+  sealChatCompletionRecoveryPayloadForTest,
 } from "../src/crypto.ts";
+
+const recoveryVectors = JSON.parse(
+  readFileSync(
+    new URL("../../../../backend/tests/fixtures/chat_completion_recovery_vectors.json", import.meta.url),
+    "utf8",
+  ),
+).vectors;
+
+describe("chat-completion-recovery shared vectors", () => {
+  for (const vector of recoveryVectors) {
+    it(`matches exact recovery bytes for ${vector.name}`, async () => {
+      const keypair = await deriveChatCompletionRecoveryKeypair(
+        vector.chat_key,
+        vector.chat_id,
+        vector.key_version,
+      );
+      assert.equal(keypair.privateKey, vector.recovery_private_key);
+      assert.equal(keypair.publicKey, vector.recovery_public_key);
+      assert.equal(buildRecoveryAssociatedData(vector), vector.associated_data);
+
+      const envelope = await sealChatCompletionRecoveryPayloadForTest(
+        new TextEncoder().encode(vector.plaintext),
+        {
+          recoveryPublicKey: vector.recovery_public_key,
+          ownerId: vector.owner_id,
+          chatId: vector.chat_id,
+          turnId: vector.turn_id,
+          jobId: vector.job_id,
+          assistantMessageId: vector.assistant_message_id,
+          keyVersion: vector.key_version,
+          ephemeralPrivateKey: vector.ephemeral_private_key,
+          nonce: vector.nonce,
+        },
+      );
+      assert.deepEqual(envelope, vector.envelope);
+
+      const opened = await openChatCompletionRecoveryEnvelope(envelope, {
+        recoveryPrivateKey: keypair.privateKey,
+        ownerId: vector.owner_id,
+        chatId: vector.chat_id,
+        turnId: vector.turn_id,
+        jobId: vector.job_id,
+        assistantMessageId: vector.assistant_message_id,
+        keyVersion: vector.key_version,
+      });
+      assert.equal(new TextDecoder().decode(opened), vector.plaintext);
+    });
+
+    it(`rejects deterministic production sealing inputs for ${vector.name}`, async () => {
+      await assert.rejects(
+        () => sealChatCompletionRecoveryPayload(
+          new TextEncoder().encode(vector.plaintext),
+          {
+            recoveryPublicKey: vector.recovery_public_key,
+            ownerId: vector.owner_id,
+            chatId: vector.chat_id,
+            turnId: vector.turn_id,
+            jobId: vector.job_id,
+            assistantMessageId: vector.assistant_message_id,
+            keyVersion: vector.key_version,
+            ephemeralPrivateKey: vector.ephemeral_private_key,
+            nonce: vector.nonce,
+          } as Parameters<typeof sealChatCompletionRecoveryPayload>[1],
+        ),
+        /deterministic recovery sealing inputs are test-only/,
+      );
+    });
+
+    it(`uses fresh production sealing inputs for ${vector.name}`, async () => {
+      const options = {
+        recoveryPublicKey: vector.recovery_public_key,
+        ownerId: vector.owner_id,
+        chatId: vector.chat_id,
+        turnId: vector.turn_id,
+        jobId: vector.job_id,
+        assistantMessageId: vector.assistant_message_id,
+        keyVersion: vector.key_version,
+      };
+      const plaintext = new TextEncoder().encode(vector.plaintext);
+
+      const first = await sealChatCompletionRecoveryPayload(plaintext, options);
+      const second = await sealChatCompletionRecoveryPayload(plaintext, options);
+
+      assert.notEqual(first.epk, second.epk);
+      assert.notEqual(first.nonce, second.nonce);
+    });
+
+    for (const field of ["ciphertext", "nonce", "epk"] as const) {
+      it(`rejects ${field} tampering for ${vector.name}`, async () => {
+        const encoded = vector.envelope[field];
+        const envelope = {
+          ...vector.envelope,
+          [field]: `${encoded[0] === "A" ? "B" : "A"}${encoded.slice(1)}`,
+        };
+        await assert.rejects(() => openChatCompletionRecoveryEnvelope(envelope, {
+          recoveryPrivateKey: vector.recovery_private_key,
+          ownerId: vector.owner_id,
+          chatId: vector.chat_id,
+          turnId: vector.turn_id,
+          jobId: vector.job_id,
+          assistantMessageId: vector.assistant_message_id,
+          keyVersion: vector.key_version,
+        }));
+      });
+    }
+
+    it(`rejects associated-data tampering for ${vector.name}`, async () => {
+      await assert.rejects(() => openChatCompletionRecoveryEnvelope(vector.envelope, {
+        recoveryPrivateKey: vector.recovery_private_key,
+        ownerId: vector.owner_id,
+        chatId: vector.chat_id,
+        turnId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        jobId: vector.job_id,
+        assistantMessageId: vector.assistant_message_id,
+        keyVersion: vector.key_version,
+      }));
+    });
+  }
+});
 
 // ---------------------------------------------------------------------------
 // base64 helpers
@@ -99,7 +224,7 @@ describe("signup crypto material", () => {
     const signup = await createSignupCryptoMaterial("user@example.com", "password");
     const recovery = await createRecoveryKeyMaterial(signup.masterKeyB64, signup.userEmailSaltB64);
 
-    assert.match(recovery.recoveryKey, /^.{24}$/);
+    assert.match(recovery.recoveryKey, /^(?=.*[A-Z])(?=.*[a-z])(?=.*[2-9])(?=.*[#\-=+_&%$])[^0O]{24}$/);
     assert.strictEqual(recovery.lookupHash, await hashKey(recovery.recoveryKey, base64ToBytes(signup.userEmailSaltB64)));
     assert.ok(base64ToBytes(recovery.wrappedMasterKey).length > 32);
     assert.strictEqual(base64ToBytes(recovery.keyIv).length, 12);
@@ -109,7 +234,7 @@ describe("signup crypto material", () => {
     const signup = await createSignupCryptoMaterial("user@example.com", "password");
     const material = await createApiKeyCryptoMaterial("SDK live test", signup.masterKeyB64);
 
-    assert.match(material.apiKey, /^sk-api-[A-Za-z0-9]{32}$/);
+    assert.match(material.apiKey, /^sk-api-[A-NP-Za-z1-9]{32}$/);
     assert.match(material.apiKeyHash, /^[a-f0-9]{64}$/);
     assert.ok(base64ToBytes(material.encryptedName).length > 12);
     assert.ok(base64ToBytes(material.encryptedKeyPrefix).length > 12);

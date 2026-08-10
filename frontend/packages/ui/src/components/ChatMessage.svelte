@@ -71,13 +71,16 @@
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
   import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
   import { getMatesById } from '../data/matesMetadata';
-import { reportIssueStore } from '../stores/reportIssueStore';
-import { startEdit } from '../stores/editMessageStore';
-import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
-import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
+  import { reportIssueStore } from '../stores/reportIssueStore';
+  import { startEdit } from '../stores/editMessageStore';
+  import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
+  import { buildPendingSendPreviewContent, pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
+  import { pendingRememberMessageStore } from '../stores/pendingRememberMessageStore';
+  import { formatRememberMessageDraft } from '../utils/rememberMessage';
   import { chatDB } from '../services/db';
   import { chatKeyManager } from '../services/encryption/ChatKeyManager';
   import { chatSyncService } from '../services/chatSyncService';
+  import { sanitizeSubChatPreviewText } from '../services/subChatPreviewService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
   import { appSkillsStore } from '../stores/appSkillsStore';
@@ -86,11 +89,12 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   import type { TipTapNode } from '../message_parsing/types';
   import { copyToClipboard } from '../utils/clipboardUtils';
   import { chatDebugStore } from '../stores/chatDebugStore';
-  import { getCategoryGradientColors, getLucideIcon, getValidIconName } from '../utils/categoryUtils';
+  import { getCategoryGradientColors, getImportedAssistantProvider, getLucideIcon, getValidIconName } from '../utils/categoryUtils';
   import { decryptWithChatKey } from '../services/encryption/MessageEncryptor';
   import { copyChatToClipboard } from '../services/chatExportService';
   import { downloadChatAsZip } from '../services/zipExportService';
   import { buildChatMessageLink } from '../services/deepLinkHandler';
+  import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
   
   // Define types for message content parts
@@ -174,7 +178,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     isFirstMessage = false,
     isCreditsRestored = false,
     onResend = undefined,
+    onChatNavigate = undefined,
     canAnnotate = true,
+    isForgottenMessage = false,
   }: {
     role?: MessageRole;
     category?: string;
@@ -209,10 +215,13 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     /** Callback to resend the original message after credits are restored.
      *  Called when the user clicks "Resend message" in the credits-restored banner. */
     onResend?: () => void;
+    onChatNavigate?: (chatId: string) => Promise<void> | void;
     /** False when the viewer is reading a shared chat they don't own. Hides
      *  the Highlight entry points (context menu + selection toolbar) so the
      *  UI mirrors the backend's owner-only enforcement. Defaults to true. */
     canAnnotate?: boolean;
+    /** True when this message is readable history outside the active compressed context. */
+    isForgottenMessage?: boolean;
   } = $props();
   
   // State for thinking section expansion
@@ -289,8 +298,42 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     ].join('; ');
   }
 
+  const SUB_CHAT_BATCH_PROTOCOL_PATTERN = /"type"\s*:\s*"sub[-_]chat[-_]batch"/;
+
+  function containsSubChatBatch(value: unknown): boolean {
+    if (typeof value === 'string') return SUB_CHAT_BATCH_PROTOCOL_PATTERN.test(value);
+    if (!value || typeof value !== 'object') return false;
+    if (Array.isArray(value)) return value.some(containsSubChatBatch);
+
+    const node = value as {
+      type?: unknown;
+      contentRef?: unknown;
+      attrs?: unknown;
+      content?: unknown;
+      groupedItems?: unknown;
+    };
+    const type = typeof node.type === 'string' ? node.type.replace(/_/g, '-') : '';
+    if (type === 'sub-chat-batch') return true;
+    if (typeof node.contentRef === 'string' && node.contentRef.startsWith('sub-chat-batch:')) return true;
+
+    return (
+      containsSubChatBatch(node.attrs) ||
+      containsSubChatBatch(node.content) ||
+      containsSubChatBatch(node.groupedItems)
+    );
+  }
+
+  async function chatHasInlineSubChatBatch(chatId: string): Promise<boolean> {
+    const messages = await chatDB.getMessagesForChat(chatId);
+    return messages.some((message) => message.role === 'assistant' && containsSubChatBatch(message.content));
+  }
+
   async function loadSubChats() {
     if (role !== 'assistant' || !currentChatId) return;
+    if (hasInlineSubChatBatch || await chatHasInlineSubChatBatch(currentChatId)) {
+      subChatsOfThisMessage = [];
+      return;
+    }
     try {
       const all = await getSubChatsForParentChat(currentChatId);
       const msgTime = original_message?.created_at || 0;
@@ -336,6 +379,11 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           }
         }
 
+        preview.title = sanitizeSubChatPreviewText(preview.title) || undefined;
+        preview.previewSummary =
+          sanitizeSubChatPreviewText(preview.previewSummary) ||
+          sanitizeSubChatPreviewText(chat.chat_summary) ||
+          null;
         preview.previewCategory ||= chat.category || 'general_knowledge';
         preview.previewIcon = getValidIconName(preview.previewIcon || '', preview.previewCategory || 'general_knowledge');
         previews.push(preview);
@@ -889,6 +937,15 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   
   // Get the chat ID from the original message (needed for ExampleChatsGroup exclusion)
   let currentChatId = $derived(original_message?.chat_id || 'demo-for-everyone');
+  let hasInlineSubChatBatch = $derived.by(() => {
+    return [original_message?.content, content, fullContent].some(containsSubChatBatch);
+  });
+  let isInteractiveResponseMessage = $derived.by(() => {
+    const rawContent = typeof original_message?.content === 'string'
+      ? original_message.content
+      : (typeof content === 'string' ? content : '');
+    return role === 'user' && rawContent.includes('```interactive_response');
+  });
 
   /**
    * Whether the fork action is disabled for this message.
@@ -936,6 +993,16 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     if (lines.length <= 4 || compressionExpanded) return compressionSummaryText;
     return lines.slice(0, 4).join('\n') + '...';
   });
+
+  function normalizeCompressionSummaryEmbedRefs(summary: string): string {
+    return summary
+      .replace(/`embed_ref:\s*([^`\s)]+)`/g, (_match, embedRef: string) => `[${embedRef}](embed:${embedRef})`)
+      .replace(/\(embed_ref:\s*([A-Za-z0-9._-]+)\)/g, (_match, embedRef: string) => `([${embedRef}](embed:${embedRef}))`);
+  }
+
+  let compressionPreviewMarkdown = $derived(
+    normalizeCompressionSummaryEmbedRefs(compressionPreviewLines)
+  );
 
   let compressionNeedsExpand = $derived.by(() => {
     if (!compressionSummaryText) return false;
@@ -1071,6 +1138,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                     category === 'openmates_official' ? 'OpenMates' :
                     category ? $text(`mates.${category}`) :
                     'Assistant');
+  let importedProvider = $derived(role === 'assistant' ? getImportedAssistantProvider(category) : null);
+  let assistantDisplayName = $derived(importedProvider?.displayName ?? displayName);
 
   // animated prop is now included in the main $props() call above
 
@@ -1373,6 +1442,16 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
     settingsDeepLink.set('report_issue');
     panelState.openSettings();
+  }
+
+  function handleRememberMessage(event?: Event) {
+    event?.stopPropagation();
+    event?.preventDefault();
+    const markdown = typeof original_message?.content === 'string'
+      ? original_message.content
+      : (typeof content === 'string' ? content : '');
+    if (!markdown.trim()) return;
+    pendingRememberMessageStore.set(formatRememberMessageDraft(markdown));
   }
 
   /**
@@ -2108,23 +2187,17 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             fullscreenEmbedType = 'app-skill-use'; // Normalize group type to individual for fullscreen
         }
         
-        // Dispatch embedfullscreen event to trigger fullscreen (ActiveChat will handle it)
-        // This is the same event that embeds dispatch when clicked
-        // Use document.dispatchEvent (not window) to match how renderers do it
-        const embedFullscreenEvent = new CustomEvent('embedfullscreen', {
-            bubbles: true,
-            cancelable: true,
-            detail: {
-                embedId,
-                embedType: fullscreenEmbedType,
-                attrs: selectedNode.attrs,
-                embedData: null, // Will be loaded by ActiveChat if needed
-                decodedContent: null // Will be loaded by ActiveChat if needed
-            }
+        dispatchEmbedFullscreen({
+            embedId,
+            embedType: fullscreenEmbedType,
+            attrs: {
+              ...(selectedNode.attrs ?? {}),
+              app_id: selectedAppId || selectedNode.attrs?.app_id,
+              skill_id: selectedSkillId || selectedNode.attrs?.skill_id,
+            },
+            embedData: null, // Will be loaded by ActiveChat if needed
+            decodedContent: null // Will be loaded by ActiveChat if needed
         });
-        
-        // Dispatch the event on document (same as renderers do)
-        document.dispatchEvent(embedFullscreenEvent);
         
         console.debug('[ChatMessage] Dispatched embedfullscreen event for view action:', {
             embedId,
@@ -2659,7 +2732,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
           // --- Images: download original image with prompt-based filename and metadata ---
           if (selectedAppId === 'images' && action === 'download') {
-            const files = decodedContent.files as { original?: { s3_key: string; format?: string } } | undefined;
+            const files = decodedContent.files as { original?: { s3_key: string; format?: string; aes_nonce?: string; encryption?: string } } | undefined;
             const s3BaseUrl = decodedContent.s3_base_url as string | undefined;
             const aesKey = decodedContent.aes_key as string | undefined;
             const aesNonce = decodedContent.aes_nonce as string | undefined;
@@ -2667,7 +2740,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             const imageModel = decodedContent.model as string | undefined;
             const imageGeneratedAt = decodedContent.generated_at as string | undefined;
 
-            if (files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) {
+            const { hasMediaEncryptionMetadata } = await import('../services/encryption/mediaEncryption');
+            if (files?.original?.s3_key && s3BaseUrl && aesKey && hasMediaEncryptionMetadata(files.original, aesNonce)) {
               try {
                 const { fetchAndDecryptImage } = await import('./embeds/images/imageEmbedCrypto');
                 const { generateImageFilename, embedPngMetadata } = await import('./embeds/images/imageDownloadUtils');
@@ -2675,7 +2749,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                   s3BaseUrl,
                   files.original.s3_key,
                   aesKey,
-                  aesNonce
+                  aesNonce ?? '',
+                  files.original
                 );
                 const ext = files.original.format || 'png';
                 
@@ -2934,6 +3009,15 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     return Array.from(ctx.embedProgress.values()) as EmbedProgress[];
   })());
 
+  let pendingUploadPreviewContent = $derived((() => {
+    if (status !== 'waiting_for_upload' || !original_message?.message_id) return null;
+    const chatId = original_message.chat_id as string | undefined;
+    if (!chatId) return null;
+    const queue = $pendingUploadStore.get(chatId);
+    const ctx = queue?.find(c => c.messageId === original_message.message_id);
+    return ctx ? buildPendingSendPreviewContent(ctx) : null;
+  })());
+
   // Functions for handling truncated message display
   async function handleShowFullMessage() {
     if (showFullMessage || !original_message) return;
@@ -2986,11 +3070,18 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           <span class="compression-summary-title">{$text('chat.compression.summary_title')}</span>
         </div>
         <div class="compression-summary-body" class:expanded={compressionExpanded}>
-          <pre class="compression-summary-text">{compressionPreviewLines}</pre>
+          <ReadOnlyMessage
+            content={compressionPreviewMarkdown}
+            selectable={true}
+            role="system"
+            _embedUpdateTimestamp={_embedUpdateTimestamp}
+          />
         </div>
         {#if compressionNeedsExpand}
           <button
             class="compression-summary-toggle"
+            type="button"
+            data-testid="compression-summary-toggle"
             onclick={() => { compressionExpanded = !compressionExpanded; }}
           >
             {compressionExpanded ? $text('common.show_less') : $text('chat.compression.show_more')}
@@ -3060,7 +3151,18 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 <div class="chat-message {effectiveRole}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={effectiveRole === 'assistant'} class:user={effectiveRole === 'user'} class:mobile-stacked={effectiveRole === 'assistant' && shouldStackMobile}>
   {#if effectiveRole === 'assistant'}
     <!-- Mate profile image: clickable for real mates (opens mate detail in settings) -->
-    {#if isMateClickable}
+    {#if importedProvider}
+      <div
+        class="imported-provider-profile"
+        class:imported-provider-profile-small-mobile={shouldStackMobile}
+        data-testid="imported-provider-profile"
+        data-provider-category={category}
+        role="img"
+        aria-label={assistantDisplayName}
+      >
+        <Icon name={importedProvider.iconName} type="provider" size={shouldStackMobile ? '25px' : '60px'} noMargin={true} noAnimation={true} ariaHidden={true} />
+      </div>
+    {:else if isMateClickable}
       <button
         type="button"
         class="mate-profile-link"
@@ -3079,7 +3181,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     <div 
       bind:this={messageContentElement}
       class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}"
-      class:interactive-response-bubble={role === 'user' && typeof content === 'string' && content.includes('```interactive_response')}
+      class:interactive-response-bubble={isInteractiveResponseMessage}
       data-testid="{role === 'user' ? 'user' : 'mate'}-message-content"
       style="opacity: {defaultHidden ? '0' : '1'};"
       role="article"
@@ -3089,6 +3191,18 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       ontouchend={handleMessageTouchEnd}
       ontouchcancel={handleMessageTouchEnd}
     >
+      {#if isForgottenMessage}
+        <button
+          type="button"
+          class="remember-forgotten-message-pill"
+          data-testid="remember-forgotten-message"
+          onclick={handleRememberMessage}
+        >
+          <span class="remember-forgotten-message-icon" aria-hidden="true"></span>
+          <span>{$text('chat.compression.remember_this_message')}</span>
+        </button>
+      {/if}
+
       {#if role === 'assistant'}
         {#if isMateClickable}
           <button
@@ -3096,9 +3210,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             class="chat-mate-name chat-mate-name-link"
             data-testid="chat-mate-name"
             onclick={openMateSettings}
-          >{displayName}</button>
+          >{assistantDisplayName}</button>
         {:else}
-          <div class="chat-mate-name" data-testid="chat-mate-name">{displayName}</div>
+          <div class="chat-mate-name" data-testid="chat-mate-name">{assistantDisplayName}</div>
         {/if}
       {/if}
 
@@ -3126,8 +3240,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           onExplainInNewChat={handleExplainInNewChatFromSelection}
         />
 
-        <!-- Keep sub-chat delegation previews pinned at the top of this assistant turn,
-             even after the parent continuation summary arrives below. -->
+        <!-- Keep approval/progress controls visible while the assistant turn is pending. -->
         {#if subChatConfirmationRequest && subChatsOfThisMessage.length === 0 && role === 'assistant'}
           <div class="sub-chat-confirmation-card" data-testid="sub-chat-confirmation-card">
             <div class="sub-chat-confirmation-header">
@@ -3218,55 +3331,6 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           </div>
         {/if}
 
-        {#if subChatsOfThisMessage.length > 0 && role === 'assistant'}
-          <div class="sub-chats-carousel" data-testid="sub-chats-carousel">
-            {#each subChatsOfThisMessage as sc (sc.chat_id)}
-              {@const subChatCategory = sc.previewCategory || 'general_knowledge'}
-              {@const SubChatIcon = getLucideIcon(sc.previewIcon || getValidIconName('', subChatCategory))}
-              <button
-                type="button"
-                class="sub-chat-card sub-chat-large-card"
-                data-testid="sub-chat-card"
-                style={getSubChatPreviewStyle(subChatCategory)}
-                oncontextmenu={(event) => handleSubChatContextMenu(event, sc)}
-                onclick={async () => {
-                  const { activeChatStore } = await import('../stores/activeChatStore');
-                  activeChatStore.setActiveChat(sc.chat_id);
-                }}
-              >
-                <div
-                  class="sub-chat-status-pill"
-                  data-testid={sc.updated_at > sc.created_at ? 'sub-chat-status-done' : 'sub-chat-status-active'}
-                >
-                  {sc.updated_at > sc.created_at ? 'Done' : 'Active'}
-                </div>
-                <div class="sub-chat-large-orbs" aria-hidden="true">
-                  <div class="sub-chat-orb sub-chat-orb-1"></div>
-                  <div class="sub-chat-orb sub-chat-orb-2"></div>
-                  <div class="sub-chat-orb sub-chat-orb-3"></div>
-                </div>
-                <div class="sub-chat-large-deco sub-chat-large-deco-left" aria-hidden="true">
-                  <SubChatIcon size={80} color="white" />
-                </div>
-                <div class="sub-chat-large-deco sub-chat-large-deco-right" aria-hidden="true">
-                  <SubChatIcon size={80} color="white" />
-                </div>
-                <div class="sub-chat-large-content">
-                  <div class="sub-chat-large-icon" aria-hidden="true">
-                    <SubChatIcon size={32} color="white" />
-                  </div>
-                  <span class="sub-chat-large-title" data-testid="sub-chat-title">
-                    {sc.title || "Autonomous Task"}
-                  </span>
-                  {#if sc.previewSummary}
-                    <p class="sub-chat-large-summary">{sc.previewSummary}</p>
-                  {/if}
-                </div>
-              </button>
-            {/each}
-          </div>
-        {/if}
-
         {#if subChatContextMenuVisible && subChatContextMenuChat}
           <ChatContextMenu
             x={subChatContextMenuX}
@@ -3323,6 +3387,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             <ReadOnlyMessage
                 bind:this={readOnlyMessageComponent}
                 content={fullContent}
+                chatId={currentChatId}
                 isStreaming={status === 'streaming'}
                 {_embedUpdateTimestamp}
                 {selectable}
@@ -3342,7 +3407,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           {:else}
             <ReadOnlyMessage
                 bind:this={readOnlyMessageComponent}
-                {content}
+                content={pendingUploadPreviewContent ?? content}
+                chatId={currentChatId}
                 isStreaming={status === 'streaming'}
                 {_embedUpdateTimestamp}
                 {selectable}
@@ -3354,6 +3420,60 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           {/if}
 
         </div>
+
+        {#if !hasInlineSubChatBatch && subChatsOfThisMessage.length > 0 && role === 'assistant'}
+          <div class="sub-chats-carousel" data-testid="sub-chats-carousel">
+            {#each subChatsOfThisMessage as sc (sc.chat_id)}
+              {@const subChatCategory = sc.previewCategory || 'general_knowledge'}
+              {@const SubChatIcon = getLucideIcon(sc.previewIcon || getValidIconName('', subChatCategory))}
+              <button
+                type="button"
+                class="sub-chat-card sub-chat-large-card"
+                data-testid="sub-chat-card"
+                data-chat-id={sc.chat_id}
+                style={getSubChatPreviewStyle(subChatCategory)}
+                oncontextmenu={(event) => handleSubChatContextMenu(event, sc)}
+                onclick={async () => {
+                  if (onChatNavigate) {
+                    await onChatNavigate(sc.chat_id);
+                    return;
+                  }
+                  const { activeChatStore } = await import('../stores/activeChatStore');
+                  activeChatStore.setActiveChat(sc.chat_id);
+                }}
+              >
+                <div
+                  class="sub-chat-status-pill"
+                  data-testid={sc.updated_at > sc.created_at ? 'sub-chat-status-done' : 'sub-chat-status-active'}
+                >
+                  {sc.updated_at > sc.created_at ? 'Done' : 'Active'}
+                </div>
+                <div class="sub-chat-large-orbs" aria-hidden="true">
+                  <div class="sub-chat-orb sub-chat-orb-1"></div>
+                  <div class="sub-chat-orb sub-chat-orb-2"></div>
+                  <div class="sub-chat-orb sub-chat-orb-3"></div>
+                </div>
+                <div class="sub-chat-large-deco sub-chat-large-deco-left" aria-hidden="true">
+                  <SubChatIcon size={80} color="white" />
+                </div>
+                <div class="sub-chat-large-deco sub-chat-large-deco-right" aria-hidden="true">
+                  <SubChatIcon size={80} color="white" />
+                </div>
+                <div class="sub-chat-large-content">
+                  <div class="sub-chat-large-icon" aria-hidden="true">
+                    <SubChatIcon size={32} color="white" />
+                  </div>
+                  <span class="sub-chat-large-title" data-testid="sub-chat-title">
+                    {sc.title || "Autonomous Task"}
+                  </span>
+                  {#if sc.previewSummary}
+                    <p class="sub-chat-large-summary">{sc.previewSummary}</p>
+                  {/if}
+                </div>
+              </button>
+            {/each}
+          </div>
+        {/if}
         
         {#if is_truncated && role === 'user'}
           <div class="message-truncation-controls">
@@ -3446,9 +3566,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
            onFork={handleFork}
            disableFork={isForkDisabled}
            onHighlight={messageId && !isSharedReadOnly ? handleHighlightAction : undefined}
-           onHighlightAndComment={messageId && !isSharedReadOnly ? handleHighlightAndCommentAction : undefined}
-           onExplainInNewChat={messageId && !isSharedReadOnly && !isForkDisabled ? handleExplainInNewChatFromSelection : undefined}
-           hideHighlight={!cachedSelectionAnchor || isSharedReadOnly}
+            onHighlightAndComment={messageId && !isSharedReadOnly ? handleHighlightAndCommentAction : undefined}
+            onExplainInNewChat={messageId && !isSharedReadOnly && !isForkDisabled ? handleExplainInNewChatFromSelection : undefined}
+            onRemember={isForgottenMessage ? handleRememberMessage : undefined}
+            hideHighlight={!cachedSelectionAnchor || isSharedReadOnly}
            {messageId}
            {userMessageId}
            {role}
@@ -3570,6 +3691,26 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 {/if}
 
 <style>
+  .imported-provider-profile {
+    width: 3.75rem;
+    height: 3.75rem;
+    margin: var(--mate-profile-margin);
+    border-radius: var(--radius-full);
+    background: var(--color-grey-0);
+    box-shadow: var(--shadow-xs);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .imported-provider-profile-small-mobile {
+    width: 1.5625rem;
+    height: 1.5625rem;
+    margin-block: 0 0.5rem;
+    margin-inline: 0;
+  }
+
   /* System message notice: smaller text, centered, used for credit errors etc. */
   .chat-message.system {
     display: flex;
@@ -3582,7 +3723,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     text-align: center;
     padding: var(--spacing-4) var(--spacing-8);
     border-radius: var(--radius-5);
-    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+    background: var(--color-grey-10, rgba(255, 255, 255, 0.05));
   }
 
   .system-message-text {
@@ -3751,7 +3892,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     align-items: start;
     padding: 8px 10px;
     border-radius: 14px;
-    background: var(--color-grey-5);
+    background: var(--color-grey-10);
   }
 
   .sub-chat-confirmation-item span {
@@ -3809,7 +3950,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   }
 
   .sub-chat-confirmation-secondary {
-    background: var(--color-grey-15);
+    background: var(--color-grey-10);
     color: var(--color-font-primary);
   }
 
@@ -3881,7 +4022,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     background: rgba(0, 0, 0, 0.28);
     border: 1px solid rgba(255, 255, 255, 0.22);
     color: rgba(255, 255, 255, 0.92);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: 800;
     line-height: 1;
   }
@@ -4042,7 +4183,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   .compression-summary-card {
     max-width: 90%;
     width: 600px;
-    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+    background: var(--color-grey-10, rgba(255, 255, 255, 0.05));
     border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
     border-radius: var(--radius-7);
     padding: var(--spacing-8) var(--spacing-10);
@@ -4099,6 +4240,40 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   .compression-summary-toggle:hover {
     opacity: 0.7;
+  }
+
+  .remember-forgotten-message-pill {
+    all: unset;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    align-self: flex-start;
+    width: fit-content;
+    margin-bottom: var(--spacing-4);
+    padding: var(--spacing-2) var(--spacing-5);
+    border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-full);
+    background: var(--color-grey-10, rgba(255, 255, 255, 0.05));
+    color: var(--color-grey-80, #ccc);
+    cursor: pointer;
+    font-size: var(--font-size-xxs);
+    font-weight: 600;
+    line-height: 1.2;
+    transition: background-color var(--duration-fast) var(--easing-default), color var(--duration-fast) var(--easing-default);
+  }
+
+  .remember-forgotten-message-pill:hover {
+    background: var(--color-grey-20, rgba(255, 255, 255, 0.08));
+    color: var(--color-font-primary);
+  }
+
+  .remember-forgotten-message-icon {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
+    background: currentColor;
+    -webkit-mask: var(--icon-url-reasoning) center / contain no-repeat;
+    mask: var(--icon-url-reasoning) center / contain no-repeat;
   }
 
   .chat-app-cards-container {
@@ -4261,7 +4436,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     margin-left: var(--spacing-6);
     padding: var(--spacing-3) var(--spacing-5);
     border-radius: var(--radius-3);
-    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+    background: var(--color-grey-10, rgba(255, 255, 255, 0.05));
   }
 
   .embed-error-text {
@@ -4398,7 +4573,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    background: var(--color-grey-15, #f5f5f5);
+    background: var(--color-grey-10, #f5f5f5);
     border-radius: var(--radius-3);
     padding: var(--spacing-1) var(--spacing-4) var(--spacing-1) var(--spacing-2);
     cursor: pointer;

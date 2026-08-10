@@ -152,6 +152,7 @@
     padding: var(--spacing-10, 10px) var(--spacing-12, 12px);
     font-size: var(--font-size-p, 14px);
     background: var(--color-grey-0, #ffffff);
+    color: var(--color-font-primary, #212529);
     border: 1px solid var(--color-grey-30, #ced4da);
     border-radius: var(--radius-8, 8px);
     resize: none;

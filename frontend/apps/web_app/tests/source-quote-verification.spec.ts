@@ -21,7 +21,6 @@ const {
 	loginToTestAccount,
 	startNewChat,
 	sendMessage,
-	waitForAssistantMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 
@@ -61,12 +60,11 @@ test.describe('Source quote verification', () => {
 			'false-source-quote'
 		);
 
-		const assistantMessage = await waitForAssistantMessage(page, {
-			which: 'last',
-			contains: 'This sentence should remain after the invalid quote is removed.',
-			timeout: 120_000,
-			logCheckpoint: log
-		});
+		const assistantMessage = page
+			.getByTestId('message-assistant')
+			.filter({ hasText: 'This sentence should remain after the invalid quote is removed.' })
+			.last();
+		await expect(assistantMessage).toBeVisible({ timeout: 120_000 });
 
 		await expect(assistantMessage).toContainText('The source says the Burj Khalifa had a previous name.');
 		await expect(assistantMessage).not.toContainText(FALSE_QUOTE);
@@ -80,6 +78,45 @@ test.describe('Source quote verification', () => {
 		await deleteActiveChat(page, log, screenshot, 'false-source-quote');
 	});
 
+	test('normalizes grouped cite links and promotes image results to large previews', async ({ page }: { page: any }) => {
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+
+		const log = createSignupLogger('grouped-cites-image-preview');
+		await archiveExistingScreenshots(log);
+		const screenshot = createStepScreenshotter(log);
+
+		await loginToTestAccount(page, log, screenshot, { waitForEditor: true });
+		await startNewChat(page, log);
+		await sendMessage(
+			page,
+			'<<<TEST_MOCK:grouped_cites_image_preview>>> Reproduce grouped citations and an image result.',
+			log,
+			screenshot,
+			'grouped-cites-image-preview'
+		);
+
+		const assistantMessage = page
+			.getByTestId('message-assistant')
+			.filter({ hasText: 'The market is expanding' })
+			.last();
+		await expect(assistantMessage).toBeVisible({ timeout: 120_000 });
+
+		await expect(assistantMessage).not.toContainText('[cite:');
+		await expect(assistantMessage.getByRole('link', { name: 'CNBC AI Infrastructure' })).toBeVisible();
+		await expect(assistantMessage.getByRole('link', { name: 'Second Talent Market Report' })).toBeVisible();
+
+		const largePreview = assistantMessage.getByTestId('embed-preview-large').first();
+		await expect(largePreview).toBeVisible({ timeout: 30_000 });
+		await expect(
+			largePreview.locator(
+				'[data-testid="embed-preview"][data-app-id="images"][data-skill-id="image_result"]'
+			)
+		).toBeVisible({ timeout: 30_000 });
+		await screenshot(page, 'grouped-cites-image-preview-normalized');
+
+		await deleteActiveChat(page, log, screenshot, 'grouped-cites-image-preview');
+	});
+
 	test('clicking a website source quote highlights matching fullscreen text', async ({ page }: { page: any }) => {
 		test.setTimeout(120_000);
 
@@ -90,9 +127,9 @@ test.describe('Source quote verification', () => {
 		await expect(sourceQuote).toBeVisible({ timeout: 30_000 });
 		await sourceQuote.click();
 
-		// A source quote from a web search child result opens the parent search fullscreen
-		// and then the focused website child overlay, so scope assertions to the topmost
-		// fullscreen instead of the hidden parent shell.
+		// A source quote from a registered web search child opens the child fullscreen
+		// directly. Scope assertions to the topmost fullscreen so legacy parent-routed
+		// payloads and direct child payloads share the same highlight assertions.
 		const overlay = page.getByTestId('embed-fullscreen-overlay').last();
 		await expect(overlay).toBeVisible({ timeout: 30_000 });
 

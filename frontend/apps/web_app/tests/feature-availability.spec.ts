@@ -18,7 +18,7 @@ function deriveApiUrl(baseUrl: string): string {
 }
 
 test.describe('Feature availability', () => {
-	test('default-disabled platform workspaces stay hidden until explicitly enabled', async ({ page }) => {
+	test('server-enabled platform workspaces follow web release gates', async ({ page }) => {
 		test.setTimeout(120000);
 
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
@@ -27,33 +27,35 @@ test.describe('Feature availability', () => {
 		const availability = await availabilityResponse.json();
 		const disabled = availability.disabled ?? [];
 
-		expect(disabled).toContain('platform:projects');
-		expect(disabled).toContain('platform:plans');
-		expect(disabled).toContain('platform:workflows');
-		expect(disabled).toContain('platform:tasks');
+		expect(disabled).toContain('platform:teams');
+		expect(disabled).toContain('platform:ios');
+		expect(disabled).not.toContain('platform:projects');
+		expect(disabled).not.toContain('platform:plans');
+		expect(disabled).not.toContain('platform:workflows');
+		expect(disabled).not.toContain('platform:tasks');
 		expect(disabled).not.toContain('app:web');
 
 		await page.goto('/', { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page, () => {}, async () => {});
 
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('chats-nav-link')).toHaveCount(0);
+		await expect(page.getByTestId('chats-nav-link')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('projects-nav-link')).toHaveCount(0);
-		await expect(page.getByTestId('plans-nav-link')).toHaveCount(0);
-		await expect(page.getByTestId('workflows-nav-link')).toHaveCount(0);
-		await expect(page.getByTestId('tasks-nav-link')).toHaveCount(0);
-		await expect(page.getByTestId('workspace-mobile-select')).toHaveCount(0);
+		await expect(page.getByTestId('plans-nav-link')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('workflows-nav-link')).toBeVisible();
+		await expect(page.getByTestId('tasks-nav-link')).toBeVisible();
+		await expect(page.getByTestId('workspace-mobile-select')).toBeHidden();
 
 		await page.goto('/projects', { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('projects-feature-disabled')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
 
 		await page.goto('/plans', { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('plans-feature-disabled')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('plans-page')).toBeVisible({ timeout: 30000 });
 
 		await page.goto('/workflows', { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('workflows-feature-disabled')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
 
 		await page.goto('/tasks', { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('tasks-feature-disabled')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30000 });
 	});
 });

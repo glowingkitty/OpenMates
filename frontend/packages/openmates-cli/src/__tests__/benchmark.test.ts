@@ -7,9 +7,28 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { createBenchmarkEmbedReferenceBlock, handleBenchmark } from "../benchmark.js";
+import {
+  PROMPT_BUDGET_CASES,
+  createBenchmarkEmbedReferenceBlock,
+  handleBenchmark,
+  hashPromptBudgetCorpus,
+} from "../benchmark.js";
 
 describe("handleBenchmark", () => {
+  it("defines the fixed prompt-budget corpus shape", () => {
+    assert.equal(PROMPT_BUDGET_CASES.length, 10);
+    assert.equal(PROMPT_BUDGET_CASES.filter((benchmarkCase) => benchmarkCase.turns.length === 1).length, 7);
+    assert.equal(PROMPT_BUDGET_CASES.filter((benchmarkCase) => benchmarkCase.turns.length === 6).length, 3);
+
+    const ids = new Set(PROMPT_BUDGET_CASES.map((benchmarkCase) => benchmarkCase.id));
+    assert.equal(ids.size, PROMPT_BUDGET_CASES.length);
+    assert.ok(ids.has("single-code-palindrome"));
+    assert.ok(ids.has("multiturn-model-evaluation-plan"));
+
+    const hash = hashPromptBudgetCorpus(PROMPT_BUDGET_CASES);
+    assert.match(hash, /^[a-f0-9]{64}$/);
+  });
+
   it("expands comparison dry-runs without requiring a logged-in session", async () => {
     const originalWrite = process.stdout.write;
     let output = "";

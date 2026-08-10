@@ -32,6 +32,11 @@ enum WorkflowRunContentStorage: String, Codable, Sendable {
     case deleted
 }
 
+enum WorkflowLifecycle: String, Codable, Sendable {
+    case persisted
+    case temporary
+}
+
 struct WorkflowNode: Codable, Identifiable, Sendable {
     let id: String
     let type: WorkflowNodeType
@@ -79,8 +84,15 @@ struct WorkflowGraph: Codable, Sendable {
 struct WorkflowSummary: Codable, Identifiable, Sendable {
     let id: String
     let title: String
+    let description: String?
     let status: String
     let enabled: Bool
+    let lifecycle: WorkflowLifecycle
+    let source: String
+    let sourceChatId: String?
+    let createdByAssistant: Bool
+    let autoDeleteAt: Int?
+    let keptAt: Int?
     let triggerSummary: String?
     let nextRunAt: Int?
     let lastRunStatus: String?
@@ -92,8 +104,15 @@ struct WorkflowSummary: Codable, Identifiable, Sendable {
     enum CodingKeys: String, CodingKey {
         case id
         case title
+        case description
         case status
         case enabled
+        case lifecycle
+        case source
+        case sourceChatId = "source_chat_id"
+        case createdByAssistant = "created_by_assistant"
+        case autoDeleteAt = "auto_delete_at"
+        case keptAt = "kept_at"
         case triggerSummary = "trigger_summary"
         case nextRunAt = "next_run_at"
         case lastRunStatus = "last_run_status"
@@ -107,8 +126,15 @@ struct WorkflowSummary: Codable, Identifiable, Sendable {
 struct WorkflowDetail: Codable, Identifiable, Sendable {
     let id: String
     let title: String
+    let description: String?
     let status: String
     let enabled: Bool
+    let lifecycle: WorkflowLifecycle
+    let source: String
+    let sourceChatId: String?
+    let createdByAssistant: Bool
+    let autoDeleteAt: Int?
+    let keptAt: Int?
     let triggerSummary: String?
     let nextRunAt: Int?
     let lastRunStatus: String?
@@ -121,8 +147,15 @@ struct WorkflowDetail: Codable, Identifiable, Sendable {
     enum CodingKeys: String, CodingKey {
         case id
         case title
+        case description
         case status
         case enabled
+        case lifecycle
+        case source
+        case sourceChatId = "source_chat_id"
+        case createdByAssistant = "created_by_assistant"
+        case autoDeleteAt = "auto_delete_at"
+        case keptAt = "kept_at"
         case triggerSummary = "trigger_summary"
         case nextRunAt = "next_run_at"
         case lastRunStatus = "last_run_status"
@@ -141,7 +174,15 @@ struct WorkflowNodeRun: Codable, Identifiable, Sendable {
     let nodeId: String
     let nodeType: WorkflowNodeType
     let status: String
+    let startedAt: Int?
+    let finishedAt: Int?
+    let attempt: Int
+    let skippedReason: String?
+    let errorCode: String?
+    let errorSummary: String?
+    let inputSummary: [String: AnyCodable]
     let outputSummary: [String: AnyCodable]
+    let creditCost: Int
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -150,7 +191,15 @@ struct WorkflowNodeRun: Codable, Identifiable, Sendable {
         case nodeId = "node_id"
         case nodeType = "node_type"
         case status
+        case startedAt = "started_at"
+        case finishedAt = "finished_at"
+        case attempt
+        case skippedReason = "skipped_reason"
+        case errorCode = "error_code"
+        case errorSummary = "error_summary"
+        case inputSummary = "input_summary"
         case outputSummary = "output_summary"
+        case creditCost = "credit_cost"
     }
 }
 
@@ -160,11 +209,16 @@ struct WorkflowRunDetail: Codable, Identifiable, Sendable {
     let versionId: String
     let triggerType: String
     let status: String
+    let startedAt: Int?
+    let finishedAt: Int?
+    let errorSummary: String?
+    let costSummary: [String: AnyCodable]
     let contentRetentionMode: WorkflowRunContentRetention
     let contentAvailable: Bool
     let contentStorage: WorkflowRunContentStorage?
     let contentExpiresAt: Int?
     let nodeRuns: [WorkflowNodeRun]
+    let outputSummary: [String: AnyCodable]
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -172,11 +226,16 @@ struct WorkflowRunDetail: Codable, Identifiable, Sendable {
         case versionId = "version_id"
         case triggerType = "trigger_type"
         case status
+        case startedAt = "started_at"
+        case finishedAt = "finished_at"
+        case errorSummary = "error_summary"
+        case costSummary = "cost_summary"
         case contentRetentionMode = "content_retention_mode"
         case contentAvailable = "content_available"
         case contentStorage = "content_storage"
         case contentExpiresAt = "content_expires_at"
         case nodeRuns = "node_runs"
+        case outputSummary = "output_summary"
     }
 }
 

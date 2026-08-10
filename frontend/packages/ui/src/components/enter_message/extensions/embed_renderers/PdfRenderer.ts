@@ -39,6 +39,8 @@ interface PdfEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
   pageCount?: number | null;
   /** Error message set by _performPdfUpload() on failure */
   uploadError?: string;
+  /** Local-only anonymous preview that cannot open server-backed fullscreen. */
+  needsSignup?: boolean;
 }
 
 /**
@@ -141,6 +143,7 @@ export class PdfRenderer implements EmbedRenderer {
             | "error",
           pageCount: attrs.pageCount ?? null,
           uploadError: attrs.uploadError ?? undefined,
+          needsSignup: attrs.needsSignup === true,
           isMobile: false,
           onStop: handleStop,
           onFullscreen: handleFullscreen,

@@ -26,6 +26,12 @@ final class AuthManager: ObservableObject {
         await MainActor.run { _shared?.currentUser?.id }
     }
 
+    static func isRecoveryEligibleDevice() async -> Bool {
+        await MainActor.run {
+            _shared?.state == .authenticated && _shared?.sessionValidationState == .onlineAuthenticated
+        }
+    }
+
     enum AuthState: Equatable {
         case initializing
         case unauthenticated
@@ -61,10 +67,48 @@ final class AuthManager: ObservableObject {
     private var pendingPassword: String?
     private var pendingEmail: String?
 
+    init() {
+        Self._shared = self
+    }
+
     // MARK: - Session check (app launch)
 
     func checkSession() async {
         Self._shared = self
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-authenticated-chat-navigation") {
+            currentUser = UserProfile(
+                id: "ui-test-chat-navigation-user",
+                username: "ui-test-chat-navigation",
+                email: nil,
+                credits: 0,
+                language: "en",
+                darkmode: nil,
+                timezone: "UTC",
+                lastOpened: "ui-test-regular-chat",
+                profileImageUrl: nil,
+                isAdmin: false,
+                encryptedKey: nil,
+                keyIv: nil,
+                salt: nil,
+                userEmailSalt: nil,
+                encryptedSettings: nil,
+                autoDeleteChatsAfterDays: nil,
+                pushNotificationEnabled: nil,
+                emailNotificationsEnabled: nil,
+                emailNotificationPreferences: nil,
+                backupReminderIntervalDays: nil,
+                defaultAiModelSimple: nil,
+                defaultAiModelComplex: nil,
+                followUpSuggestionsEnabled: nil,
+                quickTipsEnabled: nil
+            )
+            webSocketToken = nil
+            sessionValidationState = .offlineAuthenticated
+            state = .authenticated
+            return
+        }
+        #endif
         if ProcessInfo.processInfo.arguments.contains("--ui-test-disable-auth-cache") {
             sessionValidationState = .unauthenticated
             state = .unauthenticated
@@ -319,6 +363,7 @@ final class AuthManager: ObservableObject {
         webSocketToken = response.wsToken
         currentUser = user
         try await crypto.saveMasterKey(masterKey, for: user.id)
+        await migrateLegacyComposerDrafts()
         cacheAuthenticatedUser(user)
         sessionValidationState = .onlineAuthenticated
         state = .authenticated
@@ -336,8 +381,9 @@ final class AuthManager: ObservableObject {
         }
 
         try await crypto.saveMasterKey(masterKey, for: user.id)
-        webSocketToken = response.wsToken
         currentUser = user
+        await migrateLegacyComposerDrafts()
+        webSocketToken = response.wsToken
         cacheAuthenticatedUser(user)
         sessionValidationState = .onlineAuthenticated
         state = .authenticated
@@ -349,9 +395,13 @@ final class AuthManager: ObservableObject {
         do {
             let _: Data = try await api.request(.post, path: "/v1/auth/logout")
         } catch {
-            // Best-effort server logout
+            NativeDiagnostics.warning(
+                "phase=serverLogout.failed errorType=\(type(of: error))",
+                category: "auth"
+            )
         }
 
+        await clearComposerDraftsForLogout()
         if let userId = currentUser?.id {
             try? await crypto.deleteMasterKey(for: userId)
         }
@@ -371,6 +421,7 @@ final class AuthManager: ObservableObject {
 
     func forceLocalLogout(reason: String) async {
         print("[Auth] Forced local logout reason=\(reason)")
+        await clearComposerDraftsForLogout()
         if let userId = currentUser?.id {
             try? await crypto.deleteMasterKey(for: userId)
         } else {
@@ -403,7 +454,7 @@ final class AuthManager: ObservableObject {
             throw AuthError.missingAuthData
         }
 
-        let wrappingKey = await crypto.deriveWrappingKeyFromPassword(
+        let wrappingKey = try await crypto.deriveWrappingKeyFromPassword(
             password: password, salt: saltData
         )
         let masterKey = try await crypto.unwrapMasterKey(
@@ -412,10 +463,11 @@ final class AuthManager: ObservableObject {
             wrappingKey: wrappingKey
         )
         try await crypto.saveMasterKey(masterKey, for: user.id)
+        currentUser = user
+        await migrateLegacyComposerDrafts()
         print("[Auth] Master key derived and saved to Keychain")
 
         webSocketToken = response.wsToken
-        currentUser = user
         cacheAuthenticatedUser(user)
         sessionValidationState = .onlineAuthenticated
 
@@ -439,11 +491,34 @@ final class AuthManager: ObservableObject {
             return false
         }
         currentUser = user
+        await migrateLegacyComposerDrafts()
         webSocketToken = nil
         sessionValidationState = .offlineAuthenticated
         state = .authenticated
         print("[Auth] Restored cached session for offline startup")
         return true
+    }
+
+    private func migrateLegacyComposerDrafts() async {
+        do {
+            try await DraftService.shared.migrateLegacyDraftsAfterUnlock()
+        } catch {
+            NativeDiagnostics.error(
+                "phase=draftMigration.failed errorType=\(type(of: error))",
+                category: "composer_drafts"
+            )
+        }
+    }
+
+    private func clearComposerDraftsForLogout() async {
+        do {
+            try await DraftService.shared.clearAll()
+        } catch {
+            NativeDiagnostics.error(
+                "phase=logoutDraftClear.failed errorType=\(type(of: error))",
+                category: "composer_drafts"
+            )
+        }
     }
 
     private func cacheAuthenticatedUser(_ user: UserProfile) {

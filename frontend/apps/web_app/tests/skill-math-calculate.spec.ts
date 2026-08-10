@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Unified 4-phase E2E test for math/calculate skill.
@@ -26,7 +25,7 @@ const {
 	sendMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
-const { deriveApiUrl, runCli, parseCliJson } = require('./helpers/cli-test-helpers');
+const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
 const {
 	verifyEmbedPreviewPage,
 	waitForEmbedFinished,
@@ -66,21 +65,21 @@ test.describe('App: Math / Skill: calculate', () => {
 			25_000
 		);
 
-		expect(result.code).toBe(0);
+		expectCliSuccess(result, 'math calculate direct CLI');
 		const parsed = parseCliJson(result);
 		expect(parsed.success).toBe(true);
 
-		const skillData = parsed.data;
-		const results = skillData.results || [];
-		expect(results.length).toBeGreaterThan(0);
-
-		const item = (results[0].results || [])[0];
+		const skillData = parsed.data || parsed;
+		const groupedResults = skillData.results || [];
+		const item = skillData.result !== undefined || skillData.result_numeric !== undefined || skillData.result_str !== undefined
+			? skillData
+			: (groupedResults[0]?.results || [])[0];
 		expect(item).toBeTruthy();
 
 		// sqrt(144) = 12 exactly
-		const resultStr = String(item.result || '');
+		const resultStr = String(item.result ?? item.result_numeric ?? item.result_str ?? '');
 		expect(resultStr).toMatch(/^12(\.0*)?$/);
-		console.log(`[P2] math/calculate sqrt(144) = ${item.result} (mode=${item.mode})`);
+		console.log(`[P2] math/calculate sqrt(144) = ${resultStr} (mode=${item.mode ?? item.mode_used})`);
 	});
 
 	// ── Phase 3: CLI chat send triggers skill ──────────────────────────────
@@ -92,7 +91,7 @@ test.describe('App: Math / Skill: calculate', () => {
 
 		const message = withLiveMockMarker('Calculate the square root of 144', 'math_calculate_cli');
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 60_000);
-		expect(result.code).toBe(0);
+		expectCliSuccess(result, 'math calculate chat CLI');
 
 		const parsed = parseCliJson(result);
 		expect(parsed).toBeTruthy();

@@ -23,7 +23,7 @@ const {
 	assertNoMissingTranslations,
 	getIsolatedTestAccount
 } = require('./signup-flow-helpers');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, openSignupInterface } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
@@ -31,11 +31,13 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
  *
  * ARCHITECTURE NOTES:
  * - Uses isolated account slot 15 because this flow rotates the TOTP secret.
- * - Phase 1: Logs in with password + OTP, navigates to Settings > Security > 2FA,
- *   triggers "Change App" to regenerate backup codes, captures a code.
+ * - Phase 1: Logs in, navigates to Settings > Security > 2FA, sets up or changes
+ *   the OTP app, and captures a backup code.
  * - Phase 2: Logs out, then logs back in using the captured backup code instead of OTP.
- * - This validates both the settings backup code regeneration flow AND the backup code
- *   login flow end-to-end.
+ * - Phase 3: Disables OTP 2FA after re-auth and explicit security-risk confirmation,
+ *   then verifies the next password login does not require an OTP code.
+ * - This validates the settings OTP setup flow, backup-code login flow, and OTP disable
+ *   flow end-to-end.
  *
  * REQUIRED ENV VARS:
  * - Isolated slot 15 credentials, routed by scripts/run_tests.py.
@@ -121,12 +123,17 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await takeStepScreenshot(page, 'tfa-overview');
 	logCheckpoint('Navigated to 2FA settings.');
 
-	// Click "Change App" to trigger 2FA re-setup (which regenerates backup codes)
-	const changeAppButton = page.getByRole('button').filter({ hasText: /change.*app/i });
-	await expect(changeAppButton).toBeVisible({ timeout: 10000 });
-	await changeAppButton.click();
+	// Start OTP setup. A previous successful run disables 2FA at the end, so this
+	// spec must support both the already-enabled and currently-disabled states.
+	const changeAppButton = page.getByTestId('tfa-change-app-button');
+	const enableTfaButton = page.getByTestId('tfa-enable-button');
+	const tfaSetupButton = (await changeAppButton.isVisible({ timeout: 3000 }).catch(() => false))
+		? changeAppButton
+		: enableTfaButton;
+	await expect(tfaSetupButton).toBeVisible({ timeout: 10000 });
+	await tfaSetupButton.click();
 	await takeStepScreenshot(page, 'tfa-change-triggered');
-	logCheckpoint('Clicked Change App to start 2FA re-setup.');
+	logCheckpoint('Clicked OTP setup action to start 2FA setup.');
 
 	// SecurityAuth modal: enter password
 	const authModal = page.locator('[role="dialog"]');
@@ -317,7 +324,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	logCheckpoint('Logged out.');
 
 	// Logout now returns to the guest new-chat welcome screen and clears the active chat.
-	await expect(page.getByTestId('header-login-signup-btn')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
 	expect(await page.evaluate(() => window.location.hash)).not.toContain('demo-for-everyone');
 	logCheckpoint('Returned to logged-out welcome screen after logout.');
 
@@ -326,9 +333,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// ========================================================================
 
 	// Open login dialog again
-	const loginButtonAfterLogout = page.getByTestId('header-login-signup-btn');
-	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
-	await loginButtonAfterLogout.click();
+	await openSignupInterface(page, 30000);
 
 	// Click Login tab to switch from signup to login view
 	const loginTabRelogin = page.getByTestId('tab-login');
@@ -337,30 +342,30 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	logCheckpoint('Opened login dialog after logout.');
 
 	// Enter email
-	const emailInputRelogin = page.locator('#login-email-input');
+	const emailInputRelogin = page.getByTestId('login-email-input');
 	await expect(emailInputRelogin).toBeVisible({ timeout: 10000 });
 	await emailInputRelogin.fill(OPENMATES_TEST_ACCOUNT_EMAIL);
-	await page.locator('#login-continue-button').click();
+	await page.getByTestId('login-continue-button').click();
 	logCheckpoint('Submitted email for re-login.');
 
 	// Enter password first. The OTP field appears only after /login confirms that
 	// 2FA is required; /lookup stays generic for anti-enumeration.
-	const passwordInputRelogin = page.locator('#login-password-input');
+	const passwordInputRelogin = page.getByTestId('login-password-input');
 	await expect(passwordInputRelogin).toBeVisible({ timeout: 15000 });
 	await passwordInputRelogin.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	logCheckpoint('Filled password for re-login.');
-	const loginSubmitButton = page.locator('#login-submit-button');
+	const loginSubmitButton = page.getByTestId('login-submit-button');
 	await expect(loginSubmitButton).toBeVisible();
 	await loginSubmitButton.click();
 	logCheckpoint('Submitted password to reveal backup-code prompt.');
 
-	const tfaInputRelogin = page.locator('#login-otp-input');
+	const tfaInputRelogin = page.getByTestId('login-otp-input');
 	await expect(tfaInputRelogin).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-prompt-relogin');
 	logCheckpoint('TFA input visible after password submission.');
 
 	// Switch to backup code mode using the toggle button
-	const backupModeButton = page.locator('#login-with-backup-code button');
+	const backupModeButton = page.getByTestId('login-with-backup-code');
 	await expect(backupModeButton).toBeVisible();
 	await backupModeButton.click();
 	await takeStepScreenshot(page, 'backup-mode-active');
@@ -372,16 +377,16 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 		code: `${backupCodeToUse.slice(0, 5)}*****`
 	});
 
-	// The TFA input now accepts backup code format (alphanumeric 14-char)
-	const backupCodeInput = page.locator('#login-otp-input');
+	const backupCodeInput = page.getByTestId('login-backup-code-input');
 	await expect(backupCodeInput).toBeVisible();
 	await backupCodeInput.fill(backupCodeToUse);
 	await takeStepScreenshot(page, 'backup-code-entered');
 	logCheckpoint('Entered backup code.');
 
-	// Submit login with password + backup code using the form submit button
-	await expect(loginSubmitButton).toBeVisible();
-	await loginSubmitButton.click();
+	// Submit login with password + backup code using the backup-code form submit button
+	const backupCodeSubmitButton = page.getByTestId('login-backup-code-submit-button');
+	await expect(backupCodeSubmitButton).toBeVisible();
+	await backupCodeSubmitButton.click();
 	logCheckpoint('Submitted login with backup code.');
 
 	// Wait for successful login. The app now lands on the authenticated new-chat
@@ -389,7 +394,106 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await expect(page.locator('[data-authenticated="true"]').first()).toBeVisible({ timeout: 60000 });
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'login-success-backup-code');
-	logCheckpoint('Login successful with backup code! Test complete.');
+	logCheckpoint('Login successful with backup code.');
+
+	// ========================================================================
+	// PHASE 6: Disable OTP 2FA after explicit security-risk confirmation
+	// ========================================================================
+
+	await settingsMenuButton.click();
+	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
+	await takeStepScreenshot(page, 'settings-open-before-disable');
+	logCheckpoint('Opened settings menu before disabling OTP.');
+
+	await page.getByRole('menuitem', { name: /account/i }).click();
+	await page.getByRole('menuitem', { name: /security/i }).click();
+	await page.getByRole('menuitem', { name: /two-factor|2fa/i }).click();
+	await takeStepScreenshot(page, 'tfa-overview-before-disable');
+	logCheckpoint('Navigated to 2FA settings before disabling OTP.');
+
+	const disableButton = page.getByTestId('tfa-disable-button');
+	await expect(disableButton).toBeVisible({ timeout: 10000 });
+	await disableButton.click();
+	await takeStepScreenshot(page, 'tfa-disable-auth-open');
+	logCheckpoint('Clicked Disable 2FA button.');
+
+	const disableAuthModal = page.locator('[role="dialog"]');
+	await expect(disableAuthModal).toBeVisible({ timeout: 10000 });
+	const disableAuthPasswordInput = disableAuthModal.locator('[data-testid="password-input"], input[type="password"]');
+	await expect(disableAuthPasswordInput).toBeVisible();
+	await disableAuthPasswordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
+	await disableAuthModal.getByTestId('auth-btn').click();
+	logCheckpoint('Submitted password before disabling OTP.');
+
+	const disableAuthTfaInput = disableAuthModal.getByTestId('tfa-input');
+	const disableAuthTfaVisible = await Promise.race([
+		disableAuthTfaInput.waitFor({ state: 'visible', timeout: 10000 }).then(() => true),
+		disableAuthModal.waitFor({ state: 'hidden', timeout: 10000 }).then(() => false),
+	]).catch(() => false);
+
+	if (disableAuthTfaVisible) {
+		const disableAuthOtp = generateTotp(newTfaSecret);
+		await disableAuthTfaInput.fill(disableAuthOtp);
+		logCheckpoint('Entered current OTP before disabling OTP.');
+		await disableAuthModal.waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+	}
+
+	const disableConfirm = page.getByTestId('tfa-disable-confirm');
+	await expect(disableConfirm).toBeVisible({ timeout: 15000 });
+	await expect(disableConfirm).toContainText(/less secure|weniger sicher|menos segura|moins sécurisé/i);
+	await takeStepScreenshot(page, 'tfa-disable-confirm');
+	logCheckpoint('Disable confirmation warning is visible.');
+
+	await page.getByTestId('tfa-disable-confirm-button').click();
+	const disabledSuccess = page.getByTestId('success-message');
+	await expect(disabledSuccess).toBeVisible({ timeout: 15000 });
+	await expect(disabledSuccess).toContainText(/disabled|deaktiviert|désactivée|deshabilitada/i);
+	await expect(page.getByTestId('tfa-enable-button')).toBeVisible({ timeout: 10000 });
+	await takeStepScreenshot(page, 'tfa-disabled-success');
+	logCheckpoint('OTP 2FA disabled after explicit confirmation.');
+
+	// ========================================================================
+	// PHASE 7: Logout and verify password-only login after disabling OTP
+	// ========================================================================
+
+	for (let i = 0; i < 5; i++) {
+		const logoutNowVisible = await logoutItem.isVisible().catch(() => false);
+		if (logoutNowVisible) break;
+		const backVisible = await settingsBackButton.isVisible().catch(() => false);
+		if (!backVisible) break;
+		const backDisabled =
+			(await settingsBackButton.getAttribute('aria-disabled').catch(() => 'true')) === 'true';
+		if (backDisabled) break;
+		await settingsBackButton.click({ force: true });
+		await page.waitForTimeout(500);
+	}
+
+	await expect(logoutItem).toBeVisible({ timeout: 10000 });
+	await logoutItem.click();
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
+	await takeStepScreenshot(page, 'logged-out-after-disable');
+	logCheckpoint('Logged out after disabling OTP.');
+
+	await openSignupInterface(page, 30000);
+	const loginTabAfterDisable = page.getByTestId('tab-login');
+	await expect(loginTabAfterDisable).toBeVisible({ timeout: 10000 });
+	await loginTabAfterDisable.click();
+
+	const emailInputAfterDisable = page.getByTestId('login-email-input');
+	await expect(emailInputAfterDisable).toBeVisible({ timeout: 10000 });
+	await emailInputAfterDisable.fill(OPENMATES_TEST_ACCOUNT_EMAIL);
+	await page.getByTestId('login-continue-button').click();
+
+	const passwordInputAfterDisable = page.getByTestId('login-password-input');
+	await expect(passwordInputAfterDisable).toBeVisible({ timeout: 15000 });
+	await passwordInputAfterDisable.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
+	await page.getByTestId('login-submit-button').click();
+
+	await expect(page.locator('[data-authenticated="true"]').first()).toBeVisible({ timeout: 60000 });
+	await expect(page.getByTestId('login-otp-input')).not.toBeVisible();
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+	await takeStepScreenshot(page, 'login-success-password-only-after-disable');
+	logCheckpoint('Password-only login succeeded after disabling OTP. Test complete.');
 
 	// Verify no missing translations after login
 	await assertNoMissingTranslations(page);

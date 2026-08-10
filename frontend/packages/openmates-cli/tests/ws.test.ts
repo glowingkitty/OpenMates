@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createRequire } from "node:module";
 
-import { OpenMatesWsClient } from "../src/ws.ts";
+import { OpenMatesWsClient, WebSocketProtocolError } from "../src/ws.ts";
 
 const require = createRequire(import.meta.url);
 const { WebSocketServer } = require("ws");
@@ -36,6 +36,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     const chatId = "chat-active";
     const userMessageId = "user-message-1";
     const asyncEmbedId = "embed-async";
+    const checkpointId = "11111111-1111-4111-8111-111111111111";
 
     server.once("connection", (socket) => {
       setTimeout(() => {
@@ -49,6 +50,21 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
             status: "finished",
             type: "app_skill_use",
             content: "app_id: web\nskill_id: search\nstatus: finished",
+          },
+        }),
+      );
+
+      socket.send(
+        JSON.stringify({
+          type: "chat_compression_completed",
+          payload: {
+            chat_id: chatId,
+            task_id: "task-compression-1",
+            compressed_message_count: 120,
+            summary_token_estimate: 420,
+            compressed_up_to_timestamp: 1780000010,
+            summary_message_id: checkpointId,
+            summary_content: "Earlier discussion summary.",
           },
         }),
       );
@@ -84,10 +100,76 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       setTimeout(() => {
         socket.send(
           JSON.stringify({
+            type: "task_event",
+            payload: {
+              event_id: "task-event-1",
+              chat_id: chatId,
+              task_id: "TASK-123",
+              short_id: "TASK-123",
+              event_type: "created",
+              title: "Book flights",
+              status: "todo",
+              created_at: 1780000000,
+              task_update_job_id: "task-update-job-1",
+            },
+          }),
+        );
+        socket.send(
+          JSON.stringify({
+            type: "task_update_jobs_available",
+            payload: {
+              chat_id: chatId,
+              jobs: [
+                {
+                  job_id: "task-update-job-1",
+                  task_id: "TASK-123",
+                  chat_id: chatId,
+                  revision: 1,
+                  task_key_version: 1,
+                  expires_at: 1780000900,
+                },
+              ],
+            },
+          }),
+        );
+        socket.send(
+          JSON.stringify({
+            type: "task_update_jobs_available",
+            payload: {
+              chat_id: chatId,
+              jobs: [
+                {
+                  job_id: "task-update-job-2",
+                  task_id: "TASK-456",
+                  chat_id: chatId,
+                  revision: 1,
+                  task_key_version: 1,
+                  expires_at: 1780000901,
+                },
+              ],
+            },
+          }),
+        );
+        socket.send(
+          JSON.stringify({
             type: "post_processing_metadata",
             payload: {
               chat_id: chatId,
               follow_up_request_suggestions: ["Try another style"],
+              task_proposals: [
+                {
+                  title: "Book flights",
+                  description: "Compare morning flights first.",
+                  status: "todo",
+                  assignee_type: "ai",
+                },
+              ],
+              task_update_proposals: [
+                {
+                  task_id: "task-existing",
+                  status: "done",
+                },
+              ],
             },
           }),
         );
@@ -130,6 +212,62 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       );
       assert.equal(response.embeds[0]?.status, "finished");
       assert.deepEqual(response.followUpSuggestions, ["Try another style"]);
+      assert.deepEqual(response.taskProposals, [
+        {
+          title: "Book flights",
+          description: "Compare morning flights first.",
+          status: "todo",
+          assignee_type: "ai",
+        },
+      ]);
+      assert.deepEqual(response.taskUpdateProposals, [
+        {
+          task_id: "task-existing",
+          status: "done",
+        },
+      ]);
+      assert.deepEqual(response.taskEvents, [
+        {
+          event_id: "task-event-1",
+          chat_id: chatId,
+          task_id: "TASK-123",
+          short_id: "TASK-123",
+          event_type: "created",
+          title: "Book flights",
+          status: "todo",
+          created_at: 1780000000,
+          task_update_job_id: "task-update-job-1",
+        },
+      ]);
+      assert.deepEqual(response.compressionCheckpoints, [
+        {
+          chatId,
+          taskId: "task-compression-1",
+          checkpointId,
+          summaryContent: "Earlier discussion summary.",
+          compressedUpToTimestamp: 1780000010,
+          compressedMessageCount: 120,
+          summaryTokenEstimate: 420,
+        },
+      ]);
+      assert.deepEqual(response.pendingTaskUpdateJobs, [
+        {
+          job_id: "task-update-job-1",
+          task_id: "TASK-123",
+          chat_id: chatId,
+          revision: 1,
+          task_key_version: 1,
+          expires_at: 1780000900,
+        },
+        {
+          job_id: "task-update-job-2",
+          task_id: "TASK-456",
+          chat_id: chatId,
+          revision: 1,
+          task_key_version: 1,
+          expires_at: 1780000901,
+        },
+      ]);
     } finally {
       client.close();
     }
@@ -152,6 +290,8 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
               full_content_so_far: "Here are the listings I found.",
               category: "general_knowledge",
               model_name: "Gemini 3 Flash",
+              recovery_job_id: "11111111-1111-4111-8111-111111111111",
+              recovery_protocol_version: 1,
             },
           }),
         );
@@ -185,6 +325,140 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       assert.equal(response.messageId, "assistant-message-2");
       assert.equal(response.content, "Here are the listings I found.");
       assert.equal(response.category, "general_knowledge");
+      assert.equal(response.recoveryJobId, "11111111-1111-4111-8111-111111111111");
+    } finally {
+      client.close();
+    }
+  });
+
+  it("rejects client_update_required with concise CLI update guidance", async () => {
+    server.once("connection", (socket) => {
+      setTimeout(() => socket.send(JSON.stringify({
+        type: "error",
+        payload: {
+          code: "client_update_required",
+          message: "Please update OpenMates before sending another saved chat message.",
+        },
+      })), 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-update-required",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      await assert.rejects(
+        client.collectAiResponse("user-message", "chat-update-required", { timeoutMs: 1_000 }),
+        (error) => error instanceof WebSocketProtocolError
+          && error.code === "client_update_required"
+          && /OpenMates CLI update required/.test(error.message),
+      );
+    } finally {
+      client.close();
+    }
+  });
+
+  it("ignores preflight errors scoped to a different saved-chat turn", async () => {
+    const chatId = "chat-ignore-stale-preflight";
+    const userMessageId = "user-message-ignore-stale-preflight";
+
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "error",
+          payload: {
+            code: "durable_preflight_conflict",
+            message: "Encrypted chat preflight was rejected.",
+            turn_id: "turn-stale",
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "ai_message_update",
+          payload: {
+            user_message_id: userMessageId,
+            message_id: "assistant-ignore-stale-preflight",
+            chat_id: chatId,
+            is_final_chunk: true,
+            full_content_so_far: "The active turn completed.",
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "recovery_jobs_available",
+          payload: {
+            jobs: [
+              {
+                job_id: "recovery-job-current",
+                chat_id: chatId,
+                turn_id: "turn-current",
+                assistant_message_id: "assistant-ignore-stale-preflight",
+                chat_key_version: 1,
+              },
+            ],
+          },
+        }));
+      }, 5);
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "post_processing_metadata",
+          payload: { chat_id: chatId },
+        }));
+      }, 10);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-ignore-stale-preflight",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+        recoveryTurnId: "turn-current",
+      });
+
+      assert.equal(response.content, "The active turn completed.");
+    } finally {
+      client.close();
+    }
+  });
+
+  it("rejects preflight errors scoped to the active saved-chat turn", async () => {
+    server.once("connection", (socket) => {
+      setTimeout(() => socket.send(JSON.stringify({
+        type: "error",
+        payload: {
+          code: "durable_preflight_conflict",
+          message: "Encrypted chat preflight was rejected.",
+          turn_id: "turn-current",
+        },
+      })), 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-active-preflight-error",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      await assert.rejects(
+        client.collectAiResponse("user-message", "chat-active-preflight-error", {
+          timeoutMs: 1_000,
+          recoveryTurnId: "turn-current",
+        }),
+        (error) => error instanceof WebSocketProtocolError
+          && error.code === "durable_preflight_conflict"
+          && /Encrypted chat preflight was rejected/.test(error.message),
+      );
     } finally {
       client.close();
     }
@@ -250,6 +524,81 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       assert.equal(response.category, "general_knowledge");
       assert.equal(response.modelName, "Gemini 3 Flash");
       assert.deepEqual(response.followUpSuggestions, ["Show cheaper apartments"]);
+    } finally {
+      client.close();
+    }
+  });
+
+  it("buffers reconnect-advertised task update jobs before response collection starts", async () => {
+    const chatId = "chat-reconnect-jobs";
+    const userMessageId = "user-message-reconnect";
+
+    server.once("connection", (socket) => {
+      socket.send(
+        JSON.stringify({
+          type: "task_update_jobs_available",
+          payload: {
+            jobs: [
+              {
+                job_id: "task-update-job-reconnect",
+                task_id: "TASK-789",
+                chat_id: "chat-source",
+                revision: 4,
+                task_key_version: 1,
+                expires_at: 1780000999,
+              },
+            ],
+          },
+        }),
+      );
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "ai_message_update",
+            payload: {
+              user_message_id: userMessageId,
+              message_id: "assistant-reconnect",
+              chat_id: chatId,
+              is_final_chunk: true,
+              full_content_so_far: "Recovered pending task jobs.",
+            },
+          }),
+        );
+      }, 15);
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "post_processing_metadata",
+            payload: { chat_id: chatId },
+          }),
+        );
+      }, 20);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-reconnect-jobs",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    try {
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+      });
+
+      assert.deepEqual(response.pendingTaskUpdateJobs, [
+        {
+          job_id: "task-update-job-reconnect",
+          task_id: "TASK-789",
+          chat_id: "chat-source",
+          revision: 4,
+          task_key_version: 1,
+          expires_at: 1780000999,
+        },
+      ]);
     } finally {
       client.close();
     }
@@ -347,6 +696,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
               user_message_id: "server-side-continuation-message",
               message_id: "assistant-message-sub-chat-parent",
               chat_id: chatId,
+              is_sub_chat_continuation: true,
               full_content: "## Short Answer\n\nThe child findings are synthesized here.",
             },
           }),
@@ -403,6 +753,202 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     }
   });
 
+  it("waits for the continuation recovery job while sub-chats are running", async () => {
+    const chatId = "chat-sub-chat-recovery";
+    const userMessageId = "user-message-sub-chat-recovery";
+    const turnId = "turn-sub-chat-recovery";
+
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "awaiting_sub_chats_completion",
+          payload: { chat_id: chatId, task_id: "task-interim" },
+        }));
+        socket.send(JSON.stringify({
+          type: "ai_message_update",
+          payload: {
+            user_message_id: userMessageId,
+            message_id: "assistant-interim",
+            task_id: "task-interim",
+            chat_id: chatId,
+            is_final_chunk: true,
+            full_content_so_far: "```json\n{\"type\":\"sub_chat_batch\"}\n```",
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "recovery_jobs_available",
+          payload: {
+            jobs: [{
+              job_id: "recovery-job-interim",
+              chat_id: chatId,
+              turn_id: turnId,
+              assistant_message_id: "assistant-interim",
+              chat_key_version: 1,
+            }],
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "post_processing_metadata",
+          payload: { chat_id: chatId },
+        }));
+      }, 5);
+
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "sub_chat_completed",
+          payload: { chat_id: chatId, task_id: "task-child" },
+        }));
+        socket.send(JSON.stringify({
+          type: "recovery_jobs_available",
+          payload: {
+            jobs: [{
+              job_id: "recovery-job-final",
+              chat_id: chatId,
+              turn_id: turnId,
+              assistant_message_id: "assistant-final",
+              chat_key_version: 1,
+            }],
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "ai_message_update",
+          payload: {
+            user_message_id: "server-continuation-message",
+            message_id: "assistant-final",
+            task_id: "task-interim",
+            chat_id: chatId,
+            is_sub_chat_continuation: true,
+            is_final_chunk: true,
+            full_content_so_far: "## Short Answer\n\nFinal sourced synthesis.",
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "post_processing_metadata",
+          payload: { chat_id: chatId },
+        }));
+      }, 80);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-sub-chat-recovery",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+        recoveryTurnId: turnId,
+      });
+
+      assert.equal(response.content, "## Short Answer\n\nFinal sourced synthesis.");
+      assert.equal(response.messageId, "assistant-final");
+      assert.equal(response.recoveryJobId, "recovery-job-final");
+    } finally {
+      client.close();
+    }
+  });
+
+  it("waits across focus activation for delegated research synthesis", async () => {
+    const chatId = "chat-focus-sub-chat";
+    const userMessageId = "user-message-focus-sub-chat";
+
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "ai_background_response_completed",
+          payload: {
+            user_message_id: userMessageId,
+            message_id: "assistant-focus-activation",
+            task_id: "task-focus-activation",
+            chat_id: chatId,
+            is_final_chunk: true,
+            awaiting_focus_mode_continuation: true,
+            full_content: "```json\n{\"type\":\"focus_mode_activation\"}\n```",
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "post_processing_metadata",
+          payload: { chat_id: chatId },
+        }));
+      }, 5);
+
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "focus_mode_activated",
+          payload: { chat_id: chatId, focus_id: "web-research" },
+        }));
+        socket.send(JSON.stringify({
+          type: "spawn_sub_chats",
+          payload: {
+            chat_id: chatId,
+            task_id: "task-focus-continuation",
+            sub_chats: [{ id: "child-research", prompt: "Research evidence" }],
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "awaiting_sub_chats_completion",
+          payload: { chat_id: chatId, task_id: "task-focus-continuation" },
+        }));
+        socket.send(JSON.stringify({
+          type: "ai_background_response_completed",
+          payload: {
+            user_message_id: "server-focus-continuation-message",
+            message_id: "assistant-focus-continuation",
+            task_id: "task-focus-continuation",
+            chat_id: chatId,
+            is_focus_mode_continuation: true,
+            is_final_chunk: true,
+            full_content: "Delegated research is running.",
+          },
+        }));
+      }, 30);
+
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "ai_background_response_completed",
+          payload: {
+            user_message_id: "server-continuation-message",
+            message_id: "assistant-focus-synthesis",
+            task_id: "task-focus-continuation",
+            chat_id: chatId,
+            is_sub_chat_continuation: true,
+            is_final_chunk: true,
+            full_content: "## Short Answer\n\nDelegated research synthesis.",
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "post_processing_metadata",
+          payload: { chat_id: chatId },
+        }));
+      }, 60);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-focus-sub-chat",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+      });
+
+      assert.equal(response.content, "## Short Answer\n\nDelegated research synthesis.");
+      assert.deepEqual(
+        response.subChatEvents.map((event) => event.type),
+        ["spawn_sub_chats", "awaiting_sub_chats_completion"],
+      );
+    } finally {
+      client.close();
+    }
+  });
+
   it("resolves awaiting_user_input for child chat events routed through the active parent", async () => {
     const chatId = "parent-waiting-chat";
     const childChatId = "child-waiting-chat";
@@ -448,5 +994,325 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     } finally {
       client.close();
     }
+  });
+
+  it("resolves saved-chat collection from a matching recovery job", async () => {
+    const chatId = "chat-recovery-available";
+    const userMessageId = "user-message-recovery";
+    const turnId = "turn-current";
+
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "recovery_jobs_available",
+            payload: {
+              jobs: [
+                {
+                  job_id: "recovery-job-stale",
+                  chat_id: chatId,
+                  turn_id: "turn-stale",
+                  assistant_message_id: "assistant-message-stale",
+                  chat_key_version: 1,
+                },
+                {
+                  job_id: "recovery-job-current",
+                  chat_id: chatId,
+                  turn_id: turnId,
+                  assistant_message_id: "assistant-message-current",
+                  chat_key_version: 1,
+                },
+              ],
+            },
+          }),
+        );
+        socket.send(
+          JSON.stringify({
+            type: "post_processing_metadata",
+            payload: { chat_id: chatId },
+          }),
+        );
+      }, 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-recovery-available",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+        recoveryTurnId: turnId,
+      });
+
+      assert.equal(response.status, "completed");
+      assert.equal(response.recoveryJobId, "recovery-job-current");
+      assert.equal(response.messageId, "assistant-message-current");
+      assert.equal(response.content, "");
+    } finally {
+      client.close();
+    }
+  });
+
+  it("waits for a matching recovery job after assistant and post-processing frames", async () => {
+    const chatId = "chat-recovery-late";
+    const userMessageId = "user-message-recovery-late";
+    const turnId = "turn-late-recovery";
+
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "ai_message_update",
+            payload: {
+              user_message_id: userMessageId,
+              message_id: "assistant-late-recovery-stream",
+              chat_id: chatId,
+              is_final_chunk: true,
+              full_content_so_far: "Task changes are done.",
+            },
+          }),
+        );
+      }, 5);
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "post_processing_metadata",
+            payload: { chat_id: chatId },
+          }),
+        );
+      }, 10);
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "recovery_jobs_available",
+            payload: {
+              jobs: [
+                {
+                  job_id: "recovery-job-late",
+                  chat_id: chatId,
+                  turn_id: turnId,
+                  assistant_message_id: "assistant-late-recovery",
+                  chat_key_version: 1,
+                },
+              ],
+            },
+          }),
+        );
+      }, 30);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-late-recovery",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+        recoveryTurnId: turnId,
+      });
+
+      assert.equal(response.status, "completed");
+      assert.equal(response.recoveryJobId, "recovery-job-late");
+      assert.equal(response.messageId, "assistant-late-recovery");
+      assert.equal(response.content, "Task changes are done.");
+    } finally {
+      client.close();
+    }
+  });
+
+  it("waits for saved-chat recovery post-processing metadata", async () => {
+    const chatId = "chat-recovery-before-post-processing";
+    const userMessageId = "user-message-recovery-before-post-processing";
+    const turnId = "turn-before-post-processing";
+
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "ai_message_update",
+            payload: {
+              user_message_id: userMessageId,
+              message_id: "assistant-before-post-processing-stream",
+              chat_id: chatId,
+              is_final_chunk: true,
+              full_content_so_far: "Application preview is ready.",
+            },
+          }),
+        );
+      }, 5);
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "recovery_jobs_available",
+            payload: {
+              jobs: [
+                {
+                  job_id: "recovery-job-before-post-processing",
+                  chat_id: chatId,
+                  turn_id: turnId,
+                  assistant_message_id: "assistant-before-post-processing",
+                  chat_key_version: 1,
+                },
+              ],
+            },
+          }),
+        );
+      }, 20);
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "post_processing_metadata",
+              payload: { chat_id: chatId, chat_summary: "Summary from post-processing." },
+          }),
+        );
+      }, 250);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-recovery-before-post-processing",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const startedAt = Date.now();
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+        recoveryTurnId: turnId,
+      });
+
+      assert.equal(response.status, "completed");
+      assert.equal(response.recoveryJobId, "recovery-job-before-post-processing");
+      assert.equal(response.messageId, "assistant-before-post-processing");
+      assert.equal(response.content, "Application preview is ready.");
+      assert.equal(response.chatSummary, "Summary from post-processing.");
+      assert.ok(Date.now() - startedAt >= 200, "saved-chat recovery should wait for post-processing");
+    } finally {
+      client.close();
+    }
+  });
+
+  it("waitForMessage ignores scoped errors that miss the predicate", async () => {
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "error",
+          payload: {
+            code: "durable_preflight_conflict",
+            message: "Encrypted chat preflight was rejected.",
+            turn_id: "turn-stale",
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "chat_turn_preflight_ack",
+          payload: {
+            preflight_id: "preflight-current",
+            state: "COMMITTED",
+            turn_id: "turn-current",
+          },
+        }));
+      }, 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-wait-stale-error",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const response = await client.waitForMessage(
+        "chat_turn_preflight_ack",
+        (payload) => (payload as Record<string, unknown>).turn_id === "turn-current",
+        1_000,
+      );
+
+      assert.equal((response.payload as Record<string, unknown>).preflight_id, "preflight-current");
+    } finally {
+      client.close();
+    }
+  });
+
+  it("waitForMessage rejects scoped errors that match the predicate", async () => {
+    server.once("connection", (socket) => {
+      setTimeout(() => socket.send(JSON.stringify({
+        type: "error",
+        payload: {
+          code: "durable_preflight_conflict",
+          message: "Encrypted chat preflight was rejected.",
+          turn_id: "turn-current",
+        },
+      })), 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-wait-active-error",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      await assert.rejects(
+        client.waitForMessage(
+          "chat_turn_preflight_ack",
+          (payload) => (payload as Record<string, unknown>).turn_id === "turn-current",
+          1_000,
+        ),
+        (error) => error instanceof WebSocketProtocolError
+          && error.code === "durable_preflight_conflict"
+          && /Encrypted chat preflight was rejected/.test(error.message),
+      );
+    } finally {
+      client.close();
+    }
+  });
+
+  it("invokes the force logout handler and closes the socket", async () => {
+    const receivedPayloads: unknown[] = [];
+
+    server.once("connection", (socket) => {
+      setTimeout(() => socket.send(JSON.stringify({
+        type: "force_logout",
+        payload: {
+          reason: "session_revoked",
+          revoked_session_id: "browser-session-1",
+        },
+      })), 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-force-logout",
+      wsToken: "token",
+      refreshToken: null,
+      onForceLogout: (payload) => {
+        receivedPayloads.push(payload);
+      },
+    });
+    await client.open();
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    assert.deepEqual(receivedPayloads, [
+      {
+        reason: "session_revoked",
+        revoked_session_id: "browser-session-1",
+      },
+    ]);
   });
 });

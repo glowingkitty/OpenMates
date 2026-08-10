@@ -1,0 +1,1594 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-23'
+generated_at: '2026-07-09T15:49:53+00:00'
+range:
+  since: '2026-06-23T00:00:00+00:00'
+  until: '2026-06-23T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 32
+  section_counts:
+    features: 0
+    bug_fixes: 13
+    improvements: 0
+    docs: 2
+    tests: 15
+    infrastructure: 1
+    internal: 0
+    other: 1
+  newsletter_ready_items: 2
+  user_facing_items: 13
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: preserve apple workspace tab accessibility'
+    section: bug_fixes
+    commits:
+    - 973b76403
+    authored_at: '2026-06-23T15:59:19+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: expose apple workspace tab buttons'
+    section: bug_fixes
+    commits:
+    - a70fc79d5
+    authored_at: '2026-06-23T15:54:52+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: resolve apple checkout locale path'
+    section: bug_fixes
+    commits:
+    - '328510228'
+    authored_at: '2026-06-23T15:48:18+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/LocalizationManager.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: prefer checkout i18n in apple debug'
+    section: bug_fixes
+    commits:
+    - 0b03171b9
+    authored_at: '2026-06-23T15:42:46+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/LocalizationManager.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: expose apple version text'
+    section: bug_fixes
+    commits:
+    - b518187ee
+    authored_at: '2026-06-23T15:28:44+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: bind apple version accessibility label'
+    section: bug_fixes
+    commits:
+    - 1fb9d1e40
+    authored_at: '2026-06-23T15:25:27+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: repair apple workspace tab build'
+    section: bug_fixes
+    commits:
+    - 0c1b15fc9
+    authored_at: '2026-06-23T15:00:21+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: align apple new chat parity'
+    section: bug_fixes
+    commits:
+    - fe0f3242e
+    authored_at: '2026-06-23T14:58:43+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: persist webhook chat encryption keys'
+    section: bug_fixes
+    commits:
+    - 81db88946
+    authored_at: '2026-06-23T12:16:45+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/system_message_handler.py
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersWebhooks.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render workflows as shortcut cards'
+    section: bug_fixes
+    commits:
+    - ddb547ad2
+    authored_at: '2026-06-23T11:17:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
+  - title: 'fix: repair sdk cli webhook test failures'
+    section: bug_fixes
+    commits:
+    - 868c16fb2
+    authored_at: '2026-06-23T11:12:48+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show workflow action names in editor'
+    section: bug_fixes
+    commits:
+    - '754915862'
+    authored_at: '2026-06-23T00:40:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
+  - title: 'fix: make workflows editor editable'
+    section: bug_fixes
+    commits:
+    - b69d46a08
+    authored_at: '2026-06-23T00:32:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
+  improvements: []
+  docs:
+  - title: 'docs: record shortcut workflow ui evidence'
+    section: docs
+    commits:
+    - 374b3f40e
+    authored_at: '2026-06-23T11:34:36+00:00'
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: update workflows editor evidence'
+    section: docs
+    commits:
+    - 331eefb38
+    authored_at: '2026-06-23T00:58:01+00:00'
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: target apple workspace tabs by identifier'
+    section: tests
+    commits:
+    - 2b6b97702
+    authored_at: '2026-06-23T15:57:12+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: align EU signup shell waits'
+    section: tests
+    commits:
+    - 44046c044
+    authored_at: '2026-06-23T15:53:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: allow guest settings chrome after deletion'
+    section: tests
+    commits:
+    - 2d41b788d
+    authored_at: '2026-06-23T15:46:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: expect logged-out shell after deletion'
+    section: tests
+    commits:
+    - ce9fc3530
+    authored_at: '2026-06-23T15:32:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: show apple version label mismatch'
+    section: tests
+    commits:
+    - eeef949b0
+    authored_at: '2026-06-23T15:32:08+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: expose apple version label'
+    section: tests
+    commits:
+    - a4e3fb001
+    authored_at: '2026-06-23T15:21:29+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: wait for authenticated shell after signup'
+    section: tests
+    commits:
+    - 4f864d45c
+    authored_at: '2026-06-23T15:17:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: relax apple version assertion'
+    section: tests
+    commits:
+    - 518bac679
+    authored_at: '2026-06-23T15:15:50+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: handle managed payment provider race'
+    section: tests
+    commits:
+    - cd259d5b0
+    authored_at: '2026-06-23T14:53:02+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: tolerate restricted mailosaur cleanup'
+    section: tests
+    commits:
+    - 851964d12
+    authored_at: '2026-06-23T14:37:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: allow restricted mailosaur quota checks'
+    section: tests
+    commits:
+    - 6bdac7108
+    authored_at: '2026-06-23T14:27:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for managed payment switch'
+    section: tests
+    commits:
+    - 96275e6ee
+    authored_at: '2026-06-23T14:08:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    - frontend/packages/ui/src/components/Payment.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: approve cli api key device in key flow'
+    section: tests
+    commits:
+    - f6dcef1ae
+    authored_at: '2026-06-23T11:41:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: expect workflow card summaries'
+    section: tests
+    commits:
+    - 210f783bf
+    authored_at: '2026-06-23T11:26:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+  - title: 'test: expect edited workflow action title'
+    section: tests
+    commits:
+    - a745d818b
+    authored_at: '2026-06-23T00:50:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+  infrastructure:
+  - title: 'ci: rotate cli api key secret from e2e artifact'
+    section: infrastructure
+    commits:
+    - 27d4d590d
+    authored_at: '2026-06-23T11:22:49+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other:
+  - title: 'config: enable projects and tasks'
+    section: other
+    commits:
+    - 7c3e1132d
+    authored_at: '2026-06-23T11:21:36+00:00'
+    changed_paths:
+    - backend/config/backend_config.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: persist webhook chat encryption keys'
+    commits:
+    - 81db88946
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: repair sdk cli webhook test failures'
+    commits:
+    - 868c16fb2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: preserve apple workspace tab accessibility'
+    commits:
+    - 973b76403
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: expose apple workspace tab buttons'
+    commits:
+    - a70fc79d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: resolve apple checkout locale path'
+    commits:
+    - '328510228'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: prefer checkout i18n in apple debug'
+    commits:
+    - 0b03171b9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: expose apple version text'
+    commits:
+    - b518187ee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: bind apple version accessibility label'
+    commits:
+    - 1fb9d1e40
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: repair apple workspace tab build'
+    commits:
+    - 0c1b15fc9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align apple new chat parity'
+    commits:
+    - fe0f3242e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: persist webhook chat encryption keys'
+    commits:
+    - 81db88946
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render workflows as shortcut cards'
+    commits:
+    - ddb547ad2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: repair sdk cli webhook test failures'
+    commits:
+    - 868c16fb2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show workflow action names in editor'
+    commits:
+    - '754915862'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: make workflows editor editable'
+    commits:
+    - b69d46a08
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 973b764035c97653d106c697be8c90642b3f7f83
+    short_sha: 973b76403
+    authored_at: '2026-06-23T15:59:19+00:00'
+    subject: 'fix: preserve apple workspace tab accessibility'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2b6b9770251565b78833814dedd1c6f20168b384
+    short_sha: 2b6b97702
+    authored_at: '2026-06-23T15:57:12+00:00'
+    subject: 'test: target apple workspace tabs by identifier'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a70fc79d587077c99d86f430d1b7b1fd1ebcd363
+    short_sha: a70fc79d5
+    authored_at: '2026-06-23T15:54:52+00:00'
+    subject: 'fix: expose apple workspace tab buttons'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 44046c04424847b0bc0dd82632a4b2897b5a5501
+    short_sha: 44046c044
+    authored_at: '2026-06-23T15:53:51+00:00'
+    subject: 'test: align EU signup shell waits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    related_feature_ids: []
+  - sha: 328510228a664870b612ba24145c8ad4ba16d3b1
+    short_sha: '328510228'
+    authored_at: '2026-06-23T15:48:18+00:00'
+    subject: 'fix: resolve apple checkout locale path'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/LocalizationManager.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2d41b788d979ec7ae9499a8b0d13a31b1be44e3b
+    short_sha: 2d41b788d
+    authored_at: '2026-06-23T15:46:00+00:00'
+    subject: 'test: allow guest settings chrome after deletion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: 0b03171b9b595cdb4f9205b5f989efbcf5b43193
+    short_sha: 0b03171b9
+    authored_at: '2026-06-23T15:42:46+00:00'
+    subject: 'fix: prefer checkout i18n in apple debug'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/LocalizationManager.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ce9fc3530dd6f48dc5bd587329b9c4f6ba54b1e4
+    short_sha: ce9fc3530
+    authored_at: '2026-06-23T15:32:35+00:00'
+    subject: 'test: expect logged-out shell after deletion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: eeef949b0df0f880f5ce0bdbfb9db92240a95c60
+    short_sha: eeef949b0
+    authored_at: '2026-06-23T15:32:08+00:00'
+    subject: 'test: show apple version label mismatch'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b518187ee7f278fc2fbf6fbb2d2058e284b8c98b
+    short_sha: b518187ee
+    authored_at: '2026-06-23T15:28:44+00:00'
+    subject: 'fix: expose apple version text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 1fb9d1e40ab4daa6df5fcc6d3cdb6c51ee31ff45
+    short_sha: 1fb9d1e40
+    authored_at: '2026-06-23T15:25:27+00:00'
+    subject: 'fix: bind apple version accessibility label'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a4e3fb0011e91822de21bc469b33851840c06d7c
+    short_sha: a4e3fb001
+    authored_at: '2026-06-23T15:21:29+00:00'
+    subject: 'test: expose apple version label'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 4f864d45c74ee6a3f53de6f2dba15fda9d50e37c
+    short_sha: 4f864d45c
+    authored_at: '2026-06-23T15:17:36+00:00'
+    subject: 'test: wait for authenticated shell after signup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: 518bac679fb39b97df0c1816713ea7a99924a94c
+    short_sha: 518bac679
+    authored_at: '2026-06-23T15:15:50+00:00'
+    subject: 'test: relax apple version assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 0c1b15fc976ccfbc42be8b886d1db18387ea6370
+    short_sha: 0c1b15fc9
+    authored_at: '2026-06-23T15:00:21+00:00'
+    subject: 'fix: repair apple workspace tab build'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: fe0f3242ec9dbb9df25480828dea472b484ed4d8
+    short_sha: fe0f3242e
+    authored_at: '2026-06-23T14:58:43+00:00'
+    subject: 'fix: align apple new chat parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: cd259d5b0b31fb8908f0062b4cbb37e96cf16803
+    short_sha: cd259d5b0
+    authored_at: '2026-06-23T14:53:02+00:00'
+    subject: 'test: handle managed payment provider race'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: 851964d12f6c65d60f889302004e6ebdbf251fca
+    short_sha: 851964d12
+    authored_at: '2026-06-23T14:37:37+00:00'
+    subject: 'test: tolerate restricted mailosaur cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    related_feature_ids: []
+  - sha: 6bdac7108cf1af17f19c43268663d7549d9f5963
+    short_sha: 6bdac7108
+    authored_at: '2026-06-23T14:27:22+00:00'
+    subject: 'test: allow restricted mailosaur quota checks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    related_feature_ids: []
+  - sha: 96275e6eed6e1b61fa6d6dbb30f850a4585ed056
+    short_sha: 96275e6ee
+    authored_at: '2026-06-23T14:08:42+00:00'
+    subject: 'test: wait for managed payment switch'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    - frontend/packages/ui/src/components/Payment.svelte
+    related_feature_ids: []
+  - sha: 81db88946bae4722a868cdad69f762b8c4e6505b
+    short_sha: 81db88946
+    authored_at: '2026-06-23T12:16:45+00:00'
+    subject: 'fix: persist webhook chat encryption keys'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/system_message_handler.py
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersWebhooks.ts
+    related_feature_ids: []
+  - sha: f6dcef1ae2ea40c87bd0eaf4670bfb7c1672dc26
+    short_sha: f6dcef1ae
+    authored_at: '2026-06-23T11:41:16+00:00'
+    subject: 'test: approve cli api key device in key flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    related_feature_ids: []
+  - sha: 374b3f40ec45d61cf005e1bc709b513e544813e8
+    short_sha: 374b3f40e
+    authored_at: '2026-06-23T11:34:36+00:00'
+    subject: 'docs: record shortcut workflow ui evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    related_feature_ids: []
+  - sha: 210f783bf0e865a65c8c80d6ed941d69f8af824a
+    short_sha: 210f783bf
+    authored_at: '2026-06-23T11:26:07+00:00'
+    subject: 'test: expect workflow card summaries'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    related_feature_ids:
+    - platform:workflows
+  - sha: 27d4d590d60276a65786434f42b4c849da8bc409
+    short_sha: 27d4d590d
+    authored_at: '2026-06-23T11:22:49+00:00'
+    subject: 'ci: rotate cli api key secret from e2e artifact'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    related_feature_ids: []
+  - sha: 7c3e1132dafab8bbe111dffb2743a080887b4776
+    short_sha: 7c3e1132d
+    authored_at: '2026-06-23T11:21:36+00:00'
+    subject: 'config: enable projects and tasks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/config/backend_config.yml
+    related_feature_ids: []
+  - sha: ddb547ad2124cf944c9e831a557580c0787d5054
+    short_sha: ddb547ad2
+    authored_at: '2026-06-23T11:17:14+00:00'
+    subject: 'fix: render workflows as shortcut cards'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    related_feature_ids:
+    - platform:workflows
+  - sha: 868c16fb2c78c80c08b84a97b58415b4dc737d56
+    short_sha: 868c16fb2
+    authored_at: '2026-06-23T11:12:48+00:00'
+    subject: 'fix: repair sdk cli webhook test failures'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 331eefb38907b2127898c4ec91d16c0f2c3c7560
+    short_sha: 331eefb38
+    authored_at: '2026-06-23T00:58:01+00:00'
+    subject: 'docs: update workflows editor evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    related_feature_ids: []
+  - sha: a745d818bede634ac6512ffee9fc386916efb1c3
+    short_sha: a745d818b
+    authored_at: '2026-06-23T00:50:13+00:00'
+    subject: 'test: expect edited workflow action title'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    related_feature_ids:
+    - platform:workflows
+  - sha: 754915862f24f7f78047972d339b6952c255d03f
+    short_sha: '754915862'
+    authored_at: '2026-06-23T00:40:58+00:00'
+    subject: 'fix: show workflow action names in editor'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    related_feature_ids:
+    - platform:workflows
+  - sha: b69d46a08524e4d124a916f01951410b63ded0b1
+    short_sha: b69d46a08
+    authored_at: '2026-06-23T00:32:44+00:00'
+    subject: 'fix: make workflows editor editable'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    related_feature_ids:
+    - platform:workflows
+llm_summary:
+  overview: OpenMates focused on backend reliability for webhooks and continued development on unreleased platforms. Key updates
+    include encryption persistence for webhook chats and UI refinements for the Apple and Workflows environments.
+  released_changes:
+  - text: Webhook chat encryption keys are now persisted to ensure secure communication continuity.
+    evidence:
+      commits:
+      - 81db88946
+    release_status: released_main
+  - text: The SDK CLI was updated to resolve webhook-related failures during testing.
+    evidence:
+      commits:
+      - 868c16fb2
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved an issue where webhook chat encryption keys were not properly persisted, ensuring secure communication
+      continuity.
+    evidence:
+      commits:
+      - 81db88946
+    release_status: released_main
+  - text: Fixed SDK CLI failures related to webhook parity and API key authentication.
+    evidence:
+      commits:
+      - 868c16fb2
+    release_status: released_main
+  unreleased_progress:
+  - text: Development on the unreleased iOS and macOS apps included accessibility improvements for workspace tabs, localization
+      for the checkout flow, and UI alignment for new chats.
+    evidence:
+      commits:
+      - 973b76403
+      - a70fc79d5
+      - 0c1b15fc9
+      - fe0f3242e
+      - '328510228'
+      - 0b03171b9
+      - b518187ee
+      - 1fb9d1e40
+    release_status: released_main
+  - text: The unreleased Workflows feature received updates to the editor, including action name displays and shortcut card
+      rendering.
+    evidence:
+      commits:
+      - ddb547ad2
+      - '754915862'
+      - b69d46a08
+      - 374b3f40e
+      - 331eefb38
+    release_status: released_main
+  internal_progress:
+  - text: The CI pipeline now rotates CLI API key secrets from end-to-end test artifacts.
+    evidence:
+      commits:
+      - 27d4d590d
+    release_status: released_main
+  - text: Hardened the test suite for signup flows, payment provider races, and CLI device approval.
+    evidence:
+      commits:
+      - 44046c044
+      - cd259d5b0
+      - f6dcef1ae
+      - 851964d12
+      - 6bdac7108
+      - 96275e6ee
+    release_status: released_main
+  - text: Updated backend configuration to enable projects and tasks, though these remain gated by feature flags.
+    evidence:
+      commits:
+      - 7c3e1132d
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Persistence for webhook chat encryption keys.
+      evidence:
+        commits:
+        - 81db88946
+      reason: Critical fix for maintaining secure webhook communications.
+    - text: SDK CLI webhook and authentication fixes.
+      evidence:
+        commits:
+        - 868c16fb2
+      reason: Improves reliability for developers using the SDK CLI.
+    exclude:
+    - text: Apple platform UI and localization updates.
+      evidence:
+        commits:
+        - 973b76403
+        - a70fc79d5
+        - 0c1b15fc9
+        - fe0f3242e
+        - '328510228'
+        - 0b03171b9
+        - b518187ee
+        - 1fb9d1e40
+      reason: These changes relate to the unreleased iOS and macOS platforms.
+    - text: Workflow editor and shortcut card refinements.
+      evidence:
+        commits:
+        - ddb547ad2
+        - '754915862'
+        - b69d46a08
+      reason: The Workflows feature is currently disabled and unreleased.
+    rationale: The newsletter focuses on released improvements to webhook security and SDK reliability while excluding progress
+      on unreleased platforms and features.
+  social_video_recommendations: []
+  quality_notes:
+  - Focus on accessibility and localization within the Apple workspace environment.
+  - Improved test coverage for payment and signup edge cases.
+  validation_warnings: []

@@ -1,5 +1,6 @@
 import logging
 import os
+import hashlib
 from typing import TYPE_CHECKING, Tuple, Dict, Any, Optional, List
 
 if TYPE_CHECKING:
@@ -7,6 +8,14 @@ if TYPE_CHECKING:
     from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
+
+
+def fingerprint_invite_code(invite_code: Optional[str]) -> str:
+    """Return a non-reversible identifier for invite-code logs."""
+    if not invite_code:
+        return "invite:empty"
+    digest = hashlib.sha256(invite_code.encode("utf-8")).hexdigest()[:10]
+    return f"invite:sha256:{digest}"
 
 def _parse_signup_allowed_domains(primary_domain: Optional[str], test_domains_env: Optional[str]) -> List[str]:
     """
@@ -70,17 +79,17 @@ async def validate_invite_code(invite_code: str, directus_service: "DirectusServ
     code_data = await cache_service.get(cache_key)
     
     if code_data is None:
-        logger.info(f"Invite code {invite_code} not found in cache, fetching from Directus")
+        logger.info("Invite code %s not found in cache, fetching from Directus", fingerprint_invite_code(invite_code))
         code_data = await directus_service.get_invite_code(invite_code)
         
         if code_data:
             await cache_service.set(cache_key, code_data)
     
     if code_data is None:
-        logger.warning(f"Invite code {invite_code} is invalid")
+        logger.warning("Invite code %s is invalid", fingerprint_invite_code(invite_code))
         return False, "Invalid invite code", None
-    
-    logger.info(f"Invite code {invite_code} is valid")
+
+    logger.info("Invite code %s is valid", fingerprint_invite_code(invite_code))
     return True, "Invite code is valid", code_data
 
 

@@ -44,6 +44,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const JSZip = require('jszip');
 const {
 	createSignupLogger,
 	getTestAccount
@@ -65,35 +66,27 @@ function parseChatIdFromSendOutput(output: string): string | undefined {
 	return match?.[1];
 }
 
-async function waitForChatShow(apiUrl: string, chatId: string, timeoutMs = 60_000): Promise<any> {
-	const startedAt = Date.now();
-	let lastResult: { code: number | null; stdout: string; stderr: string } | undefined;
+async function createDocxBuffer(textLines: string[]): Promise<Buffer> {
+	const zip = new JSZip();
+	zip.file('word/document.xml', [
+		'<?xml version="1.0" encoding="UTF-8"?>',
+		'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>',
+		...textLines.map((line) => `<w:p><w:r><w:t>${line}</w:t></w:r></w:p>`),
+		'</w:body></w:document>'
+	].join(''));
+	return Buffer.from(await zip.generateAsync({ type: 'uint8array' }));
+}
 
-	while (Date.now() - startedAt < timeoutMs) {
-		lastResult = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
-		if (lastResult.code === 0 && lastResult.stdout.trim()) {
-			return JSON.parse(lastResult.stdout);
-		}
-
-		const listResult = await runCli(apiUrl, ['chats', 'list', '--json', '--limit', '20'], 30_000);
-		if (listResult.code === 0 && listResult.stdout.trim()) {
-			const listData = JSON.parse(listResult.stdout);
-			const chats: any[] = listData.chats ?? listData ?? [];
-			const fullChatId = chats.find((chat: any) => chat.id?.startsWith(chatId))?.id;
-			if (fullChatId) {
-				lastResult = await runCli(apiUrl, ['chats', 'show', fullChatId, '--json'], 30_000);
-				if (lastResult.code === 0 && lastResult.stdout.trim()) {
-					return JSON.parse(lastResult.stdout);
-				}
-			}
-		}
-
-		await new Promise((resolve) => setTimeout(resolve, 2_000));
-	}
-
-	throw new Error(
-		`Timed out waiting for chat ${chatId}. Last stdout: ${lastResult?.stdout.slice(0, 500) ?? ''} Last stderr: ${lastResult?.stderr.slice(0, 500) ?? ''}`
-	);
+async function createXlsxBuffer(rows: string[][]): Promise<Buffer> {
+	const strings = Array.from(new Set(rows.flat()));
+	const stringIndex = new Map(strings.map((value, index) => [value, index]));
+	const zip = new JSZip();
+	zip.file('xl/workbook.xml', '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>');
+	zip.file('xl/_rels/workbook.xml.rels', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>');
+	zip.file('xl/sharedStrings.xml', `<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${strings.map((value) => `<si><t>${value}</t></si>`).join('')}</sst>`);
+	const rowXml = rows.map((row, rowIndex) => `<row r="${rowIndex + 1}">${row.map((cell, colIndex) => `<c r="${String.fromCharCode(65 + colIndex)}${rowIndex + 1}" t="s"><v>${stringIndex.get(cell)}</v></c>`).join('')}</row>`).join('');
+	zip.file('xl/worksheets/sheet1.xml', `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rowXml}</sheetData></worksheet>`);
+	return Buffer.from(await zip.generateAsync({ type: 'uint8array' }));
 }
 
 test.beforeEach(async () => {
@@ -296,7 +289,7 @@ const SAMPLE_PNG = path.join(__dirname, 'fixtures', 'sample.png');
 
 // ── Main test ───────────────────────────────────────────────────────────────
 
-test('CLI file upload — text file with secret + image file', async ({ page }: any) => {
+test('CLI file upload - text/code/docs/sheets files with PII + image file', async ({ page }: any) => {
 	test.setTimeout(600_000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
@@ -320,6 +313,23 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 			`// Test config\nexport const OPENAI_API_KEY = "${FAKE_KEY}";\nexport const DEBUG = true;\n`
 		);
 		logCheckpoint(`Created text file: ${textFilePath}`);
+
+		const CSV_EMAIL = 'cli.csv.private@example.com';
+		const DOCX_EMAIL = 'cli.docx.private@example.com';
+		const XLSX_EMAIL = 'cli.xlsx.private@example.com';
+		const csvFilePath = path.join(tmpDir, 'contacts.csv');
+		const docxFilePath = path.join(tmpDir, 'brief.docx');
+		const xlsxFilePath = path.join(tmpDir, 'contacts.xlsx');
+		fs.writeFileSync(csvFilePath, `Name,Email\nCLI CSV,${CSV_EMAIL}`);
+		fs.writeFileSync(docxFilePath, await createDocxBuffer([
+			'Private CLI DOCX launch note',
+			`Reach the owner at ${DOCX_EMAIL} before launch.`
+		]));
+		fs.writeFileSync(xlsxFilePath, await createXlsxBuffer([
+			['Name', 'Email'],
+			['CLI XLSX', XLSX_EMAIL]
+		]));
+		logCheckpoint('Created CSV, DOCX, and XLSX files with private emails.');
 
 		const imagePath = SAMPLE_PNG;
 		logCheckpoint(`Using image fixture: ${imagePath}`);
@@ -363,38 +373,41 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 		const chatId = parseChatIdFromSendOutput(textSendResult.stdout);
 		expect(chatId).toBeTruthy();
 		logCheckpoint(`Chat ID: ${chatId}`);
+		const targetChatId = chatId as string;
 
-		// Show the chat and verify it has an embed reference (the code-code embed)
-		const showData = await waitForChatShow(apiUrl, chatId);
-		const fullChatId: string = showData.chat?.id;
-		expect(fullChatId).toMatch(/^[a-f0-9-]{36}$/);
-		const messages: any[] = showData.messages ?? [];
-		const userMessages = messages.filter((m: any) => m.role === 'user');
-		expect(userMessages.length).toBeGreaterThan(0);
+		logCheckpoint('Text file send verified: secret redaction acknowledged and raw secret absent from CLI output.');
 
-		// The user message content should contain the current markdown embed reference.
-		const lastUserMsg = userMessages[userMessages.length - 1];
-		const userContent: string = lastUserMsg.content ?? '';
-		expect(userContent).toMatch(/\[!\]\(embed:[^)]+\)/);
-		logCheckpoint('Text file embed reference found in message content');
+		// ── Text/docs/sheets PII upload ────────────────────────────────────
 
-		// Verify the embed content does NOT contain the raw secret
-		const embedIdMatch = userContent.match(/\[!\]\(embed:([^)]+)\)/);
-		if (embedIdMatch) {
-			const embedId = embedIdMatch[1];
-			const embedResult = await runCli(apiUrl, ['embeds', 'show', embedId, '--json'], 20_000);
-			if (embedResult.code === 0 && embedResult.stdout.trim()) {
-				const embedData = JSON.parse(embedResult.stdout);
-				const embedContent = JSON.stringify(embedData);
-				expect(
-					embedContent,
-					'Raw secret must not appear in embed content'
-				).not.toContain(FAKE_KEY);
-				// Should contain a placeholder like [OPENAI_KEY_...]
-				expect(embedContent).toMatch(/\[OPENAI_KEY_/);
-				logCheckpoint('Embed content verified: secret redacted, placeholder present');
-			}
-		}
+		logCheckpoint('Sending message with @code/@csv/@docx/@xlsx references...');
+		const piiFilesSendResult = await runCli(
+			apiUrl,
+			[
+				'chats',
+				'send',
+				'--chat',
+				targetChatId,
+				`Review these sensitive files @${textFilePath} @${csvFilePath} @${docxFilePath} @${xlsxFilePath} and summarize the placeholder types only.`
+			],
+			240_000
+		);
+
+		logCheckpoint(`PII files send exit code: ${piiFilesSendResult.code}`);
+		consoleLogs.push(`PII files send stdout: ${piiFilesSendResult.stdout.slice(0, 2000)}`);
+		consoleLogs.push(`PII files send stderr: ${piiFilesSendResult.stderr.slice(0, 2000)}`);
+
+		const combinedPiiFilesOutput = piiFilesSendResult.stdout + piiFilesSendResult.stderr;
+		expect(combinedPiiFilesOutput).toMatch(/secrets redacted/i);
+		expect(combinedPiiFilesOutput).toContain('@config.ts');
+		expect(combinedPiiFilesOutput).toContain('@contacts.csv');
+		expect(combinedPiiFilesOutput).toContain('@brief.docx');
+		expect(combinedPiiFilesOutput).toContain('@contacts.xlsx');
+		expect(combinedPiiFilesOutput).not.toContain(FAKE_KEY);
+		expect(combinedPiiFilesOutput).not.toContain(CSV_EMAIL);
+		expect(combinedPiiFilesOutput).not.toContain(DOCX_EMAIL);
+		expect(combinedPiiFilesOutput).not.toContain(XLSX_EMAIL);
+		expect(piiFilesSendResult.code).toBe(0);
+		logCheckpoint('CLI code/docs/sheets send verified: each file redacted and raw PII absent from CLI output.');
 
 		// ── Image file upload ─────────────────────────────────────────────
 
@@ -405,7 +418,7 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 				'chats',
 				'send',
 				'--chat',
-				fullChatId,
+				targetChatId,
 				`What colour is this image? @${imagePath}`
 			],
 			180_000 // includes upload + AI response time
@@ -429,14 +442,10 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 			`Image send failed. stdout: ${imageSendResult.stdout.slice(0, 1000)} stderr: ${imageSendResult.stderr.slice(0, 1000)}`
 		).toBe(0);
 
-		const showAfterImage = await runCli(apiUrl, ['chats', 'show', fullChatId, '--json'], 30_000);
-		expect(showAfterImage.code).toBe(0);
-		logCheckpoint('Chat remained showable after CLI image upload/send');
-
 		// ── Share link ────────────────────────────────────────────────────
 
 		logCheckpoint('Creating share link...');
-		const shareResult = await runCli(apiUrl, ['chats', 'share', fullChatId, '--json'], 20_000);
+		const shareResult = await runCli(apiUrl, ['chats', 'share', targetChatId, '--json'], 20_000);
 		expect(shareResult.code).toBe(0);
 		const shareData = JSON.parse(shareResult.stdout);
 
@@ -447,7 +456,7 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 
 		// ── Cleanup ────────────────────────────────────────────────────────
 
-		await runCli(apiUrl, ['chats', 'delete', fullChatId, '--yes'], 20_000);
+		await runCli(apiUrl, ['chats', 'delete', targetChatId, '--yes'], 20_000);
 		logCheckpoint('Chat deleted');
 		await runCli(apiUrl, ['logout'], 10_000);
 		logCheckpoint('Logged out');

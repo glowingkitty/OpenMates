@@ -10,35 +10,43 @@ logo_svg: "logos/brave.svg" # Path for UI, relative to a common logos directory
 region: "US" # Brave Search HQ is in San Francisco, US
 privacy_policy: "https://brave.com/privacy/browser/"
 
+required_keys:
+  - env_key: "SECRET__BRAVE__API_KEY"
+    vault_path: "kv/data/providers/brave"
+    vault_key: "api_key"
+    description: "Brave Search API key for web, news, image, and video search."
+    setup_url: "https://api-dashboard.search.brave.com/app/keys"
+    docs_url: "https://api-dashboard.search.brave.com/app/documentation/web-search/get-started"
+optional_keys:
+  - env_key: "SECRET__BRAVE__PRO_API_KEY"
+    vault_path: "kv/data/providers/brave"
+    vault_key: "pro_api_key"
+    description: "Paid fallback Brave Search API key used after free/default quota exhaustion."
+    setup_url: "https://api-dashboard.search.brave.com/app/keys"
+  - env_key: "SECRET__BRAVE__PAID_API_KEY"
+    vault_path: "kv/data/providers/brave"
+    vault_key: "paid_api_key"
+    description: "Alternate paid fallback Brave Search API key used after free/default quota exhaustion."
+    setup_url: "https://api-dashboard.search.brave.com/app/keys"
+
 # API endpoint configuration
 api_base_url: "https://api.search.brave.com/res/v1"
 
-# Brave Search API Plans
+# Brave Search API pricing and limits
 #
-# **Free AI Plan:**
-# - Price: $0.00 (credit card required via Stripe)
-# - Rate Limits: 1 request per second, 2,000 requests per month
-# - Features Included: Web search, Goggles, News cluster, Videos cluster, Extra alternate snippets for AI,
-#                      Videos, News, Images, Rights to use data for AI inference
-# - Features Not Included: Schema-enriched Web results, Infobox, FAQ, Discussions, Locations,
-#                          Summarizer, Rich search results, Rights to store data
+# Current public Search plan, verified 2026-07-23:
+# - Price: $5.00 per 1,000 successful requests.
+# - Free credits: $5.00/month, equivalent to about 1,000 Search requests/month.
+# - Rate limit: 50 queries per second for Search.
+# - Monthly quota is controlled by Brave billing credits/spend caps and surfaced via
+#   X-RateLimit-* headers. Paid usage can continue beyond the free credits when the
+#   account billing/spend cap allows it.
+# - Features: Web search, news, images, videos, Goggles, and extra snippets for AI.
 #
-# **Base AI Plan:**
-# - Price: $5.00 per 1,000 requests (Brave's cost to us)
-# - Rate Limits: 20 requests per second, 20,000,000 requests per month
-# - Features Included: Web search, Goggles, News cluster, Videos cluster, Extra alternate snippets for AI,
-#                      Videos, News, Images, Rights to use data for AI inference
-# - Features Not Included: Schema-enriched Web results, Infobox, FAQ, Discussions, Locations,
-#                          Summarizer, Rich search results, Rights to store data
-#
-# **Pro AI Plan:**
-# - Price: $9.00 per 1,000 requests (Brave's cost to us)
-# - Rate Limits: 50 requests per second, Unlimited requests per month
-# - Features Included: All features including Web search, Goggles, News cluster, Videos cluster,
-#                      Extra alternate snippets for AI, Videos, News, Images,
-#                      Rights to use data for AI inference, Schema-enriched Web results,
-#                      Infobox, FAQ, Discussions, Locations, Summarizer, Rich search results,
-#                      Rights to store data
+# Rate-limit response headers:
+# - X-RateLimit-Limit: plan limits for each window, e.g. per-second and monthly.
+# - X-RateLimit-Remaining: remaining requests for each window.
+# - X-RateLimit-Reset: seconds until each quota window resets.
 
 # Default plan is "free" on dev when using the default key, with optional paid
 # fallback keys used only after Brave reports monthly quota exhaustion.
@@ -53,29 +61,38 @@ api_base_url: "https://api.search.brave.com/res/v1"
 #   Paid fallback Brave Search API key. Used only when the free/default key
 #   returns Brave's monthly QUOTA_LIMITED response.
 #   Get your API key from: https://api-dashboard.search.brave.com/app/keys
-# - BRAVE_SEARCH_PLAN: Plan selection - "free", "base", or "pro" (default: "pro")
-#   Add to your .env file: BRAVE_SEARCH_PLAN=pro
+# - BRAVE_SEARCH_PLAN: Local throttle preset. Prefer "search" for current paid
+#   Search-plan keys or "free_credits" for a key capped to the monthly free credit.
+#   Legacy values "base" and "pro" remain accepted as aliases for existing deployments.
 
-# Rate limiting configuration
-# These limits are loaded based on the selected plan (BRAVE_SEARCH_PLAN env var)
-# The Python code will select the appropriate plan's rate limits based on the environment variable
-# Default plan is "pro" if BRAVE_SEARCH_PLAN is not set
+# Rate limiting configuration. These limits are local guardrails loaded from
+# BRAVE_SEARCH_PLAN/BRAVE_PLAN. Brave remains the source of truth via 429 responses
+# and X-RateLimit-* headers, and the provider wrapper retries/falls back accordingly.
 rate_limits:
+  # Current public Search plan.
+  search:
+    requests_per_second: 50
+    requests_per_month: null # Depends on Brave billing credits/spend cap.
+  # Current public monthly free credits are worth about 1,000 Search requests.
+  free_credits:
+    requests_per_second: 50
+    requests_per_month: 1000
+  # Legacy aliases retained for existing BRAVE_SEARCH_PLAN values.
   free:
-    requests_per_second: 1
-    requests_per_month: 2000
+    requests_per_second: 50
+    requests_per_month: 1000
   base:
-    requests_per_second: 20
-    requests_per_month: 20000000
+    requests_per_second: 50
+    requests_per_month: null
   pro:
     requests_per_second: 50
-    requests_per_month: null # Unlimited
+    requests_per_month: null
 
 # Pricing information
 # Cost per request in credits (user-facing pricing, independent of Brave plan)
 # Users are always charged 10 credits per search request
 # If a user makes 5 parallel search requests, they are charged 50 credits total (5 * 10)
-# Note: The Brave plan (free/base/pro) only affects rate limits and available features,
+# Note: The Brave plan/preset only affects rate limits and available features,
 #       not the user-facing pricing
 pricing:
   per_request_credits: 10 # Always 10 credits per search request for users

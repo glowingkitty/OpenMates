@@ -107,3 +107,35 @@ async def test_create_usage_entry_allows_benchmark_source() -> None:
     created = sdk.calls[0]["payload"]
     assert created["source"] == "benchmark"
     assert created["chat_id"] == "chat-1"
+
+
+@pytest.mark.anyio
+async def test_create_usage_entry_saves_image_to_html_tokens_and_duration_second() -> None:
+    sdk = FakeDirectusSDK([])
+    usage = UsageMethods(sdk=sdk, encryption_service=FakeEncryption())
+
+    async def noop_summary(**_kwargs: Any) -> None:
+        return None
+
+    usage._update_monthly_summaries = noop_summary
+    usage._update_daily_summaries = noop_summary
+
+    entry_id = await usage.create_usage_entry(
+        user_id_hash="user-hash",
+        app_id="code",
+        skill_id="image_to_html",
+        usage_type="skill_execution",
+        timestamp=1780000000,
+        credits_charged=123,
+        user_vault_key_id="vault-key",
+        model_used="google/gemini-3.6-flash",
+        actual_input_tokens=1000,
+        actual_output_tokens=500,
+        duration_second=61.25,
+    )
+
+    assert entry_id == "usage-created"
+    created = sdk.calls[0]["payload"]
+    assert created["encrypted_input_tokens"] == "enc:vault-key:1000"
+    assert created["encrypted_output_tokens"] == "enc:vault-key:500"
+    assert created["encrypted_code_run_duration_seconds"] == "enc:vault-key:61.25"

@@ -3,6 +3,7 @@ from typing import Optional
 
 class UserResponse(BaseModel):
     id: Optional[str] = None # User's primary key (UUID)
+    account_id: Optional[str] = None # Public billing account identifier used on invoices and account recovery links
     username: str
     is_admin: bool
     credits: int

@@ -54,26 +54,13 @@ def parse_version_tuple(version: str) -> tuple[int, int, int]:
     return int(parts[0]), int(parts[1]), int(parts[2])
 
 
-def release_line_entries(config: dict, versions: list[str], stable_floor: str | None = None) -> tuple[tuple[int, int, int], list[int], dict[int, list[int]]]:
+def release_line_entries(config: dict, versions: list[str]) -> tuple[tuple[int, int, int], list[int]]:
     major, minor, base_patch = parse_version_tuple(config["stableBase"])
-    floor_value = None if stable_floor == "none" else stable_floor or config.get("stableFloor")
     label = config.get("prereleaseLabel", "a")
     prerelease_pattern = re.compile(rf"^(\d+)\.(\d+)\.(\d+){re.escape(label)}(\d+)$")
-    stable_patches: list[int] = []
-    if floor_value:
-        floor_major, floor_minor, floor_patch = parse_version_tuple(floor_value)
-        if floor_major != major or floor_minor != minor or floor_patch < base_patch:
-            fail(f"python.stableFloor must be in the {major}.{minor}.x line and >= {config['stableBase']}")
-        stable_patches.append(floor_patch)
-    prereleases_by_patch: dict[int, list[int]] = {}
+    prerelease_indexes: list[int] = []
 
     for version in versions:
-        if SEMVER_PATTERN.match(version):
-            parsed_major, parsed_minor, patch = parse_version_tuple(version)
-            if parsed_major == major and parsed_minor == minor and patch >= base_patch:
-                stable_patches.append(patch)
-            continue
-
         match = prerelease_pattern.match(version)
         if not match:
             continue
@@ -81,19 +68,10 @@ def release_line_entries(config: dict, versions: list[str], stable_floor: str | 
         parsed_minor = int(match.group(2))
         patch = int(match.group(3))
         index = int(match.group(4))
-        if parsed_major == major and parsed_minor == minor and patch >= base_patch:
-            prereleases_by_patch.setdefault(patch, []).append(index)
+        if parsed_major == major and parsed_minor == minor and patch == base_patch:
+            prerelease_indexes.append(index)
 
-    return (major, minor, base_patch), stable_patches, prereleases_by_patch
-
-
-def next_stable_target(config: dict, versions: list[str], stable_floor: str | None = None) -> tuple[tuple[int, int, int], int, list[int]]:
-    base, stable_patches, prereleases_by_patch = release_line_entries(config, versions, stable_floor=stable_floor)
-    _major, _minor, base_patch = base
-    latest_stable_patch = max(stable_patches, default=base_patch - 1)
-    latest_prerelease_patch = max(prereleases_by_patch.keys(), default=base_patch - 1)
-    patch = latest_prerelease_patch if latest_prerelease_patch > latest_stable_patch else max(latest_stable_patch + 1, base_patch)
-    return base, patch, prereleases_by_patch.get(patch, [])
+    return (major, minor, base_patch), prerelease_indexes
 
 
 def published_versions(args: argparse.Namespace) -> list[str]:
@@ -108,25 +86,27 @@ def published_versions(args: argparse.Namespace) -> list[str]:
 
 
 def next_prerelease_version(config: dict, versions: list[str]) -> str:
-    (major, minor, _base_patch), patch, indexes = next_stable_target(config, versions)
+    if config["stableBase"] in versions:
+        fail(
+            f"Cannot publish a prerelease below existing stable base {config['stableBase']}; "
+            "bump the product minor line first."
+        )
+    (major, minor, base_patch), indexes = release_line_entries(config, versions)
     label = config.get("prereleaseLabel", "a")
     index = max(indexes, default=-1) + 1
-    return f"{major}.{minor}.{patch}{label}{index}"
+    return f"{major}.{minor}.{base_patch}{label}{index}"
 
 
 def next_stable_version(config: dict, versions: list[str]) -> str:
-    (major, minor, _base_patch), patch, _indexes = next_stable_target(config, versions)
-    return f"{major}.{minor}.{patch}"
+    major, minor, base_patch = parse_version_tuple(config["stableBase"])
+    return f"{major}.{minor}.{base_patch}"
 
 
 def validate_config(config: dict) -> None:
     stable_base = config.get("stableBase", "")
-    stable_floor = config.get("stableFloor", stable_base)
     prerelease_label = config.get("prereleaseLabel", "a")
     if not SEMVER_PATTERN.match(stable_base):
         fail(f"python.stableBase must be a PEP 440 stable version, got {stable_base}")
-    if not SEMVER_PATTERN.match(stable_floor):
-        fail(f"python.stableFloor must be a PEP 440 stable version, got {stable_floor}")
     if prerelease_label != "a":
         fail(f"python.prereleaseLabel must be 'a' for alpha prereleases, got {prerelease_label}")
 
@@ -136,7 +116,6 @@ def main() -> None:
     parser.add_argument("--channel", choices=["check", "dev", "main"], default="check")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--published-versions", help="Comma-separated versions for deterministic tests")
-    parser.add_argument("--stable-floor", help="Stable release floor override for deterministic tests")
     args = parser.parse_args()
 
     product_config = load_json(CONFIG_PATH)
@@ -150,8 +129,6 @@ def main() -> None:
         return
 
     versions = published_versions(args)
-    if args.stable_floor:
-        config = {**config, "stableFloor": args.stable_floor}
     version = next_prerelease_version(config, versions) if args.channel == "dev" else next_stable_version(config, versions)
     if not args.dry_run:
         write_pyproject_version(version)

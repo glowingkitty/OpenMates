@@ -1,0 +1,5688 @@
+schema_version: 1
+cadence: weekly
+week_start: '2026-06-01'
+week_end: '2026-06-07'
+generated_at: '2026-07-09T16:01:00+00:00'
+summary:
+  daily_files: 7
+  total_items: 245
+  newsletter_ready_items: 112
+  user_facing_items: 124
+  dev_only_items: 0
+  unknown_release_items: 0
+  themes: 10
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+daily_summaries:
+- date: '2026-06-01'
+  total_commits: 14
+  newsletter_ready_items: 4
+  dev_only_items: 0
+- date: '2026-06-02'
+  total_commits: 65
+  newsletter_ready_items: 39
+  dev_only_items: 0
+- date: '2026-06-03'
+  total_commits: 42
+  newsletter_ready_items: 17
+  dev_only_items: 0
+- date: '2026-06-04'
+  total_commits: 51
+  newsletter_ready_items: 19
+  dev_only_items: 0
+- date: '2026-06-05'
+  total_commits: 20
+  newsletter_ready_items: 10
+  dev_only_items: 0
+- date: '2026-06-06'
+  total_commits: 32
+  newsletter_ready_items: 6
+  dev_only_items: 0
+- date: '2026-06-07'
+  total_commits: 21
+  newsletter_ready_items: 17
+  dev_only_items: 0
+themes:
+- theme: chat
+  item_count: 62
+  newsletter_ready_count: 34
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-01'
+    title: 'fix: align projects workspace shell'
+    commits:
+    - 09ec7d8e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-01'
+    title: 'fix: bound startup chat sync'
+    commits:
+    - 1b45ebba5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-01'
+    title: 'fix: contain sub-chat preview sync fanout'
+    commits:
+    - 6904f92d1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-01'
+    title: 'fix: keep sub-chats scoped to parent chats'
+    commits:
+    - 2d5ded51c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'docs: add apple parity audit scaffold'
+    commits:
+    - 7c6070fd8
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add Apple audio and PII composer parity'
+    commits:
+    - 0d22c5a00
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'feat: add Apple composer embed send parity'
+    commits:
+    - 24680a578
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'feat: add Apple composer upload previews'
+    commits:
+    - 27cb5fd05
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'feat: add Apple mention dropdown parity'
+    commits:
+    - 2970f4f61
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'feat: add demo usage data for marketing'
+    commits:
+    - f70dc0c75
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add sequential sub-chat stop handler'
+    commits:
+    - 1bcd5dd98
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add sub-chat fanout approval'
+    commits:
+    - '612705468'
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add weather forecast skill'
+    commits:
+    - a26752a67
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: improve Apple composer parity'
+    commits:
+    - ff1d7ad75
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'fix: add sub-chat chat translations'
+    commits:
+    - 86315341d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: align Apple upload endpoint'
+    commits:
+    - bb2430c65
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'fix: align same-chat reminder ordering test'
+    commits:
+    - 162968bb0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: cap rendered sub-chat cards'
+    commits:
+    - 46de52c80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: complete sub-chat translations'
+    commits:
+    - c5b8f4b2f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: keep attachment sends available'
+    commits:
+    - 8cacd97a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: preserve e2e debug chat navigation'
+    commits:
+    - fa5a22cb5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: stabilize urgent e2e failures'
+    commits:
+    - 28d4fc4dd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: treat sub-chat cap as concurrency only'
+    commits:
+    - 1a70c8ee8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: wait for attachment chat cold sync'
+    commits:
+    - d7d863964
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: read cached chat versions as model'
+    commits:
+    - e96f82428
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: respect event provider selection'
+    commits:
+    - bf9b898e7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'perf: optimize docs route loading'
+    commits:
+    - 2e9849b80
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'test: connect user guides to e2e flows'
+    commits:
+    - 4a423d906
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'test: verify import export data roundtrip'
+    commits:
+    - b4d3da2fc
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add predefined CLI settings commands'
+    commits:
+    - 7343eec58
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add right-to-repair example chat'
+    commits:
+    - 9dff01768
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: cache accepted imported chats locally'
+    commits:
+    - 63aa5907b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: cache sanitized imported messages'
+    commits:
+    - a83ab7b86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: create local key for accepted imports'
+    commits:
+    - aa5d16d30
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: export just-imported chat data'
+    commits:
+    - 27b0d3ae3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: export recent imports despite stale manifest'
+    commits:
+    - 13f5c00db
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: group image result embeds'
+    commits:
+    - 47c7dc345
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: index imported chats for export'
+    commits:
+    - c803769b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: refresh imported pure-data embeds'
+    commits:
+    - 3ae721600
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'test: stabilize failed Playwright specs'
+    commits:
+    - 90f1e4bd6
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-05'
+    title: 'docs: add architecture claim coverage'
+    commits:
+    - 7382e8110
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-05'
+    title: 'docs: add spec-driven development workflow'
+    commits:
+    - 07a7e6a0a
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-05'
+    title: 'feat: add contract audit recommendation chat'
+    commits:
+    - c897088ad
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-05'
+    title: 'feat: add documentation claims checks'
+    commits:
+    - 75124fa6b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'feat: add weekly technical debt scan'
+    commits:
+    - 9a955e068
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: auto-fix failed tests g11-3434d2db'
+    commits:
+    - 5d151f2ce
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'refactor: extract ActiveChat pure helpers'
+    commits:
+    - cfaf8b3ef
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'refactor: extract ActiveChat replay helpers'
+    commits:
+    - 831f326b8
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'docs: verify explain in new chat spec'
+    commits:
+    - b8267e2ee
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'feat: add explain in new chat action'
+    commits:
+    - 2fb4ffbfd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: move explain action into highlight menu'
+    commits:
+    - 41013cd8b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'test: add explain in new chat fixture'
+    commits:
+    - c72ab0b9a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'test: assert background chat notification source'
+    commits:
+    - 540f8f038
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'test: fix explain chat selectors'
+    commits:
+    - 1a1b8ce93
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'test: stabilize explain context menu click'
+    commits:
+    - f127d7757
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-07'
+    title: 'feat: add application embed live previews'
+    commits:
+    - e3243f6ef
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'feat: show app skill example chats'
+    commits:
+    - 27f6e8775
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: explain in new chat starts clean chat'
+    commits:
+    - 191a74dae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: guard explain action on shared chats'
+    commits:
+    - d5ad431bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: keep selection toolbar within mobile viewport'
+    commits:
+    - '681860336'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: verify fork chat ownership after cache miss'
+    commits:
+    - f59e4efff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'test: trigger explain action on mousedown'
+    commits:
+    - 655ad8608
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: other
+  item_count: 55
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-01'
+    title: 'fix: avoid logging full websocket sync payloads'
+    commits:
+    - f4115fff9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-01'
+    title: 'fix: use Linear ID type for state lookup'
+    commits:
+    - 4a97ee18a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: complete llm utils test stub'
+    commits:
+    - 149d822db
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: derive opencode session url expectation'
+    commits:
+    - 635c69af6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: keep celery config test stub compatible'
+    commits:
+    - 9d0f6041d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: keep llm utils test stub compatible'
+    commits:
+    - fa6e6246b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: match llm result test stub'
+    commits:
+    - b873b9512
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'test: align weather forecast assertions'
+    commits:
+    - bbc561d05
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'test: align weather provider assertions'
+    commits:
+    - ad2ec04d6
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'test: assert weather day interactivity'
+    commits:
+    - f8150fe8d
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'test: clarify weather image assertions'
+    commits:
+    - 698bd76e1
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'test: stabilize weather layout assertion'
+    commits:
+    - 5d67052b2
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'test: strengthen weather forecast coverage'
+    commits:
+    - e7813d487
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'test: wait for weather forecast completion'
+    commits:
+    - 7985b6e12
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'feat: add degraded services discord digest'
+    commits:
+    - '601499634'
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'feat: notify admins for docs guide updates'
+    commits:
+    - 3a58a6271
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: allow auto-fix with dirty worktree'
+    commits:
+    - a62ff9099
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: complete auto-fix retry pipeline'
+    commits:
+    - 63faab728
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: delete auto-fix sessions immediately'
+    commits:
+    - 710393b28
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: delete hidden auto-fix opencode sessions'
+    commits:
+    - 841cdf7c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: filter auto-fix temp changed files'
+    commits:
+    - 592734a47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: isolate auto-fix opencode storage'
+    commits:
+    - cabcc3699
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: retry auto-fix verification failures'
+    commits:
+    - 13349f8e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'test: fix export account mock fixture'
+    commits:
+    - ef7bca9b3
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'test: match export zip filename'
+    commits:
+    - af80c7758
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'test: read app provider metadata from bundle'
+    commits:
+    - 9c24628ce
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'test: skip unroutable provider skill pages'
+    commits:
+    - 84c009501
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'test: stabilize events provider card selector'
+    commits:
+    - 8504e2513
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'test: support metadata response shapes'
+    commits:
+    - 727dc82d5
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'test: use unanchored events card selector'
+    commits:
+    - 3568390d0
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'test: verify rendered provider icons'
+    commits:
+    - 0a050ee88
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'Merge pull request #449 from glowingkitty/dev'
+    commits:
+    - 12485ffd2
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add API test script skill'
+    commits:
+    - d5122d4e0
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add deterministic accessibility audit'
+    commits:
+    - ad9335d7c
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: export normalized code embeds'
+    commits:
+    - 01b1bd31c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: restore newsletter preview files'
+    commits:
+    - 59409d789
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: send daily test email before auto-fix'
+    commits:
+    - 38447de72
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: upgrade aiohttp to 3.14.0 (GHSA-hg6j-4rv6-33pg, GHSA-jg22-mg44-37j8)'
+    commits:
+    - 337bdc168
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'test: align event provider icon assertion'
+    commits:
+    - 35d4e055d
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'test: log account export zip entries'
+    commits:
+    - 75875aba5
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'test: remove export zip diagnostic log'
+    commits:
+    - 398ae42a7
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'test: scope backup code done button'
+    commits:
+    - 8e8b2a336
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'test: submit password before backup code prompt'
+    commits:
+    - 2fdeb15d5
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'test: update event provider metadata expectation'
+    commits:
+    - 57afb88f4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-05'
+    title: 'docs: improve skill auto-selection guidance'
+    commits:
+    - 425203da0
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: recover missing auto-fix summaries'
+    commits:
+    - 9689bf602
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-05'
+    title: 'test: accept network rejection for admin issue endpoint'
+    commits:
+    - b62f69f70
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-05'
+    title: 'test: account for admin report email defaults'
+    commits:
+    - 3b5fa934b
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-05'
+    title: 'test: cover non-admin report issue automation controls'
+    commits:
+    - ef91e2b61
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-05'
+    title: 'test: enable pretalx provider async coverage'
+    commits:
+    - 002bac7d8
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: preserve admin auth cache'
+    commits:
+    - 8b50c9542
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: sync admin session cache'
+    commits:
+    - dfc22dc47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: use Directus ping for API startup'
+    commits:
+    - fc464ec92
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: use Directus ping in API lifespan'
+    commits:
+    - 5fbd457c9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-07'
+    title: 'test: assert shared weather child preview structure'
+    commits:
+    - f64bdd6c9
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: product
+  item_count: 50
+  newsletter_ready_count: 49
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-01'
+    title: 'fix: align projects navigation and sidebar'
+    commits:
+    - 91e88f2d0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'feat: improve mobile header navigation'
+    commits:
+    - 34b9887c1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: accept current image embed selector'
+    commits:
+    - 02998239f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: add weather day drilldown button'
+    commits:
+    - a2e15e78d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: align file attachment flow assertions'
+    commits:
+    - '438651907'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: correct weather app store previews'
+    commits:
+    - 5fff3637d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: normalize header tab touch targets'
+    commits:
+    - 043ef3eda
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: open weather day drilldown'
+    commits:
+    - 9a02c462e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: open weather day fullscreen reliably'
+    commits:
+    - 5a445261c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: preserve js import inference order'
+    commits:
+    - 705dea4ed
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: relax reload image preview assertion'
+    commits:
+    - bc78aa6fc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: repair weather day fullscreen drilldown'
+    commits:
+    - 55df74d43
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: resolve weather provider logos'
+    commits:
+    - 3da9bf66c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: scope attachment persistence spec'
+    commits:
+    - 62701fa71
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: stabilize attachment spec navigation'
+    commits:
+    - 234764a0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: tolerate travel connections no-results'
+    commits:
+    - 9f6e9c640
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: tolerate travel stays no-results'
+    commits:
+    - 33860e750
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: use weather day card drilldown'
+    commits:
+    - f2dc454c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: center daily inspiration wiki text'
+    commits:
+    - c74cc0ecd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: derive selected weather day from loaded days'
+    commits:
+    - 559b3eb90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: keep weather day drilldown local'
+    commits:
+    - ade635edb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: localize Wikipedia inline links'
+    commits:
+    - 032438d0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: open unified weather day previews'
+    commits:
+    - a03cc302b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: open weather day on pointer interaction'
+    commits:
+    - 6e57d4bd9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: pass selected weather day directly'
+    commits:
+    - 05ec9376d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: receive weather day pointer events'
+    commits:
+    - aa7e257f1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: render selected weather day directly'
+    commits:
+    - '179186245'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: restore unified weather day previews'
+    commits:
+    - 5c5a6f51f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: route weather day drilldown'
+    commits:
+    - 8632c866e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add GPN and Congress schedule search'
+    commits:
+    - 5a68b4abb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add newsletter campaign scheduler'
+    commits:
+    - 2c55eb812
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: allow conference-only event searches'
+    commits:
+    - '151588381'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: auto-fix failed tests g01-49c276da'
+    commits:
+    - 819c4f583
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: correct mobile OpenMates header icon'
+    commits:
+    - 769758f80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: harden auth enumeration responses'
+    commits:
+    - 59f63f60d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: protect dev test recordings'
+    commits:
+    - d3ebb6d47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: auto-fix failed tests g10-87385f1e'
+    commits:
+    - 6f5558ea4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: auto-fix failed tests g13-b60e2c90'
+    commits:
+    - 89bb6b99c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: prevent malformed event batch items from blocking results'
+    commits:
+    - a93737971
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: show searched event providers in embeds'
+    commits:
+    - fd6fb7983
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: auto-fix failed tests g08-633ef2b7'
+    commits:
+    - f1b284ab7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: filter empty weather legacy results'
+    commits:
+    - f1d3d39bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: filter empty weather preview days'
+    commits:
+    - 1663f2505
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: guard weather day condition rendering'
+    commits:
+    - ad9be9b6f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: normalize weather child results'
+    commits:
+    - 39d5877c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: normalize weather day child previews'
+    commits:
+    - 0d66ca1c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: open weather day previews from forecast'
+    commits:
+    - e9359a6d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: select rendered search result embeds'
+    commits:
+    - bc17e09fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: store selected search child result'
+    commits:
+    - 482d1cca9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: use shared child embed fullscreen structure'
+    commits:
+    - 37f9379b4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: cli_sdk
+  item_count: 22
+  newsletter_ready_count: 12
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-01'
+    title: 'chore: route task tracking through GitHub and Linear CLI'
+    commits:
+    - 893798f10
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-01'
+    title: 'feat: add Linear API CLI'
+    commits:
+    - 360ce3448
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-01'
+    title: 'feat: support Linear CLI credential sources'
+    commits:
+    - 4af58d03e
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'chore: remove legacy Polar payment references'
+    commits:
+    - a062e2080
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: route OpenAI OSS models through Bedrock EU'
+    commits:
+    - 901092a9d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: assert cli upload success signal'
+    commits:
+    - 135110c9c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: capture weather day card clicks'
+    commits:
+    - e1c4d8047
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: send origin on cli uploads'
+    commits:
+    - a68ceab76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: use stable cli upload fixture'
+    commits:
+    - 6a5d4038e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: wait for cli image embed persistence'
+    commits:
+    - 0b36c3b13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: capture weather day clicks'
+    commits:
+    - 5e17c7fbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: expand CLI settings parity'
+    commits:
+    - 76735f92a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: store CLI email key for refunds'
+    commits:
+    - b195b362f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: upgrade @sveltejs/kit to 2.60.1 (GHSA-hgv7-v322-mmgr)'
+    commits:
+    - d791fbeb3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: upgrade vitest to 4.1.0 (GHSA-5xrq-8626-4rwp)'
+    commits:
+    - 33d5d421d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'ci: fix self-host alpha smoke install source'
+    commits:
+    - 32fca5de7
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'ci: test self-host alpha signup admin flow'
+    commits:
+    - 72433d032
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'docs: add auth and CLI claim coverage'
+    commits:
+    - beb507e9e
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'docs: clarify self-host admin promotion'
+    commits:
+    - cb1810e4e
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'docs: update self-host setup guide'
+    commits:
+    - 6f70b60bd
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'feat: add self-host signup modes'
+    commits:
+    - 5ebb4f703
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'test: add self-host install smoke workflow'
+    commits:
+    - 24d791d85
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: self_hosting
+  item_count: 14
+  newsletter_ready_count: 2
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-04'
+    title: 'docs: consolidate contribution guide'
+    commits:
+    - cefb002d7
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: restrict docker port exposure'
+    commits:
+    - f7180da5f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'ci: bound self-host smoke browser install'
+    commits:
+    - 17041e55a
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'ci: disable video in self-host smoke'
+    commits:
+    - 75f6a944e
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'ci: harden self-host smoke startup'
+    commits:
+    - 5c3f910b0
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'ci: use system chrome for self-host smoke'
+    commits:
+    - 1f23125c8
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'docs: remove legacy spec markdown references'
+    commits:
+    - 9758d4427
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: include docs in webapp image build'
+    commits:
+    - 0eaf4e4f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: include shared metadata in webapp image'
+    commits:
+    - 7593924f2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: use Directus ping for cms healthcheck'
+    commits:
+    - 5ead61303
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: use configured postgres user in healthcheck'
+    commits:
+    - d3c26adcc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'test: fix self-host smoke username length'
+    commits:
+    - 2403c2007
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-06'
+    title: 'test: poll self-host session with browser session id'
+    commits:
+    - 806b51fa6
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-07'
+    title: 'ci: schedule weekday self-host smoke'
+    commits:
+    - e89396b09
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: settings
+  item_count: 13
+  newsletter_ready_count: 11
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-01'
+    title: 'fix: hide empty guest memory categories'
+    commits:
+    - 5cd45e318
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add weather store examples'
+    commits:
+    - 9f7aeb20c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: initialize demo mode before settings auth check'
+    commits:
+    - 0a0fb00b5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: repair weather app store example UI'
+    commits:
+    - 1ff5bed70
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: update reminder email settings path'
+    commits:
+    - 5552186fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: use demo billing values in marketing mode'
+    commits:
+    - 85b4577d4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: show event provider logos'
+    commits:
+    - 9cc0db36c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: include fresh imports in export manifest'
+    commits:
+    - 364323bb9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: render OpenMates provider logo'
+    commits:
+    - e17efd3c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: use consistent provider icon opacity'
+    commits:
+    - a8d629c90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'test: limit event settings provider icon check'
+    commits:
+    - b13b55039
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: restore app skill example interactions'
+    commits:
+    - 4451ee9ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'test: isolate credential-mutating e2e specs'
+    commits:
+    - a621adab7
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: docs
+  item_count: 10
+  newsletter_ready_count: 1
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-03'
+    title: 'docs: refresh import account guide'
+    commits:
+    - 007749016
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'feat: verify docs guide review results'
+    commits:
+    - dee4a13f4
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: enable visible failed-test auto-fix'
+    commits:
+    - f5a4ac583
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: hide auto-fix opencode sessions'
+    commits:
+    - 59d841418
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'test: update docs performance landing selectors'
+    commits:
+    - 34364844e
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'docs: restore README and hide workspace tabs'
+    commits:
+    - aa5147ba2
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'docs: update alpha disclaimer'
+    commits:
+    - daf94566d
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add scheduled product review cronjobs'
+    commits:
+    - d36ab64f4
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add weekly accessibility audit email'
+    commits:
+    - 8a7ede09f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add weekly contract audit reports'
+    commits:
+    - b53137d14
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: infrastructure
+  item_count: 9
+  newsletter_ready_count: 2
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-02'
+    title: 'docs: improve marketing app metadata'
+    commits:
+    - '794873896'
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: use asyncio run in embed link tests'
+    commits:
+    - 31c12742d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'feat: add user guide review workflow'
+    commits:
+    - d533d00ae
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: repair weather forecast embed UI'
+    commits:
+    - 757f57d5b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'chore: commit retained workspace updates'
+    commits:
+    - 468df1113
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'docs: document GitHub issue workflow'
+    commits:
+    - 77f1acb96
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: wait for Vercel before Playwright specs'
+    commits:
+    - 2654412b9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: preserve valid skill requests in malformed batches'
+    commits:
+    - 2d39d7463
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'docs: add executable spec workflow'
+    commits:
+    - bd065a701
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: apple
+  item_count: 8
+  newsletter_ready_count: 1
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-01'
+    title: 'feat: add SwiftLint workflow for Apple code'
+    commits:
+    - d6efbafd2
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-01'
+    title: 'feat: add native offline prefetch sync'
+    commits:
+    - 167ac38c0
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-01'
+    title: 'fix: handle Safari share sheet URLs in Apple extensions'
+    commits:
+    - dbb440c3f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'feat: add native code run embed support'
+    commits:
+    - 1cb0407e0
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'fix: wire native code run renderer'
+    commits:
+    - 0b3a5c010
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-04'
+    title: 'feat: run scheduled maintenance with opencode'
+    commits:
+    - cc8a6fe22
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-05'
+    title: 'feat: trigger opencode from admin issue reports'
+    commits:
+    - 0ae5239d9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'feat: add unified notification events'
+    commits:
+    - 34669e142
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+- theme: security
+  item_count: 2
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-04'
+    title: 'chore: enable dependabot version updates'
+    commits:
+    - f50b5b138
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-04'
+    title: 'chore: keep dependabot auto PRs disabled'
+    commits:
+    - ec72f8664
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - date: '2026-06-01'
+    title: 'fix: bound startup chat sync'
+    commits:
+    - 1b45ebba5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-01'
+    title: 'fix: contain sub-chat preview sync fanout'
+    commits:
+    - 6904f92d1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-01'
+    title: 'fix: hide empty guest memory categories'
+    commits:
+    - 5cd45e318
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-01'
+    title: 'fix: keep sub-chats scoped to parent chats'
+    commits:
+    - 2d5ded51c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add demo usage data for marketing'
+    commits:
+    - f70dc0c75
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add sequential sub-chat stop handler'
+    commits:
+    - 1bcd5dd98
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add sub-chat fanout approval'
+    commits:
+    - '612705468'
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add weather forecast skill'
+    commits:
+    - a26752a67
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add weather store examples'
+    commits:
+    - 9f7aeb20c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: improve mobile header navigation'
+    commits:
+    - 34b9887c1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: route OpenAI OSS models through Bedrock EU'
+    commits:
+    - 901092a9d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: accept current image embed selector'
+    commits:
+    - 02998239f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: add weather day drilldown button'
+    commits:
+    - a2e15e78d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: align file attachment flow assertions'
+    commits:
+    - '438651907'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: align same-chat reminder ordering test'
+    commits:
+    - 162968bb0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: assert cli upload success signal'
+    commits:
+    - 135110c9c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: cap rendered sub-chat cards'
+    commits:
+    - 46de52c80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: capture weather day card clicks'
+    commits:
+    - e1c4d8047
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: correct weather app store previews'
+    commits:
+    - 5fff3637d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: initialize demo mode before settings auth check'
+    commits:
+    - 0a0fb00b5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: keep attachment sends available'
+    commits:
+    - 8cacd97a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: normalize header tab touch targets'
+    commits:
+    - 043ef3eda
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: open weather day drilldown'
+    commits:
+    - 9a02c462e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: open weather day fullscreen reliably'
+    commits:
+    - 5a445261c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: preserve e2e debug chat navigation'
+    commits:
+    - fa5a22cb5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: preserve js import inference order'
+    commits:
+    - 705dea4ed
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: relax reload image preview assertion'
+    commits:
+    - bc78aa6fc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: repair weather app store example UI'
+    commits:
+    - 1ff5bed70
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: repair weather day fullscreen drilldown'
+    commits:
+    - 55df74d43
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: resolve weather provider logos'
+    commits:
+    - 3da9bf66c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: scope attachment persistence spec'
+    commits:
+    - 62701fa71
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: send origin on cli uploads'
+    commits:
+    - a68ceab76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: stabilize attachment spec navigation'
+    commits:
+    - 234764a0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: stabilize urgent e2e failures'
+    commits:
+    - 28d4fc4dd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: tolerate travel connections no-results'
+    commits:
+    - 9f6e9c640
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: tolerate travel stays no-results'
+    commits:
+    - 33860e750
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: treat sub-chat cap as concurrency only'
+    commits:
+    - 1a70c8ee8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: update reminder email settings path'
+    commits:
+    - 5552186fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: use demo billing values in marketing mode'
+    commits:
+    - 85b4577d4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: use stable cli upload fixture'
+    commits:
+    - 6a5d4038e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: use weather day card drilldown'
+    commits:
+    - f2dc454c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: wait for attachment chat cold sync'
+    commits:
+    - d7d863964
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: wait for cli image embed persistence'
+    commits:
+    - 0b36c3b13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: capture weather day clicks'
+    commits:
+    - 5e17c7fbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: center daily inspiration wiki text'
+    commits:
+    - c74cc0ecd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: derive selected weather day from loaded days'
+    commits:
+    - 559b3eb90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: keep weather day drilldown local'
+    commits:
+    - ade635edb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: localize Wikipedia inline links'
+    commits:
+    - 032438d0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: open unified weather day previews'
+    commits:
+    - a03cc302b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: open weather day on pointer interaction'
+    commits:
+    - 6e57d4bd9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: pass selected weather day directly'
+    commits:
+    - 05ec9376d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: read cached chat versions as model'
+    commits:
+    - e96f82428
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: receive weather day pointer events'
+    commits:
+    - aa7e257f1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: render selected weather day directly'
+    commits:
+    - '179186245'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: repair weather forecast embed UI'
+    commits:
+    - 757f57d5b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: respect event provider selection'
+    commits:
+    - bf9b898e7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: restore unified weather day previews'
+    commits:
+    - 5c5a6f51f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: route weather day drilldown'
+    commits:
+    - 8632c866e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: show event provider logos'
+    commits:
+    - 9cc0db36c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'perf: optimize docs route loading'
+    commits:
+    - 2e9849b80
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add GPN and Congress schedule search'
+    commits:
+    - 5a68b4abb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add newsletter campaign scheduler'
+    commits:
+    - 2c55eb812
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add predefined CLI settings commands'
+    commits:
+    - 7343eec58
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add weekly accessibility audit email'
+    commits:
+    - 8a7ede09f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: expand CLI settings parity'
+    commits:
+    - 76735f92a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: allow conference-only event searches'
+    commits:
+    - '151588381'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: auto-fix failed tests g01-49c276da'
+    commits:
+    - 819c4f583
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: cache sanitized imported messages'
+    commits:
+    - a83ab7b86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: correct mobile OpenMates header icon'
+    commits:
+    - 769758f80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: group image result embeds'
+    commits:
+    - 47c7dc345
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: harden auth enumeration responses'
+    commits:
+    - 59f63f60d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: include fresh imports in export manifest'
+    commits:
+    - 364323bb9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: index imported chats for export'
+    commits:
+    - c803769b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: protect dev test recordings'
+    commits:
+    - d3ebb6d47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: render OpenMates provider logo'
+    commits:
+    - e17efd3c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: store CLI email key for refunds'
+    commits:
+    - b195b362f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: upgrade @sveltejs/kit to 2.60.1 (GHSA-hgv7-v322-mmgr)'
+    commits:
+    - d791fbeb3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: upgrade vitest to 4.1.0 (GHSA-5xrq-8626-4rwp)'
+    commits:
+    - 33d5d421d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: use consistent provider icon opacity'
+    commits:
+    - a8d629c90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'feat: add documentation claims checks'
+    commits:
+    - 75124fa6b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'feat: add weekly technical debt scan'
+    commits:
+    - 9a955e068
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'feat: trigger opencode from admin issue reports'
+    commits:
+    - 0ae5239d9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: auto-fix failed tests g10-87385f1e'
+    commits:
+    - 6f5558ea4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: auto-fix failed tests g11-3434d2db'
+    commits:
+    - 5d151f2ce
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: auto-fix failed tests g13-b60e2c90'
+    commits:
+    - 89bb6b99c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: preserve valid skill requests in malformed batches'
+    commits:
+    - 2d39d7463
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: prevent malformed event batch items from blocking results'
+    commits:
+    - a93737971
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'refactor: extract ActiveChat pure helpers'
+    commits:
+    - cfaf8b3ef
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'refactor: extract ActiveChat replay helpers'
+    commits:
+    - 831f326b8
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'feat: add explain in new chat action'
+    commits:
+    - 2fb4ffbfd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'feat: add self-host signup modes'
+    commits:
+    - 5ebb4f703
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: include docs in webapp image build'
+    commits:
+    - 0eaf4e4f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: include shared metadata in webapp image'
+    commits:
+    - 7593924f2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: move explain action into highlight menu'
+    commits:
+    - 41013cd8b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: show searched event providers in embeds'
+    commits:
+    - fd6fb7983
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'feat: add application embed live previews'
+    commits:
+    - e3243f6ef
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'feat: show app skill example chats'
+    commits:
+    - 27f6e8775
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: auto-fix failed tests g08-633ef2b7'
+    commits:
+    - f1b284ab7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: explain in new chat starts clean chat'
+    commits:
+    - 191a74dae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: filter empty weather legacy results'
+    commits:
+    - f1d3d39bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: filter empty weather preview days'
+    commits:
+    - 1663f2505
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: guard explain action on shared chats'
+    commits:
+    - d5ad431bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: guard weather day condition rendering'
+    commits:
+    - ad9be9b6f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: keep selection toolbar within mobile viewport'
+    commits:
+    - '681860336'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: normalize weather child results'
+    commits:
+    - 39d5877c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: normalize weather day child previews'
+    commits:
+    - 0d66ca1c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: open weather day previews from forecast'
+    commits:
+    - e9359a6d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: restore app skill example interactions'
+    commits:
+    - 4451ee9ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: select rendered search result embeds'
+    commits:
+    - bc17e09fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: store selected search child result'
+    commits:
+    - 482d1cca9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: use shared child embed fullscreen structure'
+    commits:
+    - 37f9379b4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: verify fork chat ownership after cache miss'
+    commits:
+    - f59e4efff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  social_or_video:
+  - date: '2026-06-01'
+    title: 'feat: add native offline prefetch sync'
+    commits:
+    - 167ac38c0
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-01'
+    title: 'fix: align projects navigation and sidebar'
+    commits:
+    - 91e88f2d0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-01'
+    title: 'fix: align projects workspace shell'
+    commits:
+    - 09ec7d8e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-01'
+    title: 'fix: bound startup chat sync'
+    commits:
+    - 1b45ebba5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-01'
+    title: 'fix: contain sub-chat preview sync fanout'
+    commits:
+    - 6904f92d1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-01'
+    title: 'fix: hide empty guest memory categories'
+    commits:
+    - 5cd45e318
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-01'
+    title: 'fix: keep sub-chats scoped to parent chats'
+    commits:
+    - 2d5ded51c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add Apple audio and PII composer parity'
+    commits:
+    - 0d22c5a00
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'feat: add Apple composer embed send parity'
+    commits:
+    - 24680a578
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'feat: add Apple composer upload previews'
+    commits:
+    - 27cb5fd05
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'feat: add Apple mention dropdown parity'
+    commits:
+    - 2970f4f61
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'feat: add demo usage data for marketing'
+    commits:
+    - f70dc0c75
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add native code run embed support'
+    commits:
+    - 1cb0407e0
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'feat: add sequential sub-chat stop handler'
+    commits:
+    - 1bcd5dd98
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add sub-chat fanout approval'
+    commits:
+    - '612705468'
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add weather forecast skill'
+    commits:
+    - a26752a67
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: add weather store examples'
+    commits:
+    - 9f7aeb20c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: improve Apple composer parity'
+    commits:
+    - ff1d7ad75
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'feat: improve mobile header navigation'
+    commits:
+    - 34b9887c1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'feat: route OpenAI OSS models through Bedrock EU'
+    commits:
+    - 901092a9d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: accept current image embed selector'
+    commits:
+    - 02998239f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: add weather day drilldown button'
+    commits:
+    - a2e15e78d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: align Apple upload endpoint'
+    commits:
+    - bb2430c65
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-02'
+    title: 'fix: align file attachment flow assertions'
+    commits:
+    - '438651907'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: align same-chat reminder ordering test'
+    commits:
+    - 162968bb0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: assert cli upload success signal'
+    commits:
+    - 135110c9c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: cap rendered sub-chat cards'
+    commits:
+    - 46de52c80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: capture weather day card clicks'
+    commits:
+    - e1c4d8047
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: correct weather app store previews'
+    commits:
+    - 5fff3637d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: initialize demo mode before settings auth check'
+    commits:
+    - 0a0fb00b5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: keep attachment sends available'
+    commits:
+    - 8cacd97a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: normalize header tab touch targets'
+    commits:
+    - 043ef3eda
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: open weather day drilldown'
+    commits:
+    - 9a02c462e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: open weather day fullscreen reliably'
+    commits:
+    - 5a445261c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: preserve e2e debug chat navigation'
+    commits:
+    - fa5a22cb5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: preserve js import inference order'
+    commits:
+    - 705dea4ed
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: relax reload image preview assertion'
+    commits:
+    - bc78aa6fc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: repair weather app store example UI'
+    commits:
+    - 1ff5bed70
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: repair weather day fullscreen drilldown'
+    commits:
+    - 55df74d43
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: resolve weather provider logos'
+    commits:
+    - 3da9bf66c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: scope attachment persistence spec'
+    commits:
+    - 62701fa71
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: send origin on cli uploads'
+    commits:
+    - a68ceab76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: stabilize attachment spec navigation'
+    commits:
+    - 234764a0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: stabilize urgent e2e failures'
+    commits:
+    - 28d4fc4dd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: tolerate travel connections no-results'
+    commits:
+    - 9f6e9c640
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: tolerate travel stays no-results'
+    commits:
+    - 33860e750
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: treat sub-chat cap as concurrency only'
+    commits:
+    - 1a70c8ee8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: update reminder email settings path'
+    commits:
+    - 5552186fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: use demo billing values in marketing mode'
+    commits:
+    - 85b4577d4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: use stable cli upload fixture'
+    commits:
+    - 6a5d4038e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: use weather day card drilldown'
+    commits:
+    - f2dc454c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: wait for attachment chat cold sync'
+    commits:
+    - d7d863964
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: wait for cli image embed persistence'
+    commits:
+    - 0b36c3b13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-02'
+    title: 'fix: wire native code run renderer'
+    commits:
+    - 0b3a5c010
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-03'
+    title: 'fix: capture weather day clicks'
+    commits:
+    - 5e17c7fbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: center daily inspiration wiki text'
+    commits:
+    - c74cc0ecd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: derive selected weather day from loaded days'
+    commits:
+    - 559b3eb90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: keep weather day drilldown local'
+    commits:
+    - ade635edb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: localize Wikipedia inline links'
+    commits:
+    - 032438d0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: open unified weather day previews'
+    commits:
+    - a03cc302b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: open weather day on pointer interaction'
+    commits:
+    - 6e57d4bd9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: pass selected weather day directly'
+    commits:
+    - 05ec9376d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: read cached chat versions as model'
+    commits:
+    - e96f82428
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: receive weather day pointer events'
+    commits:
+    - aa7e257f1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: render selected weather day directly'
+    commits:
+    - '179186245'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: repair weather forecast embed UI'
+    commits:
+    - 757f57d5b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: respect event provider selection'
+    commits:
+    - bf9b898e7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: restore unified weather day previews'
+    commits:
+    - 5c5a6f51f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: route weather day drilldown'
+    commits:
+    - 8632c866e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'fix: show event provider logos'
+    commits:
+    - 9cc0db36c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-03'
+    title: 'perf: optimize docs route loading'
+    commits:
+    - 2e9849b80
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add GPN and Congress schedule search'
+    commits:
+    - 5a68b4abb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add newsletter campaign scheduler'
+    commits:
+    - 2c55eb812
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add predefined CLI settings commands'
+    commits:
+    - 7343eec58
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: add weekly accessibility audit email'
+    commits:
+    - 8a7ede09f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'feat: expand CLI settings parity'
+    commits:
+    - 76735f92a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: allow conference-only event searches'
+    commits:
+    - '151588381'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: auto-fix failed tests g01-49c276da'
+    commits:
+    - 819c4f583
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: cache sanitized imported messages'
+    commits:
+    - a83ab7b86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: correct mobile OpenMates header icon'
+    commits:
+    - 769758f80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: group image result embeds'
+    commits:
+    - 47c7dc345
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: harden auth enumeration responses'
+    commits:
+    - 59f63f60d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: include fresh imports in export manifest'
+    commits:
+    - 364323bb9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: index imported chats for export'
+    commits:
+    - c803769b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: protect dev test recordings'
+    commits:
+    - d3ebb6d47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: render OpenMates provider logo'
+    commits:
+    - e17efd3c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: store CLI email key for refunds'
+    commits:
+    - b195b362f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: upgrade @sveltejs/kit to 2.60.1 (GHSA-hgv7-v322-mmgr)'
+    commits:
+    - d791fbeb3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: upgrade vitest to 4.1.0 (GHSA-5xrq-8626-4rwp)'
+    commits:
+    - 33d5d421d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-04'
+    title: 'fix: use consistent provider icon opacity'
+    commits:
+    - a8d629c90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'feat: add documentation claims checks'
+    commits:
+    - 75124fa6b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'feat: add weekly technical debt scan'
+    commits:
+    - 9a955e068
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'feat: trigger opencode from admin issue reports'
+    commits:
+    - 0ae5239d9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: auto-fix failed tests g10-87385f1e'
+    commits:
+    - 6f5558ea4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: auto-fix failed tests g11-3434d2db'
+    commits:
+    - 5d151f2ce
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: auto-fix failed tests g13-b60e2c90'
+    commits:
+    - 89bb6b99c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: preserve valid skill requests in malformed batches'
+    commits:
+    - 2d39d7463
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'fix: prevent malformed event batch items from blocking results'
+    commits:
+    - a93737971
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'refactor: extract ActiveChat pure helpers'
+    commits:
+    - cfaf8b3ef
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-05'
+    title: 'refactor: extract ActiveChat replay helpers'
+    commits:
+    - 831f326b8
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'feat: add explain in new chat action'
+    commits:
+    - 2fb4ffbfd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'feat: add self-host signup modes'
+    commits:
+    - 5ebb4f703
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'feat: add unified notification events'
+    commits:
+    - 34669e142
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-06'
+    title: 'fix: include docs in webapp image build'
+    commits:
+    - 0eaf4e4f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: include shared metadata in webapp image'
+    commits:
+    - 7593924f2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: move explain action into highlight menu'
+    commits:
+    - 41013cd8b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-06'
+    title: 'fix: show searched event providers in embeds'
+    commits:
+    - fd6fb7983
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'feat: add application embed live previews'
+    commits:
+    - e3243f6ef
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'feat: show app skill example chats'
+    commits:
+    - 27f6e8775
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: auto-fix failed tests g08-633ef2b7'
+    commits:
+    - f1b284ab7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: explain in new chat starts clean chat'
+    commits:
+    - 191a74dae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: filter empty weather legacy results'
+    commits:
+    - f1d3d39bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: filter empty weather preview days'
+    commits:
+    - 1663f2505
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: guard explain action on shared chats'
+    commits:
+    - d5ad431bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: guard weather day condition rendering'
+    commits:
+    - ad9be9b6f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: keep selection toolbar within mobile viewport'
+    commits:
+    - '681860336'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: normalize weather child results'
+    commits:
+    - 39d5877c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: normalize weather day child previews'
+    commits:
+    - 0d66ca1c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: open weather day previews from forecast'
+    commits:
+    - e9359a6d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: restore app skill example interactions'
+    commits:
+    - 4451ee9ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: select rendered search result embeds'
+    commits:
+    - bc17e09fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: store selected search child result'
+    commits:
+    - 482d1cca9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: use shared child embed fullscreen structure'
+    commits:
+    - 37f9379b4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-07'
+    title: 'fix: verify fork chat ownership after cache miss'
+    commits:
+    - f59e4efff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+risks:
+  communication:
+  - Use weekly themes for PR/release/newsletter drafting; do not list every daily item one-by-one.
+  - Keep dev_only and unknown_release_status items out of public newsletters until released on main.
+sources:
+  daily_files:
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-06-01.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-06-02.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-06-03.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-06-04.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-06-05.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-06-06.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-06-07.yml
+llm_summary:
+  overview: This week, OpenMates delivered a suite of new user-facing capabilities, including a Weather Forecast skill with
+    interactive drilldowns and an 'Explain in new chat' feature for focused message clarification. Significant progress was
+    made on self-hosting flexibility with new signup modes, while system reliability was bolstered through a new documentation
+    claims verification system and enhanced skill execution resilience. Power users also benefit from expanded CLI settings
+    parity and new event search providers for major tech conferences.
+  released_changes:
+  - text: OpenMates added a Weather Forecast skill, allowing users to view forecasts and drill down into specific daily details
+      with interactive cards.
+    evidence:
+      commits:
+      - a26752a67
+      - 9f7aeb20c
+    release_status: released_main
+  - text: A new 'Explain in new chat' action was introduced, allowing users to fork a conversation from a specific highlighted
+      message for focused clarification.
+    evidence:
+      commits:
+      - 2fb4ffbfd
+      - 41013cd8b
+    release_status: released_main
+  - text: New signup modes for self-hosted instances now support invite codes and various authentication requirements for
+      private registration.
+    evidence:
+      commits:
+      - 5ebb4f703
+    release_status: released_main
+  - text: Example chats were added to app skill details, providing practical demonstrations of how specific skills function
+      within the ecosystem.
+    evidence:
+      commits:
+      - 27f6e8775
+    release_status: released_main
+  - text: The OpenMates CLI now features expanded settings parity with the web interface and new predefined commands for configuration
+      management.
+    evidence:
+      commits:
+      - 76735f92a
+      - 7343eec58
+    release_status: released_main
+  - text: Sub-chat orchestration was enhanced with fanout approval and sequential stop handling for more controlled AI delegation.
+    evidence:
+      commits:
+      - '612705468'
+      - 1bcd5dd98
+    release_status: released_main
+  - text: A new event search provider was added to support searching schedules for major tech events like GPN and Congress.
+    evidence:
+      commits:
+      - 5a68b4abb
+    release_status: released_main
+  - text: A new verification system now automatically checks documentation claims against the codebase to ensure the user
+      guide remains accurate.
+    evidence:
+      commits:
+      - 75124fa6b
+    release_status: released_main
+  - text: Automated weekly accessibility audit emails were implemented to track and report on UI compliance.
+    evidence:
+      commits:
+      - 8a7ede09f
+    release_status: released_main
+  - text: Route loading for the documentation web application was optimized to improve navigation speed and performance.
+    evidence:
+      commits:
+      - 2e9849b80
+    release_status: released_main
+  bug_fixes:
+  - text: The weather embed experience was significantly stabilized with fixes for empty result filtering, normalized child
+      preview structures, and restored interactions when opening day views from a forecast.
+    evidence:
+      commits:
+      - f1d3d39bb
+      - 1663f2505
+      - 39d5877c8
+      - ad9be9b6f
+      - 0d66ca1c7
+      - e9359a6d5
+      - 4451ee9ab
+    release_status: released_main
+  - text: Authentication responses were hardened to prevent account enumeration, improving the security of the login flow.
+    evidence:
+      commits:
+      - 59f63f60d
+    release_status: released_main
+  - text: Data portability was improved by ensuring imported chats are correctly indexed, cached, and included in account
+      export manifests.
+    evidence:
+      commits:
+      - c803769b1
+      - 364323bb9
+      - a83ab7b86
+    release_status: released_main
+  - text: Skill execution resilience was enhanced to ensure that malformed items within a batch do not block valid requests
+      or results.
+    evidence:
+      commits:
+      - 2d39d7463
+      - a93737971
+    release_status: released_main
+  - text: Mobile UI refinements for chat message selection now ensure the selection toolbar remains within the viewport and
+      guard the explain action on shared chats.
+    evidence:
+      commits:
+      - '681860336'
+      - d5ad431bb
+    release_status: released_main
+  - text: Sub-chats are now strictly scoped to their parent chats, and the synchronization of sub-chat previews has been optimized
+      to prevent unnecessary network traffic.
+    evidence:
+      commits:
+      - 2d5ded51c
+      - 6904f92d1
+    release_status: released_main
+  - text: CLI file upload stability was improved by ensuring origin headers are sent and stabilizing success signals for image
+      embed persistence.
+    evidence:
+      commits:
+      - a68ceab76
+      - 135110c9c
+      - 0b36c3b13
+      - 6a5d4038e
+    release_status: released_main
+  - text: Empty guest memory categories are now hidden in the settings view to streamline the experience for unauthenticated
+      users.
+    evidence:
+      commits:
+      - 5cd45e318
+    release_status: released_main
+  - text: A regression in the signup flow for users in the EU was resolved to ensure consistent account creation.
+    evidence:
+      commits:
+      - f1b284ab7
+    release_status: released_main
+  - text: Image result embeds are now correctly grouped within the chat interface for better visual organization.
+    evidence:
+      commits:
+      - 47c7dc345
+    release_status: released_main
+  unreleased_progress:
+  - text: Progress on the unreleased iOS and macOS platforms included native offline prefetch sync, mention dropdowns, composer
+      previews, and audio recording parity.
+    evidence:
+      commits:
+      - 167ac38c0
+      - dbb440c3f
+      - 1cb0407e0
+      - 2970f4f61
+      - 27cb5fd05
+      - 24680a578
+      - 0d22c5a00
+      - ff1d7ad75
+      - 0b3a5c010
+      - bb2430c65
+    release_status: released_main
+  - text: Development began on a unified notification event system to support real-time updates and push notifications on
+      Apple platforms.
+    evidence:
+      commits:
+      - 34669e142
+    release_status: released_main
+  - text: The projects and tasks platforms received updates to workspace navigation and shell alignment, though these features
+      remain disabled.
+    evidence:
+      commits:
+      - 09ec7d8e5
+      - 91e88f2d0
+      - aa5147ba2
+      - 6f5558ea4
+    release_status: released_main
+  - text: Initial development of application embed live previews, including backend task runners and frontend renderers, is
+      underway.
+    evidence:
+      commits:
+      - e3243f6ef
+    release_status: released_main
+  - text: A new internal Linear API CLI was introduced to streamline task management and credential handling.
+    evidence:
+      commits:
+      - 360ce3448
+      - 4af58d03e
+      - 4a97ee18a
+    release_status: released_main
+  - text: Infrastructure for automatically fixing failed tests was expanded with session isolation and retry logic for developer
+      workflows.
+    evidence:
+      commits:
+      - 710393b28
+      - cabcc3699
+      - 841cdf7c7
+      - 59d841418
+      - 63faab728
+      - 13349f8e1
+      - 592734a47
+      - a62ff9099
+      - f5a4ac583
+    release_status: released_main
+  - text: An internal Discord digest was added for reporting degraded services and system health.
+    evidence:
+      commits:
+      - '601499634'
+    release_status: released_main
+  - text: Internal workflows for user guide reviews and admin notifications for documentation updates were introduced.
+    evidence:
+      commits:
+      - 3a58a6271
+      - dee4a13f4
+      - d533d00ae
+    release_status: released_main
+  internal_progress:
+  - text: Docker port exposure was restricted to improve environment security for self-hosted installations.
+    evidence:
+      commits:
+      - f7180da5f
+    release_status: released_main
+  - text: SwiftLint workflows were integrated to automate code quality checks for Apple-related codebases.
+    evidence:
+      commits:
+      - d6efbafd2
+    release_status: released_main
+  - text: Core dependencies were updated, including @sveltejs/kit, vitest, and aiohttp, to address security advisories and
+      improve stability.
+    evidence:
+      commits:
+      - d791fbeb3
+      - 33d5d421d
+      - 337bdc168
+    release_status: released_main
+  - text: Infrastructure for self-hosted installations was hardened with a new smoke test suite covering browser sessions,
+      admin promotion, and startup reliability.
+    evidence:
+      commits:
+      - 24d791d85
+      - 32fca5de7
+      - 72433d032
+      - 75f6a944e
+      - 1f23125c8
+      - 17041e55a
+      - 5c3f910b0
+      - e89396b09
+    release_status: released_main
+  - text: Backend healthchecks were updated to use Directus ping and configured database credentials for more accurate service
+      monitoring.
+    evidence:
+      commits:
+      - 5fbd457c9
+      - fc464ec92
+      - 5ead61303
+      - d3c26adcc
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New Weather Forecast skill with interactive daily drilldowns.
+      evidence:
+        commits:
+        - a26752a67
+        - 9f7aeb20c
+      reason: A significant new user-facing capability with visual components and interactive drilldowns.
+    - text: 'Explain in New Chat: Highlight any message text to start a focused clarification conversation.'
+      evidence:
+        commits:
+        - 2fb4ffbfd
+        - 41013cd8b
+      reason: New user-facing interaction for chat clarification and context management.
+    - text: 'Flexible Self-Host Signups: New support for invite-only and email-based registration modes on private instances.'
+      evidence:
+        commits:
+        - 5ebb4f703
+      reason: Significant update for the self-hosting community, adding flexible registration modes.
+    - text: New example chats for app skills.
+      evidence:
+        commits:
+        - 27f6e8775
+      reason: Provides a visual way for users to understand app capabilities through practical demonstrations.
+    - text: CLI settings parity and predefined commands.
+      evidence:
+        commits:
+        - 76735f92a
+        - 7343eec58
+      reason: Significant expansion of CLI capabilities for power users and developers.
+    - text: Enhanced sub-chat orchestration with fanout approval and sequential stop handling.
+      evidence:
+        commits:
+        - '612705468'
+        - 1bcd5dd98
+      reason: Improves the core AI orchestration experience for complex tasks.
+    - text: GPN and Congress event schedule search.
+      evidence:
+        commits:
+        - 5a68b4abb
+      reason: New user-facing search capability for major tech events.
+    - text: Automated documentation claims verification.
+      evidence:
+        commits:
+        - 75124fa6b
+      reason: Introduces a robust way to ensure user-facing documentation remains accurate against the codebase.
+    - text: Weekly accessibility audit emails.
+      evidence:
+        commits:
+        - 8a7ede09f
+      reason: New automated reporting feature for accessibility compliance.
+    - text: Optimized route loading for the documentation web application.
+      evidence:
+        commits:
+        - 2e9849b80
+      reason: Significant performance improvement for the documentation platform.
+    exclude:
+    - text: Apple platform parity features (iOS/macOS).
+      evidence:
+        commits:
+        - 167ac38c0
+        - dbb440c3f
+        - 1cb0407e0
+        - 2970f4f61
+        - 27cb5fd05
+        - 24680a578
+        - 0d22c5a00
+        - ff1d7ad75
+        - 0b3a5c010
+        - bb2430c65
+        - 34669e142
+      reason: These changes relate to the iOS and macOS platforms, which are currently disabled features.
+    - text: Projects and Tasks workspace updates.
+      evidence:
+        commits:
+        - 09ec7d8e5
+        - 91e88f2d0
+        - aa5147ba2
+        - 6f5558ea4
+      reason: These changes relate to the projects and tasks platforms, which are currently disabled features.
+    - text: Application embed live previews.
+      evidence:
+        commits:
+        - e3243f6ef
+      reason: The application embed feature is currently disabled in the project configuration.
+    rationale: The recommended items focus on major user-facing features like the Weather skill, chat clarification tools,
+      and self-hosting improvements. Disabled platforms (Apple, Projects, Tasks) and unreleased application previews are excluded
+      to ensure communication remains relevant to current users.
+  social_video_recommendations:
+  - idea: Showcase the new Weather Forecast skill by asking for a weekly outlook and demonstrating the interactive daily drilldown
+      cards.
+    priority: high
+    reason: The weather skill is highly visual and demonstrates the project's ability to integrate real-time data into interactive
+      UI components.
+    evidence:
+      commits:
+      - a26752a67
+      - f2dc454c8
+  - idea: Demonstrate the 'Explain in new chat' workflow to show how OpenMates handles context and clarification.
+    priority: high
+    reason: It is a concrete, visual productivity feature that shows how OpenMates handles context.
+    evidence:
+      commits:
+      - 2fb4ffbfd
+      - 41013cd8b
+  - idea: A short clip showing how to browse app skills and clicking into the new example chats to see them in action.
+    priority: medium
+    reason: This helps users understand the value of different apps within the ecosystem through visual discovery.
+    evidence:
+      commits:
+      - 27f6e8775
+  quality_notes:
+  - The introduction of 'Doc Claims' (75124fa6b) provides a new layer of automated verification to ensure the user guide never
+    goes out of sync with the application.
+  - Security hardening addressed potential account enumeration vulnerabilities (59f63f60d) and restricted Docker port exposure
+    (f7180da5f).
+  - Skill execution is now more robust against malformed data in multi-item batches (2d39d7463).
+  validation_warnings: []

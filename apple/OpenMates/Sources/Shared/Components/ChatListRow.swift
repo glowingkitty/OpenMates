@@ -16,6 +16,7 @@ import SwiftUI
 
 struct ChatListRow: View {
     let chat: Chat
+    @ObservedObject private var draftService = DraftService.shared
 
     private struct PublicIconDescriptor {
         let icon: String
@@ -56,9 +57,37 @@ struct ChatListRow: View {
         }
     }
 
+    private var accessibilityScope: String {
+        if isSubChatRow { return "sub-chat" }
+        if chat.id.hasPrefix("demo-") || chat.id.hasPrefix("example-") ||
+            chat.id.hasPrefix("announcements-") || chat.id.hasPrefix("tips-") ||
+            chat.id.hasPrefix("legal-") {
+            return "public-chat"
+        }
+        return "user-chat"
+    }
+
+    private var isSubChatRow: Bool {
+        chat.isSubChat == true || chat.parentId != nil
+    }
+
+    private var draftPreview: String? {
+        guard (chat.draftV ?? 0) > 0 else { return nil }
+        let preview = draftService.draftPreview(chatId: chat.id)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return preview?.isEmpty == false ? preview : nil
+    }
+
+    private var titleForDisplay: String {
+        let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if title.isEmpty, let draftPreview {
+            return draftPreview
+        }
+        return chat.displayTitle
+    }
+
     var body: some View {
         HStack(spacing: .spacing4) {
-            if chat.isSubChat == true {
+            if isSubChatRow {
                 Rectangle()
                     .fill(Color.grey40)
                     .frame(width: 2, height: 28)
@@ -105,14 +134,19 @@ struct ChatListRow: View {
             }
 
             VStack(alignment: .leading, spacing: .spacing1) {
-                Text(chat.displayTitle)
+                Text(titleForDisplay)
                     .font(.omP)
                     .fontWeight(.medium)
                     .foregroundStyle(Color.fontPrimary)
                     .lineLimit(1)
 
+                if let preview = draftPreview, preview != titleForDisplay {
+                    Text(preview)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontTertiary)
+                        .lineLimit(1)
                 // Hide timestamps for demo/example/legal chats (static content)
-                if let date = chat.lastMessageDate, !chat.id.hasPrefix("demo-"),
+                } else if let date = chat.lastMessageDate, !chat.id.hasPrefix("demo-"),
                    !chat.id.hasPrefix("example-"), !chat.id.hasPrefix("legal-"),
                    !chat.id.hasPrefix("announcements-") {
                     Text(date, style: .relative)
@@ -129,11 +163,12 @@ struct ChatListRow: View {
             }
         }
         .padding(.vertical, .spacing4)
-        .padding(.leading, chat.isSubChat == true ? .spacing10 : .spacing6)
+        .padding(.leading, isSubChatRow ? .spacing10 : .spacing6)
         .padding(.trailing, .spacing6)
         .accessibilityElement(children: .combine)
-        .accessibilityIdentifier(chat.isSubChat == true ? "sub-chat-item" : "chat-item-wrapper")
-        .accessibilityLabel("\(chat.displayTitle)\(chat.isSubChat == true ? ", sub-chat" : "")\(chat.isPinned == true ? ", pinned" : "")")
+        .accessibilityIdentifier(isSubChatRow ? "sub-chat-item" : "chat-item-wrapper")
+        .accessibilityValue(accessibilityScope)
+        .accessibilityLabel("\(titleForDisplay)\(isSubChatRow ? ", sub-chat" : "")\(chat.isPinned == true ? ", pinned" : "")")
         .accessibilityHint("Double tap to open, long press for options")
     }
 }

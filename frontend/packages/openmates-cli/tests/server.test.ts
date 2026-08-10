@@ -1,3 +1,4 @@
+// contract-test-file: tooling
 /**
  * Unit tests for CLI server management commands.
  *
@@ -44,6 +45,10 @@ import {
   resolveServerPath,
 } from "../src/serverConfig.ts";
 import {
+  ensureSourceInstallTranslations,
+  sourceInstallLocalesPath,
+} from "../src/sourceInstallTranslations.ts";
+import {
   parseServerRole,
   planBackup,
   planCaddyCommand,
@@ -57,8 +62,26 @@ import {
   findMissingRequiredSecrets,
   summarizeSecretPreflight,
   appendSelectedServices,
+  parseEnvEntries,
+  redactEnvValue,
   shouldCheckWebHealth,
+  unsetEnvValue,
+  upsertEnvValue,
+  planOpenMatesCloudOverlay,
+  appendOpenMatesCloudComposeFiles,
+  planDockerComposeArgs,
+  defaultOpenMatesCloudComposeFile,
+  defaultOpenMatesCloudOverlayPath,
+  buildRuntimeCheckInventory,
+  planRuntimeMonitoringServices,
+  planRuntimeVerification,
+  resolveRuntimeDeploymentMode,
 } from "../src/serverPlanning.ts";
+import {
+  applyRuntimeCheckResults,
+  signRuntimeWebhookPayload,
+  validateRuntimeWebhookDestination,
+} from "../src/serverHealth.ts";
 import { renderSupportStartReminder } from "../src/support.ts";
 
 // server.ts imports serverConfig.js which breaks with --experimental-strip-types.
@@ -99,19 +122,39 @@ function hasLlmCredentials(envPath: string): boolean {
 /**
  * Inline copy of composeArgs for testing without requiring tsx.
  */
+function readEnvMapForComposeTest(installPath: string): Record<string, string> {
+  const envPath = join(installPath, ".env");
+  if (!existsSync(envPath)) return {};
+  const values: Record<string, string> = {};
+  for (const line of readFileSync(envPath, "utf-8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) continue;
+    values[trimmed.slice(0, eqIdx)] = trimmed.slice(eqIdx + 1).replace(/^"|"$/g, "");
+  }
+  return values;
+}
+
 function composeArgs(installPath: string, withOverrides: boolean, installMode?: "image" | "source"): string[] {
   const resolvedInstallMode = installMode ?? (
     existsSync(join(installPath, "backend", "core", "docker-compose.selfhost.yml")) ? "image" : "source"
   );
-  const COMPOSE_FILE = resolvedInstallMode === "image"
-    ? join("backend", "core", "docker-compose.selfhost.yml")
-    : join("backend", "core", "docker-compose.yml");
-  const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
-  const args = ["compose", "--env-file", ".env", "-f", COMPOSE_FILE];
-  if (withOverrides && existsSync(join(installPath, COMPOSE_OVERRIDE))) {
-    args.push("-f", COMPOSE_OVERRIDE);
-  }
-  return args;
+  const env = readEnvMapForComposeTest(installPath);
+  const deploymentMode = env.OPENMATES_CLOUD_OVERLAY_ENABLED === "true" ? "official_cloud" : "self_host";
+  const overlayPath = env.OPENMATES_CLOUD_OVERLAY_PATH || undefined;
+  const resolvedOverlayPath = overlayPath ?? defaultOpenMatesCloudOverlayPath(installPath);
+  const overlayComposeFile = defaultOpenMatesCloudComposeFile(resolvedOverlayPath);
+  return planDockerComposeArgs({
+    openMatesPath: installPath,
+    installMode: resolvedInstallMode,
+    withOverrides,
+    overrideExists: existsSync(join(installPath, "backend", "core", "docker-compose.override.yml")),
+    deploymentMode,
+    overlayPath,
+    overlayComposeFile,
+    overlayExists: deploymentMode === "official_cloud" && existsSync(resolvedOverlayPath) && existsSync(overlayComposeFile),
+  });
 }
 
 function getDefaultImageTagForVersion(version: string): string {
@@ -440,6 +483,155 @@ describe("composeArgs", () => {
     assert.equal(args.length, 5); // No override added
     rmSync(emptyDir, { recursive: true, force: true });
   });
+
+  it("appends the OpenMatesCloud compose file when env enables official-cloud mode", () => {
+    const rootDir = join(tmpdir(), `openmates-official-cloud-${Date.now()}`);
+    const installPath = join(rootDir, "OpenMates");
+    const overlayPath = join(rootDir, "OpenMatesCloud");
+    const overlayComposeFile = join(overlayPath, "docker-compose.openmatescloud.yml");
+    mkdirSync(join(installPath, "backend", "core"), { recursive: true });
+    mkdirSync(overlayPath, { recursive: true });
+    writeFileSync(join(installPath, "backend", "core", "docker-compose.yml"), "services: {}\n");
+    writeFileSync(join(installPath, ".env"), "OPENMATES_CLOUD_OVERLAY_ENABLED=true\n");
+    writeFileSync(overlayComposeFile, "services: {}\n");
+
+    const args = composeArgs(installPath, false, "source");
+
+    assert.deepEqual(args, [
+      "compose", "--env-file", ".env",
+      "-f", join("backend", "core", "docker-compose.yml"),
+      "-f", overlayComposeFile,
+    ]);
+    rmSync(rootDir, { recursive: true, force: true });
+  });
+
+  it("server composeArgs delegates to the shared OpenMatesCloud compose planner", () => {
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+    const composeSource = source.slice(source.indexOf("export function composeArgs"), source.indexOf("/** Ensure compose interpolation"));
+
+    assert.match(composeSource, /OPENMATES_CLOUD_OVERLAY_ENABLED/);
+    assert.match(composeSource, /planDockerComposeArgs/);
+  });
+
+  it("caps generated env backups so secret-bearing copies do not accumulate", () => {
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+    const pruneSource = source.slice(source.indexOf("function pruneEnvBackups"), source.indexOf("function backupEnvFile"));
+    const backupSource = source.slice(source.indexOf("function backupEnvFile"), source.indexOf("function writeEnvContent"));
+
+    assert.match(source, /const ENV_BACKUP_PREFIX = "\.env\.openmates-backup-"/);
+    assert.match(source, /const ENV_BACKUP_RETENTION_COUNT = 5/);
+    assert.match(pruneSource, /entry\.isFile\(\) && entry\.name\.startsWith\(ENV_BACKUP_PREFIX\)/);
+    assert.match(pruneSource, /backups\.slice\(0, Math\.max\(0, backups\.length - ENV_BACKUP_RETENTION_COUNT\)\)/);
+    assert.match(pruneSource, /rmSync\(join\(installPath, backup\), \{ force: true \}\)/);
+    assert.match(backupSource, /pruneEnvBackups\(installPath\)/);
+  });
+});
+
+describe("source install translations", () => {
+  it("copies generated locale JSON from a local source checkout", () => {
+    const rootDir = join(tmpdir(), `openmates-source-translations-${Date.now()}`);
+    const sourcePath = join(rootDir, "source");
+    const installPath = join(rootDir, "install");
+    const sourceLocaleDir = sourceInstallLocalesPath(sourcePath);
+    mkdirSync(sourceLocaleDir, { recursive: true });
+    mkdirSync(installPath, { recursive: true });
+    writeFileSync(join(sourceLocaleDir, "en.json"), JSON.stringify({ common: { ok: { text: "OK" } } }));
+    writeFileSync(join(sourceLocaleDir, "de.json"), JSON.stringify({ common: { ok: { text: "OK" } } }));
+
+    const result = ensureSourceInstallTranslations(installPath, sourcePath);
+
+    assert.equal(result.status, "copied");
+    assert.equal(result.copiedFiles, 2);
+    assert.equal(
+      readFileSync(join(sourceInstallLocalesPath(installPath), "en.json"), "utf-8"),
+      '{"common":{"ok":{"text":"OK"}}}',
+    );
+    assert.equal(
+      readFileSync(join(sourceInstallLocalesPath(installPath), "de.json"), "utf-8"),
+      '{"common":{"ok":{"text":"OK"}}}',
+    );
+    rmSync(rootDir, { recursive: true, force: true });
+  });
+
+  it("does not rebuild when required generated locale JSON already exists", () => {
+    const installPath = join(tmpdir(), `openmates-existing-translations-${Date.now()}`);
+    const localeDir = sourceInstallLocalesPath(installPath);
+    mkdirSync(localeDir, { recursive: true });
+    writeFileSync(join(localeDir, "en.json"), "{}");
+
+    const result = ensureSourceInstallTranslations(installPath, null);
+
+    assert.equal(result.status, "already_present");
+    assert.equal(result.copiedFiles, 0);
+    rmSync(installPath, { recursive: true, force: true });
+  });
+});
+
+describe("OpenMatesCloud overlay planning", () => {
+  const openMatesPath = join("/srv", "OpenMates");
+  const siblingOverlayPath = join("/srv", "OpenMatesCloud");
+
+  it("keeps self-host core mode free of overlay requirements", () => {
+    const plan = planOpenMatesCloudOverlay({
+      deploymentMode: "self_host",
+      openMatesPath,
+    });
+    const baseArgs = ["compose", "--env-file", ".env", "-f", join("backend", "core", "docker-compose.selfhost.yml")];
+
+    assert.equal(plan.enabled, false);
+    assert.equal(plan.overlayPath, null);
+    assert.deepEqual(plan.composeFiles, []);
+    assert.equal(plan.env.OPENMATES_CLOUD_OVERLAY_ENABLED, "false");
+    assert.match(plan.modeLabel, /self-host core/);
+    assert.deepEqual(appendOpenMatesCloudComposeFiles(baseArgs, plan), baseArgs);
+  });
+
+  it("resolves sibling official-cloud overlay and appends its compose file", () => {
+    const plan = planOpenMatesCloudOverlay({
+      deploymentMode: "official_cloud",
+      openMatesPath,
+      overlayExists: true,
+    });
+    const baseArgs = ["compose", "--env-file", ".env", "-f", join("backend", "core", "docker-compose.yml")];
+
+    assert.equal(plan.enabled, true);
+    assert.equal(plan.overlayPath, siblingOverlayPath);
+    assert.deepEqual(plan.composeFiles, [join(siblingOverlayPath, "docker-compose.openmatescloud.yml")]);
+    assert.equal(plan.env.OPENMATES_CLOUD_OVERLAY_ENABLED, "true");
+    assert.equal(plan.env.OPENMATES_CLOUD_OVERLAY_PATH, siblingOverlayPath);
+    assert.match(plan.modeLabel, /official cloud overlay/);
+    assert.deepEqual(appendOpenMatesCloudComposeFiles(baseArgs, plan), [
+      ...baseArgs,
+      "-f",
+      join(siblingOverlayPath, "docker-compose.openmatescloud.yml"),
+    ]);
+  });
+
+  it("plans real Docker compose args with official-cloud overlay included", () => {
+    const args = planDockerComposeArgs({
+      openMatesPath,
+      installMode: "source",
+      deploymentMode: "official_cloud",
+      overlayExists: true,
+    });
+
+    assert.deepEqual(args, [
+      "compose", "--env-file", ".env",
+      "-f", join("backend", "core", "docker-compose.yml"),
+      "-f", join(siblingOverlayPath, "docker-compose.openmatescloud.yml"),
+    ]);
+  });
+
+  it("requires the overlay path for official-cloud mode", () => {
+    assert.throws(
+      () => planOpenMatesCloudOverlay({
+        deploymentMode: "official_cloud",
+        openMatesPath,
+        overlayExists: false,
+      }),
+      /OpenMatesCloud overlay path is required/,
+    );
+  });
 });
 
 describe("feature override config", () => {
@@ -585,6 +777,52 @@ describe("role-based server planning", () => {
     }
   });
 
+  it("wires packaged core Promtail to generated config and required log sources", () => {
+    const template = readFileSync(new URL("../templates/core/docker-compose.selfhost.yml", import.meta.url), "utf-8");
+    const promtailBlock = template.match(/\n {2}promtail:\n([\s\S]*?)(?=\n {2}[a-zA-Z0-9_-]+:|\nnetworks:)/)?.[1] ?? "";
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+
+    assert.match(promtailBlock, /env_file: \.\.\/\.\.\/\.env/);
+    assert.match(promtailBlock, /\.\/monitoring\/promtail:\/etc\/promtail:ro/);
+    assert.match(promtailBlock, /\/var\/run\/docker\.sock:\/var\/run\/docker\.sock:ro/);
+    assert.match(promtailBlock, /api-logs:\/var\/log\/api:ro/);
+    assert.match(promtailBlock, /-config\.file=\/etc\/promtail\/promtail-config\.yaml/);
+    assert.match(source, /CORE_PROMTAIL_CONFIG_FILE = join\("backend", "core", "monitoring", "promtail", "promtail-config\.yaml"\)/);
+    assert.match(source, /writeFileSync\(promtailConfigPath, SELFHOST_PROMTAIL_CONFIG_TEMPLATE\)/);
+  });
+
+  it("keeps packaged core task workers wired to Vault and config volumes", () => {
+    const template = readFileSync(new URL("../templates/core/docker-compose.selfhost.yml", import.meta.url), "utf-8");
+    const baseBlock = template.slice(
+      template.indexOf("x-openmates-worker-base:"),
+      template.indexOf("services:")
+    );
+    const serviceBlock = (service: string) => {
+      const match = template.match(new RegExp(`\\n  ${service}:\\n([\\s\\S]*?)(?=\\n  [a-zA-Z0-9_-]+:|\\nvolumes:)`));
+      assert.ok(match, `missing ${service} service block`);
+      return match[1];
+    };
+
+    assert.match(baseBlock, /VAULT_URL: http:\/\/vault:8200/, "worker base must include Vault URL");
+    assert.match(baseBlock, /vault-setup-data:\/vault-data/, "worker base must mount Vault token data");
+    assert.match(baseBlock, /\.\.\/\.\.\/config:\/app_config/, "worker base must mount provider config");
+
+    for (const service of ["task-worker", "task-scheduler"]) {
+      const block = serviceBlock(service);
+      assert.match(block, /<<: \*openmates-worker-base/, `${service} must inherit worker base`);
+    }
+
+    const schedulerBlock = serviceBlock("task-scheduler");
+    assert.match(schedulerBlock, /vault-setup-data:\/vault-data/, "task-scheduler must keep Vault mount when adding beat volume");
+    assert.match(schedulerBlock, /\.\.\/\.\.\/config:\/app_config/, "task-scheduler must keep provider config mount when adding beat volume");
+  });
+
+  it("uses an ARM-compatible ClamAV image in the packaged upload template", () => {
+    const template = readFileSync(new URL("../templates/upload/docker-compose.yml", import.meta.url), "utf-8");
+
+    assert.match(template, /image: clamav\/clamav-debian:stable/);
+  });
+
   it("streams Postgres backups instead of buffering pg_dump in memory", () => {
     const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
 
@@ -693,6 +931,117 @@ describe("server preflight and Caddy planning", () => {
     assert.match(plan.unit, /openmates server update --role core --channel main --continuous/);
     assert.match(plan.unit, /OPENMATES_UPDATE_WINDOW=02:00-04:00 Europe\/Berlin/);
     assert.doesNotMatch(plan.unit + plan.timer, /SECRET__|API_KEY|TOKEN=/);
+  });
+
+  it("parses env entries by category with redacted secret values", () => {
+    const entries = parseEnvEntries([
+      "DATABASE_NAME=directus",
+      "SECRET__BRAVE__API_KEY=sk-brave",
+      "SECRET__GOOGLE__OAUTH_CLIENT_ID=client-id",
+      "OPENOBSERVE_ROOT_PASSWORD=secret",
+      "APP_AI_WORKER_CONCURRENCY=3",
+    ].join("\n"));
+
+    assert.deepEqual(entries.map((entry) => [entry.key, entry.category, entry.redactedValue]), [
+      ["APP_AI_WORKER_CONCURRENCY", "advanced", "3"],
+      ["SECRET__GOOGLE__OAUTH_CLIENT_ID", "integrations", "<redacted>"],
+      ["OPENOBSERVE_ROOT_PASSWORD", "observability", "<redacted>"],
+      ["SECRET__BRAVE__API_KEY", "providers", "<redacted>"],
+      ["DATABASE_NAME", "runtime", "directus"],
+    ]);
+    assert.equal(redactEnvValue("SECRET__OPENAI__API_KEY", "IMPORTED_TO_VAULT"), "IMPORTED_TO_VAULT");
+  });
+
+  it("updates and unsets one canonical env file without exposing other values", () => {
+    const initial = "DATABASE_NAME=directus\nSECRET__BRAVE__API_KEY=old\n";
+
+    const updated = upsertEnvValue(initial, "SECRET__BRAVE__API_KEY", "new-secret");
+    const added = upsertEnvValue(updated, "SECRET__FIRECRAWL__API_KEY", "firecrawl-secret");
+    const removed = unsetEnvValue(added, "SECRET__BRAVE__API_KEY");
+
+    assert.match(updated, /SECRET__BRAVE__API_KEY=new-secret/);
+    assert.match(added, /SECRET__FIRECRAWL__API_KEY=firecrawl-secret/);
+    assert.doesNotMatch(removed, /SECRET__BRAVE__API_KEY=/);
+    assert.match(removed, /DATABASE_NAME=directus/);
+  });
+});
+
+describe("post-update runtime health", () => {
+  it("fails closed to self-host for missing, malformed, duplicate, and conflicting mode", () => {
+    for (const envText of [
+      "",
+      "OPENMATES_DEPLOYMENT_MODE=cloud\n",
+      "OPENMATES_DEPLOYMENT_MODE=OFFICIAL_CLOUD\n",
+      "OPENMATES_DEPLOYMENT_MODE=official_cloud\nOPENMATES_DEPLOYMENT_MODE=self_host\n",
+      "OPENMATES_DEPLOYMENT_MODE=official_cloud\nOPENMATES_CLOUD_OVERLAY_ENABLED=false\n",
+    ]) {
+      const result = resolveRuntimeDeploymentMode({ envText, overlayExists: true });
+      assert.equal(result.effectiveMode, "self_host");
+      assert.equal(result.billingEnabled, false);
+    }
+  });
+
+  it("omits billing checks for self-host inventories", () => {
+    const checks = buildRuntimeCheckInventory("core", "self_host");
+    assert.ok(checks.some((check) => check.id === "core.chat_plumbing"));
+    assert.equal(checks.some((check) => check.id.startsWith("billing.")), false);
+    assert.ok(checks.every((check) => check.timeoutSeconds > 0 && check.timeoutSeconds <= 60));
+  });
+
+  it("uses one bounded parallel verification plan and reports restore availability", () => {
+    const withBackup = planRuntimeVerification({ role: "core", deploymentMode: "self_host", hasVerifiedBackup: true });
+    const withoutBackup = planRuntimeVerification({ role: "core", deploymentMode: "self_host", hasVerifiedBackup: false });
+
+    assert.equal(withBackup.globalDeadlineSeconds, 60);
+    assert.deepEqual(withBackup.phases[0].checkIds, ["compose.required_services", "http.role_health"]);
+    assert.equal(withBackup.restoreStatus, "available");
+    assert.match(withBackup.restoreCommand ?? "", /openmates server restore --role core/);
+    assert.equal(withoutBackup.restoreStatus, "restore_unavailable");
+    assert.equal(withoutBackup.restoreCommand, null);
+  });
+
+  it("renders an idempotent secret-free runtime monitor service and timer", () => {
+    const plan = planRuntimeMonitoringServices({ role: "core", installPath: "/srv/openmates" });
+
+    assert.equal(plan.serviceName, "openmates-core-runtime-monitor.service");
+    assert.equal(plan.timerName, "openmates-core-runtime-monitor.timer");
+    assert.match(plan.timer, /Persistent=true/);
+    assert.match(plan.unit, /server monitoring run --role core/);
+    assert.doesNotMatch(plan.unit + plan.timer, /SECRET__|API_KEY|TOKEN=/);
+  });
+
+  it("alerts on the second transient failure, deduplicates, then recovers", () => {
+    const first = applyRuntimeCheckResults(undefined, [{ id: "core.cache", status: "failed", failureClass: "connection" }], "2026-08-06T10:00:00Z");
+    const second = applyRuntimeCheckResults(first.state, [{ id: "core.cache", status: "failed", failureClass: "connection" }], "2026-08-06T10:05:00Z");
+    const repeated = applyRuntimeCheckResults(second.state, [{ id: "core.cache", status: "failed", failureClass: "connection" }], "2026-08-06T10:10:00Z");
+    const recovered = applyRuntimeCheckResults(repeated.state, [{ id: "core.cache", status: "passed" }], "2026-08-06T10:15:00Z");
+
+    assert.deepEqual(first.events, []);
+    assert.equal(second.events[0]?.type, "service_unhealthy");
+    assert.deepEqual(repeated.events, []);
+    assert.equal(recovered.events[0]?.type, "recovered");
+  });
+
+  it("tracks failure thresholds per check instead of combining unrelated failures", () => {
+    const first = applyRuntimeCheckResults(undefined, [{ id: "core.cache", status: "failed", failureClass: "connection" }], "2026-08-06T10:00:00Z");
+    const unrelated = applyRuntimeCheckResults(first.state, [{ id: "core.database", status: "failed", failureClass: "connection" }], "2026-08-06T10:05:00Z");
+
+    assert.deepEqual(unrelated.events, []);
+    assert.equal(unrelated.state.checks?.["core.cache"]?.consecutiveFailures, 1);
+    assert.equal(unrelated.state.checks?.["core.database"]?.consecutiveFailures, 1);
+  });
+
+  it("signs canonical webhook payloads and rejects unsafe destinations", async () => {
+    const signed = signRuntimeWebhookPayload({ type: "delivery_test", checkId: "monitor" }, "test-secret", "2026-08-06T10:00:00Z", "event-1");
+    assert.match(signed.headers["X-OpenMates-Signature"], /^sha256=/);
+    assert.equal(signed.headers["X-OpenMates-Event-Id"], "event-1");
+
+    await assert.rejects(() => validateRuntimeWebhookDestination("http://example.org/hook", ["93.184.216.34"]));
+    await assert.rejects(() => validateRuntimeWebhookDestination("https://example.org/hook", ["127.0.0.1"]));
+    await assert.rejects(() => validateRuntimeWebhookDestination("https://example.org/hook", ["169.254.1.1"]));
+    await assert.rejects(() => validateRuntimeWebhookDestination("https://example.org/hook", ["::ffff:a00:1"]));
+    await assert.rejects(() => validateRuntimeWebhookDestination("https://example.org/hook", ["::a9fe:101"]));
+    await assert.doesNotReject(() => validateRuntimeWebhookDestination("https://example.org/hook", ["93.184.216.34"]));
   });
 });
 

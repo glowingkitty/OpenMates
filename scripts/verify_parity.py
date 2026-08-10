@@ -137,9 +137,16 @@ def build_run_plan(args: argparse.Namespace) -> list[tuple[str, list[str] | None
     if args.apple == "skip":
         plan.append(("apple", None, args.skip_apple or "Apple verification explicitly skipped."))
     elif args.apple == "build":
-        plan.append(("apple", [sys.executable, "scripts/apple_remote.py", "build-ios", "--simulator", args.simulator], ""))
+        if args.apple_platform == "macos":
+            command = [sys.executable, "scripts/apple_remote.py", "build-macos"]
+        else:
+            command = [sys.executable, "scripts/apple_remote.py", "build-ios", "--simulator", args.simulator]
+        plan.append(("apple", command, ""))
     else:
-        command = [sys.executable, "scripts/apple_remote.py", "test-ios", "--simulator", args.simulator]
+        if args.apple_platform == "macos":
+            command = [sys.executable, "scripts/apple_remote.py", "test-macos"]
+        else:
+            command = [sys.executable, "scripts/apple_remote.py", "test-ios", "--simulator", args.simulator]
         if args.only_testing:
             command.extend(["--only-testing", args.only_testing])
         plan.append(("apple", command, ""))
@@ -217,6 +224,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--web-spec", action="append", help="Playwright spec to dispatch through scripts/tests.py; repeatable")
     parser.add_argument("--skip-web", help="Explicit reason for not running web Playwright verification")
     parser.add_argument("--apple", choices=["build", "test", "skip"], default="build")
+    parser.add_argument("--apple-platform", choices=["ios", "macos"], default="ios")
     parser.add_argument("--skip-apple", help="Explicit reason when --apple skip is used")
     parser.add_argument("--simulator", default="iPhone 17")
     parser.add_argument("--only-testing", help="Xcode only-testing selector for --apple test")

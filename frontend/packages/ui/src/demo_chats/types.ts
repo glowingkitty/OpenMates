@@ -1,4 +1,4 @@
-import type { PIIMapping } from "../types/chat";
+import type { ChatCompressionCheckpoint, ChatUsageEntry, PIIMapping } from "../types/chat";
 
 export interface DemoMessage {
   id: string;
@@ -67,6 +67,7 @@ export interface ExampleChatEmbed {
   content: string; // TOON-encoded content (cleartext)
   parent_embed_id: string | null;
   embed_ids: string[] | null; // child embed IDs for parent embeds
+  pii_mappings?: PIIMapping[]; // Optional synthetic sidecar mappings for example reveal/hide UI
 }
 
 /**
@@ -82,10 +83,12 @@ export interface ExampleSubChat {
   follow_up_suggestions: string[];
   messages: ExampleChatMessage[];
   embeds: ExampleChatEmbed[];
+  usage_entries?: ChatUsageEntry[];
   parent_id: string;
   is_sub_chat: true;
   budget_limit?: number | null;
   budget_spent?: number;
+  compression_checkpoints?: ChatCompressionCheckpoint[];
 }
 
 /**
@@ -124,7 +127,9 @@ export interface ExampleChat {
   follow_up_suggestions: string[];
   messages: ExampleChatMessage[];
   embeds: ExampleChatEmbed[];
+  usage_entries?: ChatUsageEntry[];
   sub_chats?: ExampleSubChat[];
+  compression_checkpoints?: ChatCompressionCheckpoint[];
   metadata: {
     featured: boolean; // Show in default 10 on homepage
     order: number; // Display order

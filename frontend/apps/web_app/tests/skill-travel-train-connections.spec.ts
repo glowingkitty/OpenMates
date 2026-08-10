@@ -25,11 +25,13 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
+	withMockMarker,
 	withLiveMockMarker
 } = require('./signup-flow-helpers');
 const {
 	loginToTestAccount,
 	startNewChat,
+	waitForChatReady,
 	sendMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
@@ -44,6 +46,8 @@ const {
 	saveCurrentFullscreenEmbed,
 	verifySavedMemoryEntry
 } = require('./helpers/saved-memory-test-helpers');
+
+const TRAIN_MIN_TRANSFER_MINUTES = 15;
 
 /** Get a date 14 days from now in YYYY-MM-DD format */
 function futureDate(daysAhead = 14): string {
@@ -61,7 +65,7 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
-	test('Phase 1: CLI train search returns results with booking URLs', async () => {
+	test('Phase 1: CLI train search returns a valid train response', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
 		const date = futureDate();
@@ -71,8 +75,13 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 				'apps', 'travel', 'search_connections',
 				'--input', JSON.stringify({
 					requests: [{
-						legs: [{ origin: 'Berlin', destination: 'Munich', date }],
-						transport_methods: ['train']
+						legs: [{ origin: 'Berlin', destination: 'Hamburg', date }],
+						providers: ['deutsche_bahn'],
+						transport_methods: ['train'],
+						owned_passes: ['deutschland_ticket'],
+						pass_only: true,
+						rail_products: ['regional', 'regional_express', 's_bahn'],
+						min_transfer_minutes: TRAIN_MIN_TRANSFER_MINUTES
 					}]
 				}),
 				'--json'
@@ -84,45 +93,81 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		const parsed = parseCliJson(result);
 		expect(parsed.success).toBe(true);
 
-		const results = parsed.data?.results?.[0]?.results || [];
-		expect(results.length).toBeGreaterThan(0);
+		const firstGroup = parsed.data?.results?.[0] || {};
+		const results = firstGroup.results || [];
+		expect(parsed.data?.provider).toMatch(/Deutsche Bahn|Flix/i);
 		console.log(`[P1] train search found ${results.length} connection(s)`);
+
+		if (results.length === 0) {
+			expect(firstGroup.result_count).toBe(0);
+			expect(firstGroup.no_result_reason).toMatch(/no_matches|filtered_out/);
+			console.log(`[P1] train provider returned a valid empty state: ${firstGroup.no_result_reason}`);
+			return;
+		}
 
 		// Verify train-specific fields
 		const first = results[0];
 		expect(first.transport_method).toBe('train');
-		expect(first.total_price).toBeTruthy();
-		expect(first.booking_url).toBeTruthy();
-		expect(first.booking_url).toContain('bahn.de');
-		console.log(`[P1] First: ${first.origin} → ${first.destination}, €${first.total_price}, booking: ${first.booking_url.substring(0, 60)}...`);
+		expect(first.transfer_quality?.min_transfer_minutes).toBe(TRAIN_MIN_TRANSFER_MINUTES);
+		if (first.fare?.is_pass_only) {
+			expect(first.total_price).toBeNull();
+			expect(first.fare.covered_by_passes).toContain('deutschland_ticket');
+			expect(first.fare.confidence).toBe('pass_only');
+			console.log(`[P1] First: ${first.origin} → ${first.destination}, covered by Deutschland Ticket`);
+		} else {
+			expect(first.total_price).toBeTruthy();
+			expect(first.booking_url).toBeTruthy();
+			expect(first.booking_url).toMatch(/bahn\.de|flixbus\.com|flixtrain\./i);
+			console.log(`[P1] First: ${first.origin} → ${first.destination}, €${first.total_price}, booking: ${first.booking_url.substring(0, 60)}...`);
+		}
+
+		const optimizedResults = results.filter((item: any) => item.optimization?.optimized_by === 'openmates');
+		for (const optimized of optimizedResults) {
+			expect(optimized.optimization.badge).toBe('Optimized by OpenMates');
+			expect(optimized.optimization.optimized_transfer_station).toBeTruthy();
+		}
+		console.log(`[P1] Optimized route candidates: ${optimizedResults.length}`);
 
 		// Verify provider attribution
-		expect(parsed.data?.provider).toBe('Deutsche Bahn');
+		expect(parsed.data?.provider).toContain('Deutsche Bahn');
 
 		// Verify legs and segments
 		expect(first.legs).toBeTruthy();
 		expect(first.legs.length).toBeGreaterThanOrEqual(1);
 		const leg = first.legs[0];
 		expect(leg.segments.length).toBeGreaterThanOrEqual(1);
+		for (const layover of leg.layovers || []) {
+			if (typeof layover.duration_minutes === 'number') {
+				expect(layover.duration_minutes).toBeGreaterThanOrEqual(TRAIN_MIN_TRANSFER_MINUTES);
+			}
+			if (layover.amenities?.groups) {
+				expect(layover.amenities.groups.food_drink).toBeTruthy();
+				expect(layover.amenities.groups.shops).toBeTruthy();
+				expect(layover.amenities.groups.toilets).toBeTruthy();
+			}
+		}
 		const seg = leg.segments[0];
 		expect(seg.carrier).toBeTruthy(); // e.g., "ICE"
-		expect(seg.number).toBeTruthy(); // e.g., "ICE 505"
 		expect(seg.departure_station).toBeTruthy();
 		expect(seg.arrival_station).toBeTruthy();
 		expect(seg.scheduled_departure_time || seg.departure_time).toBeTruthy();
-		expect(seg.actual_departure_time).toBeTruthy();
 		expect(seg.scheduled_arrival_time || seg.arrival_time).toBeTruthy();
-		expect(seg.actual_arrival_time).toBeTruthy();
-		expect(seg.departure_platform).toBeTruthy();
-		expect(seg.arrival_platform).toBeTruthy();
+		if (first.source_provider === 'deutsche_bahn') {
+			expect(seg.number).toBeTruthy(); // e.g., "ICE 505"
+			expect(seg.actual_departure_time).toBeTruthy();
+			expect(seg.actual_arrival_time).toBeTruthy();
+			expect(seg.departure_platform).toBeTruthy();
+			expect(seg.arrival_platform).toBeTruthy();
+		}
 		console.log(`[P1] First segment: ${seg.number} (${seg.carrier}), ${seg.departure_station} → ${seg.arrival_station}`);
 	});
 
 	test('Phase 2: CLI chat triggers train search', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
+		const date = futureDate();
 
 		const message = withLiveMockMarker(
-			'Find train connections from Hamburg to Frankfurt next week',
+			`I have a Deutschland Ticket. Find regional trains from Berlin to Hamburg on ${date} with at least ${TRAIN_MIN_TRANSFER_MINUTES} minutes to change and tell me what is at the transfer station.`,
 			'travel_train_cli'
 		);
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 90_000);
@@ -145,13 +190,15 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		const logCheckpoint = createSignupLogger('skill-travel-train');
 		await archiveExistingScreenshots(logCheckpoint);
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
+		const date = futureDate();
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);
+		await waitForChatReady(page, logCheckpoint, 90_000);
 
 		await sendMessage(
 			page,
-			withLiveMockMarker('Find trains from Berlin to Dresden next week', 'travel_train_web'),
+			withMockMarker(`I have a Deutschland Ticket. Find regional trains from Berlin to Hamburg on ${date} with at least ${TRAIN_MIN_TRANSFER_MINUTES} minutes to change and tell me what is at the transfer station.`, 'travel_train_web'),
 			logCheckpoint, takeStepScreenshot, 'travel-train'
 		);
 
@@ -197,12 +244,30 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		const metaEl = previewDetails.getByTestId('connection-meta');
 		await expect(metaEl).toBeVisible();
 
+		const optimizationBadges = fullscreenOverlay.getByTestId('connection-optimization-badge');
+		const optimizationBadgeCount = await optimizationBadges.count();
+		if (optimizationBadgeCount > 0) {
+			await expect(optimizationBadges.first()).toContainText('Optimized by OpenMates');
+			logCheckpoint(`Optimized route badge shown on ${optimizationBadgeCount} preview card(s).`);
+		} else {
+			logCheckpoint('No optimized route candidate returned by DB for this run; continuing with transfer-quality checks.');
+		}
+
 		logCheckpoint('Provider favicon shown in the preview card.');
 
 		await takeStepScreenshot(page, 'train-preview-verified');
 
 		// ── Open child connection fullscreen ──
-		await firstPreview.click();
+		let selectedPreview = firstPreview;
+		for (let i = 0; i < cardCount; i += 1) {
+			const candidate = resultCards.nth(i);
+			const candidateMeta = await candidate.getByTestId('connection-meta').textContent();
+			if (candidateMeta && !/\bDirect\b/i.test(candidateMeta)) {
+				selectedPreview = candidate;
+				break;
+			}
+		}
+		await selectedPreview.click();
 		await page.waitForTimeout(1500);
 
 		// The details card should be visible
@@ -218,6 +283,25 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		expect(segCount).toBeGreaterThanOrEqual(1);
 		logCheckpoint(`Details card has ${segCount} segment card(s).`);
 
+		const transferQualitySummary = detailsCard.getByTestId('transfer-quality-summary');
+		await expect(transferQualitySummary).toBeVisible({ timeout: 5000 });
+		await expect(transferQualitySummary).toContainText(`${TRAIN_MIN_TRANSFER_MINUTES} min`);
+		logCheckpoint(`Transfer quality summary: ${await transferQualitySummary.textContent()}`);
+
+		const layoverStatuses = detailsCard.getByTestId('layover-transfer-status');
+		if (await layoverStatuses.count()) {
+			await expect(layoverStatuses.first()).toContainText('transfer');
+			logCheckpoint(`Layover transfer status: ${await layoverStatuses.first().textContent()}`);
+		}
+
+		const transferAmenities = detailsCard.getByTestId('transfer-amenities');
+		if (await transferAmenities.count()) {
+			await expect(transferAmenities.first().getByTestId('transfer-amenity-food-drink')).toBeVisible();
+			await expect(transferAmenities.first().getByTestId('transfer-amenity-shops')).toBeVisible();
+			await expect(transferAmenities.first().getByTestId('transfer-amenity-toilets')).toBeVisible();
+			logCheckpoint(`Transfer amenities: ${await transferAmenities.first().textContent()}`);
+		}
+
 		// ── Verify booking CTA is pre-resolved (no loading state) ──
 		// Train results have booking_url set directly, so the CTA should
 		// immediately show a provider-specific "Book on ..." label without a /booking-link call.
@@ -230,10 +314,7 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 
 		await takeStepScreenshot(page, 'train-fullscreen-verified');
 
-		// Navigate back
-		await page.keyboard.press('Escape');
-		await page.waitForTimeout(500);
-
+		await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay').last());
 		await closeFullscreen(page, fullscreenOverlay);
 		await verifySavedMemoryEntry(page, 'travel', 'saved_connections', savedTitle, logCheckpoint);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'travel-train');

@@ -9,10 +9,12 @@
 //
 // This enables offline-first chat sharing: all wrapped keys are pre-stored on server
 
-import { writable } from "svelte/store";
 import { EmbedStoreEntry, EmbedType } from "../message_parsing/types";
 import { computeSHA256, createContentId } from "../message_parsing/utils";
-import { normalizeEmbedType as registryNormalizeEmbedType } from "../data/embedRegistry.generated";
+import {
+  EMBED_FULLSCREEN_COMPONENTS,
+  normalizeEmbedType as registryNormalizeEmbedType,
+} from "../data/embedRegistry.generated";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import {
@@ -28,6 +30,13 @@ import {
   canPersistPreviewBackfill,
   canStorePreviewBackfillLocally,
 } from "./embedPreviewBackfill";
+import {
+  clearEmbedRefIndexEntries,
+  registerEmbedRefIndex,
+  resolveEmbedRefIndexEntry,
+} from "./embedRefIndex";
+
+export { embedRefIndexVersion } from "./embedRefIndex";
 // Embed store name for IndexedDB
 const EMBEDS_STORE_NAME = "embeds";
 
@@ -49,16 +58,11 @@ const chatIdHashCache = new Map<string, string>();
 // Cleared when new embed keys are stored (storeEmbedKeys) so retries succeed after sync.
 const embedKeyNegativeCache = new Set<string>();
 
-// In-memory index: embed_ref (short slug) → { embedId, appId }.
+// In-memory index: embed_ref (short slug) → { embedId, appId, type }.
 // Populated in handleSendEmbedDataImpl() when plaintext TOON arrives from the server.
 // NEVER persisted to IndexedDB — zero-knowledge compliant (slugs like "ryanair-0600"
 // would otherwise reveal content to anyone with DB access).
 // On chat reload the index is rebuilt automatically as embeds are decrypted.
-interface EmbedRefEntry {
-  embedId: string;
-  appId: string | null;
-}
-const embedRefToIdIndex = new Map<string, EmbedRefEntry>();
 
 const MAX_CHILD_EMBEDS_TO_INDEX = 50;
 const MAX_REF_REPAIR_CANDIDATES = 200;
@@ -73,7 +77,12 @@ const FILE_LIKE_EMBED_TYPES = new Set([
   "code",
   "code-code",
   "audio",
+  "audio-recording",
   "recording",
+  "docs",
+  "docs-doc",
+  "sheets",
+  "sheets-sheet",
 ]);
 
 export interface PreviewBackfillMergeResult {
@@ -97,17 +106,6 @@ export interface UploadedFileSearchResult {
   createdAt: number;
   updatedAt: number;
 }
-
-// Reactive version counter — incremented on every registerEmbedRef() call.
-// EmbedInlineLink.svelte subscribes to this Svelte store so it re-derives
-// effectiveAppId whenever new refs are registered (e.g. after a page-reload
-// cold-start or when a streaming embed arrives after the inline link was
-// already rendered in grey). This eliminates the need for a full TipTap
-// setContent() re-parse just to update the badge colour.
-//
-// Exposed as a Svelte readable store so components can subscribe via $store
-// auto-subscription (in .svelte files) or store.subscribe() (in .ts files).
-export const embedRefIndexVersion = writable(0);
 
 // TOON decoder (lazy-loaded to avoid circular dependencies)
 let toonDecode:
@@ -157,22 +155,10 @@ async function decodeToonContentLocal(
       // Use non-strict mode to be lenient with content that may have edge-case formatting
       // (e.g., large pasted text with unusual indentation or special characters)
       return toonDecode(toonContent, { strict: false });
-    } catch (error) {
-      console.debug(
-        "[EmbedStore] TOON decode failed, trying JSON fallback:",
-        error instanceof Error ? error.message : String(error),
-        {
-          contentLength: toonContent.length,
-          contentPreview: toonContent.substring(0, 200),
-        },
-      );
+    } catch {
       try {
         return JSON.parse(toonContent);
-      } catch (jsonError) {
-        console.error(
-          "[EmbedStore] JSON fallback also failed:",
-          jsonError instanceof Error ? jsonError.message : String(jsonError),
-        );
+      } catch {
         return null;
       }
     }
@@ -180,8 +166,7 @@ async function decodeToonContentLocal(
     // Fallback to JSON parsing if TOON decoder not available
     try {
       return JSON.parse(toonContent);
-    } catch (error) {
-      console.error("[EmbedStore] Error parsing content as JSON:", error);
+    } catch {
       return null;
     }
   }
@@ -276,7 +261,15 @@ export class EmbedStore {
   }
 
   private hasUploadSearchEvidence(entry: EmbedStoreEntry): boolean {
-    return this.isFileLikeType(entry.type) || !!entry.file_path || !!entry.encrypted_type;
+    if (entry.file_path || entry.encrypted_type) return true;
+
+    const metadataName = entry.metadata?.filename ?? entry.metadata?.file_name;
+    if (metadataName) return true;
+
+    const type = entry.type;
+    if (type === "docs" || type === "docs-doc") return false;
+
+    return this.isFileLikeType(type);
   }
 
   private async getSearchableFileNames(entry: EmbedStoreEntry): Promise<string[]> {
@@ -412,8 +405,11 @@ export class EmbedStore {
         const embedId = this.extractEmbedIdFromContentRef(contentRef) || entry.embed_id;
         if (!embedId) continue;
 
+        if (!this.hasUploadSearchEvidence(entry)) continue;
+
         const searchableNames = await this.getSearchableFileNames({ ...entry, contentRef });
-        const title = searchableNames[0] || entry.metadata?.title || entry.file_path || embedId;
+        const title = searchableNames[0] || entry.metadata?.title || entry.file_path;
+        if (!title) continue;
         const nodeType = this.inferNodeTypeFromFileName(String(title), entry.type || "file");
         results.push({
           embedId,
@@ -651,9 +647,9 @@ export class EmbedStore {
         ? embed.type
         : null;
     if (typeof embed === "object" && typeof embed.content === "string") {
-      decodedSource = await decodeToonContentLocal(embed.content);
+      decodedSource = await decodeToonContentSilently(embed.content);
     } else if (typeof embed === "string") {
-      decodedSource = await decodeToonContentLocal(embed);
+      decodedSource = await decodeToonContentSilently(embed);
     }
 
     if (!decodedSource || typeof decodedSource !== "object") {
@@ -728,9 +724,9 @@ export class EmbedStore {
   /**
    * Resolve the fullscreen navigation target for an embed.
    *
-   * For child embeds, the target should be the parent search/embed container so
-   * fullscreen opens the aggregate view. The child embed ID is returned as
-   * focusChildEmbedId so callers can auto-focus the original child result.
+   * Registered child embeds open directly. Legacy child-only embeds that do not
+   * have their own fullscreen still route through the parent container and return
+   * focusChildEmbedId so the parent can auto-focus the original child result.
    */
   async resolveFullscreenTarget(embedId: string): Promise<{
     targetEmbedId: string;
@@ -741,6 +737,13 @@ export class EmbedStore {
     let directParentId: string | null = null;
     try {
       const rawEntry = await this.getRawEntry(`embed:${normalizedEmbedId}`);
+      const directRegistryKey = typeof rawEntry?.type === "string"
+        ? registryNormalizeEmbedType(rawEntry.type)
+        : null;
+      if (directRegistryKey && directRegistryKey in EMBED_FULLSCREEN_COMPONENTS) {
+        return { targetEmbedId: normalizedEmbedId };
+      }
+
       if (
         typeof rawEntry?.parent_embed_id === "string" &&
         rawEntry.parent_embed_id.length > 0
@@ -1043,9 +1046,14 @@ export class EmbedStore {
       encryption_mode?: string;
       vault_key_id?: string;
     },
-    options?: { skipMetadataExtraction?: boolean },
+    options?: {
+      skipMetadataExtraction?: boolean;
+      skipEmbedRefRegistration?: boolean;
+      deferChildEmbedRefRegistration?: boolean;
+    },
   ): Promise<void> {
     const normalizedType = this.normalizeEmbedType(type as unknown as string);
+    let pendingChildRefIndex: unknown;
 
     // Extract app_id and skill_id from plaintext content if provided, otherwise try to decrypt
     // For app_skill_use embeds, we extract metadata to enable efficient filtering in IndexedDB
@@ -1077,6 +1085,9 @@ export class EmbedStore {
             app_id: preExtractedMetadata.app_id,
             skill_id: preExtractedMetadata.skill_id,
           };
+          if (options?.deferChildEmbedRefRegistration && plaintextContent) {
+            pendingChildRefIndex = await decodeToonContentLocal(plaintextContent);
+          }
         } else if (plaintextContent) {
           // Extract from plaintext content (preferred - no decryption needed)
           const decodedContent = await decodeToonContentLocal(plaintextContent);
@@ -1092,7 +1103,11 @@ export class EmbedStore {
             };
             // Also register embed_ref if present (covers finalization path)
             const embedRefPlain = decoded.embed_ref;
-            if (typeof embedRefPlain === "string" && embedRefPlain) {
+            if (
+              !options?.skipEmbedRefRegistration &&
+              typeof embedRefPlain === "string" &&
+              embedRefPlain
+            ) {
               const refEmbedId =
                 (encryptedData.embed_id as string) ||
                 contentRef.replace("embed:", "");
@@ -1100,9 +1115,15 @@ export class EmbedStore {
                 embedRefPlain,
                 refEmbedId,
                 appMetadata.app_id ?? null,
+                normalizedType,
+                appMetadata.skill_id ?? null,
               );
             }
-            await this.indexChildEmbedRefs(decoded);
+            if (options?.deferChildEmbedRefRegistration) {
+              pendingChildRefIndex = decoded;
+            } else {
+              await this.indexChildEmbedRefs(decoded);
+            }
           }
         } else if (encryptedData.encrypted_content) {
           // Fallback: Try to decrypt content temporarily to extract app_id/skill_id
@@ -1142,14 +1163,24 @@ export class EmbedStore {
                 );
                 // Register embed_ref for inline badge resolution on subsequent renders
                 const embedRefEnc = decoded.embed_ref;
-                if (typeof embedRefEnc === "string" && embedRefEnc) {
+                if (
+                  !options?.skipEmbedRefRegistration &&
+                  typeof embedRefEnc === "string" &&
+                  embedRefEnc
+                ) {
                   this.registerEmbedRef(
                     embedRefEnc,
                     embedId,
                     appMetadata.app_id ?? null,
+                    normalizedType,
+                    appMetadata.skill_id ?? null,
                   );
                 }
-                await this.indexChildEmbedRefs(decoded);
+                if (options?.deferChildEmbedRefRegistration) {
+                  pendingChildRefIndex = decoded;
+                } else {
+                  await this.indexChildEmbedRefs(decoded);
+                }
               }
             }
           } else {
@@ -1248,6 +1279,9 @@ export class EmbedStore {
         "[EmbedStore] Failed to store encrypted embed in IndexedDB, using memory cache only:",
         error,
       );
+    }
+    if (pendingChildRefIndex) {
+      await this.indexChildEmbedRefs(pendingChildRefIndex);
     }
   }
 
@@ -1403,6 +1437,8 @@ export class EmbedStore {
                     ref,
                     embedId,
                     typeof appId === "string" ? appId : null,
+                    entry.type,
+                    entry.skill_id ?? null,
                   );
                 }
                 await this.indexChildEmbedRefs(decoded);
@@ -1485,6 +1521,8 @@ export class EmbedStore {
                     ref,
                     embedId,
                     typeof appId === "string" ? appId : null,
+                    entry.type,
+                    entry.skill_id ?? null,
                   );
                 }
                 await this.indexChildEmbedRefs(decoded);
@@ -1650,15 +1688,6 @@ export class EmbedStore {
     if (typeof storedData !== "string") {
       // Memory-only entries (from setInMemoryOnly) store data as objects directly
       // This is expected behavior for "processing" embeds that need immediate rendering
-      console.debug(
-        "[EmbedStore] ✅ Returning memory-only embed data (not encrypted):",
-        contentRef,
-        {
-          type: storedData.type,
-          skill_id: storedData.skill_id,
-          status: storedData.status,
-        },
-      );
       return storedData;
     }
 
@@ -1713,12 +1742,30 @@ export class EmbedStore {
         return decryptedData;
       }
     } else {
-      // Decryption failed or skipped - this might be stored via putEncrypted() (plain JSON with encrypted fields)
+      // Decryption failed or skipped - this might be stored via putEncrypted()
+      // (plain JSON with encrypted fields) or as legacy cleartext TOON fixtures.
       try {
         parsed = JSON.parse(storedData);
-      } catch (error) {
-        console.error("[EmbedStore] Error parsing stored data as JSON:", error);
-        return storedData;
+      } catch {
+        const decoded = await decodeToonContentSilently(storedData);
+        if (!decoded || typeof decoded !== "object") {
+          console.debug(
+            "[EmbedStore] Stored data was neither JSON nor TOON:",
+            contentRef,
+          );
+          return storedData;
+        }
+
+        parsed = decoded as Record<string, unknown>;
+        embedCache.set(contentRef, {
+          ...entry,
+          data: parsed as unknown as string,
+          type: this.normalizeEmbedType(
+            (parsed.type as string) || entry.type || "unknown",
+          ),
+          app_id: typeof parsed.app_id === "string" ? parsed.app_id : entry.app_id,
+          skill_id: typeof parsed.skill_id === "string" ? parsed.skill_id : entry.skill_id,
+        });
       }
 
       // If parsed object has encrypted_content, decrypt using embed key
@@ -2282,7 +2329,13 @@ export class EmbedStore {
    */
   async getRawEntry(
     contentRef: string,
-  ): Promise<{ parent_embed_id?: string; embed_ids?: string[] } | null> {
+  ): Promise<{
+    embed_id?: string;
+    parent_embed_id?: string;
+    embed_ids?: string[];
+    type?: string;
+    status?: EmbedStoreEntry["status"];
+  } | null> {
     // Check memory cache first
     let entry = embedCache.get(contentRef);
 
@@ -2319,8 +2372,11 @@ export class EmbedStore {
     // Always check parent_embed_id first (for child embeds), then embed_ids (for parent embeds)
     if (entry.parent_embed_id !== undefined || entry.embed_ids !== undefined) {
       return {
+        embed_id: entry.embed_id,
         parent_embed_id: entry.parent_embed_id,
         embed_ids: Array.isArray(entry.embed_ids) ? entry.embed_ids : undefined,
+        type: entry.type,
+        status: entry.status,
       };
     }
 
@@ -2338,21 +2394,23 @@ export class EmbedStore {
         if (storedData.trim().startsWith("{")) {
           const parsed = JSON.parse(storedData);
           return {
+            embed_id: parsed.embed_id,
             parent_embed_id: parsed.parent_embed_id,
             embed_ids: Array.isArray(parsed.embed_ids)
               ? parsed.embed_ids
               : undefined,
+            status: parsed.status,
           };
         }
       } else if (typeof storedData === "object") {
+        const parsed = storedData as Record<string, unknown>;
         return {
-          parent_embed_id: (storedData as Record<string, unknown>)
-            .parent_embed_id as string | undefined,
-          embed_ids: Array.isArray(
-            (storedData as Record<string, unknown>).embed_ids,
-          )
-            ? ((storedData as Record<string, unknown>).embed_ids as string[])
+          embed_id: parsed.embed_id as string | undefined,
+          parent_embed_id: parsed.parent_embed_id as string | undefined,
+          embed_ids: Array.isArray(parsed.embed_ids)
+            ? parsed.embed_ids as string[]
             : undefined,
+          status: parsed.status as EmbedStoreEntry["status"] | undefined,
         };
       }
     } catch {
@@ -3284,14 +3342,23 @@ export class EmbedStore {
     embedRef: string,
     embedId: string,
     appId?: string | null,
+    type?: string | null,
+    skillId?: string | null,
   ): void {
     if (!embedRef || !embedId) return;
-    embedRefToIdIndex.set(embedRef, { embedId, appId: appId ?? null });
-    // Increment the reactive version store so any Svelte component that
-    // subscribes to embedRefIndexVersion will automatically re-run and pick
-    // up the new appId — e.g. EmbedInlineLink components that rendered in
-    // grey because this ref wasn't registered yet at their initial render time.
-    embedRefIndexVersion.update((n) => n + 1);
+    const normalizedEmbedId = this.normalizeEmbedId(embedId);
+    const cachedEntry = embedCache.get(`embed:${normalizedEmbedId}`);
+    const normalizedType = type
+      ? this.normalizeEmbedType(type)
+      : cachedEntry?.type ?? null;
+    registerEmbedRefIndex(embedRef, {
+      embedId: normalizedEmbedId,
+      appId: appId ?? cachedEntry?.app_id ?? null,
+      skillId: skillId ?? cachedEntry?.skill_id ?? null,
+      type: normalizedType,
+    });
+    // registerEmbedRefIndex bumps embedRefIndexVersion so Svelte previews and
+    // inline links re-read the app/type metadata without a full message reparse.
   }
 
   /**
@@ -3310,18 +3377,33 @@ export class EmbedStore {
   }): void {
     if (!entry.embedId) return;
     const embedId = this.normalizeEmbedId(entry.embedId);
-    embedCache.set(`embed:${embedId}`, {
-      contentRef: `embed:${embedId}`,
-      data: entry.content,
-      type: this.normalizeEmbedType(entry.type),
-      status: "finished",
+    const type = this.normalizeEmbedType(entry.type);
+    const createdAt = Date.now();
+    const staticEmbedData = {
       embed_id: embedId,
+      type,
+      embed_type: type,
+      status: "finished",
+      content: entry.content,
       parent_embed_id: entry.parentEmbedId ? this.normalizeEmbedId(entry.parentEmbedId) : null,
       embed_ids: entry.embedIds?.map((id) => this.normalizeEmbedId(id)) ?? null,
       app_id: entry.appId ?? null,
       skill_id: entry.skillId ?? null,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt,
+      updatedAt: createdAt,
+    };
+    embedCache.set(`embed:${embedId}`, {
+      contentRef: `embed:${embedId}`,
+      data: staticEmbedData as unknown as string,
+      type,
+      status: "finished",
+      embed_id: embedId,
+      parent_embed_id: staticEmbedData.parent_embed_id,
+      embed_ids: staticEmbedData.embed_ids,
+      app_id: entry.appId ?? null,
+      skill_id: entry.skillId ?? null,
+      createdAt,
+      updatedAt: createdAt,
     } as EmbedStoreEntry);
   }
 
@@ -3333,7 +3415,15 @@ export class EmbedStore {
    * @returns embed_id UUID or null
    */
   resolveByRef(embedRef: string): string | null {
-    return embedRefToIdIndex.get(embedRef)?.embedId ?? null;
+    return resolveEmbedRefIndexEntry(embedRef)?.embedId ?? null;
+  }
+
+  resolveTypeByRef(embedRef: string): string | null {
+    return resolveEmbedRefIndexEntry(embedRef)?.type ?? null;
+  }
+
+  resolveSkillIdByRef(embedRef: string): string | null {
+    return resolveEmbedRefIndexEntry(embedRef)?.skillId ?? null;
   }
 
   /**
@@ -3349,6 +3439,28 @@ export class EmbedStore {
     if (indexedEmbedId) return indexedEmbedId;
 
     const embedIdPrefix = this.extractDirectEmbedIdPrefix(embedRef);
+    const checkedCandidates = new Set<string>();
+
+    const tryCandidates = async (candidateEmbedIds: string[]) => {
+      for (const candidateEmbedId of candidateEmbedIds) {
+        if (checkedCandidates.has(candidateEmbedId)) continue;
+        checkedCandidates.add(candidateEmbedId);
+
+        const resolvedEmbed = await this.get(`embed:${candidateEmbedId}`);
+
+        const registeredEmbedId = this.resolveByRef(embedRef);
+        if (registeredEmbedId) return registeredEmbedId;
+
+        const { embedRefs: verifiedRefs, appId } =
+          await this.extractRefsFromResolvedEmbed(resolvedEmbed);
+        if (verifiedRefs.includes(embedRef)) {
+          this.registerEmbedRef(embedRef, candidateEmbedId, appId);
+          return candidateEmbedId;
+        }
+      }
+
+      return null;
+    };
 
     const candidates = new Set<string>(
       embedIdPrefix
@@ -3362,18 +3474,24 @@ export class EmbedStore {
       candidates.add(embedId);
     }
 
-    for (const candidateEmbedId of Array.from(candidates)) {
-      const resolvedEmbed = await this.get(`embed:${candidateEmbedId}`);
+    const directResult = await tryCandidates(Array.from(candidates));
+    if (directResult) return directResult;
 
-      const registeredEmbedId = this.resolveByRef(embedRef);
-      if (registeredEmbedId) return registeredEmbedId;
-
-      const { embedRefs: verifiedRefs, appId } =
-        await this.extractRefsFromResolvedEmbed(resolvedEmbed);
-      if (verifiedRefs.includes(embedRef)) {
-        this.registerEmbedRef(embedRef, candidateEmbedId, appId);
-        return candidateEmbedId;
+    if (embedIdPrefix) {
+      // Some refs end with a six-hex content hash, not an embed ID prefix
+      // (for example CLI-uploaded files). If the direct-prefix optimization
+      // fails to verify a match, fall back to the broad verified scan.
+      const fallbackCandidates = new Set<string>(
+        this.collectAllRefRepairCandidatesFromCache(),
+      );
+      const fallbackIdbCandidates =
+        await this.collectAllRefRepairCandidatesFromIndexedDb();
+      for (const embedId of fallbackIdbCandidates) {
+        fallbackCandidates.add(embedId);
       }
+
+      const fallbackResult = await tryCandidates(Array.from(fallbackCandidates));
+      if (fallbackResult) return fallbackResult;
     }
 
     return null;
@@ -3388,7 +3506,7 @@ export class EmbedStore {
    * @returns app_id string or null
    */
   resolveAppIdByRef(embedRef: string): string | null {
-    return embedRefToIdIndex.get(embedRef)?.appId ?? null;
+    return resolveEmbedRefIndexEntry(embedRef)?.appId ?? null;
   }
 
   /**
@@ -3396,7 +3514,7 @@ export class EmbedStore {
    * The index will be rebuilt as embeds arrive in the new session.
    */
   clearEmbedRefIndex(): void {
-    embedRefToIdIndex.clear();
+    clearEmbedRefIndexEntries();
     console.debug("[EmbedStore] Cleared embed_ref index");
   }
 
@@ -3445,11 +3563,13 @@ export const embedStore = new EmbedStore();
 // embeds whose key lookup previously failed (because the chat key wasn't loaded yet)
 // can retry and succeed. Without this, the negative cache permanently blocks re-lookup
 // even after the chat key loads via OPE-314's bulk key retry.
-chatKeyManager.onKeyReady((_chatId: string) => {
-  if (embedKeyNegativeCache.size > 0) {
-    embedKeyNegativeCache.clear();
-    console.debug(
-      `[EmbedStore] Cleared embed key negative cache — chat key ready, embed lookups will retry`,
-    );
-  }
-});
+if (typeof chatKeyManager.onKeyReady === "function") {
+  chatKeyManager.onKeyReady((_chatId: string) => {
+    if (embedKeyNegativeCache.size > 0) {
+      embedKeyNegativeCache.clear();
+      console.debug(
+        `[EmbedStore] Cleared embed key negative cache — chat key ready, embed lookups will retry`,
+      );
+    }
+  });
+}

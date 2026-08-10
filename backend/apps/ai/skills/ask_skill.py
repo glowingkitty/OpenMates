@@ -59,6 +59,8 @@ class AskSkillRequest(BaseModel):
     current_user_content: Optional[str] = Field(default=None, description="Plaintext content of the current user turn for stream-time intent checks.")
     chat_has_title: bool = Field(default=False, description="Whether the chat already has a title. Used to determine if metadata (title, category, icon) should be generated.")
     current_chat_title: Optional[str] = Field(default=None, description="The current decrypted chat title (if available). Used by post-processing to decide if the title needs updating when the conversation drifts.")
+    current_chat_title_v: Optional[int] = Field(default=None, description="Client title version when the AI turn started. Used to reject stale generated title updates.")
+    current_chat_metadata_v: Optional[int] = Field(default=None, description="Client metadata version when the AI turn started. Used for post-processing metadata race checks.")
     is_incognito: bool = Field(default=False, description="Whether this is an incognito chat. Incognito chats skip post-processing and use 'incognito' as chat_id for billing.")
     is_external: bool = Field(default=False, description="Whether this is an external API request. External requests skip cache warming, vault lookup, and storage.")
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
@@ -71,6 +73,18 @@ class AskSkillRequest(BaseModel):
     connected_account_permission_state: Optional[Dict[str, Any]] = Field(default=None, description="Permission continuation state for connected-account approvals.")
     mentioned_settings_memories_cleartext: Optional[Dict[str, Any]] = Field(default=None, description="Cleartext for @memory/@memory-entry mentions (key: app_id:item_key, value: list of entry contents). Backend uses this and does not request those categories again.")
     benchmark_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Sanitized CLI benchmark metadata for usage source tagging.")
+    client_capabilities: Optional[List[str]] = Field(default_factory=list, description="Server-derived client capabilities available for this request.")
+    team_id: Optional[str] = Field(default=None, description="Team context for team-scoped AI requests. When set, billing and prechecks use team credits.")
+    team_id_hash: Optional[str] = Field(default=None, description="Hashed team id for privacy-preserving usage attribution.")
+    team_workspace_type: Optional[str] = Field(default="chat", description="Team workspace type used for team usage attribution.")
+    team_object_id_hash: Optional[str] = Field(default=None, description="Hashed team object id for usage attribution.")
+    recovery_task_id: Optional[str] = Field(default=None, description="Stable epoch-1 task ID reserved by durable chat preflight.")
+    recovery_inference_task_id: Optional[str] = Field(default=None, description="Original durable inference identity reused only when an internal continuation seals a new assistant response.")
+    legacy_cutover_task_id: Optional[str] = Field(default=None, description="Stable epoch-0 task ID owning one durable cutover admission.")
+    recovery_preflight_id: Optional[str] = Field(default=None, description="Durable epoch-1 preflight identity.")
+    recovery_turn_id: Optional[str] = Field(default=None, description="Stable user-turn identity for sealed recovery.")
+    recovery_public_key: Optional[str] = Field(default=None, description="Raw X25519 recovery public key encoded as unpadded base64url.")
+    chat_key_version: Optional[int] = Field(default=None, description="Immutable cryptographic chat-key version.")
     is_app_settings_memories_continuation: bool = Field(default=False, description="True if this task is a continuation after app settings/memories confirmation/rejection. Prevents infinite loops by skipping pending context storage if data is still missing.")
     is_connected_account_permission_continuation: bool = Field(default=False, description="True if this task is a continuation after connected-account permission confirmation/rejection.")
     is_focus_mode_continuation: bool = Field(default=False, description="True if this task is a continuation after focus mode auto-confirm or rejection. The user message was already persisted before the deferred activation pause.")
@@ -86,16 +100,33 @@ class AskSkillRequest(BaseModel):
     # so skills like images-view can resolve a file_path argument back to the actual embed UUID
     # for Redis cache lookup — keeping UUIDs invisible to the LLM entirely.
     embed_file_path_index: Optional[Dict[str, str]] = Field(default=None, description="Maps embed_ref filename → embed_id UUID for server-side skill resolution.")
+    has_image_upload_embed: bool = Field(default=False, description="True when the current turn includes an uploaded image embed.")
     
     # Sub-chat orchestration fields
     parent_id: Optional[str] = Field(default=None, description="The ID of the parent chat.")
     is_sub_chat: bool = Field(default=False, description="Whether this is a sub-chat.")
+    orchestration_id: Optional[str] = Field(default=None, description="Server-issued durable identity for the complete sub-chat tree.")
+    root_chat_id: Optional[str] = Field(default=None, description="Immutable root chat identity for orchestration and usage attribution.")
+    root_turn_id: Optional[str] = Field(default=None, description="Immutable root turn identity for this orchestration tree.")
+    sub_chat_depth: int = Field(default=0, ge=0, le=2, description="Server-issued root/child/grandchild depth.")
+    orchestration_dispatch_token: Optional[str] = Field(default=None, description="One-time server dispatch authorization for a prepared child.")
+    orchestration_descendant_limit: int = Field(default=3, ge=1, le=20, description="Approved cumulative descendant ceiling for the root tree.")
+    orchestration_credit_limit: int = Field(default=2000, ge=1, description="Approved credit ceiling for the root tree.")
+    orchestration_approved: bool = Field(default=False, description="Whether expanded root limits received explicit user approval.")
     budget_limit: Optional[int] = Field(default=None, description="Optional credit limit for this sub-chat subtree.")
     budget_spent: int = Field(default=0, description="Cumulative credit spent under this sub-chat subtree.")
     user_task_id: Optional[str] = Field(default=None, description="Product task ID when this ask is executing a user task.")
     
     # Allow populating by name even with aliases
     model_config = {"populate_by_name": True}
+
+    def resolved_recovery_inference_task_id(self) -> Optional[str]:
+        """Return the durable inference identity for initial or internal continuation tasks."""
+        if self.recovery_task_id:
+            return self.recovery_task_id
+        if self.is_sub_chat_continuation or self.is_focus_mode_continuation:
+            return self.recovery_inference_task_id
+        return None
 
 class AskSkillResponse(BaseModel):
     task_id: str = Field(..., description="The ID of the Celery task processing the request.")
@@ -321,7 +352,8 @@ class AskSkill(BaseSkill):
                 },
                 queue="app_ai",  # Route to the 'app_ai' queue, as configured in celery_config.py
                 exchange="app_ai",  # Match the exchange declared in celery_config.py task_queues
-                routing_key="app_ai"  # Match the routing_key declared in celery_config.py task_queues
+                routing_key="app_ai",  # Match the routing_key declared in celery_config.py task_queues
+                task_id=request.recovery_task_id or request.legacy_cutover_task_id,
             )
             task_id = task_signature.id
             logger.info(f"Celery task 'apps.ai.tasks.skill_ask' dispatched by AskSkill with ID: {task_id} for message_id: {request.message_id} to queue 'app_ai'.")

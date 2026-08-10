@@ -3,8 +3,10 @@ import logging
 import os
 import base64
 import asyncio
+import re
 from datetime import datetime, timezone
-from typing import Optional
+from html import escape
+from typing import Any, Optional
 import hashlib
 import uuid
 
@@ -17,7 +19,11 @@ from backend.core.api.app.tasks.base_task import BaseServiceTask # Import from n
 
 # Import necessary services and utilities (ensure all needed are here)
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
+from backend.shared.python_utils.invoice_ciphertext_versions import (
+    append_verified_invoice_ciphertext_version,
+)
 
 # Setup loggers
 logger = logging.getLogger(__name__)
@@ -25,6 +31,185 @@ sensitive_filter = SensitiveDataFilter()
 logger.addFilter(sensitive_filter)
 event_logger = logging.getLogger("app.events")
 event_logger.addFilter(sensitive_filter)
+
+BILLING_ADMIN_ERROR_TEMPLATE = "billing-processing-error"
+BILLING_ADMIN_ERROR_MESSAGE_LIMIT = 2000
+BILLING_ADMIN_FIELD_LIMIT = 300
+INVOICE_RECORD_CREATE_ERROR_MESSAGE = "Failed to create Directus invoice record"
+INVOICE_RECORD_CREATE_RETRY_DELAY_SECONDS = 60
+INVOICE_RECORD_CREATE_MAX_RETRIES = 3
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+_BEARER_TOKEN_RE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
+_API_SECRET_RE = re.compile(
+    r"(?i)\b(api[_-]?key|token|secret|password)\s*[:=]\s*[^,\s;]+"
+)
+_STRIPE_SECRET_RE = re.compile(r"\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9_]+\b")
+
+
+class InvoiceRecordCreationError(RuntimeError):
+    """Raised when the paid order was processed but its Directus document row was not created."""
+
+
+def _is_retryable_invoice_record_creation_error(error: BaseException) -> bool:
+    return isinstance(error, InvoiceRecordCreationError) or str(error) == INVOICE_RECORD_CREATE_ERROR_MESSAGE
+
+
+def _coerce_invoice_datetime(value: Any) -> Optional[datetime]:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, (int, float)):
+        parsed = datetime.fromtimestamp(value, tz=timezone.utc)
+    else:
+        text = str(value).strip()
+        if not text:
+            return None
+        try:
+            if text.isdigit():
+                parsed = datetime.fromtimestamp(int(text), tz=timezone.utc)
+            else:
+                parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _resolve_invoice_datetime(
+    explicit_invoice_date: Optional[str],
+    payment_order_details: dict[str, Any],
+) -> datetime:
+    for candidate in (
+        explicit_invoice_date,
+        payment_order_details.get("payment_created"),
+        payment_order_details.get("created"),
+        payment_order_details.get("created_at"),
+    ):
+        resolved = _coerce_invoice_datetime(candidate)
+        if resolved:
+            return resolved
+    return datetime.now(timezone.utc)
+
+
+def _billing_admin_recipient() -> Optional[str]:
+    return os.getenv("ADMIN_NOTIFY_EMAIL") or os.getenv("SERVER_OWNER_EMAIL")
+
+
+def _sanitize_billing_admin_text(value: Any, limit: int = BILLING_ADMIN_FIELD_LIMIT) -> str:
+    if value is None:
+        return "unknown"
+
+    text = str(value)
+    text = _CONTROL_CHAR_RE.sub("", text)
+    text = _EMAIL_RE.sub("<redacted-email>", text)
+    text = _BEARER_TOKEN_RE.sub("Bearer <redacted>", text)
+    text = _API_SECRET_RE.sub(r"\1=<redacted>", text)
+    text = _STRIPE_SECRET_RE.sub("<redacted-stripe-key>", text)
+    if len(text) > limit:
+        text = f"{text[:limit]}... [truncated]"
+    return escape(text)
+
+
+def _hash_admin_user_id(user_id: str) -> str:
+    return hashlib.sha256(user_id.encode("utf-8")).hexdigest()[:16]
+
+
+async def _notify_billing_processing_error(
+    *,
+    task: BaseServiceTask,
+    stage: str,
+    order_id: str,
+    user_id: str,
+    credits_purchased: int,
+    provider: Optional[str],
+    provider_order_id: Optional[str],
+    send_email: bool,
+    error: BaseException | str,
+) -> bool:
+    admin_email = _billing_admin_recipient()
+    if not admin_email:
+        logger.error("Billing processing error notification skipped: ADMIN_NOTIFY_EMAIL/SERVER_OWNER_EMAIL is not configured")
+        return False
+
+    email_service = getattr(task, "email_template_service", None)
+    if email_service is None:
+        try:
+            await task.initialize_services()
+        except Exception as init_err:
+            logger.error(
+                "Billing processing error notification skipped: could not initialize email services: %s",
+                init_err,
+                exc_info=True,
+            )
+            return False
+        email_service = getattr(task, "email_template_service", None)
+
+    if email_service is None:
+        logger.error("Billing processing error notification skipped: email_template_service is unavailable")
+        return False
+
+    if isinstance(error, BaseException):
+        error_type = type(error).__name__
+        error_message = str(error)
+    else:
+        error_type = "BillingProcessingError"
+        error_message = str(error)
+
+    context = {
+        "darkmode": True,
+        "environment": _sanitize_billing_admin_text(
+            os.getenv("SERVER_ENVIRONMENT") or os.getenv("ENVIRONMENT") or "unknown"
+        ),
+        "stage": _sanitize_billing_admin_text(stage),
+        "order_id": _sanitize_billing_admin_text(order_id),
+        "provider": _sanitize_billing_admin_text(provider or "unknown"),
+        "provider_order_id": _sanitize_billing_admin_text(provider_order_id or "none"),
+        "user_id_hash": _hash_admin_user_id(user_id),
+        "credits_purchased": _sanitize_billing_admin_text(credits_purchased),
+        "send_email": _sanitize_billing_admin_text(send_email),
+        "error_type": _sanitize_billing_admin_text(error_type),
+        "error_message": _sanitize_billing_admin_text(error_message, BILLING_ADMIN_ERROR_MESSAGE_LIMIT),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    try:
+        sent = await email_service.send_email(
+            template=BILLING_ADMIN_ERROR_TEMPLATE,
+            recipient_email=admin_email,
+            subject=f"[OpenMates] Billing processing error: {context['stage']} order {context['order_id']}",
+            context=context,
+            lang="en",
+        )
+    except Exception as notify_err:
+        logger.error("Failed to send billing processing error notification: %s", notify_err, exc_info=True)
+        return False
+
+    if not sent:
+        logger.error("Billing processing error notification send_email() returned False")
+        return False
+
+    logger.info(
+        "Sent billing processing error notification for order %s at stage %s",
+        order_id,
+        stage,
+    )
+    return True
+
+
+async def _notify_billing_processing_error_safely(**kwargs: Any) -> bool:
+    try:
+        return await _notify_billing_processing_error(**kwargs)
+    except Exception as notify_err:
+        logger.error(
+            "Billing processing error notification failed and will not mask the original error: %s",
+            notify_err,
+            exc_info=True,
+        )
+        return False
 
 
 @app.task(name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email', base=BaseServiceTask, bind=True)
@@ -46,6 +231,7 @@ def process_invoice_and_send_email(
     provider_order_id: Optional[str] = None,  # Provider-specific refundable payment ID
     send_email: bool = True,  # Backfills can generate records/PDFs without notifying users
     gift_card_code: Optional[str] = None,  # Generated code for gift-card purchase confirmation emails
+    invoice_date: Optional[str] = None,  # Original provider payment date for historical backfills
 ) -> bool:
     """
     Celery task to generate invoice/payment confirmation, upload to S3, save to Directus, and send email.
@@ -66,15 +252,24 @@ def process_invoice_and_send_email(
                 provider_order_id,
                 send_email,
                 gift_card_code,
+                invoice_date,
             )
         )
         logger.info(f"Invoice processing task completed for Order ID: {order_id}, User ID: {user_id}. Success: {result}")
         return result
     except Exception as e:
         logger.error(f"Failed to run invoice processing task for Order ID: {order_id}, User ID: {user_id}: {str(e)}", exc_info=True)
-        # Consider retrying the task based on the exception type
-        # self.retry(exc=e, countdown=60) # Example retry after 60 seconds
-        return False
+        if _is_retryable_invoice_record_creation_error(e):
+            logger.warning(
+                "Retrying invoice processing for order %s after Directus invoice row creation failed",
+                order_id,
+            )
+            raise self.retry(
+                exc=e,
+                countdown=INVOICE_RECORD_CREATE_RETRY_DELAY_SECONDS,
+                max_retries=INVOICE_RECORD_CREATE_MAX_RETRIES,
+            )
+        raise
 
 async def _async_process_invoice_and_send_email(
     task: BaseServiceTask,  # Use the custom task class type hint
@@ -94,6 +289,7 @@ async def _async_process_invoice_and_send_email(
     provider_order_id: Optional[str] = None,  # Provider-specific refundable payment ID
     send_email: bool = True,
     gift_card_code: Optional[str] = None,
+    invoice_date: Optional[str] = None,
 ) -> bool:
     """
     Async implementation for invoice processing.
@@ -250,10 +446,12 @@ async def _async_process_invoice_and_send_email(
         invoice_number = f"{account_id}-{invoice_counter_str}"
         logger.info(f"Generated invoice number: {invoice_number}")
 
-        # Get date components for filenames and invoice data
-        now_utc = datetime.now(timezone.utc)
-        date_str_iso = now_utc.strftime('%Y-%m-%d')
-        date_str_filename = now_utc.strftime('%Y_%m_%d')
+        # Get date components for filenames and invoice data. Historical
+        # backfills must preserve the original provider payment date.
+        invoice_datetime = _resolve_invoice_datetime(invoice_date, payment_order_details)
+        date_str_iso = invoice_datetime.date().isoformat()
+        date_str_filename = date_str_iso.replace('-', '_')
+        directus_invoice_date = invoice_datetime.isoformat()
 
         # 6. Prepare Invoice Data Dictionary (using service from BaseTask)
         # Decrypt email - different approach for auto top-up vs manual purchases
@@ -566,7 +764,7 @@ async def _async_process_invoice_and_send_email(
         directus_invoice_payload = {
             "order_id": order_id,
             "user_id_hash": user_id_hash, # Store the hash instead of the raw user_id
-            "date": datetime.now(timezone.utc).isoformat(),
+            "date": directus_invoice_date,
             "encrypted_amount": encrypted_amount,
             "encrypted_credits_purchased": encrypted_credits,
             "encrypted_s3_object_key": encrypted_s3_object_key, # Store encrypted S3 object key
@@ -601,7 +799,7 @@ async def _async_process_invoice_and_send_email(
         if not create_success:
             logger.error(f"Failed to create invoice record in Directus for invoice {invoice_number}. Response: {created_item}")
             # Consider cleanup? Maybe delete S3 object? For now, just raise.
-            raise Exception("Failed to create Directus invoice record")
+            raise InvoiceRecordCreationError(INVOICE_RECORD_CREATE_ERROR_MESSAGE)
         logger.info(f"Created Directus invoice record for invoice {invoice_number}")
         
         # Extract invoice UUID from created item for deep link
@@ -706,36 +904,28 @@ async def _async_process_invoice_and_send_email(
                         logger.error(f"Failed to regenerate invoice PDF in language {user_language} with refund link: {lang_pdf_err}", exc_info=True)
                         # Continue with the English version only
 
-                # CRITICAL: Re-encrypt and re-upload the regenerated PDF to S3 to ensure consistency
-                # The PDF sent via email must be the same as the one stored in S3 and downloaded by users
-                logger.info("Re-encrypting and re-uploading regenerated PDF to S3 to ensure consistency")
+                # Publish only after a fresh candidate decrypts successfully from storage.
                 try:
-                    # Re-encrypt the regenerated PDF using the same AES key and nonce
-                    # This ensures the encryption keys stored in Directus remain valid
-                    aesgcm = AESGCM(aes_key)
-                    encrypted_pdf_payload_updated = aesgcm.encrypt(nonce, pdf_bytes_en, None)  # No associated data
-                    logger.debug("Re-encrypted regenerated PDF payload using AES-GCM")
-
-                    # Re-upload to S3 using the same s3_object_key (overwrites the old file)
-                    logger.info(f"Re-uploading encrypted invoice {s3_object_key} to S3 with updated PDF (with refund link)")
-                    upload_result_updated = await task.s3_service.upload_file(
-                        bucket_key='invoices',
-                        file_key=s3_object_key,  # Use the same key to overwrite
-                        content=encrypted_pdf_payload_updated,  # Upload the re-encrypted regenerated PDF
-                        content_type='application/octet-stream'
+                    await append_verified_invoice_ciphertext_version(
+                        task=task,
+                        invoice_id=invoice_uuid,
+                        user_id_hash=user_id_hash,
+                        vault_key_id=vault_key_id,
+                        bucket_name=get_bucket_name(
+                            "invoices",
+                            task.s3_service.environment,
+                        ),
+                        filename=invoice_filename_en,
+                        pdf_bytes=pdf_bytes_en,
                     )
-                    s3_url_updated = upload_result_updated.get('url')
-                    upload_success_updated = bool(s3_url_updated)
-                    if not upload_success_updated:
-                        logger.error(f"Failed to re-upload regenerated invoice PDF to S3 for invoice {invoice_number}. Upload result: {upload_result_updated}")
-                        # Don't fail the whole task, but log the error - email will still be sent with correct PDF
-                        logger.warning("Email will contain PDF with refund link, but S3 may have outdated version without refund link")
-                    else:
-                        logger.info(f"Successfully re-uploaded encrypted invoice {s3_object_key} to S3 with updated PDF (with refund link). URL (for reference): {s3_url_updated}")
-                except Exception as reupload_err:
-                    logger.error(f"Error re-encrypting/re-uploading regenerated PDF to S3 for invoice {invoice_number}: {reupload_err}", exc_info=True)
-                    # Don't fail the whole task, but log the error - email will still be sent with correct PDF
-                    logger.warning("Email will contain PDF with refund link, but S3 may have outdated version without refund link")
+                    logger.info("Published verified regenerated invoice ciphertext version")
+                except Exception as version_error:
+                    logger.error(
+                        "Failed to publish regenerated invoice ciphertext version: %s",
+                        version_error,
+                        exc_info=True,
+                    )
+                    logger.warning("The immutable original invoice remains available for download")
 
             except Exception as url_err:
                 logger.error(f"Failed to generate refund deep link URL for invoice {invoice_number}: {url_err}", exc_info=True)
@@ -782,6 +972,17 @@ async def _async_process_invoice_and_send_email(
 
             if not email_success:
                 logger.error(f"Failed to send purchase confirmation email for invoice to {decrypted_email[:2]}***")
+                await _notify_billing_processing_error_safely(
+                    task=task,
+                    stage="purchase_confirmation_email",
+                    order_id=order_id,
+                    user_id=user_id,
+                    credits_purchased=credits_purchased,
+                    provider=effective_provider,
+                    provider_order_id=provider_order_id,
+                    send_email=send_email,
+                    error="Purchase confirmation email delivery failed",
+                )
                 # Don't fail the whole task if email fails, but log it.
                 # The invoice exists in S3 and Directus.
                 return False # Indicate email sending failed
@@ -866,8 +1067,8 @@ async def _async_process_invoice_and_send_email(
                     credits_value=credits_purchased,
                     currency_code=currency_paid,
                     purchase_price_value=purchase_price_value,
-                    invoice_date=date_str_iso,  # Pass generated invoice date
-                    due_date=date_str_iso,  # Pass generated due date (same as invoice date)
+                    invoice_date=date_str_iso,
+                    due_date=date_str_iso,
                     payment_processor=effective_provider,  # Use the resolved provider name
                     card_brand_lower=card_brand_lower_safe,
                     custom_invoice_number=invoice_number,  # Pass generated invoice number
@@ -877,12 +1078,34 @@ async def _async_process_invoice_and_send_email(
 
             except Exception as ninja_err:
                 logger.error(f"Error processing income transaction in Invoice Ninja: {str(ninja_err)}", exc_info=True)
+                await _notify_billing_processing_error_safely(
+                    task=task,
+                    stage="invoice_ninja_income_transaction",
+                    order_id=order_id,
+                    user_id=user_id,
+                    credits_purchased=credits_purchased,
+                    provider=effective_provider,
+                    provider_order_id=provider_order_id,
+                    send_email=send_email,
+                    error=ninja_err,
+                )
                 # Log the error but do not fail the main task
 
         return True # Indicate overall success if email sent and invoice processed (even if Ninja failed)
 
     except Exception as e:
         logger.error(f"Error in _async_process_invoice_and_send_email task for order: {str(e)}", exc_info=True)
+        await _notify_billing_processing_error_safely(
+            task=task,
+            stage="invoice_processing",
+            order_id=order_id,
+            user_id=user_id,
+            credits_purchased=credits_purchased,
+            provider=provider,
+            provider_order_id=provider_order_id,
+            send_email=send_email,
+            error=e,
+        )
         # Re-raise the exception so Celery knows the task failed
         raise e
     finally:

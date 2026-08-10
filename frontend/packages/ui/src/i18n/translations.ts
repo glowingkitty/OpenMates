@@ -50,7 +50,10 @@ let DOMPurify: SanitizerModule | null = null;
 if (browser && typeof window !== 'undefined') {
     // Only import DOMPurify on the client side
     import('dompurify').then(module => {
-        DOMPurify = module.default;
+        const sanitizer = module.default;
+        if (sanitizer && typeof sanitizer.sanitize === 'function') {
+            DOMPurify = sanitizer;
+        }
     });
 }
 
@@ -106,7 +109,7 @@ export const text: Readable<TranslateFunction> = browser
               }
 
               // Only sanitize if DOMPurify is loaded
-              if (DOMPurify) {
+              if (typeof DOMPurify?.sanitize === 'function') {
                   return DOMPurify.sanitize(translated, {
                       ALLOWED_TAGS: [
                           'mark', 'span', 'bold',

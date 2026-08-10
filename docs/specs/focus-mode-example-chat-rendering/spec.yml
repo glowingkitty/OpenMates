@@ -1,6 +1,6 @@
 id: focus-mode-example-chat-rendering
 title: Focus Mode Example Chat Rendering
-status: approved
+status: verified
 
 goal: >
   Make hardcoded focus-mode example chats faithfully reproduce the original shared
@@ -196,21 +196,26 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: missing_test
+        reason: "Pre-guard discovery found scripts/tests/test_example_chat_focus_mode_contract.py was absent, so the deterministic import guard could not run before this cleanup slice."
+        command: python3 -m pytest scripts/tests/test_example_chat_focus_mode_contract.py
+        run_id: pre-guard-discovery-ad239d5d4
+        subject_commit: ad239d5d4515e2dd80f54b3f0ef58a5c278597f9
+        timestamp: "2026-07-29T22:57:17Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        command: python3 -m pytest scripts/tests/test_example_chat_focus_mode_contract.py
+        run_id: local-2026-07-29T23:01:17Z
+        subject_commit: working-tree-ad239d5d4515e2dd80f54b3f0ef58a5c278597f9
+        timestamp: "2026-07-29T23:01:17Z"
 
   - id: T-E2E-001
     type: playwright
     file: frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
-    command: python3 scripts/run_tests.py --spec focus-mode-example-chats.spec.ts
+    command: python3 scripts/tests.py run --spec focus-mode-example-chats.spec.ts
     target: app.dev.openmates.org
     covers:
       - AC-1
@@ -227,16 +232,23 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec focus-mode-example-chats.spec.ts
+        run_id: GitHub Actions run 30459869726
+        subject_commit: 4fc658e3e
+        timestamp: "2026-07-29T14:04:50Z"
+        reason: "The child-transcript assertion failed at focus-mode-example-chats.spec.ts:104 because the static sub-chat route still rendered the parent transcript."
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec focus-mode-example-chats.spec.ts
+        run_id: GitHub Actions run 30471717723
+        subject_commit: 558612acb
+        timestamp: "2026-07-29T16:29:26Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_3dCBZwR2uMEgJmGbL257AeufYXsk
 
 implementation_plan:
   existing_patterns:

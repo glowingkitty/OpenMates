@@ -23,7 +23,7 @@ def _backend_config_from_request(request: Request) -> dict[str, Any]:
 
 def ensure_application_preview_enabled(request: Request) -> None:
     availability = FeatureAvailabilityService(
-        definitions=[FeatureDefinition(id="embed:code:application", kind="embed", default_enabled=False)],
+        definitions=[FeatureDefinition(id="embed:code:application", kind="embed", default_enabled=True)],
         config=_backend_config_from_request(request),
     )
     if not availability.is_enabled("embed:code:application"):
@@ -54,6 +54,15 @@ def ensure_workflows_enabled(request: Request) -> None:
         config=_backend_config_from_request(request),
     )
     if not availability.is_enabled("platform:workflows"):
+        raise HTTPException(status_code=404, detail="FEATURE_DISABLED")
+
+
+def ensure_teams_enabled(request: Request) -> None:
+    availability = FeatureAvailabilityService(
+        definitions=[FeatureDefinition(id="platform:teams", kind="platform", default_enabled=False)],
+        config=_backend_config_from_request(request),
+    )
+    if not availability.is_enabled("platform:teams"):
         raise HTTPException(status_code=404, detail="FEATURE_DISABLED")
 
 

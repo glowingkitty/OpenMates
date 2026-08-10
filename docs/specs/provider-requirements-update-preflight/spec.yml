@@ -1,0 +1,889 @@
+schema_version: 2
+id: provider-requirements-update-preflight
+title: Provider Requirements Update Preflight
+status: implementing
+
+goal: >
+  Make provider-backed self-host updates safe and understandable by deriving
+  required API-key metadata from provider manifests, packaging that manifest with
+  CLI releases, diffing installed versus target requirements before updates,
+  showing exact source links for target releases or commits, and giving operators
+  verified setup URLs without relying on the large root .env.example as the
+  source of truth.
+
+scope:
+  in:
+    - Backfill backend provider metadata so every provider declares required, optional, or no API-key requirements explicitly.
+    - Generate a deterministic provider-requirements manifest for packaged CLI/runtime artifacts.
+    - Diff installed and target provider requirements during manual and continuous server updates.
+    - Show required versus optional missing keys with provider names, env keys, Vault paths, setup docs URLs, and target source links.
+    - Verify provider setup URLs before adding them to metadata or docs.
+    - Document self-host env setup around one canonical runtime .env, with provider-key guidance generated from or audited against provider metadata.
+    - Add safe OpenMates CLI commands for focused .env listing, setting, unsetting, checking, doctoring, and scoped editing.
+    - Hide or disable web/server provider-backed features by default when their required provider API key is not configured.
+  out:
+    - Collecting, storing, or validating real third-party provider API keys through the CLI.
+    - Making provider API keys mandatory for initial self-host installation.
+    - Changing hosted OpenMates cloud provider configuration or Vault secret values.
+    - Shipping web or Apple UI for provider setup in this slice.
+    - Replacing existing provider runtime code or model selection behavior.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP search failed with 401 Bad credentials while searching provider metadata API keys update preflight env.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/unified-server-cli-management/spec.yml, especially S-9 and AC-15 for update preflight warnings.
+    - docs/specs/release-catalog-v1/spec.yml for release/source provenance patterns.
+    - docs/self-hosting/setup.md for current self-host provider-key guidance.
+    - docs/user-guide/cli/server-management.md for current CLI server and no-key startup behavior.
+    - docs/architecture/data/translations.md for generated provider metadata pipeline references.
+  code_patterns:
+    - backend/providers/*.yml
+    - scripts/contract_audits.py
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - .env.example
+  tests:
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - scripts/tests/test_release_intelligence.py
+    - scripts/contract_audits.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - Apple apps are not affected because this is host-level CLI, provider metadata, and self-host documentation behavior.
+  verification:
+    - Apple not affected.
+  intentional_native_differences:
+    - Native apps do not run self-host server updates or edit server env files.
+
+clarification:
+  rounds:
+    - question: Should newly required provider-key update warnings be implemented by diffing provider metadata rather than scraping .env.example?
+      answer: Yes. The CLI should diff installed versus target provider requirements and not scrape .env.example.
+    - question: Should update output include source links for both stable releases and alpha/dev updates?
+      answer: Yes. Stable updates should show the GitHub Release URL; alpha/dev updates should show the target commit URL and a PR URL when known.
+    - question: Should API-key setup help include provider documentation URLs only after they are verified?
+      answer: Yes. Use Firecrawl or an equivalent deterministic URL audit to avoid dead or 404 links.
+    - question: Should the large .env example be considered for splitting as part of this work?
+      answer: Yes, split examples/docs by operator intent while keeping provider metadata as the source of truth.
+    - question: Should self-host runtime load several env files, or keep one canonical .env and add CLI commands to avoid editing a giant file manually?
+      answer: Keep one canonical runtime .env because env/ directories are not universally gitignored and Docker Compose multi-env behavior adds risk. Add CLI commands to modify secrets programmatically and provide focused editing.
+    - question: What should happen in the web app/server when a provider requires an API key and no key is configured?
+      answer: Hide or disable that provider-backed feature by default so users do not see a usable provider that fails at runtime.
+  vision_summary: >
+    Self-host operators should learn about newly required provider keys before a
+    release or commit is applied, especially during unattended updates. Provider
+    metadata, not .env.example, should be the canonical source for requirement
+    diffs and setup guidance; release output should show the exact target source
+    link so operators can inspect what they are about to run. The runtime should
+    keep one canonical .env for compatibility and safety, while split examples
+    plus focused CLI env commands make provider-key editing manageable. Web and
+    server metadata should hide or disable provider-backed features whose
+    required provider key is missing.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: a6c3c04cf
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-20T23:35:50Z"
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-20T23:35:50Z"
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Create a dedicated provider-requirements-update-preflight spec and cross-reference unified-server-cli-management S-9/AC-15.
+    reason: The expanded scope owns provider metadata, setup URLs, source links, and env-layout decisions beyond the existing CLI update warning scenario.
+    decided_at: "2026-07-20T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Provider YAML metadata is the canonical source for API-key requirements; .env examples are generated or audited against it.
+    reason: Update preflight must compare installed and target product requirements, not infer requirements from sample env files.
+    decided_at: "2026-07-20T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Setup URLs must be verified before they are committed as provider setup guidance.
+    reason: Dead provider links create a worse operator experience during blocked updates.
+    decided_at: "2026-07-20T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Keep one canonical runtime .env and add focused CLI env commands instead of loading multiple runtime env files.
+    reason: env/ folders are not universally gitignored, Docker Compose multi-env behavior is easy to misuse, and existing installs/scripts already depend on installPath/.env.
+    decided_at: "2026-07-20T23:35:50Z"
+  - id: D-5
+    status: active
+    decision: Provider-backed web/server features requiring missing API keys are hidden or disabled by default.
+    reason: Users should not see provider choices or app skills that look usable but fail because the self-host server lacks required credentials.
+    decided_at: "2026-07-20T23:35:50Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Draft the product contract before implementation.
+    outcome: planned
+    recorded_at: "2026-07-20T00:00:00Z"
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Wait for product-contract approval, then run plan-from-spec and tasks-from-spec before implementation.
+  command: python3 scripts/spec_validate.py docs/specs/provider-requirements-update-preflight/spec.yml
+  expected_outcome: The draft spec validates structurally and remains pending approval.
+  blocker: null
+  last_verified_commit: a6c3c04cf
+
+scenarios:
+  - id: S-1
+    title: Provider metadata declares key requirements explicitly
+    given:
+      - backend/providers/brave.yml requires one or more Brave Search API keys for hosted search features.
+      - backend/providers/open_meteo.yml does not require an API key.
+    when:
+      - The provider requirement manifest is generated.
+    then:
+      - Brave appears with required or optional secret entries, env keys, Vault paths, and setup URLs.
+      - Open-Meteo appears as no_api_key with no missing-key warning.
+      - Providers with neither explicit API-key metadata nor no_api_key fail the metadata audit.
+  - id: S-2
+    title: Update dry-run reports newly required keys before applying a target
+    given:
+      - The installed manifest does not require SECRET__FIRECRAWL__API_KEY.
+      - The target manifest requires SECRET__FIRECRAWL__API_KEY for a newly enabled provider-backed skill.
+      - The runtime .env and Vault do not contain that key.
+    when:
+      - The operator runs openmates server update --dry-run.
+    then:
+      - The CLI reports Firecrawl as a newly required provider key.
+      - The output includes env key, Vault path, setup URL, and target release or commit link.
+      - No Docker image is pulled or container is replaced.
+  - id: S-3
+    title: Manual and continuous updates fail safely when required keys are missing
+    given:
+      - The target manifest requires SECRET__BRAVE__API_KEY.
+      - The runtime .env and Vault do not contain a Brave key.
+    when:
+      - The operator runs openmates server update manually.
+      - The continuous updater checks the same target image digest.
+    then:
+      - Manual update requires explicit confirmation or a documented override flag before proceeding.
+      - Continuous update skips the update and records a blocked status with actionable missing-key details.
+      - Optional provider keys are reported as warnings only and do not block unattended update.
+  - id: S-4
+    title: Update output links to the exact target source
+    given:
+      - A stable release target resolves to v0.15.0-alpha.4.
+      - A dev target resolves to commit abcdef1234567890 with a known pull request.
+    when:
+      - The CLI renders update availability, dry-run, blocked, and success output.
+    then:
+      - Stable output links to the GitHub Release URL for the target version.
+      - Dev or alpha output links to the target commit URL.
+      - Dev or alpha output includes the pull request URL when release metadata can identify it.
+  - id: S-5
+    title: Provider setup URLs are verified before publication
+    given:
+      - Provider metadata proposes a get_key_url or docs_url for Brave, Firecrawl, Context7, OpenAI, Anthropic, Google AI Studio, and Mistral.
+    when:
+      - The provider URL audit runs.
+    then:
+      - Each URL is checked for a successful, relevant page result.
+      - Dead, redirected-to-login-without-guidance, or unrelated pages fail the audit.
+      - The audit records evidence without storing API keys or private account details.
+  - id: S-6
+    title: Self-host env docs and CLI env commands reduce giant-file editing
+    given:
+      - A self-host operator wants to add SECRET__BRAVE__API_KEY without editing a large .env by hand.
+    when:
+      - They inspect provider-key guidance and run openmates server env set SECRET__BRAVE__API_KEY.
+    then:
+      - The runtime continues to use one canonical .env file.
+      - The CLI prompts for secret values without echoing them, backs up .env, writes with 0600 permissions, and redacts secrets in list output.
+      - Provider-key guidance is derived from provider metadata and does not drift from the packaged manifest.
+  - id: S-7
+    title: Missing required keys hide provider-backed features
+    given:
+      - A self-host server has Brave Search metadata installed.
+      - SECRET__BRAVE__API_KEY is empty in .env and absent from Vault.
+    when:
+      - The web app loads available apps, skills, providers, and model metadata from the server.
+    then:
+      - Web search, videos search, and news search are not exposed as usable Brave-backed skills.
+      - Brave-specific provider/model choices are hidden or marked unavailable by runtime metadata.
+      - Adding the key and restarting makes those features available again.
+      - Provider-key guidance is derived from provider metadata and does not drift from the packaged manifest.
+      - Existing installs with a single .env file continue to work.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Every backend provider declares one of required_keys, optional_keys, or no_api_key in metadata used by the provider-requirements manifest.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PROVIDER-MANIFEST]
+  - id: AC-2
+    scenario: S-1
+    text: The generated manifest records provider_id, name, requirement level, env keys, Vault paths, setup URL, docs URL, and source provider YAML path without secret values.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PROVIDER-MANIFEST]
+  - id: AC-3
+    scenario: S-2
+    text: Update preflight compares installed and target manifests and reports only newly missing required keys as blockers.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-PREFLIGHT]
+  - id: AC-4
+    scenario: S-3
+    text: Continuous update skips and records blocked status when target required keys are missing, while manual update requires confirmation or an explicit override flag.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-PREFLIGHT]
+  - id: AC-5
+    scenario: S-3
+    text: Optional keys and no_api_key providers never block manual or continuous updates, but optional missing keys are visible in dry-run output.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-PREFLIGHT]
+  - id: AC-6
+    scenario: S-4
+    text: CLI update status, dry-run, blocked, and success output include the target GitHub Release URL for stable targets or commit URL plus PR URL when known for dev/alpha targets.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-SOURCE-LINKS]
+  - id: AC-7
+    scenario: S-5
+    text: Provider setup and documentation URLs are validated before release and failures identify the provider and field that must be corrected.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PROVIDER-URL-AUDIT, V-FIRECRAWL-URLS]
+  - id: AC-8
+    scenario: S-6
+    text: Self-host env docs separate required runtime variables from optional provider and integration variables while preserving one canonical runtime .env file.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-ENV-LAYOUT]
+  - id: AC-9
+    scenario: S-6
+    text: The root .env.example is no longer the canonical source for provider requirements; provider guidance is generated from or audited against provider metadata.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-ENV-LAYOUT, T-PROVIDER-MANIFEST]
+  - id: AC-10
+    scenario: S-6
+    text: The CLI provides env list, set, unset, check, doctor, and focused edit commands that modify the canonical .env safely with redacted output and pre-write backups.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-ENV]
+  - id: AC-11
+    scenario: S-7
+    text: Server/web runtime metadata hides or disables provider-backed skills, providers, and model choices whose required provider API keys are missing, while no_api_key providers remain visible.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-PROVIDER-AVAILABILITY, T-FRONTEND-PROVIDER-AVAILABILITY]
+
+assumptions:
+  - id: A-1
+    text: Published CLI packages can include a target provider-requirements manifest alongside packaged runtime templates.
+    category: cli_packaging
+    required_before: implementation
+    status: unchecked
+  - id: A-2
+    text: The target manifest can be resolved before container replacement for both stable release and dev/alpha image update flows.
+    category: update_metadata
+    required_before: implementation
+    status: unchecked
+  - id: A-3
+    text: Existing single-file .env installs should remain valid; split examples and CLI env commands must not require Docker Compose to load multiple env files.
+    category: compatibility
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/openmates-cli/src/server.ts
+        summary: Current runtime env reader loads installPath/.env and update/start flows rely on that path.
+
+contracts:
+  data:
+    - Provider metadata may declare required_keys, optional_keys, or no_api_key; required and optional keys include env_key, vault_path, vault_key, description, setup_url, and docs_url when applicable.
+    - Generated provider-requirements manifest contains metadata only and never contains secret values.
+    - Installed server metadata stores the provider manifest version or digest used at install/update time for later diffing.
+  cli:
+    - openmates server update --dry-run renders missing required keys, optional key warnings, setup links, and target source links without applying updates.
+    - openmates server update --continuous records blocked status instead of applying updates when missing required keys block unattended mode.
+    - openmates server update status --json includes target source link fields and blocked provider requirement details when present.
+    - openmates server env list redacts secret values and groups keys by runtime, providers, integrations, observability, and advanced categories.
+    - openmates server env set KEY prompts without echo unless --value is explicitly provided, writes to installPath/.env with 0600 permissions, and creates a timestamped backup.
+    - openmates server env unset KEY removes or blanks the key after confirmation or --yes.
+    - openmates server env check validates required runtime variables and provider requirements.
+    - openmates server env doctor explains missing required and optional provider keys with setup links.
+  docs:
+    - Self-host docs explain that initial install can start without provider keys, but provider-backed skills may require keys before an update can safely enable them.
+    - Env docs distinguish required runtime secrets from optional provider keys and optional integration settings.
+    - Docs explain that provider setup guidance comes from metadata; the CLI and Docker runtime continue to use installPath/.env.
+  privacy_security:
+    - Audits and CLI output may print env key names and Vault paths but never secret values.
+    - URL verification must not authenticate to provider dashboards or store private account URLs.
+    - CLI env commands must not print secret values unless an explicit non-secret key is requested.
+
+tests:
+  - id: T-PROVIDER-MANIFEST
+    type: pytest
+    file: scripts/tests/test_provider_requirements_manifest.py
+    command: python3 -m pytest scripts/tests/test_provider_requirements_manifest.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-9
+    assertions:
+      - provider YAMLs must declare required_keys, optional_keys, or no_api_key
+      - generated manifest contains expected metadata for Brave and Open-Meteo examples
+      - generated manifest never contains secret values
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: observed_fail
+        command: python3 -m pytest scripts/tests/test_provider_requirements_manifest.py
+        run_id: local-pytest-provider-manifest-red-20260721
+        timestamp: "2026-07-21T10:27:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_provider_requirements_manifest.py scripts/tests/test_provider_setup_urls.py scripts/tests/test_release_intelligence.py
+        run_id: local-pytest-provider-release-intelligence-20260721
+        subject_commit: f1266f7a0a2a34e6c14323a05be7c259c127b152
+        timestamp: "2026-07-21T10:34:12Z"
+  - id: T-CLI-PREFLIGHT
+    type: vitest
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    command: npm --prefix frontend/packages/openmates-cli test -- server.test.ts
+    covers:
+      - AC-3
+      - AC-4
+      - AC-5
+    assertions:
+      - dry-run reports newly missing required target keys and does not apply updates
+      - continuous update writes blocked status for missing required keys
+      - optional missing keys are warnings and no_api_key providers are ignored
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-CLI-SOURCE-LINKS
+    type: vitest
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    command: npm --prefix frontend/packages/openmates-cli test -- server.test.ts
+    covers:
+      - AC-6
+    assertions:
+      - stable target output includes a GitHub Release URL
+      - dev or alpha target output includes the target commit URL
+      - PR URL is included when target metadata contains one
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_provider_requirements_manifest.py scripts/tests/test_provider_setup_urls.py scripts/tests/test_release_intelligence.py
+        run_id: local-pytest-provider-release-intelligence-20260721
+        subject_commit: f1266f7a0a2a34e6c14323a05be7c259c127b152
+        timestamp: "2026-07-21T10:34:12Z"
+  - id: T-PROVIDER-URL-AUDIT
+    type: pytest
+    file: scripts/tests/test_provider_setup_urls.py
+    command: python3 -m pytest scripts/tests/test_provider_setup_urls.py
+    covers:
+      - AC-7
+    assertions:
+      - provider setup_url and docs_url fields must be syntactically valid HTTPS URLs
+      - recorded URL-audit fixtures must mark every committed setup URL verified or intentionally unavailable
+      - failing URL records identify provider_id and metadata field
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-ENV-LAYOUT
+    type: pytest
+    file: scripts/tests/test_selfhost_env_layout.py
+    command: python3 -m pytest scripts/tests/test_selfhost_env_layout.py
+    covers:
+      - AC-8
+      - AC-9
+    assertions:
+      - required runtime variables are documented separately from optional provider keys
+      - provider-key guidance is generated from or audited against provider metadata
+      - generated runtime still supports a single installPath/.env file
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-CLI-ENV
+    type: vitest
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    command: npm --prefix frontend/packages/openmates-cli test -- server.test.ts
+    covers:
+      - AC-10
+    assertions:
+      - env list redacts SECRET__ values and groups provider keys
+      - env set writes or updates one key in .env with a backup and 0600 permissions
+      - env unset removes or blanks a key with confirmation behavior
+      - env check and env doctor report missing runtime/provider requirements with setup links
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-BACKEND-PROVIDER-AVAILABILITY
+    type: pytest
+    file: backend/tests/test_apps_metadata_availability.py
+    command: python3 -m pytest backend/tests/test_apps_metadata_availability.py backend/tests/test_openai_compatible_api_contract.py
+    covers:
+      - AC-11
+    assertions:
+      - app metadata omits or marks unavailable provider-backed skills when required keys are missing
+      - model metadata omits models whose default server/provider key is missing
+      - no_api_key providers remain visible
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-FRONTEND-PROVIDER-AVAILABILITY
+    type: vitest
+    file: frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    command: npm --prefix frontend/packages/ui run test -- appSkillsStore.test.ts
+    covers:
+      - AC-11
+    assertions:
+      - frontend state hides unavailable provider-backed skills from runtime metadata
+      - frontend model/provider choices use runtime availability rather than static metadata alone
+      - no_api_key providers remain available
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+verifications:
+  - id: V-FIRECRAWL-URLS
+    kind: manual_check
+    phase: green
+    required_for_done: true
+    covers:
+      - AC-7
+    status: passed
+    evidence:
+      status: passed
+      summary: Firecrawl extract/scrape verified committed setup/docs URLs as reachable and relevant; context7 dashboard, Google AI Studio direct dashboard, and Recraft profile links were replaced with verified docs links, and the failing Hi3D docs URL was removed from key metadata.
+      timestamp: "2026-07-21T10:34:12Z"
+
+implementation_plan:
+  spec_path: docs/specs/provider-requirements-update-preflight/spec.yml
+  existing_patterns:
+    - frontend/packages/openmates-cli/src/serverPlanning.ts findMissingRequiredSecrets already compares installed and target requirement arrays.
+    - frontend/packages/openmates-cli/src/server.ts already reads installPath/.env and writes update status files.
+    - scripts/contract_audits.py already audits app provider metadata for explicit auth/no-auth declarations.
+    - docs/specs/unified-server-cli-management/spec.yml already requires CLI update preflight warnings for newly required API keys.
+  architecture: >
+    Add a deterministic provider-requirements manifest generated from
+    backend/providers/*.yml, package or resolve that manifest for target updates,
+    and use the existing CLI planning surface to diff installed versus target
+     requirements. Keep .env runtime compatibility while reorganizing docs and
+    docs so provider keys are generated from metadata rather than maintained as a
+    flat hand-written list.
+  data_flow:
+    - Provider YAML declares required_keys, optional_keys, or no_api_key.
+    - Manifest generation writes metadata-only provider requirements for CLI/runtime packaging.
+    - Install/update records the installed manifest digest in server metadata.
+    - Update dry-run resolves the target manifest, compares missing required and optional keys against .env and Vault presence, and renders guidance.
+    - Continuous update records blocked status when required keys are missing.
+  affected_files:
+    - path: backend/providers/*.yml
+      reason: Backfill provider requirement metadata and setup URLs.
+    - path: scripts/contract_audits.py
+      reason: Enforce explicit provider API-key/no-key declarations.
+    - path: scripts/tests/test_provider_requirements_manifest.py
+      reason: Deterministic manifest generation and provider metadata coverage.
+    - path: scripts/tests/test_provider_setup_urls.py
+      reason: URL validation/audit fixture coverage.
+    - path: scripts/tests/test_selfhost_env_layout.py
+      reason: Env layout and provider-example drift coverage.
+    - path: frontend/packages/openmates-cli/src/serverPlanning.ts
+      reason: Requirement diffing and update preflight planning.
+    - path: frontend/packages/openmates-cli/src/server.ts
+      reason: CLI output, target source links, update status, env commands, and packaged manifest loading.
+    - path: frontend/packages/openmates-cli/tests/server.test.ts
+      reason: CLI preflight, env command, and source-link contract tests.
+    - path: backend/core/api/app/routes/apps.py
+      reason: Runtime app/skill/provider/model availability for web metadata.
+    - path: backend/core/api/app/routes/apps_api.py
+      reason: Runtime app listing and skill availability enforcement.
+    - path: backend/core/api/app/routes/openai_compat.py
+      reason: Model availability for OpenAI-compatible model listing.
+    - path: backend/tests/test_apps_metadata_availability.py
+      reason: Backend provider availability contract tests.
+    - path: frontend/packages/ui/src/stores/appSkillsStore.ts
+      reason: Frontend runtime availability state.
+    - path: frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+      reason: Frontend availability filtering tests.
+    - path: docs/self-hosting/setup.md
+      reason: Self-host operator guidance for provider keys and split env examples.
+    - path: docs/user-guide/cli/server-management.md
+      reason: CLI update and blocked-status documentation.
+    - path: .env.example
+      reason: Reduce or redirect monolithic provider-key examples if selected by the plan.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/provider-requirements-update-preflight/spec.yml
+    - python3 -m pytest scripts/tests/test_provider_requirements_manifest.py
+    - python3 -m pytest scripts/tests/test_provider_setup_urls.py
+    - python3 -m pytest scripts/tests/test_selfhost_env_layout.py
+    - npm --prefix frontend/packages/openmates-cli test -- server.test.ts
+    - python3 -m pytest backend/tests/test_apps_metadata_availability.py backend/tests/test_openai_compatible_api_contract.py
+    - npm --prefix frontend/packages/ui run test -- appSkillsStore.test.ts
+    - Firecrawl verification for committed provider setup URLs before green evidence is recorded.
+  verification_order:
+    - Provider manifest and URL audit red tests before metadata backfill.
+    - CLI preflight/source-link red tests before CLI implementation.
+    - Python audit/tests green after provider metadata and env docs update.
+    - CLI Vitest green after CLI update output and status changes.
+    - Backend/frontend availability tests green after runtime missing-key hiding changes.
+    - Documentation review and Firecrawl URL verification before completion.
+    - Apple verification skipped because no native surface is affected.
+
+tasks:
+  - id: TASK-1
+    title: Approve provider requirements product contract
+    status: done
+    phase: awaiting_approval
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-10
+        - AC-11
+    expected_files:
+      - docs/specs/provider-requirements-update-preflight/spec.yml
+    verification_ids:
+      - T-PROVIDER-MANIFEST
+      - T-CLI-PREFLIGHT
+      - T-CLI-SOURCE-LINKS
+      - T-PROVIDER-URL-AUDIT
+      - T-ENV-LAYOUT
+      - T-CLI-ENV
+      - T-BACKEND-PROVIDER-AVAILABILITY
+      - T-FRONTEND-PROVIDER-AVAILABILITY
+      - V-FIRECRAWL-URLS
+    dependencies: []
+    ownership:
+      files:
+        - docs/specs/provider-requirements-update-preflight/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Add provider manifest tests and metadata audit
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-7
+        - AC-9
+    expected_files:
+      - scripts/tests/test_provider_requirements_manifest.py
+      - scripts/tests/test_provider_setup_urls.py
+      - scripts/contract_audits.py
+    verification_ids:
+      - T-PROVIDER-MANIFEST
+      - T-PROVIDER-URL-AUDIT
+      - V-FIRECRAWL-URLS
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - scripts/tests/test_provider_requirements_manifest.py
+        - scripts/tests/test_provider_setup_urls.py
+        - scripts/contract_audits.py
+      shared_files:
+        - backend/providers/*.yml
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Backfill provider metadata and verified setup URLs
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-7
+    expected_files:
+      - backend/providers/brave.yml
+      - backend/providers/firecrawl.yml
+      - backend/providers/context7.yml
+      - backend/providers/openai.yml
+      - backend/providers/anthropic.yml
+      - backend/providers/google.yml
+      - backend/providers/mistral.yml
+    verification_ids:
+      - T-PROVIDER-MANIFEST
+      - T-PROVIDER-URL-AUDIT
+      - V-FIRECRAWL-URLS
+    dependencies:
+      - TASK-2
+    ownership:
+      files:
+        - backend/providers/*.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Implement CLI update requirement diff, source links, and env commands
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-10
+    expected_files:
+      - frontend/packages/openmates-cli/src/serverPlanning.ts
+      - frontend/packages/openmates-cli/src/server.ts
+      - frontend/packages/openmates-cli/tests/server.test.ts
+    verification_ids:
+      - T-CLI-PREFLIGHT
+      - T-CLI-SOURCE-LINKS
+      - T-CLI-ENV
+    dependencies:
+      - TASK-2
+      - TASK-3
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/serverPlanning.ts
+        - frontend/packages/openmates-cli/src/server.ts
+        - frontend/packages/openmates-cli/tests/server.test.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-5
+    title: Document env commands and update blockers
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-8
+        - AC-9
+    expected_files:
+      - scripts/tests/test_selfhost_env_layout.py
+      - docs/self-hosting/setup.md
+      - docs/user-guide/cli/server-management.md
+      - .env.example
+    verification_ids:
+      - T-ENV-LAYOUT
+      - T-PROVIDER-MANIFEST
+    dependencies:
+      - TASK-2
+      - TASK-3
+    ownership:
+      files:
+        - scripts/tests/test_selfhost_env_layout.py
+        - docs/self-hosting/setup.md
+        - docs/user-guide/cli/server-management.md
+        - .env.example
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-6
+    title: Hide missing-key provider-backed web/server features
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-7
+      acceptance_criteria:
+        - AC-11
+    expected_files:
+      - backend/core/api/app/routes/apps.py
+      - backend/core/api/app/routes/apps_api.py
+      - backend/core/api/app/routes/openai_compat.py
+      - backend/tests/test_apps_metadata_availability.py
+      - backend/tests/test_openai_compatible_api_contract.py
+      - frontend/packages/ui/src/stores/appSkillsStore.ts
+      - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    verification_ids:
+      - T-BACKEND-PROVIDER-AVAILABILITY
+      - T-FRONTEND-PROVIDER-AVAILABILITY
+    dependencies:
+      - TASK-2
+      - TASK-3
+    ownership:
+      files:
+        - backend/core/api/app/routes/apps.py
+        - backend/core/api/app/routes/apps_api.py
+        - backend/core/api/app/routes/openai_compat.py
+        - backend/tests/test_apps_metadata_availability.py
+        - backend/tests/test_openai_compatible_api_contract.py
+        - frontend/packages/ui/src/stores/appSkillsStore.ts
+        - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - Provider metadata backfill may surface many existing providers without clear setup URLs; record intentionally unavailable docs URLs rather than inventing links.
+  - Continuous update blocking must be conservative enough to avoid enabling broken provider-backed features, but not so strict that optional providers stop security updates.
+  - Extra env example files can confuse operators if runtime still uses one .env; docs and CLI help must state compatibility clearly.
+  - PR URL derivation may be unavailable for some commits; output must degrade to the commit URL without inventing a PR.
+
+open_questions:
+  - Should manual update use --confirm-missing-provider-keys or reuse an existing --yes/--force pattern for required-key blockers?
+  - Where should target manifests be fetched from when updating to a remote image digest that does not correspond to the local packaged CLI version?

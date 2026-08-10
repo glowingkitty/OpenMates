@@ -28,6 +28,10 @@ function isDefaultEnabled(definition) {
   return definition?.default_enabled !== false;
 }
 
+function isUserFacingApp(definition) {
+  return definition?.internal !== true;
+}
+
 /**
  * Recursively find all app.yml files in the backend/apps directory.
  * @returns Array of { appId, filePath } objects
@@ -504,6 +508,13 @@ function parseAppYaml(appId, filePath) {
     if (!isDefaultEnabled(appData)) {
       console.warn(
         `[generate-apps-metadata] ${appId}: default_enabled is false, excluding from static Apps metadata`,
+      );
+      return null;
+    }
+
+    if (!isUserFacingApp(appData)) {
+      console.warn(
+        `[generate-apps-metadata] ${appId}: internal is true, excluding from static Apps metadata`,
       );
       return null;
     }

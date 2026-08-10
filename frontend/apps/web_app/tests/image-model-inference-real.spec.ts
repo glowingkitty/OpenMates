@@ -11,6 +11,7 @@ export {};
  */
 
 const path = require('path');
+const fs = require('fs');
 const { test, expect } = require('./helpers/cookie-audit');
 const {
 	createSignupLogger,
@@ -19,7 +20,13 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const {
+	loginToTestAccount,
+	startNewChat,
+	deleteActiveChat,
+	waitForChatReady,
+	waitForAssistantMessage
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const IMAGE_FIXTURE = path.resolve(
@@ -30,7 +37,10 @@ const IMAGE_FIXTURE = path.resolve(
 const PROMPT = 'Evaluate the design and give recommendations for improvements.';
 const DESIGN_FEEDBACK_PATTERN = /design|recommend|improve|layout|spacing|interface|ui/i;
 const TRIALS = [1, 2, 3];
-const DEFAULT_SMOKE_MODEL_LABELS = ['gemini-pro'];
+const DEFAULT_SMOKE_MODEL_LABELS = ['gemini-36-flash'];
+const IMAGE_VIEW_TIMEOUT_MS = 180000;
+const ASSISTANT_MESSAGE_START_TIMEOUT_MS = 180000;
+const ASSISTANT_COMPLETION_TIMEOUT_MS = 240000;
 
 type ModelCase = {
 	provider: string;
@@ -92,8 +102,8 @@ const MODELS: ModelCase[] = [
 	},
 	{
 		provider: 'google',
-		model: 'gemini-3.1-pro-preview',
-		label: 'gemini-pro',
+		model: 'gemini-3.6-flash',
+		label: 'gemini-36-flash',
 		expectedGeneratedBy: /Claude Haiku 4\.5|claude-haiku-4-5-20251001/i,
 		expectsReroute: true
 	},
@@ -148,13 +158,30 @@ function scoreResponse(text: string) {
 async function attachImage(page: any, log: (message: string, metadata?: Record<string, unknown>) => void) {
 	const fileInput = page.locator('input[type="file"][multiple]');
 	await expect(fileInput).toBeAttached({ timeout: 10000 });
-	await fileInput.setInputFiles(IMAGE_FIXTURE);
+	// Avoid reusing stale duplicate upload rows for this shared fixture hash.
+	const uniqueSuffix = `\nopenmates-e2e-${Date.now()}-${Math.random()}`;
+	const imageBuffer = Buffer.concat([fs.readFileSync(IMAGE_FIXTURE), Buffer.from(uniqueSuffix)]);
+	await fileInput.setInputFiles({
+		name: 'large_message_e2e.jpg',
+		mimeType: 'image/jpeg',
+		buffer: imageBuffer
+	});
 	log('Attached image fixture.', { image: IMAGE_FIXTURE });
 
-	const editorEmbed = page.getByTestId('message-editor').locator('[data-testid="embed-full-width-wrapper"]');
+	const editor = page.getByTestId('message-editor');
+	const editorEmbed = editor.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="image"]');
+	const editorPreview = editorEmbed.locator(
+		'[data-testid="embed-preview"][data-app-id="images"][data-skill-id="view"]'
+	);
 	await expect(editorEmbed.first()).toBeVisible({ timeout: 20000 });
-	await page.waitForTimeout(5000);
+	// The upload-ready state is owned by the mounted UnifiedEmbedPreview. The
+	// TipTap NodeView wrapper can be recreated while upload attrs propagate, so
+	// wait on the preview's canonical data-status instead of the wrapper attr.
+	await expect(editorPreview.first()).toHaveAttribute('data-status', 'finished', { timeout: 120000 });
 	await closeEmbedFullscreenIfOpen(page, log);
+	await page.keyboard.press('Escape');
+	await editor.press('End');
+	log('Image upload finished and editor cursor moved after embed.');
 }
 
 async function closeEmbedFullscreenIfOpen(
@@ -173,40 +200,64 @@ async function closeEmbedFullscreenIfOpen(
 	log('Closed fullscreen overlay before sending.');
 }
 
-async function sendImageQuestion(
+async function typePromptAndSendAfterAttachment(
 	page: any,
 	message: string,
-	log: (message: string, metadata?: Record<string, unknown>) => void
+	log: (message: string, metadata?: Record<string, unknown>) => void,
+	takeStepScreenshot: (page: any, label: string) => Promise<void>,
+	stepLabel: string
 ) {
 	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 10000 });
-	await editor.click();
+	await page.keyboard.press('Escape');
+	await editor.press('End');
 	await page.keyboard.type(message);
-	log('Typed image question.', { message });
+	log(`Typed message after image embed: "${message}"`);
+	await takeStepScreenshot(page, `${stepLabel}-message-typed`);
 
+	const userMessages = page.getByTestId('message-user');
+	const assistantMessages = page.getByTestId('message-assistant');
+	const userCountBeforeSend = await userMessages.count().catch(() => 0);
+	const assistantCountBeforeSend = await assistantMessages.count().catch(() => 0);
 	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled({ timeout: 30000 });
-	await closeEmbedFullscreenIfOpen(page, log);
-	await sendButton.click({ force: true });
-	log('Sent image question.');
+	await expect(sendButton).toBeVisible({ timeout: 15000 });
+	await expect(sendButton).toBeEnabled({ timeout: 10000 });
+	await page.keyboard.press('Escape');
+	await sendButton.click({ timeout: 10000 });
+	log('Clicked send button after image upload.');
+
+	await expect
+		.poll(
+			async () => {
+				const userCount = await userMessages.count().catch(() => 0);
+				const assistantCount = await assistantMessages.count().catch(() => 0);
+				return userCount > userCountBeforeSend || assistantCount > assistantCountBeforeSend;
+			},
+			{ timeout: 60000, intervals: [1000, 2000, 5000] }
+		)
+		.toBeTruthy();
+	log('Message send accepted after attachment-preserving send.', { assistantCountBeforeSend });
 }
 
 async function waitForImageViewAndResponse(page: any, log: (message: string, metadata?: Record<string, unknown>) => void) {
 	const imageViewEmbed = page.locator('[data-app-id="images"][data-skill-id="view"]').last();
-	await expect(imageViewEmbed).toBeVisible({ timeout: 180000 });
+	await expect(imageViewEmbed).toBeVisible({ timeout: IMAGE_VIEW_TIMEOUT_MS });
 	log('images.view embed is visible.');
 
-	const assistantMessage = page.getByTestId('message-assistant').last();
-	await expect(assistantMessage).toBeVisible({ timeout: 30000 });
+	const assistantMessage = await waitForAssistantMessage(page, {
+		which: 'last',
+		contains: DESIGN_FEEDBACK_PATTERN,
+		timeout: ASSISTANT_COMPLETION_TIMEOUT_MS,
+		logCheckpoint: log
+	});
 	const generatedBy = assistantMessage.getByTestId('generated-by');
-	await expect(generatedBy).toBeVisible({ timeout: 240000 });
-	await expect(assistantMessage).toContainText(DESIGN_FEEDBACK_PATTERN, { timeout: 240000 });
+	await expect(generatedBy).toBeVisible({ timeout: ASSISTANT_MESSAGE_START_TIMEOUT_MS });
 	const generatedByText = (await generatedBy.textContent()) || '';
 	const responseText = (await assistantMessage.textContent()) || '';
 	return { generatedByText, responseText };
 }
 
-test.describe.configure({ mode: 'parallel' });
+test.describe.configure({ mode: 'serial' });
 
 for (const model of activeModels) {
 	for (const trial of activeTrials) {
@@ -226,10 +277,12 @@ for (const model of activeModels) {
 			await page.goto(getE2EDebugUrl('/'));
 			await loginToTestAccount(page, log, screenshot);
 			await startNewChat(page, log);
+			await waitForChatReady(page, log, 90000);
 			await attachImage(page, log);
 
 			const message = `${PROMPT} ${modelDirective(model)}`;
-			await sendImageQuestion(page, message, log);
+			await closeEmbedFullscreenIfOpen(page, log);
+			await typePromptAndSendAfterAttachment(page, message, log, screenshot, `image-question-${model.label}-${trial}`);
 			const { generatedByText, responseText } = await waitForImageViewAndResponse(page, log);
 			const score = scoreResponse(responseText);
 

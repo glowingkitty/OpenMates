@@ -3,38 +3,264 @@
  * Configures global test environment and mocks
  */
 
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { resolve } from "node:path";
 import { vi } from "vitest";
 
-// Mock browser APIs that might not be available in test environment.
-//
-// NOTE: This replaces the entire window object. Any browser API needed by
-// modules imported at test time must be stubbed here. Missing stubs cause
-// "Cannot read properties of undefined" crashes at module-init time.
-Object.defineProperty(global, "window", {
-  value: {
-    btoa: (str: string) => Buffer.from(str, "binary").toString("base64"),
-    atob: (str: string) => Buffer.from(str, "base64").toString("binary"),
-    sessionStorage: {
-      getItem: vi.fn(),
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
+const VITE_FS_PREFIX = "/@fs";
+const UI_SRC_PREFIX = "/src/";
+const WORKSPACE_PATH_SEGMENTS = ["/frontend/packages/ui/", "/backend/", "/shared/"];
+const uiPackageRoot = resolve(import.meta.dirname, "..");
+const repoRoot = resolve(uiPackageRoot, "../../..");
+const originalReadFileSync = fs.readFileSync;
+type ReadFileSyncPath = Parameters<typeof originalReadFileSync>[0];
+type ReadFileSyncOptions = Parameters<typeof originalReadFileSync>[1];
+const fileTextByInstance = new WeakMap<File, string>();
+
+const windowEventTarget = new EventTarget();
+const testLocation = {
+  hash: "",
+  pathname: "/",
+  search: "",
+};
+const testLocalStorage = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+};
+const testSessionStorage = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+};
+const testDocument = {
+  activeElement: null,
+  body: {
+    appendChild: vi.fn(),
+    removeChild: vi.fn(),
+  },
+  cookie: "",
+  documentElement: {
+    dataset: {},
+    removeAttribute: vi.fn(),
+    setAttribute: vi.fn(),
+    style: { removeProperty: vi.fn(), setProperty: vi.fn() },
+  },
+  visibilityState: "visible",
+  addEventListener: vi.fn(
+    (...args: Parameters<EventTarget["addEventListener"]>) =>
+      windowEventTarget.addEventListener(...args),
+  ),
+  removeEventListener: vi.fn(
+    (...args: Parameters<EventTarget["removeEventListener"]>) =>
+      windowEventTarget.removeEventListener(...args),
+  ),
+  dispatchEvent: vi.fn((event: Event) => windowEventTarget.dispatchEvent(event)),
+  createElement: vi.fn((tagName: string) => ({
+    appendChild: vi.fn(),
+    click: vi.fn(),
+    dataset: {},
+    href: "",
+    remove: vi.fn(),
+    removeChild: vi.fn(),
+    setAttribute: vi.fn(),
+    style: {},
+    tagName: tagName.toUpperCase(),
+  })),
+  createTextNode: vi.fn((text: string) => ({ textContent: text })),
+  getElementById: vi.fn(() => null),
+  querySelector: vi.fn(() => null),
+};
+
+const testPage = {
+  data: {},
+  error: null,
+  form: null,
+  params: {},
+  route: { id: null },
+  status: 200,
+  url: new URL("http://localhost/"),
+};
+
+function readable<T>(value: T) {
+  return {
+    subscribe(run: (current: T) => void) {
+      run(value);
+      return () => undefined;
     },
-    localStorage: {
-      getItem: vi.fn(),
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
+  };
+}
+
+function defineConfigurableProperty(target: object, property: string, value: unknown): void {
+  Object.defineProperty(target, property, {
+    value,
+    writable: true,
+    configurable: true,
+  });
+}
+
+function resolveViteReadFileUrl(path: URL): URL | string {
+  if (path.protocol === "file:") return path;
+
+  const pathname = decodeURIComponent(path.pathname);
+  if (pathname.startsWith(`${VITE_FS_PREFIX}/`)) return pathname.slice(VITE_FS_PREFIX.length);
+  if (WORKSPACE_PATH_SEGMENTS.some((segment) => pathname.includes(segment))) return pathname;
+  if (pathname.startsWith(UI_SRC_PREFIX)) return resolve(uiPackageRoot, pathname.slice(1));
+  if (pathname.startsWith("/backend/") || pathname.startsWith("/shared/")) {
+    return resolve(repoRoot, pathname.slice(1));
+  }
+  return path;
+}
+
+function normalizeReadFilePath(path: ReadFileSyncPath): ReadFileSyncPath {
+  return path instanceof URL ? resolveViteReadFileUrl(path) : path;
+}
+
+function blobPartToText(part: BlobPart): string {
+  if (typeof part === "string") return part;
+  if (part instanceof ArrayBuffer) return new TextDecoder().decode(part);
+  if (ArrayBuffer.isView(part)) return new TextDecoder().decode(part);
+  return String(part);
+}
+
+function installFileTextShim(): void {
+  const NativeFile = globalThis.File;
+  if (typeof NativeFile === "undefined" || typeof NativeFile.prototype.text === "function") return;
+
+  class TestFile extends NativeFile {
+    constructor(fileBits: BlobPart[], fileName: string, options?: FilePropertyBag) {
+      super(fileBits, fileName, options);
+      fileTextByInstance.set(this, fileBits.map(blobPartToText).join(""));
+    }
+
+    text(): Promise<string> {
+      return Promise.resolve(fileTextByInstance.get(this) ?? "");
+    }
+  }
+
+  defineConfigurableProperty(globalThis, "File", TestFile);
+  defineConfigurableProperty(activeWindow, "File", TestFile);
+}
+
+function installBlobArrayBufferShim(): void {
+  const NativeBlob = globalThis.Blob;
+  if (
+    typeof NativeBlob === "undefined" ||
+    typeof NativeBlob.prototype.arrayBuffer === "function"
+  ) return;
+
+  defineConfigurableProperty(
+    NativeBlob.prototype,
+    "arrayBuffer",
+    function arrayBuffer(this: Blob) {
+      return new Promise<ArrayBuffer>((resolve, reject) => {
+        if (typeof FileReader === "undefined") {
+          reject(new Error("Blob.arrayBuffer() is unavailable in this test environment"));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.onerror = () => reject(reader.error ?? new Error("Blob.arrayBuffer() failed"));
+        reader.readAsArrayBuffer(this);
+      });
     },
-    // navigator.standalone is read by detectIsPWA() at module-init time in
-    // pushNotificationStore. Stub it so the read doesn't throw.
-    navigator: {
-      standalone: undefined,
-      serviceWorker: undefined,
-    },
-    // matchMedia is called by detectIsPWA() for '(display-mode: standalone)'.
-    // jsdom does not implement it; without a stub every file that transitively
-    // imports pushNotificationStore crashes with:
-    //   TypeError: window.matchMedia is not a function
-    matchMedia: vi.fn().mockImplementation((query: string) => ({
+  );
+}
+
+fs.readFileSync = ((path: ReadFileSyncPath, options?: ReadFileSyncOptions) => (
+  originalReadFileSync(normalizeReadFilePath(path), options)
+)) as typeof fs.readFileSync;
+syncBuiltinESMExports();
+
+vi.mock("$app/environment", () => ({
+  browser: true,
+  building: false,
+  dev: true,
+  version: "test",
+}));
+
+vi.mock("$app/navigation", () => ({
+  afterNavigate: vi.fn(),
+  beforeNavigate: vi.fn(),
+  disableScrollHandling: vi.fn(),
+  goto: vi.fn(),
+  invalidate: vi.fn(),
+  invalidateAll: vi.fn(),
+  onNavigate: vi.fn(),
+  preloadCode: vi.fn(),
+  preloadData: vi.fn(),
+  pushState: vi.fn(),
+  replaceState: vi.fn(),
+}));
+
+vi.mock("$app/stores", () => ({
+  navigating: readable(null),
+  page: readable(testPage),
+  updated: { ...readable(false), check: vi.fn() },
+}));
+
+vi.mock("$app/state", () => ({
+  navigating: { current: null },
+  page: { current: testPage },
+  updated: { check: vi.fn(), current: false },
+}));
+
+// Mock browser APIs that might not be available in Node test files without
+// replacing jsdom's native DOM objects in component tests.
+type MutableWindow = Window & typeof globalThis & Record<string, unknown>;
+
+const fallbackWindow = {
+  btoa: (str: string) => Buffer.from(str, "binary").toString("base64"),
+  atob: (str: string) => Buffer.from(str, "base64").toString("binary"),
+  sessionStorage: testSessionStorage,
+  localStorage: testLocalStorage,
+  document: testDocument,
+  location: testLocation,
+  history: {
+    replaceState: vi.fn(),
+    pushState: vi.fn(),
+  },
+  // navigator.standalone is read by detectIsPWA() at module-init time in
+  // pushNotificationStore. Stub it so the read doesn't throw.
+  navigator: {
+    standalone: undefined,
+    serviceWorker: undefined,
+  },
+  addEventListener: vi.fn(
+    (...args: Parameters<EventTarget["addEventListener"]>) =>
+      windowEventTarget.addEventListener(...args),
+  ),
+  removeEventListener: vi.fn(
+    (...args: Parameters<EventTarget["removeEventListener"]>) =>
+      windowEventTarget.removeEventListener(...args),
+  ),
+  dispatchEvent: vi.fn((event: Event) => windowEventTarget.dispatchEvent(event)),
+} as unknown as MutableWindow;
+
+if (typeof globalThis.window === "undefined") {
+  defineConfigurableProperty(globalThis, "window", fallbackWindow);
+}
+
+const activeWindow = globalThis.window as MutableWindow;
+
+if (typeof activeWindow.btoa !== "function") {
+  defineConfigurableProperty(activeWindow, "btoa", fallbackWindow.btoa);
+}
+if (typeof activeWindow.atob !== "function") {
+  defineConfigurableProperty(activeWindow, "atob", fallbackWindow.atob);
+}
+if (typeof globalThis.btoa !== "function") {
+  defineConfigurableProperty(globalThis, "btoa", fallbackWindow.btoa);
+}
+if (typeof globalThis.atob !== "function") {
+  defineConfigurableProperty(globalThis, "atob", fallbackWindow.atob);
+}
+if (typeof activeWindow.matchMedia !== "function") {
+  defineConfigurableProperty(
+    activeWindow,
+    "matchMedia",
+    vi.fn().mockImplementation((query: string) => ({
       matches: false,
       media: query,
       onchange: null,
@@ -44,9 +270,34 @@ Object.defineProperty(global, "window", {
       removeEventListener: vi.fn(),
       dispatchEvent: vi.fn(),
     })),
-  },
-  writable: true,
-});
+  );
+}
+if (typeof activeWindow.document === "undefined") {
+  defineConfigurableProperty(activeWindow, "document", testDocument);
+}
+defineConfigurableProperty(activeWindow, "localStorage", activeWindow.localStorage ?? testLocalStorage);
+defineConfigurableProperty(activeWindow, "sessionStorage", activeWindow.sessionStorage ?? testSessionStorage);
+if (typeof activeWindow.location === "undefined") {
+  defineConfigurableProperty(activeWindow, "location", testLocation);
+}
+if (typeof activeWindow.history === "undefined") {
+  defineConfigurableProperty(activeWindow, "history", fallbackWindow.history);
+}
+
+if (typeof globalThis.localStorage === "undefined") {
+  defineConfigurableProperty(globalThis, "localStorage", testLocalStorage);
+}
+
+if (typeof globalThis.sessionStorage === "undefined") {
+  defineConfigurableProperty(globalThis, "sessionStorage", testSessionStorage);
+}
+
+installFileTextShim();
+installBlobArrayBufferShim();
+
+if (typeof globalThis.document === "undefined") {
+  defineConfigurableProperty(globalThis, "document", activeWindow.document ?? testDocument);
+}
 
 // Mock crypto.subtle for key derivation tests
 Object.defineProperty(global, "crypto", {
@@ -59,6 +310,7 @@ Object.defineProperty(global, "crypto", {
     randomUUID: vi.fn(() => "test-uuid-123"),
   },
   writable: true,
+  configurable: true,
 });
 
 // Mock IndexedDB
@@ -70,6 +322,7 @@ const mockIndexedDB = {
 Object.defineProperty(global, "indexedDB", {
   value: mockIndexedDB,
   writable: true,
+  configurable: true,
 });
 
 // Suppress console warnings in tests

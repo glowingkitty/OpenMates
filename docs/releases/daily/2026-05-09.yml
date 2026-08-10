@@ -1,0 +1,1026 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-09'
+generated_at: '2026-07-09T15:18:17+00:00'
+range:
+  since: '2026-05-09T00:00:00+00:00'
+  until: '2026-05-09T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 16
+  section_counts:
+    features: 5
+    bug_fixes: 4
+    improvements: 0
+    docs: 0
+    tests: 6
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 7
+  user_facing_items: 9
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add code repository search skill'
+    section: features
+    commits:
+    - 46dfb56f6
+    authored_at: '2026-05-09T17:26:29+00:00'
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/search_repos_skill.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/shared/providers/github/__init__.py
+    - backend/shared/providers/github/repo_metadata.py
+    - backend/tests/test_code_search_repos_skill.py
+    - backend/tests/test_github_repo_metadata.py
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/codeEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: generate real DOCX docs artifacts'
+    section: features
+    commits:
+    - 8ced9d773
+    authored_at: '2026-05-09T15:09:15+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_document_generation_instruction.md
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/docs/__init__.py
+    - backend/apps/docs/app.yml
+    - backend/apps/docs/tasks/__init__.py
+    - backend/apps/docs/tasks/generate_task.py
+    - backend/core/api/Dockerfile.docs
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/requirements.txt
+    - backend/core/docker-compose.yml
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/docs/docsArtifactCrypto.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add GitHub repository embeds'
+    section: features
+    commits:
+    - 3fd120968
+    authored_at: '2026-05-09T14:21:19+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/preview/app/routes/__init__.py
+    - backend/preview/app/routes/github_repo.py
+    - backend/preview/main.py
+    - backend/shared/providers/github/__init__.py
+    - backend/shared/providers/github/repo_metadata.py
+    - frontend/apps/web_app/tests/code-repo-embed.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/codeEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/services/urlMetadataService.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/utils/imageProxy.ts
+    - shared/config/embed_types.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add touch swipes to grouped embeds'
+    section: features
+    commits:
+    - 96e1f7bc8
+    authored_at: '2026-05-09T09:11:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add native chat streaming sync parity'
+    section: features
+    commits:
+    - c422f3c92
+    authored_at: '2026-05-09T09:27:22+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/Intents/AskOpenMatesIntent.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/PlaceRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  bug_fixes:
+  - title: 'fix: route repository searches to code skill'
+    section: bug_fixes
+    commits:
+    - b4ecc982f
+    authored_at: '2026-05-09T22:04:28+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route GitHub repo searches to code skill'
+    section: bug_fixes
+    commits:
+    - c0e7228d3
+    authored_at: '2026-05-09T17:49:52+00:00'
+    changed_paths:
+    - backend/apps/code/app.yml
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use repo search translation namespace'
+    section: bug_fixes
+    commits:
+    - 40aa81de5
+    authored_at: '2026-05-09T17:36:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: improve native chat sync and settings parity'
+    section: bug_fixes
+    commits:
+    - efffd19ba
+    authored_at: '2026-05-08T12:27:30+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: assert repo search fullscreen content'
+    section: tests
+    commits:
+    - ebcf818b4
+    authored_at: '2026-05-09T22:30:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: make repo search spec deterministic'
+    section: tests
+    commits:
+    - cd1814d06
+    authored_at: '2026-05-09T18:03:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: verify generated DOCX embed artifacts'
+    section: tests
+    commits:
+    - 9bfaead9d
+    authored_at: '2026-05-09T17:07:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: scope embed diff sync noise allowance'
+    section: tests
+    commits:
+    - 27826d823
+    authored_at: '2026-05-09T15:52:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/console-monitor.ts
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for embed diff updates before cleanup'
+    section: tests
+    commits:
+    - e1be40a8a
+    authored_at: '2026-05-09T15:39:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover GitHub repo metadata embeds'
+    section: tests
+    commits:
+    - 176413a3f
+    authored_at: '2026-05-09T14:30:46+00:00'
+    changed_paths:
+    - backend/tests/test_github_repo_metadata.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: update Obsidian test note automation'
+    section: infrastructure
+    commits:
+    - c1e4d339a
+    authored_at: '2026-05-09T09:22:24+00:00'
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - scripts/sync_obsidian_test_results.py
+    - scripts/update_obsidian_daily_note.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: route GitHub repo searches to code skill'
+    commits:
+    - c0e7228d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add code repository search skill'
+    commits:
+    - 46dfb56f6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: generate real DOCX docs artifacts'
+    commits:
+    - 8ced9d773
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'test: cover GitHub repo metadata embeds'
+    commits:
+    - 176413a3f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add GitHub repository embeds'
+    commits:
+    - 3fd120968
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: route repository searches to code skill'
+    commits:
+    - b4ecc982f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: route GitHub repo searches to code skill'
+    commits:
+    - c0e7228d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use repo search translation namespace'
+    commits:
+    - 40aa81de5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add code repository search skill'
+    commits:
+    - 46dfb56f6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: generate real DOCX docs artifacts'
+    commits:
+    - 8ced9d773
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add GitHub repository embeds'
+    commits:
+    - 3fd120968
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add touch swipes to grouped embeds'
+    commits:
+    - 96e1f7bc8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: route repository searches to code skill'
+    commits:
+    - b4ecc982f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: route GitHub repo searches to code skill'
+    commits:
+    - c0e7228d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use repo search translation namespace'
+    commits:
+    - 40aa81de5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add code repository search skill'
+    commits:
+    - 46dfb56f6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: generate real DOCX docs artifacts'
+    commits:
+    - 8ced9d773
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add GitHub repository embeds'
+    commits:
+    - 3fd120968
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add touch swipes to grouped embeds'
+    commits:
+    - 96e1f7bc8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add native chat streaming sync parity'
+    commits:
+    - c422f3c92
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: improve native chat sync and settings parity'
+    commits:
+    - efffd19ba
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: ebcf818b4d13ec5b90168dcb040cc688fcaaf015
+    short_sha: ebcf818b4
+    authored_at: '2026-05-09T22:30:16+00:00'
+    subject: 'test: assert repo search fullscreen content'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    related_feature_ids: []
+  - sha: b4ecc982fe8bc737e55dadf4dc5e0289e3ead5a4
+    short_sha: b4ecc982f
+    authored_at: '2026-05-09T22:04:28+00:00'
+    subject: 'fix: route repository searches to code skill'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    related_feature_ids: []
+  - sha: cd1814d0665b01843bee8fa3448db88ed32eeeaf
+    short_sha: cd1814d06
+    authored_at: '2026-05-09T18:03:07+00:00'
+    subject: 'test: make repo search spec deterministic'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    related_feature_ids: []
+  - sha: c0e7228d31c6082935917e8f940c112f830aab75
+    short_sha: c0e7228d3
+    authored_at: '2026-05-09T17:49:52+00:00'
+    subject: 'fix: route GitHub repo searches to code skill'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/app.yml
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    related_feature_ids: []
+  - sha: 40aa81de5c0fe941ca78559f0cac04a0ee801c6b
+    short_sha: 40aa81de5
+    authored_at: '2026-05-09T17:36:13+00:00'
+    subject: 'fix: use repo search translation namespace'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 46dfb56f6607de1004926a1a6bf0919926baf77e
+    short_sha: 46dfb56f6
+    authored_at: '2026-05-09T17:26:29+00:00'
+    subject: 'feat: add code repository search skill'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/search_repos_skill.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/shared/providers/github/__init__.py
+    - backend/shared/providers/github/repo_metadata.py
+    - backend/tests/test_code_search_repos_skill.py
+    - backend/tests/test_github_repo_metadata.py
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/codeEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    related_feature_ids: []
+  - sha: 9bfaead9dba74f08840716dceed2a3f83ea419d2
+    short_sha: 9bfaead9d
+    authored_at: '2026-05-09T17:07:31+00:00'
+    subject: 'test: verify generated DOCX embed artifacts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 27826d8230377860a2f7422098b870f7dfb7fdb5
+    short_sha: 27826d823
+    authored_at: '2026-05-09T15:52:51+00:00'
+    subject: 'test: scope embed diff sync noise allowance'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/console-monitor.ts
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    related_feature_ids: []
+  - sha: e1be40a8a925a97d07e6eec4f84419c034ac3bdb
+    short_sha: e1be40a8a
+    authored_at: '2026-05-09T15:39:35+00:00'
+    subject: 'test: wait for embed diff updates before cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    related_feature_ids: []
+  - sha: 8ced9d773cac8de9d51299f2a28f4fed68c362eb
+    short_sha: 8ced9d773
+    authored_at: '2026-05-09T15:09:15+00:00'
+    subject: 'feat: generate real DOCX docs artifacts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_document_generation_instruction.md
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/docs/__init__.py
+    - backend/apps/docs/app.yml
+    - backend/apps/docs/tasks/__init__.py
+    - backend/apps/docs/tasks/generate_task.py
+    - backend/core/api/Dockerfile.docs
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/requirements.txt
+    - backend/core/docker-compose.yml
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/docs/docsArtifactCrypto.ts
+    related_feature_ids: []
+  - sha: 176413a3fc2221d0b1e9961299fb53ad45375eee
+    short_sha: 176413a3f
+    authored_at: '2026-05-09T14:30:46+00:00'
+    subject: 'test: cover GitHub repo metadata embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_github_repo_metadata.py
+    related_feature_ids: []
+  - sha: 3fd120968ac91d80f090062d055abf93d8c57baf
+    short_sha: 3fd120968
+    authored_at: '2026-05-09T14:21:19+00:00'
+    subject: 'feat: add GitHub repository embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/preview/app/routes/__init__.py
+    - backend/preview/app/routes/github_repo.py
+    - backend/preview/main.py
+    - backend/shared/providers/github/__init__.py
+    - backend/shared/providers/github/repo_metadata.py
+    - frontend/apps/web_app/tests/code-repo-embed.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/codeEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/services/urlMetadataService.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/utils/imageProxy.ts
+    - shared/config/embed_types.yml
+    related_feature_ids: []
+  - sha: c1e4d339aedee2f168812e630c543c98a6aaafa5
+    short_sha: c1e4d339a
+    authored_at: '2026-05-09T09:22:24+00:00'
+    subject: 'chore: update Obsidian test note automation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - CLAUDE.md
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - scripts/sync_obsidian_test_results.py
+    - scripts/update_obsidian_daily_note.py
+    related_feature_ids: []
+  - sha: 96e1f7bc8fe21eeb54a1787c5d4255a9b60d95e2
+    short_sha: 96e1f7bc8
+    authored_at: '2026-05-09T09:11:05+00:00'
+    subject: 'feat: add touch swipes to grouped embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    related_feature_ids: []
+  - sha: c422f3c92b3f89b97ad544d423fe0b59f0d5d76d
+    short_sha: c422f3c92
+    authored_at: '2026-05-09T09:27:22+02:00'
+    subject: 'feat: add native chat streaming sync parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/Intents/AskOpenMatesIntent.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/PlaceRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: efffd19ba4e5b10ef8f4808e6891e2792c3b77f5
+    short_sha: efffd19ba
+    authored_at: '2026-05-08T12:27:30+02:00'
+    subject: 'fix: improve native chat sync and settings parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+llm_summary:
+  overview: OpenMates introduced significant integrations for developers and document workflows, including GitHub repository
+    searching and rich embeds, alongside the ability to generate real DOCX artifacts. The update also improved mobile UX with
+    touch gestures for grouped content.
+  released_changes:
+  - text: OpenMates added a code repository search skill and rich GitHub repository embeds, allowing users to find and preview
+      repositories directly within the interface.
+    evidence:
+      commits:
+      - 46dfb56f6
+      - 3fd120968
+    release_status: released_main
+  - text: The document generation system now produces real DOCX artifacts, moving beyond simple text representations.
+    evidence:
+      commits:
+      - 8ced9d773
+    release_status: released_main
+  - text: Grouped embeds now support touch swipes, improving navigation for users on touch-enabled devices.
+    evidence:
+      commits:
+      - 96e1f7bc8
+    release_status: released_main
+  bug_fixes:
+  - text: Refined the AI preprocessor to correctly route repository and GitHub-specific searches to the dedicated code search
+      skill.
+    evidence:
+      commits:
+      - b4ecc982f
+      - c0e7228d3
+    release_status: released_main
+  - text: Corrected the translation namespace for repository search previews to ensure proper localized text rendering.
+    evidence:
+      commits:
+      - 40aa81de5
+    release_status: released_main
+  unreleased_progress:
+  - text: Work continued on native platform parity, including chat streaming synchronization and settings improvements for
+      iOS and macOS.
+    evidence:
+      commits:
+      - c422f3c92
+      - efffd19ba
+    release_status: released_main
+  internal_progress:
+  - text: Updated automation scripts for syncing test results and daily notes within Obsidian.
+    evidence:
+      commits:
+      - c1e4d339a
+    release_status: released_main
+  - text: Expanded test coverage for GitHub metadata embeds, deterministic repository searching, and DOCX artifact generation.
+    evidence:
+      commits:
+      - ebcf818b4
+      - cd1814d06
+      - 9bfaead9d
+      - 27826d823
+      - e1be40a8a
+      - 176413a3f
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: GitHub repository search and rich embeds.
+      evidence:
+        commits:
+        - 46dfb56f6
+        - 3fd120968
+      reason: New user-facing integration with GitHub for searching and previewing repositories.
+    - text: Native DOCX document artifact generation.
+      evidence:
+        commits:
+        - 8ced9d773
+      reason: Significant functional improvement to the document generation capabilities.
+    - text: Touch swipe support for grouped embeds.
+      evidence:
+        commits:
+        - 96e1f7bc8
+      reason: Improves the mobile/touch experience for grouped content.
+    exclude:
+    - text: Native platform chat streaming and synchronization improvements.
+      evidence:
+        commits:
+        - c422f3c92
+        - efffd19ba
+      reason: These changes relate to the iOS and macOS platforms, which are currently listed as disabled features.
+    rationale: The GitHub integration and DOCX generation are the most significant user-facing features ready for communication.
+      Native platform updates are excluded as those platforms remain disabled.
+  social_video_recommendations:
+  - idea: A short clip showing a user searching for a GitHub repo and seeing the rich metadata embed appear in the chat.
+    priority: high
+    reason: This is a highly visual feature that demonstrates the platform's utility for developers.
+    evidence:
+      commits:
+      - 46dfb56f6
+      - 3fd120968
+  quality_notes:
+  - The addition of deterministic tests for repository searching suggests a focus on reliability for the new GitHub integration.
+  - Parity work for native platforms continues in the background despite those platforms remaining disabled in the current
+    configuration.
+  validation_warnings: []

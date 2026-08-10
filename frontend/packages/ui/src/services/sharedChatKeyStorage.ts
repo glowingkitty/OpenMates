@@ -15,7 +15,7 @@
  * Architecture:
  * - Keys are stored in IndexedDB (survives page reloads and tab closures)
  * - Keys are stored as raw Uint8Array bytes (the actual AES key material)
- * - Each entry includes metadata: chat_id, created_at timestamp
+ * - Each entry includes metadata: chat_id, created_at timestamp, original share URL
  * - On page load, keys are loaded back into the chatDB memory cache
  * - Keys are deleted when the user explicitly deletes the shared chat
  *
@@ -30,7 +30,7 @@
  */
 
 const DB_NAME = 'openmates_shared_keys';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'shared_chat_keys';
 
 /**
@@ -43,6 +43,8 @@ interface SharedChatKeyEntry {
     key_bytes: Uint8Array;
     /** Timestamp when the key was stored (Unix seconds) */
     created_at: number;
+    /** Exact URL used to open this shared chat, preserving owner password/expiry constraints */
+    share_url?: string | null;
 }
 
 /**
@@ -87,7 +89,7 @@ async function openDB(): Promise<IDBDatabase> {
  * @param chatId - The chat ID to store the key for
  * @param keyBytes - The raw AES key bytes (Uint8Array)
  */
-export async function saveSharedChatKey(chatId: string, keyBytes: Uint8Array): Promise<void> {
+export async function saveSharedChatKey(chatId: string, keyBytes: Uint8Array, shareUrl?: string | null): Promise<void> {
     console.debug(`[SharedChatKeyStorage] Saving key for chat: ${chatId}`);
     
     const db = await openDB();
@@ -99,7 +101,8 @@ export async function saveSharedChatKey(chatId: string, keyBytes: Uint8Array): P
         const entry: SharedChatKeyEntry = {
             chat_id: chatId,
             key_bytes: keyBytes,
-            created_at: Math.floor(Date.now() / 1000)
+            created_at: Math.floor(Date.now() / 1000),
+            share_url: shareUrl ?? null
         };
         
         const request = store.put(entry);
@@ -122,6 +125,35 @@ export async function saveSharedChatKey(chatId: string, keyBytes: Uint8Array): P
             console.error(`[SharedChatKeyStorage] Transaction error saving key for chat ${chatId}:`, transaction.error);
             reject(transaction.error);
         };
+    });
+}
+
+/**
+ * Retrieves the exact share URL that opened a shared chat.
+ *
+ * The original URL is security-significant: regenerating a fresh key blob from
+ * the raw chat key would drop owner-chosen password and expiration settings.
+ */
+export async function getSharedChatUrl(chatId: string): Promise<string | null> {
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([STORE_NAME], 'readonly');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.get(chatId);
+
+        request.onerror = () => {
+            db.close();
+            console.error(`[SharedChatKeyStorage] Error getting share URL for chat ${chatId}:`, request.error);
+            reject(request.error);
+        };
+
+        request.onsuccess = () => {
+            const result = request.result as SharedChatKeyEntry | undefined;
+            resolve(result?.share_url || null);
+        };
+
+        transaction.oncomplete = () => db.close();
     });
 }
 
@@ -409,4 +441,3 @@ export async function deleteSharedKeysDatabase(): Promise<void> {
         };
     });
 }
-

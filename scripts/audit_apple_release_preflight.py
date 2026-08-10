@@ -142,6 +142,64 @@ def _native_target_issues() -> list[str]:
     return issues
 
 
+def _project_target_sources(project_text: str, target: str) -> list[str]:
+    target_match = re.search(
+        rf"(?ms)^  {re.escape(target)}:\s*$.*?(?=^  [A-Za-z0-9_]+:\s*$|\Z)",
+        project_text,
+    )
+    if not target_match:
+        return []
+    sources_match = re.search(r"(?ms)^    sources:\s*$.*?(?=^    [A-Za-z_]+:|\Z)", target_match.group(0))
+    if not sources_match:
+        return []
+    return re.findall(r"(?m)^      - path: (.+)$", sources_match.group(0))
+
+
+def _pbx_object(text: str, object_id: str) -> str:
+    match = re.search(rf"(?ms)^\s*{re.escape(object_id)} /\*[^\n]*\*/ = \{{.*?^\s*\}};", text)
+    return match.group(0) if match else ""
+
+
+def _target_source_phase(text: str, target: str) -> str:
+    native_targets = re.search(
+        r"(?ms)/\* Begin PBXNativeTarget section \*/(.*?)/\* End PBXNativeTarget section \*/",
+        text,
+    )
+    if not native_targets:
+        return ""
+    target_match = re.search(
+        rf"(?ms)^\s*[A-F0-9]+ /\* {re.escape(target)} \*/ = \{{.*?^\s*\}};",
+        native_targets.group(1),
+    )
+    if not target_match:
+        return ""
+    phase_ids = re.findall(r"(?m)^\s*([A-F0-9]+) /\* Sources \*/,$", target_match.group(0))
+    if not phase_ids:
+        return ""
+    return _pbx_object(text, phase_ids[0])
+
+
+def target_source_membership_issues(project_text: str, xcode_text: str) -> list[str]:
+    """Validate release-critical Watch sources belong to the Watch target."""
+    target = "OpenMatesWatch"
+    phase = _target_source_phase(xcode_text, target)
+    if not phase or "isa = PBXSourcesBuildPhase;" not in phase:
+        return [f"{_rel(XCODE_PROJECT)} missing {target} sources build phase"]
+
+    expected_paths = _project_target_sources(project_text, target)
+    expected_files = {"OpenMatesWatchApp.swift"}
+    for path in expected_paths:
+        filename = Path(path).name
+        if filename.endswith(".swift"):
+            expected_files.add(filename)
+
+    actual_files = set(re.findall(r"/\* ([^*/]+\.swift) in Sources \*/", phase))
+    return [
+        f"{_rel(XCODE_PROJECT)} {target} sources missing {filename} declared by apple/project.yml"
+        for filename in sorted(expected_files - actual_files)
+    ]
+
+
 def _has_relevant_path(paths: list[Path]) -> bool:
     return any(APPLE_RELEASE_PATH_RE.search(_rel(path)) for path in paths)
 
@@ -161,6 +219,7 @@ def audit_paths(paths: list[Path]) -> list[str]:
     issues.extend(_missing_terms(APPLE_REMOTE, REQUIRED_TESTFLIGHT_TERMS))
     issues.extend(_bundle_id_issues())
     issues.extend(_native_target_issues())
+    issues.extend(target_source_membership_issues(_read(PROJECT_YML), _read(XCODE_PROJECT)))
     return issues
 
 

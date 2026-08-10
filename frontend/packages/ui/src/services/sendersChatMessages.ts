@@ -19,7 +19,6 @@ import { encryptWithChatKey, decryptWithChatKey } from "./encryption/MessageEncr
 import {
 	decryptChatKeyWithMasterKey,
 	encryptChatKeyWithMasterKey,
-	generateEmbedKey,
 	deriveEmbedKeyFromChatKey,
 	encryptWithEmbedKey,
 	wrapEmbedKeyWithMasterKey,
@@ -36,6 +35,83 @@ import { get } from "svelte/store";
 import { initializeServerStatus, serverStatusStore } from "../stores/serverStatusStore";
 import type { PreparedConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
 import { assertNoConnectedAccountSecretLeak } from "./connectedAccountTokenBrokerService";
+import { deriveChatCompletionRecoveryKeypair } from "../utils/chatCompletionRecovery";
+import { generateUUID } from "../message_parsing/utils";
+
+const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
+const CHAT_RECOVERY_KEY_VERSION = 1;
+const CHAT_PREFLIGHT_TIMEOUT_MS = 60_000;
+const CHAT_PREFLIGHT_TIMEOUT_MESSAGE = "Encrypted chat preflight acknowledgement timed out.";
+const SEND_EMBED_LOAD_RETRY_ATTEMPTS = 12;
+const SEND_EMBED_LOAD_RETRY_DELAY_MS = 500;
+const PREFLIGHT_ERROR_CODES = new Set([
+	"client_update_required",
+	"durable_preflight_failed",
+	"immutable_chat_key_mismatch",
+	"preflight_expired",
+	"preflight_mismatch",
+	"preflight_required",
+	"recovery_key_mismatch",
+	"version_conflict"
+]);
+
+// The acknowledged protocol does not echo turn_id. Keep one preflight in flight
+// per browser service so the one-shot acknowledgement is unambiguously bound to
+// the request that opened its waiter.
+let preflightTail: Promise<void> = Promise.resolve();
+
+async function runSerializedPreflight<T>(operation: () => Promise<T>): Promise<T> {
+	const previous = preflightTail.catch(() => undefined);
+	let release: () => void = () => undefined;
+	preflightTail = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	await previous;
+	try {
+		return await operation();
+	} finally {
+		release();
+	}
+}
+
+function encodeBase64Url(bytes: Uint8Array): string {
+	let binary = "";
+	for (let index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
+	return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function waitForPreflightAcknowledgement(turnId: string): Promise<{ preflight_id: string }> {
+	return new Promise((resolve, reject) => {
+		const timeout = window.setTimeout(() => {
+			cleanup();
+			reject(new Error(CHAT_PREFLIGHT_TIMEOUT_MESSAGE));
+		}, CHAT_PREFLIGHT_TIMEOUT_MS);
+		const handleAck = (payload: unknown) => {
+			const ack = payload as { turn_id?: string; preflight_id?: string };
+			if (ack.turn_id && ack.turn_id !== turnId) return;
+			if (!ack.preflight_id) {
+				cleanup();
+				reject(new Error("Encrypted chat preflight acknowledgement omitted preflight_id."));
+				return;
+			}
+			cleanup();
+			resolve({ preflight_id: ack.preflight_id });
+		};
+		const handleError = (payload: unknown) => {
+			const error = payload as { code?: string; message?: string };
+			if (!error.code || !PREFLIGHT_ERROR_CODES.has(error.code)) return;
+			cleanup();
+			reject(new Error(error.message || "Encrypted chat preflight was rejected."));
+		};
+		const cleanup = () => {
+			window.clearTimeout(timeout);
+			webSocketService.off("chat_turn_preflight_ack", handleAck);
+			webSocketService.off("error", handleError);
+		};
+		webSocketService.on("chat_turn_preflight_ack", handleAck);
+		webSocketService.on("error", handleError);
+	});
+}
 
 async function abortUnsafeKeyMismatch(
 	chatId: string,
@@ -66,6 +142,31 @@ export function shouldSkipClientCodeBlockExtraction(language: string, content: s
 		}
 	}
 	return false;
+}
+
+export function preflightExpectedMessagesVersion(localMessagesVersion: number | undefined): number {
+	return Math.max(0, (localMessagesVersion ?? 1) - 1);
+}
+
+export function shouldIncludePreflightChatMetadata(localMessagesVersion: number | undefined): boolean {
+	return (localMessagesVersion ?? 1) <= 1;
+}
+
+export function isPreflightAcknowledgementTimeout(error: unknown): boolean {
+	return error instanceof Error && error.message === CHAT_PREFLIGHT_TIMEOUT_MESSAGE;
+}
+
+async function updateMessageStatusForSendRetry(
+	serviceInstance: ChatSynchronizationService,
+	message: Message,
+	status: Message["status"]
+): Promise<void> {
+	await chatDB.updateMessageStatus(message.message_id, status);
+	serviceInstance.dispatchEvent(
+		new CustomEvent("messageStatusChanged", {
+			detail: { chatId: message.chat_id, messageId: message.message_id, status }
+		})
+	);
 }
 
 export async function sendNewMessageImpl(
@@ -192,9 +293,10 @@ export async function sendNewMessageImpl(
 	// causing the backend to skip title/icon/category generation for new chats.
 	// title_v starts at 0 and only increments to 1 when a title is actually stored — the correct signal.
 	const chatHasTitle = (chat?.title_v ?? 0) > 0;
+	const includePreflightChatMetadata = shouldIncludePreflightChatMetadata(chat?.messages_v);
 
 	console.debug(
-		`[ChatSyncService:Senders] Chat has title: ${chatHasTitle} (title_v: ${chat?.title_v}, messages_v: ${chat?.messages_v}) - ${chatHasTitle ? "FOLLOW-UP" : "NEW CHAT"}, isIncognito: ${isIncognitoChat}`
+		`[ChatSyncService:Senders] Chat has title: ${chatHasTitle} (title_v: ${chat?.title_v}, messages_v: ${chat?.messages_v}) - ${includePreflightChatMetadata ? "NEW CHAT" : "FOLLOW-UP"}, isIncognito: ${isIncognitoChat}`
 	);
 
 	// ========================================================================
@@ -590,10 +692,14 @@ export async function sendNewMessageImpl(
 
 	// Use processed content (with code blocks and tables replaced by embed references)
 	const contentForServer = processedContent;
+	const getHistoryContentForServer = (msg: Message): string => {
+		if (msg.message_id === message.message_id) return contentForServer ?? "";
+		return typeof msg.content === "string" ? msg.content : "";
+	};
 
 	// Extract embed references from message content (now includes the newly created code embeds)
 	// Embeds are referenced as JSON code blocks: ```json\n{"type": "app_skill_use", "embed_id": "..."}\n```
-	const { extractEmbedReferences, loadEmbeds } = await import("./embedResolver");
+	const { extractEmbedReferences, loadEmbedsWithRetry } = await import("./embedResolver");
 	const embedRefs = extractEmbedReferences(contentForServer);
 
 	// Load embeds from EmbedStore (decrypted, ready to send as cleartext)
@@ -610,7 +716,11 @@ export async function sendNewMessageImpl(
 	const embeds: EmbedForServer[] = [];
 	if (embedRefs.length > 0) {
 		const embedIds = embedRefs.map((ref) => ref.embed_id);
-		const loadedEmbeds = await loadEmbeds(embedIds);
+		const loadedEmbeds = await loadEmbedsWithRetry(
+			embedIds,
+			SEND_EMBED_LOAD_RETRY_ATTEMPTS,
+			SEND_EMBED_LOAD_RETRY_DELAY_MS
+		);
 
 		// CRITICAL VALIDATION: Ensure all embed references have corresponding embed data
 		// If any embeds are missing, this indicates data corruption and should prevent message sending
@@ -653,7 +763,10 @@ export async function sendNewMessageImpl(
 		});
 	}
 
-	// For incognito chats, load full message history (no server-side caching)
+	// Load local history up front for chats whose earlier turns may not be in the
+	// server-side AI cache. The durable preflight commitment must cover this
+	// history on the original request; adding it later via request_chat_history
+	// would require a second preflight for an already-committed user message.
 	let messageHistory: Message[] = [];
 	if (isIncognitoChat) {
 		try {
@@ -664,6 +777,21 @@ export async function sendNewMessageImpl(
 		} catch (error) {
 			console.error(
 				`[ChatSyncService:Senders] Error loading incognito chat message history:`,
+				error
+			);
+		}
+	} else {
+		try {
+			const localHistory = await chatDB.getMessagesForChat(message.chat_id);
+			if (localHistory.length > 1) {
+				messageHistory = localHistory;
+				console.debug(
+					`[ChatSyncService:Senders] Loaded ${messageHistory.length} local messages for durable saved-chat history`
+				);
+			}
+		} catch (error) {
+			console.error(
+				`[ChatSyncService:Senders] Error loading saved chat message history:`,
 				error
 			);
 		}
@@ -705,6 +833,11 @@ export async function sendNewMessageImpl(
 
 	// Phase 1 payload: ONLY fields needed for AI processing
 	interface SendMessagePayload {
+		protocol_version?: number;
+		preflight_id?: string;
+		turn_id?: string;
+		recovery_public_key?: string;
+		chat_key_version?: number;
 		chat_id: string;
 		parent_id?: string | null;
 		broadcast?: boolean;
@@ -718,6 +851,8 @@ export async function sendNewMessageImpl(
 			model_name?: string;
 			chat_has_title?: boolean;
 			current_chat_title?: string | null; // OPE-265: Decrypted title for post-processing title update evaluation
+			current_chat_title_v?: number;
+			current_chat_metadata_v?: number;
 		};
 		encrypted_chat_key?: string | null; // CRITICAL: Include key for device sync broadcast
 		is_incognito?: boolean;
@@ -742,9 +877,11 @@ export async function sendNewMessageImpl(
 			content: contentForServer,
 			created_at: message.created_at,
 			sender_name: message.sender_name, // Include for cache but not critical for AI
-			chat_has_title: chatHasTitle // ZERO-KNOWLEDGE: Send true if chat already has a title (title_v > 0), false if new
+			chat_has_title: chatHasTitle, // ZERO-KNOWLEDGE: Send true if chat already has a title (title_v > 0), false if new
+			current_chat_title_v: chat?.title_v || 0,
+			current_chat_metadata_v: chat?.metadata_v ?? chat?.title_v ?? 0
 			// NO category or encrypted fields - those go to Phase 2
-			// NO message_history - server will request if cache is stale (unless incognito)
+			// message_history is attached at top-level below when local history exists.
 		},
 		encrypted_chat_key: encryptedChatKey, // Include the key for device sync broadcast
 		is_incognito: isIncognitoChat // Flag for backend to skip persistence
@@ -849,8 +986,7 @@ export async function sendNewMessageImpl(
 				({
 					message_id: msg.message_id,
 					role: msg.role,
-					content:
-						typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content),
+					content: getHistoryContentForServer(msg),
 					created_at: msg.created_at,
 					sender_name: msg.sender_name
 				}) as Message
@@ -860,18 +996,17 @@ export async function sendNewMessageImpl(
 		);
 	}
 
-	// For duplicated demo chats or new chats with history, include full message history
-	// This allows the server to persist history for a brand-new chat ID in one go.
-	// The server will use the cleartext 'content' for AI context and 'encrypted_content' for DB storage.
-	if (!isIncognitoChat && !chatHasTitle && messageHistory.length > 0) {
+	// For saved chats with local history, include full message history in the
+	// original inference request. This lets the server rebuild a cold AI cache
+	// without asking the client to resend after preflight has committed the user row.
+	if (!isIncognitoChat && messageHistory.length > 0) {
 		payload.message_history = messageHistory.map(
 			(msg) =>
 				({
 					message_id: msg.message_id,
 					chat_id: message.chat_id,
 					role: msg.role,
-					content:
-						typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content),
+					content: getHistoryContentForServer(msg),
 					encrypted_content: msg.encrypted_content,
 					encrypted_sender_name: msg.encrypted_sender_name,
 					encrypted_category: msg.encrypted_category,
@@ -883,7 +1018,7 @@ export async function sendNewMessageImpl(
 		);
 
 		console.info(
-			`[ChatSyncService:Senders] Including full history for new chat ${message.chat_id} (duplication flow): ${messageHistory.length} messages`
+			`[ChatSyncService:Senders] Including full saved-chat history for ${message.chat_id}: ${messageHistory.length} messages`
 		);
 	}
 
@@ -1000,16 +1135,7 @@ export async function sendNewMessageImpl(
 							// Derive embed key deterministically from chat key — all tabs produce the same result.
 							// This prevents multi-tab race conditions where different tabs generate different
 							// random keys for the same embed (causing permanent key/content mismatch on reload).
-							let embedKey: Uint8Array;
-							if (chatKey) {
-								embedKey = await deriveEmbedKeyFromChatKey(chatKey, embed.embed_id);
-							} else {
-								// Fallback to random (should not happen — chatKey is validated above)
-								embedKey = generateEmbedKey();
-								console.warn(
-									`[ChatSyncService:Senders] ⚠️ Chat key unavailable for HKDF, using random key for embed ${embed.embed_id}`
-								);
-							}
+							const embedKey = await deriveEmbedKeyFromChatKey(chatKey, embed.embed_id);
 							const hashedEmbedId = await computeSHA256(embed.embed_id);
 
 							// Encrypt embed data with the embed key
@@ -1174,10 +1300,87 @@ export async function sendNewMessageImpl(
 		}
 	);
 
+	if (!isIncognitoChat) {
+		if (!encryptedChatKey) {
+			throw new Error(`Saved chat ${message.chat_id} has no encrypted chat key for durable preflight.`);
+		}
+		const chatKey =
+			chatKeyManager.getKeySync(message.chat_id) ||
+			(await chatKeyManager.getKey(message.chat_id));
+		if (!chatKey || !(await ensureChatKeySafeForWrite(message.chat_id, chatKey, "chat turn preflight"))) {
+			throw new Error(`Saved chat ${message.chat_id} has no safe chat key for durable preflight.`);
+		}
+		const turnId = generateUUID();
+		const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
+			encodeBase64Url(chatKey),
+			message.chat_id,
+			CHAT_RECOVERY_KEY_VERSION
+		);
+		const encryptedFields = await chatDB.getEncryptedFields(message, message.chat_id);
+		if (!encryptedFields.encrypted_content) {
+			throw new Error("Durable chat preflight requires encrypted user content.");
+		}
+		Object.assign(payload, {
+			turn_id: turnId,
+			recovery_public_key: recoveryKeypair.publicKey,
+			chat_key_version: CHAT_RECOVERY_KEY_VERSION
+		});
+		const preflightPayload: Record<string, unknown> = {
+			protocol_version: CHAT_RECOVERY_PROTOCOL_VERSION,
+			chat_id: message.chat_id,
+			turn_id: turnId,
+			message_id: message.message_id,
+			chat_key_version: CHAT_RECOVERY_KEY_VERSION,
+			encrypted_chat_key: encryptedChatKey,
+			recovery_public_key: recoveryKeypair.publicKey,
+			// The local user row is saved before this sender runs, so messages_v is
+			// already one ahead of the server version the atomic preflight expects.
+			expected_messages_v: preflightExpectedMessagesVersion(chat?.messages_v),
+			encrypted_user_message: {
+				client_message_id: message.message_id,
+				chat_id: message.chat_id,
+				role: "user",
+				encrypted_content: encryptedFields.encrypted_content,
+				encrypted_sender_name: encryptedFields.encrypted_sender_name,
+				encrypted_pii_mappings: encryptedFields.encrypted_pii_mappings,
+				created_at: message.created_at,
+				updated_at: message.created_at
+			},
+			inference_request: payload
+		};
+		if (includePreflightChatMetadata) {
+			preflightPayload.encrypted_chat_metadata = {
+				encrypted_title: chat?.encrypted_title ?? (await encryptWithChatKey("", chatKey)),
+				encrypted_chat_key: encryptedChatKey,
+				created_at: chat?.created_at ?? message.created_at,
+				updated_at: chat?.updated_at ?? message.created_at
+			};
+		}
+
+		// The commitment covers the exact inference payload. Inject tracing before
+		// preflight and never mutate that payload between acknowledgement and send.
+		injectTraceparent(payload as unknown as Record<string, unknown>);
+		try {
+			const { preflight_id } = await runSerializedPreflight(async () => {
+				const acknowledgement = waitForPreflightAcknowledgement(turnId);
+				await webSocketService.sendMessage("chat_turn_preflight", preflightPayload);
+				return acknowledgement;
+			});
+			payload.protocol_version = CHAT_RECOVERY_PROTOCOL_VERSION;
+			payload.preflight_id = preflight_id;
+		} catch (error) {
+			if (isPreflightAcknowledgementTimeout(error)) {
+				await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
+				webSocketService.forceReconnect("chat preflight acknowledgement timed out");
+			} else {
+				await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
+			}
+			throw error;
+		}
+	}
+
 	// OTel: WebSocket dispatch span — the actual send over the wire
 	const wsDispatchSpan = tracer.startSpan('message.send.websocket_dispatch');
-	// Inject W3C traceparent into WS payload for backend trace correlation
-	injectTraceparent(payload as unknown as Record<string, unknown>);
 	try {
 		await webSocketService.sendMessage("chat_message_added", payload);
 	} catch (error) {
@@ -1270,25 +1473,16 @@ export async function sendCompletedAIResponseImpl(
 			return;
 		}
 
-		// MESSAGES_V HANDLING: The server's `_update_chat_versions_if_needed`
-		// uses the client-provided `versions.messages_v` to set Directus values
-		// (optimistic locking: only updates if client value > current Directus value).
-		// We MUST increment the local version so the server advances past the previous
-		// value. Without this increment, every AI response sends the same stale
-		// messages_v (e.g. 1) and the server's optimistic lock skips the update,
-		// causing permanent client/server version drift.
-		// The `handleChatMessageReceivedImpl` handler is the SOLE authority for
-		// writing the server's messages_v to IndexedDB — we only control what we
-		// send to the server; the broadcast response updates the local DB.
-		// DO NOT write the chat back here — the previous addChat() call created a
-		// race condition: if `chat_message_added` updated messages_v between our
-		// getChat() read above and the addChat() write, we would CLOBBER the
-		// correct value with a stale one, causing permanent client/server drift.
+		// MESSAGES_V HANDLING: send the next durable server version, but do not
+		// advance local chat metadata until `ai_response_storage_confirmed`. Recovery
+		// completions can be visible locally without a terminal Directus row; an
+		// optimistic local bump would make the next durable preflight reject with a
+		// false version_conflict.
 		const newMessagesV = (chat.messages_v || 0) + 1;
 		const newLastEdited = aiMessage.created_at;
 
 		console.debug(
-			`[ChatSyncService:Senders] Using current messages_v for chat ${chat.chat_id}: ${newMessagesV} (not writing back to IDB — version owned by chat_message_added handler)`
+			`[ChatSyncService:Senders] Sending AI response messages_v for chat ${chat.chat_id}: ${newMessagesV}`
 		);
 
 		const chatKey =
@@ -1394,6 +1588,8 @@ export async function sendCompletedAIResponseImpl(
 			`[ChatSyncService:Senders] Error sending completed AI response for message_id: ${aiMessage.message_id}:`,
 			error
 		);
+		const { addPendingAIResponse } = await import("./pendingAIResponses");
+		addPendingAIResponse(aiMessage.message_id, aiMessage.chat_id);
 		// Ensure we unmark on error so it can be retried if needed
 		serviceInstance.unmarkMessageSyncing(aiMessage.message_id);
 	}
@@ -1414,6 +1610,7 @@ export async function sendEncryptedStoragePackage(
 		user_message: Message;
 		task_id?: string;
 		updated_chat?: Chat; // Optional pre-fetched chat with updated versions
+		include_encrypted_chat_key?: boolean;
 	}
 ): Promise<void> {
 	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
@@ -1451,7 +1648,8 @@ export async function sendEncryptedStoragePackage(
 			plaintext_icon,
 			user_message,
 			task_id,
-			updated_chat
+			updated_chat,
+			include_encrypted_chat_key = false
 		} = data;
 
 		// Get chat object for version info - use provided chat or fetch from DB
@@ -1480,6 +1678,7 @@ export async function sendEncryptedStoragePackage(
 		);
 
 		let encryptedChatKey = await chatDB.getEncryptedChatKey(chat_id);
+		let encryptedChatKeyCreatedDuringSend = false;
 		// Prefer any cached chat key first (covers hidden chats already unlocked).
 		let chatKey: Uint8Array | null = await chatKeyManager.getKey(chat_id);
 
@@ -1625,6 +1824,7 @@ export async function sendEncryptedStoragePackage(
 					const result = await chatKeyManager.createAndPersistKeyLocked(chat_id);
 					chatKey = result.chatKey;
 					encryptedChatKey = result.encryptedChatKey;
+					encryptedChatKeyCreatedDuringSend = true;
 					chat.encrypted_chat_key = encryptedChatKey;
 					console.log(
 						`[ChatSyncService:Senders] ✅ Atomically created and persisted key for ${chat_id}: ${encryptedChatKey.substring(0, 20)}...`
@@ -1639,6 +1839,7 @@ export async function sendEncryptedStoragePackage(
 				// Key found in memory but not persisted — encrypt and save
 				encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
 				if (encryptedChatKey) {
+					encryptedChatKeyCreatedDuringSend = true;
 					chat.encrypted_chat_key = encryptedChatKey;
 					await chatDB.updateChat(chat);
 					console.log(
@@ -1797,8 +1998,6 @@ export async function sendEncryptedStoragePackage(
 			encrypted_category: encryptedUserCategory, // User message category
 			// NOTE: encrypted_model_name is NOT included for user messages - only for assistant messages
 			created_at: user_message.created_at,
-			// Chat key (ALWAYS included for new chats, may be undefined for follow-ups if already stored)
-			encrypted_chat_key: encryptedChatKey,
 			// Version info - use actual values from chat object
 			versions: {
 				messages_v: chat.messages_v || 0,
@@ -1807,6 +2006,12 @@ export async function sendEncryptedStoragePackage(
 			},
 			task_id
 		};
+		if (
+			encryptedChatKey &&
+			(include_encrypted_chat_key || encryptedChatKeyCreatedDuringSend)
+		) {
+			metadataPayload.encrypted_chat_key = encryptedChatKey;
+		}
 
 		// ONLY include chat metadata fields if they're set (NEW CHATS ONLY)
 		// For follow-ups, these will be null and should NOT be sent to avoid overwriting existing metadata

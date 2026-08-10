@@ -1,0 +1,11 @@
+# backend/providers/sec_edgar.yml
+#
+# Metadata for the SEC EDGAR public-company filings provider used by Business.
+# The integration reads public government filing data without API keys.
+
+provider_id: sec_edgar
+name: SEC EDGAR
+description: Official U.S. SEC public-company filing and XBRL facts data.
+logo_svg: icons/sec_edgar.png
+region: US
+privacy_policy: https://www.sec.gov/privacy.htm # verified 2026-08-08

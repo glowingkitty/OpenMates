@@ -17,13 +17,15 @@
 import { writable } from "svelte/store";
 import { browser } from "$app/environment";
 
+type ThemeMode = "auto" | "light" | "dark";
+
 // ─── Stores ───────────────────────────────────────────────────────────────────
 
 /** Resolved theme: the actual data-theme value applied to <html>. */
 export const theme = writable<"light" | "dark">("light");
 
 /** The user's chosen mode: auto / light / dark. */
-export const themeMode = writable<"auto" | "light" | "dark">("auto");
+export const themeMode = writable<ThemeMode>("auto");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,6 +41,24 @@ function getSystemThemePreference(): "light" | "dark" {
 
 // OS-change listener reference so we can remove it when switching to manual mode.
 let systemThemeListener: ((e: MediaQueryListEvent) => void) | null = null;
+
+function getStoredThemeMode(): ThemeMode | null {
+  const storedMode = localStorage.getItem("theme_mode");
+  if (storedMode === "auto" || storedMode === "light" || storedMode === "dark") {
+    return storedMode;
+  }
+
+  // Migrate the manual preference used before the three-mode theme setting.
+  if (localStorage.getItem("theme_preference") === "manual") {
+    const legacyTheme = localStorage.getItem("theme");
+    if (legacyTheme === "light" || legacyTheme === "dark") {
+      localStorage.setItem("theme_mode", legacyTheme);
+      return legacyTheme;
+    }
+  }
+
+  return null;
+}
 
 function attachSystemListener() {
   if (!browser) return;
@@ -78,11 +98,7 @@ function detachSystemListener() {
 export function initializeTheme() {
   if (!browser) return;
 
-  const storedMode = localStorage.getItem("theme_mode") as
-    | "auto"
-    | "light"
-    | "dark"
-    | null;
+  const storedMode = getStoredThemeMode();
 
   if (storedMode === "light" || storedMode === "dark") {
     // Manual mode — apply directly.
@@ -92,30 +108,45 @@ export function initializeTheme() {
   } else {
     // Auto mode (default).
     themeMode.set("auto");
-    theme.set(getSystemThemePreference());
+    const systemTheme = getSystemThemePreference();
+    localStorage.setItem("theme_mode", "auto");
+    localStorage.setItem("theme", systemTheme);
+    theme.set(systemTheme);
     attachSystemListener();
   }
 }
 
 /**
  * Apply a server-side darkmode value on login / session restore.
- * Only takes effect when the user has NOT set a manual mode locally.
- * This ensures a local manual preference always wins over the server value.
+ * Only takes effect when the user has no valid local mode. This ensures both
+ * explicit manual preferences and Auto remain stable across session restore.
  *
  * @param darkmode  The boolean value from the server (true = dark, false = light).
  */
 export function applyServerDarkMode(darkmode: boolean) {
   if (!browser) return;
-  const storedMode = localStorage.getItem("theme_mode");
+  const storedMode = getStoredThemeMode();
   // If the user already has a manual local preference, do not override it.
   if (storedMode === "light" || storedMode === "dark") {
+    themeMode.set(storedMode);
+    theme.set(storedMode);
+    localStorage.setItem("theme", storedMode);
+    detachSystemListener();
     console.debug(
       "[theme] applyServerDarkMode: local manual override present, skipping server value",
     );
     return;
   }
-  // In auto mode: respect the server value by switching to the matching
-  // explicit mode so the user's cross-device preference is honoured.
+  if (storedMode === "auto") {
+    const systemTheme = getSystemThemePreference();
+    themeMode.set("auto");
+    theme.set(systemTheme);
+    localStorage.setItem("theme", systemTheme);
+    attachSystemListener();
+    return;
+  }
+  // No valid local mode exists, so migrate the server's legacy boolean into
+  // an explicit mode to preserve the user's cross-device preference.
   const serverMode = darkmode ? "dark" : "light";
   themeMode.set(serverMode);
   theme.set(serverMode);
@@ -136,7 +167,7 @@ export function applyServerDarkMode(darkmode: boolean) {
  * @param syncToServer  When true, sends a PATCH to the darkmode API endpoint.
  */
 export async function setThemeMode(
-  mode: "auto" | "light" | "dark",
+  mode: ThemeMode,
   syncToServer = false,
 ) {
   if (!browser) return;
@@ -144,8 +175,9 @@ export async function setThemeMode(
   themeMode.set(mode);
 
   if (mode === "auto") {
-    // Remove stored manual mode; switch back to OS preference.
-    localStorage.removeItem("theme_mode");
+    // Persist Auto explicitly so session restore cannot mistake it for an
+    // unset preference and replace it with the backend's legacy boolean.
+    localStorage.setItem("theme_mode", "auto");
     const systemTheme = getSystemThemePreference();
     theme.set(systemTheme);
     localStorage.setItem("theme", systemTheme);

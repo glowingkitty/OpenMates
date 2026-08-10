@@ -11,6 +11,7 @@ from backend.core.api.app.services.embed_diff_service import (
     apply_patch,
     apply_patch_exact,
     apply_patch_fuzzy,
+    apply_patch_json_key_replacements,
     apply_patch_unique_removals,
     is_diff_fence_open,
     parse_unified_diff,
@@ -246,6 +247,65 @@ class TestDocumentDiff:
         assert result.success
         assert "Updated Report" in result.new_content
         assert "My Report" not in result.new_content
+
+    def test_docx_json_title_change_with_compact_stale_context(self):
+        docx_model = '''{
+  "title": "Cover Letter - Software Engineer",
+  "filename": "Cover_Letter_Software_Engineer.docx",
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "Cover Letter - Software Engineer"
+    }
+  ]
+}'''
+
+        diff_text = '''@@ -1,8 +1,8 @@
+ {
+- "title": "Cover Letter - Software Engineer",
+- "filename": "Cover_Letter_Software_Engineer.docx",
++ "title": "Application - Senior Engineer",
++ "filename": "Application_Senior_Engineer.docx",
+  "blocks": [
+- {"type": "heading", "level": 1, "text": "Cover Letter - Software Engineer"},
++ {"type": "heading", "level": 1, "text": "Application - Senior Engineer"},
+  ]
+ }'''
+
+        result = apply_patch_json_key_replacements(
+            docx_model,
+            parse_unified_diff(diff_text, "cover_letter_software_engineer.docx-f1141c"),
+        )
+
+        assert result.success
+        assert '"title": "Application - Senior Engineer"' in result.new_content
+        assert '"filename": "Application_Senior_Engineer.docx"' in result.new_content
+        assert '"text": "Cover Letter - Software Engineer"' in result.new_content
+
+    def test_docx_json_title_change_falls_back_after_line_patch_failure(self):
+        docx_model = '''{
+  "title": "Cover Letter - Software Engineer",
+  "filename": "Cover_Letter_Software_Engineer.docx",
+  "blocks": []
+}'''
+
+        diff_text = '''@@ -1,5 +1,5 @@
+ {
+- "title": "Cover Letter - Software Engineer",
+- "filename": "Cover_Letter_Software_Engineer.docx",
++ "title": "Application - Senior Engineer",
++ "filename": "Application_Senior_Engineer.docx",
+  "blocks": []
+ }'''
+
+        result = apply_patch(
+            docx_model,
+            parse_unified_diff(diff_text, "cover_letter_software_engineer.docx-f1141c"),
+        )
+
+        assert result.success
+        assert '"title": "Application - Senior Engineer"' in result.new_content
 
 
 # ─── Mail Diff ───────────────────────────────────────────────────────

@@ -26,8 +26,20 @@ const noopScreenshot = async (_page: any, _label: string): Promise<void> => {};
 /** No-op log function for when logging isn't needed */
 const noopLog = (_message: string, _metadata?: Record<string, unknown>): void => {};
 
+const LOGIN_RATE_LIMIT_COOLDOWN_MS = 65_000;
+const MAX_LOGIN_RATE_LIMIT_RETRIES = 1;
+const PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS = 45_000;
+
+type LoginResponseDiagnostic = {
+	status: number;
+	ok: boolean;
+	method: string;
+	path: string;
+};
+
 type LastSendState = {
 	assistantCount: number;
+	assistantMessageIds: string[];
 	assistantLastText: string;
 };
 
@@ -35,6 +47,14 @@ const lastSendStateByPage = new WeakMap<object, LastSendState>();
 
 async function locatorCount(locator: any): Promise<number> {
 	return locator.count().catch(() => 0);
+}
+
+async function locatorMessageIds(locator: any): Promise<string[]> {
+	return locator.evaluateAll((elements: Element[]) =>
+		elements
+			.map((element) => element.getAttribute('data-message-id') ?? '')
+			.filter((messageId): messageId is string => messageId.length > 0)
+	).catch(() => []);
 }
 
 function visibleMessageAnchors(message: string): string[] {
@@ -45,6 +65,45 @@ function visibleMessageAnchors(message: string): string[] {
 	const withoutFirstWord = normalized.split(' ').slice(1).join(' ');
 	return [normalized.slice(0, 80), withoutFirstWord.slice(0, 80)]
 		.filter((anchor) => anchor.length >= 20);
+}
+
+function normalizeEditorDraftText(text: string | null | undefined): string {
+	return (text ?? '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+export async function fillMessageEditor(page: any, messageEditor: any, message: string): Promise<void> {
+	const expectedText = normalizeEditorDraftText(message);
+	const currentText = async (): Promise<string> => normalizeEditorDraftText(
+		await messageEditor.evaluate((editor: HTMLElement) => editor.innerText ?? '').catch(() => '')
+	);
+
+	await focusMessageEditor(messageEditor);
+	await page.keyboard.insertText(message);
+	if (await expect.poll(currentText, { timeout: 2500, intervals: [100, 250, 500] })
+		.toBe(expectedText)
+		.then(() => true)
+		.catch(() => false)) {
+		return;
+	}
+
+	await focusMessageEditor(messageEditor);
+	await page.keyboard.press('Control+A');
+	await page.keyboard.press('Backspace');
+	await page.keyboard.insertText(message);
+	await expect.poll(currentText, { timeout: 5000, intervals: [100, 250, 500] }).toBe(expectedText);
+}
+
+export async function focusMessageEditor(messageEditor: any): Promise<void> {
+	await messageEditor.click({ position: { x: 12, y: 12 }, force: true });
+	await expect.poll(
+		async () => messageEditor.evaluate((editor: HTMLElement) => {
+			const activeElement = document.activeElement;
+			return activeElement instanceof HTMLElement
+				&& activeElement.isContentEditable
+				&& editor.contains(activeElement);
+		}),
+		{ timeout: 5000, intervals: [100, 250, 500] }
+	).toBe(true);
 }
 
 async function userMessagePersisted(
@@ -199,10 +258,72 @@ async function waitForLoginSuccessAfterSubmit(page: any, authSignal: any): Promi
 	return waitForAuthenticatedUi(page, authSignal, 20000);
 }
 
+async function waitForOtpOrAuthenticated(
+	page: any,
+	otpInput: any,
+	authSignal: any,
+	timeout = PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS,
+	loginRateLimited?: Promise<'rate-limited'>
+): Promise<'otp' | 'auth' | 'rate-limited' | null> {
+	return Promise.race([
+		otpInput.waitFor({ state: 'visible', timeout }).then(() => 'otp' as const).catch(() => null),
+		authSignal.waitFor({ state: 'visible', timeout }).then(() => 'auth' as const).catch(() => null),
+		...(loginRateLimited ? [loginRateLimited] : []),
+		page.waitForTimeout(timeout).then(() => null)
+	]);
+}
+
+function captureLoginResponseDiagnostics(
+	page: any,
+	loginResponses: LoginResponseDiagnostic[]
+): () => void {
+	const onResponse = (response: any) => {
+		try {
+			const request = response.request();
+			const url = new URL(response.url());
+			if (request.method() !== 'POST' || !url.pathname.endsWith('/v1/auth/login')) return;
+			loginResponses.push({
+				status: response.status(),
+				ok: response.ok(),
+				method: request.method(),
+				path: url.pathname
+			});
+			if (loginResponses.length > 5) loginResponses.shift();
+		} catch {
+			// Ignore malformed diagnostic events; the login flow itself owns failures.
+		}
+	};
+	page.on('response', onResponse);
+	return () => page.off('response', onResponse);
+}
+
+async function getLoginSubmitDiagnostics(
+	page: any,
+	loginResponses: LoginResponseDiagnostic[] = []
+): Promise<Record<string, unknown>> {
+	return Promise.race([
+		page.evaluate(() => ({
+			url: window.location.href,
+			isAuthenticated: document.querySelector('[data-authenticated="true"]') !== null,
+			hasOtpInput: document.querySelector('[data-testid="login-otp-input"]') !== null,
+			hasErrorMessage: document.querySelector('[data-testid="error-message"]')?.textContent?.trim() || null,
+			modalText: document.querySelector('[data-testid="signup-modal"], [data-testid="login-modal"]')?.textContent?.slice(0, 300) || null,
+		})).then((domDiagnostics: Record<string, unknown>) => ({
+			...domDiagnostics,
+			loginResponses: [...loginResponses],
+			lastLoginResponse: loginResponses.at(-1) ?? null
+		})),
+		new Promise<Record<string, unknown>>((resolve) => {
+			setTimeout(() => resolve({ error: 'login diagnostics timed out after 2000ms' }), 2000);
+		})
+	]).catch((error: Error) => ({ error: error.message }));
+}
+
 async function waitForLoginSuccessAfterSubmitWithDiagnostics(
 	page: any,
 	authSignal: any,
-	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
+	loginResponses: LoginResponseDiagnostic[] = []
 ): Promise<boolean> {
 	const timeoutMs = 30_000;
 	let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -215,18 +336,7 @@ async function waitForLoginSuccessAfterSubmitWithDiagnostics(
 		]);
 	} finally {
 		if (timeoutId) clearTimeout(timeoutId);
-		const diagnostics = await Promise.race([
-			page.evaluate(() => ({
-				url: window.location.href,
-				isAuthenticated: document.querySelector('[data-authenticated="true"]') !== null,
-				hasOtpInput: document.querySelector('#login-otp-input') !== null,
-				hasErrorMessage: document.querySelector('[data-testid="error-message"]')?.textContent?.trim() || null,
-				modalText: document.querySelector('[data-testid="signup-modal"], [data-testid="login-modal"]')?.textContent?.slice(0, 300) || null,
-			})),
-			new Promise((resolve) => {
-				setTimeout(() => resolve({ error: 'login diagnostics timed out after 2000ms' }), 2000);
-			})
-		]).catch((error: Error) => ({ error: error.message }));
+		const diagnostics = await getLoginSubmitDiagnostics(page, loginResponses);
 		logCheckpoint('Post-login-submit diagnostics.', diagnostics);
 	}
 }
@@ -241,7 +351,7 @@ async function hasStoredEmailSalt(page: any): Promise<boolean> {
 }
 
 async function waitForEmailLookupReady(page: any): Promise<boolean> {
-	const passwordInput = page.locator('#login-password-input');
+	const passwordInput = page.getByTestId('login-password-input');
 	const passwordVisible = passwordInput.waitFor({ state: 'visible', timeout: 15000 })
 		.then(() => true)
 		.catch(() => false);
@@ -256,6 +366,13 @@ async function waitForEmailLookupReady(page: any): Promise<boolean> {
 
 	const [hasPasswordInput, hasSalt] = await Promise.all([passwordVisible, saltReady]);
 	return hasPasswordInput && hasSalt;
+}
+
+async function clickLoginContinueWhenReady(page: any): Promise<void> {
+	const continueButton = page.getByTestId('login-continue-button');
+	await expect(continueButton).toBeVisible({ timeout: 10000 });
+	await expect(continueButton).toBeEnabled({ timeout: 15000 });
+	await continueButton.click();
 }
 
 async function ensureStayLoggedInChecked(
@@ -292,6 +409,7 @@ async function loginToTestAccount(
 	options: {
 		waitForEditor?: boolean;
 		credentials?: { email?: string; password?: string; otpKey?: string };
+		rateLimitRetryCount?: number;
 	} = {}
 ): Promise<void> {
 	const {
@@ -300,11 +418,18 @@ async function loginToTestAccount(
 		otpKey: TEST_OTP_KEY
 	} = options.credentials ?? getTestAccount();
 
-	// Monitor for 429 rate limit responses during login flow
+	// Monitor the password login endpoint separately so a 429 cannot masquerade as an OTP timeout.
 	let hit429 = false;
+	let signalLoginRateLimited: (() => void) | undefined;
+	const loginRateLimited = new Promise<'rate-limited'>((resolve) => {
+		signalLoginRateLimited = () => resolve('rate-limited');
+	});
 	const on429 = (response: any) => {
 		if (response.status() === 429) {
 			hit429 = true;
+			if (new URL(response.url()).pathname.endsWith('/v1/auth/login')) {
+				signalLoginRateLimited?.();
+			}
 		}
 	};
 	page.on('response', on429);
@@ -333,14 +458,14 @@ async function loginToTestAccount(
 	logCheckpoint('Clicked Login tab to switch from signup to login view.');
 	await takeStepScreenshot(page, 'login-dialog');
 
-	const emailInput = page.locator('#login-email-input');
+	const emailInput = page.getByTestId('login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 
 	// Click "Stay logged in" toggle so keys survive any page navigation during the test.
 	await ensureStayLoggedInChecked(page, logCheckpoint);
 
-	await page.getByRole('button', { name: /continue/i }).click();
+	await clickLoginContinueWhenReady(page);
 	logCheckpoint('Entered email and clicked continue.');
 
 	// Retry if lookup fails before password login. 429 shows a rate-limit view,
@@ -370,11 +495,11 @@ async function loginToTestAccount(
 		await expect(retryLoginTab).toBeVisible({ timeout: 10000 });
 		await retryLoginTab.click();
 
-		const retryEmailInput = page.locator('#login-email-input');
+		const retryEmailInput = page.getByTestId('login-email-input');
 		await expect(retryEmailInput).toBeVisible({ timeout: 15000 });
 		await retryEmailInput.fill(TEST_EMAIL);
 		await ensureStayLoggedInChecked(page, logCheckpoint);
-		await page.getByRole('button', { name: /continue/i }).click();
+		await clickLoginContinueWhenReady(page);
 		logCheckpoint(`Retry ${retryCount + 1}: re-entered email and clicked continue.`);
 		lookupReady = await waitForEmailLookupReady(page);
 	}
@@ -383,113 +508,134 @@ async function loginToTestAccount(
 		throw new Error('Login email lookup did not store the email salt or show a usable password step.');
 	}
 
-	const passwordInput = page.locator('#login-password-input');
+	const passwordInput = page.getByTestId('login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 	await takeStepScreenshot(page, 'password-entered');
 
 	// Submit password first — OTP field only appears after backend confirms 2FA is required
 	// (anti-enumeration: OTP is never shown upfront, only after first login attempt).
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	const submitLoginButton = page.getByTestId('login-submit-button');
 	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
-	logCheckpoint('Submitted password — waiting for 2FA prompt or direct login.');
+	const loginResponses: LoginResponseDiagnostic[] = [];
+	const stopCapturingLoginResponses = captureLoginResponseDiagnostics(page, loginResponses);
+	try {
+		await submitLoginButton.click();
+		logCheckpoint('Submitted password — waiting for 2FA prompt or direct login.');
 
-	// Positive auth signal: ActiveChat.svelte sets data-authenticated="true" on the
-	// container div when authStore.isAuthenticated becomes true. This is the most
-	// reliable login success detector because it's driven directly by the canonical
-	// auth state, not by UI visibility heuristics (which can race with animations).
-	const authSignal = page.locator('[data-authenticated="true"]');
-	const otpInput = page.locator('#login-otp-input');
+		// Positive auth signal: ActiveChat.svelte sets data-authenticated="true" on the
+		// container div when authStore.isAuthenticated becomes true. This is the most
+		// reliable login success detector because it's driven directly by the canonical
+		// auth state, not by UI visibility heuristics (which can race with animations).
+		const authSignal = page.locator('[data-authenticated="true"]');
+		const otpInput = page.getByTestId('login-otp-input');
 
-	// Race: either OTP field appears (2FA required) or login succeeds immediately
-	// (2FA not configured for this account). Some test accounts may have lost their
-	// encrypted_tfa_secret, causing the backend to bypass 2FA entirely.
-	const otpOrAuth = await Promise.race([
-		otpInput.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'otp' as const),
-		authSignal.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'auth' as const),
-	]);
-
-	let loginSuccess = false;
-
-	if (otpOrAuth === 'auth') {
-		// Login succeeded without 2FA — backend determined tfa_enabled=false
-		loginSuccess = true;
-		logCheckpoint('Login successful without 2FA — data-authenticated="true" detected.');
-	} else {
-		// OTP field appeared — proceed with TOTP entry
-		logCheckpoint('2FA prompt visible — entering OTP.');
-
-		const errorMessage = page
-			.getByTestId('error-message')
-			.filter({ hasText: /wrong|invalid|incorrect/i });
-
-		// OTP retry strategy: try current window, then adjacent windows to handle GHA clock drift.
-		// GHA runners can have 1-2s clock skew from the server, causing the TOTP code to be
-		// rejected. By cycling through window offsets [0, -1, 1, 0, -1] across 5 attempts,
-		// we cover the current window and both adjacent windows.
-		const MAX_OTP_ATTEMPTS = 5;
-		const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
-
-		for (let attempt = 1; attempt <= MAX_OTP_ATTEMPTS && !loginSuccess; attempt++) {
-			// Avoid TOTP window boundary race: if we're in the last 5s of a 30s window,
-			// wait for the next window so the generated code is valid long enough.
-			const nowSec = Math.floor(Date.now() / 1000);
-			const secondsIntoWindow = nowSec % 30;
-			if (secondsIntoWindow >= 25) {
-				const waitMs = (30 - secondsIntoWindow) * 1000 + 2000;
-				logCheckpoint(`Near TOTP window boundary (${secondsIntoWindow}s in), waiting ${waitMs}ms...`);
-				await page.waitForTimeout(waitMs);
+		// Race: either OTP field appears (2FA required) or login succeeds immediately
+		// (2FA not configured for this account). Some test accounts may have lost their
+		// encrypted_tfa_secret, causing the backend to bypass 2FA entirely.
+		const otpOrAuth = await waitForOtpOrAuthenticated(page, otpInput, authSignal, PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS, loginRateLimited);
+		if (otpOrAuth === 'rate-limited') {
+			const retryCount = options.rateLimitRetryCount ?? 0;
+			if (retryCount >= MAX_LOGIN_RATE_LIMIT_RETRIES) {
+				throw new Error('Login remained rate limited after the bounded cooldown retry.');
 			}
+			logCheckpoint(`Password login rate limited; waiting ${LOGIN_RATE_LIMIT_COOLDOWN_MS / 1000}s before one retry.`);
+			await page.waitForTimeout(LOGIN_RATE_LIMIT_COOLDOWN_MS);
+			return loginToTestAccount(page, logCheckpoint, takeStepScreenshot, {
+				...options,
+				rateLimitRetryCount: retryCount + 1
+			});
+		}
+		if (!otpOrAuth) {
+			const diagnostics = await getLoginSubmitDiagnostics(page, loginResponses);
+			logCheckpoint(
+				`Login did not show OTP input or authenticated UI within ${PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS / 1000}s after password submit.`,
+				diagnostics
+			);
+			throw new Error(`Login did not show OTP input or authenticated UI within ${PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS / 1000}s after password submit.`);
+		}
 
-			const windowOffset = WINDOW_OFFSETS[attempt - 1];
-			const otpCode = generateTotp(TEST_OTP_KEY, windowOffset);
-			await otpInput.fill(otpCode);
-			logCheckpoint(`Generated and entered OTP (attempt ${attempt}, window offset ${windowOffset}).`);
-			if (attempt === 1) {
-				await takeStepScreenshot(page, 'otp-entered');
-			}
+		let loginSuccess = false;
 
-			await expect(submitLoginButton).toBeVisible();
-			const loginSuccessPromise = waitForLoginSuccessAfterSubmitWithDiagnostics(page, authSignal, logCheckpoint);
-			await submitLoginButton.click();
-			logCheckpoint('Submitted login form.');
+		if (otpOrAuth === 'auth') {
+			// Login succeeded without 2FA — backend determined tfa_enabled=false
+			loginSuccess = true;
+			logCheckpoint('Login successful without 2FA — data-authenticated="true" detected.');
+		} else {
+			// OTP field appeared — proceed with TOTP entry
+			logCheckpoint('2FA prompt visible — entering OTP.');
 
-			try {
-				if (!(await loginSuccessPromise)) {
-					throw new Error('Login success signal did not appear after OTP submit');
+			const errorMessage = page
+				.getByTestId('error-message')
+				.filter({ hasText: /wrong|invalid|incorrect/i });
+
+			// OTP retry strategy: try current window, then adjacent windows to handle GHA clock drift.
+			// GHA runners can have 1-2s clock skew from the server, causing the TOTP code to be
+			// rejected. By cycling through window offsets [0, -1, 1, 0, -1] across 5 attempts,
+			// we cover the current window and both adjacent windows.
+			const MAX_OTP_ATTEMPTS = 5;
+			const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
+
+			for (let attempt = 1; attempt <= MAX_OTP_ATTEMPTS && !loginSuccess; attempt++) {
+				// Avoid TOTP window boundary race: if we're in the last 5s of a 30s window,
+				// wait for the next window so the generated code is valid long enough.
+				const nowSec = Math.floor(Date.now() / 1000);
+				const secondsIntoWindow = nowSec % 30;
+				if (secondsIntoWindow >= 25) {
+					const waitMs = (30 - secondsIntoWindow) * 1000 + 2000;
+					logCheckpoint(`Near TOTP window boundary (${secondsIntoWindow}s in), waiting ${waitMs}ms...`);
+					await page.waitForTimeout(waitMs);
 				}
-				loginSuccess = true;
-				logCheckpoint('Login successful — OTP login success signal detected.');
-			} catch {
-				const hasError = await errorMessage.isVisible().catch(() => false);
-				if (hasError && attempt < MAX_OTP_ATTEMPTS) {
-					logCheckpoint(`OTP attempt ${attempt} failed, retrying with different window offset...`);
-					// Wait longer between retries to allow time window to advance.
-					await page.waitForTimeout(attempt <= 2 ? 3000 : 5000);
-				} else if (attempt === MAX_OTP_ATTEMPTS) {
-					throw new Error(`Login failed after ${MAX_OTP_ATTEMPTS} OTP attempts`);
+
+				const windowOffset = WINDOW_OFFSETS[attempt - 1];
+				const otpCode = generateTotp(TEST_OTP_KEY, windowOffset);
+				await otpInput.fill(otpCode);
+				logCheckpoint(`Generated and entered OTP (attempt ${attempt}, window offset ${windowOffset}).`);
+				if (attempt === 1) {
+					await takeStepScreenshot(page, 'otp-entered');
+				}
+
+				await expect(submitLoginButton).toBeVisible();
+				const loginSuccessPromise = waitForLoginSuccessAfterSubmitWithDiagnostics(page, authSignal, logCheckpoint, loginResponses);
+				await submitLoginButton.click();
+				logCheckpoint('Submitted login form.');
+
+				try {
+					if (!(await loginSuccessPromise)) {
+						throw new Error('Login success signal did not appear after OTP submit');
+					}
+					loginSuccess = true;
+					logCheckpoint('Login successful — OTP login success signal detected.');
+				} catch {
+					const hasError = await errorMessage.isVisible().catch(() => false);
+					if (hasError && attempt < MAX_OTP_ATTEMPTS) {
+						logCheckpoint(`OTP attempt ${attempt} failed, retrying with different window offset...`);
+						// Wait longer between retries to allow time window to advance.
+						await page.waitForTimeout(attempt <= 2 ? 3000 : 5000);
+					} else if (attempt === MAX_OTP_ATTEMPTS) {
+						throw new Error(`Login failed after ${MAX_OTP_ATTEMPTS} OTP attempts`);
+					}
 				}
 			}
 		}
-	}
 
-	// Clean up 429 listener
-	page.off('response', on429);
-
-	const { waitForEditor = true } = options;
-	if (waitForEditor) {
-		logCheckpoint('Waiting for chat interface to load...');
-		// Brief settle time for post-auth UI transitions (WebSocket connect, phased sync start).
-		// Reduced from 3000ms — the auth state transition is now reliable (see fix in
-		// PasswordAndTfaOtp.svelte handleSuccessfulLogin Phase 1/Phase 2 split).
-		await page.waitForTimeout(1000);
-		const messageEditor = page.getByTestId('message-editor');
-		await expect(messageEditor).toBeVisible({ timeout: 20000 });
-		logCheckpoint('Chat interface loaded - message editor visible.');
-	} else {
-		logCheckpoint('Login complete (skipping editor wait).');
-		await page.waitForTimeout(1000);
+		const { waitForEditor = true } = options;
+		if (waitForEditor) {
+			logCheckpoint('Waiting for chat interface to load...');
+			// Brief settle time for post-auth UI transitions (WebSocket connect, phased sync start).
+			// Reduced from 3000ms — the auth state transition is now reliable (see fix in
+			// PasswordAndTfaOtp.svelte handleSuccessfulLogin Phase 1/Phase 2 split).
+			await page.waitForTimeout(1000);
+			const messageEditor = page.getByTestId('message-editor');
+			await expect(messageEditor).toBeVisible({ timeout: 20000 });
+			logCheckpoint('Chat interface loaded - message editor visible.');
+		} else {
+			logCheckpoint('Login complete (skipping editor wait).');
+			await page.waitForTimeout(1000);
+		}
+	} finally {
+		page.off('response', on429);
+		stopCapturingLoginResponses();
 	}
 }
 
@@ -511,59 +657,69 @@ async function submitPasswordAndHandleOtp(
 	otpKey: string,
 	log: (msg: string) => void = () => {}
 ): Promise<void> {
-	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitBtn).toBeVisible();
-	await submitBtn.click();
-	log('Submitted password — waiting for 2FA prompt or direct login.');
-
-	const authSignal = page.locator('[data-authenticated="true"]');
-	const otpInput = page.locator('#login-otp-input');
-
-	const otpOrAuth = await Promise.race([
-		otpInput.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'otp' as const),
-		authSignal.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'auth' as const),
-	]);
-
-	if (otpOrAuth === 'auth') {
-		log('Login successful without 2FA.');
-		// Brief settle for post-auth navigation (URL change, WebSocket connect).
-		// Auth signal fires before the router navigates to the chat view.
-		await page.waitForTimeout(2000);
-		return;
-	}
-
-	log('2FA prompt visible — entering OTP.');
-	const MAX_OTP_ATTEMPTS = 5;
-	const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
-
-	for (let attempt = 1; attempt <= MAX_OTP_ATTEMPTS; attempt++) {
-		const nowSec = Math.floor(Date.now() / 1000);
-		const secondsIntoWindow = nowSec % 30;
-		if (secondsIntoWindow >= 25) {
-			await page.waitForTimeout((30 - secondsIntoWindow) * 1000 + 2000);
-		}
-
-		const otpCode = generateTotp(otpKey, WINDOW_OFFSETS[attempt - 1]);
-		await otpInput.fill(otpCode);
-		log(`OTP attempt ${attempt}, offset ${WINDOW_OFFSETS[attempt - 1]}.`);
-
+	const loginResponses: LoginResponseDiagnostic[] = [];
+	const stopCapturingLoginResponses = captureLoginResponseDiagnostics(page, loginResponses);
+	try {
+		const submitBtn = page.getByTestId('login-submit-button');
 		await expect(submitBtn).toBeVisible();
-		const loginSuccessPromise = waitForLoginSuccessAfterSubmit(page, authSignal);
 		await submitBtn.click();
+		log('Submitted password — waiting for 2FA prompt or direct login.');
 
-		try {
-			if (!(await loginSuccessPromise)) {
-				throw new Error('Login success signal did not appear after OTP submit');
-			}
-			log('Login successful — OTP login success signal detected.');
-			return;
-		} catch {
-			if (attempt === MAX_OTP_ATTEMPTS) {
-				throw new Error(`Login failed after ${MAX_OTP_ATTEMPTS} OTP attempts`);
-			}
-			log(`OTP attempt ${attempt} failed, retrying...`);
-			await page.waitForTimeout(attempt <= 2 ? 3000 : 5000);
+		const authSignal = page.locator('[data-authenticated="true"]');
+		const otpInput = page.getByTestId('login-otp-input');
+
+		const otpOrAuth = await waitForOtpOrAuthenticated(page, otpInput, authSignal);
+		if (!otpOrAuth) {
+			const diagnostics = await getLoginSubmitDiagnostics(page, loginResponses);
+			log(
+				`Login did not show OTP input or authenticated UI within ${PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS / 1000}s after password submit; diagnostics=${JSON.stringify(diagnostics)}`
+			);
+			throw new Error(`Login did not show OTP input or authenticated UI within ${PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS / 1000}s after password submit.`);
 		}
+
+		if (otpOrAuth === 'auth') {
+			log('Login successful without 2FA.');
+			// Brief settle for post-auth navigation (URL change, WebSocket connect).
+			// Auth signal fires before the router navigates to the chat view.
+			await page.waitForTimeout(2000);
+			return;
+		}
+
+		log('2FA prompt visible — entering OTP.');
+		const MAX_OTP_ATTEMPTS = 5;
+		const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
+
+		for (let attempt = 1; attempt <= MAX_OTP_ATTEMPTS; attempt++) {
+			const nowSec = Math.floor(Date.now() / 1000);
+			const secondsIntoWindow = nowSec % 30;
+			if (secondsIntoWindow >= 25) {
+				await page.waitForTimeout((30 - secondsIntoWindow) * 1000 + 2000);
+			}
+
+			const otpCode = generateTotp(otpKey, WINDOW_OFFSETS[attempt - 1]);
+			await otpInput.fill(otpCode);
+			log(`OTP attempt ${attempt}, offset ${WINDOW_OFFSETS[attempt - 1]}.`);
+
+			await expect(submitBtn).toBeVisible();
+			const loginSuccessPromise = waitForLoginSuccessAfterSubmit(page, authSignal);
+			await submitBtn.click();
+
+			try {
+				if (!(await loginSuccessPromise)) {
+					throw new Error('Login success signal did not appear after OTP submit');
+				}
+				log('Login successful — OTP login success signal detected.');
+				return;
+			} catch {
+				if (attempt === MAX_OTP_ATTEMPTS) {
+					throw new Error(`Login failed after ${MAX_OTP_ATTEMPTS} OTP attempts`);
+				}
+				log(`OTP attempt ${attempt} failed, retrying...`);
+				await page.waitForTimeout(attempt <= 2 ? 3000 : 5000);
+			}
+		}
+	} finally {
+		stopCapturingLoginResponses();
 	}
 }
 
@@ -700,15 +856,52 @@ async function sendMessage(
 	const assistantMessages = page.getByTestId('message-assistant');
 	const userCountBeforeSend = await locatorCount(userMessages);
 	const assistantCountBeforeSend = await locatorCount(assistantMessages);
+	const assistantMessageIdsBeforeSend = await locatorMessageIds(assistantMessages);
 	const assistantLastTextBeforeSend = assistantCountBeforeSend > 0
 		? ((await assistantMessages.last()
 			.textContent({ timeout: 1000 })
 			.catch(() => '')) ?? '').trim()
 		: '';
+	const expectedEditorText = normalizeEditorDraftText(message);
+	const currentEditorText = async (): Promise<string> => normalizeEditorDraftText(
+		await messageEditor
+			.evaluate((editor: HTMLElement) => editor.innerText ?? '')
+			.catch(() => '')
+	);
+	const waitForEditorMessage = async (timeout = 2500): Promise<boolean> => expect
+		.poll(currentEditorText, { timeout, intervals: [100, 250, 500] })
+		.toBe(expectedEditorText)
+		.then(() => true)
+		.catch(() => false);
+	const retypeEditorMessage = async (reason: string): Promise<void> => {
+		await messageEditor.click();
+		await page.keyboard.press('Control+A');
+		await page.keyboard.press('Backspace');
+		await page.keyboard.insertText(message);
+		if (!(await waitForEditorMessage(5000))) {
+			logCheckpoint(`Editor did not retain message after retype; diagnostics=${JSON.stringify({
+				reason,
+				expectedEditorText,
+				actualEditorText: await currentEditorText()
+			})}`);
+			throw new Error(`Message editor did not retain typed message after ${reason}`);
+		}
+		logCheckpoint(reason);
+	};
+	const ensureEditorMessage = async (): Promise<void> => {
+		if (await waitForEditorMessage()) return;
+
+		logCheckpoint(`Editor did not retain initial typed message; retyping before send. diagnostics=${JSON.stringify({
+			expectedEditorText,
+			actualEditorText: await currentEditorText()
+		})}`);
+		await retypeEditorMessage('Retyped message after editor did not retain initial input.');
+	};
 
 	await messageEditor.click();
 	await page.keyboard.insertText(message);
 	logCheckpoint(`Typed message: "${message}"`);
+	await ensureEditorMessage();
 	await takeStepScreenshot(page, `${stepLabel}-message-typed`);
 
 	const sendButton = messageField.locator('[data-action="send-message"]');
@@ -740,6 +933,16 @@ async function sendMessage(
 			return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
 		});
 	};
+	const dispatchSyntheticSend = async (reason: string) => {
+		const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
+			return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
+		});
+		logCheckpoint(`Dispatched synthetic custom-send-message ${reason}; diagnostics=${JSON.stringify({
+			syntheticDispatchResult,
+			lastSendDebug: await readLastSendDebug(),
+			diagnostics: await captureSendDiagnostics()
+		})}`);
+	};
 	const sendAlreadyInProgress = async () => {
 		const stopButtonVisible = await page
 			.getByTestId('stop-processing-button')
@@ -760,6 +963,26 @@ async function sendMessage(
 			'local_message_dispatch_started'
 		].includes(step) && isFreshDebugStep;
 	};
+	const waitForSendAlreadyStarted = async () => {
+		return expect
+			.poll(
+				async () => {
+					if (await sendAlreadyInProgress()) return true;
+					return userMessagePersisted(
+						userMessages,
+						userCountBeforeSend,
+						message,
+						messageEditor,
+						assistantMessages,
+						assistantCountBeforeSend
+					);
+				},
+				{ timeout: 10_000, intervals: [500, 1000, 2000] }
+			)
+			.toBeTruthy()
+			.then(() => true)
+			.catch(() => false);
+	};
 	try {
 		await expect(sendButton).toBeVisible({ timeout: 5000 });
 		await sendButton.click({ timeout: 5000 });
@@ -772,44 +995,14 @@ async function sendMessage(
 			lastSendDebug: lastSendDebugAfterClickAttempt,
 			diagnostics: diagnosticsBeforeFallback
 		})}`);
-		if (await sendAlreadyInProgress()) {
+		if (await waitForSendAlreadyStarted()) {
 			logCheckpoint('Send appears to be in progress; skipping duplicate fallback dispatch.');
 		} else if ((diagnosticsBeforeFallback.editorText ?? '').trim() === '') {
-			await messageEditor.click();
-			await page.keyboard.insertText(message);
-			logCheckpoint('Retyped message after editor reset before send button was available.');
+			await retypeEditorMessage('Retyped message after editor reset before send button was available.');
 			await takeStepScreenshot(page, `${stepLabel}-message-retyped`);
-			if (await sendButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-				await sendButton.click({ timeout: 5000 });
-				logCheckpoint('Clicked send button after retyping message.');
-			} else {
-				const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
-					return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
-				});
-				logCheckpoint(`Dispatched synthetic custom-send-message after retype; diagnostics=${JSON.stringify({
-					syntheticDispatchResult,
-					lastSendDebug: await readLastSendDebug(),
-					diagnostics: await captureSendDiagnostics()
-				})}`);
-			}
+			await dispatchSyntheticSend('after retype');
 		} else {
-			const domClickResult = await messageField.evaluate((field: HTMLElement) => {
-				const button = field.querySelector('[data-action="send-message"]') as HTMLButtonElement | null;
-				if (!button) return false;
-				button.click();
-				return true;
-			});
-			if (domClickResult) {
-				logCheckpoint('Clicked send button via DOM fallback.');
-			} else {
-				const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
-					return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
-				});
-				logCheckpoint(`Dispatched synthetic custom-send-message after missing send button; diagnostics=${JSON.stringify({
-					syntheticDispatchResult,
-					lastSendDebug: await readLastSendDebug()
-				})}`);
-			}
+			await dispatchSyntheticSend('after send button click failed');
 		}
 	}
 	try {
@@ -853,10 +1046,11 @@ async function sendMessage(
 				)
 				.toBeTruthy();
 		} else {
+			if ((diagnosticsBeforeSynthetic.editorText ?? '').trim() === '') {
+				await retypeEditorMessage('Retyped message before synthetic persistence fallback.');
+			}
 
-			const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
-				return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
-			});
+			await dispatchSyntheticSend('after persistence timeout');
 			await expect
 				.poll(
 					async () =>
@@ -873,13 +1067,10 @@ async function sendMessage(
 				.toBeTruthy()
 				.catch(() => undefined);
 			const userCountAfterSynthetic = await locatorCount(userMessages);
-			const lastSendDebugAfterSynthetic = await page.evaluate(() => {
-				return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
-			});
 			logCheckpoint(`Synthetic custom-send-message diagnostic completed; diagnostics=${JSON.stringify({
-				syntheticDispatchResult,
 				userCountAfterSynthetic,
-				lastSendDebug: lastSendDebugAfterSynthetic
+				lastSendDebug: await readLastSendDebug(),
+				diagnostics: await captureSendDiagnostics()
 			})}`);
 		}
 		if (
@@ -902,6 +1093,7 @@ async function sendMessage(
 			await waitForNewChatSendContext(page, startedFromNewChat, logCheckpoint);
 			lastSendStateByPage.set(page, {
 				assistantCount: assistantCountBeforeSend,
+				assistantMessageIds: assistantMessageIdsBeforeSend,
 				assistantLastText: assistantLastTextBeforeSend
 			});
 			logCheckpoint('Message send accepted after synthetic send fallback.', {
@@ -921,6 +1113,7 @@ async function sendMessage(
 	await waitForNewChatSendContext(page, startedFromNewChat, logCheckpoint);
 	lastSendStateByPage.set(page, {
 		assistantCount: assistantCountBeforeSend,
+		assistantMessageIds: assistantMessageIdsBeforeSend,
 		assistantLastText: assistantLastTextBeforeSend
 	});
 	logCheckpoint('Message send accepted after send.', {
@@ -1044,7 +1237,7 @@ async function waitForAssistantResponse(page: any, timeout = 60000): Promise<any
  *  1. `data-authenticated="true"` marker is present (set by ActiveChat.svelte
  *     when authStore.isAuthenticated flips to true).
  *  2. `message-editor` is visible.
- *  3. A short settle lets post-login WebSocket and sync initialization start.
+ *  3. Dev-only E2E hook reports the browser online and chat WebSocket ready.
  *
  * The send button is intentionally absent while the composer is empty, so it is
  * not a reliable readiness signal for specs that only need post-login UI access.
@@ -1059,13 +1252,42 @@ async function waitForChatReady(
 
 	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: budget() });
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: budget() });
+	await expect(page.locator('[data-hash-router-ready="true"]')).toBeVisible({ timeout: budget() });
 
-	// Small post-mount settle: the MessageInput mounts before chatSyncService finishes
-	// its initial WS handshake. 1.5s matches the pattern in chat-flow.spec.ts which
-	// passes reliably on nightly.
-	await page.waitForTimeout(1500);
+	let lastConnectionState: Record<string, unknown> | null = null;
+	try {
+		await expect.poll(async () => {
+			lastConnectionState = await page.evaluate(async () => {
+				const testWindow = window as unknown as {
+					__openmatesE2EChatConnectionState?: () => Promise<{
+						online: boolean;
+						websocketConnected: boolean;
+						cachePrimed: boolean;
+					}>;
+				};
+				if (typeof testWindow.__openmatesE2EChatConnectionState !== 'function') {
+					return { hookAvailable: false, online: window.navigator.onLine };
+				}
+				const state = await testWindow.__openmatesE2EChatConnectionState();
+				return { hookAvailable: true, ...state };
+			}).catch((error: unknown) => ({ hookAvailable: false, error: String(error) }));
 
-	logCheckpoint('Chat UI ready: authenticated + editor mounted.');
+			return Boolean(
+				lastConnectionState.hookAvailable &&
+				lastConnectionState.online &&
+				lastConnectionState.websocketConnected &&
+				lastConnectionState.cachePrimed
+			);
+		}, {
+			timeout: budget(),
+			intervals: [250, 500, 1000]
+		})
+		.toBe(true);
+	} catch (error) {
+		throw new Error(`Chat transport not ready: ${JSON.stringify(lastConnectionState)}. Original: ${error}`);
+	}
+
+	logCheckpoint('Chat UI ready: authenticated + editor + hash router + transport ready.', lastConnectionState ?? undefined);
 }
 
 /**
@@ -1120,10 +1342,20 @@ async function waitForAssistantMessage(
 			typeof nth === 'number'
 				? Math.max(nth + 1, lastSendState.assistantCount + 1)
 				: Math.min(lastSendState.assistantCount + 1, currentAssistantCount + 1);
+		const previousAssistantMessageIds = new Set(lastSendState.assistantMessageIds);
 		await expect
 			.poll(async () => {
 				const assistantCount = await locatorCount(assistantMessages);
 				if (assistantCount >= minimumAssistantCount) return true;
+
+				// New-chat sends can replace old chat bubbles with a shorter fresh history.
+				// Detect that response by ID instead of requiring the old count to grow.
+				if (previousAssistantMessageIds.size > 0 && assistantCount > 0) {
+					const assistantMessageIds = await locatorMessageIds(assistantMessages);
+					if (assistantMessageIds.some((messageId) => !previousAssistantMessageIds.has(messageId))) {
+						return true;
+					}
+				}
 
 				// ChatHistory merges adjacent assistant continuations into one bubble.
 				// In that case the count stays stable, but the last assistant text expands.
@@ -1217,6 +1449,8 @@ async function openSignupInterface(page: any, timeout = 15000): Promise<void> {
 }
 
 module.exports = {
+	fillMessageEditor,
+	focusMessageEditor,
 	loginToTestAccount,
 	submitPasswordAndHandleOtp,
 	openSignupInterface,

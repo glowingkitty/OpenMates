@@ -19,6 +19,9 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.translations import TranslationService
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
+from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_job_data
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
@@ -33,7 +36,12 @@ from backend.apps.ai.utils.embed_display_text import (
     EMBED_REF_SUFFIX_PATTERN as _EMBED_REF_SUFFIX_PATTERN,
     derive_display_text_from_embed_ref as _derive_display_text_from_embed_ref,
     derive_embed_display_title as _derive_embed_display_title,
+    escape_markdown_link_label as _escape_markdown_link_label,
     is_bad_embed_display_text as _is_bad_embed_display_text,
+)
+from backend.apps.ai.utils.app_skill_json_cleanup import (
+    canonicalize_app_skill_json_blocks,
+    strip_failed_app_skill_json_blocks,
 )
 from backend.apps.ai.utils.remotion_fences import (
     _is_remotion_video_fence,
@@ -47,6 +55,14 @@ from backend.apps.ai.utils.mermaid_fences import (
     _is_mermaid_fence,
 )
 from backend.apps.ai.utils.mindmap_fences import is_mindmap_fence
+from backend.apps.ai.utils.embeds_map_view import (
+    append_missing_embeds_map_view_block,
+    content_has_map_capable_app_skill_use,
+    is_embeds_map_view_fence_language,
+    is_map_view_suppressed_request,
+    normalize_embeds_map_view_blocks,
+    should_include_embeds_map_view_hint,
+)
 from backend.shared.python_utils.billing_utils import calculate_total_credits, calculate_real_and_charged_costs
 from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
@@ -76,10 +92,66 @@ from backend.shared.python_utils.learning_mode import (
 )
 
 logger = logging.getLogger(__name__)
+ASSISTANT_RESPONSE_TIMESTAMP_OFFSET_SECONDS = 1
 
 SUB_CHAT_PENDING_TTL_SECONDS = 60 * 60 * 24
 SUB_CHAT_PENDING_KEY_PREFIX = "sub_chat_pending"
 SUB_CHAT_PARENT_STATUS_MESSAGE = "I've started the sub-chats and will continue once they finish."
+
+
+def _sub_chat_completion_summary(
+    *,
+    explicit_summary: Optional[str],
+    aggregated_response: str,
+    awaiting_sub_chats_completion: bool,
+) -> Optional[str]:
+    if awaiting_sub_chats_completion:
+        return None
+    return explicit_summary if explicit_summary is not None else aggregated_response
+
+
+def _recovery_inference_task_id(request_data: AskSkillRequest) -> Optional[str]:
+    return request_data.resolved_recovery_inference_task_id()
+
+
+def _assistant_message_id(task_id: str, request_data: AskSkillRequest) -> str:
+    return getattr(request_data, "continuation_message_id", None) or task_id
+
+
+async def _finalize_legacy_cutover_before_final_marker(
+    *,
+    request_data: AskSkillRequest,
+    billing_error: Optional[BaseException],
+    was_revoked_during_stream: bool,
+    was_soft_limited_during_stream: bool,
+    log_prefix: str,
+) -> None:
+    if (
+        request_data.is_incognito
+        or request_data.is_external
+        or request_data.recovery_task_id
+        or not request_data.legacy_cutover_task_id
+        or billing_error
+        or was_revoked_during_stream
+        or was_soft_limited_during_stream
+    ):
+        return
+
+    directus_service = DirectusService()
+    try:
+        await ChatRecoveryService(directus_service).execute(
+            "mark_legacy_inference_completed",
+            {
+                "protocol_version": 1,
+                "task_identity": request_data.legacy_cutover_task_id,
+            },
+        )
+        logger.info(
+            "%s Marked legacy recovery admission complete before final stream marker.",
+            log_prefix,
+        )
+    finally:
+        await directus_service.close()
 
 
 def _resolve_wikipedia_validation_language(
@@ -193,8 +265,32 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
     summary: str,
     log_prefix: str,
     secrets_manager: Optional[SecretsManager] = None,
+    terminal_state: str = "completed",
 ) -> None:
-    if not cache_service or not request_data.is_sub_chat or not request_data.parent_id:
+    if not request_data.is_sub_chat or not request_data.parent_id:
+        return
+
+    durable_batch_complete: bool | None = None
+    durable_batch_id: str | None = None
+    if request_data.orchestration_id:
+        directus_service = DirectusService()
+        try:
+            transition = await SubChatOrchestrationService(directus_service).execute(
+                "transition_child",
+                {
+                    "protocol_version": 1,
+                    "orchestration_id": request_data.orchestration_id,
+                    "hashed_user_id": request_data.user_id_hash,
+                    "child_chat_id": request_data.chat_id,
+                    "state": terminal_state,
+                },
+            )
+            durable_batch_complete = bool(transition.get("batch_complete"))
+            durable_batch_id = transition.get("batch_id")
+        finally:
+            await directus_service.close()
+
+    if not cache_service:
         return
 
     completion_payload = {
@@ -235,14 +331,20 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
             log_prefix=log_prefix,
         )
 
-    completed = pending_context.get("completed")
-    if not isinstance(completed, dict):
-        completed = {}
-    completed[request_data.chat_id] = {
+    completion_entry = {
         "summary": summary,
         "task_id": task_id,
         "completed_at": int(time.time()),
+        "failed": terminal_state == "failed",
+        "cancelled": terminal_state == "cancelled",
     }
+    completion_key = f"sub_chat_completion:{request_data.parent_id}:{request_data.chat_id}"
+    await cache_service.set(completion_key, completion_entry, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
+
+    completed = pending_context.get("completed")
+    if not isinstance(completed, dict):
+        completed = {}
+    completed[request_data.chat_id] = completion_entry
     pending_context["completed"] = completed
 
     expected_ids = [str(chat_id) for chat_id in pending_context.get("expected_sub_chat_ids", [])]
@@ -269,6 +371,9 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
                 sub_chat=next_sub_chat,
                 prompt_override=next_prompt,
                 log_prefix=log_prefix,
+                dispatch_token=(pending_context.get("dispatch_tokens") or {}).get(
+                    str(next_sub_chat.get("id"))
+                ),
             )
             if next_task_id:
                 await cache_service.set_active_ai_task(str(next_sub_chat.get("id")), next_task_id)
@@ -294,8 +399,10 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
             return
 
         if stopped:
+            cancelled_chat_ids: list[str] = []
             for chat_id in expected_ids:
                 if chat_id not in completed:
+                    cancelled_chat_ids.append(chat_id)
                     completed[chat_id] = {
                         "summary": "Canceled before this sequential sub-chat started.",
                         "task_id": None,
@@ -303,6 +410,28 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
                         "cancelled": True,
                     }
             pending_context["completed"] = completed
+            if request_data.orchestration_id and cancelled_chat_ids:
+                directus_service = DirectusService()
+                try:
+                    orchestration_service = SubChatOrchestrationService(directus_service)
+                    for chat_id in cancelled_chat_ids:
+                        transition = await orchestration_service.execute(
+                            "transition_child",
+                            {
+                                "protocol_version": 1,
+                                "orchestration_id": request_data.orchestration_id,
+                                "hashed_user_id": request_data.user_id_hash,
+                                "child_chat_id": chat_id,
+                                "state": "cancelled",
+                            },
+                        )
+                        durable_batch_complete = (
+                            durable_batch_complete
+                            or bool(transition.get("batch_complete"))
+                        )
+                        durable_batch_id = transition.get("batch_id") or durable_batch_id
+                finally:
+                    await directus_service.close()
             await _publish_sub_chat_progress(
                 cache_service=cache_service,
                 pending_context=pending_context,
@@ -319,17 +448,31 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
                 log_prefix=log_prefix,
             )
 
-        pending_context["continuation_dispatched"] = True
+        if request_data.orchestration_id and not durable_batch_complete:
+            await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
+            return
         await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
         await _dispatch_sub_chat_parent_continuation(
             pending_context=pending_context,
             parent_chat_id=request_data.parent_id,
             log_prefix=log_prefix,
+            durable_batch_id=durable_batch_id,
         )
+        pending_context["continuation_dispatched"] = True
         await cache_service.delete(pending_key)
+        for chat_id in expected_ids:
+            await cache_service.delete(f"sub_chat_completion:{request_data.parent_id}:{chat_id}")
         return
 
     all_completed = all(chat_id in completed for chat_id in expected_ids)
+    if request_data.orchestration_id and durable_batch_complete:
+        completed = {}
+        for chat_id in expected_ids:
+            entry = await cache_service.get(f"sub_chat_completion:{request_data.parent_id}:{chat_id}")
+            if isinstance(entry, dict):
+                completed[chat_id] = entry
+        pending_context["completed"] = completed
+        all_completed = all(chat_id in completed for chat_id in expected_ids)
     if not all_completed:
         await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
         logger.info(
@@ -342,18 +485,25 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
         )
         return
 
-    if pending_context.get("continuation_dispatched"):
+    if not request_data.orchestration_id and pending_context.get("continuation_dispatched"):
         logger.info("%s Parent continuation already dispatched for %s", log_prefix, request_data.parent_id)
         return
 
-    pending_context["continuation_dispatched"] = True
+    if request_data.orchestration_id and not durable_batch_complete:
+        await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
+        return
+
     await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
     await _dispatch_sub_chat_parent_continuation(
         pending_context=pending_context,
         parent_chat_id=request_data.parent_id,
         log_prefix=log_prefix,
+        durable_batch_id=durable_batch_id,
     )
+    pending_context["continuation_dispatched"] = True
     await cache_service.delete(pending_key)
+    for chat_id in expected_ids:
+        await cache_service.delete(f"sub_chat_completion:{request_data.parent_id}:{chat_id}")
 
 
 async def _dispatch_sub_chat_parent_continuation(
@@ -361,6 +511,7 @@ async def _dispatch_sub_chat_parent_continuation(
     pending_context: dict[str, Any],
     parent_chat_id: str,
     log_prefix: str,
+    durable_batch_id: str | None = None,
 ) -> None:
     request_payload = pending_context.get("parent_request_data")
     if not isinstance(request_payload, dict):
@@ -368,6 +519,27 @@ async def _dispatch_sub_chat_parent_continuation(
         return
 
     original_request = AskSkillRequest(**request_payload)
+    continuation_task_id = None
+    orchestration_service = None
+    directus_service = None
+    if original_request.orchestration_id:
+        if not durable_batch_id:
+            raise RuntimeError("Durable sub-chat continuation is missing its batch identity")
+        directus_service = DirectusService()
+        orchestration_service = SubChatOrchestrationService(directus_service)
+        claim = await orchestration_service.execute(
+            "claim_parent_continuation",
+            {
+                "protocol_version": 1,
+                "orchestration_id": original_request.orchestration_id,
+                "hashed_user_id": original_request.user_id_hash,
+                "batch_id": durable_batch_id,
+            },
+        )
+        if not claim.get("dispatch_required"):
+            await directus_service.close()
+            return
+        continuation_task_id = claim["continuation_task_id"]
     continuation_history = [
         AIHistoryMessage(**(message.model_dump(mode="json") if hasattr(message, "model_dump") else message))
         for message in original_request.message_history
@@ -392,21 +564,62 @@ async def _dispatch_sub_chat_parent_continuation(
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,
         active_focus_id=original_request.active_focus_id,
+        continuation_message_id=original_request.continuation_message_id,
+        recovery_inference_task_id=(
+            original_request.recovery_task_id or original_request.recovery_inference_task_id
+        ),
+        recovery_preflight_id=original_request.recovery_preflight_id,
+        recovery_turn_id=original_request.recovery_turn_id,
+        recovery_public_key=original_request.recovery_public_key,
+        chat_key_version=original_request.chat_key_version,
+        parent_id=original_request.parent_id,
+        is_sub_chat=original_request.is_sub_chat,
+        orchestration_id=original_request.orchestration_id,
+        root_chat_id=original_request.root_chat_id,
+        root_turn_id=original_request.root_turn_id,
+        sub_chat_depth=original_request.sub_chat_depth,
+        orchestration_dispatch_token=original_request.orchestration_dispatch_token,
+        orchestration_descendant_limit=original_request.orchestration_descendant_limit,
+        orchestration_credit_limit=original_request.orchestration_credit_limit,
+        orchestration_approved=original_request.orchestration_approved,
+        budget_limit=original_request.budget_limit,
+        budget_spent=original_request.budget_spent,
+        team_id=original_request.team_id,
+        team_id_hash=original_request.team_id_hash,
+        team_workspace_type=original_request.team_workspace_type,
+        team_object_id_hash=original_request.team_object_id_hash,
         user_preferences=original_request.user_preferences,
         app_settings_memories_metadata=original_request.app_settings_memories_metadata,
         mentioned_settings_memories_cleartext=original_request.mentioned_settings_memories_cleartext,
         is_sub_chat_continuation=True,
         embed_file_path_index=original_request.embed_file_path_index,
+        has_image_upload_embed=getattr(original_request, "has_image_upload_embed", False),
     )
 
-    task_result = celery_config.app.send_task(
-        name="apps.ai.tasks.skill_ask",
-        kwargs={
-            "request_data_dict": continuation_request.model_dump(mode="json"),
-            "skill_config_dict": pending_context.get("skill_config_dict") or {},
-        },
-        queue="app_ai",
-    )
+    try:
+        task_result = celery_config.app.send_task(
+            name="apps.ai.tasks.skill_ask",
+            kwargs={
+                "request_data_dict": continuation_request.model_dump(mode="json"),
+                "skill_config_dict": pending_context.get("skill_config_dict") or {},
+            },
+            queue="app_ai",
+            task_id=continuation_task_id,
+        )
+        if orchestration_service and continuation_task_id:
+            await orchestration_service.execute(
+                "mark_parent_continuation_dispatched",
+                {
+                    "protocol_version": 1,
+                    "orchestration_id": original_request.orchestration_id,
+                    "hashed_user_id": original_request.user_id_hash,
+                    "batch_id": durable_batch_id,
+                    "continuation_task_id": continuation_task_id,
+                },
+            )
+    finally:
+        if directus_service:
+            await directus_service.close()
     logger.info(
         "%s Dispatched sub-chat parent continuation task %s for parent %s",
         log_prefix,
@@ -648,11 +861,25 @@ _INLINE_EMBED_LINK_PATTERN = re.compile(
 )
 
 # Regex to detect bare embed ref brackets that are missing the (embed:...) parenthetical.
-# Matches: [domain.tld-XYZ] or [carrier-0800-XYZ] where the bracketed content
-# looks like an embed_ref.
+# Matches: [domain.tld-XYZ], [carrier-0800-XYZ], or recoverable suffix-only
+# refs like [-XYZ] where the bracketed content looks like an embed_ref.
 # Negative lookahead (?!\() ensures we only match brackets NOT already followed by (...).
 # Example: [news.ycombinator.com-ANo] → should become [Hacker News](embed:news.ycombinator.com-ANo)
-_BARE_EMBED_REF_PATTERN = re.compile(r'\[([^\]\s]+-[a-zA-Z0-9]{2,4})\](?!\()')
+_EMBED_REF_HYPHEN_CHARS = r'\-\u2010\u2011\u2012\u2013\u2014\u2015\u2212'
+_EMBED_REF_TOKEN_PATTERN = (
+    rf'(?:[a-zA-Z0-9._~:][a-zA-Z0-9._~:-]*[{_EMBED_REF_HYPHEN_CHARS}][a-zA-Z0-9]{{2,4}}'
+    rf'|[{_EMBED_REF_HYPHEN_CHARS}][a-zA-Z0-9]{{2,4}})'
+)
+_EMBED_REF_SUFFIX_ONLY_PATTERN = re.compile(r'^-[a-zA-Z0-9]{2,4}$')
+_EMBED_REF_UNICODE_DASH_PATTERN = re.compile(r'[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]')
+_BARE_EMBED_REF_PATTERN = re.compile(rf'\[({_EMBED_REF_TOKEN_PATTERN})\](?!\()')
+
+# Legacy grouped citations emitted by some models. Known refs are expanded into
+# separate canonical inline links during finalization.
+_GROUPED_CITE_REFS_PATTERN = re.compile(r'\[cite:\s*([^\]\n]+)\]', re.IGNORECASE)
+_GROUPED_BARE_EMBED_REFS_PATTERN = re.compile(
+    rf'\[({_EMBED_REF_TOKEN_PATTERN}(?:\s*,\s*{_EMBED_REF_TOKEN_PATTERN})+)\](?!\()'
+)
 
 # Regex to detect mixed URL+embed patterns where the LLM wrote both a markdown
 # https:// link and an (embed:ref) parenthetical for the same anchor.
@@ -670,6 +897,10 @@ _MIXED_URL_EMBED_PATTERN = re.compile(
 # never sees a link mark and cannot convert it into an inline embed badge.
 _BACKTICKED_INLINE_EMBED_LINK_PATTERN = re.compile(
     r'(?<!`)`(\[[^\]\n]*\]\(embed:[^)`\n]+\))`(?!`)'
+)
+_JSON_CODE_EMBED_REFERENCE_FENCE_PATTERN = re.compile(
+    r'```json\s*\n\s*\{\s*"type"\s*:\s*"code"\s*,\s*'
+    r'"embed_id"\s*:\s*"(?P<embed_id>[0-9a-fA-F-]{36})"\s*\}\s*\n\s*```\s*\n*'
 )
 
 _EMAIL_TO_PATTERN = re.compile(r'^(?:to|receiver|recipient)\s*:\s*(.+)$', re.IGNORECASE)
@@ -838,7 +1069,7 @@ async def _apply_diff_block_to_existing_embed(
 ) -> str:
     """Apply a unified diff fence to an existing embed and return response markdown."""
     from backend.core.api.app.services.embed_diff_service import (
-        parse_unified_diff, apply_patch
+        apply_patch, parse_unified_diff, resolve_diff_target_embed_id
     )
     from toon_format import decode
 
@@ -850,7 +1081,7 @@ async def _apply_diff_block_to_existing_embed(
         f"embed_ref={resolved_ref!r} ({len(diff_content)} chars)"
     )
 
-    target_embed_id = file_path_index.get(resolved_ref) if resolved_ref else None
+    target_embed_id = resolve_diff_target_embed_id(resolved_ref, file_path_index)
     if not target_embed_id:
         logger.warning(
             f"{log_prefix} [DIFF_BLOCK] Could not resolve embed_ref "
@@ -884,6 +1115,8 @@ async def _apply_diff_block_to_existing_embed(
                         decoded.get("code") or
                         decoded.get("diagram_code") or
                         decoded.get("html") or
+                        (json.dumps(decoded.get("notebook"), ensure_ascii=False, indent=2) if decoded.get("notebook") else None) or
+                        (decoded.get("content") if decoded.get("type") == "notebook" else None) or
                         (json.dumps(decoded.get("docx_model"), ensure_ascii=False, indent=2) if decoded.get("docx_model") else None) or
                         decoded.get("table") or
                         ""
@@ -952,6 +1185,20 @@ async def _apply_diff_block_to_existing_embed(
             version_history_rows=version_history_rows,
             learning_mode_metadata=learning_mode_metadata,
             log_prefix=log_prefix
+        )
+    elif embed_type == "notebook":
+        await embed_service.update_notebook_embed_content(
+            embed_id=target_embed_id,
+            notebook_content=patch_result.new_content,
+            chat_id=request_data.chat_id,
+            user_id=request_data.user_id,
+            user_id_hash=request_data.user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            status="finished",
+            version_number=new_version,
+            content_hash=new_content_hash,
+            version_history_rows=version_history_rows,
+            log_prefix=log_prefix,
         )
     elif embed_type == "document":
         capped_current_content, _ = _cap_document_for_learning_mode(request_data, current_content)
@@ -1303,6 +1550,82 @@ async def _verify_and_strip_bad_quotes(
     return aggregated_response
 
 
+def _is_markdown_literal_position(markdown: str, position: int) -> bool:
+    """Return whether a position is inside quoted or code-formatted Markdown."""
+    line_start = markdown.rfind("\n", 0, position) + 1
+    line_prefix = markdown[line_start:position]
+    if line_prefix.lstrip().startswith(">"):
+        return True
+
+    fence_character = ""
+    fence_length = 0
+    for line in markdown[:position].splitlines():
+        marker_match = re.match(r"\s*(`{3,}|~{3,})", line)
+        if not marker_match:
+            continue
+        marker = marker_match.group(1)
+        if not fence_character:
+            fence_character = marker[0]
+            fence_length = len(marker)
+        elif marker[0] == fence_character and len(marker) >= fence_length:
+            fence_character = ""
+            fence_length = 0
+
+    if fence_character:
+        return True
+
+    inline_code_delimiter = 0
+    for marker_match in re.finditer(r"`+", line_prefix):
+        if marker_match.start() > 0 and line_prefix[marker_match.start() - 1] == "\\":
+            continue
+        marker_length = len(marker_match.group(0))
+        if not inline_code_delimiter:
+            inline_code_delimiter = marker_length
+        elif marker_length == inline_code_delimiter:
+            inline_code_delimiter = 0
+
+    return bool(inline_code_delimiter)
+
+
+def _normalize_embed_ref_token(embed_ref: str) -> str:
+    return _EMBED_REF_UNICODE_DASH_PATTERN.sub("-", embed_ref.strip())
+
+
+def _normalize_embed_ref_suffix_key(embed_ref: str) -> str:
+    return _normalize_embed_ref_token(embed_ref).lower()
+
+
+def _build_embed_ref_suffix_index(embed_refs: List[str]) -> Dict[str, Optional[str]]:
+    suffix_index: Dict[str, Optional[str]] = {}
+    for embed_ref in embed_refs:
+        suffix_match = _EMBED_REF_SUFFIX_PATTERN.search(embed_ref)
+        if not suffix_match:
+            continue
+        suffix = _normalize_embed_ref_suffix_key(suffix_match.group(0))
+        existing = suffix_index.get(suffix)
+        if existing is None and suffix in suffix_index:
+            continue
+        if existing and existing != embed_ref:
+            suffix_index[suffix] = None
+            continue
+        suffix_index[suffix] = embed_ref
+    return suffix_index
+
+
+def _resolve_embed_ref_token(
+    embed_ref_token: str,
+    embed_ref_to_title: Dict[str, str],
+    embed_ref_suffix_index: Dict[str, Optional[str]],
+) -> Optional[str]:
+    normalized = _normalize_embed_ref_token(embed_ref_token)
+    if normalized in embed_ref_to_title:
+        return normalized
+    if not _EMBED_REF_SUFFIX_ONLY_PATTERN.fullmatch(normalized):
+        return None
+    resolved = embed_ref_suffix_index.get(_normalize_embed_ref_suffix_key(normalized))
+    return resolved if resolved in embed_ref_to_title else None
+
+
 async def _fix_bad_embed_display_text(
     aggregated_response: str,
     tool_calls_info: Optional[List[Dict[str, Any]]],
@@ -1336,10 +1659,12 @@ async def _fix_bad_embed_display_text(
     bare_matches = list(_BARE_EMBED_REF_PATTERN.finditer(aggregated_response))
     bare_matches = [
         m for m in bare_matches
-        if _EMBED_REF_SUFFIX_PATTERN.search(m.group(1))
+        if _EMBED_REF_SUFFIX_PATTERN.search(_normalize_embed_ref_token(m.group(1)))
     ]
+    grouped_cite_matches = list(_GROUPED_CITE_REFS_PATTERN.finditer(aggregated_response))
+    grouped_bare_matches = list(_GROUPED_BARE_EMBED_REFS_PATTERN.finditer(aggregated_response))
 
-    if not all_matches and not bare_matches:
+    if not all_matches and not bare_matches and not grouped_cite_matches and not grouped_bare_matches:
         return aggregated_response
 
     # Filter out matches that are inside blockquote lines (source quotes)
@@ -1362,17 +1687,16 @@ async def _fix_bad_embed_display_text(
                 "full_match": match.group(0),
             })
 
-    if not bad_links:
-        return aggregated_response
-
-    logger.info(
-        f"{log_prefix} [EMBED_DISPLAY_FIX] Found {len(bad_links)} inline embed link(s) "
-        f"with bad display text"
-    )
+    if bad_links:
+        logger.info(
+            f"{log_prefix} [EMBED_DISPLAY_FIX] Found {len(bad_links)} inline embed link(s) "
+            f"with bad display text"
+        )
 
     # Build embed_ref → title map from child embeds.
     # We need to load parent embeds and their children to find the title for each ref.
     embed_ref_to_title: Dict[str, str] = {}
+    embed_ref_to_type: Dict[str, str] = {}
     try:
         all_embed_ids: List[str] = []
 
@@ -1437,6 +1761,9 @@ async def _fix_bad_embed_display_text(
                             if isinstance(child_decoded, dict):
                                 child_ref = child_decoded.get("embed_ref")
                                 if child_ref:
+                                    child_type = child_decoded.get("type")
+                                    if child_type:
+                                        embed_ref_to_type[child_ref] = str(child_type)
                                     child_title = _derive_embed_display_title(
                                         child_decoded,
                                         child_ref,
@@ -1460,12 +1787,23 @@ async def _fix_bad_embed_display_text(
     # Apply fixes — replace bad display text with title or cleaned domain
     modified = aggregated_response
     replacements_made = 0
+    embed_ref_suffix_index = _build_embed_ref_suffix_index(list(embed_ref_to_title.keys()))
 
     # Process in reverse order to preserve match positions after replacements
     for link_info in reversed(bad_links):
         embed_ref = link_info["embed_ref"]
         old_display = link_info["display_text"]
         full_match = link_info["full_match"]
+
+        if not old_display.strip() and embed_ref_to_type.get(embed_ref) == "image_result":
+            new_link = f"[!](embed:{embed_ref})"
+            modified = modified.replace(full_match, new_link, 1)
+            replacements_made += 1
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Promoted empty image ref to large preview "
+                f"(embed_ref: {embed_ref})"
+            )
+            continue
 
         # Try to find the title from the embed data
         new_display = embed_ref_to_title.get(embed_ref)
@@ -1475,7 +1813,7 @@ async def _fix_bad_embed_display_text(
             new_display = _derive_display_text_from_embed_ref(embed_ref)
 
         if new_display and new_display != old_display:
-            new_link = f"[{new_display}](embed:{embed_ref})"
+            new_link = f"[{_escape_markdown_link_label(new_display)}](embed:{embed_ref})"
             modified = modified.replace(full_match, new_link, 1)
             replacements_made += 1
             logger.info(
@@ -1497,16 +1835,24 @@ async def _fix_bad_embed_display_text(
         current_bare_matches = list(_BARE_EMBED_REF_PATTERN.finditer(modified))
         current_bare_matches = [
             m for m in current_bare_matches
-            if _EMBED_REF_SUFFIX_PATTERN.search(m.group(1))
-            and m.group(1) in embed_ref_to_title
+            if _EMBED_REF_SUFFIX_PATTERN.search(_normalize_embed_ref_token(m.group(1)))
         ]
 
         bare_fixed = 0
+        bare_removed = 0
         for match in reversed(current_bare_matches):
-            embed_ref = match.group(1)
+            embed_ref = _resolve_embed_ref_token(
+                match.group(1),
+                embed_ref_to_title,
+                embed_ref_suffix_index,
+            )
             full_match = match.group(0)
+            if not embed_ref:
+                modified = modified[:match.start()] + "" + modified[match.end():]
+                bare_removed += 1
+                continue
             display = embed_ref_to_title.get(embed_ref) or _derive_display_text_from_embed_ref(embed_ref)
-            new_link = f"[{display}](embed:{embed_ref})"
+            new_link = f"[{_escape_markdown_link_label(display)}](embed:{embed_ref})"
             modified = modified[:match.start()] + new_link + modified[match.end():]
             bare_fixed += 1
             logger.info(
@@ -1516,6 +1862,49 @@ async def _fix_bad_embed_display_text(
         if bare_fixed > 0:
             logger.info(
                 f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {bare_fixed} bare embed bracket(s)"
+            )
+        if bare_removed > 0:
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Removed {bare_removed} unresolved bare embed bracket(s)"
+            )
+
+    # Expand legacy grouped citations when refs resolve to child embeds from
+    # this response. Unresolved tokens are removed so pseudo-links do not leak
+    # into the persisted assistant response.
+    if (grouped_cite_matches or grouped_bare_matches) and embed_ref_to_title:
+        current_grouped_matches = [
+            (match, match.group(1))
+            for match in _GROUPED_CITE_REFS_PATTERN.finditer(modified)
+        ] + [
+            (match, match.group(1))
+            for match in _GROUPED_BARE_EMBED_REFS_PATTERN.finditer(modified)
+        ]
+        current_grouped_matches.sort(key=lambda item: item[0].start(), reverse=True)
+        grouped_fixed = 0
+        for match, refs_text in current_grouped_matches:
+            if _is_markdown_literal_position(modified, match.start()):
+                continue
+            embed_refs = [
+                _resolve_embed_ref_token(ref, embed_ref_to_title, embed_ref_suffix_index)
+                for ref in refs_text.split(",")
+                if ref.strip()
+            ]
+            resolved_embed_refs = [ref for ref in embed_refs if ref]
+            if not resolved_embed_refs:
+                modified = modified[:match.start()] + "" + modified[match.end():]
+                grouped_fixed += 1
+                continue
+
+            links = ", ".join(
+                f"[{_escape_markdown_link_label(embed_ref_to_title[embed_ref])}](embed:{embed_ref})"
+                for embed_ref in resolved_embed_refs
+            )
+            modified = modified[:match.start()] + links + modified[match.end():]
+            grouped_fixed += 1
+
+        if grouped_fixed > 0:
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Expanded {grouped_fixed} grouped citation(s)"
             )
 
     return modified
@@ -1709,6 +2098,192 @@ def _fix_backticked_inline_embed_references(aggregated_response: str, log_prefix
     return modified
 
 
+def _replace_streamed_json_embed_reference_type(
+    final_response_chunks: list[str],
+    *,
+    embed_id: str,
+    old_type: str,
+    new_type: str,
+    log_prefix: str = "",
+) -> bool:
+    """Update an already-streamed embed reference when final content changes type."""
+    old_reference = f"```json\n{json.dumps({'type': old_type, 'embed_id': embed_id})}\n```\n\n"
+    new_reference = f"```json\n{json.dumps({'type': new_type, 'embed_id': embed_id})}\n```\n\n"
+    for index in range(len(final_response_chunks) - 1, -1, -1):
+        if old_reference not in final_response_chunks[index]:
+            continue
+        final_response_chunks[index] = final_response_chunks[index].replace(old_reference, new_reference, 1)
+        logger.info(
+            f"{log_prefix} [EMBED_REFERENCE_TYPE_REWRITE] Rewrote streamed embed reference "
+            f"{embed_id} from {old_type} to {new_type}"
+        )
+        return True
+    logger.warning(
+        f"{log_prefix} [EMBED_REFERENCE_TYPE_REWRITE] Could not find streamed {old_type} "
+        f"reference for promoted embed {embed_id}"
+    )
+    return False
+
+
+async def _rewrite_json_embed_references_to_cached_types(
+    aggregated_response: str,
+    cache_service: Optional[CacheService],
+    log_prefix: str = "",
+) -> str:
+    if not aggregated_response or '"type": "code"' not in aggregated_response or not cache_service:
+        return aggregated_response
+
+    matches = list(_JSON_CODE_EMBED_REFERENCE_FENCE_PATTERN.finditer(aggregated_response))
+    if not matches:
+        return aggregated_response
+
+    modified = aggregated_response
+    rewritten = 0
+    for match in reversed(matches):
+        embed_id = match.group("embed_id")
+        cached_embed = await cache_service.get_embed_from_cache(embed_id)
+        if not cached_embed or cached_embed.get("type") != "notebook":
+            continue
+        replacement = f"```json\n{json.dumps({'type': 'notebook', 'embed_id': embed_id})}\n```\n\n"
+        modified = modified[:match.start()] + replacement + modified[match.end():]
+        rewritten += 1
+
+    if rewritten:
+        logger.info(
+            f"{log_prefix} [EMBED_REFERENCE_TYPE_REWRITE] Rewrote {rewritten} persisted "
+            "code embed reference(s) to notebook based on cached embed type"
+        )
+    return modified
+
+
+def _request_user_texts(request_data: AskSkillRequest) -> list[str]:
+    texts: list[str] = []
+    current_user_content = getattr(request_data, "current_user_content", None)
+    if isinstance(current_user_content, str) and current_user_content.strip():
+        texts.append(current_user_content)
+
+    for message in reversed(request_data.message_history or []):
+        role = message.role if hasattr(message, "role") else message.get("role") if isinstance(message, dict) else None
+        role_value = getattr(role, "value", role)
+        if not isinstance(role_value, str) or role_value.lower() not in {"user", "human"}:
+            continue
+        content = message.content if hasattr(message, "content") else message.get("content") if isinstance(message, dict) else None
+        if isinstance(content, str) and content.strip():
+            texts.append(content)
+    return texts
+
+
+def _map_view_source_refs_from_tool_calls(
+    tool_calls_info: Optional[List[Dict[str, Any]]],
+    user_texts: list[str],
+) -> list[str]:
+    source_refs: list[str] = []
+    seen: set[str] = set()
+    for tool_call in tool_calls_info or []:
+        if not isinstance(tool_call, dict):
+            continue
+        app_id = str(tool_call.get("app_id") or "")
+        skill_id = str(tool_call.get("skill_id") or "")
+        embed_id = tool_call.get("embed_id")
+        if not isinstance(embed_id, str) or not embed_id.strip():
+            continue
+        if not should_include_embeds_map_view_hint(app_id, skill_id, user_texts):
+            continue
+        if embed_id in seen:
+            continue
+        seen.add(embed_id)
+        source_refs.append(embed_id)
+    return source_refs
+
+
+def _build_sub_chat_batch_marker(
+    *,
+    parent_chat_id: str,
+    parent_task_id: str,
+    sub_chats: list[dict[str, Any]],
+    execution_mode: str,
+    status: str = "processing",
+) -> str:
+    sub_chat_ids = [str(sub_chat.get("id")) for sub_chat in sub_chats if sub_chat.get("id")]
+    if not sub_chat_ids:
+        return ""
+
+    marker = {
+        "type": "sub_chat_batch",
+        "batch_id": f"{parent_task_id}:sub-chat-batch",
+        "chat_id": parent_chat_id,
+        "parent_message_id": parent_task_id,
+        "task_id": parent_task_id,
+        "execution_mode": execution_mode,
+        "status": status,
+        "sub_chat_ids": sub_chat_ids,
+    }
+    return f"\n\n```json\n{json.dumps(marker, separators=(',', ':'))}\n```\n\n"
+
+
+async def _persist_sealed_recovery_job(
+    *,
+    directus_service: DirectusService,
+    request_data: AskSkillRequest,
+    task_id: str,
+    content: str,
+    category: str | None,
+    model_name: str | None,
+) -> dict[str, Any] | None:
+    inference_task_id = _recovery_inference_task_id(request_data)
+    if not inference_task_id:
+        return None
+    required = {
+        "recovery_preflight_id": request_data.recovery_preflight_id,
+        "recovery_turn_id": request_data.recovery_turn_id,
+        "recovery_public_key": request_data.recovery_public_key,
+        "chat_key_version": request_data.chat_key_version,
+    }
+    if any(value is None for value in required.values()):
+        raise RuntimeError("Epoch-1 task is missing sealed recovery context")
+    data = build_sealed_recovery_job_data(
+        owner_id=request_data.user_id,
+        owner_hash=request_data.user_id_hash,
+        chat_id=request_data.chat_id,
+        turn_id=request_data.recovery_turn_id,
+        preflight_id=request_data.recovery_preflight_id,
+        task_id=task_id,
+        inference_task_id=inference_task_id,
+        assistant_message_id=_assistant_message_id(task_id, request_data),
+        recovery_public_key=request_data.recovery_public_key,
+        chat_key_version=request_data.chat_key_version,
+        content=content,
+        category=category,
+        model_name=model_name,
+    )
+    return await ChatRecoveryService(directus_service).execute("create_sealed_job", data)
+
+
+def _assistant_response_created_at(request_data: AskSkillRequest, fallback_timestamp: int) -> int:
+    """Return the durable creation timestamp for an assistant response.
+
+    Assistant persistence can finish after the user has already answered an
+    interactive question. Anchor the assistant row to the triggering user turn so
+    stored `created_at` order matches conversation order instead of write order.
+    """
+    messages = list(request_data.message_history or [])
+    for index in range(len(messages) - 1, -1, -1):
+        message = messages[index]
+        if getattr(message, "role", None) != "user":
+            continue
+        try:
+            anchor_timestamp = int(getattr(message, "created_at"))
+        except (AttributeError, TypeError, ValueError):
+            break
+        for later_message in messages[index + 1 :]:
+            try:
+                anchor_timestamp = max(anchor_timestamp, int(getattr(later_message, "created_at")))
+            except (AttributeError, TypeError, ValueError):
+                continue
+        return anchor_timestamp + ASSISTANT_RESPONSE_TIMESTAMP_OFFSET_SECONDS
+    return fallback_timestamp
+
+
 def _create_redis_payload(
     task_id: str,
     request_data: AskSkillRequest,
@@ -1725,16 +2300,20 @@ def _create_redis_payload(
     total_credits: Optional[int] = None,
     category: Optional[str] = None,
     rejection_reason: Optional[str] = None,
+    awaiting_focus_mode_continuation: bool = False,
 ) -> Dict[str, Any]:
     """Create standardized Redis payload for streaming chunks."""
+    created_at = _assistant_response_created_at(request_data, int(time.time()))
+    assistant_message_id = _assistant_message_id(task_id, request_data)
     payload = {
         "type": "ai_message_chunk",
         "task_id": task_id,
         "chat_id": request_data.chat_id,
         "user_id_uuid": request_data.user_id,
         "user_id_hash": request_data.user_id_hash,
-        "message_id": task_id,
+        "message_id": assistant_message_id,
         "user_message_id": request_data.message_id,
+        "created_at": created_at,
         "full_content_so_far": content,
         "sequence": sequence,
         "is_final_chunk": is_final,
@@ -1746,6 +2325,17 @@ def _create_redis_payload(
     
     if category:
         payload["category"] = category
+
+    if _recovery_inference_task_id(request_data):
+        payload["recovery_provisional"] = not is_final
+        payload["recovery_turn_id"] = request_data.recovery_turn_id
+        payload["chat_key_version"] = request_data.chat_key_version
+    if request_data.is_sub_chat_continuation:
+        payload["is_sub_chat_continuation"] = True
+    if request_data.is_focus_mode_continuation:
+        payload["is_focus_mode_continuation"] = True
+    if awaiting_focus_mode_continuation:
+        payload["awaiting_focus_mode_continuation"] = True
     
     # rejection_reason indicates this is a system message (e.g., "insufficient_credits"),
     # not an AI response. Frontend uses this to render as a system notice instead of an assistant bubble.
@@ -1800,6 +2390,7 @@ def _create_thinking_redis_payload(
     Returns:
         Dict payload for Redis publishing
     """
+    assistant_message_id = _assistant_message_id(task_id, request_data)
     if is_complete:
         return {
             "type": "thinking_complete",
@@ -1807,7 +2398,7 @@ def _create_thinking_redis_payload(
             "chat_id": request_data.chat_id,
             "user_id_uuid": request_data.user_id,
             "user_id_hash": request_data.user_id_hash,
-            "message_id": task_id,
+            "message_id": assistant_message_id,
             "signature": signature,
             "total_tokens": total_tokens,
             "external_request": request_data.is_external,
@@ -1819,7 +2410,7 @@ def _create_thinking_redis_payload(
             "chat_id": request_data.chat_id,
             "user_id_uuid": request_data.user_id,
             "user_id_hash": request_data.user_id_hash,
-            "message_id": task_id,
+            "message_id": assistant_message_id,
             "content": content,  # Just the new chunk, not accumulated
             "external_request": request_data.is_external,
         }
@@ -1873,20 +2464,49 @@ async def _charge_credits(
     Returns basic billing info.
     """
     _apply_benchmark_usage_details(request_data, usage_details)
+    operation_id = f"ai-ask:{task_id}:main"
+    usage_details.update({
+        "root_chat_id": request_data.root_chat_id or request_data.chat_id,
+        "actual_chat_id": request_data.chat_id,
+        "root_turn_id": request_data.root_turn_id,
+        "orchestration_id": request_data.orchestration_id,
+        "depth": request_data.sub_chat_depth,
+        "operation_id": operation_id,
+    })
 
     if credits <= 0 and not usage_details.get("local_self_hosted"):
         return {}
         
-    charge_payload = {
-        "user_id": request_data.user_id,
-        "user_id_hash": request_data.user_id_hash,
-        "credits": credits,
-        "skill_id": "ask",
-        "app_id": "ai",
-        "usage_details": usage_details,
-        "api_key_hash": request_data.api_key_hash,
-        "device_hash": request_data.device_hash,
-    }
+    team_id = getattr(request_data, "team_id", None)
+    if team_id:
+        usage_details = {
+            **usage_details,
+            "workspace_type": getattr(request_data, "team_workspace_type", None) or "chat",
+            "object_id_hash": getattr(request_data, "team_object_id_hash", None),
+        }
+        charge_payload = {
+            "team_id": team_id,
+            "actor_user_id": request_data.user_id,
+            "credits": credits,
+            "skill_id": "ask",
+            "app_id": "ai",
+            "idempotency_key": operation_id,
+            "usage_details": usage_details,
+        }
+        charge_path = "/internal/billing/team/charge"
+    else:
+        charge_payload = {
+            "user_id": request_data.user_id,
+            "user_id_hash": request_data.user_id_hash,
+            "credits": credits,
+            "skill_id": "ask",
+            "app_id": "ai",
+            "idempotency_key": operation_id,
+            "usage_details": usage_details,
+            "api_key_hash": request_data.api_key_hash,
+            "device_hash": request_data.device_hash,
+        }
+        charge_path = "/internal/billing/charge"
     
     headers = {"Content-Type": "application/json"}
     if INTERNAL_API_SHARED_TOKEN:
@@ -1894,7 +2514,7 @@ async def _charge_credits(
     
     try:
         async with httpx.AsyncClient() as client:
-            url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
+            url = f"{INTERNAL_API_BASE_URL}{charge_path}"
             logger.info(
                 f"{log_prefix} Charging {credits} credits. "
                 f"Payload summary: keys={sorted(charge_payload.keys())}, "
@@ -1953,6 +2573,65 @@ async def _update_chat_metadata(
             persisted event is broadcast with the correct role/status for system
             rejection messages (e.g. "insufficient_credits").
     """
+    assistant_message_id = _assistant_message_id(task_id, request_data)
+    if _recovery_inference_task_id(request_data):
+        fields_to_update = {
+            "last_edited_overall_timestamp": timestamp,
+            "last_mate_category": category,
+            "updated_at": int(time.time())
+        }
+        success = await directus_service.chat.update_chat_fields_in_directus(
+            request_data.chat_id, fields_to_update
+        )
+        if not success:
+            logger.error(f"{log_prefix} Failed to update recovery chat metadata for {request_data.chat_id}.")
+            return
+
+        logger.info(
+            f"{log_prefix} Updated recovery chat metadata without advancing terminal messages_v: "
+            f"timestamp {timestamp}, category {category}"
+        )
+
+        if cache_service:
+            from backend.core.api.app.schemas.chat import MessageInCache
+
+            try:
+                encrypted_content_for_cache, _ = await encryption_service.encrypt_with_user_key(
+                    content_markdown,
+                    user_vault_key_id,
+                )
+                ai_message_for_cache = MessageInCache(
+                    id=assistant_message_id,
+                    chat_id=request_data.chat_id,
+                    role="assistant",
+                    category=category,
+                    sender_name=None,
+                    encrypted_content=encrypted_content_for_cache,
+                    created_at=timestamp,
+                    status="synced",
+                    model_name=model_name,
+                )
+                cached = await cache_service.add_ai_message_to_history(
+                    request_data.user_id,
+                    request_data.chat_id,
+                    ai_message_for_cache.model_dump_json(),
+                )
+                if cached:
+                    logger.info(
+                        f"{log_prefix} Saved recovery assistant response to AI cache "
+                        "without publishing or advancing messages_v."
+                    )
+                else:
+                    logger.warning(
+                        f"{log_prefix} Failed to save recovery assistant response to AI cache; "
+                        "follow-up context may be incomplete."
+                    )
+            except Exception:
+                logger.exception(
+                    f"{log_prefix} Failed to cache recovery assistant response for follow-up context."
+                )
+        return
+
     # 1. Increment messages_v atomically via cache HINCRBY (same mechanism as system_message_handler)
     # This prevents race conditions where system messages and AI responses compete for version numbers.
     # Previously this used a Directus read-modify-write which was non-atomic and could collide
@@ -2130,6 +2809,7 @@ async def _save_to_cache_and_publish(
     """
     try:
         from backend.core.api.app.schemas.chat import MessageInCache
+        assistant_message_id = _assistant_message_id(task_id, request_data)
         
         # SERVER-SIDE ENCRYPTION: Encrypt AI response content with encryption_key_user_server (Vault)
         # This allows server to cache and access for AI while maintaining security
@@ -2157,7 +2837,7 @@ async def _save_to_cache_and_publish(
 
         # Store encrypted markdown content in cache (server-side encrypted with encryption_key_user_server)
         ai_message_for_cache = MessageInCache(
-            id=task_id,
+            id=assistant_message_id,
             chat_id=request_data.chat_id,
             role=cache_role,
             category=category,
@@ -2184,8 +2864,9 @@ async def _save_to_cache_and_publish(
         client_role = "system" if rejection_reason else "assistant"
         client_status = "waiting_for_user" if rejection_reason else "synced"
         client_message: dict = {
-            "message_id": task_id,
+            "message_id": assistant_message_id,
             "chat_id": request_data.chat_id,
+            "user_message_id": request_data.message_id,
             "role": client_role,
             "category": category,
             "content": content_markdown,  # Send markdown content to client
@@ -2455,13 +3136,31 @@ async def _generate_fake_stream_for_harmful_content(
         logger.error(f"{log_prefix} Error charging credits for harmful content: {e}", exc_info=True)
         # Continue with response even if billing fails
     
+    category = "general_knowledge"  # Default category for harmful content responses
+    recovery_job = None
+    if _recovery_inference_task_id(request_data):
+        if directus_service is None:
+            raise RuntimeError("Epoch-1 harmful-content response is missing Directus recovery service")
+        recovery_job = await _persist_sealed_recovery_job(
+            directus_service=directus_service,
+            request_data=request_data,
+            task_id=task_id,
+            content=predefined_response,
+            category=category,
+            model_name=model_name,
+        )
+
     # Publish final marker
     final_payload = _create_redis_payload(
         task_id, request_data, predefined_response, 2, is_final=True, model_name=model_name,
         prompt_tokens=billing_info.get("prompt_tokens"),
         completion_tokens=billing_info.get("completion_tokens"),
-        total_credits=billing_info.get("total_credits")
+        total_credits=billing_info.get("total_credits"),
+        category=category,
     )
+    if recovery_job:
+        final_payload["recovery_job_id"] = recovery_job["job_id"]
+        final_payload["recovery_protocol_version"] = 1
     await _publish_to_redis(
         cache_service, redis_channel, final_payload, log_prefix,
         f"Published final marker to '{redis_channel}'"
@@ -2472,8 +3171,7 @@ async def _generate_fake_stream_for_harmful_content(
     # CRITICAL: This is non-blocking - if metadata update fails, the error message should still reach the user
     # EXTERNAL REQUESTS skip this.
     if not request_data.is_external and directus_service and cache_service and predefined_response:
-        category = "general_knowledge"  # Default category for harmful content responses
-        timestamp = int(time.time())
+        timestamp = _assistant_response_created_at(request_data, int(time.time()))
         content_tiptap = predefined_response  # Send as markdown
 
         try:
@@ -2579,7 +3277,7 @@ async def _generate_fake_stream_for_simple_message(
     # EXTERNAL REQUESTS skip this.
     if not request_data.is_external and directus_service and cache_service and message_text:
         category = "general_knowledge"  # Default category for simple messages
-        timestamp = int(time.time())
+        timestamp = _assistant_response_created_at(request_data, int(time.time()))
         content_tiptap = message_text  # Send as markdown
 
         try:
@@ -2705,17 +3403,30 @@ APPLICATION_PREVIEW_EXTENSION_LANGUAGES = {
     ".tsx": "tsx",
     ".vue": "vue",
 }
+APPLICATION_PREVIEW_SVELTE_PLUGIN_VERSION = "^4.0.4"
+APPLICATION_PREVIEW_SVELTE_VERSION = "^5.55.7"
+APPLICATION_PREVIEW_TYPESCRIPT_VERSION = "^5.9.2"
+APPLICATION_PREVIEW_VITE_VERSION = "^5.4.21"
 APPLICATION_PREVIEW_DEFAULT_PACKAGE_JSON = json.dumps({
     "scripts": {"dev": "vite"},
     "dependencies": {
-        "@sveltejs/vite-plugin-svelte": "latest",
-        "vite": "latest",
-        "svelte": "latest",
-        "typescript": "latest",
+        "@sveltejs/vite-plugin-svelte": APPLICATION_PREVIEW_SVELTE_PLUGIN_VERSION,
+        "vite": APPLICATION_PREVIEW_VITE_VERSION,
+        "svelte": APPLICATION_PREVIEW_SVELTE_VERSION,
+        "typescript": APPLICATION_PREVIEW_TYPESCRIPT_VERSION,
     },
     "devDependencies": {},
 }, indent=2)
 APPLICATION_PREVIEW_DEFAULT_INDEX_HTML = '<div id="app"></div>\n<script type="module" src="/src/main.ts"></script>'
+APPLICATION_PREVIEW_DEFAULT_MAIN_TS = (
+    "import { mount } from 'svelte';\n"
+    "import App from './App.svelte';\n\n"
+    "const target = document.getElementById('app');\n"
+    "if (!target) {\n"
+    "  throw new Error('Application root element #app was not found');\n"
+    "}\n\n"
+    "mount(App, { target });\n"
+)
 APPLICATION_PREVIEW_DEFAULT_VITE_CONFIG = (
     "import { svelte } from '@sveltejs/vite-plugin-svelte';\n"
     "import { defineConfig } from 'vite';\n\n"
@@ -3070,13 +3781,18 @@ def _should_process_chunk_as_code_block(
     lines = chunk.split('\n')
     fence_line = lines[0].strip()
     fence_content = fence_line[3:].strip()  # Remove ```
+    fence_language = fence_content.split(maxsplit=1)[0].lower() if fence_content else ""
+
+    # SKIP: Message-level renderer fences (should remain inline for client rendering)
+    if is_embeds_map_view_fence_language(fence_content):
+        return False
 
     # SKIP: Interactive questions and responses (should remain inline for client rendering)
-    if fence_content.lower() in ('interactive_question', 'interactive_response'):
+    if fence_language in ('interactive_question', 'interactive_response'):
         return False
 
     # SKIP: JSON blocks that contain embed references (already processed by skills)
-    if fence_content.lower() in ('json', 'json_embed'):
+    if fence_language in ('json', 'json_embed'):
         remaining_content = '\n'.join(lines[1:]) if len(lines) > 1 else ''
         stripped_content = remaining_content.strip()
         if (
@@ -3431,12 +4147,21 @@ def _normalize_loose_application_preview_files(files: List[Dict[str, str]]) -> L
             "filename": "package.json",
             "content": APPLICATION_PREVIEW_DEFAULT_PACKAGE_JSON,
         })
+        paths.add("package.json")
+    if has_svelte_source and "src/main.ts" not in paths and "src/main.js" not in paths:
+        normalized_files.append({
+            "language": "typescript",
+            "filename": "src/main.ts",
+            "content": APPLICATION_PREVIEW_DEFAULT_MAIN_TS,
+        })
+        paths.add("src/main.ts")
     if has_svelte_source and "vite.config.ts" not in paths and "vite.config.js" not in paths:
         normalized_files.append({
             "language": "typescript",
             "filename": "vite.config.ts",
             "content": APPLICATION_PREVIEW_DEFAULT_VITE_CONFIG,
         })
+        paths.add("vite.config.ts")
     if "index.html" not in paths:
         normalized_files.append({
             "language": "html",
@@ -4035,7 +4760,7 @@ async def _consume_main_processing_stream(
     # Track if we filtered out fake tool calls (LLM attempted to use unavailable tools)
     # This is used at the end to show a generic fallback message if the response would be empty
     fake_tool_calls_filtered = False
-    sub_chat_completion_recorded = False
+    explicit_sub_chat_completion_summary: Optional[str] = None
     
     # Track if the current multi-chunk code block has language 'toon' and needs content-based
     # validation at closing fence. 'toon' blocks can be either:
@@ -4152,6 +4877,7 @@ async def _consume_main_processing_stream(
 
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
     thinking_channel_name = f"chat_stream_thinking::{request_data.chat_id}"  # Separate channel for thinking content
+    assistant_message_id = _assistant_message_id(task_id, request_data)
     tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
     
     # Thinking content tracking for thinking models (Gemini, Anthropic)
@@ -4325,7 +5051,7 @@ async def _consume_main_processing_stream(
                     "chat_id": request_data.chat_id,
                     "user_id_uuid": request_data.user_id,
                     "user_id_hash": request_data.user_id_hash,
-                    "message_id": task_id,
+                    "message_id": assistant_message_id,
                     "sub_chats": chunk.get("sub_chats") or [],
                     "max_auto_sub_chats": chunk.get("max_auto_sub_chats"),
                     "max_direct_sub_chats": chunk.get("max_direct_sub_chats"),
@@ -4340,13 +5066,40 @@ async def _consume_main_processing_stream(
 
             if isinstance(chunk, dict) and "__spawn_sub_chats__" in chunk:
                 sub_chats = chunk.get("sub_chats")
+                normalized_sub_chats = sub_chats if isinstance(sub_chats, list) else []
+                sub_chat_batch_marker = _build_sub_chat_batch_marker(
+                    parent_chat_id=request_data.chat_id,
+                    parent_task_id=task_id,
+                    sub_chats=normalized_sub_chats,
+                    execution_mode=chunk.get("execution_mode", "parallel"),
+                )
+                if sub_chat_batch_marker:
+                    final_response_chunks.append(sub_chat_batch_marker)
+                    stream_chunk_count += 1
+                    current_full_content = "".join(final_response_chunks)
+                    if cache_service:
+                        marker_payload = _create_redis_payload(
+                            task_id,
+                            request_data,
+                            current_full_content,
+                            stream_chunk_count,
+                            is_final=False,
+                            model_name=stream_model_name,
+                        )
+                        await _publish_to_redis(
+                            cache_service,
+                            redis_channel_name,
+                            marker_payload,
+                            log_prefix,
+                            f"Published sub_chat_batch marker chunk to '{redis_channel_name}'",
+                        )
                 payload = {
                     "type": "spawn_sub_chats",
                     "task_id": task_id,
                     "chat_id": request_data.chat_id,
                     "user_id_uuid": request_data.user_id,
                     "user_id_hash": request_data.user_id_hash,
-                    "message_id": task_id,
+                    "message_id": assistant_message_id,
                     "sub_chats": sub_chats,
                     "report_trigger": chunk.get("report_trigger", "all"),
                     "execution_mode": chunk.get("execution_mode", "parallel"),
@@ -4357,7 +5110,7 @@ async def _consume_main_processing_stream(
                             cache_service=cache_service,
                             parent_request_data=request_data,
                             parent_task_id=task_id,
-                            sub_chats=sub_chats if isinstance(sub_chats, list) else [],
+                            sub_chats=normalized_sub_chats,
                             report_trigger=chunk.get("report_trigger", "all"),
                             skill_config_dict=skill_config_dict,
                             log_prefix=log_prefix,
@@ -4372,7 +5125,7 @@ async def _consume_main_processing_stream(
                     "chat_id": request_data.chat_id,
                     "user_id_uuid": request_data.user_id,
                     "user_id_hash": request_data.user_id_hash,
-                    "message_id": chunk.get("message_id") or task_id,
+                    "message_id": chunk.get("message_id") or assistant_message_id,
                     "execution_mode": chunk.get("execution_mode", "parallel"),
                     "status": chunk.get("status", "running"),
                     "total": chunk.get("total", 0),
@@ -4391,35 +5144,14 @@ async def _consume_main_processing_stream(
                     "chat_id": request_data.chat_id,
                     "user_id_uuid": request_data.user_id,
                     "user_id_hash": request_data.user_id_hash,
-                    "message_id": task_id
+                    "message_id": assistant_message_id
                 }
                 if cache_service:
                     await _publish_to_redis(cache_service, redis_channel_name, payload, log_prefix, f"Published awaiting_sub_chats_completion event to '{redis_channel_name}'")
                 continue
 
             if isinstance(chunk, dict) and "__sub_chat_completed__" in chunk:
-                summary = chunk.get("summary") or ""
-                payload = {
-                    "type": "sub_chat_completed",
-                    "task_id": task_id,
-                    "chat_id": chunk.get("sub_chat_id"),
-                    "parent_id": chunk.get("parent_id"),
-                    "user_id_uuid": request_data.user_id,
-                    "user_id_hash": request_data.user_id_hash,
-                    "message_id": task_id,
-                    "summary": summary
-                }
-                if cache_service:
-                    await _publish_to_redis(cache_service, f"chat_stream::{chunk.get('parent_id')}", payload, log_prefix, "Published sub_chat_completed event to parent")
-                    await _record_sub_chat_completion_and_maybe_continue_parent(
-                        cache_service=cache_service,
-                        request_data=request_data,
-                        task_id=task_id,
-                        summary=summary,
-                        log_prefix=log_prefix,
-                        secrets_manager=secrets_manager,
-                    )
-                    sub_chat_completion_recorded = True
+                explicit_sub_chat_completion_summary = chunk.get("summary") or ""
                 continue
 
             if isinstance(chunk, dict) and "__awaiting_user_input__" in chunk:
@@ -4431,7 +5163,7 @@ async def _consume_main_processing_stream(
                     "parent_id": chunk.get("parent_id"),
                     "user_id_uuid": request_data.user_id,
                     "user_id_hash": request_data.user_id_hash,
-                    "message_id": task_id,
+                    "message_id": assistant_message_id,
                     "question": chunk.get("question")
                 }
                 if cache_service:
@@ -5301,6 +6033,7 @@ async def _consume_main_processing_stream(
                                                     user_vault_key_id=user_vault_key_id,
                                                     task_id=task_id,
                                                     filename=current_code_filename,
+                                                    code_content=capped_code_content,
                                                     log_prefix=log_prefix
                                                 )
 
@@ -5698,6 +6431,7 @@ async def _consume_main_processing_stream(
                                             user_vault_key_id=user_vault_key_id,
                                             task_id=task_id,
                                             filename=current_code_filename,
+                                            code_content=current_code_content,
                                             log_prefix=log_prefix
                                         )
 
@@ -6115,6 +6849,7 @@ async def _consume_main_processing_stream(
                                             user_vault_key_id=user_vault_key_id,
                                             task_id=task_id,
                                             filename=current_code_filename,
+                                            code_content=current_code_content,
                                             log_prefix=log_prefix
                                         )
 
@@ -6291,6 +7026,7 @@ async def _consume_main_processing_stream(
                                         user_vault_key_id=user_vault_key_id,
                                         task_id=task_id,
                                         filename=current_code_filename,
+                                        code_content=current_code_content,
                                         log_prefix=log_prefix
                                     )
                                     
@@ -6729,6 +7465,11 @@ async def _consume_main_processing_stream(
                                         current_code_content,
                                     )
                                     current_code_content = capped_code_content
+                                    finalized_as_notebook = EmbedService._is_notebook_artifact(
+                                        current_code_language,
+                                        current_code_filename,
+                                        current_code_content,
+                                    )
                                     if current_code_replacement_ref:
                                         current_code_content = _apply_requested_symbol_rename(
                                             request_data,
@@ -6814,6 +7555,14 @@ async def _consume_main_processing_stream(
                                             user_vault_key_id=user_vault_key_id,
                                             status="finished",
                                             learning_mode_metadata=learning_mode_metadata,
+                                            log_prefix=log_prefix,
+                                        )
+                                    if finalized_as_notebook:
+                                        _replace_streamed_json_embed_reference_type(
+                                            final_response_chunks,
+                                            embed_id=current_code_embed_id,
+                                            old_type="code",
+                                            new_type="notebook",
                                             log_prefix=log_prefix,
                                         )
                                     _record_generated_code_file_embed(
@@ -7611,7 +8360,8 @@ async def _consume_main_processing_stream(
         if cache_service and aggregated_response:
             focus_final_payload = _create_redis_payload(
                 task_id, request_data, aggregated_response, stream_chunk_count + 1,
-                is_final=True
+                is_final=True,
+                awaiting_focus_mode_continuation=True,
             )
             await _publish_to_redis(
                 cache_service, redis_channel_name, focus_final_payload, log_prefix,
@@ -7624,7 +8374,7 @@ async def _consume_main_processing_stream(
         # causing the health check to report "messages_v (N) != actual count (N+1)".
         if not request_data.is_external and directus_service and cache_service and encryption_service and user_vault_key_id:
             category = preprocessing_result.category or "general_knowledge"
-            timestamp = int(time.time())
+            timestamp = _assistant_response_created_at(request_data, int(time.time()))
             try:
                 await _update_chat_metadata(
                     request_data=request_data,
@@ -7820,25 +8570,43 @@ async def _consume_main_processing_stream(
     # embeds on every page load, hitting the server repeatedly for embeds that no longer exist.
     # We strip them here before the content is persisted.
     if failed_embed_ids and aggregated_response:
-        import re
-        stripped_count = 0
-        for failed_id in failed_embed_ids:
-            # Match the exact JSON code block pattern for this embed_id:
-            # ```json\n{...embed_id...}\n```
-            # Use a pattern that matches the entire code block containing this embed_id
-            pattern = r'```json\s*\n\s*\{[^}]*"embed_id"\s*:\s*"' + re.escape(failed_id) + r'"[^}]*\}\s*\n\s*```\s*\n*'
-            new_response = re.sub(pattern, '', aggregated_response)
-            if new_response != aggregated_response:
-                stripped_count += 1
-                aggregated_response = new_response
-        
+        stripped_response, stripped_count = strip_failed_app_skill_json_blocks(
+            aggregated_response,
+            failed_embed_ids,
+            log_prefix,
+        )
         if stripped_count > 0:
+            aggregated_response = stripped_response
             # Update final_response_chunks to reflect the cleanup
             final_response_chunks = [aggregated_response]
             logger.info(
                 f"{log_prefix} Stripped {stripped_count} failed embed reference(s) from message content. "
                 f"Failed embed IDs: {failed_embed_ids}"
             )
+
+    # --- Promoted Embed Reference Type Fix ---
+    # Streaming placeholders can start as code and later promote to notebook once
+    # percent-cell content is complete. Persist the final reference type.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        reference_type_fixed_response = await _rewrite_json_embed_references_to_cached_types(
+            aggregated_response,
+            cache_service,
+            log_prefix,
+        )
+        if reference_type_fixed_response != aggregated_response:
+            aggregated_response = reference_type_fixed_response
+            final_response_chunks = [aggregated_response]
+
+            if cache_service:
+                reference_type_fix_payload = _create_redis_payload(
+                    task_id, request_data, aggregated_response, stream_chunk_count + 2,
+                    is_final=False, model_name=stream_model_name,
+                )
+                await _publish_to_redis(
+                    cache_service, redis_channel_name, reference_type_fix_payload, log_prefix,
+                    f"Published response with promoted embed reference types fixed "
+                    f"(length: {len(aggregated_response)})",
+                )
 
     # --- Backticked Inline Embed Reference Fix ---
     # Detect and rewrite patterns where the LLM wrapped a correct embed markdown
@@ -7863,6 +8631,34 @@ async def _consume_main_processing_stream(
                 await _publish_to_redis(
                     cache_service, redis_channel_name, backticked_fix_payload, log_prefix,
                     f"Published response with backticked embed references fixed "
+                    f"(length: {len(aggregated_response)})"
+                )
+
+    # --- Embeds Map View Guard ---
+    # Normalize virtual map/list blocks before persistence. This drops unsupported
+    # fields such as filters/provider/enrichment and cannot dispatch paid skills.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        map_view_user_texts = _request_user_texts(request_data)
+        map_view_source_refs = _map_view_source_refs_from_tool_calls(
+            tool_calls_info,
+            map_view_user_texts,
+        )
+        map_view_fixed_response, map_view_changed = normalize_embeds_map_view_blocks(
+            aggregated_response,
+            source_refs=map_view_source_refs,
+        )
+        if map_view_changed:
+            aggregated_response = map_view_fixed_response
+            final_response_chunks = [aggregated_response]
+
+            if cache_service:
+                map_view_fix_payload = _create_redis_payload(
+                    task_id, request_data, aggregated_response, stream_chunk_count + 2,
+                    is_final=False, model_name=stream_model_name
+                )
+                await _publish_to_redis(
+                    cache_service, redis_channel_name, map_view_fix_payload, log_prefix,
+                    f"Published response with normalized embeds_map_view blocks "
                     f"(length: {len(aggregated_response)})"
                 )
 
@@ -8003,6 +8799,77 @@ async def _consume_main_processing_stream(
                 exc_info=True
             )
 
+    # --- Missing Embeds Map View Repair ---
+    # If the user explicitly asked for a map/list and the final answer contains
+    # valid inline refs from a map-capable skill, add the lightweight renderer
+    # block deterministically instead of relying on model compliance.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        user_texts = _request_user_texts(request_data)
+        should_repair_map_view = any(
+            should_include_embeds_map_view_hint(
+                str(tool_call.get("app_id") or ""),
+                str(tool_call.get("skill_id") or ""),
+                user_texts,
+            )
+            for tool_call in tool_calls_info or []
+            if isinstance(tool_call, dict)
+        ) or (
+            not is_map_view_suppressed_request(user_texts)
+            and content_has_map_capable_app_skill_use(aggregated_response)
+        )
+        if should_repair_map_view:
+            map_view_source_refs = _map_view_source_refs_from_tool_calls(tool_calls_info, user_texts)
+            map_view_repaired_response, map_view_repaired = append_missing_embeds_map_view_block(
+                aggregated_response,
+                source_refs=map_view_source_refs,
+            )
+            if map_view_repaired:
+                aggregated_response = map_view_repaired_response
+                normalized_map_view_response, _ = normalize_embeds_map_view_blocks(
+                    aggregated_response,
+                    source_refs=map_view_source_refs,
+                )
+                aggregated_response = normalized_map_view_response
+                final_response_chunks = [aggregated_response]
+
+                if cache_service:
+                    map_view_repair_payload = _create_redis_payload(
+                        task_id, request_data, aggregated_response, stream_chunk_count + 5,
+                        is_final=False, model_name=stream_model_name,
+                    )
+                    await _publish_to_redis(
+                        cache_service, redis_channel_name, map_view_repair_payload, log_prefix,
+                        f"Published response with missing embeds_map_view block repaired "
+                        f"(length: {len(aggregated_response)})",
+                    )
+
+    # Keep canonical app-skill identity/order in the encrypted assistant Markdown
+    # so completion, reload, and reopen can reconstruct the same top group.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        app_skill_cleaned_response = canonicalize_app_skill_json_blocks(
+            aggregated_response,
+            log_prefix,
+        )
+        if app_skill_cleaned_response != aggregated_response:
+            aggregated_response = app_skill_cleaned_response
+            final_response_chunks = [aggregated_response]
+            if cache_service:
+                app_skill_cleanup_payload = _create_redis_payload(
+                    task_id,
+                    request_data,
+                    aggregated_response,
+                    stream_chunk_count + 5,
+                    is_final=False,
+                    model_name=stream_model_name,
+                )
+                await _publish_to_redis(
+                    cache_service,
+                    redis_channel_name,
+                    app_skill_cleanup_payload,
+                    log_prefix,
+                    "Published response with canonical app-skill JSON fences",
+                )
+
     # Process assistant-visible URLs with a source allowlist plus the safeguard
     # model. URLs must already exist exactly in user/context/tool source data;
     # the assistant is not allowed to invent links from instructions or secrets.
@@ -8079,13 +8946,8 @@ async def _consume_main_processing_stream(
                             f"{len(raw_application_files)} raw markdown file(s)"
                         )
 
-            if application_parent_embed_created:
-                generated_code_file_embeds = []
-            elif not generated_code_file_embeds:
-                raise ValueError("no generated code file embeds available for application parent")
-
             application_reference = None
-            if not application_parent_embed_created:
+            if generated_code_file_embeds and not application_parent_embed_created:
                 application_reference = await _create_application_parent_embed_reference(
                     generated_code_file_embeds=generated_code_file_embeds,
                     cache_service=cache_service,
@@ -8231,6 +9093,17 @@ async def _consume_main_processing_stream(
         (not is_error or was_revoked_during_stream or was_soft_limited_during_stream) and
         not is_server_error
     )
+
+    recovery_job = None
+    if _recovery_inference_task_id(request_data) and not awaiting_sub_chats_completion:
+        recovery_job = await _persist_sealed_recovery_job(
+            directus_service=directus_service,
+            request_data=request_data,
+            task_id=task_id,
+            content=aggregated_response,
+            category=preprocessing_result.category or "general_knowledge",
+            model_name=stream_model_name,
+        )
     
     billing_info = {}
     billing_error = None
@@ -8265,7 +9138,7 @@ async def _consume_main_processing_stream(
         if not preprocessing_result.category:
             logger.warning(f"{log_prefix} Preprocessing result category is None. Using 'general_knowledge'.")
         
-        timestamp = int(time.time())
+        timestamp = _assistant_response_created_at(request_data, int(time.time()))
         
         # Convert markdown response to TipTap JSON for client event
         # For now, we'll send markdown as-is since the client handles markdown parsing
@@ -8307,7 +9180,7 @@ async def _consume_main_processing_stream(
         if directus_service and cache_service and encryption_service and user_vault_key_id:
             try:
                 category = preprocessing_result.category or "general_knowledge"
-                timestamp = int(time.time())
+                timestamp = _assistant_response_created_at(request_data, int(time.time()))
                 await _update_chat_metadata(
                     request_data=request_data,
                     category=category,
@@ -8333,7 +9206,17 @@ async def _consume_main_processing_stream(
     elif not user_vault_key_id:
         logger.error(f"{log_prefix} CRITICAL: User vault key ID not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
 
-    # Publish final marker only after the AI cache write has been attempted.
+    await _finalize_legacy_cutover_before_final_marker(
+        request_data=request_data,
+        billing_error=billing_error,
+        was_revoked_during_stream=was_revoked_during_stream,
+        was_soft_limited_during_stream=was_soft_limited_during_stream,
+        log_prefix=log_prefix,
+    )
+
+    # Publish final marker only after the AI cache write has been attempted and
+    # legacy recovery admission is authorized. The browser sends
+    # ai_response_completed as soon as it sees this marker.
     # CLI follow-up commands start the next process as soon as they see this final
     # frame; publishing it first lets the next turn build history before the prior
     # assistant message's embed reference is available for diff editing.
@@ -8349,26 +9232,33 @@ async def _consume_main_processing_stream(
         total_credits=billing_info.get("total_credits"),
         category=preprocessing_result.category or "general_knowledge"
     )
+    if recovery_job:
+        final_payload["recovery_job_id"] = recovery_job["job_id"]
+        final_payload["recovery_protocol_version"] = 1
     await _publish_to_redis(
         cache_service, redis_channel_name, final_payload, log_prefix,
         f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"
     )
     
-    # Re-raise billing error after final chunk has been sent and metadata saved
-    # This ensures proper error handling while still clearing the typing indicator
-    if billing_error:
-        logger.error(f"{log_prefix} Re-raising billing error after final chunk was sent: {billing_error}")
-        raise billing_error
-
-    if not sub_chat_completion_recorded:
+    completion_summary = _sub_chat_completion_summary(
+        explicit_summary=explicit_sub_chat_completion_summary,
+        aggregated_response=aggregated_response,
+        awaiting_sub_chats_completion=awaiting_sub_chats_completion,
+    )
+    if completion_summary is not None:
         await _record_sub_chat_completion_and_maybe_continue_parent(
             cache_service=cache_service,
             request_data=request_data,
             task_id=task_id,
-            summary=aggregated_response,
+            summary=completion_summary,
             log_prefix=log_prefix,
             secrets_manager=secrets_manager,
         )
+
+    # Re-raise billing errors only after dependent parent orchestration is unblocked.
+    if billing_error:
+        logger.error(f"{log_prefix} Re-raising billing error after final chunk was sent: {billing_error}")
+        raise billing_error
     
     # NOTE: Email notifications for offline users are handled in websockets.py
     # when the final marker is received. The WebSocket handler has access to

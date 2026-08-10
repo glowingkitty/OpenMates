@@ -13,29 +13,20 @@ const {
 	getE2EDebugUrl,
 	getIsolatedTestAccount
 } = require('./signup-flow-helpers');
-const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getIsolatedTestAccount(
 	'settings-change-email.spec.ts'
 );
-const RECOVERY_GMAIL_ALIAS_LABELS = ['roundtrip', 'roundtrip-1777327279784'];
+const TEMPORARY_GMAIL_ALIAS_LABEL = 'roundtrip-v2';
+const RECOVERY_GMAIL_ALIAS_LABELS = [
+	'roundtrip-mrxd1cji',
+	TEMPORARY_GMAIL_ALIAS_LABEL,
+	'roundtrip',
+	'roundtrip-1777327279784'
+];
 
 test.describe.configure({ mode: 'serial' });
-
-async function openLoginDialog(page: any): Promise<void> {
-	const headerButton = page.getByTestId('header-login-signup-btn');
-	try {
-		await expect(headerButton).toBeVisible({ timeout: 5000 });
-		await headerButton.click({ timeout: 5000 });
-	} catch {
-		await page
-			.getByRole('button', { name: /sign up\s*\/\s*login|login\s*\/\s*sign up/i })
-			.first()
-			.click({ timeout: 15000 });
-	}
-
-	await expect(page.getByTestId('login-tabs')).toBeVisible({ timeout: 10000 });
-}
 
 function getGmailAlias(label: string): string | null {
 	const base = process.env.GMAIL_TEST_ADDRESS;
@@ -46,25 +37,10 @@ function getGmailAlias(label: string): string | null {
 }
 
 async function login(page: any, email: string, log: any): Promise<void> {
-	await page.goto(getE2EDebugUrl('/'));
-	await page.evaluate(() => localStorage.removeItem('emailLookupRateLimit'));
-
-	await openLoginDialog(page);
-
-	const loginTab = page.getByTestId('tab-login');
-	await expect(loginTab).toBeVisible({ timeout: 10000 });
-	await loginTab.click();
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await emailInput.fill(email);
-	await page.locator('#login-continue-button').click();
-
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, log);
+	await loginToTestAccount(page, log, async () => {}, {
+		waitForEditor: false,
+		credentials: { email, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY }
+	});
 
 	await expect(page.getByTestId('profile-picture')).toBeVisible({ timeout: 30000 });
 	await page.waitForTimeout(5000);
@@ -121,8 +97,24 @@ async function loginWithMigrationFallback(page: any, migrationEmail: string | nu
 	}
 }
 
-async function resetBrowserAuth(page: any, context: any): Promise<void> {
-	await context.clearCookies();
+async function resetBrowserAuth(page: any, context: any, log: any): Promise<void> {
+	try {
+		const settingsMenu = await openSettingsMenuAtMain(page);
+		const logoutItem = settingsMenu.getByRole('menuitem', { name: /logout|log out|abmelden/i }).first();
+		await expect(logoutItem).toBeVisible({ timeout: 10000 });
+		await logoutItem.click();
+		await expect(page.getByTestId('header-login-signup-btn')).toBeVisible({ timeout: 20000 });
+		log('Logged out through settings menu.');
+	} catch (error) {
+		log('Settings logout failed; falling back to bounded browser auth reset.', { error: String(error) });
+		await Promise.race([
+			context.clearCookies(),
+			page.waitForTimeout(10000).then(() => {
+				throw new Error('Timed out clearing browser cookies.');
+			})
+		]);
+	}
+
 	await page.evaluate(() => {
 		localStorage.clear();
 		sessionStorage.clear();
@@ -184,17 +176,22 @@ async function changeEmail(page: any, targetEmail: string, log: any): Promise<vo
 	const passwordInput = authModal.locator('input[type="password"]');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
-	await authModal.getByTestId('auth-btn').click();
-
-	const tfaInput = authModal.getByTestId('tfa-input');
-	await expect(tfaInput).toBeVisible({ timeout: 15000 });
 	const reauthResponsePromise = page.waitForResponse(
 		(response: any) => response.url().includes('/v1/settings/user/email/reauth') && response.request().method() === 'POST'
 	);
 	const confirmResponsePromise = page.waitForResponse(
 		(response: any) => response.url().includes('/v1/settings/user/email/confirm-change') && response.request().method() === 'POST'
 	);
-	await tfaInput.fill(generateTotp(TEST_OTP_KEY));
+	await authModal.getByTestId('auth-btn').click();
+
+	const tfaInput = authModal.getByTestId('tfa-input');
+	const tfaVisible = await Promise.race([
+		tfaInput.waitFor({ state: 'visible', timeout: 15000 }).then(() => true),
+		authModal.waitFor({ state: 'hidden', timeout: 15000 }).then(() => false)
+	]).catch(() => false);
+	if (tfaVisible) {
+		await tfaInput.fill(generateTotp(TEST_OTP_KEY));
+	}
 
 	const reauthResponse = await reauthResponsePromise;
 	expect(reauthResponse.status(), 'Email change reauth response status.').toBe(200);
@@ -221,7 +218,7 @@ test('changes account email and verifies login with the new address', async ({ p
 
 	const isCurrentMailosaur = TEST_EMAIL?.endsWith('.mailosaur.net');
 	const migrationEmail = getGmailAlias('testacct');
-	const temporaryEmail = getGmailAlias('roundtrip');
+	const temporaryEmail = getGmailAlias(TEMPORARY_GMAIL_ALIAS_LABEL);
 	test.skip(!migrationEmail || !temporaryEmail, 'Could not build Gmail test aliases.');
 
 	const quota = await checkEmailQuota(isCurrentMailosaur ? migrationEmail! : temporaryEmail!);
@@ -240,22 +237,23 @@ test('changes account email and verifies login with the new address', async ({ p
 		if (currentEmail === TEST_EMAIL) {
 			await changeEmail(page, migrationEmail!, log);
 			await screenshot(page, 'mailosaur-migrated-to-gmail');
-			await resetBrowserAuth(page, context);
+			await resetBrowserAuth(page, context, log);
 			await login(page, migrationEmail!, log);
 			log('Migration login with Gmail alias succeeded.', { migrationEmail });
 			return;
 		}
 	}
 
-	const finalEmail = isCurrentMailosaur ? migrationEmail! : currentEmail;
+	const finalEmail = isCurrentMailosaur ? migrationEmail! : TEST_EMAIL;
+	test.skip(temporaryEmail === finalEmail, 'Temporary and final email aliases must differ.');
 	await changeEmail(page, temporaryEmail!, log);
 	await screenshot(page, 'changed-to-temporary-gmail');
-	await resetBrowserAuth(page, context);
+	await resetBrowserAuth(page, context, log);
 	await login(page, temporaryEmail!, log);
 	await openEmailSettings(page, log);
 	await changeEmail(page, finalEmail, log);
 	await screenshot(page, 'changed-back-to-original-gmail');
-	await resetBrowserAuth(page, context);
+	await resetBrowserAuth(page, context, log);
 	await login(page, finalEmail, log);
 	log('Roundtrip login with original Gmail alias succeeded.', { email: finalEmail });
 });

@@ -66,6 +66,18 @@ def string_value(value: Any) -> str:
     return text if text and text.lower() not in {"none", "null", "undefined"} else ""
 
 
+def escape_markdown_link_label(value: str) -> str:
+    """Escape stored embed titles before inserting them into Markdown links."""
+    text = re.sub(r"[\r\n]+", " ", value).strip()
+    return (
+        text.replace("\\", "\\\\")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
 def format_embed_time(value: Any) -> str:
     """Format ISO/plain HH:MM/HHMM values for compact inline labels."""
     text = string_value(value)

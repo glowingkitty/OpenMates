@@ -18,7 +18,8 @@ import { websocketStatus } from "../stores/websocketStatusStore";
 import type {
 	OfflineChange,
 	CancelAITaskPayload,
-	SyncOfflineChangesPayload
+	SyncOfflineChangesPayload,
+	ChatComponentVersions
 } from "../types/chat";
 
 /**
@@ -459,7 +460,7 @@ export async function sendPostProcessingMetadataImpl(
 			encrypted_title?: string; // OPE-265: Updated title from post-processing
 			encrypted_share_cta_text?: string;
 			encrypted_chat_key?: string; // OPE-314: Include for server-side key validation
-			title_v?: number;
+			versions?: ChatComponentVersions;
 		}
 
 		// Build payload with all the encrypted post-processing metadata
@@ -470,6 +471,15 @@ export async function sendPostProcessingMetadataImpl(
 			encrypted_chat_summary,
 			encrypted_chat_tags
 		};
+		const chat = await chatDB.getChat(chat_id);
+		if (chat) {
+			payload.versions = {
+				messages_v: chat.messages_v || 0,
+				title_v: chat.title_v || 0,
+				metadata_v: chat.metadata_v,
+				draft_v: chat.draft_v || 0
+			};
+		}
 
 		// Only include top recommended apps if provided
 		if (encrypted_top_recommended_apps) {
@@ -700,7 +710,8 @@ export async function sendSyncInspirationChatImpl(
 	encryptedChatKey: string,
 	createdAt: number,
 	encryptedFollowUpSuggestions?: string,
-	inspirationEmbed?: InspirationEmbedData
+	inspirationEmbed?: InspirationEmbedData,
+	workflowExistingChat = false
 ): Promise<void> {
 	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
 		console.warn(
@@ -724,6 +735,10 @@ export async function sendSyncInspirationChatImpl(
 			encrypted_content: encryptedContent,
 			encrypted_chat_key: encryptedChatKey
 		};
+
+		if (workflowExistingChat) {
+			payload.workflow_existing_chat = true;
+		}
 
 		// Include encrypted follow-up suggestions if available so the backend
 		// can persist them to Directus (zero-knowledge — server never decrypts).

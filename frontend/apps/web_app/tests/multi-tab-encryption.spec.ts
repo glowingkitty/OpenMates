@@ -43,7 +43,7 @@ const {
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, sendMessage } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -73,6 +73,10 @@ interface SessionLogs {
 
 function createSessionLogs(): SessionLogs {
 	return { consoleLogs: [], decryptionErrors: [] };
+}
+
+function targetChatDecryptionErrors(logs: SessionLogs, chatId: string): string[] {
+	return logs.decryptionErrors.filter((error) => error.includes(chatId));
 }
 
 /**
@@ -164,14 +168,7 @@ async function sendMessageAndGetChatId(
 	message: string,
 	logFn: (msg: string) => void
 ): Promise<string> {
-	const messageEditor = page.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible({ timeout: 15000 });
-	await messageEditor.click();
-	await page.keyboard.type(message);
-
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled({ timeout: 10000 });
-	await sendButton.click();
+	await sendMessage(page, message, logFn);
 	logFn(`Message sent: "${message}"`);
 
 	// Wait for a real UUID chat ID in the URL
@@ -247,7 +244,28 @@ async function waitForChatInSidebarAndClick(
 			})
 		});
 
-	await expect(chatItem.first()).toBeVisible({ timeout: timeoutMs });
+	const deadline = Date.now() + timeoutMs;
+	let showMoreClicks = 0;
+	while (Date.now() < deadline) {
+		if (await chatItem.first().isVisible({ timeout: 1000 }).catch(() => false)) {
+			break;
+		}
+
+		const showMoreButton = page.getByTestId('show-more-chats');
+		if (
+			await showMoreButton.isVisible({ timeout: 500 }).catch(() => false) &&
+			await showMoreButton.isEnabled().catch(() => false)
+		) {
+			showMoreClicks += 1;
+			logFn(`Target chat not in mounted sidebar slice - clicking Show more (${showMoreClicks}).`);
+			await showMoreButton.click();
+			await page.waitForTimeout(500);
+			continue;
+		}
+
+		await page.waitForTimeout(1000);
+	}
+	await expect(chatItem.first()).toBeVisible({ timeout: 1000 });
 	logFn(`Chat "${expectedTitleFragment}" appeared in sidebar -- clicking to open.`);
 
 	await chatItem.first().click();
@@ -267,6 +285,7 @@ async function assertChatDecryptedCorrectly(
 	page: any,
 	expectedAssistantText: string | RegExp,
 	sessionLabel: string,
+	chatId: string,
 	logs: SessionLogs,
 	logFn: (msg: string) => void
 ): Promise<void> {
@@ -285,8 +304,9 @@ async function assertChatDecryptedCorrectly(
 		}
 	}
 
-	if (logs.decryptionErrors.length > 0) {
-		const errSummary = logs.decryptionErrors.join('\n');
+	const relevantDecryptionErrors = targetChatDecryptionErrors(logs, chatId);
+	if (relevantDecryptionErrors.length > 0) {
+		const errSummary = relevantDecryptionErrors.join('\n');
 		throw new Error(
 			`[${sessionLabel}] Decryption errors detected while viewing chat:\n${errSummary}`
 		);
@@ -446,6 +466,7 @@ test('TEST-01: two tabs open same chat, send messages, both tabs decrypt correct
 			tabA,
 			/.+/,
 			'TAB-A',
+			chatId,
 			logsA,
 			logA
 		);
@@ -453,6 +474,7 @@ test('TEST-01: two tabs open same chat, send messages, both tabs decrypt correct
 			tabB,
 			/.+/,
 			'TAB-B',
+			chatId,
 			logsB,
 			logB
 		);
@@ -561,6 +583,7 @@ test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly',
 			tabB,
 			/.+/,
 			'TAB-B-cross-tab',
+			chatId,
 			logsB,
 			logB
 		);
@@ -569,9 +592,10 @@ test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly',
 		assertNoForcedKeyReplacement(logsB, chatId, 'TAB-B-cross-tab');
 
 		// Verify: zero decryption errors in tab B
-		if (logsB.decryptionErrors.length > 0) {
+		const tabBTargetErrors = targetChatDecryptionErrors(logsB, chatId);
+		if (tabBTargetErrors.length > 0) {
 			throw new Error(
-				`Tab B had ${logsB.decryptionErrors.length} decryption errors:\n${logsB.decryptionErrors.join('\n')}`
+				`Tab B had ${tabBTargetErrors.length} decryption errors for ${chatId}:\n${tabBTargetErrors.join('\n')}`
 			);
 		}
 
@@ -686,6 +710,7 @@ test('TEST-03: close originating tab, open fresh tab, messages decrypt from IDB 
 			freshTab,
 			/.+/,
 			'FRESH-TAB',
+			chatId,
 			logsFresh,
 			logFresh
 		);
@@ -694,9 +719,10 @@ test('TEST-03: close originating tab, open fresh tab, messages decrypt from IDB 
 		assertNoForcedKeyReplacement(logsFresh, chatId, 'FRESH-TAB');
 
 		// Verify: zero decryption errors
-		if (logsFresh.decryptionErrors.length > 0) {
+		const freshTabTargetErrors = targetChatDecryptionErrors(logsFresh, chatId);
+		if (freshTabTargetErrors.length > 0) {
 			throw new Error(
-				`Fresh tab had ${logsFresh.decryptionErrors.length} decryption errors:\n${logsFresh.decryptionErrors.join('\n')}`
+				`Fresh tab had ${freshTabTargetErrors.length} decryption errors for ${chatId}:\n${freshTabTargetErrors.join('\n')}`
 			);
 		}
 

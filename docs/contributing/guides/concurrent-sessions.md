@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-08-05
 ---
 
 # Concurrent Session Coordination
@@ -11,9 +11,16 @@ Load this document when multiple assistants may be working simultaneously, when 
 
 ## Overview
 
-Multiple Claude Code sessions can work on the codebase at the same time. To avoid conflicts (duplicate Vercel fixes, simultaneous Docker rebuilds, file edit collisions), all sessions coordinate through **`scripts/sessions.py`**, which manages state in **`.claude/sessions.json`** (gitignored).
+Multiple agent sessions can work on the codebase at the same time. Use **`scripts/sessions.py`** for deploy selection, Docker locks, and the short dev deploy push lock. Its `.claude/sessions.json` file is gitignored and records work already touched; it does not reserve ordinary source files.
 
 File edit tracking is automated via hooks in `.claude/settings.json` — every Edit/Write operation is automatically recorded to the active session's `modified_files` list.
+
+New mutating OpenCode Web chats begin through the normal **New session** button
+and remain at the root project URL. After `sessions.py start`, hooks route local
+reads, searches, edits, Bash commands, generators, tests, and Task children into
+the direct `agent-<session>` worktree. Routing is reconstructed from durable
+session and parent metadata after restart. Missing routing never blocks reads or
+lifecycle recovery; mutation errors include one `Reason:` and exact `Next:` step.
 
 ---
 
@@ -24,8 +31,11 @@ File edit tracking is automated via hooks in `.claude/settings.json` — every E
 | Start session             | `python3 scripts/sessions.py start --task "description"`                           |
 | End session               | `python3 scripts/sessions.py end --session <ID>`                                   |
 | Check status              | `python3 scripts/sessions.py status`                                               |
+| Show all history          | `python3 scripts/sessions.py status --all`                                         |
+| Show active conflicts     | `python3 scripts/sessions.py status --conflicts`                                   |
+| Show one identity chain   | `python3 scripts/sessions.py status --session <ID>`                                |
+| Claim executable task     | `python3 scripts/sessions.py presence claim-task --spec <spec.yml> --task <TASK-ID> --owner <OpenCode-ID> --role implementation` |
 | Update task               | `python3 scripts/sessions.py update --session <ID> --task "new desc"`              |
-| Claim file for writing    | `python3 scripts/sessions.py claim --session <ID> --file <path>`                   |
 | Release file claim        | `python3 scripts/sessions.py release --session <ID> --file <path>`                 |
 | Track file as modified    | `python3 scripts/sessions.py track --session <ID> --file <path>`                   |
 | Acquire lock              | `python3 scripts/sessions.py lock --session <ID> --type docker\|vercel`            |
@@ -51,10 +61,16 @@ This command:
 4. Clears stale locks older than 5 minutes
 5. Outputs context to stdout:
    - Your session ID (save this for all subsequent commands)
-   - Other active sessions and what files they own
+   - Other active sessions and files they have touched (advisory only)
    - Active locks
    - Stale architecture docs (code newer than doc by >24h)
-   - Compact project index (backend apps, frontend components, API routes, providers)
+    - Compact project index (backend apps, frontend components, API routes, providers)
+
+For a new mutating OpenCode Web chat, hooks bind the OpenCode identity to this
+session record without moving the chat. Use repository-relative paths; the hook
+overwrites Bash `workdir` and local file/search paths with the active worktree.
+Run `python3 scripts/sessions.py worktree repair --opencode-session <id>` only
+when an actionable routing message requests it.
 
 ### Ending a Session
 
@@ -68,18 +84,43 @@ This command:
 2. Lists architecture docs that may need updating based on files you modified
 3. Removes the session from `.claude/sessions.json`
 
+### Live Presence
+
+The OpenCode plugin observes native lifecycle events without sending messages or
+starting assistant turns. `sessions.py status` therefore defaults to current
+runtime state instead of treating a recent or merged worktree as live work:
+
+- **Currently working:** busy or retrying sessions with a fresh heartbeat.
+- **Waiting for required user input:** supported pending permission or question IDs.
+- **Idle after completed response:** completed turns that are not collision owners.
+- **Stopped or failed:** explicit abort and error outcomes.
+
+Use `--all` for durable and historical repository sessions, `--conflicts` for
+active path/task conflicts, and `--session <short-or-OpenCode-ID>` for one parent,
+child, repository-session, and worktree identity chain. Busy records become
+`unknown` after two minutes without a heartbeat. Terminal records, child-role
+markers, and expired task claims have bounded retention.
+
+Presence lives in owner-only `.opencode/presence.json`, separate from
+`.claude/sessions.json`. It stores structured IDs, states, timestamps,
+capabilities, and repository-relative paths only. It does not store titles,
+prompts, responses, reasoning, todos, question text, permission details, tool
+input/output, logs, patches, environment values, or credentials.
+
 ---
 
 ## File Tracking
 
-### Automatic Tracking (via hooks)
+### Tracking And OpenCode Edit Leases
 
 The `.claude/settings.json` configures two hooks:
 
 - **PostToolUse** on `Edit|Write`: Automatically records every file you edit to your session's `modified_files` list (async, non-blocking)
-- **PreToolUse** on `Edit|Write`: Checks if another session has claimed the file for writing — blocks the edit if so (exit code 2)
+- **PreToolUse**: warns when another session has touched the file.
 
-This means **you do not need to manually track most files**. The hooks handle it.
+Tracking remains advisory for historical `modified_files` ownership. Re-read the file immediately before editing and resolve an actual diff if one exists. Do not wait merely because another session touched it earlier.
+
+OpenCode execute-mode source edits add a stricter guard: before an edit tool writes a repository file, `.opencode/plugins/openmates-hooks.js` acquires a short-lived `sessions.py edit-lease` for every edited file. A live lease blocks other OpenCode sessions from editing the same file until the first edit finishes or the stale 5-minute window expires. Use `python3 scripts/sessions.py status` to inspect active edit leases.
 
 ### Manual Tracking
 
@@ -89,9 +130,9 @@ If you modify a file through Bash or other indirect means:
 python3 scripts/sessions.py track --session <ID> --file path/to/file.py
 ```
 
-### Write Claims (Exclusive Locks)
+### Write Claims (Rare Manual Locks)
 
-For operations where you need exclusive write access to a file (e.g., a complex multi-step edit):
+For an unusually long, manually coordinated multi-step edit:
 
 ```bash
 # Claim before editing
@@ -101,44 +142,71 @@ python3 scripts/sessions.py claim --session <ID> --file path/to/file.py
 python3 scripts/sessions.py release --session <ID> --file path/to/file.py
 ```
 
-If another session has claimed the file, `claim` exits with code 2 and prints which session owns it.
+If another session has an active manual claim or OpenCode edit lease, `claim` exits with code 2. OpenCode edit tools acquire short-lived leases automatically; manual claims are still only for unusually long human-coordinated edits.
 
-**Note:** Write claims are for the `writing` lock (active editing protection). The `modified_files` list is separate — it tracks all files touched in the session, regardless of write claims.
+**Note:** `modified_files` tracks all files touched in a session for deployment selection. It is not ownership and must not block another session's edit.
+
+### Executable Spec Task Claims
+
+Claim an implementation task before starting its feature code:
+
+```bash
+python3 scripts/sessions.py presence claim-task \
+  --spec docs/specs/<slug>/spec.yml --task TASK-2 \
+  --owner <OpenCode-session-ID> --role implementation --ttl 900
+```
+
+Renew with `presence renew-task` and release with `presence release-task` using
+the same `--spec`, `--task`, and `--owner`. A second live implementation claim
+exits with code 2. Explicit `reviewer` and `read_only` claims remain non-blocking.
+Expired claims can be taken over deterministically.
+
+Child hierarchy does not imply ownership. A child may read through its parent's
+route, but `unknown`, `read_only`, and `reviewer` children cannot mutate the
+parent worktree. Even an explicitly `writable` child must first own a separate
+repository session/worktree with disjoint file and task ownership.
+
+Conflict delivery stays local and relevant. Concurrent reads and unrelated work
+add no context. A read overlapping a fresh live edit may append one concise
+warning to that read's tool output; exact write conflicts remain blocked by the
+existing edit lease and stale-read guards. No coordination message is inserted
+into either chat.
+
+Run the isolated real-runtime gate after changing lifecycle behavior:
+
+```bash
+python3 scripts/verify_opencode_presence_live.py --isolated
+```
+
+The verifier uses temporary XDG state, a temporary Git fixture, random ports,
+and a deterministic local streaming provider. It never uses the normal OpenCode
+server or an external model.
 
 ---
 
-## Lock Protocol
+## Docker Restart Protocol
 
-Locks prevent multiple sessions from performing the same infrastructure operation simultaneously.
+Coordinated restarts prevent infrastructure changes from interrupting tests that depend on the local dev stack.
 
-### Lock Types
-
-| Lock                          | When to use                                    |
-| ----------------------------- | ---------------------------------------------- |
-| `docker` (→ `docker_rebuild`) | Before rebuilding/restarting Docker containers |
-| `vercel` (→ `vercel_deploy`)  | Before fixing a Vercel build error             |
-
-### Acquiring a Lock
+### Restarting Services
 
 ```bash
-python3 scripts/sessions.py lock --session <ID> --type docker
+python3 scripts/sessions.py docker restart --session <ID> --service api
+python3 scripts/sessions.py docker restart --session <ID> --build --service api --service task-worker
 ```
 
-- If the lock is free → acquired
-- If held by another session for <5 minutes → **BLOCKED** (exit code 1). Wait and retry.
-- If held for >5 minutes → treated as stale, automatically taken over with a warning.
+- New Playwright, CLI, and aggregate runs wait once a restart is queued.
+- Already-running dependent tests drain before Compose changes containers.
+- The command acquires, heartbeats, and releases the Docker lock automatically.
+- Completion requires every selected service to be running and healthy.
+- `sessions.py status` shows active test leases, restart progress, and recent outcomes.
+- Crashed test/restart owners are detected so stale work cannot block the stack indefinitely.
 
-### Releasing a Lock
-
-```bash
-python3 scripts/sessions.py unlock --session <ID> --type docker
-```
-
-**Release locks immediately** after the operation completes.
+Manual `lock/unlock` remains available for non-restart Docker maintenance. Raw Compose restarts are rejected by the OpenCode hook because they bypass test draining and health evidence.
 
 ### Why Locks Matter
 
-Simultaneous Docker rebuilds can:
+Uncoordinated Docker rebuilds can:
 
 - Cause services to restart mid-operation, breaking other sessions' API calls
 - Create race conditions where one rebuild overwrites another's container state
@@ -162,7 +230,7 @@ This shows:
 - Dirty files not tracked by this session (other sessions' work)
 - Lint results
 - Related architecture docs to verify
-- Exact git commands to run manually if preferred
+- The exact scoped deploy command to run next
 
 ### Deploy (lint + commit + push)
 
@@ -174,11 +242,17 @@ python3 scripts/sessions.py deploy --session <ID> \
 
 This:
 
-1. Runs the linter on all files to be committed — **aborts if lint fails**
-2. `git add` each file in the session's `modified_files` (minus exclusions)
-3. `git commit` with the provided title and message
-4. `git push origin dev`
-5. Lists related architecture docs that may need updating
+1. Fetches the exact current `origin/dev` commit and creates a unique detached `integration-<session>-<nonce>` worktree
+2. Applies and stages only the selected source-worktree patch there, including deletions, binary changes, executable bits, and untracked files
+3. Runs lint, generated-prerequisite, translation, parity, pytest, SDK, and embed gates in that integration checkout; a failure leaves root, source, and `dev` unchanged
+4. Takes the short dev deploy push lock, refreshes `origin/dev`, and rebuilds plus reruns gates outside the lock if the validated base advanced
+5. Commits in the detached integration checkout and pushes `HEAD:refs/heads/dev` without force
+6. Records the patch, source base, final base, integration identity, and resulting commit for reconciliation and commit-scoped verification
+7. Removes disposable integration state while retaining any unique or uncertain source worktree state
+
+Grandfathered and pilot-fallback chats continue through the legacy root
+integration path until they naturally finish. Native and legacy paths never mix
+within one session.
 
 To exclude specific files from the commit:
 

@@ -8,7 +8,7 @@
  * Tests: frontend/packages/openmates-cli/tests/
  */
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { arch, platform, release } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
@@ -18,46 +18,72 @@ import {
   decryptBundle,
   decryptWithAesGcmCombined,
   decryptBytesWithAesGcm,
+  deriveChatCompletionRecoveryKeypair,
+  openChatCompletionRecoveryEnvelope,
   deriveEmbedKeyFromChatKey,
   deriveEmailEncryptionKeyB64,
   encryptWithAesGcmCombined,
   encryptBytesWithAesGcm,
+  bytesToBase64,
+  bytesToBase64Url,
   base64ToBytes,
   hashItemKey,
+  deriveTeamInviteKey,
   createRecoveryKeyMaterial,
   createApiKeyCryptoMaterial,
   createSignupCryptoMaterial,
   hashEmail,
   type RecoveryKeyMaterial,
   type ApiKeyCryptoMaterial,
+  type ChatCompletionRecoveryEnvelope,
   type SignupCryptoMaterial,
 } from "./crypto.js";
-import { OpenMatesHttpClient } from "./http.js";
+import { COMPRESSION_SUMMARY_CATEGORY } from "./accountImport.js";
+import { OpenMatesHttpClient, type HttpResponse } from "./http.js";
 import {
   type OpenMatesSession,
   type SyncCache,
   type CachedChat,
   loadSession,
   saveSession,
-  clearSession,
+  purgeLocalPrivateData,
   loadSyncCache,
   saveSyncCache,
   clearSyncCache,
   isSyncCacheFresh,
+  saveLocalTeamKey,
+  loadLocalTeamKey,
+  pruneLocalTeamArtifacts,
   loadAnonymousId,
   saveAnonymousId,
 } from "./storage.js";
 import { loadServerConfig } from "./serverConfig.js";
 import {
   OpenMatesWsClient,
+  WebSocketProtocolError,
   type AppSettingsMemoriesRequestEvent,
+  type ChatCompressionCheckpointEvent,
+  type AiResponsePromptBudget,
+  type AiResponseTokenUsage,
   type SendEmbedDataFrame,
   type SubChatEvent,
+  type TaskEventFrame,
+  type PendingTaskUpdateJobFrame,
+  type TaskProposalEvent,
+  type TaskUpdateProposalEvent,
 } from "./ws.js";
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
 import { CHAT_MODELS } from "./mentions.js";
 import type { EncryptedEmbed, EmbedKeyWrapper, PreparedEmbed } from "./embedCreator.js";
-import { computeSHA256, encryptEmbed } from "./embedCreator.js";
+import {
+  computeSHA256,
+  createEmbedJsonReferenceBlock,
+  createEmbedRef,
+  encryptEmbed,
+  toonEncodeContent,
+} from "./embedCreator.js";
+import { processFiles } from "./fileEmbed.js";
+import { transcribeUploadedAudio, uploadFile } from "./uploadService.js";
 import {
   generateChatShareBlob,
   generateEmbedShareBlob,
@@ -72,6 +98,36 @@ import {
   type ConnectedAccountCliTransferPayload,
   type EncryptedConnectedAccountImportRow,
 } from "./connectedAccountImport.js";
+import { containsCredentialLikeField, type ProtonLocalConnectorRegistration } from "./protonBridgeConnector.js";
+import {
+  buildCreateUserTaskInput,
+  buildUpdateUserTaskInput,
+  decryptUserTasks,
+  findTask,
+  type DecryptedUserTask,
+} from "./tasksCli.js";
+import { hasRememberMessageReference, rewriteRememberMessageReferences } from "./rememberMessage.js";
+
+const PROMPT_INJECTION_DISABLED = "disabled";
+const DEFAULT_CHAT_MESSAGE_CONFIRMATION_TIMEOUT_MS = 20_000;
+
+function withAppSkillPromptInjectionOption(
+  inputData: Record<string, unknown>,
+  promptInjectionProtection?: boolean,
+): Record<string, unknown> {
+  if (promptInjectionProtection !== false) return inputData;
+  const currentSecurity = inputData.security;
+  const security = currentSecurity && typeof currentSecurity === "object" && !Array.isArray(currentSecurity)
+    ? { ...(currentSecurity as Record<string, unknown>) }
+    : {};
+  return {
+    ...inputData,
+    security: {
+      ...security,
+      prompt_injection_protection: PROMPT_INJECTION_DISABLED,
+    },
+  };
+}
 
 function normalizeUnixSeconds(value: unknown, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
@@ -80,9 +136,120 @@ function normalizeUnixSeconds(value: unknown, fallback: number): number {
   return value > 10_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
 }
 
+function defaultIdeaBucketProcessingWindowId(date = new Date()): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function defaultIdeaBucketScheduledSendAt(nowSeconds: number): number {
+  const date = new Date(nowSeconds * 1000);
+  const sendAt = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1, 9, 0, 0) / 1000;
+  return Math.floor(sendAt);
+}
+
+const IDEABUCKET_APP_ID = "ideabucket";
+const IDEABUCKET_SETTINGS_ITEM_TYPE = "processing_settings";
+const IDEABUCKET_DEFAULT_PROCESSING_TIMES = ["09:00"];
+const IDEABUCKET_PROCESSING_TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+function normalizeIdeaBucketProcessingTimes(value: unknown): string[] {
+  const rawTimes = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(",")
+      : IDEABUCKET_DEFAULT_PROCESSING_TIMES;
+  const times = rawTimes.map((time) => String(time).trim()).filter(Boolean);
+  const uniqueSortedTimes = [...new Set(times)].sort((a, b) => ideaBucketTimeToMinutes(a) - ideaBucketTimeToMinutes(b));
+  if (uniqueSortedTimes.length < 1 || uniqueSortedTimes.length > 3) {
+    throw new Error("IdeaBucket processing_times must include one to three HH:MM values.");
+  }
+  for (const time of uniqueSortedTimes) {
+    if (!IDEABUCKET_PROCESSING_TIME_PATTERN.test(time)) {
+      throw new Error(`Invalid IdeaBucket processing time '${time}'. Expected HH:MM in 24-hour format.`);
+    }
+  }
+  return uniqueSortedTimes;
+}
+
+function ideaBucketTimeToMinutes(value: string): number {
+  const match = IDEABUCKET_PROCESSING_TIME_PATTERN.exec(value);
+  if (!match) return Number.POSITIVE_INFINITY;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function nextIdeaBucketScheduledSendAt(nowSeconds: number, processingTimes: string[]): number {
+  const now = new Date(nowSeconds * 1000);
+  const candidates = processingTimes.map((time) => {
+    const [hour, minute] = time.split(":").map((part) => Number(part));
+    const candidate = new Date(now);
+    candidate.setHours(hour, minute, 0, 0);
+    if (Math.floor(candidate.getTime() / 1000) <= nowSeconds) {
+      candidate.setDate(candidate.getDate() + 1);
+    }
+    return Math.floor(candidate.getTime() / 1000);
+  });
+  return Math.min(...candidates);
+}
+
+function buildIdeaBucketMarkdown(
+  prompt: string,
+  ideas: Array<{ index: number; content: string }>,
+): string {
+  const blocks = ideas.map((idea) => [
+    `----- Idea ${idea.index} -----`,
+    idea.content.trim(),
+    "-----------------",
+  ].join("\n"));
+  return [prompt.trim(), ...blocks].join("\n\n");
+}
+
+interface IdeaBucketPreparedIdea {
+  content: string;
+  preview: string;
+  payload: Record<string, unknown>;
+}
+
+function shouldWaitForTeamAi(message: string, teamId: string | null): boolean {
+  return !teamId || message.toLowerCase().includes("@openmates");
+}
+
+const CLI_MESSAGE_HISTORY_PAGE_LIMIT = 100;
+const CLI_MESSAGE_HISTORY_MAX_PAGES = 100;
+
+function normalizeSyncedMessages(messages: unknown[]): string[] {
+  return messages.map((message) =>
+    typeof message === "string" ? message : JSON.stringify(message),
+  );
+}
+
 export function getClientMessagesVersionForSync(cached: CachedChat): number {
   if (cached.messages.length === 0) return 0;
-  return typeof cached.details.messages_v === "number" ? cached.details.messages_v : 0;
+  const messagesVersion =
+    typeof cached.details.messages_v === "number" ? cached.details.messages_v : 0;
+  return Math.min(messagesVersion, cached.messages.length);
+}
+
+function findCliMessageBoundaryIndex(messages: Array<{ id: string }>, messageId: string): number {
+  const index = messages.findIndex((message) => message.id === messageId || message.id.startsWith(messageId));
+  if (index < 0) {
+    throw new Error(`Message '${messageId}' was not found in the chat.`);
+  }
+  return index;
+}
+
+function findCliRetryableUserMessageIndex(messages: DecryptedMessage[]): number {
+  let hasLaterAssistant = false;
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const role = messages[index].role.toLowerCase();
+    if (role === "assistant") hasLaterAssistant = true;
+    if (role === "user" && !hasLaterAssistant) return index;
+  }
+  return -1;
+}
+
+function defaultCliSenderName(role: string): string {
+  if (role === "assistant") return "Assistant";
+  if (role === "system") return "System";
+  return "User";
 }
 
 interface PendingAIResponseFrame {
@@ -133,6 +300,7 @@ export interface SubChatApprovalRequest {
 export interface ConnectedAccountDirectoryEntry {
   connected_account_id: string;
   app_id: string;
+  provider_id?: string;
   account_ref: string;
   label: string;
   capabilities: string[];
@@ -142,6 +310,7 @@ export interface ConnectedAccountDirectoryEntry {
 export interface ConnectedAccountTurnTokenRefInput {
   connected_account_id: string;
   app_id: string;
+  provider_id?: string;
   allowed_actions: string[];
   refresh_token_envelope: Record<string, unknown>;
   action_scope?: Record<string, unknown>;
@@ -150,6 +319,7 @@ export interface ConnectedAccountTurnTokenRefInput {
 export interface ConnectedAccountTurnTokenRef {
   connected_account_id: string;
   app_id: string;
+  provider_id?: string;
   turn_token_ref: string;
   allowed_actions: string[];
   action_scope?: Record<string, unknown>;
@@ -169,6 +339,185 @@ export interface ConnectedAccountImportResult {
   appId: string;
   label: string;
   validation: ConnectedAccountImportValidationResult;
+}
+
+export interface DecryptedConnectedAccountForSkill {
+  id: string;
+  providerId: string;
+  appId: string;
+  label: string;
+  accountRef: string;
+  capabilities: string[];
+  runtimeModes: Record<string, string>;
+  refreshTokenBundle: Record<string, unknown>;
+}
+
+export interface RevolutBusinessSetupExchangeResult {
+  provider_id: "revolut_business";
+  app_id: "finance";
+  environment: "sandbox" | "production";
+  refresh_token_bundle: Record<string, unknown>;
+  account_hint: {
+    label?: string;
+    account_ref?: string;
+    account_count?: number;
+    [key: string]: unknown;
+  };
+}
+
+export type TeamRole = "owner" | "admin" | "member" | "viewer";
+
+export interface TeamRecord {
+  team_id?: string;
+  slug?: string | null;
+  encrypted_name?: string;
+  encrypted_description?: string | null;
+  role?: TeamRole;
+  status?: string;
+  [key: string]: unknown;
+}
+
+export interface TeamBillingSummary {
+  balance_credits?: number;
+  encrypted_balance?: string | null;
+  [key: string]: unknown;
+}
+
+export type WorkspaceMoveType = "chat" | "project" | "task" | "plan" | "workflow";
+
+export interface TeamContextOptions {
+  teamId?: string | null;
+  personal?: boolean;
+}
+
+export interface AccountExportStartOptions {
+  domains?: string[];
+  filters?: Record<string, unknown>;
+  format?: "zip" | "directory";
+  includeAdvancedMetadata?: boolean;
+}
+
+export interface AccountExportResponse {
+  export: Record<string, unknown>;
+}
+
+export interface AccountExportManifestResponse {
+  manifest: Record<string, unknown>;
+}
+
+export interface AccountExportChunksResponse {
+  chunks: Array<Record<string, unknown>>;
+}
+
+export interface AccountImportPreviewRequest {
+  source: "openmates" | "chatgpt" | "claude" | "gemini" | "opencode" | "other";
+  parserFormat?: "claude" | "chatgpt" | "openmates" | "opencode" | "generic";
+  chatCount: number;
+  sourceFingerprints: string[];
+  estimatedTokens?: number;
+  estimatedTokensByChat?: number[];
+  estimatedBytes?: number;
+}
+
+export interface AccountImportScanRequest {
+  batchId: string;
+  sequence: number;
+  finalBatch: boolean;
+  chats: Array<Record<string, unknown>>;
+}
+
+export interface AccountImportCompressRequest {
+  batchId: string;
+  sequence: number;
+  finalBatch: boolean;
+  scanSequence: number;
+  sourceFingerprint: string;
+  sanitizedMessages: Array<Record<string, unknown>>;
+  priorSummary?: string;
+}
+
+export interface AccountImportPreviewResponse extends Record<string, unknown> {
+  free_remaining?: number;
+  chat_limit?: number;
+  default_selection_count?: number;
+  max_batch_count?: number;
+  duplicate_fingerprints?: string[];
+  estimated_credits?: number;
+  can_import?: boolean;
+  reason?: string;
+}
+
+export interface AccountImportScanResponse extends Record<string, unknown> {
+  chats?: Array<Record<string, unknown>>;
+  credits_reserved?: number;
+  messages_blocked?: Array<Record<string, unknown>>;
+  failures?: Array<Record<string, unknown>>;
+}
+
+export interface AccountImportCompleteRequest {
+  importedChatIds: string[];
+  sourceFingerprints: string[];
+  encryptedRecordCounts: Record<string, number>;
+  clientFailures?: Array<Record<string, unknown>>;
+}
+
+export interface AccountImportCompleteResponse extends Record<string, unknown> {
+  status?: "complete" | "partial" | "failed";
+  credits_charged?: number;
+  credits_released?: number;
+  imported_count?: number;
+  failures?: Array<Record<string, unknown>>;
+}
+
+export interface AccountImportEncryptedPersistResponse extends Record<string, unknown> {
+  status?: "complete" | "partial" | "failed";
+  imported_chat_ids?: string[];
+  failures?: Array<Record<string, unknown>>;
+  encrypted_record_counts?: Record<string, number>;
+}
+
+interface ParsedImportChat {
+  selected_source?: string;
+  title?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  source_fingerprint?: string;
+  messages: Array<{
+    role: "user" | "assistant" | "system";
+    content: string;
+    created_at?: string | null;
+    imported_assistant_identity?: {
+      category: string;
+      sender_name: string;
+      model_name: string;
+      avatar_key: string;
+    } | null;
+    provider_metadata?: Record<string, unknown>;
+  }>;
+}
+
+export interface TeamCreateInput {
+  name?: string;
+  description?: string | null;
+  slug?: string | null;
+  teamId?: string;
+  encryptedName?: string;
+  encryptedDescription?: string | null;
+  encryptedTeamKey?: string;
+  encryptedZeroBalance?: string;
+  createdAt?: number;
+}
+
+export interface TeamInviteCreateInput extends Record<string, unknown> {
+  role?: Exclude<TeamRole, "owner">;
+  recipient_email?: string;
+  invite_id?: string;
+  invite_secret?: string;
+}
+
+export interface TeamInviteAcceptInput {
+  inviteSecret?: string | null;
+  recipientEmail?: string | null;
 }
 
 export type LearningModeAgeGroup = "under_10" | "10_12" | "13_15" | "16_18" | "adult";
@@ -232,6 +581,7 @@ export type WorkflowLifecycle = "persisted" | "temporary";
 export interface WorkflowSummary {
   id: string;
   title: string;
+  description?: string | null;
   status: "draft" | "active" | "disabled" | "error" | "deleted";
   enabled: boolean;
   lifecycle?: WorkflowLifecycle;
@@ -277,6 +627,66 @@ export type ProjectSourceType = "local_folder" | "local_git_repository" | "remot
 export type ProjectSourceCapability = "read" | "search" | "import" | "write_request";
 export type ProjectSourceStatus = "connected" | "offline" | "permission_required" | "revoked";
 
+export interface ProjectRecord {
+  project_id: string;
+  encrypted_project_key?: string | null;
+  encrypted_name?: string | null;
+  encrypted_description?: string | null;
+  encrypted_icon?: string | null;
+  encrypted_color?: string | null;
+  pinned?: boolean;
+  archived?: boolean;
+  version?: number;
+  created_at?: number;
+  updated_at?: number;
+  last_opened_at?: number;
+  key_wrappers?: ProjectKeyWrapperRecord[];
+  mutation_permissions?: ProjectMutationPermissions;
+  [key: string]: unknown;
+}
+
+export interface ProjectKeyWrapperRecord {
+  key_type: "master" | "chat" | "project" | "plan" | "team";
+  encrypted_project_key: string;
+  hashed_team_id?: string | null;
+  team_key_epoch?: number | null;
+  [key: string]: unknown;
+}
+
+export interface ProjectMutationPermissions {
+  create: boolean;
+  update: boolean;
+  archive: boolean;
+  delete: boolean;
+  settings: boolean;
+  manage_any_items: boolean;
+  manage_any_sources: boolean;
+  manage_own_items: boolean;
+  manage_own_sources: boolean;
+}
+
+export interface ProjectDetail {
+  project: ProjectRecord;
+  folders: Array<Record<string, unknown>>;
+  items: ProjectItemRecord[];
+}
+
+export interface ProjectRemoteAccessRequestInput {
+  request_id: string;
+  requesting_client_id: string;
+  operation: "list" | "search" | "read_text";
+  key_epoch: number;
+  encrypted_envelope: string;
+}
+
+export interface ProjectRemoteAccessRequestResult {
+  request_id: string;
+  status: "queued" | "delivered";
+  source_session_id: string;
+  key_epoch: number;
+  routing_identity?: Record<string, string>;
+}
+
 export interface ProjectSourceRecord {
   source_id: string;
   source_type: ProjectSourceType;
@@ -292,12 +702,60 @@ export interface ProjectSourceRecord {
 
 export type ProjectSourceCreateInput = ProjectSourceRecord;
 
+export type ProjectItemType = "embed" | "chat" | "upload" | "workflow";
+
+export interface ProjectItemRecord {
+  project_item_id: string;
+  item_type: ProjectItemType;
+  target_id_hash?: string;
+  target_id_encrypted: string;
+  encrypted_display_name?: string | null;
+  encrypted_note?: string | null;
+  encrypted_metadata?: string | null;
+  created_at?: number;
+  updated_at?: number;
+  position?: number;
+  [key: string]: unknown;
+}
+
+export interface ProjectItemCreateInput {
+  project_item_id: string;
+  folder_id?: string | null;
+  item_type: ProjectItemType;
+  target_id: string;
+  target_id_encrypted: string;
+  encrypted_display_name?: string | null;
+  encrypted_note?: string | null;
+  encrypted_metadata?: string | null;
+  created_at: number;
+  updated_at: number;
+  position?: number;
+}
+
 export interface UserTaskRecord {
   task_id: string;
+  source?: string | null;
+  projection_kind?: "last_run" | "current_run" | "next_run" | null;
+  title?: string | null;
+  read_only?: boolean | null;
+  workflow_id?: string | null;
+  workflow_run_id?: string | null;
+  trigger_id?: string | null;
+  run_status?: string | null;
+  can_cancel?: boolean | null;
+  can_delete?: boolean | null;
+  scheduled_at?: number | null;
+  blocked_reason?: string | null;
+  blocked_message?: string | null;
+  short_id?: string | null;
+  short_id_prefix?: string | null;
   encrypted_task_key?: string | null;
   encrypted_title: string;
   encrypted_description?: string | null;
+  encrypted_labels?: string | null;
   encrypted_tags?: string | null;
+  label_hashes?: string[] | null;
+  encrypted_linked_project_ids?: string | null;
   encrypted_activity_summary?: string | null;
   encrypted_latest_instruction?: string | null;
   status: UserTaskStatus;
@@ -306,9 +764,16 @@ export interface UserTaskRecord {
   primary_chat_id?: string | null;
   linked_project_ids?: string[] | null;
   parent_task_id?: string | null;
+  plan_id?: string | null;
+  plan_step_id?: string | null;
+  task_type?: "work" | "verification" | null;
+  verification_id?: string | null;
+  source_plan_id?: string | null;
+  source_learning_id?: string | null;
   due_at?: number | null;
   priority?: number;
   position?: number;
+  queue_state?: "none" | "waiting" | "active" | "skipped" | "waiting_for_user" | string | null;
   version?: number;
   created_at?: number;
   updated_at?: number;
@@ -316,15 +781,26 @@ export interface UserTaskRecord {
   completed_at?: number | null;
   blocked_reason_code?: string | null;
   ai_execution_state?: string | null;
+  history?: WorkspaceHistoryResult | null;
 }
 
-export type UserTaskCreateInput = Omit<UserTaskRecord, "version" | "started_at" | "completed_at" | "blocked_reason_code" | "ai_execution_state"> & {
-  version?: number;
-};
+export interface WorkspaceHistoryResult {
+  change_set?: Record<string, unknown>;
+  entries?: Array<Record<string, unknown>>;
+  undo_all_command?: string;
+  undo_entry_commands?: string[];
+}
 
-export type UserTaskUpdateInput = Partial<Omit<UserTaskRecord, "task_id" | "created_at">> & {
-  version?: number;
-};
+export interface UserTaskProposalRecord {
+  title: string;
+  description?: string | null;
+  status?: UserTaskStatus;
+  assignee_type?: UserTaskAssigneeType;
+}
+
+export type UserTaskCreateInput = Omit<UserTaskRecord, "version" | "started_at" | "completed_at" | "blocked_reason_code" | "ai_execution_state"> & { version: number };
+
+export type UserTaskUpdateInput = Partial<Omit<UserTaskRecord, "task_id" | "created_at" | "version">> & { version: number };
 
 export type UserTaskStartAIInput = UserTaskUpdateInput & {
   plaintext_title?: string;
@@ -333,9 +809,25 @@ export type UserTaskStartAIInput = UserTaskUpdateInput & {
   plaintext_chat_title?: string;
 };
 
-export type UserPlanStatus = "draft" | "awaiting_confirmation" | "active" | "executing" | "blocked" | "completed" | "archived";
+export type UserTaskActionInput = { version: number; blocked_reason_code?: string | null };
+export type UserTaskReorderInput = {
+  moves: Array<{
+    task_id: string;
+    version: number;
+    before_task_id?: string | null;
+    after_task_id?: string | null;
+    status?: UserTaskStatus | null;
+    position?: number | null;
+  }>;
+};
+
+export type UserPlanStatus = "draft" | "checking_assumptions" | "awaiting_confirmation" | "active" | "executing" | "running_checks" | "blocked" | "completed" | "archived";
 export type UserPlanCriterionStatus = "pending" | "satisfied" | "failed" | "waived";
-export type UserPlanVerificationStatus = "pending" | "passed" | "failed" | "passed_unexpectedly" | "skipped" | "waived";
+export type UserPlanVerificationStatus = "proposed" | "pending" | "passed" | "failed" | "passed_unexpectedly" | "skipped" | "skipped_with_reason" | "not_applicable" | "waived";
+export type UserPlanLearningType = "workflow_improvement" | "agent_instruction_improvement";
+export type UserPlanLearningTargetKind = "workflow" | "project_agent_instructions";
+export type UserPlanLearningStatus = "draft" | "proposed" | "accepted" | "applied" | "rejected" | "duplicate" | "merged";
+export type UserPlanLearningLevel = "low" | "medium" | "high";
 
 export interface UserPlanRecord {
   plan_id: string;
@@ -345,14 +837,20 @@ export interface UserPlanRecord {
   encrypted_goal?: string | null;
   encrypted_scope_in?: string | null;
   encrypted_scope_out?: string | null;
+  encrypted_user_flows?: string | null;
+  encrypted_current_focus?: string | null;
   encrypted_assumptions?: string | null;
   encrypted_open_questions?: string | null;
   encrypted_constraints?: string | null;
   encrypted_decisions?: string | null;
   encrypted_risks?: string | null;
+  encrypted_reference_patterns?: string | null;
+  encrypted_context?: string | null;
+  encrypted_linked_project_ids?: string | null;
   status: UserPlanStatus;
   primary_chat_id?: string | null;
   linked_project_ids?: string[] | null;
+  key_wrappers?: Array<Record<string, unknown>> | null;
   current_phase_id?: string | null;
   current_step_id?: string | null;
   current_task_id?: string | null;
@@ -361,6 +859,7 @@ export interface UserPlanRecord {
   created_at?: number;
   updated_at?: number;
   completed_at?: number | null;
+  history?: WorkspaceHistoryResult | null;
 }
 
 export type UserPlanCreateInput = Omit<UserPlanRecord, "version" | "completed_at"> & { version?: number };
@@ -379,6 +878,79 @@ export interface UserPlanCriterionRecord {
   updated_at?: number;
 }
 
+export interface UserPlanAssumptionRecord {
+  assumption_id: string;
+  encrypted_text: string;
+  category?: string;
+  status?: string;
+  required_before?: string;
+  linked_sub_chat_id?: string | null;
+  linked_task_id?: string | null;
+  linked_step_ids?: string[];
+  linked_criterion_ids?: string[];
+  source_count?: number;
+  encrypted_corrected_text?: string | null;
+  encrypted_evidence_summary?: string | null;
+  encrypted_blocker_reason?: string | null;
+  encrypted_waiver_reason?: string | null;
+  encrypted_sources?: string | null;
+  created_at?: number;
+  updated_at?: number;
+}
+
+export interface UserPlanReferencePatternRecord {
+  pattern_id: string;
+  encrypted_title: string;
+  encrypted_description?: string | null;
+  category?: string;
+  status?: string;
+  required_before?: string;
+  source_count?: number;
+  linked_task_ids?: string[];
+  linked_check_ids?: string[];
+  encrypted_sources?: string | null;
+  encrypted_match_rules?: string | null;
+  encrypted_anti_patterns?: string | null;
+  encrypted_evidence_summary?: string | null;
+  encrypted_waiver_reason?: string | null;
+  created_at?: number;
+  updated_at?: number;
+}
+
+export interface UserPlanLearningRecord {
+  learning_id: string;
+  type: UserPlanLearningType;
+  target_kind: UserPlanLearningTargetKind;
+  status?: UserPlanLearningStatus;
+  severity?: UserPlanLearningLevel | null;
+  confidence?: UserPlanLearningLevel | null;
+  linked_task_ids?: string[];
+  linked_check_ids?: string[];
+  applied_task_id?: string | null;
+  encrypted_title: string;
+  encrypted_observation?: string | null;
+  encrypted_root_cause?: string | null;
+  encrypted_suggested_change?: string | null;
+  encrypted_evidence_summary?: string | null;
+  encrypted_task_draft?: string | null;
+  encrypted_rejection_reason?: string | null;
+  version?: number;
+  created_at?: number;
+  updated_at?: number;
+}
+
+export interface UserPlanLearningCreateTasksInput {
+  learning_ids?: string[];
+  all?: boolean;
+  created_at?: number;
+  updated_at?: number;
+}
+
+export interface UserPlanLearningCreateTasksResult {
+  tasks: UserTaskRecord[];
+  skipped: Array<Record<string, unknown>>;
+}
+
 export interface UserPlanVerificationRecord {
   verification_id: string;
   kind: string;
@@ -386,6 +958,7 @@ export interface UserPlanVerificationRecord {
   status?: UserPlanVerificationStatus;
   required_for_done?: boolean;
   covers?: string[];
+  source_hash?: string | null;
   threshold?: number | null;
   score?: number | null;
   confidence?: string | null;
@@ -393,9 +966,17 @@ export interface UserPlanVerificationRecord {
   run_id?: string | null;
   created_at?: number;
   updated_at?: number;
+  lifecycle_status?: string | null;
+  linked_sub_chat_id?: string | null;
+  source_embed_id?: string | null;
+  runner_kind?: string | null;
+  encrypted_description?: string | null;
   encrypted_command?: string | null;
   encrypted_evaluation_prompt?: string | null;
+  encrypted_evaluator_instructions?: string | null;
   encrypted_expected_result?: string | null;
+  encrypted_source_path?: string | null;
+  encrypted_red_phase_reason?: string | null;
   encrypted_result_summary?: string | null;
   encrypted_required_fixes?: string | null;
 }
@@ -405,7 +986,7 @@ export interface WorkflowRunDetail {
   workflow_id: string;
   version_id: string;
   trigger_type: string;
-  status: "queued" | "running" | "waiting" | "completed" | "failed" | "cancelled";
+  status: "queued" | "running" | "waiting" | "cancellation_requested" | "completed" | "failed" | "cancelled";
   started_at?: number | null;
   finished_at?: number | null;
   error_summary?: string | null;
@@ -418,6 +999,11 @@ export interface WorkflowRunDetail {
   encrypted_content_checksum?: string | null;
   node_runs?: WorkflowNodeRun[];
   output_summary?: Record<string, unknown>;
+}
+
+export interface WorkflowRunCancellationResult {
+  run_id: string;
+  status: "cancellation_requested" | "cancelled";
 }
 
 export type WorkflowInputType = "text" | "audio";
@@ -467,40 +1053,113 @@ export interface WorkflowCapability {
   metadata?: Record<string, unknown>;
 }
 
+export interface WorkflowTemplateProjectionUpsertParams {
+  templateId: string;
+  sourceVersion: number;
+  ciphertext: string;
+  ciphertextChecksum: string;
+  ownerWrappedKey: string;
+  projectionSchemaVersion: number;
+}
+
+export interface WorkflowTemplateProjectionResult {
+  template_id: string;
+  source_version: number;
+  updated_at: number;
+}
+
+export interface PublicWorkflowTemplateProjection {
+  template_id: string;
+  ciphertext: string;
+  ciphertext_checksum: string;
+  projection_schema_version: number;
+}
+
+export interface WorkflowTemplateProjectionRevocationResult {
+  template_id: string;
+  revoked_at: number | null;
+}
+
+export interface WorkflowTemplateBindingCompletionParams {
+  type: string;
+  nodeId: string;
+}
+
+export interface WorkflowTemplateBindingCompletionResult {
+  workflow_id: string;
+  binding_requirement: Record<string, unknown>;
+  completed: boolean;
+}
+
+export interface WorkflowTemplateImportPayload {
+  template_version: number;
+  title: string;
+  description?: string | null;
+  trigger_template: Record<string, unknown>;
+  node_templates?: Array<Record<string, unknown>>;
+  edge_templates?: Array<Record<string, unknown>>;
+  variables_schema?: Record<string, unknown>;
+  required_capabilities?: string[];
+  binding_requirements?: Array<Record<string, unknown>>;
+}
+
+export interface ImportedWorkflowTemplate extends WorkflowDetail {
+  binding_requirements: Array<Record<string, unknown>>;
+}
+
+export interface WorkflowTemplateShortUrlParams {
+  token: string;
+  encryptedUrl: string;
+  templateId: string;
+  ttlSeconds?: number | null;
+  passwordProtected?: boolean;
+}
+
+export interface WorkflowTemplateShortUrlResult {
+  success: boolean;
+  expires_at?: number | null;
+}
+
+export interface ShortUrlRevokeResult {
+  success: boolean;
+  revoked_at?: number | null;
+}
+
 export type InterestTagId =
+  | "marketing"
   | "software_development"
-  | "business_development"
-  | "life_coach_psychology"
-  | "medical_health"
-  | "legal_law"
-  | "finance"
-  | "design"
-  | "marketing_sales"
-  | "science"
-  | "history"
-  | "cooking_food"
-  | "electrical_engineering"
-  | "maker_prototyping"
-  | "movies_tv"
-  | "activism"
-  | "general_knowledge"
-  | "find_events"
-  | "find_restaurant"
-  | "find_doctor_appointments"
-  | "plot_charts"
-  | "video_tutorials"
-  | "find_apartments"
-  | "build_electronics"
-  | "diy_projects"
-  | "create_videos"
-  | "find_travel_connections"
+  | "finance_bookkeeping"
+  | "ui_ux_design"
+  | "business_planning"
+  | "content_creation"
+  | "project_management"
+  | "admin_operations"
+  | "find_local_events"
   | "plan_trips"
-  | "discuss_news"
-  | "discuss_videos"
-  | "run_code"
-  | "privacy"
-  | "learning"
-  | "writing";
+  | "writing_editing"
+  | "sales"
+  | "customer_support"
+  | "research_analysis"
+  | "data_spreadsheets"
+  | "legal_compliance"
+  | "events_networking"
+  | "websites_online_shops"
+  | "automation_workflows"
+  | "client_work_proposals"
+  | "branding_images"
+  | "video_social_media"
+  | "productivity_organization"
+  | "learning_new_skills"
+  | "health_wellbeing"
+  | "find_doctor_appointments"
+  | "find_apartments"
+  | "find_trains_flights"
+  | "find_restaurants_cafes"
+  | "personal_finances"
+  | "cooking_meal_planning"
+  | "news_current_events"
+  | "diy_electronics"
+  | "privacy_personal_data";
 
 export interface TopicPreferencesPayload {
   version: 1;
@@ -509,40 +1168,80 @@ export interface TopicPreferencesPayload {
 }
 
 export const INTEREST_TAG_IDS: InterestTagId[] = [
+  "marketing",
   "software_development",
-  "business_development",
-  "life_coach_psychology",
-  "medical_health",
-  "legal_law",
-  "finance",
-  "design",
-  "marketing_sales",
-  "science",
-  "history",
-  "cooking_food",
-  "electrical_engineering",
-  "maker_prototyping",
-  "movies_tv",
-  "activism",
-  "general_knowledge",
-  "find_events",
-  "find_restaurant",
-  "find_doctor_appointments",
-  "plot_charts",
-  "video_tutorials",
-  "find_apartments",
-  "build_electronics",
-  "diy_projects",
-  "create_videos",
-  "find_travel_connections",
+  "finance_bookkeeping",
+  "ui_ux_design",
+  "business_planning",
+  "content_creation",
+  "project_management",
+  "admin_operations",
+  "find_local_events",
   "plan_trips",
-  "discuss_news",
-  "discuss_videos",
-  "run_code",
-  "privacy",
-  "learning",
-  "writing",
+  "writing_editing",
+  "sales",
+  "customer_support",
+  "research_analysis",
+  "data_spreadsheets",
+  "legal_compliance",
+  "events_networking",
+  "websites_online_shops",
+  "automation_workflows",
+  "client_work_proposals",
+  "branding_images",
+  "video_social_media",
+  "productivity_organization",
+  "learning_new_skills",
+  "health_wellbeing",
+  "find_doctor_appointments",
+  "find_apartments",
+  "find_trains_flights",
+  "find_restaurants_cafes",
+  "personal_finances",
+  "cooking_meal_planning",
+  "news_current_events",
+  "diy_electronics",
+  "privacy_personal_data",
 ];
+
+const LEGACY_INTEREST_TAG_ALIASES: Record<string, InterestTagId[]> = {
+  business_development: ["business_planning"],
+  life_coach_psychology: ["health_wellbeing", "productivity_organization"],
+  medical_health: ["health_wellbeing"],
+  legal_law: ["legal_compliance"],
+  finance: ["finance_bookkeeping", "personal_finances"],
+  design: ["ui_ux_design", "branding_images"],
+  marketing_sales: ["marketing", "sales"],
+  science: ["research_analysis", "learning_new_skills"],
+  history: ["research_analysis", "learning_new_skills"],
+  cooking_food: ["cooking_meal_planning"],
+  electrical_engineering: ["diy_electronics"],
+  maker_prototyping: ["diy_electronics"],
+  movies_tv: ["video_social_media"],
+  activism: ["news_current_events", "legal_compliance"],
+  general_knowledge: ["research_analysis", "learning_new_skills"],
+  find_events: ["find_local_events", "events_networking"],
+  find_restaurant: ["find_restaurants_cafes"],
+  plot_charts: ["data_spreadsheets"],
+  video_tutorials: ["learning_new_skills", "video_social_media"],
+  build_electronics: ["diy_electronics"],
+  diy_projects: ["diy_electronics"],
+  create_videos: ["video_social_media", "content_creation"],
+  find_travel_connections: ["find_trains_flights"],
+  discuss_news: ["news_current_events"],
+  discuss_videos: ["video_social_media"],
+  run_code: ["software_development"],
+  privacy: ["privacy_personal_data"],
+  learning: ["learning_new_skills"],
+  writing: ["writing_editing"],
+  use_the_cli: ["software_development"],
+  open_source: ["software_development"],
+  read_developer_docs: ["software_development"],
+  protect_my_privacy: ["privacy_personal_data"],
+  summarize_documents: ["writing_editing"],
+  local_life: ["find_local_events"],
+  learn_anything: ["learning_new_skills"],
+};
 
 const TOPIC_PREFERENCES_SETTINGS_KEY = "topic_preferences";
 
@@ -550,13 +1249,16 @@ export function normalizeInterestTagIds(values: readonly string[]): InterestTagI
   const validIds = new Set<InterestTagId>(INTEREST_TAG_IDS);
   const normalized: InterestTagId[] = [];
   for (const value of values) {
-    if (!validIds.has(value as InterestTagId)) {
+    const canonicalIds = validIds.has(value as InterestTagId)
+      ? [value as InterestTagId]
+      : LEGACY_INTEREST_TAG_ALIASES[value];
+    if (!canonicalIds) {
       throw new Error(
         `Unknown interest tag '${value}'. Use one of: ${INTEREST_TAG_IDS.join(", ")}`,
       );
     }
-    if (!normalized.includes(value as InterestTagId)) {
-      normalized.push(value as InterestTagId);
+    for (const canonicalId of canonicalIds) {
+      if (!normalized.includes(canonicalId)) normalized.push(canonicalId);
     }
   }
   return normalized;
@@ -570,13 +1272,14 @@ function normalizeTopicPreferencesPayload(value: unknown): TopicPreferencesPaylo
   if (candidate.version !== 1 || !Array.isArray(candidate.selectedTagIds)) {
     return null;
   }
-  const validIds = new Set<InterestTagId>(INTEREST_TAG_IDS);
-  const selectedTagIds: InterestTagId[] = [];
-  for (const value of candidate.selectedTagIds) {
-    if (validIds.has(value as InterestTagId) && !selectedTagIds.includes(value as InterestTagId)) {
-      selectedTagIds.push(value as InterestTagId);
+  const selectedTagIds = candidate.selectedTagIds.flatMap((value) => {
+    if (typeof value !== "string") return [];
+    try {
+      return normalizeInterestTagIds([value]);
+    } catch {
+      return [];
     }
-  }
+  }).filter((value, index, values) => values.indexOf(value) === index);
   return {
     version: 1,
     selectedTagIds,
@@ -628,11 +1331,19 @@ export function assertNoConnectedAccountSecretLeak(value: unknown): void {
     "provider_email",
     "account_email",
     "provider_account_id",
+    "bridge_password",
+    "imap_password",
+    "smtp_password",
+    "proton_password",
+    "password",
   ];
   for (const key of forbidden) {
     if (serialized.includes(`"${key}"`)) {
       throw new Error(`Connected account payload contains forbidden field: ${key}`);
     }
+  }
+  if (containsCredentialLikeField(value)) {
+    throw new Error("Connected account payload contains credential-like fields.");
   }
 }
 
@@ -648,16 +1359,35 @@ export function buildTurnTokenRefsRequestPayload(params: {
   chatId: string;
   messageId: string;
   refs: ConnectedAccountTurnTokenRefInput[];
+  teamId?: string | null;
 }): {
   chat_id: string;
   message_id: string;
   refs: ConnectedAccountTurnTokenRefInput[];
+  team_id?: string;
 } {
   return {
     chat_id: params.chatId,
     message_id: params.messageId,
     refs: params.refs.map((ref) => ({ ...ref })),
+    ...(params.teamId ? { team_id: params.teamId } : {}),
   };
+}
+
+async function decryptConnectedAccountField(value: unknown, masterKey: Uint8Array): Promise<unknown> {
+  if (typeof value !== "string" || !value) return null;
+  const plaintext = await decryptWithAesGcmCombined(value, masterKey);
+  if (plaintext === null) return null;
+  try {
+    return JSON.parse(plaintext) as unknown;
+  } catch {
+    return plaintext;
+  }
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Set(value.map((item) => String(item).trim()).filter(Boolean)));
 }
 
 function categoryFromMemoryKey(key: string): { appId: string; itemType: string } | null {
@@ -722,6 +1452,167 @@ export function buildAppSettingsMemoryResponseSystemMessage(params: {
     created_at: params.createdAt,
     user_message_id: params.userMessageId,
   };
+}
+
+export async function buildTaskEventSystemMessage(params: {
+  chatKey: Uint8Array;
+  userMessageId: string;
+  event: TaskEventFrame;
+}): Promise<{
+  message_id: string;
+  role: "system";
+  encrypted_content: string;
+  created_at: number;
+  user_message_id: string;
+  task_update_job_id?: string;
+}> {
+  const content = formatTaskEventSystemContent(params.event);
+  const message: {
+    message_id: string;
+    role: "system";
+    encrypted_content: string;
+    created_at: number;
+    user_message_id: string;
+    task_update_job_id?: string;
+  } = {
+    message_id: `task-event-${params.event.event_id}`,
+    role: "system",
+    encrypted_content: await encryptWithAesGcmCombined(content, params.chatKey),
+    created_at: params.event.created_at ?? Math.floor(Date.now() / 1000),
+    user_message_id: params.userMessageId,
+  };
+  if (params.event.task_update_job_id) message.task_update_job_id = params.event.task_update_job_id;
+  return message;
+}
+
+export function taskUpdateJobBelongsToActiveTurn(
+  job: PendingTaskUpdateJobFrame,
+  activeChatId: string,
+  taskEvents: TaskEventFrame[],
+): boolean {
+  void activeChatId;
+  return taskEvents.some((event) => event.task_update_job_id === job.job_id);
+}
+
+export function messageExplicitlyRequestsTasksAppSkill(message: string): boolean {
+  return /@skill:tasks:(create|search)\b/i.test(message)
+    || /@tasks-(create|search)\b/i.test(message);
+}
+
+function isStaleTaskUpdateJobError(error: unknown): boolean {
+  if (!(error instanceof WebSocketProtocolError)) return false;
+  return error.message.includes("Task update job already committed")
+    || error.message.includes("Task update job expired")
+    || error.message.includes("Task update job not found")
+    || error.message.includes("Task update job is leased by another device");
+}
+
+export function buildTaskUpdateJobPersistPayload(params: {
+  jobId: string;
+  leaseToken: string;
+  leaseGeneration: number;
+  expectedTaskVersion: number;
+  encryptedTaskPayload: Record<string, unknown>;
+  encryptedTaskEventMessage?: string | null;
+}): {
+  protocol_version: 1;
+  job_id: string;
+  lease_token?: string | null;
+  lease_generation?: number | null;
+  expected_task_version: number;
+  encrypted_task_payload: Record<string, unknown>;
+  encrypted_task_event_message?: string | null;
+} {
+  const encryptedTaskPayload = pruneAbsentTaskPersistFields(params.encryptedTaskPayload);
+  assertTaskPersistPayloadEncrypted(encryptedTaskPayload);
+  return {
+    protocol_version: 1,
+    job_id: params.jobId,
+    lease_token: params.leaseToken,
+    lease_generation: params.leaseGeneration,
+    expected_task_version: params.expectedTaskVersion,
+    encrypted_task_payload: encryptedTaskPayload,
+    encrypted_task_event_message: params.encryptedTaskEventMessage ?? null,
+  };
+}
+
+function pruneAbsentTaskPersistFields(payload: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== undefined && value !== null),
+  );
+}
+
+function formatTaskEventSystemContent(event: TaskEventFrame): string {
+  const taskLabel = event.short_id || event.task_id;
+  const title = event.title ? ` "${event.title}"` : "";
+  const status = event.status ? ` (${event.status})` : "";
+  const reason = event.reason ? `: ${event.reason}` : "";
+  switch (event.event_type) {
+    case "started":
+      return `Task queue continuation: ${taskLabel} started${title}${status}`;
+    case "continuing":
+      return `Task queue continuation: continuing ${taskLabel}${title}${status}`;
+    case "created":
+      return `${taskLabel} created${title}${status}`;
+    case "updated":
+      return `${taskLabel} updated${title}${status}`;
+    case "blocked":
+      return `${taskLabel} blocked${reason}`;
+    case "completed":
+      return `${taskLabel} completed${title}`;
+    case "unblocked":
+      return `${taskLabel} unblocked`;
+    default:
+      return `${taskLabel} ${event.event_type}${title}${status}${reason}`;
+  }
+}
+
+function assertTaskPersistPayloadEncrypted(payload: Record<string, unknown>): void {
+  const allowedSafeKeys = new Set([
+    "assignee_hash",
+    "assignee_type",
+    "blocked_reason_code",
+    "created_at",
+    "due_at",
+    "ai_execution_state",
+    "key_wrappers",
+    "label_hashes",
+    "linked_project_ids",
+    "parent_task_id",
+    "plan_id",
+    "plan_step_id",
+    "position",
+    "primary_chat_id",
+    "priority",
+    "queue_state",
+    "status",
+    "task_id",
+    "task_type",
+    "updated_at",
+    "verification_id",
+    "version",
+  ]);
+  for (const key of Object.keys(payload)) {
+    if (key.startsWith("encrypted_") || allowedSafeKeys.has(key)) {
+      continue;
+    }
+    throw new Error("Task update job payload contains plaintext or unsupported field");
+  }
+}
+
+interface TaskUpdateJobClaimPayload {
+  job_id: string;
+  task_id: string;
+  chat_id?: string | null;
+  source_task_chat_id?: string | null;
+  message_id?: string | null;
+  operation?: string | null;
+  state?: string | null;
+  lease_token: string;
+  lease_generation: number;
+  expected_task_version: number;
+  private_patch?: Record<string, unknown>;
+  safe_metadata?: Record<string, unknown>;
 }
 
 export async function buildSubChatEncryptedMetadataPayloads(params: {
@@ -920,6 +1811,16 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     entryType: "list",
     required: ["name"],
     properties: { name: { type: "string" }, description: { type: "string" } },
+  },
+  "ideabucket/processing_settings": {
+    appId: "ideabucket",
+    itemType: "processing_settings",
+    entryType: "single",
+    required: ["processing_prompt", "processing_times"],
+    properties: {
+      processing_prompt: { type: "string" },
+      processing_times: { type: "string" },
+    },
   },
   "events/saved_events": {
     appId: "events",
@@ -1222,6 +2123,92 @@ export interface ChatListPage {
   hasMore: boolean;
 }
 
+export interface EncryptedDraft {
+  chatId: string;
+  encryptedDraftMd: string;
+  encryptedDraftPreview: string | null;
+  draftV: number;
+}
+
+export interface DecryptedDraft extends EncryptedDraft {
+  markdown: string;
+  preview: string | null;
+}
+
+interface SdkDraftResponse {
+  draft?: {
+    chat_id?: string;
+    encrypted_draft_md?: string | null;
+    encrypted_draft_preview?: string | null;
+    draft_v?: number | null;
+  } | null;
+}
+
+export interface IdeaBucketAddResult {
+  chatId: string;
+  bucketId: string;
+  processingWindowId: string;
+  scheduledSendAt: number;
+  draftV: number;
+  processingPayloadSynced: boolean;
+  payloadHash: string;
+  markdown: string;
+  preview: string;
+}
+
+export interface IdeaBucketSettingsInput {
+  processingPrompt?: string;
+  processingTimes?: string[] | string;
+}
+
+export interface IdeaBucketSettings {
+  processingPrompt: string;
+  processingTimes: string[];
+  entryId?: string;
+  itemVersion?: number;
+  source: "account" | "default";
+}
+
+export interface IdeaBucketStatusResult {
+  processingWindowId?: string;
+  status: string;
+  buckets?: Array<Record<string, unknown>>;
+  [key: string]: unknown;
+}
+
+export interface IdeaBucketProcessResult {
+  processingWindowId: string;
+  status: string;
+  chatId?: string;
+  userMessageId?: string;
+  systemEventId?: string;
+  aiTaskId?: string | null;
+  errorCode?: string;
+}
+
+export const IDEABUCKET_DEFAULT_PROCESSING_PROMPT = `These are my captured ideas for today. Please process them, group related thoughts, suggest next actions, and ask clarifying questions where needed:\n\nIf an idea requires deeper work, create or suggest sub-chats for focused research, planning, todos, docs, or implementation.`;
+
+export interface AuthoritativeChatReconciliation {
+  authoritative: boolean;
+  authoritative_chat_ids?: string[];
+  deleted_chat_ids?: string[];
+}
+
+export function reconcileAuthoritativeChats(
+  chats: CachedChat[],
+  evidence: AuthoritativeChatReconciliation,
+): CachedChat[] {
+  const deletedIds = new Set(evidence.deleted_chat_ids ?? []);
+  const authoritativeIds = evidence.authoritative && evidence.authoritative_chat_ids
+    ? new Set(evidence.authoritative_chat_ids)
+    : null;
+  if (!authoritativeIds && deletedIds.size === 0) return chats;
+  return chats.filter((chat) => {
+    const chatId = String(chat.details.id ?? "");
+    return (!authoritativeIds || authoritativeIds.has(chatId)) && !deletedIds.has(chatId);
+  });
+}
+
 export interface BenchmarkMetadata {
   source: "benchmark";
   benchmark_run_id: string;
@@ -1252,6 +2239,67 @@ export interface DecryptedMessage {
   modelName: string | null;
   createdAt: number;
   embedIds: string[];
+}
+
+export interface ChatMessageSummary extends DecryptedMessage {
+  preview: string;
+}
+
+export type ChatMessageWindowDirection = "latest" | "before" | "after" | "around";
+
+export interface ChatMessageWindowCursor {
+  created_at: number;
+  message_id: string;
+}
+
+interface RawChatMessageWindowResponse {
+  messages?: Array<string | Record<string, unknown>>;
+  has_more_before?: boolean;
+  start_cursor?: ChatMessageWindowCursor | null;
+}
+
+export interface ChatMessageWindowOptions extends TeamContextOptions {
+  direction?: ChatMessageWindowDirection;
+  limit?: number;
+  beforeTimestamp?: number;
+  beforeMessageId?: string;
+  afterTimestamp?: number;
+  afterMessageId?: string;
+  anchorMessageId?: string;
+  respectCompressionBoundary?: boolean;
+}
+
+export interface ChatMessageWindowResult {
+  chat: ChatListItem;
+  messages: DecryptedMessage[];
+  hasMoreBefore: boolean;
+  hasMoreAfter: boolean;
+  startCursor: ChatMessageWindowCursor | null;
+  endCursor: ChatMessageWindowCursor | null;
+  anchorFound: boolean;
+  serverMessageCount: number | null;
+}
+
+export interface ChatForkResult {
+  success: boolean;
+  source_chat_id: string;
+  chat_id: string;
+  copied_message_count: number;
+  messages_v: number;
+}
+
+export interface ChatRewindResult {
+  success: boolean;
+  dry_run: boolean;
+  chat_id: string;
+  to_message_id: string;
+  deleted_message_ids?: string[];
+  deleted_message_count?: number;
+  planned_deleted_message_ids?: string[];
+  planned_deleted_message_count?: number;
+  messages_v: number;
+  resulting_messages_v?: number;
+  response?: Awaited<ReturnType<OpenMatesClient["sendMessage"]>>;
 }
 
 /** Decrypted embed summary for display */
@@ -1297,6 +2345,45 @@ export interface EmbedVersionRestoreResponse {
   version_number: number;
   content: string;
   content_hash: string;
+}
+
+export interface ApplicationPreviewStartParams {
+  embedId: string;
+  chatId: string;
+  sharedContext?: string;
+  requestedRuntime?: string;
+  sourceMessageId?: string;
+}
+
+export interface ApplicationPreviewStartResponse {
+  session_id: string;
+  preview_url: string;
+  status: string;
+  credits_per_minute: number;
+}
+
+export interface ApplicationPreviewEvent {
+  kind: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface ApplicationPreviewStatusResponse {
+  session_id: string;
+  status: string;
+  events: ApplicationPreviewEvent[];
+  error?: string | null;
+  charged_credits?: number | null;
+  latest_screenshot_url?: string | null;
+  latest_screenshot?: Record<string, unknown> | null;
+  auto_started: boolean;
+  auto_opened_at?: number | null;
+}
+
+export interface ApplicationPreviewStopResponse {
+  session_id: string;
+  status: string;
+  charged_credits?: number | null;
 }
 
 /** Video metadata attached to a daily inspiration. */
@@ -1409,6 +2496,13 @@ export interface InvoiceListItem {
   document_status?: string | null;
 }
 
+export interface UsageOverviewOptions {
+  granularity?: "daily" | "weekly" | "monthly";
+  days?: number;
+  weeks?: number;
+  months?: number;
+}
+
 export interface DownloadedDocument {
   filename: string;
   data: Uint8Array;
@@ -1457,6 +2551,25 @@ export interface CreatedApiKeyResult {
   api_key: string;
   key: unknown;
   crypto: ApiKeyCryptoMaterial;
+}
+
+export interface ApiKeyRecord {
+  id: string;
+  name: string;
+  key_prefix: string;
+  created_at?: string | null;
+  expires_at?: string | null;
+  last_used_at?: string | null;
+  full_access?: boolean;
+  scopes?: Record<string, unknown>;
+  credit_limit?: Record<string, unknown> | null;
+  pending_device_count?: number;
+  encrypted_name?: string | null;
+  encrypted_key_prefix?: string | null;
+}
+
+export interface ApiKeyListResult {
+  api_keys: ApiKeyRecord[];
 }
 
 export interface AuthMethodsStatus {
@@ -1508,7 +2621,8 @@ const CLOUD_API_URL = "https://api.openmates.org";
 const DEFAULT_API_URL = process.env.OPENMATES_API_URL ?? CLOUD_API_URL;
 const SETTINGS_GET_RATE_LIMIT_RETRY_MS = 61_000;
 const SKILL_TASK_POLL_INTERVAL_MS = 2_000;
-const SKILL_TASK_POLL_TIMEOUT_MS = 300_000;
+const SKILL_TASK_POLL_TIMEOUT_MS = 1_200_000;
+const SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS = 500;
 
 function normalizeOrigin(url: URL): string {
   url.pathname = "";
@@ -1747,6 +2861,523 @@ export class OpenMatesClient {
     return this.session !== null;
   }
 
+  getActiveTeamId(): string | null {
+    return this.session?.activeTeamId ?? null;
+  }
+
+  setActiveTeamId(teamId: string | null): void {
+    const session = this.requireSession();
+    this.session = { ...session, activeTeamId: teamId };
+    saveSession(this.session);
+  }
+
+  resolveTeamContext(options: TeamContextOptions = {}): string | null {
+    if (options.personal) return null;
+    if (options.teamId !== undefined) return options.teamId;
+    return this.getActiveTeamId();
+  }
+
+  async startAccountExport(options: AccountExportStartOptions = {}): Promise<AccountExportResponse> {
+    this.requireSession();
+    const response = await this.http.post<AccountExportResponse>("/v1/account-exports", {
+      domains: options.domains,
+      filters: options.filters ?? {},
+      format: options.format ?? "zip",
+      include_advanced_metadata: options.includeAdvancedMetadata === true,
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account export start failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getAccountExport(exportId: string): Promise<AccountExportResponse> {
+    this.requireSession();
+    const response = await this.http.get<AccountExportResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account export status failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getAccountExportManifest(exportId: string): Promise<AccountExportManifestResponse> {
+    this.requireSession();
+    const response = await this.http.get<AccountExportManifestResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/manifest`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account export manifest failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async listAccountExportChunks(exportId: string): Promise<AccountExportChunksResponse> {
+    this.requireSession();
+    const response = await this.http.get<AccountExportChunksResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/chunks`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account export chunk list failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getAccountExportChunk(exportId: string, chunkId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.get<{ chunk?: Record<string, unknown> }>(`/v1/account-exports/${encodeURIComponent(exportId)}/chunks/${encodeURIComponent(chunkId)}`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.chunk) throw new Error(`Account export chunk download failed with HTTP ${response.status}`);
+    return response.data.chunk;
+  }
+
+  async completeAccountExport(exportId: string): Promise<AccountExportResponse> {
+    this.requireSession();
+    const response = await this.http.post<AccountExportResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/complete`, {}, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account export complete failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async acceptPartialAccountExport(exportId: string): Promise<AccountExportResponse> {
+    this.requireSession();
+    const response = await this.http.post<AccountExportResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/accept-partial`, {}, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account export accept partial failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async cancelAccountExport(exportId: string): Promise<AccountExportResponse> {
+    this.requireSession();
+    const response = await this.http.post<AccountExportResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/cancel`, {}, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account export cancel failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async previewAccountImport(request: AccountImportPreviewRequest): Promise<AccountImportPreviewResponse> {
+    this.requireSession();
+    const response = await this.http.post<AccountImportPreviewResponse>("/v1/account-imports/preview", {
+      source: request.source,
+      ...(request.parserFormat ? { parser_format: request.parserFormat } : {}),
+      chat_count: request.chatCount,
+      source_fingerprints: request.sourceFingerprints,
+      estimated_tokens: request.estimatedTokens ?? 0,
+      estimated_tokens_by_chat: request.estimatedTokensByChat ?? [],
+      estimated_bytes: request.estimatedBytes ?? 0,
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account import preview failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async confirmAccountImport(importId: string, selectedFingerprints: string[]): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/confirm`, {
+      selected_fingerprints: selectedFingerprints,
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account import confirmation failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async scanAccountImport(importId: string, batch: AccountImportScanRequest): Promise<AccountImportScanResponse> {
+    this.requireSession();
+    const response = await this.http.post<AccountImportScanResponse>(`/v1/account-imports/${encodeURIComponent(importId)}/scan`, {
+      batch_id: batch.batchId,
+      sequence: batch.sequence,
+      final_batch: batch.finalBatch,
+      chats: batch.chats,
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account import scan failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getAccountImportStatus(importId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.get<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/status`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account import status failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async compressAccountImport(importId: string, batch: AccountImportCompressRequest): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/compress`, {
+      batch_id: batch.batchId,
+      sequence: batch.sequence,
+      final_batch: batch.finalBatch,
+      scan_sequence: batch.scanSequence,
+      source_fingerprint: batch.sourceFingerprint,
+      sanitized_messages: batch.sanitizedMessages,
+      ...(batch.priorSummary !== undefined ? { prior_summary: batch.priorSummary } : {}),
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account import compression failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async completeAccountImport(importId: string, request: AccountImportCompleteRequest): Promise<AccountImportCompleteResponse> {
+    this.requireSession();
+    const response = await this.http.post<AccountImportCompleteResponse>(`/v1/account-imports/${encodeURIComponent(importId)}/complete`, {
+      imported_chat_ids: request.importedChatIds,
+      source_fingerprints: request.sourceFingerprints,
+      encrypted_record_counts: request.encryptedRecordCounts,
+      client_failures: request.clientFailures ?? [],
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account import complete failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async persistEncryptedAccountImport(importId: string, chats: ParsedImportChat[]): Promise<AccountImportEncryptedPersistResponse> {
+    this.requireSession();
+    const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(null, masterKey);
+    const encryptedChats = [];
+    for (const chat of chats) {
+      const chatId = randomUUID();
+      const chatKey = new Uint8Array(randomBytes(32));
+      const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, wrappingKey);
+      const createdAt = Math.floor((chat.created_at ? Date.parse(chat.created_at) : Date.now()) / 1000);
+      const updatedAt = Math.floor((chat.updated_at ? Date.parse(chat.updated_at) : Date.now()) / 1000);
+      const messages = [];
+      let previousUserMessageId: string | null = null;
+      for (const message of chat.messages) {
+        const messageId = randomUUID();
+        const identity = message.role === "assistant" ? message.imported_assistant_identity : null;
+        const isCompressionSummary = message.provider_metadata?.import_type === COMPRESSION_SUMMARY_CATEGORY;
+        messages.push({
+          message_id: messageId,
+          role: message.role,
+          encrypted_content: await encryptWithAesGcmCombined(message.content, chatKey),
+          encrypted_sender_name: await encryptWithAesGcmCombined(identity?.sender_name ?? (message.role === "assistant" ? "AI assistant" : message.role === "system" ? "System" : "User"), chatKey),
+          ...(identity ? {
+            encrypted_category: await encryptWithAesGcmCombined(identity.category, chatKey),
+            encrypted_model_name: await encryptWithAesGcmCombined(identity.model_name, chatKey),
+          } : isCompressionSummary ? {
+            encrypted_category: await encryptWithAesGcmCombined(COMPRESSION_SUMMARY_CATEGORY, chatKey),
+            encrypted_model_name: await encryptWithAesGcmCombined(chat.selected_source ?? "other", chatKey),
+          } : {}),
+          created_at: Math.floor((message.created_at ? Date.parse(message.created_at) : Date.now()) / 1000),
+          updated_at: Math.floor(Date.now() / 1000),
+          ...(message.role === "assistant" && previousUserMessageId ? { user_message_id: previousUserMessageId } : {}),
+        });
+        if (message.role === "user") previousUserMessageId = messageId;
+      }
+      encryptedChats.push({
+        chat_id: chatId,
+        encrypted_title: await encryptWithAesGcmCombined(chat.title || "Imported chat", chatKey),
+        encrypted_chat_key: encryptedChatKey,
+        created_at: Number.isFinite(createdAt) ? createdAt : Math.floor(Date.now() / 1000),
+        updated_at: Number.isFinite(updatedAt) ? updatedAt : Math.floor(Date.now() / 1000),
+        source_fingerprint: chat.source_fingerprint,
+        messages,
+      });
+    }
+    const response = await this.http.post<AccountImportEncryptedPersistResponse>(`/v1/account-imports/${encodeURIComponent(importId)}/persist-encrypted`, {
+      chats: encryptedChats,
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account import encrypted persistence failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  private appendTeamQuery(path: string, options: TeamContextOptions = {}): string {
+    const teamId = this.resolveTeamContext(options);
+    if (!teamId) return path;
+    const separator = path.includes("?") ? "&" : "?";
+    return `${path}${separator}team_id=${encodeURIComponent(teamId)}`;
+  }
+
+  async listTeams(): Promise<TeamRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ teams?: TeamRecord[] }>("/v1/teams", this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team list failed with HTTP ${response.status}`);
+    const teams = response.data.teams ?? [];
+    await Promise.all(teams.map((team) => this.cacheTeamKeyFromRecord(team)));
+    const teamIds = teams.map((team) => team.team_id).filter((teamId): teamId is string => typeof teamId === "string" && teamId.length > 0);
+    pruneLocalTeamArtifacts(this.requireSession().hashedEmail, teamIds);
+    if (this.session?.activeTeamId && !teamIds.includes(this.session.activeTeamId)) {
+      this.setActiveTeamId(null);
+    }
+    return teams;
+  }
+
+  async createTeam(input: TeamCreateInput): Promise<TeamRecord> {
+    this.requireSession();
+    const now = Math.floor(Date.now() / 1000);
+    const teamKeyBytes = randomBytes(32);
+    const teamId = input.teamId ?? randomUUID();
+    const payload: Record<string, unknown> = {
+      team_id: teamId,
+      slug: input.slug ?? undefined,
+      encrypted_name: input.encryptedName ?? await encryptWithAesGcmCombined(input.name ?? "Untitled team", teamKeyBytes),
+      encrypted_description: input.encryptedDescription ?? (input.description ? await encryptWithAesGcmCombined(input.description, teamKeyBytes) : undefined),
+      encrypted_team_key: input.encryptedTeamKey ?? await encryptBytesWithAesGcm(teamKeyBytes, this.getMasterKeyBytes()),
+      encrypted_zero_balance: input.encryptedZeroBalance ?? await encryptWithAesGcmCombined("0", teamKeyBytes),
+      created_at: input.createdAt ?? now,
+      updated_at: input.createdAt ?? now,
+    };
+    const response = await this.http.post<{ team?: TeamRecord }>("/v1/teams", payload, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.team) throw new Error(`Team create failed with HTTP ${response.status}`);
+    if (!input.encryptedTeamKey) {
+      saveLocalTeamKey(this.requireSession().hashedEmail, teamId, bytesToBase64(teamKeyBytes));
+    }
+    return response.data.team;
+  }
+
+  async getTeam(teamId: string): Promise<TeamRecord> {
+    this.requireSession();
+    const response = await this.http.get<{ team?: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.team) throw new Error(`Team get failed with HTTP ${response.status}`);
+    await this.cacheTeamKeyFromRecord(response.data.team);
+    return response.data.team;
+  }
+
+  private async cacheTeamKeyFromRecord(team: TeamRecord): Promise<void> {
+    const session = this.requireSession();
+    const teamId = typeof team.team_id === "string" ? team.team_id : null;
+    const encryptedTeamKey = typeof team.encrypted_team_key === "string" ? team.encrypted_team_key : null;
+    if (!teamId || !encryptedTeamKey || loadLocalTeamKey(session.hashedEmail, teamId)) return;
+    const teamKey = await decryptBytesWithAesGcm(encryptedTeamKey, this.getMasterKeyBytes());
+    if (teamKey) saveLocalTeamKey(session.hashedEmail, teamId, bytesToBase64(teamKey));
+  }
+
+  async updateTeam(teamId: string, input: Record<string, unknown>): Promise<TeamRecord> {
+    this.requireSession();
+    const payload: Record<string, unknown> = {
+      updated_at: input.updated_at ?? Math.floor(Date.now() / 1000),
+      ...input,
+    };
+    const teamKey = typeof input.name === "string" || typeof input.description === "string"
+      ? await this.loadTeamKeyBytes(teamId)
+      : null;
+    if (typeof input.name === "string") {
+      if (!teamKey) throw new Error("Unable to load local team key for encrypted team update.");
+      payload.encrypted_name = await encryptWithAesGcmCombined(input.name, teamKey);
+      delete payload.name;
+    }
+    if (typeof input.description === "string") {
+      if (!teamKey) throw new Error("Unable to load local team key for encrypted team update.");
+      payload.encrypted_description = await encryptWithAesGcmCombined(input.description, teamKey);
+      delete payload.description;
+    }
+    const response = await this.http.patch<{ team?: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`, {
+      ...payload,
+    }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.team) throw new Error(`Team update failed with HTTP ${response.status}`);
+    return response.data.team;
+  }
+
+  async deleteTeam(teamId: string): Promise<{ success: boolean }> {
+    this.requireSession();
+    const response = await this.http.delete<{ success?: boolean }>(`/v1/teams/${encodeURIComponent(teamId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team delete failed with HTTP ${response.status}`);
+    return { success: response.data.success === true };
+  }
+
+  private async loadTeamKeyBytes(teamId: string): Promise<Uint8Array | null> {
+    const session = this.requireSession();
+    const localTeamKey = loadLocalTeamKey(session.hashedEmail, teamId);
+    if (localTeamKey) return base64ToBytes(localTeamKey);
+    const team = await this.getTeam(teamId);
+    const encryptedTeamKey = typeof team.encrypted_team_key === "string" ? team.encrypted_team_key : null;
+    if (!encryptedTeamKey) return null;
+    const teamKey = await decryptBytesWithAesGcm(encryptedTeamKey, this.getMasterKeyBytes());
+    if (!teamKey) return null;
+    saveLocalTeamKey(session.hashedEmail, teamId, bytesToBase64(teamKey));
+    return teamKey;
+  }
+
+  async createTeamInvite(teamId: string, input: TeamInviteCreateInput): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const inviteId = typeof input.invite_id === "string" ? input.invite_id : randomUUID();
+    const payload: Record<string, unknown> = {
+      invite_id: inviteId,
+      created_at: input.created_at ?? Math.floor(Date.now() / 1000),
+      ...input,
+    };
+    const recipientEmail = typeof input.recipient_email === "string" ? input.recipient_email.trim().toLowerCase() : null;
+    const explicitInviteSecret = typeof input.invite_secret === "string" ? input.invite_secret : null;
+    const cachedTeamKey = loadLocalTeamKey(this.requireSession().hashedEmail, teamId);
+    const inviteSecret = explicitInviteSecret ?? (recipientEmail && cachedTeamKey ? bytesToBase64Url(randomBytes(32)) : null);
+    if (recipientEmail && inviteSecret) {
+      const teamKey = cachedTeamKey ? base64ToBytes(cachedTeamKey) : await this.loadTeamKeyBytes(teamId);
+      if (!teamKey && explicitInviteSecret) throw new Error("Unable to load local team key for encrypted invite.");
+      if (teamKey) {
+        const origin = deriveAppUrl(this.apiUrl);
+        const inviteKey = await deriveTeamInviteKey({ recipientEmail, inviteSecret, inviteId, teamId, origin });
+        payload.encrypted_invite_team_key = await encryptBytesWithAesGcm(teamKey, inviteKey);
+        payload.invite_key_kdf_context = {
+          v: 1,
+          kdf: "HKDF-SHA256",
+          cipher: "AES-256-GCM",
+          team_id: teamId,
+          invite_id: inviteId,
+          origin,
+        };
+      }
+    }
+    const response = await this.http.post<{ invite?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/invites`, {
+      ...payload,
+      invite_secret: undefined,
+    }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.invite) throw new Error(`Team invite create failed with HTTP ${response.status}`);
+    return inviteSecret ? { ...response.data.invite, invite_secret: inviteSecret, invite_url: `${deriveAppUrl(this.apiUrl)}/teams/invites/${inviteId}#key=${inviteSecret}` } : response.data.invite;
+  }
+
+  async getTeamInvite(inviteId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.get<{ invite?: Record<string, unknown> }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.invite) throw new Error(`Team invite get failed with HTTP ${response.status}`);
+    return response.data.invite;
+  }
+
+  async acceptTeamInvite(inviteId: string, input: TeamInviteAcceptInput = {}): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const payload: Record<string, unknown> = { accepted_at: Math.floor(Date.now() / 1000) };
+    if (input.inviteSecret) {
+      const invite = await this.getTeamInvite(inviteId);
+      const context = invite.invite_key_kdf_context as Record<string, unknown> | undefined;
+      const teamId = typeof context?.team_id === "string" ? context.team_id : null;
+      const origin = typeof context?.origin === "string" ? context.origin : deriveAppUrl(this.apiUrl);
+      const encryptedInviteTeamKey = typeof invite.encrypted_invite_team_key === "string" ? invite.encrypted_invite_team_key : null;
+      if (!teamId || !encryptedInviteTeamKey) throw new Error("Team invite is missing encrypted key material.");
+      if (!input.recipientEmail) throw new Error("Accepting an encrypted team invite requires --email <recipient-email>.");
+      const recipientEmail = input.recipientEmail;
+      const inviteKey = await deriveTeamInviteKey({ recipientEmail, inviteSecret: input.inviteSecret, inviteId, teamId, origin });
+      const teamKey = await decryptBytesWithAesGcm(encryptedInviteTeamKey, inviteKey);
+      if (!teamKey) throw new Error("Unable to decrypt team invite key.");
+      payload.encrypted_team_key = await encryptBytesWithAesGcm(teamKey, this.getMasterKeyBytes());
+      saveLocalTeamKey(this.requireSession().hashedEmail, teamId, bytesToBase64(teamKey));
+    }
+    const response = await this.http.post<{ access_request?: Record<string, unknown>; membership?: Record<string, unknown>; status?: string; status_label?: string }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/accept`, payload, this.getCliRequestHeaders());
+    if (!response.ok || (!response.data.access_request && !response.data.membership)) throw new Error(`Team invite accept failed with HTTP ${response.status}`);
+    return { access_request: response.data.access_request, membership: response.data.membership, status: response.data.status, status_label: response.data.status_label };
+  }
+
+  async declineTeamInvite(inviteId: string): Promise<{ success: boolean }> {
+    this.requireSession();
+    const response = await this.http.post<{ success?: boolean }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/decline`, { declined_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team invite decline failed with HTTP ${response.status}`);
+    return { success: response.data.success === true };
+  }
+
+  async listTeamAccessRequests(teamId: string, status?: string | null): Promise<Record<string, unknown>[]> {
+    this.requireSession();
+    const query = status && status !== "all" ? `?status=${encodeURIComponent(status)}` : status === "all" ? "?status=" : "";
+    const response = await this.http.get<{ access_requests?: Record<string, unknown>[] }>(`/v1/teams/${encodeURIComponent(teamId)}/access-requests${query}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team access requests failed with HTTP ${response.status}`);
+    return response.data.access_requests ?? [];
+  }
+
+  async approveTeamAccessRequest(teamId: string, accessRequestId: string, encryptedTeamKey?: string | null): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<{ membership?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/access-requests/${encodeURIComponent(accessRequestId)}/approve`, { ...(encryptedTeamKey ? { encrypted_team_key: encryptedTeamKey } : {}), approved_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.membership) throw new Error(`Team access approval failed with HTTP ${response.status}`);
+    return response.data.membership;
+  }
+
+  async rejectTeamAccessRequest(teamId: string, accessRequestId: string): Promise<{ success: boolean }> {
+    this.requireSession();
+    const response = await this.http.post<{ success?: boolean }>(`/v1/teams/${encodeURIComponent(teamId)}/access-requests/${encodeURIComponent(accessRequestId)}/reject`, { rejected_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team access rejection failed with HTTP ${response.status}`);
+    return { success: response.data.success === true };
+  }
+
+  async exportTeamData(teamId: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(`/v1/teams/${encodeURIComponent(teamId)}/export`, {
+      export_id: input.export_id,
+      created_at: input.created_at ?? Math.floor(Date.now() / 1000),
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team export failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getTeamExport(teamId: string, exportId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.get<Record<string, unknown>>(`/v1/teams/${encodeURIComponent(teamId)}/export/${encodeURIComponent(exportId)}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team export download failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async importTeamData(destinationTeamId: string, artifact: Record<string, unknown>): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>("/v1/teams/import", {
+      destination_team_id: destinationTeamId,
+      artifact,
+      imported_at: Math.floor(Date.now() / 1000),
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team import failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async updateTeamMemberRole(teamId: string, memberUserId: string, role: Exclude<TeamRole, "owner">): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.patch<{ membership?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(memberUserId)}`, { role, updated_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.membership) throw new Error(`Team member update failed with HTTP ${response.status}`);
+    return response.data.membership;
+  }
+
+  async removeTeamMember(teamId: string, memberUserId: string): Promise<{ success: boolean }> {
+    this.requireSession();
+    const response = await this.http.post<{ success?: boolean }>(`/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(memberUserId)}/remove`, { removed_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team member remove failed with HTTP ${response.status}`);
+    return { success: response.data.success === true };
+  }
+
+  async getTeamBilling(teamId: string): Promise<TeamBillingSummary> {
+    this.requireSession();
+    const response = await this.http.get<{ billing?: TeamBillingSummary }>(`/v1/teams/${encodeURIComponent(teamId)}/billing`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.billing) throw new Error(`Team billing failed with HTTP ${response.status}`);
+    return response.data.billing;
+  }
+
+  async addTeamCredits(_teamId: string, _input: { credits: number }): Promise<TeamBillingSummary> {
+    throw new Error("Direct team credit grants are disabled. Use a team bank-transfer order instead.");
+  }
+
+  async listTeamUsage(teamId: string, memberUserId?: string): Promise<Record<string, unknown>[]> {
+    this.requireSession();
+    const query = memberUserId ? `?member_user_id=${encodeURIComponent(memberUserId)}` : "";
+    const response = await this.http.get<{ usage?: Record<string, unknown>[] }>(`/v1/teams/${encodeURIComponent(teamId)}/billing/usage${query}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team usage failed with HTTP ${response.status}`);
+    return response.data.usage ?? [];
+  }
+
+  async createTeamBankTransferOrder(teamId: string, creditsAmount: number): Promise<BankTransferOrderDetails> {
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
+    const response = await this.http.post<BankTransferOrderDetails>(
+      `/v1/teams/${encodeURIComponent(teamId)}/billing/bank-transfer-orders`,
+      {
+        credits_amount: creditsAmount,
+        currency: "eur",
+        email_encryption_key: emailEncryptionKey,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Team bank transfer order failed (HTTP ${response.status})`);
+    return response.data;
+  }
+
+  async getTeamBankTransferStatus(teamId: string, orderId: string): Promise<BankTransferStatus> {
+    this.requireSession();
+    const response = await this.http.get<BankTransferStatus>(
+      `/v1/teams/${encodeURIComponent(teamId)}/billing/bank-transfer-orders/${encodeURIComponent(orderId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Failed to fetch team bank transfer status (HTTP ${response.status})`);
+    return response.data;
+  }
+
+  async listTeamBankTransferOrders(teamId: string): Promise<BankTransferStatus[]> {
+    this.requireSession();
+    const response = await this.http.get<{ orders?: BankTransferStatus[] }>(
+      `/v1/teams/${encodeURIComponent(teamId)}/billing/bank-transfer-orders`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Failed to fetch team bank transfer orders (HTTP ${response.status})`);
+    return response.data.orders ?? [];
+  }
+
+  async moveWorkspaceToTeam(workspaceType: WorkspaceMoveType, objectId: string, teamId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const routeByType: Record<WorkspaceMoveType, string> = {
+      chat: `/v1/chats/${encodeURIComponent(objectId)}/move`,
+      project: `/v1/projects/${encodeURIComponent(objectId)}/move`,
+      task: `/v1/user-tasks/${encodeURIComponent(objectId)}/move`,
+      plan: `/v1/user-plans/${encodeURIComponent(objectId)}/move`,
+      workflow: `/v1/workflows/${encodeURIComponent(objectId)}/move`,
+    };
+    const response = await this.http.post<Record<string, unknown>>(
+      routeByType[workspaceType],
+      { team_id: teamId, confirmed: true, moved_at: Math.floor(Date.now() / 1000) },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`${workspaceType} move failed with HTTP ${response.status}`);
+    return { success: true, ...response.data };
+  }
+
   async getAnonymousFreeUsageStatus(): Promise<AnonymousFreeUsageStatus> {
     const response = await this.http.get<{
       active?: boolean;
@@ -1796,6 +3427,8 @@ export class OpenMatesClient {
     modelName: string | null;
     mateName: string | null;
     followUpSuggestions: string[];
+    taskProposals: TaskProposalEvent[];
+    taskUpdateProposals: TaskUpdateProposalEvent[];
     subChatEvents: SubChatEvent[];
     appSettingsMemoryRequests: Array<{
       requestId: string | null;
@@ -1803,6 +3436,10 @@ export class OpenMatesClient {
       approvedKeys: string[];
       entryCount: number;
     }>;
+    /** Final-frame token usage surfaced by the backend when provider usage metadata is available. */
+    tokenUsage: AiResponseTokenUsage | null;
+    /** Prompt-budget metrics surfaced by the backend when available. */
+    promptBudget: AiResponsePromptBudget | null;
   }> {
     const availability = await this.getAnonymousFreeUsageStatus();
     if (!availability.active) {
@@ -1864,8 +3501,12 @@ export class OpenMatesClient {
       modelName: response.data.modelName ?? null,
       mateName: null,
       followUpSuggestions: response.data.followUpSuggestions ?? [],
+      taskProposals: [],
+      taskUpdateProposals: [],
       subChatEvents: [],
       appSettingsMemoryRequests: [],
+      tokenUsage: null,
+      promptBudget: null,
     };
   }
 
@@ -1873,12 +3514,14 @@ export class OpenMatesClient {
     chatId: string;
     messageId: string;
     refs: ConnectedAccountTurnTokenRefInput[];
+    teamId?: string | null;
   }): Promise<ConnectedAccountTurnTokenRef[]> {
     if (params.refs.length === 0) return [];
     const response = await this.http.post<{
       refs?: Array<{
         connected_account_id: string;
         app_id: string;
+        provider_id?: string;
         turn_token_ref: string;
         expires_at: number;
       }>;
@@ -1897,6 +3540,7 @@ export class OpenMatesClient {
       return {
         connected_account_id: ref.connected_account_id,
         app_id: ref.app_id,
+        provider_id: ref.provider_id ?? input?.provider_id,
         turn_token_ref: ref.turn_token_ref,
         expires_at: ref.expires_at,
         allowed_actions: input?.allowed_actions ?? [],
@@ -1905,13 +3549,127 @@ export class OpenMatesClient {
     });
   }
 
+  async listConnectedAccounts(): Promise<Array<Record<string, unknown>>> {
+    this.requireSession();
+    const response = await this.http.get<{ rows?: Array<Record<string, unknown>> }>(
+      "/v1/connected-accounts",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !Array.isArray(response.data.rows)) {
+      throw new Error(`Failed to list connected accounts (HTTP ${response.status})`);
+    }
+    return response.data.rows;
+  }
+
+  async decryptConnectedAccountForSkill(params: {
+    accountId?: string;
+    appId: string;
+    providerId: string;
+  }): Promise<DecryptedConnectedAccountForSkill> {
+    const rows = await this.listConnectedAccounts();
+    const masterKey = this.getMasterKeyBytes();
+    const candidates: DecryptedConnectedAccountForSkill[] = [];
+    for (const row of rows) {
+      const id = String(row.id ?? "");
+      if (params.accountId && id !== params.accountId) continue;
+      const providerId = String(await decryptConnectedAccountField(row.encrypted_provider_type, masterKey));
+      if (providerId !== params.providerId) continue;
+      const permissions = await decryptConnectedAccountField(row.encrypted_app_permissions, masterKey);
+      const appId = permissions && typeof permissions === "object" && !Array.isArray(permissions)
+        ? String((permissions as Record<string, unknown>).app_id ?? params.appId)
+        : params.appId;
+      if (appId !== params.appId) continue;
+      const label = String(await decryptConnectedAccountField(row.encrypted_account_label, masterKey) ?? providerId);
+      const capabilities = normalizeStringArray(await decryptConnectedAccountField(row.encrypted_capabilities, masterKey));
+      const directoryHint = await decryptConnectedAccountField(row.encrypted_account_directory_hint, masterKey);
+      const hint = directoryHint && typeof directoryHint === "object" && !Array.isArray(directoryHint)
+        ? directoryHint as Record<string, unknown>
+        : {};
+      const refreshTokenBundle = await decryptConnectedAccountField(row.encrypted_refresh_token_bundle, masterKey);
+      if (!refreshTokenBundle || typeof refreshTokenBundle !== "object" || Array.isArray(refreshTokenBundle)) {
+        throw new Error(`Connected account ${id} is missing encrypted refresh-token material.`);
+      }
+      candidates.push({
+        id,
+        providerId,
+        appId,
+        label,
+        accountRef: String(hint.account_ref ?? id),
+        capabilities: capabilities.length ? capabilities : ["read"],
+        runtimeModes: hint.runtime_modes && typeof hint.runtime_modes === "object" && !Array.isArray(hint.runtime_modes)
+          ? hint.runtime_modes as Record<string, string>
+          : { read: "allow_automatically" },
+        refreshTokenBundle: refreshTokenBundle as Record<string, unknown>,
+      });
+    }
+    if (candidates.length === 0) {
+      throw new Error(params.accountId
+        ? `Connected account ${params.accountId} was not found for ${params.providerId}.`
+        : `No ${params.providerId} connected account found. Run \`openmates connect-account revolut-business\` first.`);
+    }
+    if (candidates.length > 1 && !params.accountId) {
+      throw new Error(`Multiple ${params.providerId} accounts found. Re-run with --connected-account <id>.`);
+    }
+    return candidates[0];
+  }
+
+  async runConnectedAccountSkill(params: {
+    appId: string;
+    skillId: string;
+    input: Record<string, unknown>;
+    connectedAccountTokenRefInputs: ConnectedAccountTurnTokenRefInput[];
+    chatId?: string;
+    messageId?: string;
+    apiKey?: string;
+    promptInjectionProtection?: boolean;
+  }): Promise<Record<string, unknown>> {
+    const headers = this.getCliRequestHeaders();
+    if (params.apiKey) headers.Authorization = `Bearer ${params.apiKey}`;
+    const response = await this.http.post<Record<string, unknown>>(
+      `/v1/sdk/connected-account-skills/${encodeURIComponent(params.appId)}/${encodeURIComponent(params.skillId)}`,
+      {
+        input: withAppSkillPromptInjectionOption(params.input, params.promptInjectionProtection),
+        connected_account_token_ref_inputs: params.connectedAccountTokenRefInputs,
+        chat_id: params.chatId,
+        message_id: params.messageId,
+      },
+      headers,
+    );
+    if (!response.ok) {
+      const detail = (response.data as { detail?: unknown } | undefined)?.detail;
+      const errorCode = detail && typeof detail === "object" && !Array.isArray(detail)
+        ? (detail as { error?: unknown }).error
+        : undefined;
+      const suffix = typeof errorCode === "string" && errorCode
+        ? `: ${errorCode}`
+        : "";
+      throw new Error(`Connected-account skill execution failed with HTTP ${response.status}${suffix}`);
+    }
+    return response.data;
+  }
+
   async importConnectedAccountFromCliPayload(params: {
     encryptedPayload: string;
     passcode: string;
   }): Promise<ConnectedAccountImportResult> {
     this.requireSession();
     const payload = await decryptConnectedAccountCliTransferPayload(params.encryptedPayload, params.passcode);
-    const validation = await this.validateConnectedAccountImportPayload(payload);
+    return this.importConnectedAccountPayload(payload);
+  }
+
+  async importConnectedAccountPayload(
+    payload: ConnectedAccountCliTransferPayload,
+    options: { skipValidation?: boolean } = {},
+  ): Promise<ConnectedAccountImportResult> {
+    this.requireSession();
+    const validation = options.skipValidation
+      ? {
+          valid: true,
+          provider_id: payload.provider_id,
+          app_id: payload.app_id,
+          checked_at: Math.floor(Date.now() / 1000),
+        }
+      : await this.validateConnectedAccountImportPayload(payload);
     const user = await this.whoAmI();
     const userId = typeof user.id === "string"
       ? user.id
@@ -1934,6 +3692,31 @@ export class OpenMatesClient {
       label: payload.label,
       validation,
     };
+  }
+
+  async exchangeRevolutBusinessSetupCode(params: {
+    clientId: string;
+    code: string;
+    privateKeyPem: string;
+    environment: "sandbox" | "production";
+    redirectUri?: string;
+  }): Promise<RevolutBusinessSetupExchangeResult> {
+    this.requireSession();
+    const response = await this.http.post<RevolutBusinessSetupExchangeResult>(
+      "/v1/connected-accounts/setup/revolut-business/exchange-code",
+      {
+        client_id: params.clientId,
+        code: params.code,
+        private_key_pem: params.privateKeyPem,
+        environment: params.environment,
+        redirect_uri: params.redirectUri,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || response.data.provider_id !== "revolut_business") {
+      throw new Error(`Revolut Business setup exchange failed (HTTP ${response.status})`);
+    }
+    return response.data;
   }
 
   async validateConnectedAccountImportPayload(
@@ -1970,6 +3753,129 @@ export class OpenMatesClient {
       throw new Error(`Failed to store connected account import (HTTP ${response.status})`);
     }
     return response.data;
+  }
+
+  async registerLocalConnectedAccountConnector(
+    input: ProtonLocalConnectorRegistration,
+  ): Promise<{ connected_account_id: string; connector_session_id: string; heartbeat_interval_ms?: number }> {
+    assertNoConnectedAccountSecretLeak(input);
+    const user = await this.whoAmI();
+    const userId = typeof user.id === "string"
+      ? user.id
+      : typeof user.user_id === "string"
+        ? user.user_id
+        : "";
+    if (!userId) {
+      throw new Error("Could not resolve current user id for local connected-account connector.");
+    }
+    const { createHash } = await import("node:crypto");
+    const accountId = randomUUID();
+    const masterKey = this.getMasterKeyBytes();
+    const encryptLocalConnectorValue = async (value: unknown): Promise<string> => {
+      const plaintext = typeof value === "string" ? value : JSON.stringify(value);
+      return encryptWithAesGcmCombined(plaintext, masterKey);
+    };
+    const payload = {
+      id: accountId,
+      hashed_user_id: createHash("sha256").update(userId).digest("hex"),
+      encrypted_provider_type: await encryptLocalConnectorValue(input.provider_id),
+      provider_type_hash: createHash("sha256").update(input.provider_id).digest("hex"),
+      encrypted_account_label: await encryptLocalConnectorValue(input.label),
+      encrypted_capabilities: await encryptLocalConnectorValue(input.capabilities),
+      encrypted_app_permissions: await encryptLocalConnectorValue({
+        app_id: input.app_id,
+        allowed_actions: input.capabilities.includes("write") ? ["read", "write"] : ["read"],
+        runtime_modes: Object.fromEntries(input.capabilities.map((capability) => [capability, capability === "read" ? "allow_automatically" : "always_ask"])),
+      }),
+      encrypted_account_directory_hint: await encryptLocalConnectorValue({
+        label: input.label,
+        app_id: input.app_id,
+        runtime: "local_connector",
+      }),
+      execution_mode: "local_connector",
+      connector_provider_id: input.provider_id,
+      connector_instance_id: input.connector_instance_id,
+      connector_status: input.status,
+      connector_public_metadata: input.metadata,
+    };
+    assertNoConnectedAccountSecretLeak(payload);
+    const response = await this.http.post<{
+      connected_account_id?: string;
+      connector_session_id?: string;
+      heartbeat_interval_ms?: number;
+    }>(
+      "/v1/connected-accounts/local-connectors",
+      payload,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.connected_account_id || !response.data.connector_session_id) {
+      throw new Error(`Failed to register local connected-account connector (HTTP ${response.status})`);
+    }
+    assertNoConnectedAccountSecretLeak(response.data);
+    return {
+      connected_account_id: response.data.connected_account_id,
+      connector_session_id: response.data.connector_session_id,
+      heartbeat_interval_ms: response.data.heartbeat_interval_ms,
+    };
+  }
+
+  async sendLocalConnectedAccountConnectorHeartbeat(input: {
+    connector_session_id: string;
+    connected_account_id: string;
+    status: "online" | "offline";
+    capabilities: string[];
+    health_summary?: Record<string, unknown>;
+  }): Promise<Record<string, unknown>> {
+    assertNoConnectedAccountSecretLeak(input);
+    const response = await this.http.post<Record<string, unknown>>(
+      `/v1/connected-accounts/local-connectors/${encodeURIComponent(input.connector_session_id)}/heartbeat`,
+      {
+        connected_account_id: input.connected_account_id,
+        status: input.status,
+        capabilities: input.capabilities,
+        health_summary: input.health_summary ?? {},
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to send local connected-account connector heartbeat (HTTP ${response.status})`);
+    }
+    assertNoConnectedAccountSecretLeak(response.data);
+    return response.data;
+  }
+
+  async completeLocalConnectedAccountConnectorRequest(input: {
+    connector_session_id: string;
+    connected_account_id: string;
+    request_id: string;
+    status: "ok" | "error" | "cancelled";
+    result?: Record<string, unknown>;
+    error_code?: string;
+    error_message?: string;
+  }): Promise<Record<string, unknown>> {
+    assertNoConnectedAccountSecretLeak(input);
+    const response = await this.http.post<Record<string, unknown>>(
+      `/v1/connected-accounts/local-connectors/${encodeURIComponent(input.connector_session_id)}/complete-request`,
+      {
+        connected_account_id: input.connected_account_id,
+        request_id: input.request_id,
+        status: input.status,
+        result: input.result ?? {},
+        error_code: input.error_code,
+        error_message: input.error_message,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to complete local connected-account connector request (HTTP ${response.status})`);
+    }
+    assertNoConnectedAccountSecretLeak(response.data);
+    return response.data;
+  }
+
+  async openLocalConnectorWebSocket(): Promise<OpenMatesWsClient> {
+    const { ws } = await this.openWsClient();
+    return ws;
   }
 
   async cancelConnectedAccountAction(params: {
@@ -2216,7 +4122,8 @@ export class OpenMatesClient {
         .post("/v1/auth/logout", {}, this.getCliRequestHeaders())
         .catch(() => undefined);
     }
-    clearSession();
+    purgeLocalPrivateData();
+    this.session = null;
   }
 
   async requestSignupEmailCode(params: {
@@ -2353,6 +4260,19 @@ export class OpenMatesClient {
     return response.data;
   }
 
+  async verifyTotpForCurrentSession(code: string): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post(
+      "/v1/auth/2fa/verify/device",
+      { tfa_code: code },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data as { success?: boolean }).success === false) {
+      throw new Error((response.data as { message?: string }).message ?? `2FA verification failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
   async setTotpProvider(provider: string): Promise<unknown> {
     this.requireSession();
     const response = await this.http.post(
@@ -2427,20 +4347,58 @@ export class OpenMatesClient {
     return decryptBytesWithAesGcm(encryptedChatKey, masterKey);
   }
 
+  private getContextWrapperEncryptedChatKey(
+    cache: SyncCache | null,
+    chatId: string,
+    teamId: string | null = null,
+  ): string | null {
+    const hashedChatId = createHash("sha256").update(chatId).digest("hex");
+    const hashedTeamId = teamId ? createHash("sha256").update(teamId).digest("hex") : null;
+    const wrapper = (cache?.chatKeyWrappers ?? []).find(
+      (entry) =>
+        entry.key_type === (teamId ? "team" : "master") &&
+        entry.hashed_chat_id === hashedChatId &&
+        (!hashedTeamId || entry.hashed_team_id === hashedTeamId) &&
+        typeof entry.encrypted_chat_key === "string",
+    );
+    return typeof wrapper?.encrypted_chat_key === "string" ? wrapper.encrypted_chat_key : null;
+  }
+
+  private async getChatWrappingKey(teamId: string | null, masterKey: Uint8Array): Promise<Uint8Array> {
+    if (!teamId) return masterKey;
+    const teamKey = await this.loadTeamKeyBytes(teamId);
+    if (!teamKey) throw new Error(`Team key not available locally for team '${teamId}'. Run 'openmates teams show ${teamId}' and try again.`);
+    return teamKey;
+  }
+
+  private async resolveChatKey(
+    cache: SyncCache | null,
+    cached: CachedChat,
+    wrappingKey: Uint8Array,
+    teamId: string | null = null,
+  ): Promise<Uint8Array | null> {
+    const chatId = String(cached.details.id ?? "");
+    const wrapperKey = chatId ? this.getContextWrapperEncryptedChatKey(cache, chatId, teamId) : null;
+    const encryptedChatKey = wrapperKey ?? (
+      typeof cached.details.encrypted_chat_key === "string"
+        ? cached.details.encrypted_chat_key
+        : null
+    );
+    return encryptedChatKey ? this.decryptChatKey(encryptedChatKey, wrappingKey) : null;
+  }
+
   /**
    * Decrypt a single chat record from the sync cache into a ChatListItem.
    */
   private async decryptChatListItem(
     cached: CachedChat,
-    masterKey: Uint8Array,
+    wrappingKey: Uint8Array,
+    cache: SyncCache | null = loadSyncCache(),
+    teamId: string | null = null,
   ): Promise<ChatListItem> {
     const d = cached.details;
     const id = String(d.id ?? "");
-    const encKey =
-      typeof d.encrypted_chat_key === "string" ? d.encrypted_chat_key : null;
-    const chatKeyBytes = encKey
-      ? await this.decryptChatKey(encKey, masterKey)
-      : null;
+    const chatKeyBytes = await this.resolveChatKey(cache, cached, wrappingKey, teamId);
 
     const title =
       typeof d.encrypted_title === "string" && chatKeyBytes
@@ -2472,15 +4430,17 @@ export class OpenMatesClient {
     };
   }
 
-  async listChats(limit = 10, page = 1): Promise<ChatListPage> {
-    const cache = await this.ensureSynced();
+  async listChats(limit = 10, page = 1, options: TeamContextOptions = {}): Promise<ChatListPage> {
+    const teamId = this.resolveTeamContext(options);
+    const cache = await this.ensureSynced(false, [], options);
     const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
     const total = cache.chats.length;
     const offset = (page - 1) * limit;
     const slice = cache.chats.slice(offset, offset + limit);
     const output: ChatListItem[] = [];
     for (const chat of slice) {
-      output.push(await this.decryptChatListItem(chat, masterKey));
+      output.push(await this.decryptChatListItem(chat, wrappingKey, cache, teamId));
     }
     return {
       chats: output,
@@ -2491,13 +4451,618 @@ export class OpenMatesClient {
     };
   }
 
-  async searchChats(query: string): Promise<ChatListItem[]> {
-    const cache = await this.ensureSynced();
+  async saveDraft(params: {
+    markdown: string;
+    preview?: string | null;
+    chatId?: string;
+  }): Promise<DecryptedDraft> {
+    const markdown = params.markdown.trim();
+    if (!markdown) throw new Error("Draft markdown must not be empty.");
     const masterKey = this.getMasterKeyBytes();
+    const encrypted = await this.saveEncryptedDraft({
+      chatId: params.chatId ?? randomUUID(),
+      encryptedDraftMd: await encryptWithAesGcmCombined(markdown, masterKey),
+      encryptedDraftPreview: params.preview
+        ? await encryptWithAesGcmCombined(params.preview, masterKey)
+        : null,
+    });
+    return { ...encrypted, markdown, preview: params.preview ?? null };
+  }
+
+  async saveEncryptedDraft(params: {
+    chatId: string;
+    encryptedDraftMd: string;
+    encryptedDraftPreview?: string | null;
+    extraPayload?: Record<string, unknown>;
+  }): Promise<EncryptedDraft> {
+    const { ws } = await this.openWsClient();
+    try {
+      const receipt = ws.waitForMessage(
+        "draft_update_receipt",
+        (payload) => (payload as Record<string, unknown>).chat_id === params.chatId,
+      );
+      await ws.sendAsync("update_draft", {
+        chat_id: params.chatId,
+        encrypted_draft_md: params.encryptedDraftMd,
+        encrypted_draft_preview: params.encryptedDraftPreview ?? null,
+        ...(params.extraPayload ?? {}),
+      });
+      const response = await receipt;
+      const draftV = Number((response.payload as Record<string, unknown>).draft_v ?? 0);
+      this.storeEncryptedDraft({
+        chatId: params.chatId,
+        encryptedDraftMd: params.encryptedDraftMd,
+        encryptedDraftPreview: params.encryptedDraftPreview ?? null,
+        draftV,
+      });
+      return {
+        chatId: params.chatId,
+        encryptedDraftMd: params.encryptedDraftMd,
+        encryptedDraftPreview: params.encryptedDraftPreview ?? null,
+        draftV,
+      };
+    } finally {
+      ws.close();
+    }
+  }
+
+  async getIdeaBucketSettings(): Promise<IdeaBucketSettings> {
+    const entries = (await this.listMemories())
+      .filter((entry) => entry.app_id === IDEABUCKET_APP_ID && entry.item_type === IDEABUCKET_SETTINGS_ITEM_TYPE)
+      .sort((a, b) => b.updated_at - a.updated_at);
+    const entry = entries[0];
+    if (!entry) {
+      return this.normalizeIdeaBucketSettings(null, undefined, undefined);
+    }
+    return this.normalizeIdeaBucketSettings(entry.data, entry.id, entry.item_version);
+  }
+
+  async saveIdeaBucketSettings(input: IdeaBucketSettingsInput): Promise<IdeaBucketSettings> {
+    const current = await this.getIdeaBucketSettings();
+    const settings = this.normalizeIdeaBucketSettings({
+      processing_prompt: input.processingPrompt ?? current.processingPrompt,
+      processing_times: input.processingTimes ?? current.processingTimes,
+    }, current.entryId, current.itemVersion);
+    const itemValue = this.ideaBucketSettingsToMemoryValue(settings);
+    if (settings.entryId && settings.itemVersion) {
+      await this.updateMemory({
+        entryId: settings.entryId,
+        appId: IDEABUCKET_APP_ID,
+        itemType: IDEABUCKET_SETTINGS_ITEM_TYPE,
+        itemValue,
+        currentVersion: settings.itemVersion,
+      });
+    } else {
+      const created = await this.createMemory({
+        appId: IDEABUCKET_APP_ID,
+        itemType: IDEABUCKET_SETTINGS_ITEM_TYPE,
+        itemValue,
+      });
+      settings.entryId = created.id;
+      settings.itemVersion = 1;
+    }
+    settings.source = "account";
+    return settings;
+  }
+
+  private normalizeIdeaBucketSettings(
+    data: Record<string, unknown> | null,
+    entryId?: string,
+    itemVersion?: number,
+  ): IdeaBucketSettings {
+    const processingPrompt = typeof data?.processing_prompt === "string" && data.processing_prompt.trim()
+      ? data.processing_prompt.trim()
+      : IDEABUCKET_DEFAULT_PROCESSING_PROMPT;
+    return {
+      processingPrompt,
+      processingTimes: normalizeIdeaBucketProcessingTimes(data?.processing_times),
+      entryId,
+      itemVersion,
+      source: entryId ? "account" : "default",
+    };
+  }
+
+  private ideaBucketSettingsToMemoryValue(settings: IdeaBucketSettings): Record<string, unknown> {
+    return {
+      processing_prompt: settings.processingPrompt,
+      processing_times: settings.processingTimes.join(","),
+    };
+  }
+
+  async addIdeaBucketText(params: {
+    text: string;
+    chatId?: string;
+    bucketId?: string;
+    scheduledSendAt?: number;
+    prompt?: string;
+    version?: number;
+  }): Promise<IdeaBucketAddResult> {
+    const ideaText = params.text.trim();
+    if (!ideaText) throw new Error("IdeaBucket text capture requires non-empty text.");
+
+    return await this.addIdeaBucketPreparedIdeas({
+      ...params,
+      ideas: [{
+        content: ideaText,
+        preview: ideaText,
+        payload: { type: "text", text: ideaText },
+      }],
+    });
+  }
+
+  async addIdeaBucketAudio(params: {
+    filePath: string;
+    chatId?: string;
+    bucketId?: string;
+    scheduledSendAt?: number;
+    prompt?: string;
+    version?: number;
+  }): Promise<IdeaBucketAddResult> {
+    const now = Math.floor(Date.now() / 1000);
+    const chatId = params.chatId ?? randomUUID();
+    const fileResult = processFiles([params.filePath], null);
+    if (fileResult.blocked.length > 0) {
+      throw new Error(fileResult.blocked.map((entry) => `${entry.path}: ${entry.error}`).join("; "));
+    }
+    if (fileResult.errors.length > 0) {
+      throw new Error(fileResult.errors.map((entry) => `${entry.path}: ${entry.error}`).join("; "));
+    }
+    const audioEmbed = fileResult.embeds[0];
+    if (!audioEmbed || audioEmbed.embed.type !== "audio-recording" || !audioEmbed.requiresUpload || !audioEmbed.localPath) {
+      throw new Error("IdeaBucket audio requires one supported local audio file.");
+    }
+
+    const session = this.getSession();
+    const uploadResult = await uploadFile(audioEmbed.localPath, session);
+    const embedRef = audioEmbed.embed.embedRef ?? createEmbedRef("audio-recording", `${audioEmbed.displayName}:${audioEmbed.embed.embedId}`);
+    audioEmbed.embed.embedRef = embedRef;
+    const transcription = await transcribeUploadedAudio(
+      uploadResult,
+      audioEmbed.displayName,
+      session,
+      { chatId, requestId: audioEmbed.embed.embedId },
+    );
+    const transcript = transcription.transcript_corrected
+      ?? transcription.transcript
+      ?? transcription.transcript_original
+      ?? "";
+    audioEmbed.embed.content = toonEncodeContent({
+      app_id: "audio",
+      skill_id: "transcribe",
+      type: "audio-recording",
+      status: "finished",
+      filename: audioEmbed.displayName,
+      embed_ref: embedRef,
+      mime_type: uploadResult.content_type,
+      transcript: transcription.transcript ?? null,
+      transcript_original: transcription.transcript_original ?? null,
+      transcript_corrected: transcription.transcript_corrected ?? null,
+      use_corrected: transcription.use_corrected ?? null,
+      correction_model: transcription.correction_model ?? null,
+      model: transcription.model ?? null,
+      waveform: transcription.waveform ?? null,
+      s3_base_url: uploadResult.s3_base_url,
+      files: uploadResult.files,
+      aes_key: uploadResult.aes_key,
+      aes_nonce: uploadResult.aes_nonce,
+      vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
+    });
+    audioEmbed.embed.status = "finished";
+    audioEmbed.embed.contentHash = uploadResult.content_hash;
+
+    const referenceBlock = createEmbedJsonReferenceBlock(
+      "audio-recording",
+      audioEmbed.embed.embedId,
+    );
+    const audioMarkdown = [
+      `Audio: ${audioEmbed.displayName}`,
+      referenceBlock,
+      transcript ? `Transcript: ${transcript}` : null,
+    ].filter((line): line is string => Boolean(line)).join("\n");
+
+    return await this.addIdeaBucketPreparedIdeas({
+      chatId,
+      bucketId: params.bucketId,
+      scheduledSendAt: params.scheduledSendAt,
+      prompt: params.prompt,
+      version: params.version ?? now,
+      preparedEmbeds: [audioEmbed.embed],
+      ideas: [{
+        content: audioMarkdown,
+        preview: transcript || audioEmbed.displayName,
+        payload: {
+          type: "audio",
+          filename: audioEmbed.displayName,
+          embed_ref: embedRef,
+          transcript,
+          transcript_original: transcription.transcript_original,
+          transcript_corrected: transcription.transcript_corrected,
+          use_corrected: transcription.use_corrected,
+          correction_model: transcription.correction_model,
+          model: transcription.model,
+          waveform: transcription.waveform,
+        },
+      }],
+    });
+  }
+
+  private async addIdeaBucketPreparedIdeas(params: {
+    ideas: IdeaBucketPreparedIdea[];
+    chatId?: string;
+    bucketId?: string;
+    scheduledSendAt?: number;
+    prompt?: string;
+    version?: number;
+    preparedEmbeds?: PreparedEmbed[];
+  }): Promise<IdeaBucketAddResult> {
+    if (params.ideas.length === 0) throw new Error("IdeaBucket add requires at least one idea.");
+
+    const now = Math.floor(Date.now() / 1000);
+    const chatId = params.chatId ?? randomUUID();
+    const bucketId = params.bucketId ?? defaultIdeaBucketProcessingWindowId();
+    const processingWindowId = bucketId;
+    const settings = params.prompt === undefined || params.scheduledSendAt === undefined
+      ? await this.getIdeaBucketSettings()
+      : null;
+    const scheduledSendAt = params.scheduledSendAt
+      ?? (settings?.source === "account"
+        ? nextIdeaBucketScheduledSendAt(now, settings.processingTimes)
+        : defaultIdeaBucketScheduledSendAt(now));
+    const version = params.version ?? now;
+    const prompt = params.prompt ?? settings?.processingPrompt ?? IDEABUCKET_DEFAULT_PROCESSING_PROMPT;
+    const markdown = buildIdeaBucketMarkdown(
+      prompt,
+      params.ideas.map((idea, index) => ({ index: index + 1, content: idea.content })),
+    );
+    const previewText = params.ideas.map((idea) => idea.preview).join(" ").trim();
+    const preview = `IdeaBucket ${processingWindowId}: ${previewText.slice(0, 120)}`;
+    const serverProcessablePayload = JSON.stringify({
+      prompt,
+      processing_window_id: processingWindowId,
+      ideas: params.ideas.map((idea, index) => ({ index: index + 1, ...idea.payload })),
+    });
+    const payloadHash = createHash("sha256").update(serverProcessablePayload).digest("hex");
+    const masterKey = this.getMasterKeyBytes();
+    const chatKey = new Uint8Array(randomBytes(32));
+    const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, masterKey);
+    const encryptedDraftMd = await encryptWithAesGcmCombined(markdown, masterKey);
+    const encryptedPreview = await encryptWithAesGcmCombined(preview, masterKey);
+    const encryptedFutureUserMessage = await encryptWithAesGcmCombined(markdown, chatKey);
+    const encryptedSystemEvent = await encryptWithAesGcmCombined(JSON.stringify({
+      type: "ideabucket_triggered_send",
+      processing_window_id: processingWindowId,
+      source: "openmates_cli",
+    }), chatKey);
+    const serverCacheCiphertext = await encryptWithAesGcmCombined(serverProcessablePayload, masterKey);
+
+    if (params.preparedEmbeds && params.preparedEmbeds.length > 0) {
+      await this.storeDraftEmbeds({ chatId, preparedEmbeds: params.preparedEmbeds });
+    }
+
+    const encrypted = await this.saveEncryptedDraft({
+      chatId,
+      encryptedDraftMd,
+      encryptedDraftPreview: encryptedPreview,
+      extraPayload: {
+        ideabucket: true,
+        ideabucket_processing_window_id: processingWindowId,
+        ideabucket_processing_version: version,
+        encrypted_chat_key: encryptedChatKey,
+        scheduled_send_at: scheduledSendAt,
+        server_vault_encrypted_processing_payload: serverCacheCiphertext,
+        client_encrypted_future_user_message: encryptedFutureUserMessage,
+        client_encrypted_ideabucket_system_event: encryptedSystemEvent,
+        payload_hash: payloadHash,
+      },
+    });
+
+    return {
+      chatId,
+      bucketId,
+      processingWindowId,
+      scheduledSendAt,
+      draftV: encrypted.draftV,
+      processingPayloadSynced: true,
+      payloadHash,
+      markdown,
+      preview,
+    };
+  }
+
+  private async storeDraftEmbeds(params: {
+    chatId: string;
+    preparedEmbeds: PreparedEmbed[];
+  }): Promise<void> {
+    const { ws, ownerId } = await this.openWsClient();
+    try {
+      if (!ownerId) throw new Error("Authenticated user identity is required to store IdeaBucket embeds.");
+      const masterKey = this.getMasterKeyBytes();
+      const messageId = randomUUID();
+      for (const embed of params.preparedEmbeds) {
+        const encrypted = await encryptEmbed(
+          embed,
+          masterKey,
+          null,
+          params.chatId,
+          messageId,
+          ownerId,
+        );
+        if (!encrypted) continue;
+
+        const storeRequestId = randomUUID();
+        const stored = ws.waitForMessage(
+          "store_embed_confirmed",
+          (payload) => {
+            const p = payload as Record<string, unknown>;
+            return p.request_id === storeRequestId && p.embed_id === encrypted.embed_id;
+          },
+          30_000,
+        );
+        await ws.sendAsync("store_embed", {
+          request_id: storeRequestId,
+          embed_id: encrypted.embed_id,
+          encrypted_type: encrypted.encrypted_type,
+          encrypted_content: encrypted.encrypted_content,
+          encrypted_text_preview: encrypted.encrypted_text_preview,
+          status: encrypted.status,
+          hashed_chat_id: encrypted.hashed_chat_id,
+          hashed_message_id: encrypted.hashed_message_id,
+          hashed_user_id: encrypted.hashed_user_id,
+          embed_ids: encrypted.embed_ids,
+          file_path: encrypted.file_path,
+          content_hash: encrypted.content_hash,
+          text_length_chars: encrypted.text_length_chars,
+          created_at: encrypted.created_at,
+          updated_at: encrypted.updated_at,
+        });
+        await stored;
+
+        const keysRequestId = randomUUID();
+        const keysStored = ws.waitForMessage(
+          "store_embed_keys_confirmed",
+          (payload) => (payload as Record<string, unknown>).request_id === keysRequestId,
+          30_000,
+        );
+        await ws.sendAsync("store_embed_keys", {
+          request_id: keysRequestId,
+          keys: encrypted.embed_keys,
+        });
+        await keysStored;
+      }
+    } finally {
+      ws.close();
+    }
+  }
+
+  async getIdeaBucketStatus(bucketId?: string): Promise<IdeaBucketStatusResult> {
+    this.requireSession();
+    const path = bucketId
+      ? `/v1/ideabucket/buckets/${encodeURIComponent(bucketId)}`
+      : "/v1/ideabucket/buckets";
+    const response = await this.http.get<IdeaBucketStatusResult>(path, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`IdeaBucket status failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async processIdeaBucketBucket(bucketId: string, options: { now?: boolean } = {}): Promise<IdeaBucketProcessResult> {
+    this.requireSession();
+    const response = await this.http.post<IdeaBucketProcessResult>(
+      `/v1/ideabucket/buckets/${encodeURIComponent(bucketId)}/process`,
+      { now: options.now === true },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`IdeaBucket process failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async listDrafts(forceRefresh = false): Promise<DecryptedDraft[]> {
+    if (forceRefresh) await this.reconcileDraftVersions();
+    const cache = await this.ensureSynced(forceRefresh);
+    const drafts: DecryptedDraft[] = [];
+    for (const chat of cache.chats) {
+      const draft = await this.decryptCachedDraft(chat);
+      if (draft) drafts.push(draft);
+    }
+    return drafts;
+  }
+
+  async getDraft(chatId: string, forceRefresh = false): Promise<DecryptedDraft | null> {
+    if (forceRefresh) {
+      let response;
+      try {
+        response = await this.http.get<SdkDraftResponse>(
+          `/v1/drafts/${encodeURIComponent(chatId)}`,
+          this.getCliRequestHeaders(),
+        );
+      } catch {
+        return await this.refreshDraftFromTargetedSync(chatId);
+      }
+      if (!response.ok) throw new Error(`Draft refresh failed with HTTP ${response.status}`);
+
+      const draft = response.data.draft;
+      if (!draft || typeof draft.encrypted_draft_md !== "string") {
+        const cache = loadSyncCache();
+        const cachedChat = cache?.chats.find((entry) => String(entry.details.id ?? "") === chatId);
+        if (cache && cachedChat) {
+          delete cachedChat.details.encrypted_draft_md;
+          delete cachedChat.details.encrypted_draft_preview;
+          cachedChat.details.draft_v = 0;
+          saveSyncCache(cache);
+        }
+        return null;
+      }
+
+      const encryptedDraft: EncryptedDraft = {
+        chatId: String(draft.chat_id ?? chatId),
+        encryptedDraftMd: draft.encrypted_draft_md,
+        encryptedDraftPreview: typeof draft.encrypted_draft_preview === "string"
+          ? draft.encrypted_draft_preview
+          : null,
+        draftV: Number(draft.draft_v ?? 0),
+      };
+      this.storeEncryptedDraft(encryptedDraft);
+      return this.decryptCachedDraft({
+        details: {
+          id: encryptedDraft.chatId,
+          encrypted_draft_md: encryptedDraft.encryptedDraftMd,
+          encrypted_draft_preview: encryptedDraft.encryptedDraftPreview,
+          draft_v: encryptedDraft.draftV,
+        },
+        messages: [],
+      });
+    }
+    const cache = await this.ensureSynced(forceRefresh);
+    const chat = cache.chats.find((entry) => String(entry.details.id ?? "") === chatId);
+    return chat ? this.decryptCachedDraft(chat) : null;
+  }
+
+  private async refreshDraftFromTargetedSync(chatId: string): Promise<DecryptedDraft | null> {
+    let versions = await this.reconcileDraftVersions([chatId]);
+    if (versions[chatId] === 0) return null;
+
+    await this.ensureSynced(true, [chatId]);
+    versions = await this.reconcileDraftVersions([chatId]);
+    if (versions[chatId] === 0) return null;
+
+    const syncedCache = loadSyncCache();
+    const syncedChat = syncedCache?.chats.find((entry) => String(entry.details.id ?? "") === chatId);
+    const syncedDraft = syncedChat ? await this.decryptCachedDraft(syncedChat) : null;
+    if (syncedDraft) return syncedDraft;
+
+    const cache = loadSyncCache();
+    const cachedChat = cache?.chats.find((entry) => String(entry.details.id ?? "") === chatId);
+    if (cache && cachedChat) {
+      if (versions[chatId] !== 0) {
+        return await this.decryptCachedDraft(cachedChat);
+      }
+      delete cachedChat.details.encrypted_draft_md;
+      delete cachedChat.details.encrypted_draft_preview;
+      cachedChat.details.draft_v = 0;
+      saveSyncCache(cache);
+    }
+    return null;
+  }
+
+  async clearDraft(chatId: string): Promise<void> {
+    const { ws } = await this.openWsClient();
+    try {
+      const receipt = ws.waitForMessage(
+        "draft_delete_receipt",
+        (payload) => (payload as Record<string, unknown>).chat_id === chatId,
+      );
+      await ws.sendAsync("delete_draft", { chat_id: chatId });
+      await receipt;
+    } finally {
+      ws.close();
+    }
+    const cache = loadSyncCache();
+    if (!cache) return;
+    const chat = cache.chats.find((entry) => String(entry.details.id ?? "") === chatId);
+    if (chat) {
+      delete chat.details.encrypted_draft_md;
+      delete chat.details.encrypted_draft_preview;
+      chat.details.draft_v = 0;
+      if (chat.messages.length === 0 && !chat.details.encrypted_chat_key) {
+        cache.chats = cache.chats.filter((entry) => entry !== chat);
+      }
+      saveSyncCache(cache);
+    }
+  }
+
+  async reconcileDraftVersions(chatIds: string[] = []): Promise<Record<string, number>> {
+    const cache = loadSyncCache();
+    const drafts = (cache?.chats ?? []).filter(
+      (chat) => typeof chat.details.encrypted_draft_md === "string",
+    );
+    const requestedDrafts = new Map<string, number>();
+    for (const chat of drafts) {
+      requestedDrafts.set(String(chat.details.id), Number(chat.details.draft_v ?? 0));
+    }
+    for (const chatId of chatIds) {
+      if (requestedDrafts.has(chatId)) continue;
+      const cachedChat = cache?.chats.find((chat) => String(chat.details.id ?? "") === chatId);
+      requestedDrafts.set(chatId, Number(cachedChat?.details.draft_v ?? 0));
+    }
+    if (requestedDrafts.size === 0) return {};
+    const { ws } = await this.openWsClient();
+    try {
+      const response = ws.waitForMessage("draft_versions_response");
+      await ws.sendAsync("get_draft_versions", {
+        chats: Array.from(requestedDrafts.entries()).map(([chat_id, client_draft_v]) => ({
+          chat_id,
+          client_draft_v,
+        })),
+      });
+      const frame = await response;
+      const versions = (frame.payload as { versions?: Record<string, number> }).versions ?? {};
+      for (const chat of cache?.chats ?? []) {
+        const chatId = String(chat.details.id);
+        if (versions[chatId] === 0) {
+          delete chat.details.encrypted_draft_md;
+          delete chat.details.encrypted_draft_preview;
+          chat.details.draft_v = 0;
+        }
+      }
+      if (cache) saveSyncCache(cache);
+      return versions;
+    } finally {
+      ws.close();
+    }
+  }
+
+  private storeEncryptedDraft(draft: EncryptedDraft): void {
+    const cache = loadSyncCache() ?? {
+      syncedAt: 0,
+      totalChatCount: 0,
+      loadedChatCount: 0,
+      chats: [],
+      embeds: [],
+      embedKeys: [],
+    };
+    let chat = cache.chats.find((entry) => String(entry.details.id ?? "") === draft.chatId);
+    if (!chat) {
+      chat = { details: { id: draft.chatId }, messages: [] };
+      cache.chats.unshift(chat);
+    }
+    chat.details.encrypted_draft_md = draft.encryptedDraftMd;
+    chat.details.encrypted_draft_preview = draft.encryptedDraftPreview;
+    chat.details.draft_v = draft.draftV;
+    cache.syncedAt = Date.now();
+    cache.loadedChatCount = cache.chats.length;
+    saveSyncCache(cache);
+  }
+
+  private async decryptCachedDraft(chat: CachedChat): Promise<DecryptedDraft | null> {
+    const encryptedDraftMd = chat.details.encrypted_draft_md;
+    if (typeof encryptedDraftMd !== "string") return null;
+    const encryptedPreview = typeof chat.details.encrypted_draft_preview === "string"
+      ? chat.details.encrypted_draft_preview
+      : null;
+    const masterKey = this.getMasterKeyBytes();
+    const markdown = await decryptWithAesGcmCombined(encryptedDraftMd, masterKey);
+    if (markdown === null) throw new Error("Failed to decrypt draft markdown.");
+    const preview = encryptedPreview
+      ? await decryptWithAesGcmCombined(encryptedPreview, masterKey)
+      : markdown.slice(0, 160);
+    return {
+      chatId: String(chat.details.id ?? ""),
+      encryptedDraftMd,
+      encryptedDraftPreview: encryptedPreview,
+      draftV: Number(chat.details.draft_v ?? 0),
+      markdown,
+      preview,
+    };
+  }
+
+  async searchChats(query: string, options: TeamContextOptions = {}): Promise<ChatListItem[]> {
+    const teamId = this.resolveTeamContext(options);
+    const cache = await this.ensureSynced(false, [], options);
+    const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
     const normalized = query.trim().toLowerCase();
     const results: ChatListItem[] = [];
     for (const cached of cache.chats) {
-      const item = await this.decryptChatListItem(cached, masterKey);
+      const item = await this.decryptChatListItem(cached, wrappingKey, cache, teamId);
       const title = (item.title ?? "").toLowerCase();
       const summary = (item.summary ?? "").toLowerCase();
       const cat = (item.category ?? "").toLowerCase();
@@ -2515,87 +5080,27 @@ export class OpenMatesClient {
     return results;
   }
 
-  /**
-   * Get the decrypted messages for a specific chat.
-   *
-   * Lookup order (most-recent-first for all title matches):
-   * 1. Exact full UUID match
-   * 2. Short 8-char prefix match
-   * 3. Exact title match (case-insensitive, most recent first)
-   * 4. Partial title match (case-insensitive, most recent first)
-   *
-   * @param query Full UUID, 8-char short ID, or chat title.
-   */
-  async getChatMessages(query: string): Promise<{
-    chat: ChatListItem;
-    messages: DecryptedMessage[];
-  }> {
-    const cache = await this.ensureSynced();
+  async resolveChatKeyForContext(query: string, options: TeamContextOptions = {}): Promise<{ chatId: string; chatKey: Uint8Array }> {
+    const teamId = this.resolveTeamContext(options);
+    const cache = await this.ensureSynced(true, [], options);
     const masterKey = this.getMasterKeyBytes();
-    const normalized = query.trim().toLowerCase();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+    const found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    const chatId = String(found.details.id ?? "");
+    if (!chatId) throw new Error(`Chat '${query}' is missing an id.`);
+    const chatKey = await this.resolveChatKey(cache, found, wrappingKey, teamId);
+    if (!chatKey) throw new Error(`Chat '${chatId}' is missing locally decryptable key material.`);
+    return { chatId, chatKey };
+  }
 
-    // "last" / "__last__" → most recently modified chat (cache is sorted desc by timestamp)
-    let found: (typeof cache.chats)[0] | undefined;
-    if (query === "__last__" || query.toLowerCase() === "last") {
-      if (cache.chats.length === 0) {
-        throw new Error(
-          "No chats found in local cache. Run 'openmates chats list' to sync.",
-        );
-      }
-      found = cache.chats[0];
-    }
-
-    // Pass 1: fast ID match (no decryption needed)
-    if (!found) {
-      found = cache.chats.find(
-        (c) =>
-          String(c.details.id) === query ||
-          String(c.details.id).startsWith(query),
-      );
-    }
-
-    // Pass 2: title match — decrypt all chats and match by title.
-    // The cache is already sorted most-recent-first, so the first match wins.
-    if (!found) {
-      for (const cached of cache.chats) {
-        const item = await this.decryptChatListItem(cached, masterKey);
-        const title = (item.title ?? "").toLowerCase();
-        if (title === normalized) {
-          found = cached;
-          break;
-        }
-      }
-    }
-
-    // Pass 3: partial title match (most recent first)
-    if (!found) {
-      for (const cached of cache.chats) {
-        const item = await this.decryptChatListItem(cached, masterKey);
-        const title = (item.title ?? "").toLowerCase();
-        if (title.includes(normalized)) {
-          found = cached;
-          break;
-        }
-      }
-    }
-
-    if (!found) {
-      throw new Error(
-        `Chat '${query}' not found. Try 'openmates chats search "${query}"' to browse matches.`,
-      );
-    }
-
-    const chatItem = await this.decryptChatListItem(found, masterKey);
-    const encKey =
-      typeof found.details.encrypted_chat_key === "string"
-        ? found.details.encrypted_chat_key
-        : null;
-    const chatKeyBytes = encKey
-      ? await this.decryptChatKey(encKey, masterKey)
-      : null;
-
+  private async decryptRawChatMessages(
+    rawMessages: Array<string | Record<string, unknown>>,
+    chatItem: ChatListItem,
+    chatKeyBytes: Uint8Array | null,
+    embeds: Record<string, unknown>[] = [],
+  ): Promise<DecryptedMessage[]> {
     const messages: DecryptedMessage[] = [];
-    for (const raw of found.messages) {
+    for (const raw of rawMessages) {
       const m =
         typeof raw === "string"
           ? (JSON.parse(raw) as Record<string, unknown>)
@@ -2623,25 +5128,16 @@ export class OpenMatesClient {
             )
           : null;
 
-      // Resolve embed IDs for this message.
-      // The WS payload doesn't include embed_ids in messages; instead each embed
-      // record carries hashed_message_id = SHA-256(client_message_id).
-      // We match on that to find embeds belonging to this message.
       const clientMsgId = String(
         m.client_message_id ?? m.id ?? m.message_id ?? "",
       );
       let msgEmbedIds: string[] = [];
-      if (clientMsgId && cache.embeds.length > 0) {
-        const { createHash } = await import("node:crypto");
+      if (clientMsgId && embeds.length > 0) {
         const hashed = createHash("sha256").update(clientMsgId).digest("hex");
-        msgEmbedIds = cache.embeds
+        msgEmbedIds = embeds
           .filter(
             (e) =>
               e.hashed_message_id === hashed &&
-              // Only include parent embeds (no parent_embed_id).
-              // Child embeds inherit the parent's key and are loaded
-              // via the parent's embed_ids — showing them separately
-              // causes confusing duplicates under the user message.
               !e.parent_embed_id,
           )
           .map((e) => String(e.embed_id ?? e.id ?? ""))
@@ -2661,7 +5157,335 @@ export class OpenMatesClient {
       });
     }
     messages.sort((a, b) => a.createdAt - b.createdAt);
+    return messages;
+  }
+
+  private async resolveCachedChatForQuery(
+    query: string,
+    cache: SyncCache,
+    wrappingKey: Uint8Array,
+    teamId: string | null,
+  ): Promise<CachedChat> {
+    const normalized = query.trim().toLowerCase();
+    let found: CachedChat | undefined;
+    if (query === "__last__" || query.toLowerCase() === "last") {
+      if (cache.chats.length === 0) {
+        throw new Error(
+          "No chats found in local cache. Run 'openmates chats list' to sync.",
+        );
+      }
+      found = cache.chats[0];
+    }
+
+    if (!found) {
+      found = cache.chats.find(
+        (c) =>
+          String(c.details.id) === query ||
+          String(c.details.id).startsWith(query),
+      );
+    }
+
+    if (!found) {
+      for (const cached of cache.chats) {
+        const item = await this.decryptChatListItem(cached, wrappingKey, cache, teamId);
+        const title = (item.title ?? "").toLowerCase();
+        if (title === normalized) {
+          found = cached;
+          break;
+        }
+      }
+    }
+
+    if (!found) {
+      for (const cached of cache.chats) {
+        const item = await this.decryptChatListItem(cached, wrappingKey, cache, teamId);
+        const title = (item.title ?? "").toLowerCase();
+        if (title.includes(normalized)) {
+          found = cached;
+          break;
+        }
+      }
+    }
+
+    if (!found) {
+      throw new Error(
+        `Chat '${query}' not found. Try 'openmates chats search "${query}"' to browse matches.`,
+      );
+    }
+    return found;
+  }
+
+  /**
+   * Get the decrypted messages for a specific chat.
+   *
+   * Lookup order (most-recent-first for all title matches):
+   * 1. Exact full UUID match
+   * 2. Short 8-char prefix match
+   * 3. Exact title match (case-insensitive, most recent first)
+   * 4. Partial title match (case-insensitive, most recent first)
+   *
+   * @param query Full UUID, 8-char short ID, or chat title.
+   */
+  async getChatMessages(query: string, options: TeamContextOptions = {}): Promise<{
+    chat: ChatListItem;
+    messages: DecryptedMessage[];
+  }> {
+    const teamId = this.resolveTeamContext(options);
+    let cache = await this.ensureSynced(true, [], options);
+    const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+    let found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+
+    const foundChatId = String(found.details.id ?? "");
+    if (foundChatId && getClientMessagesVersionForSync(found) === 0) {
+      cache = await this.ensureSynced(true, [foundChatId], options, true);
+      found = cache.chats.find((c) => String(c.details.id ?? "") === foundChatId) ?? found;
+    }
+
+    const chatItem = await this.decryptChatListItem(found, wrappingKey, cache, teamId);
+    const chatKeyBytes = await this.resolveChatKey(cache, found, wrappingKey, teamId);
+    let rawMessages = found.messages;
+    const hasServerMessages =
+      typeof found.details.messages_v === "number" && found.details.messages_v > 0;
+    if (rawMessages.length === 0 && hasServerMessages && foundChatId) {
+      const pages: string[][] = [];
+      let cursor: ChatMessageWindowCursor | null = null;
+      let hasMoreBefore = true;
+      for (let page = 0; page < CLI_MESSAGE_HISTORY_MAX_PAGES && hasMoreBefore; page += 1) {
+        const queryParams = new URLSearchParams({
+          direction: cursor ? "before" : "latest",
+          limit: String(CLI_MESSAGE_HISTORY_PAGE_LIMIT),
+          respect_compression_boundary: "false",
+        });
+        if (cursor) {
+          queryParams.set("before_timestamp", String(cursor.created_at));
+          queryParams.set("before_message_id", cursor.message_id);
+        }
+        const response: HttpResponse<RawChatMessageWindowResponse> = await this.http.get<RawChatMessageWindowResponse>(
+          this.appendTeamQuery(`/v1/chats/${encodeURIComponent(foundChatId)}/messages/window?${queryParams.toString()}`, { teamId }),
+          this.getCliRequestHeaders(),
+        );
+        if (!response.ok) throw new Error(`Chat messages failed with HTTP ${response.status}`);
+        const pageMessages = Array.isArray(response.data.messages)
+          ? normalizeSyncedMessages(response.data.messages)
+          : [];
+        if (pageMessages.length === 0) break;
+        pages.unshift(pageMessages);
+        cursor = response.data.start_cursor ?? null;
+        hasMoreBefore = response.data.has_more_before === true && cursor !== null;
+      }
+      rawMessages = pages.flat();
+    }
+    const messages = await this.decryptRawChatMessages(rawMessages, chatItem, chatKeyBytes, cache.embeds);
     return { chat: chatItem, messages };
+  }
+
+  async getChatMessagesWindow(query: string, options: ChatMessageWindowOptions = {}): Promise<ChatMessageWindowResult> {
+    const teamId = this.resolveTeamContext(options);
+    const cache = await this.ensureSynced(false, [], options);
+    const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+    const found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    const chatItem = await this.decryptChatListItem(found, wrappingKey, cache, teamId);
+    const chatKeyBytes = await this.resolveChatKey(cache, found, wrappingKey, teamId);
+    const chatId = String(found.details.id ?? chatItem.id);
+    const params = new URLSearchParams({
+      direction: options.direction ?? "latest",
+      limit: String(options.limit ?? 30),
+    });
+    if (typeof options.beforeTimestamp === "number") params.set("before_timestamp", String(options.beforeTimestamp));
+    if (options.beforeMessageId) params.set("before_message_id", options.beforeMessageId);
+    if (typeof options.afterTimestamp === "number") params.set("after_timestamp", String(options.afterTimestamp));
+    if (options.afterMessageId) params.set("after_message_id", options.afterMessageId);
+    if (options.anchorMessageId) params.set("anchor_message_id", options.anchorMessageId);
+    if (options.respectCompressionBoundary === false) params.set("respect_compression_boundary", "false");
+
+    const response = await this.http.get<{
+      messages?: Array<string | Record<string, unknown>>;
+      has_more_before?: boolean;
+      has_more_after?: boolean;
+      start_cursor?: ChatMessageWindowCursor | null;
+      end_cursor?: ChatMessageWindowCursor | null;
+      anchor_found?: boolean;
+      server_message_count?: number | null;
+    }>(
+      this.appendTeamQuery(`/v1/chats/${encodeURIComponent(chatId)}/messages/window?${params.toString()}`, { teamId }),
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Chat message window failed with HTTP ${response.status}`);
+    const rawMessages = Array.isArray(response.data.messages) ? response.data.messages : [];
+    const messages = await this.decryptRawChatMessages(rawMessages, chatItem, chatKeyBytes, cache.embeds);
+    return {
+      chat: chatItem,
+      messages,
+      hasMoreBefore: response.data.has_more_before === true,
+      hasMoreAfter: response.data.has_more_after === true,
+      startCursor: response.data.start_cursor ?? null,
+      endCursor: response.data.end_cursor ?? null,
+      anchorFound: response.data.anchor_found !== false,
+      serverMessageCount: typeof response.data.server_message_count === "number" ? response.data.server_message_count : null,
+    };
+  }
+
+  async getChatMessageSummaries(query: string, options: TeamContextOptions = {}): Promise<{
+    chat: ChatListItem;
+    messages: ChatMessageSummary[];
+  }> {
+    const { chat, messages } = await this.getChatMessages(query, options);
+    return {
+      chat,
+      messages: messages.map((message) => ({
+        ...message,
+        preview: message.content.replace(/\s+/g, " ").trim().slice(0, 120),
+      })),
+    };
+  }
+
+  async forkChat(params: {
+    chatId: string;
+    fromMessageId: string;
+    title?: string;
+  } & TeamContextOptions): Promise<ChatForkResult> {
+    const state = await this.loadPersonalChatMutationState(params.chatId, params);
+    const boundaryIndex = findCliMessageBoundaryIndex(state.messages, params.fromMessageId);
+    const sourceSlice = state.messages.slice(0, boundaryIndex + 1);
+    const masterKey = this.getMasterKeyBytes();
+    const newChatId = randomUUID();
+    const newChatKey = new Uint8Array(randomBytes(32));
+    const now = Math.floor(Date.now() / 1000);
+    const encryptedMessages: Record<string, unknown>[] = [];
+    for (const message of sourceSlice) {
+      const newMessageId = randomUUID();
+      const encryptedMessage: Record<string, unknown> = {
+        client_message_id: newMessageId,
+        message_id: newMessageId,
+        chat_id: newChatId,
+        encrypted_content: await encryptWithAesGcmCombined(message.content, newChatKey),
+        encrypted_sender_name: await encryptWithAesGcmCombined(message.senderName ?? defaultCliSenderName(message.role), newChatKey),
+        role: message.role,
+        created_at: message.createdAt || now,
+        updated_at: message.createdAt || now,
+      };
+      if (message.category) {
+        encryptedMessage.encrypted_category = await encryptWithAesGcmCombined(message.category, newChatKey);
+      }
+      if (message.modelName) {
+        encryptedMessage.encrypted_model_name = await encryptWithAesGcmCombined(message.modelName, newChatKey);
+      }
+      encryptedMessages.push(encryptedMessage);
+    }
+
+    const response = await this.http.post<ChatForkResult>(
+      `/v1/chats/${encodeURIComponent(state.chat.id)}/fork`,
+      {
+        protocol_version: 1,
+        from_message_id: params.fromMessageId,
+        new_chat_id: newChatId,
+        expected_source_messages_v: state.messagesV,
+        encrypted_chat_metadata: {
+          id: newChatId,
+          encrypted_title: await encryptWithAesGcmCombined(params.title ?? `Fork of ${state.chat.title ?? state.chat.id}`, newChatKey),
+          encrypted_chat_key: await encryptBytesWithAesGcm(newChatKey, masterKey),
+          created_at: now,
+          updated_at: now,
+        },
+        encrypted_messages: encryptedMessages,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Chat fork failed with HTTP ${response.status}: ${JSON.stringify(response.data)}`);
+    }
+    clearSyncCache();
+    return response.data;
+  }
+
+  async rewindChat(params: {
+    chatId: string;
+    toMessageId: string;
+    send?: string;
+    dryRun?: boolean;
+    confirmDestructive?: boolean;
+    responseTimeoutMs?: number;
+  } & TeamContextOptions): Promise<ChatRewindResult> {
+    if (params.dryRun !== true && params.confirmDestructive !== true) {
+      throw new Error("Rewinding a chat requires confirmDestructive=true.");
+    }
+    const state = await this.loadPersonalChatMutationState(params.chatId, params);
+    findCliMessageBoundaryIndex(state.messages, params.toMessageId);
+    const response = await this.http.post<ChatRewindResult>(
+      `/v1/chats/${encodeURIComponent(state.chat.id)}/rewind`,
+      {
+        protocol_version: 1,
+        to_message_id: params.toMessageId,
+        expected_messages_v: state.messagesV,
+        dry_run: params.dryRun === true,
+        confirm_destructive: params.confirmDestructive === true,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Chat rewind failed with HTTP ${response.status}: ${JSON.stringify(response.data)}`);
+    }
+    clearSyncCache();
+    if (params.send && params.dryRun !== true) {
+      response.data.response = await this.sendMessage({
+        message: params.send,
+        chatId: state.chat.id,
+        responseTimeoutMs: params.responseTimeoutMs,
+      });
+    }
+    return response.data;
+  }
+
+  async retryChat(params: {
+    chatId: string;
+    dryRun?: boolean;
+    confirmDestructive?: boolean;
+    responseTimeoutMs?: number;
+  } & TeamContextOptions): Promise<ChatRewindResult> {
+    if (params.dryRun !== true && params.confirmDestructive !== true) {
+      throw new Error("Retrying a chat requires confirmDestructive=true.");
+    }
+    const state = await this.loadPersonalChatMutationState(params.chatId, params);
+    const retryIndex = findCliRetryableUserMessageIndex(state.messages);
+    if (retryIndex < 0) {
+      throw new Error("No retryable user message found for this chat.");
+    }
+    if (retryIndex === 0) {
+      throw new Error("Cannot retry a chat whose first message is the failed user turn.");
+    }
+    return this.rewindChat({
+      chatId: state.chat.id,
+      toMessageId: state.messages[retryIndex - 1].id,
+      send: state.messages[retryIndex].content,
+      dryRun: params.dryRun,
+      confirmDestructive: params.confirmDestructive,
+      responseTimeoutMs: params.responseTimeoutMs,
+    });
+  }
+
+  private async loadPersonalChatMutationState(query: string, options: TeamContextOptions = {}): Promise<{
+    chat: ChatListItem;
+    messages: DecryptedMessage[];
+    messagesV: number;
+  }> {
+    if (options.teamId) {
+      throw new Error("Only personal saved chats are supported for fork, rewind, and retry.");
+    }
+    const { chat, messages } = await this.getChatMessages(query, options);
+    const cache = loadSyncCache();
+    const cached = cache?.chats.find((entry) => String(entry.details.id ?? "") === chat.id);
+    if (!cached || typeof cached.details.encrypted_chat_key !== "string") {
+      throw new Error("Saved chat does not include encrypted chat key material.");
+    }
+    return {
+      chat,
+      messages,
+      messagesV: typeof cached.details.messages_v === "number" && Number.isSafeInteger(cached.details.messages_v)
+        ? cached.details.messages_v
+        : messages.length,
+    };
   }
 
   /**
@@ -2936,11 +5760,12 @@ export class OpenMatesClient {
    * Resolve a short chat ID (first 8 chars) or partial title to a full UUID.
    * Accepts full UUIDs unchanged. Returns undefined if no match found.
    */
-  async resolveFullChatId(idOrShort: string): Promise<string | undefined> {
+  async resolveFullChatId(idOrShort: string, options: TeamContextOptions = {}): Promise<string | undefined> {
+    const teamId = this.resolveTeamContext(options);
     // Try stale cache first — chat IDs don't change, so any cached version
     // is sufficient for short-ID resolution. Only sync if the cache is empty
     // or the ID wasn't found (possibly a newly created chat).
-    const staleCache = loadSyncCache();
+    const staleCache = loadSyncCache(teamId);
     const lower = idOrShort.toLowerCase();
 
     if (staleCache) {
@@ -2952,7 +5777,7 @@ export class OpenMatesClient {
     }
 
     // Not found in stale cache (or no cache) — force a fresh sync
-    const freshCache = await this.ensureSynced(/* forceRefresh */ true);
+    const freshCache = await this.ensureSynced(/* forceRefresh */ true, [], { teamId });
     for (const chat of freshCache.chats) {
       const fullId = String(chat.details.id ?? "");
       if (fullId === idOrShort) return fullId;
@@ -2974,8 +5799,9 @@ export class OpenMatesClient {
    */
   async listNewChatSuggestions(
     limit = 10,
+    options: TeamContextOptions = {},
   ): Promise<DecryptedNewChatSuggestion[]> {
-    const cache = await this.ensureSynced();
+    const cache = await this.ensureSynced(false, [], options);
     const masterKey = this.getMasterKeyBytes();
     const rawSuggestions = cache.newChatSuggestions ?? [];
 
@@ -3015,15 +5841,17 @@ export class OpenMatesClient {
    *
    * Mirrors: chat_actions_store.ts / FollowUpSuggestions.svelte (web app)
    */
-  async getChatFollowUpSuggestions(chatId: string): Promise<string[]> {
-    const cachedMatch = loadSyncCache()?.chats.find(
+  async getChatFollowUpSuggestions(chatId: string, options: TeamContextOptions = {}): Promise<string[]> {
+    const teamId = this.resolveTeamContext(options);
+    const cachedMatch = loadSyncCache(teamId)?.chats.find(
       (c) =>
         String(c.details.id ?? "") === chatId ||
         String(c.details.id ?? "").startsWith(chatId),
     );
     const refreshChatId = String(cachedMatch?.details.id ?? chatId);
-    const cache = await this.ensureSynced(true, [refreshChatId]);
+    const cache = await this.ensureSynced(true, [refreshChatId], { teamId });
     const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
 
     const found = cache.chats.find(
       (c) =>
@@ -3032,13 +5860,7 @@ export class OpenMatesClient {
     );
     if (!found) return [];
 
-    const encKey =
-      typeof found.details.encrypted_chat_key === "string"
-        ? found.details.encrypted_chat_key
-        : null;
-    if (!encKey) return [];
-
-    const chatKeyBytes = await this.decryptChatKey(encKey, masterKey);
+    const chatKeyBytes = await this.resolveChatKey(cache, found, wrappingKey, teamId);
     if (!chatKeyBytes) return [];
 
     const encSuggestions =
@@ -3070,6 +5892,8 @@ export class OpenMatesClient {
   async sendMessage(params: {
     message: string;
     chatId?: string;
+    teamId?: string | null;
+    personal?: boolean;
     incognito?: boolean;
     /** Streaming callback — fires for typing, chunk, and done events. */
     onStream?: (event: import("./ws.js").StreamEvent) => void;
@@ -3101,6 +5925,10 @@ export class OpenMatesClient {
     learningMode?: LearningModeContext;
     /** Start collecting before send for latency-sensitive benchmark turns. */
     precollectResponse?: boolean;
+    /** Disable chat-side encrypted task update jobs for flows that must only clarify. */
+    taskUpdateJobs?: boolean;
+    /** Override WebSocket turn waits for long-running sends and responses. */
+    responseTimeoutMs?: number;
   }): Promise<{
     status: "completed" | "waiting_for_user";
     chatId: string;
@@ -3111,6 +5939,14 @@ export class OpenMatesClient {
     mateName: string | null;
     /** Follow-up suggestions from post-processing (may be empty for incognito chats). */
     followUpSuggestions: string[];
+    /** Review-only task proposals from post-processing. */
+    taskProposals: TaskProposalEvent[];
+    /** Review-only task update proposals from post-processing. */
+    taskUpdateProposals: TaskUpdateProposalEvent[];
+    /** Main-processor task tool events observed during the turn. */
+    taskEvents: TaskEventFrame[];
+    /** Pending task update jobs awaiting client encryption/persistence. */
+    pendingTaskUpdateJobs: PendingTaskUpdateJobFrame[];
     /** Sub-chat lifecycle frames observed while collecting the parent response. */
     subChatEvents: SubChatEvent[];
     /** Memory permission requests observed and optionally approved while collecting the response. */
@@ -3120,7 +5956,12 @@ export class OpenMatesClient {
       approvedKeys: string[];
       entryCount: number;
     }>;
+    /** Final-frame token usage surfaced by the backend when provider usage metadata is available. */
+    tokenUsage: AiResponseTokenUsage | null;
+    /** Prompt-budget metrics surfaced by the backend when available. */
+    promptBudget: AiResponsePromptBudget | null;
   }> {
+    const teamId = this.resolveTeamContext({ teamId: params.teamId, personal: params.personal });
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     // Full UUIDs and undefined (new chat) pass through unchanged.
     let chatId: string;
@@ -3128,7 +5969,7 @@ export class OpenMatesClient {
       chatId = randomUUID();
     } else if (params.chatId.length < 36) {
       // Short ID — resolve from sync cache
-      const resolved = await this.resolveFullChatId(params.chatId);
+      const resolved = await this.resolveFullChatId(params.chatId, { teamId });
       if (!resolved) {
         throw new Error(
           `Chat not found for '${params.chatId}'. Use a full UUID or the first 8 characters of an existing chat ID.`,
@@ -3139,11 +5980,24 @@ export class OpenMatesClient {
       chatId = params.chatId;
     }
 
+    let finalMessage = params.message;
+    if (hasRememberMessageReference(finalMessage)) {
+      const rememberedHistory = (params.messageHistory ?? [])
+        .map((message) => ({ id: message.message_id, content: message.content }))
+        .filter((message) => Boolean(message.id) && typeof message.content === "string");
+      finalMessage = rewriteRememberMessageReferences(finalMessage, rememberedHistory);
+    }
+    if (params.chatId && !params.incognito && hasRememberMessageReference(finalMessage)) {
+      const { messages } = await this.getChatMessages(chatId, { personal: !teamId, teamId });
+      finalMessage = rewriteRememberMessageReferences(finalMessage, messages);
+    }
+    const shouldWaitForAi = shouldWaitForTeamAi(finalMessage, teamId);
+
     let availableMemories: DecryptedMemoryEntry[] = [];
     let memoryMetadataKeys: string[] = [];
     if (!params.incognito) {
       try {
-        availableMemories = await this.listMemories();
+        availableMemories = await this.listMemories({ teamId });
         memoryMetadataKeys = [
           ...new Set(
             availableMemories
@@ -3159,14 +6013,35 @@ export class OpenMatesClient {
       }
     }
 
-    const { ws, session } = await this.openWsClient();
+    const explicitTasksAppSkill = messageExplicitlyRequestsTasksAppSkill(finalMessage);
+    const taskUpdateJobsEnabled = params.taskUpdateJobs !== false && !explicitTasksAppSkill;
+    const { ws, ownerId } = await this.openWsClient({
+      taskUpdateJobs: taskUpdateJobsEnabled,
+    });
+    if (!params.incognito && !ownerId) {
+      ws.close();
+      throw new Error("Authenticated user identity is required for saved chat recovery.");
+    }
 
     const messageId = randomUUID();
     const createdAt = Math.floor(Date.now() / 1000);
     const isNewChat = !params.chatId;
+    let messageHistoryForRequest = params.messageHistory;
+    if (!params.incognito && !teamId && !isNewChat && !messageHistoryForRequest) {
+      const { messages } = await this.getChatMessages(chatId, { personal: true });
+      messageHistoryForRequest = messages.map((message) => ({
+        message_id: message.id,
+        chat_id: chatId,
+        role: message.role as "user" | "assistant" | "system",
+        sender_name: message.senderName ?? message.role,
+        content: message.content,
+        created_at: message.createdAt,
+        category: message.category,
+      }));
+    }
     // Mark this chat as active so the server streams incremental chunks
     // rather than sending a single background-completion event.
-    ws.send("set_active_chat", { chat_id: chatId });
+    ws.send("set_active_chat", { chat_id: chatId, ...(teamId ? { team_id: teamId } : {}) });
 
     const connectedAccountDirectory = buildConnectedAccountDirectoryPayload(
       params.connectedAccountDirectory,
@@ -3176,16 +6051,72 @@ export class OpenMatesClient {
           chatId,
           messageId,
           refs: params.connectedAccountTokenRefInputs,
+          teamId,
         })
       : [];
     assertNoConnectedAccountSecretLeak(connectedAccountTokenRefs);
 
-    // ── Phase 1: Plaintext message for AI processing ──
-    // Mirrors: chatSyncServiceSenders.ts sendMessageToServer()
     const piiMappings = params.piiMappings ?? [];
+
+    // Saved chats must resolve their immutable raw key before constructing the
+    // inference request because preflight commits the matching encrypted row.
+    let chatKeyBytes: Uint8Array | null = null;
+    let encryptedChatKey: string | null = null;
+    let baselineMessagesV = 0;
+    let terminalExpectedMessagesV = 1;
+    let savedTurnId: string | null = null;
+
+    if (!params.incognito) {
+      const masterKey = this.getMasterKeyBytes();
+      const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+
+      if (isNewChat) {
+        chatKeyBytes = globalThis.crypto
+          ? new Uint8Array(globalThis.crypto.getRandomValues(new Uint8Array(32)))
+          : new Uint8Array(
+              (await import("node:crypto")).webcrypto.getRandomValues(
+                new Uint8Array(32),
+              ),
+            );
+        encryptedChatKey = await encryptBytesWithAesGcm(
+          chatKeyBytes,
+          wrappingKey,
+        );
+      } else {
+        const cache = loadSyncCache(teamId) ?? (await this.ensureSynced(false, [], { teamId }));
+        const chat = cache.chats.find(
+          (c) =>
+            String(c.details.id ?? "") === chatId ||
+            String(c.details.id ?? "").startsWith(chatId),
+        );
+        if (chat) {
+          baselineMessagesV =
+            typeof chat.details.messages_v === "number"
+              ? chat.details.messages_v
+              : 0;
+          const encKey =
+            typeof chat.details.encrypted_chat_key === "string"
+              ? chat.details.encrypted_chat_key
+              : null;
+          if (encKey) {
+            chatKeyBytes = await decryptBytesWithAesGcm(encKey, wrappingKey);
+            encryptedChatKey = encKey;
+          }
+        }
+        if (!chatKeyBytes || !encryptedChatKey) {
+          throw new Error(`Encrypted chat key not found for chat '${chatId}'. Sync and try again.`);
+        }
+      }
+    }
+
+    // ── Inference request ──
+    // Mirrors: chatSyncServiceSenders.ts sendMessageToServer()
+    const clientCapabilities = taskUpdateJobsEnabled ? ["task_update_jobs"] : [];
 
     const messagePayload: Record<string, unknown> = {
       chat_id: chatId,
+      ...(teamId ? { team_id: teamId } : {}),
+      client_capabilities: clientCapabilities,
       is_incognito: Boolean(params.incognito),
       message: {
         message_id: messageId,
@@ -3193,11 +6124,15 @@ export class OpenMatesClient {
         role: "user",
         sender_name: "User",
         status: "sent",
-        content: params.message,
+        content: finalMessage,
         created_at: createdAt,
         chat_has_title: Boolean(params.chatId),
       },
     };
+
+    if (isNewChat && encryptedChatKey) {
+      messagePayload.encrypted_chat_key = encryptedChatKey;
+    }
 
     if (memoryMetadataKeys.length > 0) {
       messagePayload.app_settings_memories_metadata = memoryMetadataKeys;
@@ -3227,11 +6162,11 @@ export class OpenMatesClient {
         chat_id: chatId,
         role: "user",
         sender_name: "User",
-        content: params.message,
+        content: finalMessage,
         created_at: createdAt,
       }];
-    } else if (isNewChat && params.messageHistory && params.messageHistory.length > 0) {
-      messagePayload.message_history = params.messageHistory.map((historyMessage) => ({
+    } else if (messageHistoryForRequest && messageHistoryForRequest.length > 0) {
+      messagePayload.message_history = messageHistoryForRequest.map((historyMessage) => ({
         message_id: historyMessage.message_id,
         chat_id: chatId,
         role: historyMessage.role,
@@ -3239,58 +6174,6 @@ export class OpenMatesClient {
         content: historyMessage.content,
         created_at: historyMessage.created_at,
       }));
-    }
-
-    // For non-incognito chats, resolve or generate the chat key and include
-    // the encrypted_chat_key in Phase 1 so the server can store it for sync.
-    // Mirrors: chatSyncServiceSenders.ts sendEncryptedStoragePackage() key logic
-    let chatKeyBytes: Uint8Array | null = null;
-    let encryptedChatKey: string | null = null;
-    let baselineMessagesV = 0;
-
-    if (!params.incognito) {
-      const masterKey = this.getMasterKeyBytes();
-
-      if (isNewChat) {
-        // New chat — generate a fresh 32-byte AES-256 key
-        chatKeyBytes = globalThis.crypto
-          ? new Uint8Array(globalThis.crypto.getRandomValues(new Uint8Array(32)))
-          : new Uint8Array(
-              (await import("node:crypto")).webcrypto.getRandomValues(
-                new Uint8Array(32),
-              ),
-            );
-        // Encrypt the chat key with the master key for server storage
-        encryptedChatKey = await encryptBytesWithAesGcm(
-          chatKeyBytes,
-          masterKey,
-        );
-        messagePayload.encrypted_chat_key = encryptedChatKey;
-      } else {
-        // Existing chat — decrypt the chat key from the sync cache.
-        // Chat keys don't change, so stale cache is fine — avoid a full
-        // Phase 3 sync just to retrieve a key we likely already have.
-        const cache = loadSyncCache() ?? (await this.ensureSynced());
-        const chat = cache.chats.find(
-          (c) =>
-            String(c.details.id ?? "") === chatId ||
-            String(c.details.id ?? "").startsWith(chatId),
-        );
-        if (chat) {
-          baselineMessagesV =
-            typeof chat.details.messages_v === "number"
-              ? chat.details.messages_v
-              : 0;
-          const encKey =
-            typeof chat.details.encrypted_chat_key === "string"
-              ? chat.details.encrypted_chat_key
-              : null;
-          if (encKey) {
-            chatKeyBytes = await decryptBytesWithAesGcm(encKey, masterKey);
-            encryptedChatKey = encKey;
-          }
-        }
-      }
     }
 
     if (params.preparedEmbeds && params.preparedEmbeds.length > 0) {
@@ -3305,6 +6188,9 @@ export class OpenMatesClient {
 
     const encryptedEmbeds: EncryptedEmbed[] = [...(params.encryptedEmbeds ?? [])];
     if (!params.incognito && params.preparedEmbeds && params.preparedEmbeds.length > 0) {
+      if (!ownerId) {
+        throw new Error("Authenticated user identity is required to encrypt embeds.");
+      }
       const masterKey = this.getMasterKeyBytes();
       for (const embed of params.preparedEmbeds) {
         const encrypted = await encryptEmbed(
@@ -3313,7 +6199,7 @@ export class OpenMatesClient {
           chatKeyBytes,
           chatId,
           messageId,
-          session.hashedEmail,
+          ownerId,
         );
         if (encrypted) encryptedEmbeds.push(encrypted);
       }
@@ -3325,64 +6211,132 @@ export class OpenMatesClient {
       messagePayload.encrypted_embeds = encryptedEmbeds;
     }
 
-    const precollectedResponse = params.precollectResponse
-      ? ws.collectAiResponse(messageId, chatId, { onStream: params.onStream })
+    let precollectedResponse = params.precollectResponse && params.incognito && shouldWaitForAi
+      ? ws.collectAiResponse(messageId, chatId, { onStream: params.onStream, timeoutMs: params.responseTimeoutMs })
       : null;
 
+    if (!params.incognito && chatKeyBytes && encryptedChatKey) {
+      const protocolVersion = 1;
+      const chatKeyVersion = 1;
+      const turnId = randomUUID();
+      savedTurnId = turnId;
+      terminalExpectedMessagesV = baselineMessagesV + 1;
+      const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
+        Buffer.from(chatKeyBytes).toString("base64url"),
+        chatId,
+        chatKeyVersion,
+      );
+      const encryptedContent = await encryptWithAesGcmCombined(
+        finalMessage,
+        chatKeyBytes,
+      );
+      const encryptedUserMessage: Record<string, unknown> = {
+        client_message_id: messageId,
+        chat_id: chatId,
+        encrypted_content: encryptedContent,
+        role: "user",
+        created_at: createdAt,
+        updated_at: createdAt,
+      };
+
+      if (piiMappings.length > 0) {
+        encryptedUserMessage.encrypted_pii_mappings = await encryptWithAesGcmCombined(
+          JSON.stringify(piiMappings),
+          chatKeyBytes,
+        );
+      }
+
+      Object.assign(messagePayload, {
+        turn_id: turnId,
+        recovery_public_key: recoveryKeypair.publicKey,
+        chat_key_version: chatKeyVersion,
+      });
+      const preflightPayload: Record<string, unknown> = {
+        protocol_version: protocolVersion,
+        chat_id: chatId,
+        ...(teamId ? { team_id: teamId } : {}),
+        turn_id: turnId,
+        message_id: messageId,
+        chat_key_version: chatKeyVersion,
+        encrypted_chat_key: encryptedChatKey,
+        recovery_public_key: recoveryKeypair.publicKey,
+        expected_messages_v: baselineMessagesV,
+        encrypted_user_message: encryptedUserMessage,
+        inference_request: messagePayload,
+      };
+      if (isNewChat) {
+        const initialTitle = teamId && !shouldWaitForAi ? "New team chat" : "";
+        preflightPayload.encrypted_chat_metadata = {
+          encrypted_title: await encryptWithAesGcmCombined(initialTitle, chatKeyBytes),
+          encrypted_chat_key: encryptedChatKey,
+          created_at: createdAt,
+          updated_at: createdAt,
+        };
+      }
+
+      const preflightAck = ws.waitForMessage(
+        "chat_turn_preflight_ack",
+        (payload) => (payload as Record<string, unknown>).turn_id === turnId,
+      );
+      let ackPayload: Record<string, unknown>;
+      try {
+        await ws.sendAsync("chat_turn_preflight", preflightPayload);
+        ackPayload = (await preflightAck).payload as Record<string, unknown>;
+      } catch (error) {
+        ws.close();
+        throw error;
+      }
+      if (typeof ackPayload.preflight_id !== "string" || !ackPayload.preflight_id) {
+        ws.close();
+        throw new Error("Encrypted chat preflight acknowledgement omitted preflight_id.");
+      }
+      Object.assign(messagePayload, {
+        protocol_version: protocolVersion,
+        preflight_id: ackPayload.preflight_id,
+      });
+      if (typeof ackPayload.committed_messages_v === "number" && Number.isSafeInteger(ackPayload.committed_messages_v)) {
+        terminalExpectedMessagesV = ackPayload.committed_messages_v;
+      }
+    }
+    if (params.precollectResponse && !params.incognito && shouldWaitForAi) {
+      precollectedResponse = ws.collectAiResponse(messageId, chatId, {
+        onStream: params.onStream,
+        timeoutMs: params.responseTimeoutMs,
+        recoveryTurnId: savedTurnId,
+      });
+    }
     const confirmed = ws.waitForMessage(
       "chat_message_confirmed",
       (payload) => {
         const eventPayload = payload as Record<string, unknown>;
         return eventPayload.chat_id === chatId && eventPayload.message_id === messageId;
       },
-      20_000,
+      params.responseTimeoutMs ?? DEFAULT_CHAT_MESSAGE_CONFIRMATION_TIMEOUT_MS,
     );
     await ws.sendAsync("chat_message_added", messagePayload);
-    await confirmed;
-
-    // ── Phase 2: Encrypted metadata for Directus persistence + cross-device sync ──
-    // Mirrors: chatSyncServiceSenders.ts sendEncryptedStoragePackage()
-    // Without this, the message is only cached for AI but never persisted to Directus,
-    // so the web app and other devices cannot sync the message.
-    if (!params.incognito && chatKeyBytes) {
-      const encryptedContent = await encryptWithAesGcmCombined(
-        params.message,
-        chatKeyBytes,
-      );
-      const encryptedSenderName = await encryptWithAesGcmCombined(
-        "User",
-        chatKeyBytes,
-      );
-
-      const metadataPayload: Record<string, unknown> = {
-        chat_id: chatId,
-        message_id: messageId,
-        encrypted_content: encryptedContent,
-        encrypted_sender_name: encryptedSenderName,
-        created_at: createdAt,
-        encrypted_chat_key: encryptedChatKey,
-        versions: {
-          messages_v: 0,
-          title_v: 0,
-          last_edited_overall_timestamp: createdAt,
-        },
-      };
-
-      if (piiMappings.length > 0) {
-        metadataPayload.encrypted_pii_mappings = await encryptWithAesGcmCombined(
-          JSON.stringify(piiMappings),
-          chatKeyBytes,
-        );
-      }
-
-      ws.send("encrypted_chat_metadata", metadataPayload);
+    const confirmedPayload = (await confirmed).payload as Record<string, unknown>;
+    if (
+      !params.incognito &&
+      typeof confirmedPayload.new_messages_v === "number" &&
+      Number.isSafeInteger(confirmedPayload.new_messages_v)
+    ) {
+      terminalExpectedMessagesV = confirmedPayload.new_messages_v;
+    }
+    if (!params.incognito) {
+      clearSyncCache(teamId);
     }
 
     let assistant = "";
     let assistantMessageId: string | null = null;
     let category: string | null = null;
     let modelName: string | null = null;
+    let tokenUsage: AiResponseTokenUsage | null = null;
+    let promptBudget: AiResponsePromptBudget | null = null;
     let followUpSuggestions: string[] = [];
+    let taskProposals: TaskProposalEvent[] = [];
+    let taskUpdateProposals: TaskUpdateProposalEvent[] = [];
+    let taskEvents: TaskEventFrame[] = [];
+    let pendingTaskUpdateJobs: PendingTaskUpdateJobFrame[] = [];
     let subChatEvents: SubChatEvent[] = [];
     const appSettingsMemoryRequests: Array<{
       requestId: string | null;
@@ -3503,6 +6457,38 @@ export class OpenMatesClient {
       );
     };
 
+    const persistCompressionCheckpoints = async (
+      checkpoints: ChatCompressionCheckpointEvent[],
+    ) => {
+      if (!chatKeyBytes || checkpoints.length === 0) return;
+      for (const checkpoint of checkpoints) {
+        const createdAtSeconds = Math.floor(Date.now() / 1000);
+        const storedPromise = ws.waitForMessage(
+          "chat_compression_checkpoint_stored",
+          (payload) => {
+            const p = payload as Record<string, unknown>;
+            const storedCheckpoint = p.checkpoint as Record<string, unknown> | undefined;
+            return p.chat_id === checkpoint.chatId && storedCheckpoint?.id === checkpoint.checkpointId;
+          },
+          20_000,
+        );
+        await ws.sendAsync("store_chat_compression_checkpoint", {
+          chat_id: checkpoint.chatId,
+          checkpoint_id: checkpoint.checkpointId,
+          encrypted_summary: await encryptWithAesGcmCombined(
+            checkpoint.summaryContent,
+            chatKeyBytes,
+          ),
+          compressed_up_to_timestamp: checkpoint.compressedUpToTimestamp,
+          compressed_message_count: checkpoint.compressedMessageCount,
+          summary_token_estimate: checkpoint.summaryTokenEstimate,
+          key_version: 1,
+          created_at: createdAtSeconds,
+        });
+        await storedPromise;
+      }
+    };
+
     const persistMemoryRequestSystemMessage = async (
       event: AppSettingsMemoriesRequestEvent,
     ) => {
@@ -3597,22 +6583,51 @@ export class OpenMatesClient {
       );
     };
 
+    const persistedTaskEventIds = new Set<string>();
+    const persistTaskEventSystemMessages = async (events: TaskEventFrame[]) => {
+      if (!chatKeyBytes || events.length === 0) return;
+      for (const event of events) {
+        if (persistedTaskEventIds.has(event.event_id)) continue;
+        await this.persistEncryptedSystemMessage(
+          ws,
+          await buildTaskEventSystemMessage({
+            chatKey: chatKeyBytes,
+            userMessageId: messageId,
+            event,
+          }),
+          chatId,
+        );
+        persistedTaskEventIds.add(event.event_id);
+      }
+    };
+
     const streamOpts = {
       onStream: params.onStream,
       onSubChatEvent: handleSubChatEvent,
       onAppSettingsMemoriesRequest: handleAppSettingsMemoriesRequest,
     };
 
-    if (params.incognito) {
+    if (!shouldWaitForAi) {
+      ws.close();
+    } else if (params.incognito) {
       try {
-        const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, streamOpts));
+        const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, {
+          ...streamOpts,
+          timeoutMs: params.responseTimeoutMs,
+          recoveryTurnId: savedTurnId,
+        }));
         assistantMessageId = resp.messageId;
         assistant = resp.content;
         category = resp.category;
         modelName = resp.modelName;
+        tokenUsage = resp.tokenUsage;
+        promptBudget = resp.promptBudget;
+        taskEvents = resp.taskEvents;
+        pendingTaskUpdateJobs = taskUpdateJobsEnabled ? resp.pendingTaskUpdateJobs : [];
         subChatEvents = resp.subChatEvents;
         // Incognito chats are not post-processed — follow-up suggestions are not stored.
         if (resp.status === "waiting_for_user") {
+          await persistCompressionCheckpoints(resp.compressionCheckpoints);
           return {
             status: resp.status,
             chatId,
@@ -3622,8 +6637,14 @@ export class OpenMatesClient {
             modelName,
             mateName: category ? MATE_NAMES[category] ?? null : null,
             followUpSuggestions,
+            taskProposals,
+            taskUpdateProposals,
+            taskEvents,
+            pendingTaskUpdateJobs,
             subChatEvents,
             appSettingsMemoryRequests,
+            tokenUsage,
+            promptBudget,
           };
         }
       } finally {
@@ -3631,15 +6652,26 @@ export class OpenMatesClient {
       }
     } else {
       try {
-        const resp = await ws.collectAiResponse(messageId, chatId, streamOpts);
+        const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, {
+          ...streamOpts,
+          timeoutMs: params.responseTimeoutMs,
+          recoveryTurnId: savedTurnId,
+        }));
         assistantMessageId = resp.messageId;
         assistant = resp.content;
         category = resp.category;
         modelName = resp.modelName;
+        tokenUsage = resp.tokenUsage;
+        promptBudget = resp.promptBudget;
         followUpSuggestions = resp.followUpSuggestions;
+        taskProposals = resp.taskProposals;
+        taskUpdateProposals = resp.taskUpdateProposals;
+        taskEvents = resp.taskEvents;
+        pendingTaskUpdateJobs = taskUpdateJobsEnabled ? resp.pendingTaskUpdateJobs : [];
         subChatEvents = resp.subChatEvents;
 
         if (resp.status === "waiting_for_user") {
+          await persistTaskEventSystemMessages(taskEvents);
           return {
             status: resp.status,
             chatId,
@@ -3649,68 +6681,265 @@ export class OpenMatesClient {
             modelName,
             mateName: category ? MATE_NAMES[category] ?? null : null,
             followUpSuggestions,
+            taskProposals,
+            taskUpdateProposals,
+            taskEvents,
+            pendingTaskUpdateJobs,
             subChatEvents,
             appSettingsMemoryRequests,
+            tokenUsage,
+            promptBudget,
           };
         }
 
-        if (chatKeyBytes && assistant) {
+        if (chatKeyBytes) {
+          if (!resp.recoveryJobId || !savedTurnId || !ownerId) {
+            throw new Error("Saved chat completion did not include recoverable terminal identity.");
+          }
+          const recoveryJobId = resp.recoveryJobId;
+          const claimPromise = ws.waitForMessage(
+            "recovery_job_claimed",
+            (payload) => (payload as Record<string, unknown>).job_id === recoveryJobId,
+            20_000,
+          );
+          await ws.sendAsync("recovery_job_claim", {
+            protocol_version: 1,
+            job_id: recoveryJobId,
+          });
+          const claim = (await claimPromise).payload as Record<string, unknown>;
+          const leaseToken = typeof claim.lease_token === "string" ? claim.lease_token : null;
+          const leaseGeneration = typeof claim.lease_generation === "number"
+            && Number.isSafeInteger(claim.lease_generation)
+            ? claim.lease_generation
+            : null;
+          const assistantId = typeof claim.assistant_message_id === "string"
+            ? claim.assistant_message_id
+            : null;
+          const keyVersion = typeof claim.chat_key_version === "number"
+            && Number.isSafeInteger(claim.chat_key_version)
+            ? claim.chat_key_version
+            : null;
+          const claimMatchesExpectedTerminal = assistantId
+            && keyVersion === 1
+            && claim.chat_id === chatId
+            && claim.turn_id === savedTurnId;
+          if (claim.state === "TERMINAL" && claimMatchesExpectedTerminal) {
+            assistant = resp.content;
+            category = resp.category;
+            modelName = resp.modelName;
+            assistantMessageId = assistantId;
+            await this.persistStreamedEmbeds({
+              ws,
+              embeds: resp.embeds,
+              chatId,
+              chatKeyBytes,
+              fallbackMessageId: assistantId,
+              ownerId,
+            });
+            clearSyncCache(teamId);
+            await persistCompressionCheckpoints(resp.compressionCheckpoints);
+            await persistTaskEventSystemMessages(taskEvents);
+            const mateName = category ? (MATE_NAMES[category] ?? null) : null;
+            return {
+              status: "completed",
+              chatId,
+              messageId: assistantMessageId,
+              assistant,
+              category,
+              modelName,
+              mateName,
+              followUpSuggestions,
+              taskProposals,
+              taskUpdateProposals,
+              taskEvents,
+              pendingTaskUpdateJobs,
+              subChatEvents,
+              appSettingsMemoryRequests,
+              tokenUsage,
+              promptBudget,
+            };
+          }
+          if (
+            claim.state !== "LEASED"
+            || !leaseToken
+            || leaseGeneration === null
+            || leaseGeneration < 1
+            || !assistantId
+            || keyVersion === null
+            || keyVersion !== 1
+            || claim.chat_id !== chatId
+            || claim.turn_id !== savedTurnId
+            || typeof claim.sealed_payload !== "string"
+          ) {
+            throw new Error("Recovery job claim returned invalid lease or identity data.");
+          }
+
+          const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
+            Buffer.from(chatKeyBytes).toString("base64url"),
+            chatId,
+            keyVersion,
+          );
+          let envelope: Record<string, unknown>;
+          try {
+            envelope = JSON.parse(claim.sealed_payload) as Record<string, unknown>;
+          } catch {
+            throw new Error("Recovery job contained an invalid sealed envelope.");
+          }
+          const plaintext = await openChatCompletionRecoveryEnvelope(
+            envelope as unknown as ChatCompletionRecoveryEnvelope,
+            {
+              recoveryPrivateKey: recoveryKeypair.privateKey,
+              ownerId,
+              chatId,
+              turnId: savedTurnId,
+              jobId: recoveryJobId,
+              assistantMessageId: assistantId,
+              keyVersion,
+            },
+          );
+          let recovered: Record<string, unknown>;
+          try {
+            recovered = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(plaintext)) as Record<string, unknown>;
+          } catch {
+            throw new Error("Recovery job plaintext was not valid UTF-8 JSON.");
+          }
+          const expectedRecoveryFields = [
+            "assistant_message_id",
+            "category",
+            "chat_id",
+            "content",
+            "job_id",
+            "key_version",
+            "model_name",
+            "turn_id",
+          ];
+          if (
+            Object.keys(recovered).sort().join(",") !== expectedRecoveryFields.join(",")
+            || recovered.assistant_message_id !== assistantId
+            || recovered.chat_id !== chatId
+            || recovered.turn_id !== savedTurnId
+            || recovered.job_id !== recoveryJobId
+            || recovered.key_version !== keyVersion
+            || typeof recovered.content !== "string"
+            || (recovered.category !== null && typeof recovered.category !== "string")
+            || (recovered.model_name !== null && typeof recovered.model_name !== "string")
+          ) {
+            throw new Error("Recovery job plaintext did not match the terminal completion identity.");
+          }
+          assistant = recovered.content;
+          category = recovered.category as string | null;
+          modelName = recovered.model_name as string | null;
+
           const completedAt = Math.floor(Date.now() / 1000);
           const encryptedAssistantContent = await encryptWithAesGcmCombined(
             assistant,
             chatKeyBytes,
           );
-          const encryptedCategory = category
-            ? await encryptWithAesGcmCombined(category, chatKeyBytes)
+          const encryptedSenderName = await encryptWithAesGcmCombined("Assistant", chatKeyBytes);
+          const encryptedCategory = recovered.category
+            ? await encryptWithAesGcmCombined(recovered.category, chatKeyBytes)
             : undefined;
-          const encryptedModelName = modelName
-            ? await encryptWithAesGcmCombined(modelName, chatKeyBytes)
+          const encryptedModelName = recovered.model_name
+            ? await encryptWithAesGcmCombined(recovered.model_name, chatKeyBytes)
             : undefined;
-          const persistedAssistantMessageId = assistantMessageId ?? randomUUID();
-
-          ws.send("ai_response_completed", {
-            chat_id: chatId,
-            message: {
-              message_id: persistedAssistantMessageId,
+          const terminalPersistPayload = {
+            protocol_version: 1,
+            job_id: recoveryJobId,
+            lease_token: leaseToken,
+            lease_generation: leaseGeneration,
+            encrypted_assistant_message: {
+              client_message_id: assistantId,
               chat_id: chatId,
-              role: "assistant",
-              created_at: completedAt,
-              status: "synced",
-              user_message_id: messageId,
               encrypted_content: encryptedAssistantContent,
+              encrypted_sender_name: encryptedSenderName,
               encrypted_category: encryptedCategory,
               encrypted_model_name: encryptedModelName,
+              role: "assistant",
+              user_message_id: messageId,
+              created_at: completedAt,
+              updated_at: completedAt,
             },
-            versions: {
-              messages_v: baselineMessagesV + 2,
-              last_edited_overall_timestamp: completedAt,
-            },
-          });
-
-          await ws.waitForMessage(
-            "ai_response_storage_confirmed",
-            (payload) => {
-              const p = payload as Record<string, unknown>;
-              return p.message_id === persistedAssistantMessageId;
-            },
-            20_000,
-          );
+          };
+          const persistTerminalRecovery = async (expectedMessagesV: number) => {
+            const persistedPromise = ws.waitForMessage(
+              "recovery_job_persisted",
+              (payload) => (payload as Record<string, unknown>).job_id === recoveryJobId,
+              20_000,
+            );
+            await ws.sendAsync("recovery_job_persist", {
+              ...terminalPersistPayload,
+              expected_messages_v: expectedMessagesV,
+            });
+            await persistedPromise;
+          };
+          let terminalPersisted = false;
+          try {
+            await persistTerminalRecovery(terminalExpectedMessagesV);
+            terminalPersisted = true;
+          } catch (error) {
+            if (error instanceof WebSocketProtocolError) {
+              if (error.code === "version_conflict") {
+                const latestCache = await this.ensureSynced(true, [chatId], { teamId });
+                const latestChat = latestCache.chats.find(
+                  (chat) => String(chat.details.id ?? "") === chatId,
+                );
+                const latestMessagesV = typeof latestChat?.details.messages_v === "number"
+                  && Number.isSafeInteger(latestChat.details.messages_v)
+                  ? latestChat.details.messages_v
+                  : null;
+                if (latestMessagesV !== null && latestMessagesV > terminalExpectedMessagesV) {
+                  await persistTerminalRecovery(latestMessagesV);
+                  terminalExpectedMessagesV = latestMessagesV;
+                  terminalPersisted = true;
+                }
+              }
+              if (!terminalPersisted) {
+                throw new Error(`${error.message} (${error.code})`);
+              }
+            } else {
+              throw error;
+            }
+          }
+          if (!terminalPersisted) {
+            throw new Error("Encrypted completion recovery did not persist terminal state.");
+          }
+          assistantMessageId = assistantId;
           await this.persistStreamedEmbeds({
             ws,
             embeds: resp.embeds,
             chatId,
             chatKeyBytes,
-            fallbackMessageId: persistedAssistantMessageId,
+            fallbackMessageId: assistantId,
+            ownerId,
           });
           await this.persistPostProcessingMetadata({
             ws,
             chatId,
+            teamId,
             chatKeyBytes,
             followUpSuggestions: resp.followUpSuggestions,
             newChatSuggestions: resp.newChatSuggestions,
+            chatSummary: resp.chatSummary,
+            chatTags: resp.chatTags,
+            updatedChatTitle: resp.updatedChatTitle,
             encryptedChatKey,
           });
-          clearSyncCache();
+          await persistCompressionCheckpoints(resp.compressionCheckpoints);
+          if (taskUpdateJobsEnabled) {
+            const persistedTaskJobIds = await this.persistPendingTaskUpdateJobs({
+              ws,
+              jobs: pendingTaskUpdateJobs,
+              events: taskEvents,
+              teamId,
+              activeChatId: chatId,
+              activeChatKeyBytes: chatKeyBytes,
+              fallbackUserMessageId: messageId,
+              requireActiveTurnEvent: true,
+            });
+            pendingTaskUpdateJobs = pendingTaskUpdateJobs.filter((job) => !persistedTaskJobIds.has(job.job_id));
+          }
+          await persistTaskEventSystemMessages(taskEvents);
+          clearSyncCache(teamId);
         }
       } finally {
         ws.close();
@@ -3727,9 +6956,291 @@ export class OpenMatesClient {
       modelName,
       mateName,
       followUpSuggestions,
+      taskProposals,
+      taskUpdateProposals,
+      taskEvents,
+      pendingTaskUpdateJobs,
       subChatEvents,
       appSettingsMemoryRequests,
+      tokenUsage,
+      promptBudget,
     };
+  }
+
+  private async persistEncryptedSystemMessage(
+    ws: OpenMatesWsClient,
+    systemMessage: {
+      message_id: string;
+      role: "system";
+      encrypted_content: string;
+      created_at: number;
+      user_message_id: string;
+      task_update_job_id?: string;
+    },
+    targetChatId: string,
+  ): Promise<void> {
+    await ws.sendAsync("chat_system_message_added", {
+      chat_id: targetChatId,
+      message: systemMessage,
+    });
+    await ws.waitForMessage(
+      "system_message_confirmed",
+      (payload) => (payload as Record<string, unknown>).message_id === systemMessage.message_id,
+      20_000,
+    );
+  }
+
+  private async persistPendingTaskUpdateJobs(params: {
+    ws: OpenMatesWsClient;
+    jobs: PendingTaskUpdateJobFrame[];
+    events: TaskEventFrame[];
+    teamId?: string | null;
+    activeChatId?: string | null;
+    activeChatKeyBytes?: Uint8Array | null;
+    fallbackUserMessageId?: string | null;
+    syncedChats?: CachedChat[];
+    requireActiveTurnEvent: boolean;
+  }): Promise<Set<string>> {
+    const handledJobIds = new Set<string>();
+    if (params.jobs.length === 0) return handledJobIds;
+
+    const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(params.teamId ?? null, masterKey);
+    let decryptedTasksCache: DecryptedUserTask[] | null = null;
+    const eventByJobId = new Map(params.events.map((event) => [event.task_update_job_id, event]));
+
+    const resolveChatKey = async (targetChatId: string): Promise<Uint8Array> => {
+      if (targetChatId === params.activeChatId && params.activeChatKeyBytes) return params.activeChatKeyBytes;
+      const findChat = (chats: CachedChat[] | undefined) => chats?.find((chat) => String(chat.details.id ?? "") === targetChatId);
+      const targetChat = findChat(params.syncedChats) ?? findChat(loadSyncCache(params.teamId)?.chats);
+      const encryptedTargetChatKey = typeof targetChat?.details.encrypted_chat_key === "string"
+        ? targetChat.details.encrypted_chat_key
+        : null;
+      if (!encryptedTargetChatKey) {
+        throw new Error(`Encrypted chat key not found for task update job target '${targetChatId}'. Sync and try again.`);
+      }
+      const targetChatKey = await decryptBytesWithAesGcm(encryptedTargetChatKey, wrappingKey);
+      if (!targetChatKey) {
+        throw new Error(`Failed to decrypt chat key for task update job target '${targetChatId}'.`);
+      }
+      return targetChatKey;
+    };
+
+    const listProjectTaskKeyWrappers = async (taskId: string, createdAt: number): Promise<Array<Record<string, unknown>>> => {
+      const response = await this.http.get<{ key_wrappers?: Array<Record<string, unknown>> }>(
+        `/v1/user-tasks/${encodeURIComponent(taskId)}/key-wrappers`,
+        this.getCliRequestHeaders(),
+      );
+      if (!response.ok) {
+        throw new Error(`User task key wrapper list failed with HTTP ${response.status}`);
+      }
+      return (response.data.key_wrappers ?? [])
+        .filter((wrapper) => wrapper.key_type === "project")
+        .map((wrapper) => ({
+          key_type: "project",
+          hashed_project_id: wrapper.hashed_project_id,
+          encrypted_task_key: wrapper.encrypted_task_key,
+          created_at: typeof wrapper.created_at === "number" ? wrapper.created_at : createdAt,
+          expires_at: wrapper.expires_at ?? null,
+        }));
+    };
+
+    const buildTaskKeyWrappersForChat = async (
+      task: DecryptedUserTask,
+      targetChatId: string,
+      createdAt: number,
+    ) => {
+      const encryptedTaskKey = task.encrypted.encrypted_task_key;
+      if (!encryptedTaskKey) throw new Error(`Task ${task.taskId} is missing encrypted task key.`);
+      const taskKey = await decryptBytesWithAesGcm(encryptedTaskKey, masterKey);
+      if (!taskKey) throw new Error(`Failed to decrypt task key for ${task.taskId}.`);
+      const targetChatKey = await resolveChatKey(targetChatId);
+      const existingProjectWrappers = await listProjectTaskKeyWrappers(task.taskId, createdAt);
+      const linkedProjectIds = task.linkedProjectIds ?? [];
+      if (linkedProjectIds.length > existingProjectWrappers.length) {
+        throw new Error(`Task ${task.taskId} is missing project key wrappers required for move persistence.`);
+      }
+      return [
+        {
+          key_type: "master",
+          encrypted_task_key: await encryptBytesWithAesGcm(taskKey, masterKey),
+          created_at: createdAt,
+        },
+        {
+          key_type: "chat",
+          hashed_chat_id: computeSHA256(targetChatId),
+          encrypted_task_key: await encryptBytesWithAesGcm(taskKey, targetChatKey),
+          created_at: createdAt,
+        },
+        ...existingProjectWrappers,
+      ];
+    };
+
+    const findTaskForUpdateJob = async (claim: TaskUpdateJobClaimPayload): Promise<DecryptedUserTask> => {
+      const chatIds = [claim.source_task_chat_id, claim.chat_id, claim.safe_metadata?.primary_chat_id]
+        .filter((value): value is string => typeof value === "string" && value.length > 0);
+      for (const candidateChatId of [...new Set(chatIds)]) {
+        const scopedTasks = await decryptUserTasks(await this.listUserTasks({ chatId: candidateChatId }), masterKey);
+        try {
+          return findTask(scopedTasks, claim.task_id);
+        } catch (error) {
+          if (!(error instanceof Error) || !error.message.includes("was not found")) throw error;
+        }
+      }
+      if (!decryptedTasksCache) {
+        decryptedTasksCache = await decryptUserTasks(await this.listUserTasks({ limit: 1000 }), masterKey);
+      }
+      return findTask(decryptedTasksCache, claim.task_id);
+    };
+
+    const taskEventTypeForOperation = (operation: string | null | undefined): string => {
+      switch (operation) {
+        case "create": return "created";
+        case "move": return "moved";
+        case "update": return "updated";
+        default: return operation || "updated";
+      }
+    };
+
+    for (const job of params.jobs) {
+      if (
+        params.requireActiveTurnEvent
+        && params.activeChatId
+        && !taskUpdateJobBelongsToActiveTurn(job, params.activeChatId, params.events)
+      ) {
+        handledJobIds.add(job.job_id);
+        continue;
+      }
+
+      const claimPromise = params.ws.waitForMessage(
+        "task_update_job_claimed",
+        (payload) => (payload as Record<string, unknown>).job_id === job.job_id,
+        20_000,
+      );
+      let claim: TaskUpdateJobClaimPayload;
+      try {
+        await params.ws.sendAsync("task_update_job_claim", {
+          protocol_version: 1,
+          job_id: job.job_id,
+        });
+        claim = (await claimPromise).payload as unknown as TaskUpdateJobClaimPayload;
+      } catch (error) {
+        if (isStaleTaskUpdateJobError(error)) {
+          handledJobIds.add(job.job_id);
+          continue;
+        }
+        throw error;
+      }
+
+      const privatePatch = claim.private_patch ?? {};
+      const safeMetadata = claim.safe_metadata ?? {};
+      const sourceChatId = claim.chat_id ?? job.chat_id ?? params.activeChatId;
+      if (!sourceChatId) {
+        handledJobIds.add(job.job_id);
+        continue;
+      }
+      const sourceChatKey = await resolveChatKey(sourceChatId);
+      const event = eventByJobId.get(job.job_id) ?? {
+        event_id: `task-event-${job.job_id}`,
+        chat_id: sourceChatId,
+        task_id: claim.task_id,
+        event_type: taskEventTypeForOperation(claim.operation),
+        title: typeof privatePatch.title === "string" ? privatePatch.title : null,
+        status: typeof safeMetadata.status === "string" ? safeMetadata.status : null,
+        created_at: typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : Math.floor(Date.now() / 1000),
+        task_update_job_id: job.job_id,
+      } satisfies TaskEventFrame;
+      const userMessageId = claim.message_id ?? params.fallbackUserMessageId;
+      if (!userMessageId) throw new Error(`Task update job ${job.job_id} is missing a user message id.`);
+      const eventMessage = await buildTaskEventSystemMessage({
+        chatKey: sourceChatKey,
+        userMessageId,
+        event,
+      });
+      const confirmTaskEventPersisted = async () => {
+        const confirmedPromise = params.ws.waitForMessage(
+          "task_update_job_event_confirmed",
+          (payload) => (payload as Record<string, unknown>).job_id === job.job_id,
+          20_000,
+        );
+        await params.ws.sendAsync("task_update_job_event_confirmed", {
+          protocol_version: 1,
+          job_id: job.job_id,
+          event_system_message_id: eventMessage.message_id,
+        });
+        await confirmedPromise;
+      };
+
+      if (claim.state === "TASK_PERSISTED") {
+        await this.persistEncryptedSystemMessage(params.ws, eventMessage, sourceChatId);
+        await confirmTaskEventPersisted();
+        handledJobIds.add(job.job_id);
+        continue;
+      }
+      if (!claim.lease_token || !Number.isSafeInteger(claim.lease_generation)) {
+        throw new Error("Task update job claim returned an invalid lease.");
+      }
+
+      let encryptedTaskPayload: Record<string, unknown>;
+      if (claim.operation === "create") {
+        const input = await buildCreateUserTaskInput(masterKey, {
+          title: typeof privatePatch.title === "string" ? privatePatch.title : "Untitled task",
+          description: typeof privatePatch.description === "string" ? privatePatch.description : "",
+          status: typeof safeMetadata.status === "string" ? safeMetadata.status as UserTaskStatus : "todo",
+          assign: typeof safeMetadata.assignee_type === "string" ? safeMetadata.assignee_type : "user",
+          chatId: typeof safeMetadata.primary_chat_id === "string" ? safeMetadata.primary_chat_id : claim.chat_id ?? params.activeChatId,
+        });
+        encryptedTaskPayload = {
+          ...input,
+          task_id: claim.task_id,
+          position: typeof safeMetadata.position === "number" ? safeMetadata.position : input.position,
+          created_at: typeof safeMetadata.created_at === "number" ? safeMetadata.created_at : input.created_at,
+          updated_at: typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : input.updated_at,
+        };
+      } else {
+        const task = await findTaskForUpdateJob(claim);
+        const patch = await buildUpdateUserTaskInput(task, masterKey, {
+          title: typeof privatePatch.title === "string" ? privatePatch.title : undefined,
+          description: typeof privatePatch.description === "string" ? privatePatch.description : undefined,
+          status: typeof safeMetadata.status === "string" ? safeMetadata.status as UserTaskStatus : undefined,
+          assign: typeof safeMetadata.assignee_type === "string" ? safeMetadata.assignee_type : undefined,
+          chatId: typeof safeMetadata.primary_chat_id === "string" ? safeMetadata.primary_chat_id : undefined,
+        });
+        encryptedTaskPayload = {
+          ...patch,
+          version: claim.expected_task_version,
+          updated_at: typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : patch.updated_at,
+        };
+        if (typeof safeMetadata.primary_chat_id === "string") {
+          encryptedTaskPayload.key_wrappers = await buildTaskKeyWrappersForChat(
+            task,
+            safeMetadata.primary_chat_id,
+            typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : Math.floor(Date.now() / 1000),
+          );
+        }
+      }
+
+      const persistedPromise = params.ws.waitForMessage(
+        "task_update_job_persisted",
+        (payload) => (payload as Record<string, unknown>).job_id === job.job_id,
+        20_000,
+      );
+      await params.ws.sendAsync("task_update_job_persist", buildTaskUpdateJobPersistPayload({
+        jobId: job.job_id,
+        leaseToken: claim.lease_token,
+        leaseGeneration: claim.lease_generation,
+        expectedTaskVersion: claim.expected_task_version,
+        encryptedTaskPayload,
+        encryptedTaskEventMessage: eventMessage.encrypted_content,
+      }));
+      await persistedPromise;
+      await this.persistEncryptedSystemMessage(params.ws, eventMessage, sourceChatId);
+      await confirmTaskEventPersisted();
+      handledJobIds.add(job.job_id);
+    }
+
+    clearSyncCache();
+    return handledJobIds;
   }
 
   private async persistStreamedEmbeds(params: {
@@ -3738,6 +7249,7 @@ export class OpenMatesClient {
     chatId: string;
     chatKeyBytes: Uint8Array;
     fallbackMessageId: string;
+    ownerId: string;
   }): Promise<void> {
     const finalized = new Map(
       params.embeds
@@ -3755,7 +7267,6 @@ export class OpenMatesClient {
     );
     if (finalized.size === 0) return;
 
-    const session = this.requireSession();
     const masterKey = this.getMasterKeyBytes();
     const parentKeys = new Map<string, Uint8Array>();
     const processed = new Set<string>();
@@ -3786,10 +7297,9 @@ export class OpenMatesClient {
       const createdAt = normalizeUnixSeconds(embed.createdAt, now);
       const updatedAt = normalizeUnixSeconds(embed.updatedAt, now);
       const messageId = embed.message_id || params.fallbackMessageId;
-      const userId = embed.user_id || session.hashedEmail;
       const hashedChatId = computeSHA256(params.chatId);
       const hashedMessageId = computeSHA256(messageId);
-      const hashedUserId = computeSHA256(userId);
+      const hashedUserId = computeSHA256(params.ownerId);
       const hashedEmbedId = computeSHA256(embed.embed_id);
       const encryptedContent = await encryptWithAesGcmCombined(
         embed.content ?? "",
@@ -3826,7 +7336,17 @@ export class OpenMatesClient {
           ]
         : [];
 
+      const storeRequestId = randomUUID();
+      const storeConfirmed = params.ws.waitForMessage(
+        "store_embed_confirmed",
+        (payload) => {
+          const p = payload as Record<string, unknown>;
+          return p.request_id === storeRequestId && p.embed_id === embed.embed_id;
+        },
+        30_000,
+      );
       await params.ws.sendAsync("store_embed", {
+        request_id: storeRequestId,
         embed_id: embed.embed_id,
         encrypted_type: encryptedType,
         encrypted_content: encryptedContent,
@@ -3847,9 +7367,20 @@ export class OpenMatesClient {
         created_at: createdAt,
         updated_at: updatedAt,
       });
+      await storeConfirmed;
 
       if (keys.length > 0) {
-        await params.ws.sendAsync("store_embed_keys", { keys });
+        const keysRequestId = randomUUID();
+        const keysConfirmed = params.ws.waitForMessage(
+          "store_embed_keys_confirmed",
+          (payload) => {
+            const p = payload as Record<string, unknown>;
+            return p.request_id === keysRequestId;
+          },
+          30_000,
+        );
+        await params.ws.sendAsync("store_embed_keys", { request_id: keysRequestId, keys });
+        await keysConfirmed;
         parentKeys.set(embed.embed_id, embedKey);
       }
 
@@ -3916,9 +7447,13 @@ export class OpenMatesClient {
   private async persistPostProcessingMetadata(params: {
     ws: OpenMatesWsClient;
     chatId: string;
+    teamId?: string | null;
     chatKeyBytes: Uint8Array;
     followUpSuggestions: string[];
     newChatSuggestions: string[];
+    chatSummary: string | null;
+    chatTags: string[];
+    updatedChatTitle: string | null;
     encryptedChatKey: string | null;
   }): Promise<void> {
     const encryptedFollowUps = params.followUpSuggestions.length > 0
@@ -3933,13 +7468,26 @@ export class OpenMatesClient {
         encryptWithAesGcmCombined(suggestion, masterKey),
       ),
     );
+    const encryptedChatSummary = params.chatSummary
+      ? await encryptWithAesGcmCombined(params.chatSummary, params.chatKeyBytes)
+      : "";
+    const encryptedChatTags = params.chatTags.length > 0
+      ? await encryptWithAesGcmCombined(JSON.stringify(params.chatTags.slice(0, 10)), params.chatKeyBytes)
+      : "";
+    const encryptedUpdatedTitle = params.updatedChatTitle
+      ? await encryptWithAesGcmCombined(params.updatedChatTitle, params.chatKeyBytes)
+      : "";
 
-    if (!encryptedFollowUps && encryptedNewChatSuggestions.length === 0) return;
+    if (!encryptedFollowUps && encryptedNewChatSuggestions.length === 0 && !encryptedChatSummary && !encryptedChatTags && !encryptedUpdatedTitle) return;
 
     await params.ws.sendAsync("update_post_processing_metadata", {
       chat_id: params.chatId,
+      ...(params.teamId ? { team_id: params.teamId } : {}),
       encrypted_follow_up_suggestions: encryptedFollowUps,
       encrypted_new_chat_suggestions: encryptedNewChatSuggestions,
+      encrypted_chat_summary: encryptedChatSummary,
+      encrypted_chat_tags: encryptedChatTags,
+      encrypted_title: encryptedUpdatedTitle,
       encrypted_chat_key: params.encryptedChatKey ?? "",
     });
     await params.ws.waitForMessage(
@@ -3958,11 +7506,12 @@ export class OpenMatesClient {
    * Mirrors the web app's sendDeleteChatImpl in chatSyncServiceSenders.ts.
    * Sends a delete_chat WebSocket message and waits for the server ack.
    */
-  async deleteChat(chatIdInput: string): Promise<void> {
+  async deleteChat(chatIdInput: string, options: TeamContextOptions = {}): Promise<void> {
+    const teamId = this.resolveTeamContext(options);
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     let chatId: string;
     if (chatIdInput.length < 36) {
-      const resolved = await this.resolveFullChatId(chatIdInput);
+      const resolved = await this.resolveFullChatId(chatIdInput, { teamId });
       if (!resolved) {
         throw new Error(
           `Chat not found for '${chatIdInput}'. Use a full UUID or the first 8 characters of an existing chat ID.`,
@@ -3976,7 +7525,7 @@ export class OpenMatesClient {
     const { ws } = await this.openWsClient();
 
     try {
-      ws.send("delete_chat", { chatId: chatId });
+      ws.send("delete_chat", { chatId, chat_id: chatId, ...(teamId ? { team_id: teamId } : {}) });
       // Wait for the server to acknowledge the deletion.
       // The server broadcasts a chat_deleted event to all connected devices.
       await ws.waitForMessage(
@@ -3990,6 +7539,7 @@ export class OpenMatesClient {
     } finally {
       ws.close();
     }
+    clearSyncCache(teamId);
   }
 
   // -------------------------------------------------------------------------
@@ -4052,14 +7602,28 @@ export class OpenMatesClient {
     headers: Record<string, string>,
   ): Promise<TaskStatusResponse> {
     const started = Date.now();
+    let lastTransientError: string | null = null;
     while (Date.now() - started < SKILL_TASK_POLL_TIMEOUT_MS) {
-      const response = await this.http.get<TaskStatusResponse>(
-        `/v1/tasks/${encodeURIComponent(taskId)}`,
-        headers,
-      );
+      let response;
+      try {
+        response = await this.http.get<TaskStatusResponse>(
+          `/v1/tasks/${encodeURIComponent(taskId)}`,
+          headers,
+        );
+      } catch (error) {
+        lastTransientError = error instanceof Error ? error.message : String(error);
+        await new Promise((resolve) => setTimeout(resolve, SKILL_TASK_POLL_INTERVAL_MS));
+        continue;
+      }
       if (!response.ok) {
+        if (response.status >= SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS) {
+          lastTransientError = `HTTP ${response.status}`;
+          await new Promise((resolve) => setTimeout(resolve, SKILL_TASK_POLL_INTERVAL_MS));
+          continue;
+        }
         throw new Error(`Task polling failed with HTTP ${response.status}`);
       }
+      lastTransientError = null;
       if (response.data.status === "completed") {
         return response.data;
       }
@@ -4067,6 +7631,11 @@ export class OpenMatesClient {
         throw new Error(response.data.error ?? "Task failed");
       }
       await new Promise((resolve) => setTimeout(resolve, SKILL_TASK_POLL_INTERVAL_MS));
+    }
+    if (lastTransientError) {
+      throw new Error(
+        `Task ${taskId} did not complete within ${SKILL_TASK_POLL_TIMEOUT_MS / 1000}s; last polling error: ${lastTransientError}`,
+      );
     }
     throw new Error(`Task ${taskId} did not complete within ${SKILL_TASK_POLL_TIMEOUT_MS / 1000}s`);
   }
@@ -4270,6 +7839,7 @@ export class OpenMatesClient {
     skill: string;
     inputData: Record<string, unknown>;
     apiKey?: string;
+    promptInjectionProtection?: boolean;
   }): Promise<unknown> {
     const headers: Record<string, string> = {
       ...this.getCliRequestHeaders(),
@@ -4279,7 +7849,7 @@ export class OpenMatesClient {
     // as the request body (e.g. {"requests": [...]}), not wrapped in input_data.
     const response = await this.http.post(
       `/v1/apps/${params.app}/skills/${params.skill}`,
-      params.inputData,
+      withAppSkillPromptInjectionOption(params.inputData, params.promptInjectionProtection),
       headers,
     );
     if (!response.ok) {
@@ -4300,7 +7870,34 @@ export class OpenMatesClient {
       (err as Error & { statusCode: number }).statusCode = response.status;
       throw err;
     }
-    return this.resolveAsyncSkillResponse(response.data, headers);
+    const resolved = await this.resolveAsyncSkillResponse(response.data, headers);
+    const failureMessage = this.appSkillFailureMessage(resolved);
+    if (failureMessage) {
+      throw new Error(`Skill execution failed: ${failureMessage}`);
+    }
+    return resolved;
+  }
+
+  private appSkillFailureMessage(responseData: unknown): string | null {
+    if (!responseData || typeof responseData !== "object") return null;
+    const envelope = responseData as Record<string, unknown>;
+    if (envelope.success === false) {
+      return typeof envelope.error === "string" && envelope.error.trim()
+        ? envelope.error
+        : "skill returned success=false";
+    }
+    const data = envelope.data;
+    if (!data || typeof data !== "object") return null;
+    const skillData = data as Record<string, unknown>;
+    if (skillData.success === false) {
+      return typeof skillData.error === "string" && skillData.error.trim()
+        ? skillData.error
+        : "skill returned success=false";
+    }
+    if (typeof skillData.error === "string" && skillData.error.trim()) {
+      return skillData.error;
+    }
+    return null;
   }
 
   async getCodeRunStreamAuth(): Promise<{ sessionId: string; token: string; fallbackToken?: string } | null> {
@@ -4323,6 +7920,22 @@ export class OpenMatesClient {
       throw new Error(`Code Run status request failed with HTTP ${response.status}`);
     }
     return response.data;
+  }
+
+  async getRaw(path: string, apiKey?: string): Promise<{ contentType: string; data: Uint8Array }> {
+    const headers: Record<string, string> = {
+      ...this.getCliRequestHeaders(),
+      Accept: "image/svg+xml,application/octet-stream",
+    };
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    const response = await this.http.getBinary(path, headers);
+    if (!response.ok) {
+      throw new Error(`Raw resource request failed with HTTP ${response.status}`);
+    }
+    return {
+      contentType: response.headers.get("content-type") ?? "application/octet-stream",
+      data: response.data,
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -4379,10 +7992,10 @@ export class OpenMatesClient {
   // Workflows
   // -------------------------------------------------------------------------
 
-  async listWorkflows(): Promise<WorkflowSummary[]> {
+  async listWorkflows(options: TeamContextOptions = {}): Promise<WorkflowSummary[]> {
     this.requireSession();
     const response = await this.http.get<{ workflows?: WorkflowSummary[] }>(
-      "/v1/workflows",
+      this.appendTeamQuery("/v1/workflows", options),
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
@@ -4436,10 +8049,91 @@ export class OpenMatesClient {
     return response.data.workflow;
   }
 
-  async getWorkflow(workflowId: string): Promise<WorkflowDetail> {
+  async askWorkflow(input: {
+    instruction: string;
+    create?: Record<string, unknown>;
+    exactUpdate?: Record<string, unknown>;
+    exactAction?: Record<string, unknown>;
+    selectedObjectId?: string | null;
+  }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/workflows/ask",
+      {
+        instruction: input.instruction,
+        ...(input.create ? { create: input.create } : {}),
+        ...(input.exactUpdate ? { exact_update: input.exactUpdate } : {}),
+        ...(input.exactAction ? { exact_action: input.exactAction } : {}),
+        ...(input.selectedObjectId !== undefined ? { selected_object_id: input.selectedObjectId } : {}),
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Workflow ask failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async planWorkflowAsk(input: { instruction: string }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/workflows/ask/plan",
+      { instruction: input.instruction },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Workflow ask planning failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async validateWorkflowYaml(source: string): Promise<{
+    draft_valid: boolean;
+    enable_ready: boolean;
+    diagnostics: Array<Record<string, unknown>>;
+  }> {
+    this.requireSession();
+    const response = await this.http.post<{ validation?: {
+      draft_valid: boolean;
+      enable_ready: boolean;
+      diagnostics: Array<Record<string, unknown>>;
+    } }>("/v1/workflows/validate", { source }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.validation) {
+      throw new Error(`Workflow YAML validation failed with HTTP ${response.status}`);
+    }
+    return response.data.validation;
+  }
+
+  async createWorkflowYaml(source: string): Promise<{
+    workflow: WorkflowDetail;
+    validation: { draft_valid: boolean; enable_ready: boolean; diagnostics: Array<Record<string, unknown>> };
+  }> {
+    this.requireSession();
+    const response = await this.http.post<{
+      workflow?: WorkflowDetail;
+      validation?: { draft_valid: boolean; enable_ready: boolean; diagnostics: Array<Record<string, unknown>> };
+    }>("/v1/workflows/yaml", { source }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.workflow || !response.data.validation) {
+      throw new Error(`Workflow YAML create failed with HTTP ${response.status}`);
+    }
+    return { workflow: response.data.workflow, validation: response.data.validation };
+  }
+
+  async updateWorkflowYaml(workflowId: string, source: string): Promise<{
+    workflow: WorkflowDetail;
+    validation: { draft_valid: boolean; enable_ready: boolean; diagnostics: Array<Record<string, unknown>> };
+  }> {
+    this.requireSession();
+    const createLike = await this.http.post<{
+      workflow?: WorkflowDetail;
+      validation?: { draft_valid: boolean; enable_ready: boolean; diagnostics: Array<Record<string, unknown>> };
+    }>(`/v1/workflows/${encodeURIComponent(workflowId)}/yaml`, { source }, this.getCliRequestHeaders());
+    if (!createLike.ok || !createLike.data.workflow || !createLike.data.validation) {
+      throw new Error(`Workflow YAML update failed with HTTP ${createLike.status}`);
+    }
+    return { workflow: createLike.data.workflow, validation: createLike.data.validation };
+  }
+
+  async getWorkflow(workflowId: string, options: TeamContextOptions = {}): Promise<WorkflowDetail> {
     this.requireSession();
     const response = await this.http.get<{ workflow?: WorkflowDetail }>(
-      `/v1/workflows/${encodeURIComponent(workflowId)}`,
+      this.appendTeamQuery(`/v1/workflows/${encodeURIComponent(workflowId)}`, options),
       this.getCliRequestHeaders(),
     );
     if (!response.ok || !response.data.workflow) {
@@ -4505,13 +8199,16 @@ export class OpenMatesClient {
 
   async runWorkflow(
     workflowId: string,
-    params: { mode?: "manual" | "test"; input?: Record<string, unknown> } = {},
+    params: { idempotencyKey: string; mode?: "manual" | "test"; input?: Record<string, unknown> },
   ): Promise<WorkflowRunDetail> {
     this.requireSession();
+    if (!params.idempotencyKey.trim()) {
+      throw new Error("Workflow run requires a stable idempotencyKey");
+    }
     const response = await this.http.post<{ run?: WorkflowRunDetail }>(
       `/v1/workflows/${encodeURIComponent(workflowId)}/run`,
       { mode: params.mode ?? "manual", input: params.input ?? {} },
-      this.getCliRequestHeaders(),
+      { ...this.getCliRequestHeaders(), "Idempotency-Key": params.idempotencyKey },
     );
     if (!response.ok || !response.data.run) {
       throw new Error(`Workflow run failed with HTTP ${response.status}`);
@@ -4543,6 +8240,54 @@ export class OpenMatesClient {
     return response.data.run;
   }
 
+  async cancelWorkflowRun(workflowId: string, runId: string): Promise<WorkflowRunCancellationResult> {
+    this.requireSession();
+    const response = await this.http.post<WorkflowRunCancellationResult>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}/cancel`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data.status !== "cancellation_requested" && response.data.status !== "cancelled")) {
+      throw new Error(`Workflow run cancellation failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async testWorkflowStep(
+    workflowId: string,
+    stepId: string,
+    params: { input?: Record<string, unknown>; confirmed?: boolean } = {},
+  ): Promise<WorkflowRunDetail> {
+    this.requireSession();
+    const response = await this.http.post<{ run?: WorkflowRunDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/steps/${encodeURIComponent(stepId)}/test`,
+      { input: params.input ?? {}, confirmed: params.confirmed === true },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.run) {
+      throw new Error(`Workflow step test failed with HTTP ${response.status}`);
+    }
+    return response.data.run;
+  }
+
+  async respondToWorkflowRun(
+    workflowId: string,
+    runId: string,
+    stepId: string,
+    input: Record<string, unknown>,
+  ): Promise<WorkflowRunDetail> {
+    this.requireSession();
+    const response = await this.http.post<{ run?: WorkflowRunDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}/respond`,
+      { step_id: stepId, input },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.run) {
+      throw new Error(`Workflow response failed with HTTP ${response.status}`);
+    }
+    return response.data.run;
+  }
+
   async listWorkflowCapabilities(): Promise<WorkflowCapability[]> {
     this.requireSession();
     const response = await this.http.get<{ capabilities?: WorkflowCapability[] }>(
@@ -4553,6 +8298,128 @@ export class OpenMatesClient {
       throw new Error(`Workflow capabilities failed with HTTP ${response.status}`);
     }
     return response.data.capabilities ?? [];
+  }
+
+  async upsertWorkflowTemplateProjection(
+    workflowId: string,
+    params: WorkflowTemplateProjectionUpsertParams,
+  ): Promise<WorkflowTemplateProjectionResult> {
+    this.requireSession();
+    const response = await this.http.put<WorkflowTemplateProjectionResult>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/template-projection`,
+      {
+        template_id: params.templateId,
+        source_version: params.sourceVersion,
+        ciphertext: params.ciphertext,
+        ciphertext_checksum: params.ciphertextChecksum,
+        owner_wrapped_key: params.ownerWrappedKey,
+        projection_schema_version: params.projectionSchemaVersion,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow template projection upsert failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async getPublicWorkflowTemplateProjection(templateId: string): Promise<PublicWorkflowTemplateProjection> {
+    const response = await this.http.get<PublicWorkflowTemplateProjection>(
+      `/v1/workflows/template-projections/${encodeURIComponent(templateId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow template projection retrieval failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async revokeWorkflowTemplateProjection(workflowId: string): Promise<WorkflowTemplateProjectionRevocationResult> {
+    this.requireSession();
+    const response = await this.http.post<WorkflowTemplateProjectionRevocationResult>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/template-projection/revoke`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow template projection revoke failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async unrevokeWorkflowTemplateProjection(workflowId: string): Promise<WorkflowTemplateProjectionRevocationResult> {
+    this.requireSession();
+    const response = await this.http.post<WorkflowTemplateProjectionRevocationResult>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/template-projection/unrevoke`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow template projection unrevoke failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async completeImportedWorkflowBinding(
+    workflowId: string,
+    params: WorkflowTemplateBindingCompletionParams,
+  ): Promise<WorkflowTemplateBindingCompletionResult> {
+    this.requireSession();
+    const response = await this.http.post<WorkflowTemplateBindingCompletionResult>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/binding-requirements/complete`,
+      { type: params.type, node_id: params.nodeId },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow imported binding completion failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async createWorkflowTemplateShortUrl(params: WorkflowTemplateShortUrlParams): Promise<WorkflowTemplateShortUrlResult> {
+    this.requireSession();
+    const response = await this.http.post<WorkflowTemplateShortUrlResult>(
+      "/v1/share/short-url",
+      {
+        token: params.token,
+        encrypted_url: params.encryptedUrl,
+        content_type: "workflow_template",
+        content_id: params.templateId,
+        password_protected: params.passwordProtected ?? false,
+        ...(params.ttlSeconds !== undefined ? { ttl_seconds: params.ttlSeconds } : {}),
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow template short URL create failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async revokeShortUrl(token: string): Promise<ShortUrlRevokeResult> {
+    this.requireSession();
+    const response = await this.http.delete<ShortUrlRevokeResult>(
+      `/v1/share/short-url/${encodeURIComponent(token)}`,
+      undefined,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Short URL revoke failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async importWorkflowTemplate(payload: WorkflowTemplateImportPayload): Promise<ImportedWorkflowTemplate> {
+    this.requireSession();
+    const response = await this.http.post<{ workflow?: ImportedWorkflowTemplate }>(
+      "/v1/workflows/template-import",
+      payload,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.workflow) {
+      throw new Error(`Workflow template import failed with HTTP ${response.status}`);
+    }
+    return response.data.workflow;
   }
 
   async startWorkflowInput(params: WorkflowInputStartParams): Promise<WorkflowInputSessionResult> {
@@ -4655,41 +8522,335 @@ export class OpenMatesClient {
   // Project sources
   // -------------------------------------------------------------------------
 
-  async listProjectSources(projectId: string): Promise<ProjectSourceRecord[]> {
+  async listProjects(options: { includeArchived?: boolean; teamId?: string | null; personal?: boolean } = {}): Promise<ProjectRecord[]> {
+    this.requireSession();
+    const params = new URLSearchParams();
+    if (options.includeArchived) params.set("include_archived", "true");
+    const teamId = this.resolveTeamContext({ teamId: options.teamId, personal: options.personal });
+    if (teamId) params.set("team_id", teamId);
+    const query = params.toString();
+    const response = await this.http.get<{ projects?: ProjectRecord[] }>(
+      `/v1/projects${query ? `?${query}` : ""}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Project list failed with HTTP ${response.status}`);
+    return response.data.projects ?? [];
+  }
+
+  async getProject(projectId: string, options: TeamContextOptions = {}): Promise<ProjectDetail> {
+    this.requireSession();
+    const response = await this.http.get<ProjectDetail>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}`, options),
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.project) throw this.projectRequestError("get", response);
+    return response.data;
+  }
+
+  async createProject(input: Record<string, unknown>, options: TeamContextOptions = {}): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      this.appendTeamQuery("/v1/projects", options),
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("create", response);
+    return response.data;
+  }
+
+  async updateProject(projectId: string, patch: Record<string, unknown>, options: TeamContextOptions = {}): Promise<ProjectRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ project?: ProjectRecord }>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}`, options),
+      patch,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.project) throw this.projectRequestError("update", response);
+    return response.data.project;
+  }
+
+  async deleteProject(
+    projectId: string,
+    confirmationProjectId: string,
+    options: TeamContextOptions = {},
+  ): Promise<{ deleted: boolean }> {
+    this.requireSession();
+    const params = new URLSearchParams({ confirmation_project_id: confirmationProjectId });
+    const response = await this.http.delete<{ deleted?: boolean }>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}?${params.toString()}`, options),
+      undefined,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("delete", response);
+    return { deleted: response.data.deleted === true };
+  }
+
+  async askProject(input: {
+    instruction: string;
+    encryptedCreate?: Record<string, unknown>;
+    encryptedUpdate?: Record<string, unknown>;
+    encryptedUpdates?: Record<string, unknown>[];
+    exactDelete?: Record<string, unknown>;
+    exactDeletes?: Record<string, unknown>[];
+  }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/projects/ask",
+      {
+        instruction: input.instruction,
+        ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}),
+        ...(input.encryptedUpdate ? { encrypted_update: input.encryptedUpdate } : {}),
+        ...(input.encryptedUpdates ? { encrypted_updates: input.encryptedUpdates } : {}),
+        ...(input.exactDelete ? { exact_delete: input.exactDelete } : {}),
+        ...(input.exactDeletes ? { exact_deletes: input.exactDeletes } : {}),
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Project ask failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async planProjectAsk(input: { instruction: string }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/projects/ask/plan",
+      { instruction: input.instruction },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Project ask planning failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async listProjectItems(projectId: string, options: TeamContextOptions = {}): Promise<{ folders: Array<Record<string, unknown>>; items: ProjectItemRecord[] }> {
+    this.requireSession();
+    const response = await this.http.get<{ folders?: Array<Record<string, unknown>>; items?: ProjectItemRecord[] }>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items`, options),
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("item list", response);
+    return { folders: response.data.folders ?? [], items: response.data.items ?? [] };
+  }
+
+  async listProjectSources(projectId: string, options: TeamContextOptions = {}): Promise<ProjectSourceRecord[]> {
     this.requireSession();
     const response = await this.http.get<{ sources?: ProjectSourceRecord[] }>(
-      `/v1/projects/${encodeURIComponent(projectId)}/sources`,
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/sources`, options),
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
-      throw new Error(`Project source list failed with HTTP ${response.status}`);
+      throw this.projectRequestError("source list", response);
     }
     return response.data.sources ?? [];
   }
 
-  async createProjectSource(projectId: string, input: ProjectSourceCreateInput): Promise<ProjectSourceRecord> {
+  async createProjectSource(projectId: string, input: ProjectSourceCreateInput, options: TeamContextOptions = {}): Promise<ProjectSourceRecord> {
     this.requireSession();
     const response = await this.http.post<{ source?: ProjectSourceRecord }>(
-      `/v1/projects/${encodeURIComponent(projectId)}/sources`,
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/sources`, options),
       input,
       this.getCliRequestHeaders(),
     );
     if (!response.ok || !response.data.source) {
-      throw new Error(`Project source create failed with HTTP ${response.status}`);
+      throw this.projectRequestError("source create", response);
     }
     return response.data.source;
+  }
+
+  async deleteProjectSource(
+    projectId: string,
+    sourceId: string,
+    confirmationSourceId: string,
+    options: TeamContextOptions = {},
+  ): Promise<{ deleted: boolean }> {
+    this.requireSession();
+    const params = new URLSearchParams({ confirmation_source_id: confirmationSourceId });
+    const path = `/v1/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}?${params.toString()}`;
+    const response = await this.http.delete<{ deleted?: boolean }>(
+      this.appendTeamQuery(path, options),
+      undefined,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("source delete", response);
+    return { deleted: response.data.deleted === true };
+  }
+
+  async createProjectRemoteAccessRequest(
+    projectId: string,
+    sourceId: string,
+    input: ProjectRemoteAccessRequestInput,
+    options: TeamContextOptions = {},
+  ): Promise<ProjectRemoteAccessRequestResult> {
+    this.requireSession();
+    const response = await this.http.post<ProjectRemoteAccessRequestResult>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/requests`, options),
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("remote request", response);
+    return response.data;
+  }
+
+  async getProjectRemoteAccessResult(
+    projectId: string,
+    sourceId: string,
+    requestId: string,
+    requestingClientId: string,
+    options: TeamContextOptions = {},
+  ): Promise<{ status: string; encrypted_envelope: string }> {
+    this.requireSession();
+    const path = `/v1/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/requests/${encodeURIComponent(requestId)}?requesting_client_id=${encodeURIComponent(requestingClientId)}`;
+    const response = await this.http.get<{ status: string; encrypted_envelope: string }>(
+      this.appendTeamQuery(path, options),
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("remote result", response);
+    return response.data;
+  }
+
+  async decryptProjectKey(record: ProjectRecord, options: TeamContextOptions = {}): Promise<Uint8Array> {
+    const teamId = this.resolveTeamContext(options);
+    if (!teamId) {
+      if (typeof record.encrypted_project_key !== "string") throw new Error("Project is missing its Personal key wrapper.");
+      const projectKey = await decryptBytesWithAesGcm(record.encrypted_project_key, this.getMasterKeyBytes());
+      if (!projectKey) throw new Error("Unable to decrypt Project key.");
+      return projectKey;
+    }
+    const teamKey = await this.loadTeamKeyBytes(teamId);
+    const wrapper = record.key_wrappers?.find((candidate) =>
+      candidate.key_type === "team" && candidate.team_key_epoch === 1
+    );
+    if (!teamKey || !wrapper) throw new Error("Team Project key wrapper is unavailable.");
+    const projectKey = await decryptBytesWithAesGcm(wrapper.encrypted_project_key, teamKey);
+    if (!projectKey) throw new Error("Unable to decrypt Team Project key.");
+    return projectKey;
+  }
+
+  async projectWrappingKey(options: TeamContextOptions = {}): Promise<{ key: Uint8Array; teamId: string | null }> {
+    const teamId = this.resolveTeamContext(options);
+    if (!teamId) return { key: this.getMasterKeyBytes(), teamId: null };
+    const key = await this.loadTeamKeyBytes(teamId);
+    if (!key) throw new Error("Unable to load Team key.");
+    return { key, teamId };
+  }
+
+  private projectRequestError(action: string, response: HttpResponse<unknown>): Error {
+    const data = response.data && typeof response.data === "object" ? response.data as Record<string, unknown> : {};
+    const detail = typeof data.detail === "string" ? data.detail : `HTTP_${response.status}`;
+    const error = new Error(`Project ${action} failed: ${detail}`) as Error & { code?: string; status?: number };
+    error.code = detail;
+    error.status = response.status;
+    return error;
+  }
+
+  async openProjectRemoteAccessWebSocket(): Promise<{
+    ws: OpenMatesWsClient;
+    ownerId: string;
+  }> {
+    const opened = await this.openWsClient({ taskUpdateJobs: false });
+    if (!opened.ownerId) {
+      opened.ws.close();
+      throw new Error("Authenticated user identity unavailable for remote access");
+    }
+    return { ws: opened.ws, ownerId: opened.ownerId };
+  }
+
+  async createProjectItem(projectId: string, input: ProjectItemCreateInput): Promise<ProjectItemRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ item?: ProjectItemRecord }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/items`,
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.item) {
+      throw new Error(`Project item create failed with HTTP ${response.status}`);
+    }
+    return response.data.item;
+  }
+
+  async deleteProjectItemByTarget(
+    projectId: string,
+    itemType: "embed" | "chat" | "workflow",
+    targetId: string,
+    options: TeamContextOptions = {},
+  ): Promise<{ deleted: boolean; deleted_count: number }> {
+    this.requireSession();
+    const params = new URLSearchParams({ item_type: itemType, target_id: targetId });
+    const response = await this.http.delete<{ deleted?: boolean; deleted_count?: number }>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items?${params.toString()}`, options),
+      undefined,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Project item delete failed with HTTP ${response.status}`);
+    }
+    return { deleted: response.data.deleted === true, deleted_count: Number(response.data.deleted_count ?? 0) };
+  }
+
+  async listWorkspaceHistory(filters: { objectType?: string; objectId?: string; limit?: number } = {}): Promise<Record<string, unknown>[]> {
+    this.requireSession();
+    const params = new URLSearchParams();
+    if (filters.objectType) params.set("object_type", filters.objectType);
+    if (filters.objectId) params.set("object_id", filters.objectId);
+    if (filters.limit) params.set("limit", String(filters.limit));
+    const query = params.toString();
+    const response = await this.http.get<{ change_sets?: Record<string, unknown>[] }>(`/v1/workspace/history${query ? `?${query}` : ""}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Workspace history list failed with HTTP ${response.status}`);
+    return response.data.change_sets ?? [];
+  }
+
+  async getWorkspaceHistory(changeSetId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.get<Record<string, unknown>>(`/v1/workspace/history/${encodeURIComponent(changeSetId)}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Workspace history show failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async undoWorkspaceHistory(changeSetId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(`/v1/workspace/history/${encodeURIComponent(changeSetId)}/undo`, {}, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Workspace history undo failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async listObjectHistory(objectType: "task" | "plan" | "project" | "workflow", objectId: string, limit = 50): Promise<Record<string, unknown>[]> {
+    this.requireSession();
+    const namespace = objectType === "task" ? "user-tasks" : objectType === "plan" ? "user-plans" : `${objectType}s`;
+    const response = await this.http.get<{ entries?: Record<string, unknown>[] }>(
+      `/v1/${namespace}/${encodeURIComponent(objectId)}/history?limit=${encodeURIComponent(String(limit))}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`${objectType} history failed with HTTP ${response.status}`);
+    return response.data.entries ?? [];
+  }
+
+  async restoreObjectHistory(objectType: "task" | "plan" | "project" | "workflow", objectId: string, entryId: string, state: "before" | "after" = "after"): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const namespace = objectType === "task" ? "user-tasks" : objectType === "plan" ? "user-plans" : `${objectType}s`;
+    const response = await this.http.post<Record<string, unknown>>(
+      `/v1/${namespace}/${encodeURIComponent(objectId)}/restore`,
+      { entry_id: entryId, state },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`${objectType} restore failed with HTTP ${response.status}`);
+    return response.data;
   }
 
   // -------------------------------------------------------------------------
   // User tasks
   // -------------------------------------------------------------------------
 
-  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string } = {}): Promise<UserTaskRecord[]> {
+  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}): Promise<UserTaskRecord[]> {
     this.requireSession();
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
     if (filters.chatId) params.set("chat_id", filters.chatId);
     if (filters.projectId) params.set("project_id", filters.projectId);
+    for (const labelHash of filters.labelHashes ?? []) params.append("label_hash", labelHash);
+    if (filters.priority !== undefined) params.set("priority", String(filters.priority));
+    const limit = filters.limit;
+    if (Number.isSafeInteger(limit) && limit !== undefined && limit > 0) params.set("limit", String(limit));
+    const teamId = this.resolveTeamContext({ teamId: filters.teamId, personal: filters.personal });
+    if (teamId) params.set("team_id", teamId);
     const query = params.toString();
     const response = await this.http.get<{ tasks?: UserTaskRecord[] }>(
       `/v1/user-tasks${query ? `?${query}` : ""}`,
@@ -4703,7 +8864,7 @@ export class OpenMatesClient {
 
   async createUserTask(input: UserTaskCreateInput): Promise<UserTaskRecord> {
     this.requireSession();
-    const response = await this.http.post<{ task?: UserTaskRecord }>(
+    const response = await this.http.post<{ task?: UserTaskRecord; history?: WorkspaceHistoryResult }>(
       "/v1/user-tasks",
       input,
       this.getCliRequestHeaders(),
@@ -4711,12 +8872,79 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.task) {
       throw new Error(`User task create failed with HTTP ${response.status}`);
     }
+    response.data.task.history = response.data.history ?? null;
     return response.data.task;
+  }
+
+  async askUserTasks(input: {
+    instruction: string;
+    encryptedCreate?: UserTaskCreateInput;
+    encryptedCreates?: UserTaskCreateInput[];
+    encryptedUpdate?: Record<string, unknown>;
+    encryptedUpdates?: Record<string, unknown>[];
+    exactDelete?: Record<string, unknown>;
+    exactDeletes?: Record<string, unknown>[];
+  }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/user-tasks/ask",
+      {
+        instruction: input.instruction,
+        ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}),
+        ...(input.encryptedCreates ? { encrypted_creates: input.encryptedCreates } : {}),
+        ...(input.encryptedUpdate ? { encrypted_update: input.encryptedUpdate } : {}),
+        ...(input.encryptedUpdates ? { encrypted_updates: input.encryptedUpdates } : {}),
+        ...(input.exactDelete ? { exact_delete: input.exactDelete } : {}),
+        ...(input.exactDeletes ? { exact_deletes: input.exactDeletes } : {}),
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`User task ask failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async planUserTaskAsk(input: { instruction: string; contextChatId?: string | null; projectIds?: string[] }): Promise<UserTaskProposalRecord[]> {
+    this.requireSession();
+    const response = await this.http.post<{ proposed_tasks?: UserTaskProposalRecord[] }>(
+      "/v1/user-tasks/ask/plan",
+      {
+        instruction: input.instruction,
+        context_chat_id: input.contextChatId ?? null,
+        project_ids: input.projectIds ?? [],
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !Array.isArray(response.data.proposed_tasks)) {
+      throw new Error(`User task ask planning failed with HTTP ${response.status}`);
+    }
+    return response.data.proposed_tasks;
+  }
+
+  async extractUserTaskProposals(input: {
+    correctedText: string;
+    mode?: "create" | "update";
+    contextChatId?: string | null;
+    projectIds?: string[];
+  }): Promise<UserTaskProposalRecord[]> {
+    const response = await this.http.post<{ proposed_tasks?: UserTaskProposalRecord[] }>(
+      "/v1/user-tasks/extract",
+      {
+        corrected_text: input.correctedText,
+        mode: input.mode ?? "create",
+        context_chat_id: input.contextChatId ?? null,
+        project_ids: input.projectIds ?? [],
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !Array.isArray(response.data.proposed_tasks)) {
+      throw new Error(`Failed to extract task proposals (HTTP ${response.status})`);
+    }
+    return response.data.proposed_tasks;
   }
 
   async updateUserTask(taskId: string, input: UserTaskUpdateInput): Promise<UserTaskRecord> {
     this.requireSession();
-    const response = await this.http.patch<{ task?: UserTaskRecord }>(
+    const response = await this.http.patch<{ task?: UserTaskRecord; history?: WorkspaceHistoryResult }>(
       `/v1/user-tasks/${encodeURIComponent(taskId)}`,
       input,
       this.getCliRequestHeaders(),
@@ -4724,12 +8952,13 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.task) {
       throw new Error(`User task update failed with HTTP ${response.status}`);
     }
+    response.data.task.history = response.data.history ?? null;
     return response.data.task;
   }
 
-  async startUserTaskWithAI(taskId: string, input: UserTaskStartAIInput = {}): Promise<UserTaskRecord> {
+  async startUserTaskWithAI(taskId: string, input: UserTaskStartAIInput): Promise<UserTaskRecord> {
     this.requireSession();
-    const response = await this.http.post<{ task?: UserTaskRecord }>(
+    const response = await this.http.post<{ task?: UserTaskRecord; history?: WorkspaceHistoryResult }>(
       `/v1/user-tasks/${encodeURIComponent(taskId)}/start-ai`,
       input,
       this.getCliRequestHeaders(),
@@ -4737,6 +8966,65 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.task) {
       throw new Error(`User task AI start failed with HTTP ${response.status}`);
     }
+    response.data.task.history = response.data.history ?? null;
+    return response.data.task;
+  }
+
+  async deleteUserTask(taskId: string, version: number): Promise<{ deleted?: boolean; task_id?: string; history?: WorkspaceHistoryResult }> {
+    this.requireSession();
+    const response = await this.http.delete<{ deleted?: boolean; task_id?: string; history?: WorkspaceHistoryResult }>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}?version=${encodeURIComponent(String(version))}`,
+      undefined,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`User task delete failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async completeUserTask(taskId: string, input: UserTaskActionInput): Promise<UserTaskRecord> {
+    return this.postUserTaskAction(taskId, "complete", input);
+  }
+
+  async blockUserTask(taskId: string, input: UserTaskActionInput): Promise<UserTaskRecord> {
+    return this.postUserTaskAction(taskId, "block", input);
+  }
+
+  async unblockUserTask(taskId: string, input: UserTaskActionInput): Promise<UserTaskRecord> {
+    return this.postUserTaskAction(taskId, "unblock", input);
+  }
+
+  async skipUserTask(taskId: string, input: UserTaskActionInput): Promise<UserTaskRecord> {
+    return this.postUserTaskAction(taskId, "skip", input);
+  }
+
+  async reorderUserTasks(input: UserTaskReorderInput): Promise<UserTaskRecord[]> {
+    this.requireSession();
+    const response = await this.http.post<{ tasks?: UserTaskRecord[]; history?: WorkspaceHistoryResult }>(
+      "/v1/user-tasks/reorder",
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`User task reorder failed with HTTP ${response.status}`);
+    }
+    const tasks = response.data.tasks ?? [];
+    for (const task of tasks) task.history = response.data.history ?? null;
+    return tasks;
+  }
+
+  async postUserTaskAction(taskId: string, action: string, input: UserTaskActionInput): Promise<UserTaskRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ task?: UserTaskRecord; history?: WorkspaceHistoryResult }>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}/${encodeURIComponent(action)}`,
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.task) {
+      throw new Error(`User task ${action} failed with HTTP ${response.status}`);
+    }
+    response.data.task.history = response.data.history ?? null;
     return response.data.task;
   }
 
@@ -4744,13 +9032,15 @@ export class OpenMatesClient {
   // User plans
   // -------------------------------------------------------------------------
 
-  async listUserPlans(filters: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean } = {}): Promise<UserPlanRecord[]> {
+  async listUserPlans(filters: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean } = {}): Promise<UserPlanRecord[]> {
     this.requireSession();
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
     if (filters.chatId) params.set("chat_id", filters.chatId);
     if (filters.projectId) params.set("project_id", filters.projectId);
     if (filters.activeOnly !== undefined) params.set("active_only", String(filters.activeOnly));
+    const teamId = this.resolveTeamContext({ teamId: filters.teamId, personal: filters.personal });
+    if (teamId) params.set("team_id", teamId);
     const query = params.toString();
     const response = await this.http.get<{ plans?: UserPlanRecord[] }>(
       `/v1/user-plans${query ? `?${query}` : ""}`,
@@ -4764,37 +9054,85 @@ export class OpenMatesClient {
 
   async createUserPlan(input: UserPlanCreateInput): Promise<UserPlanRecord> {
     this.requireSession();
-    const response = await this.http.post<{ plan?: UserPlanRecord }>("/v1/user-plans", input, this.getCliRequestHeaders());
+    const response = await this.http.post<{ plan?: UserPlanRecord; history?: WorkspaceHistoryResult }>("/v1/user-plans", input, this.getCliRequestHeaders());
     if (!response.ok || !response.data.plan) {
       throw new Error(`User plan create failed with HTTP ${response.status}`);
     }
+    response.data.plan.history = response.data.history ?? null;
     return response.data.plan;
+  }
+
+  async askUserPlans(input: {
+    instruction: string;
+    encryptedCreate?: UserPlanCreateInput;
+    encryptedUpdate?: Record<string, unknown>;
+    encryptedUpdates?: Record<string, unknown>[];
+  }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/user-plans/ask",
+      {
+        instruction: input.instruction,
+        ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}),
+        ...(input.encryptedUpdate ? { encrypted_update: input.encryptedUpdate } : {}),
+        ...(input.encryptedUpdates ? { encrypted_updates: input.encryptedUpdates } : {}),
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`User plan ask failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async planUserPlanAsk(input: { instruction: string }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/user-plans/ask/plan",
+      { instruction: input.instruction },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`User plan ask planning failed with HTTP ${response.status}`);
+    return response.data;
   }
 
   async updateUserPlan(planId: string, input: UserPlanUpdateInput): Promise<UserPlanRecord> {
     this.requireSession();
-    const response = await this.http.patch<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}`, input, this.getCliRequestHeaders());
+    const response = await this.http.patch<{ plan?: UserPlanRecord; history?: WorkspaceHistoryResult }>(`/v1/user-plans/${encodeURIComponent(planId)}`, input, this.getCliRequestHeaders());
     if (!response.ok || !response.data.plan) {
       throw new Error(`User plan update failed with HTTP ${response.status}`);
     }
+    response.data.plan.history = response.data.history ?? null;
     return response.data.plan;
   }
 
   async activateUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
     this.requireSession();
-    const response = await this.http.post<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/activate`, input, this.getCliRequestHeaders());
+    const response = await this.http.post<{ plan?: UserPlanRecord; history?: WorkspaceHistoryResult }>(`/v1/user-plans/${encodeURIComponent(planId)}/activate`, input, this.getCliRequestHeaders());
     if (!response.ok || !response.data.plan) {
       throw new Error(`User plan activate failed with HTTP ${response.status}`);
     }
+    response.data.plan.history = response.data.history ?? null;
     return response.data.plan;
+  }
+
+  async attachUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
+    return this.activateUserPlan(planId, input);
+  }
+
+  async startUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
+    return this.updateUserPlan(planId, { ...input, status: "executing" } as UserPlanUpdateInput);
+  }
+
+  async resumeUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
+    return this.updateUserPlan(planId, { ...input, status: "active" } as UserPlanUpdateInput);
   }
 
   async completeUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
     this.requireSession();
-    const response = await this.http.post<{ plan?: UserPlanRecord; blocked_by?: unknown[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/complete`, input, this.getCliRequestHeaders());
+    const response = await this.http.post<{ plan?: UserPlanRecord; blocked_by?: unknown[]; history?: WorkspaceHistoryResult }>(`/v1/user-plans/${encodeURIComponent(planId)}/complete`, input, this.getCliRequestHeaders());
     if (!response.ok || !response.data.plan) {
       throw new Error(`User plan complete failed with HTTP ${response.status}`);
     }
+    response.data.plan.history = response.data.history ?? null;
     return response.data.plan;
   }
 
@@ -4807,6 +9145,31 @@ export class OpenMatesClient {
     return response.data.criterion;
   }
 
+  async listPlanCriteria(planId: string): Promise<UserPlanCriterionRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ criteria?: UserPlanCriterionRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria`, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`User plan criteria list failed with HTTP ${response.status}`);
+    }
+    return response.data.criteria ?? [];
+  }
+
+  async updatePlanCriterion(planId: string, criterionId: string, input: Partial<UserPlanCriterionRecord>): Promise<UserPlanCriterionRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ criterion?: UserPlanCriterionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria/${encodeURIComponent(criterionId)}`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.criterion) {
+      throw new Error(`User plan criterion update failed with HTTP ${response.status}`);
+    }
+    return response.data.criterion;
+  }
+
+  async deletePlanCriterion(planId: string, criterionId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria/${encodeURIComponent(criterionId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`User plan criterion delete failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
   async createPlanVerification(planId: string, input: UserPlanVerificationRecord & Record<string, unknown>): Promise<UserPlanVerificationRecord> {
     this.requireSession();
     const response = await this.http.post<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification`, input, this.getCliRequestHeaders());
@@ -4814,6 +9177,142 @@ export class OpenMatesClient {
       throw new Error(`User plan verification create failed with HTTP ${response.status}`);
     }
     return response.data.verification;
+  }
+
+  async listPlanVerifications(planId: string): Promise<UserPlanVerificationRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ verifications?: UserPlanVerificationRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification`, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`User plan verifications list failed with HTTP ${response.status}`);
+    }
+    return response.data.verifications ?? [];
+  }
+
+  async updatePlanVerification(planId: string, verificationId: string, input: Partial<UserPlanVerificationRecord>): Promise<UserPlanVerificationRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.verification) {
+      throw new Error(`User plan verification update failed with HTTP ${response.status}`);
+    }
+    return response.data.verification;
+  }
+
+  async deletePlanVerification(planId: string, verificationId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`User plan verification delete failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async createPlanAssumption(planId: string, input: UserPlanAssumptionRecord): Promise<UserPlanAssumptionRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ assumption?: UserPlanAssumptionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.assumption) {
+      throw new Error(`User plan assumption create failed with HTTP ${response.status}`);
+    }
+    return response.data.assumption;
+  }
+
+  async listPlanAssumptions(planId: string): Promise<UserPlanAssumptionRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ assumptions?: UserPlanAssumptionRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions`, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`User plan assumptions list failed with HTTP ${response.status}`);
+    }
+    return response.data.assumptions ?? [];
+  }
+
+  async updatePlanAssumption(planId: string, assumptionId: string, input: Partial<UserPlanAssumptionRecord>): Promise<UserPlanAssumptionRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ assumption?: UserPlanAssumptionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions/${encodeURIComponent(assumptionId)}`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.assumption) {
+      throw new Error(`User plan assumption update failed with HTTP ${response.status}`);
+    }
+    return response.data.assumption;
+  }
+
+  async deletePlanAssumption(planId: string, assumptionId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions/${encodeURIComponent(assumptionId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`User plan assumption delete failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async createPlanReferencePattern(planId: string, input: UserPlanReferencePatternRecord): Promise<UserPlanReferencePatternRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ reference_pattern?: UserPlanReferencePatternRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.reference_pattern) {
+      throw new Error(`User plan reference pattern create failed with HTTP ${response.status}`);
+    }
+    return response.data.reference_pattern;
+  }
+
+  async updatePlanReferencePattern(planId: string, patternId: string, input: Partial<UserPlanReferencePatternRecord>): Promise<UserPlanReferencePatternRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ reference_pattern?: UserPlanReferencePatternRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns/${encodeURIComponent(patternId)}`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.reference_pattern) {
+      throw new Error(`User plan reference pattern update failed with HTTP ${response.status}`);
+    }
+    return response.data.reference_pattern;
+  }
+
+  async deletePlanReferencePattern(planId: string, patternId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns/${encodeURIComponent(patternId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`User plan reference pattern delete failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async createPlanLearning(planId: string, input: UserPlanLearningRecord): Promise<UserPlanLearningRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ learning?: UserPlanLearningRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.learning) {
+      throw new Error(`User plan learning create failed with HTTP ${response.status}`);
+    }
+    return response.data.learning;
+  }
+
+  async listPlanLearnings(planId: string): Promise<UserPlanLearningRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ learnings?: UserPlanLearningRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings`, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`User plan learnings list failed with HTTP ${response.status}`);
+    }
+    return response.data.learnings ?? [];
+  }
+
+  async updatePlanLearning(planId: string, learningId: string, input: Partial<UserPlanLearningRecord>): Promise<UserPlanLearningRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ learning?: UserPlanLearningRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings/${encodeURIComponent(learningId)}`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.learning) {
+      throw new Error(`User plan learning update failed with HTTP ${response.status}`);
+    }
+    return response.data.learning;
+  }
+
+  async deletePlanLearning(planId: string, learningId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings/${encodeURIComponent(learningId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`User plan learning delete failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async createPlanLearningTasks(planId: string, input: UserPlanLearningCreateTasksInput): Promise<UserPlanLearningCreateTasksResult> {
+    this.requireSession();
+    const response = await this.http.post<UserPlanLearningCreateTasksResult>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings/create-tasks`, input, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`User plan learning create-tasks failed with HTTP ${response.status}`);
+    }
+    return { tasks: response.data.tasks ?? [], skipped: response.data.skipped ?? [] };
+  }
+
+  async listPlanReferencePatterns(planId: string): Promise<UserPlanReferencePatternRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ reference_patterns?: UserPlanReferencePatternRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns`, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`User plan reference patterns list failed with HTTP ${response.status}`);
+    }
+    return response.data.reference_patterns ?? [];
   }
 
   async addPlanVerificationEvidence(planId: string, verificationId: string, input: Partial<UserPlanVerificationRecord>): Promise<UserPlanVerificationRecord> {
@@ -4829,24 +9328,36 @@ export class OpenMatesClient {
   // Settings (generic passthrough)
   // -------------------------------------------------------------------------
 
-  async settingsGet(path: string): Promise<unknown> {
-    this.requireSession();
+  async settingsGet(path: string, apiKey?: string): Promise<unknown> {
+    if (!apiKey) this.requireSession();
     const normalizedPath = this.normalizePath(path);
+    const headers = this.getCliRequestHeaders();
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
     let response = await this.http.get(
       normalizedPath,
-      this.getCliRequestHeaders(),
+      headers,
     );
     if (response.status === 429) {
       process.stderr.write(
         `Rate limited by settings API; retrying in ${Math.ceil(SETTINGS_GET_RATE_LIMIT_RETRY_MS / 1000)}s...\n`,
       );
       await new Promise((resolve) => setTimeout(resolve, SETTINGS_GET_RATE_LIMIT_RETRY_MS));
-      response = await this.http.get(normalizedPath, this.getCliRequestHeaders());
+      response = await this.http.get(normalizedPath, headers);
     }
     if (!response.ok) {
       throw new Error(`Settings GET failed with HTTP ${response.status}`);
     }
     return response.data;
+  }
+
+  async getUsageOverview(options: UsageOverviewOptions = {}): Promise<unknown> {
+    const params = new URLSearchParams();
+    if (options.granularity) params.set("granularity", options.granularity);
+    if (options.days !== undefined) params.set("days", String(options.days));
+    if (options.weeks !== undefined) params.set("weeks", String(options.weeks));
+    if (options.months !== undefined) params.set("months", String(options.months));
+    const query = params.toString();
+    return this.settingsGet(`usage/overview${query ? `?${query}` : ""}`);
   }
 
   async createApiKey(options: ApiKeyCreateOptions): Promise<CreatedApiKeyResult> {
@@ -4882,19 +9393,58 @@ export class OpenMatesClient {
     };
   }
 
+  async listApiKeys(): Promise<ApiKeyListResult> {
+    const result = await this.settingsGet("api-keys") as { api_keys?: Array<Record<string, unknown>> };
+    return this.decryptApiKeyList(result);
+  }
+
+  async revokeApiKey(id: string): Promise<unknown> {
+    return this.settingsDelete(`api-keys/${id}`);
+  }
+
+  private async decryptApiKeyList(result: { api_keys?: Array<Record<string, unknown>> }): Promise<ApiKeyListResult> {
+    const session = this.requireSession();
+    const masterKey = base64ToBytes(session.masterKeyExportedB64);
+    const apiKeys: ApiKeyRecord[] = [];
+    for (const key of result.api_keys ?? []) {
+      const encryptedName = typeof key.encrypted_name === "string" ? key.encrypted_name : null;
+      const encryptedPrefix = typeof key.encrypted_key_prefix === "string" ? key.encrypted_key_prefix : null;
+      const name = encryptedName ? await decryptWithAesGcmCombined(encryptedName, masterKey) : null;
+      const prefix = encryptedPrefix ? await decryptWithAesGcmCombined(encryptedPrefix, masterKey) : null;
+      apiKeys.push({
+        id: String(key.id ?? ""),
+        name: name || encryptedName || "Unnamed API key",
+        key_prefix: prefix || encryptedPrefix || "sk-api-...",
+        created_at: typeof key.created_at === "string" ? key.created_at : null,
+        expires_at: typeof key.expires_at === "string" ? key.expires_at : null,
+        last_used_at: typeof key.last_used_at === "string" ? key.last_used_at : null,
+        full_access: typeof key.full_access === "boolean" ? key.full_access : true,
+        scopes: (key.scopes && typeof key.scopes === "object" ? key.scopes : {}) as Record<string, unknown>,
+        credit_limit: (key.credit_limit && typeof key.credit_limit === "object" ? key.credit_limit : null) as Record<string, unknown> | null,
+        pending_device_count: typeof key.pending_device_count === "number" ? key.pending_device_count : 0,
+        encrypted_name: encryptedName,
+        encrypted_key_prefix: encryptedPrefix,
+      });
+    }
+    return { api_keys: apiKeys };
+  }
+
   async settingsPost(
     path: string,
     body: Record<string, unknown>,
+    apiKey?: string,
   ): Promise<unknown> {
-    this.requireSession();
+    if (!apiKey) this.requireSession();
     const normalizedPath = this.normalizePath(path);
     if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
       throw new Error(`Blocked operation: ${normalizedPath}`);
     }
+    const headers = this.getCliRequestHeaders();
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
     const response = await this.http.post(
       normalizedPath,
       body,
-      this.getCliRequestHeaders(),
+      headers,
     );
     if (!response.ok) {
       throw new Error(`Settings POST failed with HTTP ${response.status}`);
@@ -4902,16 +9452,18 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async settingsDelete(path: string, body?: Record<string, unknown>): Promise<unknown> {
-    this.requireSession();
+  async settingsDelete(path: string, body?: Record<string, unknown>, apiKey?: string): Promise<unknown> {
+    if (!apiKey) this.requireSession();
     const normalizedPath = this.normalizePath(path);
     if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
       throw new Error(`Blocked operation: ${normalizedPath}`);
     }
+    const headers = this.getCliRequestHeaders();
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
     const response = await this.http.delete(
       normalizedPath,
       body,
-      this.getCliRequestHeaders(),
+      headers,
     );
     if (!response.ok) {
       throw new Error(`Settings DELETE failed with HTTP ${response.status}`);
@@ -4922,16 +9474,19 @@ export class OpenMatesClient {
   async settingsPatch(
     path: string,
     body: Record<string, unknown>,
+    apiKey?: string,
   ): Promise<unknown> {
-    this.requireSession();
+    if (!apiKey) this.requireSession();
     const normalizedPath = this.normalizePath(path);
     if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
       throw new Error(`Blocked operation: ${normalizedPath}`);
     }
+    const headers = this.getCliRequestHeaders();
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
     const response = await this.http.patch(
       normalizedPath,
       body,
-      this.getCliRequestHeaders(),
+      headers,
     );
     if (!response.ok) {
       throw new Error(`Settings PATCH failed with HTTP ${response.status}`);
@@ -5110,7 +9665,7 @@ export class OpenMatesClient {
   async getAuthMethodsStatus(): Promise<AuthMethodsStatus> {
     this.requireSession();
     const response = await this.http.get<AuthMethodsStatus>(
-      "/v1/payments/user-auth-methods",
+      "/v1/auth/methods",
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
@@ -5119,31 +9674,39 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async requestDeleteAccountEmailCode(): Promise<unknown> {
+  async requestActionEmailCode(action: "delete_account" | "delete_team"): Promise<unknown> {
     const session = this.requireSession();
     const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
     const response = await this.http.post(
       "/v1/settings/request-action-verification",
-      { action: "delete_account", email_encryption_key: emailEncryptionKey },
+      { action, email_encryption_key: emailEncryptionKey },
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
-      throw new Error(`Failed to request account deletion email code (HTTP ${response.status})`);
+      throw new Error(`Failed to request ${action} email code (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async requestDeleteAccountEmailCode(): Promise<unknown> {
+    return this.requestActionEmailCode("delete_account");
+  }
+
+  async verifyActionEmailCode(action: "delete_account" | "delete_team", code: string): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post(
+      "/v1/settings/verify-action-code",
+      { action, code },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`${action} email code verification failed (HTTP ${response.status})`);
     }
     return response.data;
   }
 
   async verifyDeleteAccountEmailCode(code: string): Promise<unknown> {
-    this.requireSession();
-    const response = await this.http.post(
-      "/v1/settings/verify-action-code",
-      { action: "delete_account", code },
-      this.getCliRequestHeaders(),
-    );
-    if (!response.ok) {
-      throw new Error(`Account deletion email code verification failed (HTTP ${response.status})`);
-    }
-    return response.data;
+    return this.verifyActionEmailCode("delete_account", code);
   }
 
   async deleteAccountWithCliVerification(totpCode?: string): Promise<unknown> {
@@ -5163,8 +9726,8 @@ export class OpenMatesClient {
     if (!response.ok) {
       throw new Error(`Account deletion failed (HTTP ${response.status})`);
     }
-    clearSession();
-    clearSyncCache();
+    purgeLocalPrivateData();
+    this.session = null;
     return response.data;
   }
 
@@ -5487,11 +10050,23 @@ export class OpenMatesClient {
    * List all memories for the current user, decrypted.
    * Fetches from the GDPR export endpoint and decrypts each entry with the master key.
    */
-  async listMemories(): Promise<DecryptedMemoryEntry[]> {
+  private async sdkGetMemories(teamId: string): Promise<Array<Record<string, unknown>>> {
+    const response = await this.http.get<{ memories?: Array<Record<string, unknown>> }>(
+      `/v1/teams/${encodeURIComponent(teamId)}/memories`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Team memory list failed with HTTP ${response.status}`);
+    return response.data.memories ?? [];
+  }
+
+  async listMemories(options: TeamContextOptions = {}): Promise<DecryptedMemoryEntry[]> {
     const masterKey = this.getMasterKeyBytes();
-    const data = (await this.settingsGet(
-      "/v1/settings/export-account-data?include_usage=false&include_invoices=false",
-    )) as { data?: { app_settings_memories?: Array<Record<string, unknown>> } };
+    const teamId = this.resolveTeamContext(options);
+    const data = teamId
+      ? ({ data: { app_settings_memories: (await this.sdkGetMemories(teamId)) } } as { data?: { app_settings_memories?: Array<Record<string, unknown>> } })
+      : (await this.settingsGet(
+          "/v1/settings/export-account-data?include_usage=false&include_invoices=false",
+        )) as { data?: { app_settings_memories?: Array<Record<string, unknown>> } };
     const rawEntries = data.data?.app_settings_memories ?? [];
     const results: DecryptedMemoryEntry[] = [];
 
@@ -5545,6 +10120,8 @@ export class OpenMatesClient {
     appId: string;
     itemType: string;
     itemValue: Record<string, unknown>;
+    teamId?: string | null;
+    personal?: boolean;
   }): Promise<{ success: boolean; id: string }> {
     return this.upsertMemory({ ...params, entryId: undefined, itemVersion: 1 });
   }
@@ -5566,6 +10143,8 @@ export class OpenMatesClient {
     itemType: string;
     itemValue: Record<string, unknown>;
     currentVersion: number;
+    teamId?: string | null;
+    personal?: boolean;
   }): Promise<{ success: boolean; id: string }> {
     return this.upsertMemory({
       appId: params.appId,
@@ -5573,6 +10152,8 @@ export class OpenMatesClient {
       itemValue: params.itemValue,
       entryId: params.entryId,
       itemVersion: params.currentVersion + 1,
+      teamId: params.teamId,
+      personal: params.personal,
     });
   }
 
@@ -5580,11 +10161,12 @@ export class OpenMatesClient {
    * Delete a memory entry. Sends `delete_app_settings_memories_entry` over
    * WebSocket. The server deletes from Directus and broadcasts to all devices.
    */
-  async deleteMemory(entryId: string): Promise<{ success: boolean }> {
+  async deleteMemory(entryId: string, options: TeamContextOptions = {}): Promise<{ success: boolean }> {
     const { ws } = await this.openWsClient();
 
     try {
-      ws.send("delete_app_settings_memories_entry", { entry_id: entryId });
+      const teamId = this.resolveTeamContext(options);
+      ws.send("delete_app_settings_memories_entry", { entry_id: entryId, ...(teamId ? { team_id: teamId } : {}) });
       await ws.waitForMessage(
         "app_settings_memories_entry_deleted",
         (payload) => {
@@ -5613,6 +10195,8 @@ export class OpenMatesClient {
     itemValue: Record<string, unknown>;
     entryId?: string;
     itemVersion: number;
+    teamId?: string | null;
+    personal?: boolean;
   }): Promise<{ success: boolean; id: string }> {
     const masterKey = this.getMasterKeyBytes();
     const registryKey = `${params.appId}/${params.itemType}`;
@@ -5654,6 +10238,7 @@ export class OpenMatesClient {
 
     const entryId = params.entryId ?? randomUUID();
     const now = Math.floor(Date.now() / 1000);
+    const teamId = this.resolveTeamContext({ teamId: params.teamId, personal: params.personal });
 
     // Build the hashed item_key (privacy: server never sees the plaintext key)
     const hashedKey = hashItemKey(params.appId, params.itemType);
@@ -5675,6 +10260,7 @@ export class OpenMatesClient {
     const { ws } = await this.openWsClient();
     try {
       ws.send("store_app_settings_memories_entry", {
+        ...(teamId ? { team_id: teamId } : {}),
         entry: {
           id: entryId,
           app_id: params.appId,
@@ -5685,6 +10271,7 @@ export class OpenMatesClient {
           created_at: now,
           updated_at: now,
           item_version: params.itemVersion,
+          ...(teamId ? { team_id: teamId } : {}),
         },
       });
 
@@ -5720,7 +10307,13 @@ export class OpenMatesClient {
    * Get the session for file upload authentication.
    */
   getSession(): import("./storage.js").OpenMatesSession {
-    return this.requireSession();
+    const session = this.requireSession();
+    const currentCookies = this.http.getCookieMap();
+    if (JSON.stringify(session.cookies) !== JSON.stringify(currentCookies)) {
+      session.cookies = currentCookies;
+      saveSession(session);
+    }
+    return session;
   }
 
   // ── Share link creation ──────────────────────────────────────────────
@@ -5795,6 +10388,22 @@ export class OpenMatesClient {
     const chatKeyBytes = await decryptBytesWithAesGcm(encChatKey, masterKey);
     if (!chatKeyBytes)
       throw new Error("Failed to decrypt chat key. Try logging in again.");
+
+    const metadataResponse = await this.http.post<{ success?: boolean; detail?: unknown }>(
+      "/v1/share/chat/metadata",
+      {
+        chat_id: resolvedId,
+        title: null,
+        summary: null,
+        share_cta_text: null,
+        is_shared: true,
+      },
+    );
+    if (!metadataResponse.ok || metadataResponse.data.success !== true) {
+      const detail = metadataResponse.data.detail;
+      const message = typeof detail === "string" ? detail : `HTTP ${metadataResponse.status}`;
+      throw new Error(`Failed to mark chat as shared: ${message}`);
+    }
 
     const blob = await generateChatShareBlob(
       resolvedId,
@@ -5873,6 +10482,58 @@ export class OpenMatesClient {
     );
     if (!response.ok || !response.data) {
       throw new Error(this.formatEmbedVersionError(response.data, `Failed to list embed versions (HTTP ${response.status})`));
+    }
+    return response.data;
+  }
+
+  async startApplicationPreview(params: ApplicationPreviewStartParams): Promise<ApplicationPreviewStartResponse> {
+    const embedId = await this.resolveEmbedId(params.embedId);
+    const body: Record<string, unknown> = { chat_id: params.chatId };
+    if (params.sharedContext) body.shared_context = params.sharedContext;
+    if (params.requestedRuntime) body.requested_runtime = params.requestedRuntime;
+    if (params.sourceMessageId) body.source_message_id = params.sourceMessageId;
+    const response = await this.http.post<ApplicationPreviewStartResponse>(
+      `/v1/applications/${encodeURIComponent(embedId)}/preview/start`,
+      body,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data) {
+      throw new Error(this.formatApplicationPreviewError(response.data, `Failed to start application preview (HTTP ${response.status})`));
+    }
+    return response.data;
+  }
+
+  async getApplicationPreviewStatus(sessionId: string): Promise<ApplicationPreviewStatusResponse> {
+    const response = await this.http.get<ApplicationPreviewStatusResponse>(
+      `/v1/applications/preview/${encodeURIComponent(sessionId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data) {
+      throw new Error(this.formatApplicationPreviewError(response.data, `Failed to load application preview status (HTTP ${response.status})`));
+    }
+    return response.data;
+  }
+
+  async openApplicationPreview(sessionId: string): Promise<ApplicationPreviewStatusResponse> {
+    const response = await this.http.post<ApplicationPreviewStatusResponse>(
+      `/v1/applications/preview/${encodeURIComponent(sessionId)}/open`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data) {
+      throw new Error(this.formatApplicationPreviewError(response.data, `Failed to open application preview (HTTP ${response.status})`));
+    }
+    return response.data;
+  }
+
+  async stopApplicationPreview(sessionId: string): Promise<ApplicationPreviewStopResponse> {
+    const response = await this.http.post<ApplicationPreviewStopResponse>(
+      `/v1/applications/preview/${encodeURIComponent(sessionId)}/stop`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data) {
+      throw new Error(this.formatApplicationPreviewError(response.data, `Failed to stop application preview (HTTP ${response.status})`));
     }
     return response.data;
   }
@@ -5956,7 +10617,17 @@ export class OpenMatesClient {
 
     const { ws } = await this.openWsClient();
     try {
+      const storeRequestId = randomUUID();
+      const storeConfirmed = ws.waitForMessage(
+        "store_embed_confirmed",
+        (payload) => {
+          const p = payload as Record<string, unknown>;
+          return p.request_id === storeRequestId && p.embed_id === embedId;
+        },
+        30_000,
+      );
       await ws.sendAsync("store_embed", {
+        request_id: storeRequestId,
         embed_id: embedId,
         encrypted_type: embed.encrypted_type,
         encrypted_content: encryptedRestoredContent,
@@ -5977,7 +10648,21 @@ export class OpenMatesClient {
         created_at: normalizeUnixSeconds(embed.created_at, now),
         updated_at: now,
       });
+      await storeConfirmed;
+
+      const diffRequestId = randomUUID();
+      const diffConfirmed = ws.waitForMessage(
+        "store_embed_diff_confirmed",
+        (payload) => {
+          const p = payload as Record<string, unknown>;
+          return p.request_id === diffRequestId
+            && p.embed_id === embedId
+            && p.version_number === newVersion;
+        },
+        30_000,
+      );
       await ws.sendAsync("store_embed_diff", {
+        request_id: diffRequestId,
         embed_id: embedId,
         version_number: newVersion,
         encrypted_snapshot: null,
@@ -5985,6 +10670,7 @@ export class OpenMatesClient {
         hashed_user_id: embed.hashed_user_id,
         created_at: now,
       });
+      await diffConfirmed;
     } finally {
       ws.close();
     }
@@ -6048,6 +10734,20 @@ export class OpenMatesClient {
       const detail = (data as { detail?: unknown; message?: unknown }).detail;
       const message = (data as { detail?: unknown; message?: unknown }).message;
       if (typeof detail === "string" && detail.trim()) return detail;
+      if (typeof message === "string" && message.trim()) return message;
+    }
+    return fallback;
+  }
+
+  private formatApplicationPreviewError(data: unknown, fallback: string): string {
+    if (data && typeof data === "object") {
+      const detail = (data as { detail?: unknown; message?: unknown }).detail;
+      const message = (data as { detail?: unknown; message?: unknown }).message;
+      if (typeof detail === "string" && detail.trim()) return detail;
+      if (detail && typeof detail === "object") {
+        const nested = (detail as { message?: unknown; code?: unknown }).message ?? (detail as { code?: unknown }).code;
+        if (typeof nested === "string" && nested.trim()) return nested;
+      }
       if (typeof message === "string" && message.trim()) return message;
     }
     return fallback;
@@ -6176,7 +10876,7 @@ export class OpenMatesClient {
     return this.session;
   }
 
-  private getMasterKeyBytes(): Uint8Array {
+  getMasterKeyBytes(): Uint8Array {
     const session = this.requireSession();
     return base64ToBytes(session.masterKeyExportedB64);
   }
@@ -6224,7 +10924,10 @@ export class OpenMatesClient {
     return session;
   }
 
-  private makeWsClient(session: OpenMatesSession): OpenMatesWsClient {
+  private makeWsClient(
+    session: OpenMatesSession,
+    options: { taskUpdateJobs?: boolean } = {},
+  ): OpenMatesWsClient {
     return new OpenMatesWsClient({
       apiUrl: session.apiUrl,
       sessionId: randomUUID(),
@@ -6234,6 +10937,11 @@ export class OpenMatesClient {
       userAgent: this.getCliUserAgent(),
       // Node.js ws library doesn't auto-send cookies on upgrade requests.
       cookies: session.cookies,
+      taskUpdateJobs: options.taskUpdateJobs,
+      onForceLogout: () => {
+        purgeLocalPrivateData();
+        this.session = null;
+      },
     });
   }
 
@@ -6242,15 +10950,16 @@ export class OpenMatesClient {
    * Combines refreshWsToken() + makeWsClient() + ws.open() into one call
    * so every WebSocket usage gets a fresh HMAC token automatically.
    */
-  private async openWsClient(): Promise<{
+  private async openWsClient(options: { taskUpdateJobs?: boolean } = {}): Promise<{
     ws: OpenMatesWsClient;
     session: OpenMatesSession;
+    ownerId: string | null;
   }> {
-    await this.refreshWsToken();
+    const ownerId = await this.refreshWsToken();
     const session = this.requireSession();
-    const ws = this.makeWsClient(session);
+    const ws = this.makeWsClient(session, options);
     await ws.open();
-    return { ws, session };
+    return { ws, session, ownerId };
   }
 
   /**
@@ -6259,24 +10968,44 @@ export class OpenMatesClient {
    * /auth/session call, but the CLI stores it from login and never updates it.
    * This method fetches a fresh ws_token and captures any rotated cookies.
    */
-  private async refreshWsToken(): Promise<void> {
+  private async refreshWsToken(): Promise<string | null> {
     const session = this.requireSession();
+    let res: HttpResponse<{
+      success?: boolean;
+      ws_token?: string;
+      user?: { id?: string; user_id?: string };
+    }>;
     try {
-      const res = await this.http.post<{
+      res = await this.http.post<{
         success?: boolean;
         ws_token?: string;
+        user?: { id?: string; user_id?: string };
       }>("/v1/auth/session", { session_id: session.sessionId }, this.getCliRequestHeaders());
-      if (res.ok && res.data.ws_token) {
-        session.wsToken = res.data.ws_token;
-      }
-      // Capture any rotated cookies from the response (HTTP client does this
-      // automatically via captureCookies — just persist the updated map).
-      session.cookies = this.http.getCookieMap();
-      saveSession(session);
     } catch {
-      // Best-effort — if /auth/session fails, proceed with the existing
-      // wsToken and let the WebSocket auth cookie fallback handle it.
+      // Network failures are best-effort: proceed with the existing wsToken and
+      // let the WebSocket auth cookie fallback handle it. Explicit server
+      // invalidation below is different and must purge local private data.
+      return null;
     }
+
+    if (!res.ok || res.data.success === false) {
+      purgeLocalPrivateData();
+      this.session = null;
+      throw new Error("Session expired or invalid. Please run `openmates login` to re-authenticate.");
+    }
+
+    if (res.data.ws_token) {
+      session.wsToken = res.data.ws_token;
+    }
+    // Capture any rotated cookies from the response (HTTP client does this
+    // automatically via captureCookies — just persist the updated map).
+    session.cookies = this.http.getCookieMap();
+    saveSession(session);
+    return typeof res.data.user?.id === "string"
+      ? res.data.user.id
+      : typeof res.data.user?.user_id === "string"
+        ? res.data.user.user_id
+        : null;
   }
 
   /**
@@ -6289,17 +11018,20 @@ export class OpenMatesClient {
   async ensureSynced(
     forceRefresh = false,
     refreshChatIds: string[] = [],
+    options: TeamContextOptions = {},
+    includeMessageContentRefresh = false,
   ): Promise<SyncCache> {
+    const teamId = this.resolveTeamContext(options);
     const refreshChatIdSet = new Set(refreshChatIds.filter(Boolean));
-    if (!forceRefresh && refreshChatIdSet.size === 0 && isSyncCacheFresh()) {
-      const cache = loadSyncCache();
+    if (!forceRefresh && refreshChatIdSet.size === 0 && isSyncCacheFresh(300_000, teamId)) {
+      const cache = loadSyncCache(teamId);
       if (cache) return cache;
     }
 
     // Delta sync: load existing cache (even if stale) to extract version data.
     // Mirrors chatSyncService.ts:startPhasedSync — sends client_chat_versions
     // so the server skips unchanged chats instead of re-sending everything.
-    const existingCache = loadSyncCache();
+    const existingCache = loadSyncCache(teamId);
 
     // Build delta sync payload from cached data
     const clientChatVersions: Record<
@@ -6339,29 +11071,47 @@ export class OpenMatesClient {
     const chats: CachedChat[] = [];
     const embeds: Record<string, unknown>[] = [];
     const embedKeys: Record<string, unknown>[] = [];
+    const chatKeyWrappers: Record<string, unknown>[] = [];
     let newChatSuggestions: Record<string, unknown>[] = [];
     let totalChatCount = 0;
+    let reconciliation: AuthoritativeChatReconciliation = { authoritative: false };
     const pendingAIResponses: PendingAIResponseFrame[] = [];
+    let pendingTaskUpdateJobs: PendingTaskUpdateJobFrame[] = [];
+    const messagesByChatId = new Map<string, string[]>();
 
     try {
       // Send phase:all so the server runs all sync phases over a single WS
       // connection and terminates with phased_sync_complete.
-      ws.send("phased_sync_request", {
-        phase: "all",
+      const baseSyncPayload = {
+        ...(teamId ? { team_id: teamId } : {}),
         client_chat_versions: clientChatVersions,
         client_chat_ids: clientChatIds,
         client_embed_ids: clientEmbedIds,
+      };
+
+      const syncFrames = ws.collectMessages("phased_sync_complete", 90_000);
+      ws.send("phased_sync_request", {
+        phase: "all",
+        ...baseSyncPayload,
+        ...(refreshChatIdSet.size > 0 ? { refresh_chat_ids: Array.from(refreshChatIdSet) } : {}),
       });
 
       // Collect every frame until phased_sync_complete (or 90s timeout).
       // Processing inline rather than per-event avoids race conditions where
       // a fast server response could arrive before a waitForMessage listener
       // is registered.
-      const frames = await ws.collectMessages("phased_sync_complete", 90_000);
+      const frames = await syncFrames;
+      if (includeMessageContentRefresh && refreshChatIdSet.size > 0) {
+        const phase3Frames = ws.collectMessages("phased_sync_complete", 90_000);
+        ws.send("phased_sync_request", {
+          phase: "phase3",
+          ...baseSyncPayload,
+        });
+        const collectedPhase3Frames = await phase3Frames;
+        frames.push(...collectedPhase3Frames);
+      }
 
       // Messages keyed by chat_id — merged from phase_1b and background_message_sync.
-      const messagesByChatId = new Map<string, string[]>();
-
       for (const frame of frames) {
         if (frame.type === "phase_1_last_chat_ready") {
           // Primary source for new_chat_suggestions (not included in phase2/3).
@@ -6373,49 +11123,64 @@ export class OpenMatesClient {
         } else if (frame.type === "phase_1b_chat_content_ready") {
           // Messages + embeds for the most recent ~11 chats.
           const p = frame.payload as {
-            chats?: Array<{ chat_id: string; messages: string[] | null }>;
+            chats?: Array<{ chat_id: string; messages: unknown[] | null }>;
             embeds?: Record<string, unknown>[];
             embed_keys?: Record<string, unknown>[];
+            chat_key_wrappers?: Record<string, unknown>[];
           };
           for (const c of (p.chats ?? [])) {
             if (c.chat_id && Array.isArray(c.messages) && c.messages.length > 0) {
-              messagesByChatId.set(c.chat_id, c.messages);
+              messagesByChatId.set(c.chat_id, normalizeSyncedMessages(c.messages));
             }
           }
           if (p.embeds) embeds.push(...p.embeds);
           if (p.embed_keys) embedKeys.push(...p.embed_keys);
+          if (p.chat_key_wrappers) chatKeyWrappers.push(...p.chat_key_wrappers);
 
         } else if (frame.type === "phase_2_last_20_chats_ready") {
           // Metadata (no messages) for up to 100 chats + authoritative total count.
           const p = frame.payload as {
             chats?: Array<Record<string, unknown>>;
             total_chat_count?: number;
+            authoritative?: boolean;
+            authoritative_chat_ids?: string[];
+            deleted_chat_ids?: string[];
+            chat_key_wrappers?: Record<string, unknown>[];
           };
           totalChatCount = p.total_chat_count ?? 0;
+          reconciliation = {
+            authoritative: p.authoritative === true,
+            authoritative_chat_ids: p.authoritative_chat_ids,
+            deleted_chat_ids: p.deleted_chat_ids,
+          };
           for (const wrapper of (p.chats ?? [])) {
             const details = wrapper.chat_details as Record<string, unknown> | undefined;
             if (!details || typeof details.id !== "string") continue;
             chats.push({ details, messages: [] });
           }
+          if (p.chat_key_wrappers) chatKeyWrappers.push(...p.chat_key_wrappers);
 
         } else if (frame.type === "background_message_sync") {
           // Chunked message batches for chats not already covered by phase_1b.
           const p = frame.payload as {
-            chats?: Array<{ chat_id: string; messages: string[] }>;
+            chats?: Array<{ chat_id: string; messages: unknown[] }>;
             embeds?: Record<string, unknown>[];
             embed_keys?: Record<string, unknown>[];
+            chat_key_wrappers?: Record<string, unknown>[];
           };
           for (const c of (p.chats ?? [])) {
             if (c.chat_id && Array.isArray(c.messages) && c.messages.length > 0) {
-              messagesByChatId.set(c.chat_id, c.messages);
+              messagesByChatId.set(c.chat_id, normalizeSyncedMessages(c.messages));
             }
           }
           if (p.embeds) embeds.push(...p.embeds);
           if (p.embed_keys) embedKeys.push(...p.embed_keys);
+          if (p.chat_key_wrappers) chatKeyWrappers.push(...p.chat_key_wrappers);
         } else if (frame.type === "pending_ai_response") {
           pendingAIResponses.push(frame.payload as PendingAIResponseFrame);
         }
       }
+      pendingTaskUpdateJobs = ws.drainPassiveTaskUpdateJobs();
 
       // Attach collected messages to their chat metadata entries.
       for (const chat of chats) {
@@ -6437,6 +11202,14 @@ export class OpenMatesClient {
     // Also preserve cached messages when the server sends a chat update
     // without messages (delta optimization — messages_v unchanged).
     if (existingCache) {
+      const currentChatIds = new Set(chats.map((chat) => String(chat.details.id ?? "")));
+      for (const [chatId, messages] of messagesByChatId) {
+        if (currentChatIds.has(chatId)) continue;
+        const cached = existingCache.chats.find((chat) => String(chat.details.id ?? "") === chatId);
+        if (!cached) continue;
+        chats.push({ details: cached.details, messages });
+        currentChatIds.add(chatId);
+      }
       const cachedById = new Map(
         existingCache.chats.map((c) => [String(c.details.id ?? ""), c]),
       );
@@ -6471,7 +11244,10 @@ export class OpenMatesClient {
       for (const cached of existingCache.chats) {
         const cachedId = String(cached.details.id ?? "");
         if (cachedId && !serverChatIds.has(cachedId)) {
-          chats.push(cached);
+          const refreshedMessages = messagesByChatId.get(cachedId);
+          chats.push(refreshedMessages && refreshedMessages.length > 0
+            ? { details: cached.details, messages: refreshedMessages }
+            : cached);
         }
       }
       // Also carry forward embeds/embed_keys not already in the server response
@@ -6499,6 +11275,32 @@ export class OpenMatesClient {
           embedKeys.push(cached);
         }
       }
+      const serverChatKeyWrapperIds = new Set(
+        chatKeyWrappers.map((entry) => String((entry as Record<string, unknown>).id ?? "")),
+      );
+      for (const cached of existingCache.chatKeyWrappers ?? []) {
+        const cachedId = String((cached as Record<string, unknown>).id ?? "");
+        if (cachedId && !serverChatKeyWrapperIds.has(cachedId)) {
+          chatKeyWrappers.push(cached);
+        }
+      }
+    }
+
+    const reconciledChats = reconcileAuthoritativeChats(chats, reconciliation);
+    chats.splice(0, chats.length, ...reconciledChats);
+    if (totalChatCount === 0) totalChatCount = chats.length;
+
+    if (reconciliation.deleted_chat_ids?.length) {
+      const { createHash } = await import("node:crypto");
+      const deletedHashes = new Set(
+        reconciliation.deleted_chat_ids.map((id) => createHash("sha256").update(id).digest("hex")),
+      );
+      const keptEmbeds = embeds.filter((embed) => !deletedHashes.has(String(embed.hashed_chat_id ?? "")));
+      const keptKeys = embedKeys.filter((key) => !deletedHashes.has(String(key.hashed_chat_id ?? "")));
+      const keptChatKeyWrappers = chatKeyWrappers.filter((key) => !deletedHashes.has(String(key.hashed_chat_id ?? "")));
+      embeds.splice(0, embeds.length, ...keptEmbeds);
+      embedKeys.splice(0, embedKeys.length, ...keptKeys);
+      chatKeyWrappers.splice(0, chatKeyWrappers.length, ...keptChatKeyWrappers);
     }
 
     // Sort by last_edited_overall_timestamp descending
@@ -6512,16 +11314,27 @@ export class OpenMatesClient {
           : 0),
     );
 
-    // Handle deleted chats: if merged count exceeds server total,
-    // some chats were deleted server-side. Trim oldest (end of sorted list).
-    if (totalChatCount > 0 && chats.length > totalChatCount) {
-      chats.length = totalChatCount;
-    }
-
+    let persistedTaskJobIds = new Set<string>();
     try {
-      await this.persistPendingAIResponsesFromSync(ws, chats, pendingAIResponses);
+      await this.persistPendingAIResponsesFromSync(ws, chats, pendingAIResponses, teamId);
+      persistedTaskJobIds = await this.persistPendingTaskUpdateJobs({
+        ws,
+        jobs: pendingTaskUpdateJobs,
+        events: [],
+        teamId,
+        activeChatId: null,
+        activeChatKeyBytes: null,
+        fallbackUserMessageId: null,
+        syncedChats: chats,
+        requireActiveTurnEvent: false,
+      });
     } finally {
       ws.close();
+    }
+
+    if (persistedTaskJobIds.size > 0) {
+      clearSyncCache(teamId);
+      return this.ensureSynced(true, refreshChatIds, { teamId });
     }
 
     const cache: SyncCache = {
@@ -6531,10 +11344,11 @@ export class OpenMatesClient {
       chats,
       embeds,
       embedKeys,
+      chatKeyWrappers,
       newChatSuggestions,
     };
 
-    saveSyncCache(cache);
+    saveSyncCache(cache, teamId);
     return cache;
   }
 
@@ -6542,10 +11356,12 @@ export class OpenMatesClient {
     ws: OpenMatesWsClient,
     chats: CachedChat[],
     pendingResponses: PendingAIResponseFrame[],
+    teamId?: string | null,
   ): Promise<void> {
     if (pendingResponses.length === 0) return;
 
     const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId ?? null, masterKey);
 
     for (const pending of pendingResponses) {
       const chatId = pending.chat_id;
@@ -6574,13 +11390,7 @@ export class OpenMatesClient {
         }
       }
 
-      const encryptedChatKey =
-        typeof chat.details.encrypted_chat_key === "string"
-          ? chat.details.encrypted_chat_key
-          : null;
-      if (!encryptedChatKey) continue;
-
-      const chatKeyBytes = await this.decryptChatKey(encryptedChatKey, masterKey);
+      const chatKeyBytes = await this.resolveChatKey(loadSyncCache(teamId), chat, wrappingKey, teamId ?? null);
       if (!chatKeyBytes) continue;
 
       const completedAt = normalizeUnixSeconds(
@@ -6613,6 +11423,8 @@ export class OpenMatesClient {
         },
         20_000,
       );
+      // Legacy pending_ai_response sync compatibility only. Epoch-1 live sends
+      // persist through the fenced recovery_job_persist transaction above.
       await ws.sendAsync("ai_response_completed", {
         chat_id: chatId,
         message: encryptedMessage,

@@ -1,40 +1,28 @@
 # .github/workflows/prod-smoke.yml
 #
-# Hourly production smoke test (OPE-76, OPE-349).
-#
-# Runs two Playwright specs against the LIVE production server:
-#   1. prod-smoke-reachability.spec.ts — cheap page-load pre-flight
-#   2. prod-smoke-signup-giftcard-chat.spec.ts — unified cold-boot flow:
-#      signup → gift card → first chat → logout → login (no 2FA) → verify
-#      chat history decrypts → second chat → delete account. Uses the
-#      reusable domain-bound gift card so zero real money is burned.
-#      (Replaces the former split with prod-smoke-login-chat.spec.ts — a
-#      single spec means one failure signature and no persistent prod
-#      test account to provision.)
-#
-# SCHEDULING NOTE (OPE-349):
-# This workflow is dispatched HOURLY by the dev server's local crontab via
-# `python3 scripts/run_tests.py --hourly-prod`, NOT by the GitHub Actions
-# `schedule:` cron. We removed the schedule trigger because GH Actions silently
-# skipped runs under load — losing prod-outage alerts. Local cron + the
-# `workflow_dispatch:` trigger below is reliable.
-#
-# To run manually: `gh workflow run prod-smoke.yml --repo glowingkitty/OpenMates`
-# To re-enable a GH-Actions-side cron: re-add a `schedule:` block here. (Don't.)
-#
-# On any failure, the `notify-test-failure` composite action posts to both
-# Discord and email. Either sender's failure never blocks the other: the
-# whole point of this pattern is that we stop missing outages when one
-# channel silently breaks (see OPE-76 context: 2026-04-06 nightly email
-# never arrived).
+# Production smoke tests dispatched by the dev server, not by GitHub schedule.
+# The dev server owns cadence, polling, deduplication, and Discord/email
+# notification through `python3 scripts/run_tests.py ...` so alerts come from
+# one place. This workflow only executes the selected suite and uploads the
+# structured artifacts that the dev server parses.
 
 name: "Prod smoke tests"
+run-name: "Prod smoke ${{ inputs.suite || 'free-hourly' }} ${{ inputs.dispatch_token || github.run_id }}"
 
 on:
   workflow_dispatch:
     inputs:
-      spec:
-        description: "Optional: run only a single spec (e.g. prod-smoke-reachability.spec.ts)"
+      suite:
+        description: "Production suite to run"
+        required: false
+        type: choice
+        default: "free-hourly"
+        options:
+          - "free-hourly"
+          - "paid-chat"
+          - "app-skill-web-search"
+      dispatch_token:
+        description: "Unique token used by the dev-server runner to identify its dispatched run"
         required: false
         type: string
         default: ""
@@ -46,11 +34,9 @@ jobs:
   smoke:
     name: Run prod smoke suite
     runs-on: ubuntu-latest
-    # Cap the job so a hung spec cannot block the next hourly slot.
-    timeout-minutes: 25
-    outputs:
-      reachability_status: ${{ steps.reachability.outputs.status }}
-      signup_status: ${{ steps.signup.outputs.status }}
+    timeout-minutes: 20
+    env:
+      PROD_API_URL: https://api.openmates.org
     steps:
       - uses: actions/checkout@v4
         with:
@@ -66,105 +52,81 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
+        if: ${{ inputs.suite == 'free-hourly' }}
         run: npx playwright install --with-deps chromium
         working-directory: frontend/apps/web_app
 
-      # ─── Spec 1: Reachability ───────────────────────────────────────────
-      # Runs first, unconditionally. If prod is simply down, this fires the
-      # alert and the heavier specs will still run (and will also fail) so
-      # the operator sees the full picture.
-      - name: Run reachability spec
+      - name: Build CLI
+        if: ${{ inputs.suite == 'paid-chat' || inputs.suite == 'app-skill-web-search' }}
+        run: pnpm --filter openmates build
+
+      - name: Run free reachability spec
+        if: ${{ inputs.suite == 'free-hourly' }}
         id: reachability
         continue-on-error: true
         run: |
-          mkdir -p $GITHUB_WORKSPACE/test-results
+          mkdir -p "$GITHUB_WORKSPACE/test-results"
           cd frontend/apps/web_app
           npx playwright test "tests/prod-smoke/prod-smoke-reachability.spec.ts" \
             --reporter=list,json \
-            > $GITHUB_WORKSPACE/test-results/reachability.json || exit_code=$?
+            > "$GITHUB_WORKSPACE/test-results/reachability.json" || exit_code=$?
           if [ "${exit_code:-0}" != "0" ]; then
-            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "status=failed" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "status=passed" >> $GITHUB_OUTPUT
+          echo "status=passed" >> "$GITHUB_OUTPUT"
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.PROD_BASE_URL }}
 
-      # ─── Spec 2: Signup + gift card + chat ──────────────────────────────
-      - name: Run signup + gift card + chat spec
-        id: signup
+      - name: Run paid CLI chat smoke
+        if: ${{ inputs.suite == 'paid-chat' }}
+        id: paid_chat
         continue-on-error: true
         run: |
-          cd frontend/apps/web_app
-          npx playwright test "tests/prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts" \
-            --reporter=list,json \
-            > $GITHUB_WORKSPACE/test-results/signup.json || exit_code=$?
+          mkdir -p "$GITHUB_WORKSPACE/test-results"
+          python3 scripts/verify_prod_cli_smoke.py \
+            --scenario paid-chat \
+            --api-url "$PROD_API_URL" \
+            --skip-build \
+            > "$GITHUB_WORKSPACE/test-results/paid-chat.json" || exit_code=$?
           if [ "${exit_code:-0}" != "0" ]; then
-            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "status=failed" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "status=passed" >> $GITHUB_OUTPUT
+          echo "status=passed" >> "$GITHUB_OUTPUT"
         env:
-          PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.PROD_BASE_URL }}
-          # One Mailosaur account is used for both dev and prod smoke tests.
-          # The gift card is locked to this server's subdomain via the
-          # `allowed_email_domain` field — see OPE-76 and
-          # gift_card_methods.py:29-61 for the exact-match enforcement.
-          SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.PROD_SMOKE_EMAIL_DOMAIN }}
-          MAILOSAUR_API_KEY: ${{ secrets.MAILOSAUR_API_KEY }}
-          MAILOSAUR_SERVER_ID: ${{ secrets.MAILOSAUR_SERVER_ID }}
-          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
-          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
-          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
-          GMAIL_TEST_ADDRESS: ${{ secrets.GMAIL_TEST_ADDRESS }}
-          PROD_SMOKE_GIFT_CARD_CODE: ${{ secrets.PROD_SMOKE_GIFT_CARD_CODE }}
+          OPENMATES_API_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}
 
-      # ─── Build failure summary for notification ──────────────────────────
-      - name: Build failure summary
-        id: summary
-        if: always()
-        shell: bash
+      - name: Run CLI web-search app-skill smoke
+        if: ${{ inputs.suite == 'app-skill-web-search' }}
+        id: app_skill_web_search
+        continue-on-error: true
         run: |
-          SUMMARY="Reachability:              ${{ steps.reachability.outputs.status }}\n"
-          SUMMARY="${SUMMARY}Signup+giftcard+chat+login: ${{ steps.signup.outputs.status }}\n"
-          SUMMARY="${SUMMARY}\nRun at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')\n"
-          SUMMARY="${SUMMARY}Base URL: ${{ secrets.PROD_BASE_URL }}"
-          # Store as a multi-line output
-          {
-            echo "text<<EOF"
-            printf "%b" "$SUMMARY"
-            echo
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Notify on failure
-        if: |
-          always() && (
-            steps.reachability.outputs.status == 'failed' ||
-            steps.signup.outputs.status == 'failed'
-          )
-        uses: ./.github/actions/notify-test-failure
-        with:
-          run_label: "prod-smoke ${{ github.event.schedule || 'manual' }}"
-          run_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          failure_summary: ${{ steps.summary.outputs.text }}
-          discord_webhook: ${{ secrets.DISCORD_WEBHOOK_PROD_SMOKE }}
-          email_to: ${{ secrets.PROD_SMOKE_EMAIL_TO }}
-          brevo_api_key: ${{ secrets.BREVO_API_KEY }}
+          mkdir -p "$GITHUB_WORKSPACE/test-results"
+          python3 scripts/verify_prod_cli_smoke.py \
+            --scenario app-skill-web-search \
+            --api-url "$PROD_API_URL" \
+            --skip-build \
+            > "$GITHUB_WORKSPACE/test-results/app-skill-web-search.json" || exit_code=$?
+          if [ "${exit_code:-0}" != "0" ]; then
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "status=passed" >> "$GITHUB_OUTPUT"
+        env:
+          OPENMATES_API_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: prod-smoke-results-${{ github.run_id }}
-          path: |
-            test-results/
-            frontend/apps/web_app/test-results/
-            frontend/apps/web_app/artifacts/
+          path: test-results/
           if-no-files-found: ignore
           retention-days: 14
 
-      - name: Fail workflow on any spec failure
+      - name: Fail workflow on selected suite failure
         if: |
-          steps.reachability.outputs.status == 'failed' ||
-          steps.signup.outputs.status == 'failed'
+          (inputs.suite == 'free-hourly' && steps.reachability.outputs.status == 'failed') ||
+          (inputs.suite == 'paid-chat' && steps.paid_chat.outputs.status == 'failed') ||
+          (inputs.suite == 'app-skill-web-search' && steps.app_skill_web_search.outputs.status == 'failed')
         run: exit 1

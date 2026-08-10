@@ -67,14 +67,20 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	logStep('Login succeeded. Waiting for initial chat load...');
 	await page.waitForTimeout(2000);
 	await takeScreenshot(page, 'after-login');
+	const existingNotificationDismiss = page.getByTestId('notification-dismiss').first();
+	if (await existingNotificationDismiss.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await existingNotificationDismiss.click();
+		logStep('Dismissed pre-existing setup notification to isolate chat notification behavior.');
+	}
 
 	// ══════════════════════════════════════════════════════════════
 	// 9. Send a message in Chat A
 	// ══════════════════════════════════════════════════════════════
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 15000 });
+	const chatAMessage = 'What is the tallest mountain in the world?';
 	await messageEditor.click();
-	await page.keyboard.type('What is the tallest mountain in the world?');
+	await page.keyboard.type(chatAMessage);
 	await takeScreenshot(page, 'chat-a-message-typed');
 
 	const sendButton = page.locator('[data-action="send-message"]');
@@ -94,6 +100,9 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	if (!chatAId) {
 		throw new Error(`Could not extract chat ID from URL: ${chatAUrl}`);
 	}
+	const chatAUserMessage = page.getByTestId('message-user').filter({ hasText: chatAMessage }).last();
+	await expect(chatAUserMessage.getByText('Sending...')).not.toBeVisible({ timeout: 30000 });
+	logStep('Chat A message left the transient sending state.');
 
 	// ══════════════════════════════════════════════════════════════
 	// 10. Switch to a new Chat B (making Chat A a background chat)
@@ -107,7 +116,18 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	await page.waitForTimeout(1000);
 
 	// ══════════════════════════════════════════════════════════════
-	// 11. (Soft check) Typing indicator shimmer in sidebar
+	// 11. Wait for the background chat notification popup
+	// ══════════════════════════════════════════════════════════════
+	logStep('Waiting for background chat notification...');
+	const notification = page.locator(`[data-testid="chat-notification"][data-chat-id="${chatAId}"]`).first();
+	await expect(notification).toBeVisible({ timeout: 60000 });
+	await expect(notification).toHaveAttribute('data-chat-id', chatAId);
+	await notification.hover();
+	logStep('Notification appeared and was hovered to interrupt auto-dismiss.');
+	await takeScreenshot(page, 'notification-appeared');
+
+	// ══════════════════════════════════════════════════════════════
+	// 12. (Soft check) Typing indicator shimmer in sidebar
 	// ══════════════════════════════════════════════════════════════
 	logStep('Checking for typing shimmer in sidebar...');
 	const typingShimmer = page.getByTestId('chat-typing-shimmer');
@@ -119,16 +139,6 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 		logStep('Typing shimmer not caught (may have already completed).');
 		await takeScreenshot(page, 'typing-shimmer-missed');
 	}
-
-	// ══════════════════════════════════════════════════════════════
-	// 12. Wait for the background chat notification popup
-	// ══════════════════════════════════════════════════════════════
-	logStep('Waiting for background chat notification...');
-	const notification = page.getByTestId('chat-notification');
-	await expect(notification).toBeVisible({ timeout: 60000 });
-	await expect(notification).toHaveAttribute('data-chat-id', chatAId);
-	logStep('Notification appeared!');
-	await takeScreenshot(page, 'notification-appeared');
 
 	// 13. Verify notification content
 	const messagePreview = notification.getByTestId('notification-message');
@@ -165,6 +175,16 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 		logStep('Reply button not visible; notification display behavior verified.');
 		return;
 	}
+	const notificationBox = await notification.boundingBox();
+	const replyButtonBox = await replyButton.boundingBox();
+	if (!notificationBox || !replyButtonBox) {
+		throw new Error('Could not measure notification reply button bounds.');
+	}
+	const replyInsetLeft = replyButtonBox.x - notificationBox.x;
+	const replyInsetRight = notificationBox.x + notificationBox.width - (replyButtonBox.x + replyButtonBox.width);
+	expect(Math.abs(replyInsetLeft - replyInsetRight)).toBeLessThanOrEqual(1);
+	expect(replyInsetRight).toBeGreaterThanOrEqual(0);
+	logStep('Reply button horizontal inset is balanced.', { replyInsetLeft, replyInsetRight });
 	await replyButton.click();
 	logStep('Clicked reply button.');
 	await takeScreenshot(page, 'reply-expanded');

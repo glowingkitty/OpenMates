@@ -1,0 +1,1168 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-07'
+generated_at: '2026-07-09T15:36:08+00:00'
+range:
+  since: '2026-06-07T00:00:00+00:00'
+  until: '2026-06-07T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 21
+  section_counts:
+    features: 2
+    bug_fixes: 15
+    improvements: 0
+    docs: 0
+    tests: 3
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 17
+  user_facing_items: 17
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add application embed live previews'
+    section: features
+    commits:
+    - e3243f6ef
+    authored_at: '2026-06-07T23:35:25+00:00'
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/code/tasks/__init__.py
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/routes/application_preview.py
+    - backend/core/api/app/routes/application_preview_gateway.py
+    - backend/core/api/main.py
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_application_preview_config.py
+    - backend/tests/test_application_preview_gateway.py
+    - backend/tests/test_application_preview_gateway_proxy.py
+    - backend/tests/test_e2b_application_preview.py
+    - backend/tests/test_run_application_preview_task.py
+    - docs/architecture/messaging/embeds.md
+    - docs/specs/application-embeds/spec.yml
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.test.ts
+    - frontend/packages/ui/src/components/embeds/code/codeEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    - frontend/packages/ui/src/data/__tests__/embedTextRenderers.test.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - frontend/packages/ui/src/services/applicationPreviewService.ts
+    - shared/docs/privacy_policy.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: show app skill example chats'
+    section: features
+    commits:
+    - 27f6e8775
+    authored_at: '2026-06-07T13:39:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetailsWrapper.svelte
+    - frontend/packages/ui/src/components/settings/ChatPreviewCard.svelte
+    - frontend/packages/ui/src/components/settings/SkillExamplesSection.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/building-maintenance-email.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/flights-berlin-to-bangkok.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: filter empty weather legacy results'
+    section: bug_fixes
+    commits:
+    - f1d3d39bb
+    authored_at: '2026-06-07T19:24:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: filter empty weather preview days'
+    section: bug_fixes
+    commits:
+    - 1663f2505
+    authored_at: '2026-06-07T19:16:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: normalize weather child results'
+    section: bug_fixes
+    commits:
+    - 39d5877c8
+    authored_at: '2026-06-07T19:07:10+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: guard weather day condition rendering'
+    section: bug_fixes
+    commits:
+    - ad9be9b6f
+    authored_at: '2026-06-07T18:57:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: normalize weather day child previews'
+    section: bug_fixes
+    commits:
+    - 0d66ca1c7
+    authored_at: '2026-06-07T18:40:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: store selected search child result'
+    section: bug_fixes
+    commits:
+    - 482d1cca9
+    authored_at: '2026-06-07T18:31:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: select rendered search result embeds'
+    section: bug_fixes
+    commits:
+    - bc17e09fd
+    authored_at: '2026-06-07T18:22:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use shared child embed fullscreen structure'
+    section: bug_fixes
+    commits:
+    - 37f9379b4
+    authored_at: '2026-06-07T18:09:16+00:00'
+    changed_paths:
+    - backend/tests/test_code_quality_guard.py
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - scripts/audit_embed_structure.py
+    - scripts/code_quality_guard.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: open weather day previews from forecast'
+    section: bug_fixes
+    commits:
+    - e9359a6d5
+    authored_at: '2026-06-07T17:08:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore app skill example interactions'
+    section: bug_fixes
+    commits:
+    - 4451ee9ab
+    authored_at: '2026-06-07T16:54:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: explain in new chat starts clean chat'
+    section: bug_fixes
+    commits:
+    - 191a74dae
+    authored_at: '2026-06-07T13:31:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    - frontend/packages/ui/src/services/forkChatService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: verify fork chat ownership after cache miss'
+    section: bug_fixes
+    commits:
+    - f59e4efff
+    authored_at: '2026-06-07T11:52:35+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_chat_ownership_cache_fallback.py
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/forkChatService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep selection toolbar within mobile viewport'
+    section: bug_fixes
+    commits:
+    - '681860336'
+    authored_at: '2026-06-07T11:28:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: guard explain action on shared chats'
+    section: bug_fixes
+    commits:
+    - d5ad431bb
+    authored_at: '2026-06-07T11:03:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: auto-fix failed tests g08-633ef2b7'
+    section: bug_fixes
+    commits:
+    - f1b284ab7
+    authored_at: '2026-06-07T00:52:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: isolate credential-mutating e2e specs'
+    section: tests
+    commits:
+    - a621adab7
+    authored_at: '2026-06-07T22:19:13+00:00'
+    changed_paths:
+    - docs/contributing/guides/testing.md
+    - docs/specs/e2e-credential-isolation/spec.yml
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-codes-settings.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert shared weather child preview structure'
+    section: tests
+    commits:
+    - f64bdd6c9
+    authored_at: '2026-06-07T18:48:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: trigger explain action on mousedown'
+    section: tests
+    commits:
+    - 655ad8608
+    authored_at: '2026-06-07T11:13:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'ci: schedule weekday self-host smoke'
+    section: infrastructure
+    commits:
+    - e89396b09
+    authored_at: '2026-06-07T10:56:16+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add application embed live previews'
+    commits:
+    - e3243f6ef
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: add application embed live previews'
+    commits:
+    - e3243f6ef
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: filter empty weather legacy results'
+    commits:
+    - f1d3d39bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: filter empty weather preview days'
+    commits:
+    - 1663f2505
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: normalize weather child results'
+    commits:
+    - 39d5877c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: guard weather day condition rendering'
+    commits:
+    - ad9be9b6f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: normalize weather day child previews'
+    commits:
+    - 0d66ca1c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: store selected search child result'
+    commits:
+    - 482d1cca9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: select rendered search result embeds'
+    commits:
+    - bc17e09fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use shared child embed fullscreen structure'
+    commits:
+    - 37f9379b4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open weather day previews from forecast'
+    commits:
+    - e9359a6d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore app skill example interactions'
+    commits:
+    - 4451ee9ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: show app skill example chats'
+    commits:
+    - 27f6e8775
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: explain in new chat starts clean chat'
+    commits:
+    - 191a74dae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: verify fork chat ownership after cache miss'
+    commits:
+    - f59e4efff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep selection toolbar within mobile viewport'
+    commits:
+    - '681860336'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: guard explain action on shared chats'
+    commits:
+    - d5ad431bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: auto-fix failed tests g08-633ef2b7'
+    commits:
+    - f1b284ab7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: add application embed live previews'
+    commits:
+    - e3243f6ef
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: filter empty weather legacy results'
+    commits:
+    - f1d3d39bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: filter empty weather preview days'
+    commits:
+    - 1663f2505
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: normalize weather child results'
+    commits:
+    - 39d5877c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: guard weather day condition rendering'
+    commits:
+    - ad9be9b6f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: normalize weather day child previews'
+    commits:
+    - 0d66ca1c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: store selected search child result'
+    commits:
+    - 482d1cca9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: select rendered search result embeds'
+    commits:
+    - bc17e09fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use shared child embed fullscreen structure'
+    commits:
+    - 37f9379b4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open weather day previews from forecast'
+    commits:
+    - e9359a6d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore app skill example interactions'
+    commits:
+    - 4451ee9ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: show app skill example chats'
+    commits:
+    - 27f6e8775
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: explain in new chat starts clean chat'
+    commits:
+    - 191a74dae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: verify fork chat ownership after cache miss'
+    commits:
+    - f59e4efff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep selection toolbar within mobile viewport'
+    commits:
+    - '681860336'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: guard explain action on shared chats'
+    commits:
+    - d5ad431bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: auto-fix failed tests g08-633ef2b7'
+    commits:
+    - f1b284ab7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: e3243f6efca83d452f8106953b70e357ea3a2bc4
+    short_sha: e3243f6ef
+    authored_at: '2026-06-07T23:35:25+00:00'
+    subject: 'feat: add application embed live previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/code/tasks/__init__.py
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/routes/application_preview.py
+    - backend/core/api/app/routes/application_preview_gateway.py
+    - backend/core/api/main.py
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_application_preview_config.py
+    - backend/tests/test_application_preview_gateway.py
+    - backend/tests/test_application_preview_gateway_proxy.py
+    - backend/tests/test_e2b_application_preview.py
+    - backend/tests/test_run_application_preview_task.py
+    - docs/architecture/messaging/embeds.md
+    - docs/specs/application-embeds/spec.yml
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.test.ts
+    - frontend/packages/ui/src/components/embeds/code/codeEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    - frontend/packages/ui/src/data/__tests__/embedTextRenderers.test.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - frontend/packages/ui/src/services/applicationPreviewService.ts
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+  - sha: a621adab7695ef4be9149668b13fea78ccff8d5e
+    short_sha: a621adab7
+    authored_at: '2026-06-07T22:19:13+00:00'
+    subject: 'test: isolate credential-mutating e2e specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/contributing/guides/testing.md
+    - docs/specs/e2e-credential-isolation/spec.yml
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-codes-settings.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: f1d3d39bbe26a72a719667527ac4489b15ba01e9
+    short_sha: f1d3d39bb
+    authored_at: '2026-06-07T19:24:55+00:00'
+    subject: 'fix: filter empty weather legacy results'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 1663f25057148efeb3dcef1cd0cd75c3eecaab14
+    short_sha: 1663f2505
+    authored_at: '2026-06-07T19:16:12+00:00'
+    subject: 'fix: filter empty weather preview days'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 39d5877c83d1bd8f19907fc8e5cd1a5922b6aad0
+    short_sha: 39d5877c8
+    authored_at: '2026-06-07T19:07:10+00:00'
+    subject: 'fix: normalize weather child results'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: ad9be9b6fe5568ce535880d7cc799559a9f07e2a
+    short_sha: ad9be9b6f
+    authored_at: '2026-06-07T18:57:43+00:00'
+    subject: 'fix: guard weather day condition rendering'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: f64bdd6c981dd5c4f7f2a800ba674464af3f1489
+    short_sha: f64bdd6c9
+    authored_at: '2026-06-07T18:48:49+00:00'
+    subject: 'test: assert shared weather child preview structure'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    related_feature_ids: []
+  - sha: 0d66ca1c777e031675dc7201bf02871aac709542
+    short_sha: 0d66ca1c7
+    authored_at: '2026-06-07T18:40:50+00:00'
+    subject: 'fix: normalize weather day child previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 482d1cca9bc1fb753443dfa2f9e750d34d2b012d
+    short_sha: 482d1cca9
+    authored_at: '2026-06-07T18:31:44+00:00'
+    subject: 'fix: store selected search child result'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    related_feature_ids: []
+  - sha: bc17e09fda16c12618f9b53ea01d47731d993a82
+    short_sha: bc17e09fd
+    authored_at: '2026-06-07T18:22:02+00:00'
+    subject: 'fix: select rendered search result embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    related_feature_ids: []
+  - sha: 37f9379b44ff358eb2925d186affbf56facd8444
+    short_sha: 37f9379b4
+    authored_at: '2026-06-07T18:09:16+00:00'
+    subject: 'fix: use shared child embed fullscreen structure'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_code_quality_guard.py
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - scripts/audit_embed_structure.py
+    - scripts/code_quality_guard.py
+    related_feature_ids: []
+  - sha: e9359a6d5c74be85fe288fe4d7c23fdd4cf8c0c2
+    short_sha: e9359a6d5
+    authored_at: '2026-06-07T17:08:25+00:00'
+    subject: 'fix: open weather day previews from forecast'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 4451ee9ab9ae72b11b660e56caf963ba3fcc3ebc
+    short_sha: 4451ee9ab
+    authored_at: '2026-06-07T16:54:15+00:00'
+    subject: 'fix: restore app skill example interactions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    related_feature_ids: []
+  - sha: 27f6e87752d139c93dc4cc9efac04cd5372d11ec
+    short_sha: 27f6e8775
+    authored_at: '2026-06-07T13:39:01+00:00'
+    subject: 'feat: show app skill example chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetailsWrapper.svelte
+    - frontend/packages/ui/src/components/settings/ChatPreviewCard.svelte
+    - frontend/packages/ui/src/components/settings/SkillExamplesSection.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/building-maintenance-email.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/flights-berlin-to-bangkok.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    related_feature_ids: []
+  - sha: 191a74daebba5ef9cd49bf62013f97230e50aa4d
+    short_sha: 191a74dae
+    authored_at: '2026-06-07T13:31:07+00:00'
+    subject: 'fix: explain in new chat starts clean chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    - frontend/packages/ui/src/services/forkChatService.ts
+    related_feature_ids: []
+  - sha: f59e4efffa76056afacb7416dead465256dd3a57
+    short_sha: f59e4efff
+    authored_at: '2026-06-07T11:52:35+00:00'
+    subject: 'fix: verify fork chat ownership after cache miss'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_chat_ownership_cache_fallback.py
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/forkChatService.ts
+    related_feature_ids: []
+  - sha: 681860336e79d3afc06c67f9a9a78ba3ff7aacdb
+    short_sha: '681860336'
+    authored_at: '2026-06-07T11:28:34+00:00'
+    subject: 'fix: keep selection toolbar within mobile viewport'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+    related_feature_ids: []
+  - sha: 655ad8608079be0e303d4d29440d1607e839730d
+    short_sha: 655ad8608
+    authored_at: '2026-06-07T11:13:53+00:00'
+    subject: 'test: trigger explain action on mousedown'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    related_feature_ids: []
+  - sha: d5ad431bb09753de5dbc4a89ccc60c40d7bd9cf0
+    short_sha: d5ad431bb
+    authored_at: '2026-06-07T11:03:54+00:00'
+    subject: 'fix: guard explain action on shared chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+    related_feature_ids: []
+  - sha: e89396b09e7067db7acb1586e0faa6774d35c316
+    short_sha: e89396b09
+    authored_at: '2026-06-07T10:56:16+00:00'
+    subject: 'ci: schedule weekday self-host smoke'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: f1b284ab74c5caf84e47760d3ddee726bb509935
+    short_sha: f1b284ab7
+    authored_at: '2026-06-07T00:52:03+00:00'
+    subject: 'fix: auto-fix failed tests g08-633ef2b7'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on enhancing the discovery of app capabilities and refining the embed experience. Key updates
+    include the addition of example chats for app skills and a series of fixes for weather and search result rendering. Internal
+    progress was also made on application previews and CI stability.
+  released_changes:
+  - text: OpenMates added example chats to app skill details, allowing users to see practical demonstrations of how specific
+      skills function.
+    evidence:
+      commits:
+      - 27f6e8775
+    release_status: released_main
+  bug_fixes:
+  - text: The weather embed experience was refined with fixes for empty result filtering, normalized child preview structures,
+      and restored interactions when opening day views from a forecast.
+    evidence:
+      commits:
+      - f1d3d39bb
+      - 1663f2505
+      - 39d5877c8
+      - ad9be9b6f
+      - 0d66ca1c7
+      - e9359a6d5
+      - 4451ee9ab
+    release_status: released_main
+  - text: Search result templates now correctly store and select rendered child embeds.
+    evidence:
+      commits:
+      - 482d1cca9
+      - bc17e09fd
+    release_status: released_main
+  - text: Chat interaction improvements include better ownership verification after cache misses, mobile viewport constraints
+      for the selection toolbar, and ensuring \"Explain in new chat\" starts with a clean state.
+    evidence:
+      commits:
+      - 191a74dae
+      - f59e4efff
+      - '681860336'
+      - d5ad431bb
+    release_status: released_main
+  - text: Resolved a regression in the signup flow for users in the EU.
+    evidence:
+      commits:
+      - f1b284ab7
+    release_status: released_main
+  unreleased_progress:
+  - text: Initial development of application embed live previews, including backend task runners and frontend renderers, is
+      underway but remains disabled for public use.
+    evidence:
+      commits:
+      - e3243f6ef
+    release_status: released_main
+  internal_progress:
+  - text: OpenMates scheduled new weekday smoke tests for self-hosted environments.
+    evidence:
+      commits:
+      - e89396b09
+    release_status: released_main
+  - text: End-to-end testing was improved by isolating specs that mutate credentials.
+    evidence:
+      commits:
+      - a621adab7
+    release_status: released_main
+  - text: A shared structure for child embed full-screen views was implemented to ensure UI consistency.
+    evidence:
+      commits:
+      - 37f9379b4
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New example chats for app skills.
+      evidence:
+        commits:
+        - 27f6e8775
+      reason: Provides a visual way for users to understand app capabilities.
+    - text: Comprehensive weather embed rendering and interaction fixes.
+      evidence:
+        commits:
+        - f1d3d39bb
+        - 1663f2505
+        - 39d5877c8
+        - ad9be9b6f
+        - 0d66ca1c7
+        - e9359a6d5
+        - 4451ee9ab
+      reason: Significant stability improvements to a core embed type.
+    - text: Mobile UI refinements for chat message selection.
+      evidence:
+        commits:
+        - '681860336'
+        - d5ad431bb
+      reason: Improves the mobile experience for message selection and explanation.
+    exclude:
+    - text: Application embed live previews.
+      evidence:
+        commits:
+        - e3243f6ef
+      reason: The application embed feature is currently disabled in the project configuration.
+    rationale: The update introduces a user-facing discovery feature (skill examples) and resolves several high-visibility
+      bugs in weather and search embeds. Application previews are excluded as they are currently disabled.
+  social_video_recommendations:
+  - idea: A short clip showing how to browse app skills and clicking into the new example chats to see them in action.
+    priority: high
+    reason: This is a highly visual feature that helps users understand the value of different apps within the ecosystem.
+    evidence:
+      commits:
+      - 27f6e8775
+  quality_notes:
+  - Weather embed components underwent significant normalization to ensure consistent rendering across different view modes.
+  - Chat forking logic was hardened with additional ownership checks to prevent unauthorized access during cache misses.
+  validation_warnings: []

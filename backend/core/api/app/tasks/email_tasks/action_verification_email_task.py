@@ -9,7 +9,6 @@ Architecture: Reuses the EmailTemplateService and CacheService pattern from
 Tests: N/A (tested via E2E signup-skip-2fa-flow.spec.ts)
 """
 import logging
-import random
 import asyncio
 
 from backend.core.api.app.tasks.celery_config import app
@@ -17,6 +16,7 @@ from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
+from backend.shared.python_utils.security_random import generate_digit_code
 
 # TTL for action verification codes: 10 minutes
 ACTION_VERIFICATION_CODE_TTL = 600
@@ -86,7 +86,7 @@ async def _async_generate_and_send_action_verification_email(
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
 
         # Generate a 6-digit code
-        verification_code = ''.join(random.choices('0123456789', k=6))
+        verification_code = generate_digit_code()
         logger.info(f"Generated action verification code for user {user_id}, action={action}")
 
         # Store the code in cache with TTL

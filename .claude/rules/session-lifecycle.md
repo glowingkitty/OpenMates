@@ -3,9 +3,9 @@ description: Session lifecycle management — start, track, deploy, end
 globs:
 ---
 
-# Session Lifecycle (Mandatory)
+# Session Lifecycle
 
-Every session must call `sessions.py start` as the **very first action** and `sessions.py end` (or `deploy --end`) as the last.
+Use `sessions.py` for deploys, durable multi-session work, coordinated Docker restarts, and the short dev deploy push lock. Ordinary research, reviews, and focused edits do not need a session.
 
 ```bash
 # 1. START (must include --mode):
@@ -28,10 +28,16 @@ python3 scripts/sessions.py end --session <ID>
 
 ## Key Rules
 
-- **Always use `sessions.py deploy`** — never raw `git commit`. It bypasses session tracking.
+- **Always use `sessions.py deploy`** — never raw `git commit`. It selects and verifies the intended files.
+- **Use routed session worktrees:** OpenCode Web stays at the root project URL, but hooks force local file tools, searches, Bash, and Task children into the automatic session worktree. Run `sessions.py start` before mutating work, use repository-relative paths, and never override Bash `workdir` to root or another checkout. The root checkout remains the control plane; set `OPENMATES_ROOT_GUARD=off` only for an explicit manual emergency. If routing fails, follow the hook's `Next:` command instead of repeating the rejected call.
+- **Scoped `dev` deploys are pre-authorized for verification:** do not ask before `sessions.py deploy` when the deployment is required to run dev-server, Vercel, GitHub Actions, Playwright, CLI/SDK, or Apple parity verification for the assigned task. Ask first for production deploys, raw git commit/push, broad/unscoped dirty deploys, destructive data/migrations, secrets, unclear privacy/billing/security scope, same-file overlap that cannot be safely staged, or planning/review-only work.
+- **Deploy locks are atomic and short-lived:** `python3 scripts/sessions.py deploy` acquires the dev deploy push lock for root integration, commit, and push, then releases it immediately after push. Do not run a separate `wait-lock` before normal deploys; use it only for diagnostics/manual inspection. Vercel and test verification must be commit-scoped with `--expected-commit`, not protected by a long-lived global lock.
+- **Forgotten mutating chats are recoverable by default:** idle or closed top-level OpenCode chats create a local checkpoint ref. After the grace period, the hourly controller may integrate only the unchanged checkpoint through the normal deploy gates. Explicit holds, live edits, sensitive paths, changed patches, conflicts, and failed gates remain visible; question chats, children, legacy state, and uncheckpointed work are never implicit auto-integration inputs.
+- **Execution and workspace state are separate:** OpenCode presence reports whether a chat is busy, idle, stopped, or closed. Durable session metadata independently reports whether its worktree is clean, checkpointed, integrating, integrated, held, or needs recovery.
+- **Active executable specs are non-interruptible:** When the current work has an active `docs/specs/<slug>/spec.yml`, do not stop, summarize, or defer because the task is large, the turn is long, tests fail, the worktree is concurrent, or context is tight. Continue the smallest actionable task, compact if needed, and use the durable handoff to resume. A final response is allowed only after `python3 scripts/spec_verify.py <spec> --json` reports complete, or after the current task records a structured `handoff.blocker` with `task_id`, `requires_user_input: true`, `reason`, `question`, and `next_action`. Future-task gates never block the current task.
+- **File waits are not user blockers:** Temporary lock, deploy, Vercel, or test-dispatch waits are execution state, not a reason to stop unless the current task records a structured user-input blocker.
 - If deploy fails due to a **pre-existing hook bug**, use `sessions.py deploy --no-verify`.
-- **Mode escalation:** If a `--mode question` session needs file edits, end it and restart with `--mode feature` or `--mode bug`.
-- **Concurrent sessions:** Re-read files before editing. Check git status before committing. Use `lock/unlock` for Docker/Vercel.
+- **Concurrent sessions:** `modified_files` means a session touched a file; it is not ownership. OpenCode execute edits automatically acquire short-lived `edit-lease` records for exact files and block overlapping edits while the lease is live. Re-read before editing and proceed unless another session has a current `WRITING` claim or `edit-lease` on that exact file. Treat short session IDs as diagnostic only: check status, work on non-conflicting files, or retry after release. Do not ask the user to interpret IDs or choose an ownership boundary unless all useful progress is blocked. Restart services with `sessions.py docker restart`; it blocks new dependent tests, drains active ones, holds the Docker lock, verifies health, and records recent status. Use manual `lock/unlock` only for non-restart Docker maintenance or deploy push diagnostics.
 
 ## On-Demand Tools
 
@@ -41,13 +47,16 @@ python3 scripts/sessions.py code-quality --session <ID>
 python3 scripts/sessions.py find-redundancy --tags frontend
 python3 scripts/sessions.py check-tests --session <ID>
 python3 scripts/sessions.py check-docs --session <ID>
-python3 scripts/sessions.py lock --session <ID> --type docker
+python3 scripts/sessions.py docker restart --session <ID> --service api
+python3 scripts/sessions.py docker restart --session <ID> --build --service api --service task-worker
 python3 scripts/sessions.py stale-docs --tags frontend
+python3 scripts/sessions.py chat read <ses_or_code_dev_url>
+python3 scripts/sessions.py chat search <ses_or_code_dev_url> "worktree"
 ```
 
 ## Spawn Parallel Sessions
 
-Spawn Claude Code sessions in separate Zellij tabs for parallel work:
+Spawn persisted OpenCode Web chats in the existing project sidebar for parallel work:
 ```bash
 # Plan mode (default, read-only) — research and planning
 python3 scripts/sessions.py spawn-chat --prompt "Research X" --name "research-X"
@@ -55,11 +64,11 @@ python3 scripts/sessions.py spawn-chat --prompt "Research X" --name "research-X"
 # Execute mode (full access) — only when user explicitly requests
 python3 scripts/sessions.py spawn-chat --prompt-file prompt.txt --name "fix-task" --mode execute
 ```
-**Always ask user confirmation before spawning.** Attach: `zellij attach <name>` or localhost:8082.
+**Always ask user confirmation before spawning.** No new Zellij session is created; use the returned OpenCode session ID or sidebar URL, and inspect with `sessions.py chat read/search` when debugging hooks, tools, or worktree setup.
 
 ## Multi-Session Tasks
 
-For tasks spanning >1 session or touching >3 files:
+For inline-spec or non-spec tasks spanning >1 session or touching >3 files:
 ```bash
 python3 scripts/sessions.py task-create --session <ID> --title "..." --context "..."
 python3 scripts/sessions.py task-step --id t001 --add "[ ] Step one"
@@ -67,3 +76,9 @@ python3 scripts/sessions.py task-ac --id t001 --add "[ ] Acceptance criterion"
 # Resume: sessions.py start --mode <mode> --task "..." --task-id t001
 # Complete: sessions.py task-update --id t001 --status done --summary "..."
 ```
+
+For full-spec work, `docs/specs/<slug>/spec.yml` is the only durable plan, task,
+evidence, and handoff ledger. Do not create a session task file that duplicates
+its scenarios, acceptance criteria, tasks, or status. Start a session with the
+spec path in `--task`, then update the spec handoff before and after non-trivial
+actions.

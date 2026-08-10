@@ -1,7 +1,9 @@
 ---
 description: "Review code changes for quality, security, redundancy, and adherence to project standards. Use after making significant changes."
 mode: subagent
-model: openai/gpt-5.5
+model: openai/gpt-5.6-terra
+options:
+  reasoningEffort: medium
 steps: 20
 permission:
   read: allow
@@ -41,6 +43,7 @@ You are a code reviewer for the OpenMates project. Review the given code changes
 - [ ] For repeated E2E waits/selectors, prefer a shared readiness helper and an audit update over a one-off spec patch
 - [ ] For Apple changes, separately review signing/project/build graph risk in addition to Swift logic
 - [ ] For UI changes, verify there is rendered-state proof: screenshot evidence, UI test, or explicit skip reason
+- [ ] For Figma-referenced UI changes, verify there is a design brief plus reference PNG, rendered screenshot/Playwright artifact, and accepted-differences evidence; do not accept "matches Figma" claims based only on source code
 
 ### Apple High-Risk Review Modes
 - [ ] Packaging/signing: check `apple/project.yml`, `.pbxproj`, entitlements, bundle IDs, Watch embedding, and `scripts/apple_remote.py`

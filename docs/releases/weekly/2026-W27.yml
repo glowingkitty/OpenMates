@@ -1,0 +1,6707 @@
+schema_version: 1
+cadence: weekly
+week_start: '2026-06-29'
+week_end: '2026-07-05'
+generated_at: '2026-07-09T16:04:34+00:00'
+summary:
+  daily_files: 6
+  total_items: 244
+  newsletter_ready_items: 31
+  user_facing_items: 98
+  dev_only_items: 0
+  unknown_release_items: 0
+  themes: 8
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+daily_summaries:
+- date: '2026-06-30'
+  total_commits: 28
+  newsletter_ready_items: 2
+  dev_only_items: 0
+- date: '2026-07-01'
+  total_commits: 14
+  newsletter_ready_items: 4
+  dev_only_items: 0
+- date: '2026-07-02'
+  total_commits: 14
+  newsletter_ready_items: 13
+  dev_only_items: 0
+- date: '2026-07-03'
+  total_commits: 16
+  newsletter_ready_items: 2
+  dev_only_items: 0
+- date: '2026-07-04'
+  total_commits: 107
+  newsletter_ready_items: 7
+  dev_only_items: 0
+- date: '2026-07-05'
+  total_commits: 65
+  newsletter_ready_items: 3
+  dev_only_items: 0
+themes:
+- theme: chat
+  item_count: 107
+  newsletter_ready_count: 20
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-30'
+    title: 'feat: add encrypted user plans'
+    commits:
+    - e35498859
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'feat: add encrypted user tasks'
+    commits:
+    - 94a793c79
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'fix: deploy Project mention chip implementation'
+    commits:
+    - d789325c6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-30'
+    title: 'test: navigate to chat before Project mention assertion'
+    commits:
+    - 11d9859f0
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-30'
+    title: 'test: open new chat before Project mention'
+    commits:
+    - 56b63a94f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-01'
+    title: 'feat: show Projects in default mentions'
+    commits:
+    - 715904a5c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-01'
+    title: 'fix: defer keyless synced chat messages'
+    commits:
+    - 5c5cffbf4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-01'
+    title: 'fix: restore anonymous chat deep links'
+    commits:
+    - 21b35f4d0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-01'
+    title: 'test: avoid conditional anonymous scroll button'
+    commits:
+    - 732d55219
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: align chat menu unread state'
+    commits:
+    - a720eb279
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: allow anonymous chats during forced logout guards'
+    commits:
+    - 0940eea1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: keep anonymous chat active on reload'
+    commits:
+    - d77fadd3c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: keep anonymous chat on logged-out reload'
+    commits:
+    - 38c814aa9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: keep anonymous reload on chat surface'
+    commits:
+    - d7947260f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: preserve anonymous chat view during hydration'
+    commits:
+    - b21da30ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: preserve anonymous hash during startup fallback'
+    commits:
+    - 0105c70dc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: restore anonymous hash chat on reload'
+    commits:
+    - 84adc16fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: restore anonymous hash over welcome state'
+    commits:
+    - 8ed8b39a5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: retry anonymous chat reload lookup'
+    commits:
+    - 03f3a4347
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: snapshot chat before sidebar db writes'
+    commits:
+    - 1e8235801
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: stabilize chat pin indicator state'
+    commits:
+    - f06f6095b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-03'
+    title: 'fix: hide inactive message input caret'
+    commits:
+    - 5f4a739c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-03'
+    title: 'test: fix daily e2e regressions'
+    commits:
+    - 2fc9e32c7
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'docs: record Apple CLI cross-client evidence'
+    commits:
+    - bb185db71
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'docs: record Apple anonymous streaming evidence'
+    commits:
+    - c615c1b27
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'docs: record Apple background sender evidence'
+    commits:
+    - 668c675ad
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'docs: record Apple lifecycle parity evidence'
+    commits:
+    - bba242ae2
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'docs: record Apple parity evidence blockers'
+    commits:
+    - 89652ad97
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'docs: record Apple pipeline parity evidence'
+    commits:
+    - 68b6308c0
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'docs: record Apple queued state evidence'
+    commits:
+    - 7cff1bebf
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'docs: record Apple streaming recovery evidence'
+    commits:
+    - 6a8f69c3c
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'docs: refresh Apple lifecycle UI evidence'
+    commits:
+    - 87c9a09fd
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'feat: add Apple native diagnostics context'
+    commits:
+    - 95af9f09e
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'feat: add iOS home screen quick actions'
+    commits:
+    - 72b57734e
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'feat: align Apple workspace reporting parity'
+    commits:
+    - 23b4d6bb6
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: add Apple assistant completion retry'
+    commits:
+    - 62454f0c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: align Apple cold sync metadata loading'
+    commits:
+    - 6844a7998
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: clear chat state on auto logout'
+    commits:
+    - '503284299'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: close project remote overlay during capture'
+    commits:
+    - c1918b92e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: complete Apple send pipeline helpers'
+    commits:
+    - 3c02555ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: expose Apple chat floating actions'
+    commits:
+    - 90a7c59c9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: handle Apple streaming lifecycle events'
+    commits:
+    - afa0e64b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: hide empty chat task preview'
+    commits:
+    - 3ff25a007
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: open Apple report form from chat'
+    commits:
+    - 517e97d3f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: reconcile Apple streaming after sync'
+    commits:
+    - 98a81ad10
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: reload anonymous messages from hash'
+    commits:
+    - 8d3c08913
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: render Apple logo asset'
+    commits:
+    - ee624ee3d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: repair Apple share extension auth'
+    commits:
+    - 59ac021ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: repair share extension background pipeline'
+    commits:
+    - 9b4cb3624
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: restore anonymous chat after reload'
+    commits:
+    - c765d5882
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: show Apple queued message state'
+    commits:
+    - 103703dd9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: show Apple streaming processing state'
+    commits:
+    - df98619f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: use Apple streaming event names in anonymous tests'
+    commits:
+    - b8f7d1c20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: assert Apple chat report form surface'
+    commits:
+    - 6796cbd1b
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: cover Apple anonymous streaming contracts'
+    commits:
+    - b8cc6446e
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: cover Apple background sender payloads'
+    commits:
+    - b14262d85
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: cover Apple logo assets'
+    commits:
+    - f009c734b
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: cover active chat logout cleanup'
+    commits:
+    - ae58afdc5
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'test: cover iOS home quick actions'
+    commits:
+    - 4a59110a4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: enable Apple chat report preview state'
+    commits:
+    - 18b765554
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: enable chat shell UI test discovery'
+    commits:
+    - ab346153a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: keep touch highlight prompt deterministic'
+    commits:
+    - 223bdafdb
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'test: locate Apple chat report action by label'
+    commits:
+    - 410fdbfcf
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: open recent chats by id'
+    commits:
+    - 5b215e5b8
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'test: scope recent chat resume title'
+    commits:
+    - 1aa1b6955
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'test: stabilize Apple report button coverage'
+    commits:
+    - d84d94985
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: stabilize compact workspace assertion'
+    commits:
+    - 2e6e9fd71
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: stabilize compact workspace navigation'
+    commits:
+    - bfab2893e
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: stabilize iOS quick action UI check'
+    commits:
+    - 56878b41a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: switch recent chats from carousel'
+    commits:
+    - 5861a9d79
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'test: wait directly for Apple chat report action'
+    commits:
+    - b0c88591a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: wait for Apple chat report readiness'
+    commits:
+    - 4d894ac34
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: wait for idle before touch highlight'
+    commits:
+    - 5b15a3278
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'feat: add Apple PII attachment reveal parity'
+    commits:
+    - 583cb0ff5
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'feat: add Apple PII reveal and highlight parity'
+    commits:
+    - c26932be0
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'feat: add macOS menu bar quick capture'
+    commits:
+    - 27a916945
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'feat: align Apple PII settings with web'
+    commits:
+    - 1c52ffc54
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: add Apple local chat search highlighting'
+    commits:
+    - 43c5749bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: align workflows start screen with chat UI'
+    commits:
+    - 436396c1b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: detect PII in Apple welcome composer'
+    commits:
+    - 5110a4483
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: encode background websocket payloads before send'
+    commits:
+    - 295c43419
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: include Apple PII attachment upload mappings'
+    commits:
+    - a29cb0153
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: match Apple new chat responsive parity'
+    commits:
+    - b1c7c148e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: match workflows home to chat welcome'
+    commits:
+    - 9eff2bb6d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: register iOS quick actions in app plist'
+    commits:
+    - 2bac2c0f2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: repair iOS quick action photo flow'
+    commits:
+    - 8509e4ca2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: repair quick capture Apple build'
+    commits:
+    - 1e0b36ed9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: restore background sender test build'
+    commits:
+    - 5b8305e8b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: unify workflows home shell'
+    commits:
+    - 129ed152f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: add Apple PII composer visibility UI coverage'
+    commits:
+    - b12b09beb
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: add Apple PII fixture sentinel'
+    commits:
+    - c97411701
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: add Apple PII visibility fixture'
+    commits:
+    - 66b3fe1d6
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: add quick capture UI harness'
+    commits:
+    - 7e77aed47
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: align Apple PII category overlap coverage'
+    commits:
+    - a00f9728f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: align quick action title expectations'
+    commits:
+    - 81bfb2384
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: assert Apple PII fixture by labels'
+    commits:
+    - 276812a20
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: expose Apple PII UI container identifiers'
+    commits:
+    - f879b2959
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: expose Apple PII fixture toggle text'
+    commits:
+    - 382600c61
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: fix quick action assertion types'
+    commits:
+    - 9a04bab50
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: move Apple welcome PII regression'
+    commits:
+    - 1369338df
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: pass Apple PII visibility fixture env'
+    commits:
+    - 4fd3524c1
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: reset Apple PII fixture settings'
+    commits:
+    - 862160ee9
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: route Apple PII fixture via environment'
+    commits:
+    - f55453afb
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: seed Apple PII composer UI fixture'
+    commits:
+    - 85519fe49
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: stabilize Apple PII composer UI lookup'
+    commits:
+    - 8b7c31e0f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: target Apple PII toggle labels'
+    commits:
+    - 3d0576ae4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: use Apple PII banner component fixture'
+    commits:
+    - ab815d5bf
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+- theme: apple
+  item_count: 51
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-07-03'
+    title: 'fix: add share extension attributes'
+    commits:
+    - b75874caf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-03'
+    title: 'fix: align Apple team ID'
+    commits:
+    - 256fd3a24
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-03'
+    title: 'fix: automate Apple TestFlight signing'
+    commits:
+    - 72eb6f29e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-03'
+    title: 'fix: enable Apple passkey entitlements'
+    commits:
+    - d260741bc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-03'
+    title: 'fix: prepare Apple signing for TestFlight'
+    commits:
+    - 412f378f3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-03'
+    title: 'fix: restore Apple passkey domain association'
+    commits:
+    - 108c4609b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-03'
+    title: 'fix: use available Apple app group'
+    commits:
+    - 2b9de7e2b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'chore: bump Apple build number'
+    commits:
+    - 69b5855c2
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'chore: bump Apple build number'
+    commits:
+    - 55a88a9dd
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: add iOS microphone purpose string'
+    commits:
+    - d4ebe2c36
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: align apple workspace switcher'
+    commits:
+    - ac9db1a07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: automate Apple TestFlight profile export'
+    commits:
+    - a3cefe2ff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: automate Apple export compliance'
+    commits:
+    - d146f1c87
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: enable Apple diagnostics forwarding'
+    commits:
+    - 5c00be225
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: enable macOS App Store sandbox'
+    commits:
+    - 3f313a4b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: fallback to installed Apple profiles'
+    commits:
+    - f7af80cec
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: guard Apple report UI test seeding'
+    commits:
+    - 8743e9bd3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: include Apple parity files in Xcode project'
+    commits:
+    - 4053cbbcf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: isolate Apple pending response queue'
+    commits:
+    - 10c119e15
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: load Apple Apps settings metadata'
+    commits:
+    - ced9d1f43
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: make Apple TestFlight deploy deterministic'
+    commits:
+    - 362a71682
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: make Apple issue report compile'
+    commits:
+    - 103c3a00c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: mark Apple encryption export exempt'
+    commits:
+    - 2ea78cb87
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: mark native log collector sendable'
+    commits:
+    - 24b03b9d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: pass App Store Connect config to Apple deploy'
+    commits:
+    - 3a86e3da3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: preserve iOS passkey entitlements in TestFlight'
+    commits:
+    - 698c2d0a4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: remove Apple diagnostics await warnings'
+    commits:
+    - 0577d0309
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: rename macOS share extension bundle'
+    commits:
+    - 33a5f4ab5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: require API auth for deterministic TestFlight deploy'
+    commits:
+    - e1be2de00
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: resolve Apple workspace compile errors'
+    commits:
+    - 2979c9f8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: restore Apple runtime bootstrap call'
+    commits:
+    - 9f558f70f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: satisfy Swift diagnostics concurrency'
+    commits:
+    - 14d1b421b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: serialize Apple issue report payloads'
+    commits:
+    - d830471c5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: show Apple issue success before log upload'
+    commits:
+    - 90a827361
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: expose Apple report issue debug state'
+    commits:
+    - f8da736a4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: find Apple report issue success after scroll'
+    commits:
+    - 70f5b5ba3
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'test: verify Apple report issue submission'
+    commits:
+    - 72d2843bd
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'tools: add parity verification workflow'
+    commits:
+    - ddfea9d68
+    section: internal
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'docs: record quick capture TestFlight upload'
+    commits:
+    - 5d2f16626
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'docs: waive quick capture TestFlight gate'
+    commits:
+    - d1089bc7d
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'fix: deploy TestFlight to iOS and macOS together'
+    commits:
+    - c46934ae4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'fix: expose quick capture child test ids'
+    commits:
+    - d73fde4cb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: map privacy filter JS spans'
+    commits:
+    - 7defa5b6e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'fix: mark quick capture labels main actor'
+    commits:
+    - fd78409b6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: repair Apple app skill shortcuts'
+    commits:
+    - bd1c27201
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: add Apple privacy filter benchmark'
+    commits:
+    - cdaf2fa0a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'test: add Transformers.js privacy filter benchmark'
+    commits:
+    - 744f3abc0
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'test: add macOS quick capture UI scheme'
+    commits:
+    - b1fa3dc58
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: improve quick capture UI diagnostics'
+    commits:
+    - 697468a03
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: stabilize quick capture UI harness'
+    commits:
+    - 340a05861
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: tolerate native send button label'
+    commits:
+    - ef49c1bdc
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+- theme: other
+  item_count: 34
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-30'
+    title: 'fix: allow task routes through caddy'
+    commits:
+    - 7392f6b47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-30'
+    title: 'fix: route user plans web API'
+    commits:
+    - 0e5a5ad6a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'test: extend Projects remote sources timeout'
+    commits:
+    - da41e7bff
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'test: fill Project mention query'
+    commits:
+    - dd6349ac4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-30'
+    title: 'test: refocus after Project mention trigger'
+    commits:
+    - 351475a82
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-30'
+    title: 'test: route Projects remote source setup through API origin'
+    commits:
+    - d8f43c38d
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'test: select Project context mention result'
+    commits:
+    - 551bbfdec
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-30'
+    title: 'test: target TipTap editable for Project mention typing'
+    commits:
+    - 45978b131
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-30'
+    title: 'test: type Project mention query reliably'
+    commits:
+    - 171f5c784
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-30'
+    title: 'test: use shorter Project mention query'
+    commits:
+    - d68d43dfe
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-30'
+    title: 'test: use stable Project mention prefix'
+    commits:
+    - cc9c491bc
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-30'
+    title: 'test: wait for task persistence before reload'
+    commits:
+    - 32da6bdc0
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-01'
+    title: 'test: accept Project-related mention chips'
+    commits:
+    - c31c999e4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-01'
+    title: 'test: align passkey signup deletion assertion'
+    commits:
+    - 3ca4c0238
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-01'
+    title: 'test: wait for passkey signup app state'
+    commits:
+    - 228b4408d
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-02'
+    title: 'test: stabilize recovery key login 2fa'
+    commits:
+    - a8ae0d5eb
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-03'
+    title: 'chore: sync Apple remote checkout'
+    commits:
+    - bc7a27a08
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-03'
+    title: 'fix: surface Google OAuth token errors'
+    commits:
+    - 51b69f9d9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: automate Mac installer certificate'
+    commits:
+    - 6f29ec9f2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: create Apple extension bundle IDs'
+    commits:
+    - 657cceb19
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: preserve VS Code bundled asset paths'
+    commits:
+    - 51a4aac0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: remove invalid sandbox capability sync'
+    commits:
+    - 7b006f27e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: restore Apple profile backups broadly'
+    commits:
+    - cae91f463
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: select macOS signing certificates'
+    commits:
+    - 8ec3b9b5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: stamp macOS archive entitlements'
+    commits:
+    - f15fd63c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: validate Apple App Group profiles'
+    commits:
+    - e193bb953
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'test: handle intro inspiration card'
+    commits:
+    - b9ad4bdad
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'test: log app load failed responses'
+    commits:
+    - 5513c18d1
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'test: stabilize auto logout cleanup regression'
+    commits:
+    - f70437d0c
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'test: stub browser events in auto logout regression'
+    commits:
+    - f8b51fcd4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'test: wait for pdf embed store row'
+    commits:
+    - 2443df449
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'test: wait for pdf payload before send'
+    commits:
+    - 8dc4072c6
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'test: disambiguate API key revoke confirmation'
+    commits:
+    - 72d7c4058
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'test: find existing E2E API keys in cleanup'
+    commits:
+    - 42151b145
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: docs
+  item_count: 17
+  newsletter_ready_count: 1
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-30'
+    title: 'docs: record Plans V1 verification'
+    commits:
+    - 9c6844bdb
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-30'
+    title: 'docs: record Project write mode evidence'
+    commits:
+    - d06d68bbc
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-30'
+    title: 'docs: record Projects remote source web evidence'
+    commits:
+    - d44a931bc
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'docs: record tasks v1 verification evidence'
+    commits:
+    - ed2fe0751
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-30'
+    title: 'feat: add Project mention access chips'
+    commits:
+    - 91e5c534e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-01'
+    title: 'docs: record Project mention chip evidence'
+    commits:
+    - 83bc42390
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-01'
+    title: 'docs: record Project remote preview state'
+    commits:
+    - 7c721bb3f
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-01'
+    title: 'test: allow hcaptcha load balancer cookie'
+    commits:
+    - b9c1f6842
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-03'
+    title: 'docs: record bank transfer invoice test evidence'
+    commits:
+    - 9d72a19b9
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-03'
+    title: 'docs: record bank transfer invoice verification'
+    commits:
+    - 0949aefaf
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'docs: record Apple diagnostics verification'
+    commits:
+    - d069a6ac4
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'docs: record Apple parity verification evidence'
+    commits:
+    - 1ee48ea3d
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'docs: add Apple PII parity spec'
+    commits:
+    - b555282a2
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'docs: record Apple PII attachment parity evidence'
+    commits:
+    - c4166c0e9
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'docs: record quick capture UI verification blocker'
+    commits:
+    - 1d335e7d4
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'docs: record quick capture macOS UI blocker'
+    commits:
+    - e445938cb
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'docs: verify Apple PII parity spec'
+    commits:
+    - 447737b31
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: infrastructure
+  item_count: 12
+  newsletter_ready_count: 1
+  dev_only_count: 0
+  source_items:
+  - date: '2026-07-04'
+    title: 'ci: avoid VS Code bundle SEO audit'
+    commits:
+    - 503b0443f
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'ci: terminate VS Code web bundle after static output'
+    commits:
+    - ba1e9a884
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'ci: use bootstrap webview for installed login smoke'
+    commits:
+    - b16c91f23
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'docs: record VS Code extension workflow evidence'
+    commits:
+    - 579db8c34
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'docs: record workflows verification evidence'
+    commits:
+    - a33452024
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'fix: clear workflow cards above input'
+    commits:
+    - dc7d157a3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-05'
+    title: 'fix: keep workflows cards in one row'
+    commits:
+    - f12335db4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: keep workflows home focused'
+    commits:
+    - e940923d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: open workflow cards in editor'
+    commits:
+    - 339ed24ec
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: show recent workflows on mobile'
+    commits:
+    - 5cbd27284
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: add workflows input e2e coverage'
+    commits:
+    - b64159ae4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'test: cover workflow card edit navigation'
+    commits:
+    - f9acfaf26
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+- theme: product
+  item_count: 11
+  newsletter_ready_count: 7
+  dev_only_count: 0
+  source_items:
+  - date: '2026-07-01'
+    title: 'feat: render Project remote previews'
+    commits:
+    - 21a6f41b9
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-01'
+    title: 'fix: ignore stale managed checkout mount'
+    commits:
+    - 471e47aff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-01'
+    title: 'fix: open Project remote preview fullscreen'
+    commits:
+    - 76bea1794
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-01'
+    title: 'fix: stabilize password signup auth check'
+    commits:
+    - 4436ece5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: preserve anonymous hash during startup'
+    commits:
+    - 5cb2547a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'feat: redesign workspace header switcher'
+    commits:
+    - 2fc78d695
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: close project remote fullscreen'
+    commits:
+    - 20f6ce97d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: hide compact header gift CTA'
+    commits:
+    - eea2f8662
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: show mobile login CTA'
+    commits:
+    - 7359263b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: tighten mobile workspace switcher'
+    commits:
+    - d3e293528
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-05'
+    title: 'fix: load workspace inspirations by surface'
+    commits:
+    - 9ecb753ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: cli_sdk
+  item_count: 6
+  newsletter_ready_count: 1
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-30'
+    title: 'feat: add Project remote source client contracts'
+    commits:
+    - 2affe8242
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'feat: add Projects remote access bridge'
+    commits:
+    - 805ce5dd6
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-03'
+    title: 'fix: show bank transfer references in invoices'
+    commits:
+    - a1d9061f8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-03'
+    title: 'test: cover bank transfer invoice references'
+    commits:
+    - d710f874b
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-04'
+    title: 'test: add VS Code extension installed smoke workflow'
+    commits:
+    - c0ae0d1c9
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'feat: add workflow input sessions'
+    commits:
+    - d9e97dadc
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+- theme: settings
+  item_count: 6
+  newsletter_ready_count: 1
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-30'
+    title: 'docs: record Project settings route evidence'
+    commits:
+    - f74eeb83f
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-30'
+    title: 'feat: add Project remote source backend contract'
+    commits:
+    - 0ffcafaa0
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'feat: add Project settings route'
+    commits:
+    - bee305ac4
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'feat: persist Project write mode'
+    commits:
+    - d0e0cd626
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-03'
+    title: 'test: fix bank transfer invoice navigation'
+    commits:
+    - eb5b91131
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-07-05'
+    title: 'fix: rebuild API key settings flow'
+    commits:
+    - c64a97f96
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - date: '2026-06-30'
+    title: 'feat: add Project mention access chips'
+    commits:
+    - 91e5c534e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-30'
+    title: 'fix: deploy Project mention chip implementation'
+    commits:
+    - d789325c6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-01'
+    title: 'feat: show Projects in default mentions'
+    commits:
+    - 715904a5c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-01'
+    title: 'fix: ignore stale managed checkout mount'
+    commits:
+    - 471e47aff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-01'
+    title: 'fix: restore anonymous chat deep links'
+    commits:
+    - 21b35f4d0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-01'
+    title: 'fix: stabilize password signup auth check'
+    commits:
+    - 4436ece5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: align chat menu unread state'
+    commits:
+    - a720eb279
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: allow anonymous chats during forced logout guards'
+    commits:
+    - 0940eea1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: keep anonymous chat active on reload'
+    commits:
+    - d77fadd3c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: keep anonymous chat on logged-out reload'
+    commits:
+    - 38c814aa9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: keep anonymous reload on chat surface'
+    commits:
+    - d7947260f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: preserve anonymous chat view during hydration'
+    commits:
+    - b21da30ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: preserve anonymous hash during startup'
+    commits:
+    - 5cb2547a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: preserve anonymous hash during startup fallback'
+    commits:
+    - 0105c70dc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: restore anonymous hash chat on reload'
+    commits:
+    - 84adc16fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: restore anonymous hash over welcome state'
+    commits:
+    - 8ed8b39a5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: retry anonymous chat reload lookup'
+    commits:
+    - 03f3a4347
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: snapshot chat before sidebar db writes'
+    commits:
+    - 1e8235801
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: stabilize chat pin indicator state'
+    commits:
+    - f06f6095b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-03'
+    title: 'fix: hide inactive message input caret'
+    commits:
+    - 5f4a739c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-03'
+    title: 'fix: show bank transfer references in invoices'
+    commits:
+    - a1d9061f8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: clear chat state on auto logout'
+    commits:
+    - '503284299'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: hide compact header gift CTA'
+    commits:
+    - eea2f8662
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: reload anonymous messages from hash'
+    commits:
+    - 8d3c08913
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: repair share extension background pipeline'
+    commits:
+    - 9b4cb3624
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: restore anonymous chat after reload'
+    commits:
+    - c765d5882
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: show mobile login CTA'
+    commits:
+    - 7359263b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: tighten mobile workspace switcher'
+    commits:
+    - d3e293528
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-05'
+    title: 'fix: clear workflow cards above input'
+    commits:
+    - dc7d157a3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-05'
+    title: 'fix: load workspace inspirations by surface'
+    commits:
+    - 9ecb753ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-05'
+    title: 'fix: rebuild API key settings flow'
+    commits:
+    - c64a97f96
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  social_or_video:
+  - date: '2026-06-30'
+    title: 'feat: add Project mention access chips'
+    commits:
+    - 91e5c534e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-30'
+    title: 'feat: add Project remote source backend contract'
+    commits:
+    - 0ffcafaa0
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'feat: add Project remote source client contracts'
+    commits:
+    - 2affe8242
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'feat: add Project settings route'
+    commits:
+    - bee305ac4
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'feat: add Projects remote access bridge'
+    commits:
+    - 805ce5dd6
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'feat: add encrypted user plans'
+    commits:
+    - e35498859
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'feat: add encrypted user tasks'
+    commits:
+    - 94a793c79
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'feat: persist Project write mode'
+    commits:
+    - d0e0cd626
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-30'
+    title: 'fix: deploy Project mention chip implementation'
+    commits:
+    - d789325c6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-01'
+    title: 'feat: render Project remote previews'
+    commits:
+    - 21a6f41b9
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-01'
+    title: 'feat: show Projects in default mentions'
+    commits:
+    - 715904a5c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-01'
+    title: 'fix: ignore stale managed checkout mount'
+    commits:
+    - 471e47aff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-01'
+    title: 'fix: open Project remote preview fullscreen'
+    commits:
+    - 76bea1794
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-01'
+    title: 'fix: restore anonymous chat deep links'
+    commits:
+    - 21b35f4d0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-01'
+    title: 'fix: stabilize password signup auth check'
+    commits:
+    - 4436ece5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: align chat menu unread state'
+    commits:
+    - a720eb279
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: allow anonymous chats during forced logout guards'
+    commits:
+    - 0940eea1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: keep anonymous chat active on reload'
+    commits:
+    - d77fadd3c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: keep anonymous chat on logged-out reload'
+    commits:
+    - 38c814aa9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: keep anonymous reload on chat surface'
+    commits:
+    - d7947260f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: preserve anonymous chat view during hydration'
+    commits:
+    - b21da30ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: preserve anonymous hash during startup'
+    commits:
+    - 5cb2547a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: preserve anonymous hash during startup fallback'
+    commits:
+    - 0105c70dc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: restore anonymous hash chat on reload'
+    commits:
+    - 84adc16fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: restore anonymous hash over welcome state'
+    commits:
+    - 8ed8b39a5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: retry anonymous chat reload lookup'
+    commits:
+    - 03f3a4347
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: snapshot chat before sidebar db writes'
+    commits:
+    - 1e8235801
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-02'
+    title: 'fix: stabilize chat pin indicator state'
+    commits:
+    - f06f6095b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-03'
+    title: 'fix: align Apple team ID'
+    commits:
+    - 256fd3a24
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-03'
+    title: 'fix: hide inactive message input caret'
+    commits:
+    - 5f4a739c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-03'
+    title: 'fix: show bank transfer references in invoices'
+    commits:
+    - a1d9061f8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-03'
+    title: 'fix: use available Apple app group'
+    commits:
+    - 2b9de7e2b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'feat: add Apple native diagnostics context'
+    commits:
+    - 95af9f09e
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'feat: add iOS home screen quick actions'
+    commits:
+    - 72b57734e
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'feat: align Apple workspace reporting parity'
+    commits:
+    - 23b4d6bb6
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'feat: redesign workspace header switcher'
+    commits:
+    - 2fc78d695
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: add Apple assistant completion retry'
+    commits:
+    - 62454f0c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: add iOS microphone purpose string'
+    commits:
+    - d4ebe2c36
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: align Apple cold sync metadata loading'
+    commits:
+    - 6844a7998
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: align apple workspace switcher'
+    commits:
+    - ac9db1a07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: automate Apple export compliance'
+    commits:
+    - d146f1c87
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: clear chat state on auto logout'
+    commits:
+    - '503284299'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: close project remote fullscreen'
+    commits:
+    - 20f6ce97d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: close project remote overlay during capture'
+    commits:
+    - c1918b92e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: complete Apple send pipeline helpers'
+    commits:
+    - 3c02555ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: enable Apple diagnostics forwarding'
+    commits:
+    - 5c00be225
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: enable macOS App Store sandbox'
+    commits:
+    - 3f313a4b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: expose Apple chat floating actions'
+    commits:
+    - 90a7c59c9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: guard Apple report UI test seeding'
+    commits:
+    - 8743e9bd3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: handle Apple streaming lifecycle events'
+    commits:
+    - afa0e64b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: hide compact header gift CTA'
+    commits:
+    - eea2f8662
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: hide empty chat task preview'
+    commits:
+    - 3ff25a007
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: isolate Apple pending response queue'
+    commits:
+    - 10c119e15
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: load Apple Apps settings metadata'
+    commits:
+    - ced9d1f43
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: make Apple issue report compile'
+    commits:
+    - 103c3a00c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: mark Apple encryption export exempt'
+    commits:
+    - 2ea78cb87
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: mark native log collector sendable'
+    commits:
+    - 24b03b9d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: open Apple report form from chat'
+    commits:
+    - 517e97d3f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: reconcile Apple streaming after sync'
+    commits:
+    - 98a81ad10
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: reload anonymous messages from hash'
+    commits:
+    - 8d3c08913
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: remove Apple diagnostics await warnings'
+    commits:
+    - 0577d0309
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: render Apple logo asset'
+    commits:
+    - ee624ee3d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: repair share extension background pipeline'
+    commits:
+    - 9b4cb3624
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: resolve Apple workspace compile errors'
+    commits:
+    - 2979c9f8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: restore Apple runtime bootstrap call'
+    commits:
+    - 9f558f70f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: restore anonymous chat after reload'
+    commits:
+    - c765d5882
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: satisfy Swift diagnostics concurrency'
+    commits:
+    - 14d1b421b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: serialize Apple issue report payloads'
+    commits:
+    - d830471c5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: show Apple issue success before log upload'
+    commits:
+    - 90a827361
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: show Apple queued message state'
+    commits:
+    - 103703dd9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: show Apple streaming processing state'
+    commits:
+    - df98619f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-04'
+    title: 'fix: show mobile login CTA'
+    commits:
+    - 7359263b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-04'
+    title: 'fix: tighten mobile workspace switcher'
+    commits:
+    - d3e293528
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-05'
+    title: 'feat: add Apple PII attachment reveal parity'
+    commits:
+    - 583cb0ff5
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'feat: add Apple PII reveal and highlight parity'
+    commits:
+    - c26932be0
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'feat: add macOS menu bar quick capture'
+    commits:
+    - 27a916945
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'feat: add workflow input sessions'
+    commits:
+    - d9e97dadc
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'feat: align Apple PII settings with web'
+    commits:
+    - 1c52ffc54
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: add Apple local chat search highlighting'
+    commits:
+    - 43c5749bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: align workflows start screen with chat UI'
+    commits:
+    - 436396c1b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: clear workflow cards above input'
+    commits:
+    - dc7d157a3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-05'
+    title: 'fix: detect PII in Apple welcome composer'
+    commits:
+    - 5110a4483
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: expose quick capture child test ids'
+    commits:
+    - d73fde4cb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: include Apple PII attachment upload mappings'
+    commits:
+    - a29cb0153
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: keep workflows cards in one row'
+    commits:
+    - f12335db4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: keep workflows home focused'
+    commits:
+    - e940923d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: load workspace inspirations by surface'
+    commits:
+    - 9ecb753ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-05'
+    title: 'fix: mark quick capture labels main actor'
+    commits:
+    - fd78409b6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: match Apple new chat responsive parity'
+    commits:
+    - b1c7c148e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: match workflows home to chat welcome'
+    commits:
+    - 9eff2bb6d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: open workflow cards in editor'
+    commits:
+    - 339ed24ec
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: rebuild API key settings flow'
+    commits:
+    - c64a97f96
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-07-05'
+    title: 'fix: register iOS quick actions in app plist'
+    commits:
+    - 2bac2c0f2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: repair Apple app skill shortcuts'
+    commits:
+    - bd1c27201
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: repair iOS quick action photo flow'
+    commits:
+    - 8509e4ca2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: repair quick capture Apple build'
+    commits:
+    - 1e0b36ed9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: show recent workflows on mobile'
+    commits:
+    - 5cbd27284
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-07-05'
+    title: 'fix: unify workflows home shell'
+    commits:
+    - 129ed152f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+risks:
+  communication:
+  - Use weekly themes for PR/release/newsletter drafting; do not list every daily item one-by-one.
+  - Keep dev_only and unknown_release_status items out of public newsletters until released on main.
+sources:
+  daily_files:
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-06-30.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-07-01.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-07-02.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-07-03.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-07-04.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-07-05.yml
+llm_summary:
+  overview: OpenMates focused on chat reliability and developer experience this week, notably introducing Project mention
+    chips and rebuilding the API key management flow. Significant effort was dedicated to hardening anonymous chat sessions
+    against reloads and hydration issues. While the web application received numerous UI refinements for mobile and billing,
+    extensive architectural progress continued on unreleased Apple platforms and the Workflows application.
+  released_changes:
+  - text: Introduced Project mention access chips to the chat interface to facilitate linking project context in conversations.
+    evidence:
+      commits:
+      - 91e5c534e
+    release_status: released_main
+  - text: Projects are now available in the default mentions dropdown within the message entry component.
+    evidence:
+      commits:
+      - 715904a5c
+    release_status: released_main
+  - text: Invoices now display bank transfer references to improve payment tracking and reconciliation.
+    evidence:
+      commits:
+      - a1d9061f8
+    release_status: released_main
+  - text: Rebuilt the API key settings interface to provide a more robust flow for managing developer credentials.
+    evidence:
+      commits:
+      - c64a97f96
+    release_status: released_main
+  - text: The workspace home shell now supports surface-specific loading for daily inspirations.
+    evidence:
+      commits:
+      - 9ecb753ef
+    release_status: released_main
+  - text: Refined the chat interface to hide the message input caret when the field is inactive.
+    evidence:
+      commits:
+      - 5f4a739c7
+    release_status: released_main
+  bug_fixes:
+  - text: Hardened anonymous chat session persistence to ensure guest conversations remain active across page reloads, hydration,
+      and forced logout guards.
+    evidence:
+      commits:
+      - 8ed8b39a5
+      - 84adc16fe
+      - 0105c70dc
+      - d7947260f
+      - b21da30ab
+      - d77fadd3c
+      - 5cb2547a7
+      - 38c814aa9
+      - 0940eea1f
+      - 03f3a4347
+    release_status: released_main
+  - text: Restored functionality for anonymous chat deep links to ensure reliable navigation for guest users.
+    evidence:
+      commits:
+      - 21b35f4d0
+    release_status: released_main
+  - text: Resolved an issue where stale managed checkout mounts could interfere with the payment process.
+    evidence:
+      commits:
+      - 471e47aff
+    release_status: released_main
+  - text: Stabilized authentication checks during the password-based signup flow to improve onboarding reliability.
+    evidence:
+      commits:
+      - 4436ece5a
+    release_status: released_main
+  - text: Refined the mobile web experience by restoring the login CTA, hiding unnecessary gift prompts in compact headers,
+      and tightening the workspace switcher layout.
+    evidence:
+      commits:
+      - 7359263b0
+      - eea2f8662
+      - d3e293528
+    release_status: released_main
+  - text: Repaired the share extension background pipeline to ensure reliable message delivery from external applications.
+    evidence:
+      commits:
+      - 9b4cb3624
+    release_status: released_main
+  - text: Ensured chat state is properly cleared during automatic session logouts to maintain user privacy.
+    evidence:
+      commits:
+      - '503284299'
+    release_status: released_main
+  - text: Resolved a layout issue in the workspace home shell to ensure workflow cards are cleared correctly above the input
+      area.
+    evidence:
+      commits:
+      - dc7d157a3
+    release_status: released_main
+  unreleased_progress:
+  - text: Advanced Apple platform infrastructure with updates to TestFlight signing automation and passkey domain associations.
+    evidence:
+      commits:
+      - 72eb6f29e
+    release_status: released_main
+  - text: Developed native iOS and macOS features including home screen quick actions, native diagnostics, and streaming lifecycle
+      management.
+    evidence:
+      commits:
+      - 72b57734e
+      - 95af9f09e
+      - 23b4d6bb6
+      - 98a81ad10
+      - 6844a7998
+      - 103703dd9
+      - df98619f0
+      - afa0e64b1
+      - 9f558f70f
+      - 10c119e15
+      - 3c02555ef
+      - 62454f0c0
+      - ee624ee3d
+      - 90a7c59c9
+      - ced9d1f43
+      - 517e97d3f
+      - ac9db1a07
+      - 3f313a4b1
+      - d146f1c87
+      - d4ebe2c36
+    release_status: released_main
+  - text: Implemented encrypted user tasks and plans, including backend routes and AI processing logic.
+    evidence:
+      commits:
+      - 94a793c79
+      - e35498859
+    release_status: released_main
+  - text: Developed backend and client contracts for Project remote sources, including a new remote access bridge.
+    evidence:
+      commits:
+      - 0ffcafaa0
+      - 2affe8242
+      - 805ce5dd6
+    release_status: released_main
+  - text: Added workflow input sessions to the backend and SDKs to enable structured data collection within automated workflows.
+    evidence:
+      commits:
+      - d9e97dadc
+    release_status: released_main
+  - text: Aligned PII detection, reveal, and highlighting features between Apple platforms and the web application.
+    evidence:
+      commits:
+      - 583cb0ff5
+      - c26932be0
+      - 1c52ffc54
+      - 5110a4483
+      - a29cb0153
+    release_status: released_main
+  - text: Developed a new macOS menu bar quick capture feature with background sender support.
+    evidence:
+      commits:
+      - 27a916945
+      - fd78409b6
+      - 1e0b36ed9
+    release_status: released_main
+  - text: Refined the unreleased Tasks and Projects interfaces, including a redesigned header switcher and improved overlay
+      behaviors.
+    evidence:
+      commits:
+      - 2fc78d695
+      - 3ff25a007
+      - c1918b92e
+      - 20f6ce97d
+    release_status: released_main
+  internal_progress:
+  - text: Established a comprehensive test suite for Project mentions, focusing on query reliability, focus management, and
+      UI interaction stability.
+    evidence:
+      commits:
+      - cc9c491bc
+      - 551bbfdec
+      - d68d43dfe
+      - 56b63a94f
+      - 351475a82
+      - dd6349ac4
+      - 45978b131
+      - 171f5c784
+      - 11d9859f0
+      - da41e7bff
+    release_status: released_main
+  - text: Introduced a new parity verification workflow to automate consistency checks across different platform clients.
+    evidence:
+      commits:
+      - ddfea9d68
+    release_status: released_main
+  - text: Added benchmarks and span mapping for the privacy filter using Transformers.js and Python.
+    evidence:
+      commits:
+      - 744f3abc0
+      - cdaf2fa0a
+      - 7defa5b6e
+    release_status: released_main
+  - text: Stabilized internal testing for the recovery key login flow to improve CI reliability for 2FA scenarios.
+    evidence:
+      commits:
+      - a8ae0d5eb
+    release_status: released_main
+  - text: Synchronized Apple remote checkout scripts for infrastructure consistency.
+    evidence:
+      commits:
+      - bc7a27a08
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New Project mention chips and dropdown integration in the chat interface.
+      evidence:
+        commits:
+        - 91e5c534e
+        - 715904a5c
+      reason: The Project mention system is fully implemented and marked ready for public communication.
+    - text: Bank transfer references are now visible on invoices for easier payment tracking.
+      evidence:
+        commits:
+        - a1d9061f8
+      reason: Improves the billing experience for users paying via bank transfer.
+    - text: Rebuilt API key management experience for developers.
+      evidence:
+        commits:
+        - c64a97f96
+      reason: The API key management flow is a significant improvement for developers and is ready for communication.
+    - text: Enhanced anonymous chat persistence and deep link restoration.
+      evidence:
+        commits:
+        - 8ed8b39a5
+        - 84adc16fe
+        - 21b35f4d0
+      reason: Critical reliability fixes for guest users that are ready for public communication.
+    - text: Refined chat interface with improved message input caret behavior.
+      evidence:
+        commits:
+        - 5f4a739c7
+      reason: A visible UI polish for the core chat experience.
+    exclude:
+    - text: Apple platform parity updates (iOS/macOS) and native diagnostics.
+      evidence:
+        commits:
+        - 72eb6f29e
+        - 95af9f09e
+        - 23b4d6bb6
+        - ac9db1a07
+        - 3f313a4b1
+        - d146f1c87
+        - d4ebe2c36
+      reason: These items relate to the iOS and macOS platforms which are currently disabled in the feature configuration.
+    - text: Core Projects, Tasks, and Plans infrastructure work.
+      evidence:
+        commits:
+        - 94a793c79
+        - e35498859
+        - 0ffcafaa0
+        - 2affe8242
+        - 805ce5dd6
+      reason: These items relate to Projects, Tasks, and Plans infrastructure which are currently listed as disabled features.
+    - text: Workflow input sessions and workspace UI refinements.
+      evidence:
+        commits:
+        - d9e97dadc
+        - 339ed24ec
+        - f12335db4
+        - e940923d5
+        - 9eff2bb6d
+        - 129ed152f
+        - 5cbd27284
+        - 436396c1b
+      reason: Workflow input sessions and workspace refinements are part of the unreleased Workflows application.
+    rationale: The newsletter focuses on released improvements to the web application, billing transparency, and core chat
+      reliability, while excluding significant infrastructure work for unreleased platforms like iOS, macOS, and Workflows.
+  social_video_recommendations:
+  - idea: A demonstration of the new '@' mention workflow, showing how Project chips appear and behave within the message
+      input.
+    priority: medium
+    reason: This is a concrete UI improvement that enhances the chat experience and is ready for public view.
+    evidence:
+      commits:
+      - 91e5c534e
+      - 715904a5c
+  - idea: A clip demonstrating 'Reload-Proof' anonymous chat. Start a chat as a guest, refresh the browser, and show the conversation
+      persisting seamlessly.
+    priority: medium
+    reason: Demonstrates a concrete improvement in app reliability and state management.
+    evidence:
+      commits:
+      - 8ed8b39a5
+      - 84adc16fe
+      - d77fadd3c
+  - idea: A walkthrough of the new API key management interface, highlighting the improved revocation and creation flow.
+    priority: medium
+    reason: A concrete, user-facing improvement for the developer community.
+    evidence:
+      commits:
+      - c64a97f96
+  quality_notes:
+  - The Project mention feature was released with over 10 dedicated integration tests to ensure reliable UI behavior.
+  - Significant emphasis was placed on session persistence for non-logged-in users, resolving long-standing state loss issues
+    on reload.
+  - Automated parity testing was expanded with over 30 new commits covering UI edge cases and cross-platform contracts.
+  validation_warnings: []

@@ -1,11 +1,42 @@
 name_translation_key: workflows
 description_translation_key: workflows.description
-default_enabled: false
 icon_image: workflow.svg
 category: productivity
 last_updated: "2026-06-24"
 settings_and_memories: []
-embed_types: []
+embed_types:
+  - id: create-or-modify
+    category: app-skill-use
+    skill_id: create-or-modify
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: workflow
+    child_frontend_type: workflows-workflow
+    groupable: true
+    preview_component: workflows/WorkflowCreateEmbedPreview.svelte
+    fullscreen_component: workflows/WorkflowCreateEmbedFullscreen.svelte
+    child_preview_component: workflows/WorkflowEmbedPreview.svelte
+    child_fullscreen_component: workflows/WorkflowEmbedFullscreen.svelte
+    icon: workflow
+    gradient_var: "--color-app-workflows"
+    i18n_namespace: embeds.workflows.create
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: workflow
+    child_frontend_type: workflows-workflow
+    groupable: true
+    preview_component: workflows/WorkflowSearchEmbedPreview.svelte
+    fullscreen_component: workflows/WorkflowSearchEmbedFullscreen.svelte
+    child_preview_component: workflows/WorkflowEmbedPreview.svelte
+    child_fullscreen_component: workflows/WorkflowEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-workflows"
+    i18n_namespace: embeds.workflows.search
 instructions:
   - instruction: |
       **Workflow Skills**
@@ -14,11 +45,36 @@ instructions:
       - Recurring automations use schedule-recurring and create persisted workflows.
       - Running an existing workflow creates a pending countdown or approval state before execution.
 skills:
+  - id: create-or-modify
+    name_translation_key: workflows.skills.create_or_modify
+    description_translation_key: workflows.skills.create_or_modify.description
+    icon_image: workflow.svg
+    preprocessor_hint: >
+      Create or modify exactly one workflow from chat. Do not batch multiple
+      workflows into one skill call.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    class_path: backend.apps.workflows.skills.create_or_modify_skill.CreateOrModifySkill
+    tool_schema:
+      type: object
+      properties:
+        workflow_id:
+          type: string
+          description: Existing workflow ID when modifying a workflow.
+        title:
+          type: string
+          description: Short user-facing workflow title.
+        graph:
+          type: object
+          description: Valid WorkflowGraph definition.
+      required:
+        - title
+
   - id: search
     name_translation_key: workflows.skills.search
     description_translation_key: workflows.skills.search.description
     icon_image: search.svg
-    internal: true
     preprocessor_hint: >
       Search the user's existing persisted workflows before proposing a new automation.
       Include temporary workflows only when the user explicitly asks about recent chat-created workflows.

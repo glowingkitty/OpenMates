@@ -21,6 +21,7 @@ import type { EmbedType } from "../message_parsing/types";
 import { chatDB } from "./db";
 import { userDB } from "./userDB";
 import { chatListCache } from "./chatListCache";
+import { chatMetadataCache } from "./chatMetadataCache";
 import { updateTotalChatCount } from "../stores/userProfile";
 import { activeChatStore } from "../stores/activeChatStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
@@ -41,6 +42,89 @@ import {
  * Cleared after Phase 3 completes.
  */
 let phase2ProcessedChatIds: Set<string> | null = null;
+
+function isKeyOptionalSyncedChat(
+  chatId: string,
+  chat: Partial<Chat>,
+): boolean {
+  return !!(
+    chatId.startsWith("demo-") ||
+    chatId.startsWith("legal-") ||
+    chat.is_anonymous ||
+    chat.anonymous_encrypted_chat_key
+  );
+}
+
+function shouldSkipSyncedChatWithoutKey(
+  phase: string,
+  chatId: string,
+  serverChat: Partial<Chat>,
+  localChat: Chat | null,
+): boolean {
+  if (
+    serverChat.encrypted_chat_key ||
+    localChat?.encrypted_chat_key ||
+    localChat?.anonymous_encrypted_chat_key ||
+    localChat?.is_anonymous ||
+    isKeyOptionalSyncedChat(chatId, serverChat)
+  ) {
+    return false;
+  }
+  console.warn(
+    `[ChatSyncService] ${phase} - skipping ${chatId}: missing encrypted_chat_key`,
+  );
+  return true;
+}
+
+function buildMetadataOnlyChatFromDetails(
+  details: Partial<Chat> & { id: string },
+  existingChat: Chat | null,
+): Chat {
+  return {
+    chat_id: details.id,
+    encrypted_title: details.encrypted_title || null,
+    title: null,
+    messages_v: details.messages_v || 0,
+    title_v: details.title_v || 0,
+    metadata_v: details.metadata_v,
+    draft_v: 0,
+    encrypted_draft_md: null,
+    encrypted_draft_preview: null,
+    ideabucket: details.ideabucket,
+    ideabucket_processing_window_id: details.ideabucket_processing_window_id,
+    ideabucket_triggered_at: details.ideabucket_triggered_at,
+    last_edited_overall_timestamp:
+      details.last_edited_overall_timestamp ||
+      details.updated_at ||
+      Math.floor(Date.now() / 1000),
+    unread_count: details.unread_count || 0,
+    created_at: details.created_at || Math.floor(Date.now() / 1000),
+    updated_at: details.updated_at || Math.floor(Date.now() / 1000),
+    processing_metadata: false,
+    waiting_for_metadata: false,
+    encrypted_category: details.encrypted_category || null,
+    encrypted_icon: details.encrypted_icon || null,
+    encrypted_chat_key:
+      details.encrypted_chat_key || existingChat?.encrypted_chat_key || null,
+    anonymous_encrypted_chat_key:
+      details.anonymous_encrypted_chat_key ||
+      existingChat?.anonymous_encrypted_chat_key ||
+      null,
+    encrypted_chat_summary: details.encrypted_chat_summary || null,
+    encrypted_share_cta_text: details.encrypted_share_cta_text || null,
+    encrypted_chat_tags: details.encrypted_chat_tags || null,
+    encrypted_follow_up_request_suggestions:
+      details.encrypted_follow_up_request_suggestions || null,
+    encrypted_active_focus_id: details.encrypted_active_focus_id || null,
+    pinned: details.pinned || false,
+    is_shared: details.is_shared ?? false,
+    is_private: details.is_private ?? false,
+    is_anonymous: details.is_anonymous ?? existingChat?.is_anonymous ?? false,
+    share_pii: details.share_pii ?? false,
+    share_highlights: details.share_highlights ?? true,
+    is_metadata_only: true,
+  } as Chat;
+}
 
 /**
  * Validate encrypted metadata fields (title/icon/category) in a merged chat.
@@ -130,6 +214,36 @@ function yieldToMainThread(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+async function applyAuthoritativeDeletedChats(
+  serviceInstance: ChatSynchronizationService,
+  deletedChatIds: string[] | undefined,
+): Promise<void> {
+  const uniqueDeletedChatIds = Array.from(new Set(deletedChatIds ?? [])).filter(
+    Boolean,
+  );
+  if (uniqueDeletedChatIds.length === 0) return;
+
+  for (const chatId of uniqueDeletedChatIds) {
+    try {
+      chatListCache.removeChat(chatId);
+      await chatDB.deleteChat(chatId);
+      serviceInstance.dispatchEvent(
+        new CustomEvent("chatDeleted", {
+          detail: { chat_id: chatId },
+        }),
+      );
+      console.info(
+        `[ChatSyncService] Removed locally stale chat ${chatId} from Phase 2 authoritative deletion list`,
+      );
+    } catch (error) {
+      console.error(
+        `[ChatSyncService] Failed to apply Phase 2 authoritative deletion for chat ${chatId}:`,
+        error,
+      );
+    }
+  }
+}
+
 /**
  * Handle Phase 2 completion (recent chats ready)
  *
@@ -151,7 +265,8 @@ export async function handlePhase2RecentChatsImpl(
   );
 
   try {
-    const { chats, chat_count, total_chat_count } = payload;
+    const { chats, chat_count, total_chat_count, deleted_chat_ids } = payload;
+    await applyAuthoritativeDeletedChats(serviceInstance, deleted_chat_ids);
 
     // Cache warming notification (no actual chats) — ignore
     if (!chats || !Array.isArray(chats)) {
@@ -427,12 +542,33 @@ export async function handleBackgroundMessageSyncImpl(
           existingChat.messages_v || 0,
           chatData.messages_v || chatData.server_message_count || 0,
         );
-        if (newV > (existingChat.messages_v || 0)) {
+        const shouldClearDraftOnlyShell =
+          !!(existingChat.encrypted_draft_md || existingChat.encrypted_draft_preview) &&
+          (existingChat.messages_v || 0) === 0 &&
+          newV > 0;
+        if (newV > (existingChat.messages_v || 0) || shouldClearDraftOnlyShell) {
           await chatDB.addChat(
-            { ...existingChat, messages_v: newV },
+            {
+              ...existingChat,
+              messages_v: newV,
+              ...(shouldClearDraftOnlyShell
+                ? {
+                    encrypted_draft_md: null,
+                    encrypted_draft_preview: null,
+                    draft_v: 0,
+                  }
+                : {}),
+            },
             undefined,
             { isFromSync: true },
           );
+          if (shouldClearDraftOnlyShell) {
+            chatMetadataCache.invalidateChat(chatData.chat_id);
+            chatListCache.markDirty();
+            console.info(
+              `[ChatSyncService] Cleared stale draft-only shell for message-bearing chat ${chatData.chat_id}`,
+            );
+          }
         }
       }
     }
@@ -457,6 +593,13 @@ export async function handleBackgroundMessageSyncImpl(
       const { handleCodeRunOutputSyncedImpl } = await import("./handlersCodeRunOutputs");
       await Promise.all(
         payload.code_run_outputs.map((output) => handleCodeRunOutputSyncedImpl(output)),
+      );
+    }
+
+    if (payload.notebook_run_outputs && payload.notebook_run_outputs.length > 0) {
+      const { handleNotebookRunOutputSyncedImpl } = await import("./handlersNotebookRunOutputs");
+      await Promise.all(
+        payload.notebook_run_outputs.map((output) => handleNotebookRunOutputSyncedImpl(output)),
       );
     }
 
@@ -627,7 +770,17 @@ async function storeRecentChats(
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
-      const keyMismatch = hasEncryptedChatKeyMismatch(
+      if (
+        shouldSkipSyncedChatWithoutKey(
+          "Phase 2",
+          chatId,
+          chat_details,
+          existingChat,
+        )
+      ) {
+        continue;
+      }
+      const keyMismatch = await hasEncryptedChatKeyMismatch(
         chat_details,
         existingChat,
       );
@@ -669,7 +822,15 @@ async function storeRecentChats(
 
       // Metadata-only path: save chat and move on (no message processing)
       if (!shouldSyncMessages) {
-        await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
+        try {
+          await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
+        } catch (error) {
+          console.error(
+            `[ChatSyncService] Phase 2 - failed to persist chat ${chatId}; continuing sync:`,
+            error,
+          );
+          continue;
+        }
         chatListCache.upsertChat(mergedChat);
         if (keyMismatch) {
           serviceInstance.dispatchEvent(
@@ -845,7 +1006,17 @@ async function storeAllChats(
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
-      const keyMismatch = hasEncryptedChatKeyMismatch(
+      if (
+        shouldSkipSyncedChatWithoutKey(
+          "Phase 3",
+          chatId,
+          chat_details,
+          existingChat,
+        )
+      ) {
+        continue;
+      }
+      const keyMismatch = await hasEncryptedChatKeyMismatch(
         chat_details,
         existingChat,
       );
@@ -1241,46 +1412,23 @@ export async function handleLoadMoreChatsResponseImpl(
 
     // Convert server chat format to the Chat type expected by the UI
     // These are metadata-only chats (no messages) — messages load on-demand when user opens the chat
-    const chats: Chat[] = (payload.chats || [])
-      .map((chatWrapper) => {
-        const details = chatWrapper.chat_details;
-        if (!details?.id) return null;
-
-        return {
-          chat_id: details.id,
-          encrypted_title: details.encrypted_title || null,
-          title: null, // Will be decrypted by the UI
-          messages_v: details.messages_v || 0,
-          title_v: details.title_v || 0,
-          draft_v: 0,
-          encrypted_draft_md: null,
-          encrypted_draft_preview: null,
-          last_edited_overall_timestamp:
-            details.last_edited_overall_timestamp ||
-            details.updated_at ||
-            Math.floor(Date.now() / 1000),
-          unread_count: details.unread_count || 0,
-          created_at: details.created_at || Math.floor(Date.now() / 1000),
-          updated_at: details.updated_at || Math.floor(Date.now() / 1000),
-          processing_metadata: false,
-          waiting_for_metadata: false,
-          encrypted_category: details.encrypted_category || null,
-          encrypted_icon: details.encrypted_icon || null,
-          encrypted_chat_key: details.encrypted_chat_key || null,
-          encrypted_chat_summary: details.encrypted_chat_summary || null,
-          encrypted_share_cta_text: details.encrypted_share_cta_text || null,
-          encrypted_chat_tags: details.encrypted_chat_tags || null,
-          encrypted_follow_up_request_suggestions:
-            details.encrypted_follow_up_request_suggestions || null,
-          encrypted_active_focus_id: details.encrypted_active_focus_id || null,
-          pinned: details.pinned || false,
-          is_shared: details.is_shared || false,
-          is_private: details.is_private || false,
-          share_pii: details.share_pii || false,
-          share_highlights: details.share_highlights ?? true,
-        } as Chat;
-      })
-      .filter((c): c is Chat => c !== null);
+    const chats: Chat[] = [];
+    for (const chatWrapper of payload.chats || []) {
+      const details = chatWrapper.chat_details;
+      if (!details?.id) continue;
+      const existingChat = await chatDB.getChat(details.id);
+      if (
+        shouldSkipSyncedChatWithoutKey(
+          "Load more",
+          details.id,
+          details,
+          existingChat,
+        )
+      ) {
+        continue;
+      }
+      chats.push(buildMetadataOnlyChatFromDetails(details, existingChat));
+    }
 
     // Dispatch event to Chats.svelte — these chats go to memory only, NOT IndexedDB
     serviceInstance.dispatchEvent(
@@ -1324,45 +1472,23 @@ export async function handleSyncMetadataChatsResponseImpl(
     }
 
     // Convert server chat format to the Chat type with is_metadata_only flag
-    const chats: Chat[] = (payload.chats || [])
-      .map((chatWrapper) => {
-        const details = chatWrapper.chat_details;
-        if (!details?.id) return null;
-
-        return {
-          chat_id: details.id,
-          encrypted_title: details.encrypted_title || null,
-          title: null,
-          messages_v: details.messages_v || 0,
-          title_v: details.title_v || 0,
-          draft_v: 0,
-          encrypted_draft_md: null,
-          encrypted_draft_preview: null,
-          last_edited_overall_timestamp:
-            details.last_edited_overall_timestamp ||
-            details.updated_at ||
-            Math.floor(Date.now() / 1000),
-          unread_count: details.unread_count || 0,
-          created_at: details.created_at || Math.floor(Date.now() / 1000),
-          updated_at: details.updated_at || Math.floor(Date.now() / 1000),
-          processing_metadata: false,
-          waiting_for_metadata: false,
-          encrypted_category: details.encrypted_category || null,
-          encrypted_icon: details.encrypted_icon || null,
-          encrypted_chat_key: details.encrypted_chat_key || null,
-          encrypted_chat_summary: details.encrypted_chat_summary || null,
-          encrypted_share_cta_text: details.encrypted_share_cta_text || null,
-          encrypted_chat_tags: details.encrypted_chat_tags || null,
-          encrypted_follow_up_request_suggestions:
-            details.encrypted_follow_up_request_suggestions || null,
-          encrypted_active_focus_id: details.encrypted_active_focus_id || null,
-          pinned: details.pinned || false,
-          is_shared: details.is_shared || false,
-          is_private: details.is_private || false,
-          is_metadata_only: true,
-        } as Chat;
-      })
-      .filter((c): c is Chat => c !== null);
+    const chats: Chat[] = [];
+    for (const chatWrapper of payload.chats || []) {
+      const details = chatWrapper.chat_details;
+      if (!details?.id) continue;
+      const existingChat = await chatDB.getChat(details.id);
+      if (
+        shouldSkipSyncedChatWithoutKey(
+          "Metadata sync",
+          details.id,
+          details,
+          existingChat,
+        )
+      ) {
+        continue;
+      }
+      chats.push(buildMetadataOnlyChatFromDetails(details, existingChat));
+    }
 
     if (chats.length === 0) {
       console.info("[ChatSyncService] No metadata chats to save.");

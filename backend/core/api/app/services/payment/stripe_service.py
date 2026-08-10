@@ -679,6 +679,9 @@ class StripeService:
             cardholder_name = charge_data.billing_details.name if charge_data and hasattr(charge_data, 'billing_details') and charge_data.billing_details else None
             card_last_four = charge_data.payment_method_details.card.last4 if charge_data and hasattr(charge_data, 'payment_method_details') and hasattr(charge_data.payment_method_details, 'card') and charge_data.payment_method_details.card else None
             card_brand = charge_data.payment_method_details.card.brand if charge_data and hasattr(charge_data, 'payment_method_details') and hasattr(charge_data.payment_method_details, 'card') and charge_data.payment_method_details.card else None
+            payment_created = getattr(charge_data, "created", None) if charge_data else None
+            payment_created = payment_created or getattr(payment_intent, "created", None)
+            payment_created = payment_created or (getattr(session, "created", None) if session else None)
 
             billing_address = {}
             if charge_data and hasattr(charge_data, 'billing_details') and charge_data.billing_details and hasattr(charge_data.billing_details, 'address') and charge_data.billing_details.address:
@@ -698,6 +701,8 @@ class StripeService:
                 "status": payment_intent.status,
                 "client_secret": payment_intent.client_secret,
                 "metadata": payment_intent.metadata,
+                "created": getattr(payment_intent, "created", None),
+                "payment_created": payment_created,
                 "amount": payment_intent.amount, # Add amount
                 "currency": payment_intent.currency, # Add currency
                 "customer": payment_intent.customer, # Add customer ID

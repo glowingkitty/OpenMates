@@ -1,0 +1,69 @@
+# Durable root-level limits for one sub-chat orchestration tree.
+# This internal collection stores identifiers and counters only, never prompts,
+# titles, summaries, chat keys, or other content-bearing user data.
+sub_chat_orchestrations:
+  type: collection
+  note: "Internal root-level sub-chat limits and lifecycle state"
+  fields:
+    id:
+      type: uuid
+      primary: true
+    hashed_user_id:
+      type: string
+      length: 128
+      required: true
+    hashed_team_id:
+      type: string
+      length: 64
+      nullable: true
+    root_chat_id:
+      type: uuid
+      required: true
+    root_turn_id:
+      type: uuid
+      required: true
+    max_depth:
+      type: integer
+      required: true
+    descendant_limit:
+      type: integer
+      required: true
+    descendant_count:
+      type: integer
+      required: true
+      default: 0
+    credit_limit:
+      type: integer
+      required: true
+    reserved_credits:
+      type: integer
+      required: true
+      default: 0
+    spent_credits:
+      type: integer
+      required: true
+      default: 0
+    approved:
+      type: boolean
+      required: true
+      default: false
+    status:
+      type: string
+      length: 24
+      required: true
+    version:
+      type: integer
+      required: true
+      default: 1
+    created_at:
+      type: datetime
+      required: true
+    updated_at:
+      type: datetime
+      required: true
+    expires_at:
+      type: datetime
+      required: true
+    terminal_at:
+      type: datetime
+      nullable: true

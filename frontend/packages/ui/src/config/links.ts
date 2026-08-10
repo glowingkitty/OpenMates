@@ -179,7 +179,13 @@ export const privacyPolicyLinks = {
   recraft: "https://www.recraft.ai/privacy", // verified 2026-04-14
   bfl: "https://blackforestlabs.ai/privacy-policy/",
 
-  // Group E — Code and developer tools
+  // Group D2 — Audio generation and text-to-speech
+  elevenLabs: "https://elevenlabs.io/privacy-policy", // verified 2026-08-09
+
+  // Group E — 3D model generation
+  hi3d: "https://docs.hi3d.ai/en/api/resources/privacy-policy", // verified 2026-07-11
+
+  // Group F — Code and developer tools
   github:
     "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
   context7: "https://upstash.com/trust/privacy.pdf", // Context7 is an Upstash project; verified 2026-05-24
@@ -188,8 +194,10 @@ export const privacyPolicyLinks = {
   // Group F — Web, search, content retrieval
   brave: "https://brave.com/privacy/",
   firecrawl: "https://www.firecrawl.dev/privacy-policy",
+  iconify: "https://iconify.design/privacy/", // verified 2026-07-18
   webshare: "https://www.webshare.io/privacy-policy",
   googleMaps: "https://privacy.google.com/",
+  geoapify: "https://www.geoapify.com/privacy-policy/", // verified 2026-07-30
   youtube: "https://www.youtube.com/howyoutubeworks/privacy/",
 
   // Group G — Travel
@@ -222,7 +230,7 @@ export const privacyPolicyLinks = {
   tiWebench: "https://www.ti.com/legal/terms-conditions/privacy-policy.html",
 
   // Group M — Mail
-  protonmail: "https://proton.me/legal/privacy",
+  protonmail: "https://proton.me/legal/privacy", // verified 2026-07-15
 
   // Group N — Home and housing
   immoscout24: "https://www.immobilienscout24.de/agb/datenschutz.html",

@@ -1,0 +1,59 @@
+name_translation_key: projects
+description_translation_key: projects.description
+icon_image: project.svg
+category: productivity
+last_updated: "2026-07-25"
+settings_and_memories: []
+instructions:
+  - instruction: |
+      **Project Skills**
+      - Use Projects create when the user asks to start or organize a durable workspace project.
+      - Use Projects search when the user asks to find an existing project.
+      - Project content is client-side encrypted. Do not invent server-visible project search results.
+skills:
+  - id: create
+    name_translation_key: projects.skills.create
+    description_translation_key: projects.skills.create.description
+    icon_image: project.svg
+    preprocessor_hint: >
+      Request creation of a user-visible project. Durable project content is
+      client-side encrypted, so a capable connected client must apply the change.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    pricing:
+      fixed: 1
+    class_path: backend.apps.projects.skills.create_skill.CreateSkill
+    tool_schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Short user-facing project name.
+        description:
+          type: string
+          description: Optional project description.
+      required:
+        - name
+
+  - id: search
+    name_translation_key: projects.skills.search
+    description_translation_key: projects.skills.search.description
+    icon_image: search.svg
+    preprocessor_hint: >
+      Search the user's encrypted projects through a connected capable client.
+      Do not use server-visible metadata as a private project-content fallback.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    pricing:
+      fixed: 1
+    class_path: backend.apps.projects.skills.search_skill.SearchSkill
+    tool_schema:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Private project text to search for on a connected client.
+      required:
+        - query

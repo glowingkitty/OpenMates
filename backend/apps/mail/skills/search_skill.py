@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import os
 import yaml
+from uuid import uuid4
 from typing import Any, Dict, List, Optional, Tuple
 
 from celery import Celery
@@ -25,6 +26,10 @@ from backend.shared.python_utils.app_skill_helpers import (
 )
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.connected_accounts_service import (
+    build_local_connector_mail_read_request,
+    dispatch_local_connector_request,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.protonmail.protonmail_bridge import (
     DEFAULT_MAX_RESULTS,
@@ -54,6 +59,14 @@ class MailSearchRequestItem(BaseModel):
     mailbox: Optional[str] = Field(
         default=None,
         description="Optional mailbox name (defaults to INBOX).",
+    )
+    start_date: Optional[str] = Field(
+        default=None,
+        description="Optional inclusive start date for the search range (YYYY-MM-DD).",
+    )
+    end_date: Optional[str] = Field(
+        default=None,
+        description="Optional inclusive end date for the search range (YYYY-MM-DD).",
     )
     limit: int = Field(
         default=10,
@@ -156,6 +169,16 @@ class SearchSkill(BaseSkill):
         except Exception as exc:
             logger.warning("Failed to load mail search follow-up suggestions: %s", exc, exc_info=True)
 
+    @staticmethod
+    def _build_time_range_label(start_date: str | None, end_date: str | None) -> str:
+        if start_date and end_date:
+            return f"{start_date} to {end_date}"
+        if start_date:
+            return f"Since {start_date}"
+        if end_date:
+            return f"Until {end_date}"
+        return "All time"
+
     async def _process_single_request(
         self,
         *,
@@ -167,11 +190,57 @@ class SearchSkill(BaseSkill):
     ) -> Tuple[Any, Dict[str, Any], Optional[str]]:
         query = (req.get("query") or "").strip()
         mailbox = (req.get("mailbox") or "").strip() or None
+        start_date = (req.get("start_date") or "").strip() or None
+        end_date = (req.get("end_date") or "").strip() or None
+        time_range = self._build_time_range_label(start_date, end_date)
         limit_raw = req.get("limit", DEFAULT_MAX_RESULTS)
         try:
             limit = int(limit_raw)
         except (TypeError, ValueError):
             limit = DEFAULT_MAX_RESULTS
+
+        connected_account = req.get("connected_account")
+        if isinstance(connected_account, dict) and connected_account.get("execution_mode") == "local_connector":
+            connector_request = build_local_connector_mail_read_request(
+                row=connected_account,
+                request_id=f"mail_search_{request_id}_{uuid4().hex}",
+                query=query,
+                mailbox=mailbox,
+                start_date=start_date,
+                end_date=end_date,
+                limit=limit,
+            )
+            connector_result = await dispatch_local_connector_request(
+                user_id=user_id,
+                request=connector_request,
+            )
+            if connector_result.status != "ok":
+                return request_id, {}, connector_result.error_message or connector_result.error_code or "Local connector request failed"
+            raw_messages = connector_result.result.get("messages")
+            if not isinstance(raw_messages, list):
+                return request_id, {}, "Local connector returned an invalid mail search result"
+            sanitized_results = await sanitize_long_text_fields_in_payload(
+                payload=raw_messages,
+                task_id=f"mail_search_{request_id}",
+                secrets_manager=secrets_manager,
+                cache_service=cache_service,
+                min_chars=40,
+                max_parallel=3,
+            )
+            return (
+                request_id,
+                {
+                    "id": request_id,
+                    "query": build_default_query_label(query),
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "time_range": time_range,
+                    "result_count": len(sanitized_results),
+                    "results": sanitized_results,
+                    "status": "completed",
+                },
+                None,
+            )
 
         provider_id = "protonmail"
         is_allowed_rate, _ = await check_rate_limit(
@@ -208,6 +277,8 @@ class SearchSkill(BaseSkill):
             config=config,
             query=query,
             mailbox=mailbox,
+            start_date=start_date,
+            end_date=end_date,
             limit=limit,
         )
 
@@ -227,6 +298,10 @@ class SearchSkill(BaseSkill):
             {
                 "id": request_id,
                 "query": build_default_query_label(query),
+                "start_date": start_date,
+                "end_date": end_date,
+                "time_range": time_range,
+                "result_count": len(sanitized_results),
                 "results": sanitized_results,
             },
             None,

@@ -88,6 +88,7 @@ const BENIGN_ERROR_PATTERNS: RegExp[] = [
 	// has chats encrypted with a previous key. Does not affect test functionality.
 	/\[CryptoService\] Key fingerprint mismatch/,
 	/\[CLIENT_DECRYPT\].*Failed to decrypt/,
+	/\[ChatKeyManager\] Refusing to generate replacement key .*persisted encrypted_chat_key could not be decrypted/,
 	// Svelte 5 runtime teardown race — querySelector called on null during page.reload()
 	// when the component tree is being destroyed. Not user code, no functional impact.
 	/Cannot read properties of null \(reading 'querySelector'\)/,

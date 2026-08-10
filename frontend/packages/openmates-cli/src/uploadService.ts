@@ -31,6 +31,8 @@ export interface FileVariantMetadata {
 export interface AIDetectionMetadata {
   ai_generated: number;
   provider: string;
+  status?: "success" | "failed" | string;
+  error?: string | null;
 }
 
 export interface UploadFileResponse {
@@ -56,6 +58,12 @@ export interface AudioTranscriptionData {
   use_corrected: boolean | null;
   correction_model: string | null;
   model: string | null;
+  waveform: {
+    version: 1;
+    kind: "rms-envelope";
+    samples: number[];
+    duration_seconds?: number;
+  } | null;
 }
 
 interface AudioTranscriptionResponse {
@@ -72,6 +80,7 @@ interface AudioTranscriptionResponse {
         use_corrected?: boolean | null;
         correction_model?: string | null;
         model?: string | null;
+        waveform?: AudioTranscriptionData["waveform"];
         error?: string | null;
       }>;
     }>;
@@ -334,6 +343,7 @@ export async function transcribeUploadedAudio(
     use_corrected: result.use_corrected ?? null,
     correction_model: result.correction_model ?? null,
     model: result.model ?? null,
+    waveform: result.waveform ?? null,
   };
 }
 

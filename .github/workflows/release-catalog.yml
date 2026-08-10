@@ -1,0 +1,62 @@
+name: Draft Milestone Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing annotated milestone tag to audit or draft
+        required: true
+        type: string
+      action:
+        description: Validate provenance or create/update a GitHub Release draft
+        required: true
+        default: audit
+        type: choice
+        options:
+          - create-tags
+          - audit
+          - draft
+
+permissions:
+  contents: write
+
+jobs:
+  release-catalog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install catalog dependency
+        run: python -m pip install PyYAML
+
+      - name: Audit immutable tag provenance
+        if: inputs.action != 'create-tags'
+        env:
+          TAG: ${{ inputs.tag }}
+        run: python scripts/release_catalog.py audit --tag "$TAG"
+
+      - name: Create and push annotated tag
+        if: inputs.action == 'create-tags'
+        env:
+          TAG: ${{ inputs.tag }}
+        run: python scripts/release_catalog.py create-tags --tag "$TAG" --push
+
+      - name: Audit newly created tag provenance
+        if: inputs.action == 'create-tags'
+        env:
+          TAG: ${{ inputs.tag }}
+        run: python scripts/release_catalog.py audit --tag "$TAG"
+
+      - name: Create reviewable release draft
+        if: inputs.action == 'draft'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: python scripts/release_catalog.py draft --tag "$TAG" --apply

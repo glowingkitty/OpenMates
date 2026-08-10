@@ -19,7 +19,7 @@
     import { page } from '$app/stores';
     import { browser } from '$app/environment';
     import { goto } from '$app/navigation';
-    import { getApiEndpoint } from '@repo/ui';
+    import { dispatchEmbedFullscreen, getApiEndpoint, setCanonicalFullscreenRoute } from '@repo/ui';
     import type { EmbedKeyEntry, EmbedType, SyncCodeRunOutput, SyncEmbed } from '@repo/ui';
 
     type SharedEmbedKeyEntry = Omit<EmbedKeyEntry, 'key_type'> & {
@@ -535,21 +535,20 @@
                 embedType = 'app-skill-use'; // Safe default since most embeds are app-skill-use
             }
 
-            // Dispatch embedfullscreen event to open the embed in fullscreen using existing mechanism
-            // This reuses the same system that opens embeds when clicking on embed previews
-            const embedFullscreenEvent = new CustomEvent('embedfullscreen', {
-                detail: {
-                    embedId: embedId,
-                    // Let handleEmbedFullscreen load and decode the embed content
-                    embedData: null,
-                    decodedContent: null,
-                    embedType: embedType,
-                    attrs: null
-                }
+            setCanonicalFullscreenRoute(embedId, { origin: 'shared' });
+
+            // Dispatch through the shared fullscreen controller so shared embeds
+            // use the same route state as chat and example-chat embeds.
+            dispatchEmbedFullscreen({
+                embedId: embedId,
+                // Let handleEmbedFullscreen load and decode the embed content
+                embedData: null,
+                decodedContent: null,
+                embedType: embedType,
+                attrs: null
             });
 
             console.debug('[ShareEmbed] Dispatching embedfullscreen event for shared embed:', embedId);
-            document.dispatchEvent(embedFullscreenEvent);
 
             isLoading = false;
         } catch (err) {

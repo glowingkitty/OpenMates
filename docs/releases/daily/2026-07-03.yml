@@ -1,0 +1,930 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-03'
+generated_at: '2026-07-09T15:51:44+00:00'
+range:
+  since: '2026-07-03T00:00:00+00:00'
+  until: '2026-07-03T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 16
+  section_counts:
+    features: 0
+    bug_fixes: 10
+    improvements: 0
+    docs: 2
+    tests: 3
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 2
+  user_facing_items: 4
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: surface Google OAuth token errors'
+    section: bug_fixes
+    commits:
+    - 51b69f9d9
+    authored_at: '2026-07-03T21:37:23+00:00'
+    changed_paths:
+    - backend/shared/providers/google_calendar/oauth.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: show bank transfer references in invoices'
+    section: bug_fixes
+    commits:
+    - a1d9061f8
+    authored_at: '2026-07-03T19:27:25+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/tests/test_bank_transfer_invoice_visibility.py
+    - docs/specs/bank-transfer-invoice-visibility/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/ui/src/components/settings/billing/SettingsInvoices.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide inactive message input caret'
+    section: bug_fixes
+    commits:
+    - 5f4a739c7
+    authored_at: '2026-07-03T15:37:23+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: automate Apple TestFlight signing'
+    section: bug_fixes
+    commits:
+    - 72eb6f29e
+    authored_at: '2026-07-03T13:46:29+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    - scripts/tests/test_app_version_parity.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: add share extension attributes'
+    section: bug_fixes
+    commits:
+    - b75874caf
+    authored_at: '2026-07-03T12:33:25+00:00'
+    changed_paths:
+    - apple/OpenMatesShareExtension/Info.plist
+    - apple/OpenMatesShareExtensionMacOS/Info.plist
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: restore Apple passkey domain association'
+    section: bug_fixes
+    commits:
+    - 108c4609b
+    authored_at: '2026-07-03T11:05:54+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: align Apple team ID'
+    section: bug_fixes
+    commits:
+    - 256fd3a24
+    authored_at: '2026-07-03T10:42:41+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - frontend/apps/web_app/static/.well-known/apple-app-site-association
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: use available Apple app group'
+    section: bug_fixes
+    commits:
+    - 2b9de7e2b
+    authored_at: '2026-07-03T10:23:53+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Resources/OpenMatesPasskey.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesNotificationService/OpenMatesNotificationService.entitlements
+    - apple/OpenMatesShareExtension/OpenMatesShareExtension.entitlements
+    - apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements
+    - apple/OpenMatesShared/OpenMatesSharedEnvironment.swift
+    - apple/OpenMatesWidget/OpenMatesWidget.entitlements
+    - apple/OpenMatesWidget/OpenMatesWidget.swift
+    - apple/project.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:apple-watch, platform:ios, platform:macos'
+  - title: 'fix: prepare Apple signing for TestFlight'
+    section: bug_fixes
+    commits:
+    - 412f378f3
+    authored_at: '2026-07-03T10:11:42+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: enable Apple passkey entitlements'
+    section: bug_fixes
+    commits:
+    - d260741bc
+    authored_at: '2026-07-03T10:07:16+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: record bank transfer invoice test evidence'
+    section: docs
+    commits:
+    - 9d72a19b9
+    authored_at: '2026-07-03T21:05:57+00:00'
+    changed_paths:
+    - docs/specs/bank-transfer-invoice-visibility/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record bank transfer invoice verification'
+    section: docs
+    commits:
+    - 0949aefaf
+    authored_at: '2026-07-03T19:37:25+00:00'
+    changed_paths:
+    - docs/specs/bank-transfer-invoice-visibility/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: fix daily e2e regressions'
+    section: tests
+    commits:
+    - 2fc9e32c7
+    authored_at: '2026-07-03T22:15:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/nutrition.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+  - title: 'test: fix bank transfer invoice navigation'
+    section: tests
+    commits:
+    - eb5b91131
+    authored_at: '2026-07-03T20:57:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover bank transfer invoice references'
+    section: tests
+    commits:
+    - d710f874b
+    authored_at: '2026-07-03T20:36:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: sync Apple remote checkout'
+    section: infrastructure
+    commits:
+    - bc7a27a08
+    authored_at: '2026-07-03T12:11:03+00:00'
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: show bank transfer references in invoices'
+    commits:
+    - a1d9061f8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide inactive message input caret'
+    commits:
+    - 5f4a739c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: show bank transfer references in invoices'
+    commits:
+    - a1d9061f8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide inactive message input caret'
+    commits:
+    - 5f4a739c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align Apple team ID'
+    commits:
+    - 256fd3a24
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: use available Apple app group'
+    commits:
+    - 2b9de7e2b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 2fc9e32c738b09ce800f6ade38a55ee4f3b71ec4
+    short_sha: 2fc9e32c7
+    authored_at: '2026-07-03T22:15:06+00:00'
+    subject: 'test: fix daily e2e regressions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/nutrition.yml
+    related_feature_ids:
+    - platform:projects
+  - sha: 51b69f9d919872b159567afe2c2e1b06a32f3581
+    short_sha: 51b69f9d9
+    authored_at: '2026-07-03T21:37:23+00:00'
+    subject: 'fix: surface Google OAuth token errors'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/google_calendar/oauth.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    related_feature_ids: []
+  - sha: 9d72a19b9176d0ea18e3a98a8426565e4d44c875
+    short_sha: 9d72a19b9
+    authored_at: '2026-07-03T21:05:57+00:00'
+    subject: 'docs: record bank transfer invoice test evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/bank-transfer-invoice-visibility/spec.yml
+    related_feature_ids: []
+  - sha: eb5b9113175094a8c9276bbfffb784510fb78e86
+    short_sha: eb5b91131
+    authored_at: '2026-07-03T20:57:10+00:00'
+    subject: 'test: fix bank transfer invoice navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: d710f874b638c0e33f97c0095ac7c61a6093c4d1
+    short_sha: d710f874b
+    authored_at: '2026-07-03T20:36:16+00:00'
+    subject: 'test: cover bank transfer invoice references'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: 0949aefaf57bba24b66601c1f68907bac21353ad
+    short_sha: 0949aefaf
+    authored_at: '2026-07-03T19:37:25+00:00'
+    subject: 'docs: record bank transfer invoice verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/bank-transfer-invoice-visibility/spec.yml
+    related_feature_ids: []
+  - sha: a1d9061f8d80ef2566e0eeb3234b74141fc95f31
+    short_sha: a1d9061f8
+    authored_at: '2026-07-03T19:27:25+00:00'
+    subject: 'fix: show bank transfer references in invoices'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/tests/test_bank_transfer_invoice_visibility.py
+    - docs/specs/bank-transfer-invoice-visibility/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/ui/src/components/settings/billing/SettingsInvoices.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    related_feature_ids: []
+  - sha: 5f4a739c7b6eadaf523f0f61a3cbb5ef234f920c
+    short_sha: 5f4a739c7
+    authored_at: '2026-07-03T15:37:23+00:00'
+    subject: 'fix: hide inactive message input caret'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    related_feature_ids: []
+  - sha: 72eb6f29e63b3f88ad6dc4d0ffca2820d6d47782
+    short_sha: 72eb6f29e
+    authored_at: '2026-07-03T13:46:29+00:00'
+    subject: 'fix: automate Apple TestFlight signing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    - scripts/tests/test_app_version_parity.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b75874cafc5521168cc2a47254470e64ce75659d
+    short_sha: b75874caf
+    authored_at: '2026-07-03T12:33:25+00:00'
+    subject: 'fix: add share extension attributes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesShareExtension/Info.plist
+    - apple/OpenMatesShareExtensionMacOS/Info.plist
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: bc7a27a0808dbd21d48d388c9cc855126e54d62c
+    short_sha: bc7a27a08
+    authored_at: '2026-07-03T12:11:03+00:00'
+    subject: 'chore: sync Apple remote checkout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    related_feature_ids: []
+  - sha: 108c4609b9b04e5e06cc2302fb2daa31e5894a64
+    short_sha: 108c4609b
+    authored_at: '2026-07-03T11:05:54+00:00'
+    subject: 'fix: restore Apple passkey domain association'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 256fd3a24f3edca9e31a2fedfa12d8bc4184e8d5
+    short_sha: 256fd3a24
+    authored_at: '2026-07-03T10:42:41+00:00'
+    subject: 'fix: align Apple team ID'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - frontend/apps/web_app/static/.well-known/apple-app-site-association
+    - scripts/apple_remote.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2b9de7e2b9aff098bbbbfb20c17bbd2b42ea99ac
+    short_sha: 2b9de7e2b
+    authored_at: '2026-07-03T10:23:53+00:00'
+    subject: 'fix: use available Apple app group'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Resources/OpenMatesPasskey.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesNotificationService/OpenMatesNotificationService.entitlements
+    - apple/OpenMatesShareExtension/OpenMatesShareExtension.entitlements
+    - apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements
+    - apple/OpenMatesShared/OpenMatesSharedEnvironment.swift
+    - apple/OpenMatesWidget/OpenMatesWidget.entitlements
+    - apple/OpenMatesWidget/OpenMatesWidget.swift
+    - apple/project.yml
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: 412f378f3b91e6524a812020ebb412d7ac433dd7
+    short_sha: 412f378f3
+    authored_at: '2026-07-03T10:11:42+00:00'
+    subject: 'fix: prepare Apple signing for TestFlight'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d260741bcfd5a93db0ffee04d476a2b1684f292c
+    short_sha: d260741bc
+    authored_at: '2026-07-03T10:07:16+00:00'
+    subject: 'fix: enable Apple passkey entitlements'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+llm_summary:
+  overview: OpenMates improved the billing experience by ensuring bank transfer references are visible on invoices and polished
+    the chat interface by refining message input behavior. Significant internal progress was made on Apple platform integration,
+    including signing and entitlement configurations for future iOS and macOS support.
+  released_changes:
+  - text: Invoices now display bank transfer references to improve payment tracking.
+    evidence:
+      commits:
+      - a1d9061f8
+    release_status: released_main
+  - text: The chat interface was refined to hide the message input caret when the field is inactive.
+    evidence:
+      commits:
+      - 5f4a739c7
+    release_status: released_main
+  bug_fixes:
+  - text: OpenMates now surfaces specific Google OAuth token errors to improve calendar integration troubleshooting.
+    evidence:
+      commits:
+      - 51b69f9d9
+    release_status: released_main
+  - text: Bank transfer references are now correctly included in invoice views to assist with payment reconciliation.
+    evidence:
+      commits:
+      - a1d9061f8
+    release_status: released_main
+  - text: The chat interface was polished to hide the message input caret when the field is inactive.
+    evidence:
+      commits:
+      - 5f4a739c7
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continues on Apple platforms, including updates to TestFlight signing automation, passkey domain associations,
+      and app group configurations for iOS, macOS, and Apple Watch.
+    evidence:
+      commits:
+      - 72eb6f29e
+      - b75874caf
+      - 108c4609b
+      - 256fd3a24
+      - 2b9de7e2b
+      - 412f378f3
+      - d260741bc
+    release_status: released_main
+  - text: The projects platform received end-to-end test updates to address regressions in remote source handling.
+    evidence:
+      commits:
+      - 2fc9e32c7
+    release_status: released_main
+  internal_progress:
+  - text: The project synchronized Apple remote checkout scripts for infrastructure consistency.
+    evidence:
+      commits:
+      - bc7a27a08
+    release_status: released_main
+  - text: Test coverage was expanded for bank transfer invoice navigation and CLI reference handling.
+    evidence:
+      commits:
+      - eb5b91131
+      - d710f874b
+    release_status: released_main
+  - text: Documentation was updated to record verification evidence for invoice visibility logic.
+    evidence:
+      commits:
+      - 9d72a19b9
+      - 0949aefaf
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Invoices now display bank transfer references for easier payment tracking.
+      evidence:
+        commits:
+        - a1d9061f8
+      reason: Improves the billing experience for users paying via bank transfer.
+    - text: The chat interface now correctly hides the input caret when not in use.
+      evidence:
+        commits:
+        - 5f4a739c7
+      reason: A visible UI polish for the core chat experience.
+    exclude:
+    - text: 'fix: align Apple team ID'
+      evidence:
+        commits:
+        - 256fd3a24
+      reason: Related to the unreleased iOS and macOS platforms.
+    - text: 'fix: use available Apple app group'
+      evidence:
+        commits:
+        - 2b9de7e2b
+      reason: Related to the unreleased Apple Watch, iOS, and macOS platforms.
+    rationale: The newsletter focuses on user-facing improvements to billing and the chat UI while excluding infrastructure
+      work for unreleased platforms.
+  social_video_recommendations:
+  - idea: A short clip demonstrating the cleaner chat UI and the responsive message input caret.
+    priority: low
+    reason: Provides a visual update on UI polish.
+    evidence:
+      commits:
+      - 5f4a739c7
+  quality_notes:
+  - A large portion of today's activity (7 of 16 commits) focused on Apple platform infrastructure and signing, which remains
+    unreleased.
+  validation_warnings: []

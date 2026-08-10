@@ -27,9 +27,13 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
 
         XCTAssertTrue(waitForElement("settings-app-store-page", in: app, timeout: 10))
         XCTAssertTrue(waitForElement("settings-show-all-apps-row", in: app, timeout: 5))
-        XCTAssertTrue(waitForElement("app-card-weather", in: app, timeout: 5))
         assertElementInsideWindow(app.descendants(matching: .any)["settings-show-all-apps-row"], in: app)
-        assertElementInsideWindow(app.descendants(matching: .any)["app-card-weather"], in: app)
+        XCTAssertTrue(waitForElement("app-card-weather", in: app, timeout: 5))
+        guard let visibleWeather = visibleElement("app-card-weather", in: app) else {
+            XCTFail("Expected a visible Weather card in an iPad category carousel")
+            return
+        }
+        assertElementInsideWindow(visibleWeather, in: app)
 
         app.descendants(matching: .any)["settings-show-all-apps-row"].tap()
         XCTAssertTrue(waitForElement("settings-all-apps-page", in: app, timeout: 8))
@@ -59,16 +63,47 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
         attachScreenshot(name: "iPad Apps settings layout smoke")
     }
 
+    func testIPadSettingsShellProducesLightAndDarkReviewArtifacts() {
+        for appearance in ["Light", "Dark"] {
+            let app = XCUIApplication()
+            app.launchArguments = [
+                "--ui-test-disable-auth-cache",
+                "-AppleInterfaceStyle",
+                appearance,
+            ]
+            app.launch()
+
+            XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
+            app.buttons["settings-button"].tap()
+            XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
+            let appsRow = app.descendants(matching: .any)["settings-apps-row"].firstMatch
+            XCTAssertTrue(waitForElement("settings-apps-row", in: app, timeout: 5))
+            assertElementInsideWindow(appsRow, in: app)
+            XCTAssertTrue(appsRow.isHittable)
+            XCTAssertFalse(app.tables.firstMatch.exists)
+            attachScreenshot(name: "iPad Settings shell \(appearance.lowercased())")
+
+            app.terminate()
+        }
+    }
+
     private func waitForElement(_ identifier: String, in app: XCUIApplication, timeout: TimeInterval) -> Bool {
-        let element = app.descendants(matching: .any)[identifier]
-        if element.waitForExistence(timeout: timeout), isElementInsideWindow(element, in: app) { return true }
+        let element = app.descendants(matching: .any)[identifier].firstMatch
+        if element.waitForExistence(timeout: timeout), visibleElement(identifier, in: app) != nil { return true }
 
         let scrollView = app.scrollViews.firstMatch
         for _ in 0..<6 where scrollView.exists {
             scrollView.swipeUp()
-            if element.waitForExistence(timeout: 1), isElementInsideWindow(element, in: app) { return true }
+            if element.waitForExistence(timeout: 1), visibleElement(identifier, in: app) != nil { return true }
         }
-        return element.exists
+        return visibleElement(identifier, in: app) != nil
+    }
+
+    private func visibleElement(_ identifier: String, in app: XCUIApplication) -> XCUIElement? {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@", identifier))
+            .allElementsBoundByIndex
+            .first { isElementInsideWindow($0, in: app) }
     }
 
     private func assertElementInsideWindow(_ element: XCUIElement, in app: XCUIApplication) {

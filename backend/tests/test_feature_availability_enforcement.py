@@ -17,6 +17,7 @@ from backend.core.api.app.services.feature_availability_guards import (
     ensure_plans_enabled,
     ensure_projects_enabled,
     ensure_tasks_enabled,
+    ensure_teams_enabled,
     ensure_workflows_enabled,
 )
 
@@ -33,18 +34,24 @@ def make_request(config: dict) -> SimpleNamespace:
     return SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(config_manager=FakeConfigManager(config))))
 
 
-def test_application_preview_route_blocks_default_disabled_embed() -> None:
-    with pytest.raises(HTTPException) as exc_info:
-        ensure_application_preview_enabled(make_request({}))
-
-    assert exc_info.value.status_code == 403
-    assert exc_info.value.detail == "FEATURE_DISABLED"
+def test_application_preview_route_allows_default_enabled_embed() -> None:
+    ensure_application_preview_enabled(make_request({}))
 
 
 def test_application_preview_route_allows_admin_enabled_embed() -> None:
     ensure_application_preview_enabled(
         make_request({"feature_overrides": {"enabled": ["embed:code:application"], "disabled": []}})
     )
+
+
+def test_application_preview_route_blocks_admin_disabled_embed() -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        ensure_application_preview_enabled(
+            make_request({"feature_overrides": {"enabled": [], "disabled": ["embed:code:application"]}})
+        )
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail == "FEATURE_DISABLED"
 
 
 def test_projects_route_blocks_default_disabled_platform_feature() -> None:
@@ -66,6 +73,7 @@ def test_projects_route_allows_admin_enabled_platform_feature() -> None:
     [
         (ensure_projects_enabled, "platform:projects"),
         (ensure_plans_enabled, "platform:plans"),
+        (ensure_teams_enabled, "platform:teams"),
         (ensure_workflows_enabled, "platform:workflows"),
         (ensure_tasks_enabled, "platform:tasks"),
     ],

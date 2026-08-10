@@ -3,7 +3,7 @@
 // Stores reactive state for the audio recording UI.
 // micPermissionState tracks what the browser Permissions API reports:
 //   'unknown'  — not yet queried (SSR / Permissions API unavailable)
-//   'granted'  — user has previously allowed; recording can start immediately on hold
+//   'granted'  — user has previously allowed; recording can start immediately
 //   'prompt'   — browser will show a permission popup on first getUserMedia call
 //   'denied'   — user has blocked the mic; show settings-redirect hint
 import { writable } from "svelte/store";

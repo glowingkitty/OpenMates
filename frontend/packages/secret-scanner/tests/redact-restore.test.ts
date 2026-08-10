@@ -61,6 +61,40 @@ describe("redact → restore roundtrip", () => {
 
     assert.equal(restored, original);
   });
+
+  it("redacts known originals with explicit category-aware placeholders", () => {
+    const scanner = new SecretScanner({ enablePatternDetection: false });
+    scanner.addKnownMapping({
+      original: "Spotify",
+      placeholder: "[MERCHANT_STREAMING_001]",
+      type: "PERSONAL_DATA",
+      source: "settings",
+    });
+
+    const { redacted, mappings } = scanner.redact(
+      "How much did I spend on Spotify and Spotify Premium?",
+    );
+
+    assert.equal(
+      redacted,
+      "How much did I spend on [MERCHANT_STREAMING_001] and [MERCHANT_STREAMING_001] Premium?",
+    );
+    assert.equal(mappings[0].placeholder, "[MERCHANT_STREAMING_001]");
+    assert.equal(scanner.restore(redacted, mappings), "How much did I spend on Spotify and Spotify Premium?");
+  });
+
+  it("does not treat category-aware placeholders as raw secrets", () => {
+    const scanner = new SecretScanner();
+    const { redacted, mappings } = scanner.redact(
+      "Analyze [MERCHANT_STREAMING_001] without seeing the original merchant.",
+    );
+
+    assert.equal(
+      redacted,
+      "Analyze [MERCHANT_STREAMING_001] without seeing the original merchant.",
+    );
+    assert.equal(mappings.length, 0);
+  });
 });
 
 describe("parseEnvFile", () => {

@@ -227,7 +227,30 @@ test('self-hosted install starts, signs up a user, and promotes admin', async ({
 	expect(signedUpSession.json.success).toBe(true);
 	expect(signedUpSession.json.user?.is_admin).toBe(false);
 
- runOpenMatesServer(['make-admin', signupEmail], { stdio: 'inherit' });
+	const authMethodRoutes = await page.evaluate(async (apiUrl: string) => {
+		const [authResponse, legacyPaymentResponse] = await Promise.all([
+			fetch(`${apiUrl}/v1/auth/methods`, { credentials: 'include' }),
+			fetch(`${apiUrl}/v1/payments/user-auth-methods`, { credentials: 'include' })
+		]);
+		return {
+			authStatus: authResponse.status,
+			authBody: await authResponse.json(),
+			legacyPaymentStatus: legacyPaymentResponse.status
+		};
+	}, SELFHOST_API_URL);
+	expect(authMethodRoutes.authStatus).toBe(200);
+	expect(authMethodRoutes.authBody.has_password).toBe(true);
+	expect(authMethodRoutes.legacyPaymentStatus).toBe(404);
+
+	await page.getByTestId('profile-container').click();
+	await expect(page.getByTestId('settings-menu')).toBeVisible();
+	await page.getByRole('menuitem', { name: /account/i }).click();
+	await page.getByRole('menuitem', { name: /security/i }).click();
+	await page.getByRole('menuitem', { name: /^password/i }).click();
+	await expect(page.getByTestId('password-settings-container')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('password-settings-error')).toHaveCount(0);
+
+	runOpenMatesServer(['make-admin', signupEmail], { stdio: 'inherit' });
 
 	const adminSession = await waitForAdminStatus(page, true);
 	// docAssert('openmates server make-admin promotes a self-hosted signup user to admin')

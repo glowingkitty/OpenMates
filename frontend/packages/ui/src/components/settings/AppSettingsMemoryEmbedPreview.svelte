@@ -10,6 +10,7 @@
     import { onMount } from 'svelte';
     import { embedStore } from '../../services/embedStore';
     import { decodeToonContent, resolveEmbed } from '../../services/embedResolver';
+    import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
     import { embedPreviewRegistry } from '../../services/embedPreviewRegistry';
     import type { EmbedStoreEntry } from '../../message_parsing/types';
 
@@ -89,20 +90,17 @@
         const autoConvertedTypes = ['code', 'code-code', 'sheet', 'sheets-sheet', 'math-plot', 'document', 'docs-doc'];
         const embedType = autoConvertedTypes.includes(rawType) ? rawType : 'app-skill-use';
 
-        document.dispatchEvent(new CustomEvent('embedfullscreen', {
-            detail: {
-                embedId,
-                embedData,
-                decodedContent,
-                embedType,
-                attrs: {
-                    type: embedEntry.type,
-                    contentRef: embedEntry.contentRef,
-                    status: embedData.status || 'finished',
-                },
+        dispatchEmbedFullscreen({
+            embedId,
+            embedData,
+            decodedContent,
+            embedType,
+            attrs: {
+                type: embedEntry.type,
+                contentRef: embedEntry.contentRef,
+                status: embedData.status || 'finished',
             },
-            bubbles: true,
-        }));
+        });
     }
 </script>
 

@@ -27,6 +27,10 @@ services:
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
       TUNNEL_TRIGGER_SECRET: "${TUNNEL_TRIGGER_SECRET}"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
+      OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
+      MOCK_EXTERNAL_APIS: "true"
       APPLICATION_PREVIEW_ORIGIN: "${APPLICATION_PREVIEW_ORIGIN}"
     command: sh /app/backend/core/api/wait-for-vault.sh # Changed: Path to script
     ports:
@@ -73,7 +77,10 @@ services:
   #########################################################################
   cms:
     container_name: cms
-    image: directus/directus:11.5
+    build:
+      context: ./directus
+      dockerfile: Dockerfile
+    image: openmates-directus:dev
     restart: unless-stopped
     env_file: ../../.env
     environment:
@@ -87,6 +94,7 @@ services:
       DB_DATABASE: "${DATABASE_NAME}"
       DB_USER: "${DATABASE_USERNAME}"
       DB_PASSWORD: "${DATABASE_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
       PUBLIC_URL: "http://localhost:8055"
       LOG_LEVEL: "info"
       # Add Redis configuration for Directus
@@ -106,15 +114,14 @@ services:
     # Ports removed for base config, will be added in override
     volumes:
       - ./directus/uploads:/directus/uploads
-      - ./directus/extensions:/directus/extensions
     networks:
       - openmates
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8055/server/ping"]
+      test: ["CMD", "/usr/local/bin/openmates-directus-health"]
       interval: 10s
-      timeout: 5s
-      start_period: 30s
-      retries: 5
+      timeout: 8s
+      start_period: 60s
+      retries: 12
     depends_on:
       cms-database:
         condition: service_healthy
@@ -150,9 +157,22 @@ services:
       ADMIN_EMAIL: ${DATABASE_ADMIN_EMAIL}
       ADMIN_PASSWORD: ${DATABASE_ADMIN_PASSWORD}
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
       SCHEMAS_DIR: "/usr/src/app/schemas"
+      CHAT_RECOVERY_MIGRATION_PATH: "/usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql"
+      WORKFLOW_RUNTIME_MIGRATION_PATH: "/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql"
+      USER_TASK_MIGRATION_PATH: "/usr/src/app/migrations/migrate_user_task_indexes.sql"
+      USAGE_OVERVIEW_MIGRATION_PATH: "/usr/src/app/migrations/migrate_usage_overview_indexes.sql"
+      PROJECT_OWNER_CONTEXT_MIGRATION_PATH: "/usr/src/app/migrations/migrate_project_owner_context.sql"
+      SUB_CHAT_ORCHESTRATION_MIGRATION_PATH: "/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql"
     volumes:
       - ./directus/schemas:/usr/src/app/schemas:ro
+      - ./directus/setup/migrate_chat_recovery_unique_indexes.sql:/usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql:ro
+      - ./directus/setup/migrate_workflow_runtime_indexes.sql:/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql:ro
+      - ./directus/setup/migrate_user_task_indexes.sql:/usr/src/app/migrations/migrate_user_task_indexes.sql:ro
+      - ./directus/setup/migrate_usage_overview_indexes.sql:/usr/src/app/migrations/migrate_usage_overview_indexes.sql:ro
+      - ./directus/setup/migrate_project_owner_context.sql:/usr/src/app/migrations/migrate_project_owner_context.sql:ro
+      - ./directus/setup/migrate_sub_chat_orchestration_indexes.sql:/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql:ro
     networks:
       - openmates
     depends_on:
@@ -165,7 +185,8 @@ services:
   #########################################################################
   ##### Task Management (Celery)
   #########################################################################
-  # Shared task worker for core API tasks (email, user_init, persistence)
+  # Email-only task worker. Core API tasks run on core-worker below so billing
+  # and invoice email processing cannot silently share a drifted task runtime.
   # App-specific tasks are handled by dedicated app workers (app-ai-worker, app-images-worker, etc.)
   task-worker:
     container_name: task-worker
@@ -184,7 +205,11 @@ services:
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
-      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,reminder,push" # Used by celery_config to determine which services to initialize
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
+      OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
+      MOCK_EXTERNAL_APIS: "true"
+      CELERY_QUEUES: "email" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
       CELERY_METRICS_PORT: "9101" # Port for prometheus_client metrics server — scraped by Prometheus
@@ -199,12 +224,14 @@ services:
       E2E_TEST_PROD_BASE_URL: "${E2E_TEST_PROD_BASE_URL:-https://openmates.org}"
     command: >
       sh -c "chown -R celeryuser:celeryuser /vault-data && \
-             mkdir -p /app/logs /app/backend/core/api/logs && \
+             mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
              chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
              chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
+             find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
-             --queues=email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push \
+             --queues=email \
              --concurrency=${CELERY_AUTOSCALE_MAX} \
              --max-tasks-per-child=50 \
              --max-memory-per-child=600000 \
@@ -233,6 +260,110 @@ services:
       cms-setup:
         condition: service_completed_successfully
 
+  user-init-worker:
+    extends:
+      service: task-worker
+    container_name: user-init-worker
+    environment:
+      CELERY_QUEUES: "user_init"
+      CELERY_AUTOSCALE_MAX: "${USER_INIT_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-2}}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9110"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
+             find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=user_init \
+             --concurrency=$${CELERY_AUTOSCALE_MAX} \
+             --max-tasks-per-child=50 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1"
+
+  core-worker:
+    extends:
+      service: task-worker
+    container_name: core-worker
+    environment:
+      CELERY_QUEUES: "persistence,health_check,server_stats,demo,e2e_tests,reminder,push"
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"
+      CELERY_METRICS_PORT: "9109"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
+             find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=persistence,health_check,server_stats,demo,e2e_tests,reminder,push \
+             --concurrency=${CELERY_AUTOSCALE_MAX} \
+             --max-tasks-per-child=50 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1"
+
+  workflow-worker:
+    container_name: workflow-worker
+    build:
+      context: ./api
+      dockerfile: Dockerfile.celery
+    restart: unless-stopped
+    user: root
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      TRANSLATIONS_DIR: "/translations"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      VAULT_URL: "http://vault:8200"
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
+      OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
+      MOCK_EXTERNAL_APIS: "true"
+      CELERY_QUEUES: "workflow"
+      CELERY_AUTOSCALE_MAX: "${WORKFLOW_WORKER_CONCURRENCY:-2}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9108"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=workflow \
+             --concurrency=$${CELERY_AUTOSCALE_MAX} \
+             --max-tasks-per-child=50 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1"
+    volumes:
+      - ../../backend:/app/backend
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      cms:
+        condition: service_healthy
+      vault-setup:
+        condition: service_completed_successfully
+      cms-setup:
+        condition: service_completed_successfully
+
   task-scheduler:
     container_name: task-scheduler
     build:
@@ -248,6 +379,10 @@ services:
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
+      OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
+      MOCK_EXTERNAL_APIS: "true"
     command: >
       sh -c "python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule"
     volumes:
@@ -294,6 +429,10 @@ services:
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}"
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
+      OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
+      MOCK_EXTERNAL_APIS: "true"
       CELERY_QUEUES: "app_ai" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
@@ -355,6 +494,7 @@ services:
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      MOCK_EXTERNAL_APIS: "true"
       CELERY_QUEUES: "app_images" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
@@ -382,6 +522,7 @@ services:
       # Mount entire i18n directory (includes sources YAML files and languages.json)
       - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
       - ../../shared:/shared
+      - ../../config/media_encryption_rollout.yml:/app/config/media_encryption_rollout.yml:ro
     networks:
       - openmates
     depends_on:
@@ -474,6 +615,7 @@ services:
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      MOCK_EXTERNAL_APIS: "true"
       CELERY_QUEUES: "app_videos"
       CELERY_AUTOSCALE_MAX: "${CELERY_VIDEOS_AUTOSCALE_MAX:-2}"
       CELERY_AUTOSCALE_MIN: "${CELERY_VIDEOS_AUTOSCALE_MIN:-1}"
@@ -499,6 +641,7 @@ services:
       - ../../frontend/packages/ui/src/i18n/locales:/translations
       - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
       - ../../shared:/shared
+      - ../../config/media_encryption_rollout.yml:/app/config/media_encryption_rollout.yml:ro
     networks:
       - openmates
     depends_on:

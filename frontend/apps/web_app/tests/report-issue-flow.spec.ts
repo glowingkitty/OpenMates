@@ -156,6 +156,66 @@ test.describe('Report Issue Flow', () => {
 		logCheckpoint('Admin-only report issue actions are hidden for a guest/non-admin context.');
 	});
 
+	test('Report issue API accepts long user-written titles', async ({ page }) => {
+		const logCheckpoint = createSignupLogger('REPORT_ISSUE_LONG_TITLE');
+		attachConsoleListeners(page, logCheckpoint);
+		attachNetworkListeners(page, logCheckpoint);
+
+		await loginToTestAccount(page, logCheckpoint);
+		await page.waitForFunction(async () => {
+			const debug = (window as any).debug;
+			const state = await debug?.state?.();
+			return Boolean(state?.user && state.user !== 'unavailable' && state.user.id);
+		}, null, { timeout: 10000 });
+
+		const longTitle = [
+			'Application generation issue: the application embed does not show while streaming, ',
+			'the generated application card keeps the generic Generated application title, ',
+			'the rendered app screenshot is missing, and the fullscreen preview sits on Loading ',
+			'with Ready to preview text for a long time without visible progress. ',
+			'This regression makes it unclear whether Gemini application generation is still working ',
+			'or whether the app preview has stalled, even though the final generated web app quality is good. ',
+			'Reporting this issue should not fail just because the short description includes ',
+			'the complete user-observed behavior and enough details for debugging.'
+		].join('');
+		expect(longTitle.length).toBeGreaterThan(500);
+
+		const response = await page.request.post(`${API_BASE_URL}/v1/settings/issues`, {
+			headers: { 'Content-Type': 'application/json' },
+			data: {
+				title: longTitle,
+				description: null,
+				issue_type: 'bug_report',
+				chat_or_embed_url: null,
+				contact_email: null,
+				language: 'en',
+				device_info: {
+					userAgent: 'report-issue-flow-long-title-e2e',
+					viewportWidth: 1280,
+					viewportHeight: 720,
+					isTouchEnabled: false,
+				},
+				console_logs: null,
+				indexeddb_report: null,
+				last_messages_html: null,
+				active_chat_sidebar_html: null,
+				runtime_debug_state: null,
+				action_history: null,
+				screenshot_png_base64: null,
+				picked_element_html: null,
+				trace_ids: [],
+				add_to_linear: false,
+				send_email_notification: false,
+			},
+		});
+
+		const responseBody = await response.json().catch(() => null);
+		logCheckpoint(`Long-title issue response: HTTP ${response.status()} ${JSON.stringify(responseBody)}`);
+		expect(response.status()).toBe(200);
+		expect(responseBody?.success).toBe(true);
+		expect(responseBody?.short_issue_id).toMatch(/^[A-HJ-NP-Z2-9]{5}$/);
+	});
+
 	test('Report issue form submits successfully and shows confirmation', async ({ page }) => {
 		const logCheckpoint = createSignupLogger('REPORT_ISSUE');
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {

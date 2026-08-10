@@ -42,6 +42,8 @@ export function resolveResultCount(c: Record<string, unknown>): number | null {
 	const embedIds = c.embed_ids;
 	if (typeof embedIds === 'string') return embedIds.split('|').filter(Boolean).length;
 	if (Array.isArray(embedIds)) return embedIds.length;
+	if (Array.isArray(c.results)) return c.results.length;
+	if (Array.isArray(c.preview_results)) return c.preview_results.length;
 	return null;
 }
 
@@ -49,7 +51,7 @@ export function resolveResultCount(c: Record<string, unknown>): number | null {
 
 import { renderWebSearch, renderWebRead, renderWebsite } from '../components/embeds/web/webEmbedText';
 import { renderTravelConnections, renderTravelStays, renderPriceCalendar, renderFlight, renderConnection, renderStay } from '../components/embeds/travel/travelEmbedText';
-import { renderApplication, renderCode, renderCodeDocs, renderCodeRepo, renderCodeRepoSearch } from '../components/embeds/code/codeEmbedText';
+import { renderApplication, renderCode, renderCodeDocs, renderCodeRepo, renderCodeRepoSearch, renderNotebook } from '../components/embeds/code/codeEmbedText';
 import { renderVideosSearch, renderVideoTranscript, renderVideoGenerate, renderVideoCreate, renderVideo } from '../components/embeds/videos/videoEmbedText';
 import { renderImageGenerate, renderImagesSearch, renderImage, renderImageResult } from '../components/embeds/images/imageEmbedText';
 import { renderMapsSearch, renderMapsPlace } from '../components/embeds/maps/mapsEmbedText';
@@ -60,17 +62,20 @@ import { renderHealthSearch, renderAppointment } from '../components/embeds/heal
 import { renderHomeSearch, renderListing } from '../components/embeds/home/homeEmbedText';
 import { renderSheet } from '../components/embeds/sheets/sheetsEmbedText';
 import { renderPdf } from '../components/embeds/pdf/pdfEmbedText';
-import { renderRecording, renderAudioTranscribe } from '../components/embeds/audio/audioEmbedText';
+import { renderRecording, renderAudioGenerate, renderAudioSpeak, renderAudioTranscribe } from '../components/embeds/audio/audioEmbedText';
 import { renderMusicGenerate } from '../components/embeds/music/musicEmbedText';
 import { renderMathCalculate, renderMathPlot } from '../components/embeds/math/mathEmbedText';
 import { renderReminder } from '../components/embeds/reminder/reminderEmbedText';
 import { renderShoppingSearch, renderShoppingProduct } from '../components/embeds/shopping/shoppingEmbedText';
 import { renderElectronicsSearch, renderElectronicsComponent, renderPcbSchematic } from '../components/embeds/electronics/electronicsEmbedText';
+import { renderDesignIconResult, renderDesignIconSearch } from '../components/embeds/design/designEmbedText';
 import { renderNutritionSearch, renderNutritionRecipe } from '../components/embeds/nutrition/nutritionEmbedText';
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
 import { renderSocialMediaGetPosts, renderSocialMediaPost, renderSocialMediaSearch } from '../components/embeds/social_media/socialMediaEmbedText';
 import { renderWeatherDay, renderWeatherForecast, renderWeatherRainRadar } from '../components/embeds/weather/weatherEmbedText';
+import { renderCompanyFinancialResult, renderCompanyFinancials } from '../components/embeds/business/businessEmbedText';
+import { normalizeFinanceOverview } from '../components/embeds/finance/financeCheckAccountsContent';
 import { renderMindMapText } from '../components/embeds/mindmaps/mindMapContent';
 
 // ── Renderer type ────────────────────────────────────────────────────────
@@ -96,6 +101,85 @@ function renderGenericAppSkill(content: Record<string, unknown>): string {
 	return lines.join('\n');
 }
 
+function renderModel3DSearch(content: Record<string, unknown>): string {
+	const query = str(content.query) ?? '3D model search';
+	const provider = str(content.provider) ?? 'Printables';
+	const count = resolveResultCount(content);
+	const lines = [`**3D Models | Search**`, `query: ${query}`, `provider: ${provider}`];
+	if (count !== null) lines.push(`results: ${count}`);
+	return lines.join('\n');
+}
+
+function renderModel3DResult(content: Record<string, unknown>): string {
+	const title = str(content.title) ?? '3D model';
+	const provider = str(content.provider);
+	const creator = str(content.creator_name);
+	const sourceUrl = str(content.source_page_url);
+	const lines = [`**${title}**`];
+	if (provider) lines.push(`provider: ${provider}`);
+	if (creator) lines.push(`creator: ${creator}`);
+	if (sourceUrl) lines.push(sourceUrl);
+	return lines.join('\n');
+}
+
+function renderTasksParent(content: Record<string, unknown>): string {
+	const skill = str(content.skill_id) === 'search' ? 'Search' : 'Create';
+	const query = str(content.query) ?? str(content.instruction) ?? str(content.title);
+	const count = resolveResultCount(content);
+	const lines = [`**Tasks | ${skill}**`];
+	if (query) lines.push(`query: ${query}`);
+	if (count !== null) lines.push(`tasks: ${count}`);
+	return lines.join('\n');
+}
+
+function renderTask(content: Record<string, unknown>): string {
+	const title = str(content.title) ?? 'Task';
+	const status = str(content.status);
+	const assignee = str(content.assignee) ?? str(content.assignee_type);
+	const description = str(content.description);
+	const lines = [`**${title}**`];
+	if (status) lines.push(`status: ${status}`);
+	if (assignee) lines.push(`assignee: ${assignee}`);
+	if (description) lines.push(trunc(description, 240));
+	return lines.join('\n');
+}
+
+function renderWorkflowsParent(content: Record<string, unknown>): string {
+	const skill = str(content.skill_id) === 'search' ? 'Search' : 'Create or modify';
+	const query = str(content.query) ?? str(content.instruction) ?? str(content.title);
+	const count = resolveResultCount(content);
+	const lines = [`**Workflows | ${skill}**`];
+	if (query) lines.push(`query: ${query}`);
+	if (count !== null) lines.push(`workflows: ${count}`);
+	return lines.join('\n');
+}
+
+function renderFinanceCheckAccounts(content: Record<string, unknown>): string {
+  const overview = normalizeFinanceOverview(content);
+  const accountCount = content.account_count ?? overview?.accounts?.length ?? resolveResultCount(content);
+  const transactionCount = content.transaction_count ?? overview?.transactions?.length;
+	const period = str(content.period);
+	const lines = ['**Finance | Check accounts**'];
+	if (period) lines.push(`period: ${period}`);
+	if (accountCount !== null && accountCount !== undefined) lines.push(`accounts: ${accountCount}`);
+	if (transactionCount !== null && transactionCount !== undefined) lines.push(`transactions: ${transactionCount}`);
+	const summary = str(content.summary) ?? str(content.overview);
+	if (summary) lines.push(trunc(summary, 240));
+	return lines.join('\n');
+}
+
+function renderWorkflow(content: Record<string, unknown>): string {
+	const title = str(content.title) ?? 'Workflow';
+	const status = str(content.status);
+	const trigger = str(content.trigger_summary);
+	const description = str(content.description);
+	const lines = [`**${title}**`];
+	if (status) lines.push(`status: ${status}`);
+	if (trigger) lines.push(`trigger: ${trigger}`);
+	if (description) lines.push(trunc(description, 240));
+	return lines.join('\n');
+}
+
 function renderMindMap(content: Record<string, unknown>): string {
 	return renderMindMapText(content);
 }
@@ -113,6 +197,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:news:search': renderNewsSearch,
 	'app:shopping:search_products': renderShoppingSearch,
 	'app:electronics:search_components': renderElectronicsSearch,
+	'app:design:search_icons': renderDesignIconSearch,
 	'app:nutrition:search_recipes': renderNutritionSearch,
 	'app:events:search': renderEventsSearch,
 	'app:videos:search': renderVideosSearch,
@@ -134,6 +219,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:travel:get_flight': renderFlight,
 	'app:images:generate': renderImageGenerate,
 	'app:images:generate_draft': renderImageGenerate,
+	'app:models3d:generate': renderGenericAppSkill,
+	'app:models3d:search': renderModel3DSearch,
 	'app:images:search': renderImagesSearch,
 	'app:images:view': renderImage,
 	'app:images:vectorize': renderGenericAppSkill,
@@ -146,7 +233,6 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:fitness:search_classes': renderFitnessSearch,
 	'app:openmates:share-usecase': renderGenericAppSkill,
 	'app:openmates:get-docs': renderGenericAppSkill,
-	'app:openmates:search-docs': renderGenericAppSkill,
 	'app:pdf:read': renderGenericAppSkill,
 	'app:pdf:search': renderGenericAppSkill,
 	'app:pdf:view': renderGenericAppSkill,
@@ -159,15 +245,24 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:reminder:set-reminder': renderReminder,
 	'app:reminder:list-reminders': renderReminder,
 	'app:reminder:cancel-reminder': renderReminder,
+	'app:audio:generate': renderAudioGenerate,
+	'app:audio:speak': renderAudioSpeak,
 	'app:audio:transcribe': renderAudioTranscribe,
 	'app:social_media:get-posts': renderSocialMediaGetPosts,
 	'app:social_media:search': renderSocialMediaSearch,
 	'app:weather:forecast': renderWeatherForecast,
 	'app:weather:rain_radar': renderWeatherRainRadar,
+	'app:business:company_financials': renderCompanyFinancials,
+	'app:finance:check_accounts': renderFinanceCheckAccounts,
+	'app:tasks:create': renderTasksParent,
+	'app:tasks:search': renderTasksParent,
+	'app:workflows:create-or-modify': renderWorkflowsParent,
+	'app:workflows:search': renderWorkflowsParent,
 
 	// ── Direct embeds ────────────────────────────────────────────────
 	'web-website': renderWebsite,
 	'code-code': renderCode,
+	'code-notebook': renderNotebook,
 	'code-application': renderApplication,
 	'code-repo': renderCodeRepo,
 	'docs-doc': renderDoc,
@@ -175,6 +270,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'pdf': renderPdf,
 	'image': renderImage,
 	'images-image-result': renderImageResult,
+	'models3d-model-result': renderModel3DResult,
 	'videos-video': renderVideo,
 	'travel-connection': renderConnection,
 	'travel-stay': renderStay,
@@ -193,9 +289,13 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'shopping-product': renderShoppingProduct,
 	'electronics-pcb-schematic': renderPcbSchematic,
 	'electronics-component': renderElectronicsComponent,
+	'design-icon-result': renderDesignIconResult,
 	'nutrition-recipe': renderNutritionRecipe,
 	'weather-day': renderWeatherDay,
+	'business-company-financial-result': renderCompanyFinancialResult,
 	'social-media-post': renderSocialMediaPost,
+	'tasks-task': renderTask,
+	'workflows-workflow': renderWorkflow,
 	'focus-mode-activation': (c) => {
 		const name = str(c.focus_mode_name) ?? '';
 		return `**Focus Mode**${name ? ` — ${name}` : ''}`;

@@ -12,6 +12,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
 
 const cleanupCalls: string[] = [];
+let autoLogoutAction: (() => void) | undefined;
+let lastAutoLogoutNotificationId = "";
 
 vi.mock("../../config/api", () => ({
   getApiEndpoint: vi.fn(() => "http://test/v1/auth/session"),
@@ -97,8 +99,20 @@ vi.mock("../../utils/cookies", () => ({
 }));
 
 vi.mock("../notificationStore", () => ({
+  SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY: "security-reminder",
   notificationStore: {
-    autoLogout: vi.fn(() => cleanupCalls.push("notificationStore.autoLogout")),
+    autoLogout: vi.fn((_message, _secondary, _duration, _title, options) => {
+      autoLogoutAction = options?.onAction;
+      lastAutoLogoutNotificationId = "auto-logout-notification-1";
+      cleanupCalls.push("notificationStore.autoLogout");
+      return lastAutoLogoutNotificationId;
+    }),
+    removeNotification: vi.fn((id: string) =>
+      cleanupCalls.push(`notificationStore.removeNotification:${id}`),
+    ),
+    removeNotificationsByDedupeKey: vi.fn((dedupeKey: string) =>
+      cleanupCalls.push(`notificationStore.removeNotificationsByDedupeKey:${dedupeKey}`),
+    ),
     error: vi.fn(),
   },
 }));
@@ -119,6 +133,10 @@ vi.mock("../activeChatStore", () => ({
   },
 }));
 
+vi.mock("../../demo_chats/exampleChatStore", () => ({
+  isExampleChat: vi.fn((chatId: string) => chatId.startsWith("example-")),
+}));
+
 vi.mock("../../services/drafts/sessionStorageDraftService", () => ({
   clearAllSessionStorageDrafts: vi.fn(() =>
     cleanupCalls.push("clearAllSessionStorageDrafts"),
@@ -133,6 +151,7 @@ vi.mock("../signupState", async () => {
     getStepFromPath: vi.fn(),
     STEP_ALPHA_DISCLAIMER: "alpha-disclaimer",
     isSignupPath: vi.fn(() => false),
+    isResettingTFA: { set: vi.fn(() => cleanupCalls.push("isResettingTFA.set")) },
     isLoggingOut: writable(false),
     forcedLogoutInProgress: writable(false),
     setForcedLogoutInProgress: vi.fn(),
@@ -300,7 +319,7 @@ class TestCustomEvent {
 }
 
 vi.stubGlobal("CustomEvent", TestCustomEvent);
-vi.stubGlobal("window", {
+Object.assign(window, {
   location: {
     hash: "",
     origin: "http://test",
@@ -330,14 +349,20 @@ vi.stubGlobal("sessionStorage", createStorageMock());
 
 import { checkAuth } from "../authSessionActions";
 import { authStore } from "../authState";
+import { loginInterfaceOpen, loginStayLoggedInRequested } from "../uiStateStore";
 
 describe("checkAuth auto logout cleanup", () => {
   beforeEach(() => {
     cleanupCalls.length = 0;
+    autoLogoutAction = undefined;
+    lastAutoLogoutNotificationId = "";
     vi.clearAllMocks();
     localStorage.clear();
     sessionStorage.clear();
+    window.location.hash = "#chat-id=old-private-chat";
     authStore.set({ isAuthenticated: true, isInitialized: false });
+    loginInterfaceOpen.set(false);
+    loginStayLoggedInRequested.set(false);
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ success: false, message: "not authenticated" }),
@@ -361,9 +386,26 @@ describe("checkAuth auto logout cleanup", () => {
     expect(cleanupCalls).toContain("resetChatNavigationList");
     expect(cleanupCalls).toContain("aiTypingStore.reset");
     expect(cleanupCalls).toContain("workflowWorkspaceStore.reset");
+    expect(window.location.hash).toBe("");
+    expect(cleanupCalls).toContain(
+      "notificationStore.removeNotificationsByDedupeKey:security-reminder",
+    );
 
     const authState = get(authStore);
     expect(authState.isAuthenticated).toBe(false);
     expect(authState.isInitialized).toBe(true);
+  });
+
+  it("dismisses the auto-logout notification when the login CTA is used", async () => {
+    await checkAuth(undefined, true);
+
+    expect(autoLogoutAction).toBeTypeOf("function");
+    autoLogoutAction?.();
+
+    expect(cleanupCalls).toContain(
+      `notificationStore.removeNotification:${lastAutoLogoutNotificationId}`,
+    );
+    expect(get(loginStayLoggedInRequested)).toBe(true);
+    expect(get(loginInterfaceOpen)).toBe(true);
   });
 });

@@ -1,0 +1,615 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-25'
+generated_at: '2026-07-09T15:11:17+00:00'
+range:
+  since: '2026-04-25T00:00:00+00:00'
+  until: '2026-04-25T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 10
+  section_counts:
+    features: 2
+    bug_fixes: 8
+    improvements: 0
+    docs: 0
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 8
+  user_facing_items: 8
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: show click/tap hint on finished embeds then fade to skill-name-only'
+    section: features
+    commits:
+    - 98131b250
+    authored_at: '2026-04-25T11:18:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add /clarify skill for structured bug/feature understanding'
+    section: features
+    commits:
+    - de8776c8a
+    authored_at: '2026-04-25T00:38:48+00:00'
+    changed_paths:
+    - .claude/skills/clarify/SKILL.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: disable Stripe Link wallet in Checkout Session; simplify managed payments spec'
+    section: bug_fixes
+    commits:
+    - d8c9ae1ae
+    authored_at: '2026-04-25T23:48:32+00:00'
+    changed_paths:
+    - backend/core/api/app/services/payment/stripe_service.py
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(test): soft add-payment-method check; handle Stripe Link OTP in managed payments'
+    section: bug_fixes
+    commits:
+    - dc9acccfe
+    authored_at: '2026-04-25T23:33:08+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(test): handle Stripe Link flow; use placeholder selectors for cardholder/address'
+    section: bug_fixes
+    commits:
+    - a5451297e
+    authored_at: '2026-04-25T23:11:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: gate IDB encrypted_chat_key write on injectKey acceptance; reject conflicting server key'
+    section: bug_fixes
+    commits:
+    - b105e8c1b
+    authored_at: '2026-04-25T23:09:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/services/encryption/__tests__/ChatKeyManager.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(test): fill cardholder name and billing address in managed payments spec'
+    section: bug_fixes
+    commits:
+    - 8a4bac522
+    authored_at: '2026-04-25T22:53:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: two-line title regression + hint skipping history-loaded embeds'
+    section: bug_fixes
+    commits:
+    - dc490d670
+    authored_at: '2026-04-25T22:49:52+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: Checkout Session embedded mode with onComplete callback (no page reload)'
+    section: bug_fixes
+    commits:
+    - e7b28c5be
+    authored_at: '2026-04-25T12:06:58+00:00'
+    changed_paths:
+    - backend/core/api/app/services/payment/stripe_service.py
+    - frontend/packages/ui/src/components/Payment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: switch Checkout to embedded mode with onComplete; add managed payments spec'
+    section: bug_fixes
+    commits:
+    - d4ff38da8
+    authored_at: '2026-04-25T12:05:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: disable Stripe Link wallet in Checkout Session; simplify managed payments spec'
+    commits:
+    - d8c9ae1ae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(test): soft add-payment-method check; handle Stripe Link OTP in managed payments'
+    commits:
+    - dc9acccfe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(test): handle Stripe Link flow; use placeholder selectors for cardholder/address'
+    commits:
+    - a5451297e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(test): fill cardholder name and billing address in managed payments spec'
+    commits:
+    - 8a4bac522
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: two-line title regression + hint skipping history-loaded embeds'
+    commits:
+    - dc490d670
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: Checkout Session embedded mode with onComplete callback (no page reload)'
+    commits:
+    - e7b28c5be
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: switch Checkout to embedded mode with onComplete; add managed payments spec'
+    commits:
+    - d4ff38da8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: show click/tap hint on finished embeds then fade to skill-name-only'
+    commits:
+    - 98131b250
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: disable Stripe Link wallet in Checkout Session; simplify managed payments spec'
+    commits:
+    - d8c9ae1ae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(test): soft add-payment-method check; handle Stripe Link OTP in managed payments'
+    commits:
+    - dc9acccfe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(test): handle Stripe Link flow; use placeholder selectors for cardholder/address'
+    commits:
+    - a5451297e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(test): fill cardholder name and billing address in managed payments spec'
+    commits:
+    - 8a4bac522
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: two-line title regression + hint skipping history-loaded embeds'
+    commits:
+    - dc490d670
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: Checkout Session embedded mode with onComplete callback (no page reload)'
+    commits:
+    - e7b28c5be
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: switch Checkout to embedded mode with onComplete; add managed payments spec'
+    commits:
+    - d4ff38da8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: show click/tap hint on finished embeds then fade to skill-name-only'
+    commits:
+    - 98131b250
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: d8c9ae1ae3db14ef105d3c2077c5c157b659df18
+    short_sha: d8c9ae1ae
+    authored_at: '2026-04-25T23:48:32+00:00'
+    subject: 'fix: disable Stripe Link wallet in Checkout Session; simplify managed payments spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/payment/stripe_service.py
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    related_feature_ids: []
+  - sha: dc9acccfeb27cc1aef905a5a2bc7f37c5f57b2bd
+    short_sha: dc9acccfe
+    authored_at: '2026-04-25T23:33:08+00:00'
+    subject: 'fix(test): soft add-payment-method check; handle Stripe Link OTP in managed payments'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    related_feature_ids: []
+  - sha: a5451297ef54bcb2776b2dc5c5688275a630caa5
+    short_sha: a5451297e
+    authored_at: '2026-04-25T23:11:22+00:00'
+    subject: 'fix(test): handle Stripe Link flow; use placeholder selectors for cardholder/address'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    related_feature_ids: []
+  - sha: b105e8c1bbdff51f6dad552cc848e013061740b1
+    short_sha: b105e8c1b
+    authored_at: '2026-04-25T23:09:22+00:00'
+    subject: 'fix: gate IDB encrypted_chat_key write on injectKey acceptance; reject conflicting server key'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/services/encryption/__tests__/ChatKeyManager.test.ts
+    related_feature_ids: []
+  - sha: 8a4bac522bf73d9d23dc7c27dbe7fd29d5a7def0
+    short_sha: 8a4bac522
+    authored_at: '2026-04-25T22:53:32+00:00'
+    subject: 'fix(test): fill cardholder name and billing address in managed payments spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    related_feature_ids: []
+  - sha: dc490d670cb264c3bdf9511f22fb937558ee4842
+    short_sha: dc490d670
+    authored_at: '2026-04-25T22:49:52+00:00'
+    subject: 'fix: two-line title regression + hint skipping history-loaded embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    related_feature_ids: []
+  - sha: e7b28c5beb157983a934a22d9e04c198ded38ac3
+    short_sha: e7b28c5be
+    authored_at: '2026-04-25T12:06:58+00:00'
+    subject: 'fix: Checkout Session embedded mode with onComplete callback (no page reload)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/payment/stripe_service.py
+    - frontend/packages/ui/src/components/Payment.svelte
+    related_feature_ids: []
+  - sha: d4ff38da8ae89adbe36bb7c5b0d6999e1b8fcf1e
+    short_sha: d4ff38da8
+    authored_at: '2026-04-25T12:05:16+00:00'
+    subject: 'fix: switch Checkout to embedded mode with onComplete; add managed payments spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    related_feature_ids: []
+  - sha: 98131b2502fabf55af45fc08eb9ebd4435e27f45
+    short_sha: 98131b250
+    authored_at: '2026-04-25T11:18:56+00:00'
+    subject: 'feat: show click/tap hint on finished embeds then fade to skill-name-only'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    related_feature_ids: []
+  - sha: de8776c8aaf36690c88215b0f1575c9a499b042e
+    short_sha: de8776c8a
+    authored_at: '2026-04-25T00:38:48+00:00'
+    subject: 'feat: add /clarify skill for structured bug/feature understanding'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/skills/clarify/SKILL.md
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates improved the payment experience by implementing an embedded Stripe Checkout flow and refined the user
+    interface for finished embeds with new interaction hints.
+  released_changes:
+  - text: The Stripe Checkout process now operates in an embedded mode, utilizing an onComplete callback to finalize transactions
+      without requiring a full page reload.
+    evidence:
+      commits:
+      - e7b28c5be
+      - d4ff38da8
+    release_status: released_main
+  - text: Finished embeds now display a temporary click or tap hint that fades out to show only the skill name, improving
+      discoverability of interactive elements.
+    evidence:
+      commits:
+      - 98131b250
+    release_status: released_main
+  bug_fixes:
+  - text: The payment flow was updated to handle Stripe Link OTP, billing address requirements, and cardholder name fields
+      more reliably.
+    evidence:
+      commits:
+      - d8c9ae1ae
+      - dc9acccfe
+      - a5451297e
+      - 8a4bac522
+    release_status: released_main
+  - text: A regression affecting two-line titles in the information bar was fixed, and hint logic was adjusted for embeds
+      loaded from history.
+    evidence:
+      commits:
+      - dc490d670
+    release_status: released_main
+  unreleased_progress:
+  - text: Development of the internal /clarify skill for structured feature understanding.
+    evidence:
+      commits:
+      - de8776c8a
+    release_status: released_main
+  - text: Hardening of IndexedDB encryption logic for chat key management.
+    evidence:
+      commits:
+      - b105e8c1b
+    release_status: released_main
+  internal_progress:
+  - text: A new /clarify skill was introduced to assist in structured understanding of bugs and features.
+    evidence:
+      commits:
+      - de8776c8a
+    release_status: released_main
+  - text: Encryption management for chat keys was updated to gate IndexedDB writes on key acceptance and reject conflicting
+      server keys.
+    evidence:
+      commits:
+      - b105e8c1b
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Embedded Stripe Checkout flow
+      evidence:
+        commits:
+        - e7b28c5be
+        - d4ff38da8
+      reason: The transition to an embedded checkout flow significantly improves the user experience by removing unnecessary
+        page reloads.
+    - text: Interaction hints for finished embeds
+      evidence:
+        commits:
+        - 98131b250
+      reason: New interaction hints improve the discoverability of interactive elements within finished embeds.
+    exclude:
+    - text: Internal /clarify skill
+      evidence:
+        commits:
+        - de8776c8a
+      reason: This is an internal-only skill for development and bug understanding.
+    - text: Encryption key management updates
+      evidence:
+        commits:
+        - b105e8c1b
+      reason: This update covers internal encryption logic and database management.
+    rationale: The updates to the payment flow and embed UI provide immediate, visible improvements to the user experience
+      and transaction reliability.
+  social_video_recommendations:
+  - idea: A short clip showing the seamless transition of the new embedded payment flow without page reloads.
+    priority: high
+    reason: This is a major UX improvement for the core monetization flow.
+    evidence:
+      commits:
+      - e7b28c5be
+      - d4ff38da8
+  - idea: A demonstration of the new fade-out hints on finished embeds to show how they guide user interaction.
+    priority: medium
+    reason: Visual UI improvements are well-suited for social media demonstrations.
+    evidence:
+      commits:
+      - 98131b250
+  quality_notes:
+  - Focus on payment reliability and UI polish.
+  - Transition to embedded checkout improves transaction flow stability.
+  validation_warnings: []

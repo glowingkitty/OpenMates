@@ -10,10 +10,12 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
+let signupEmailForCleanup: string | null = null;
 
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 	networkActivities.length = 0;
+	signupEmailForCleanup = null;
 });
 
 // eslint-disable-next-line no-empty-pattern
@@ -26,6 +28,9 @@ test.afterEach(async ({}, testInfo: any) => {
 		console.log('\n[RECENT NETWORK ACTIVITIES]');
 		networkActivities.slice(-20).forEach((activity) => console.log(activity));
 		console.log('\n--- END DEBUG INFO ---\n');
+		await cleanupFailedSignupAccount(signupEmailForCleanup, console.log, {
+			testFile: testInfo.file || 'signup-skip-2fa-flow.spec.ts'
+		});
 	}
 });
 
@@ -34,6 +39,8 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
+	validateSignupInviteIfRequired,
+	cleanupFailedSignupAccount,
 	getSignupTestDomain,
 	buildSignupEmail,
 	createEmailClient,
@@ -99,10 +106,12 @@ test('lookup response does not reveal whether an account exists', async ({ reque
 
 test('completes password signup, login with password, and delete account via email OTP', async ({
 	page,
-	context
+	context,
+	request
 }: {
 	page: any;
 	context: any;
+	request: any;
 }) => {
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
@@ -148,6 +157,8 @@ test('completes password signup, login with password, and delete account via ema
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
 	const signupEmail = buildSignupEmail(signupDomain);
+	signupEmailForCleanup = signupEmail;
+	const adminApiKey = process.env.OPENMATES_TEST_ACCOUNT_API_KEY;
 	// For Gmail +alias emails (openmates.e2e+apr121910@gmail.com), extract only
 	// the time-based part after '+' as the username, since '+' may not be valid
 	// in usernames and the base part would collide across runs.
@@ -180,9 +191,12 @@ test('completes password signup, login with password, and delete account via ema
 	await page.getByRole('button', { name: /continue/i }).click();
 	await takeStepScreenshot(page, 'basics-step');
 
+	await validateSignupInviteIfRequired(page, logSignupCheckpoint);
+
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 	const usernameInput = page.locator('input[autocomplete="username"]');
 	await expect(emailInput).toBeVisible({ timeout: 10000 });
+	await expect(usernameInput).toBeVisible({ timeout: 10000 });
 	await emailInput.fill(signupEmail);
 	await usernameInput.fill(signupUsername);
 
@@ -221,6 +235,38 @@ test('completes password signup, login with password, and delete account via ema
 	// container also exists in guest chrome, so require the authenticated chat editor.
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'chat-after-signup');
+
+	if (adminApiKey) {
+		const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
+		const apiUrl = deriveApiUrl(baseUrl);
+		const lifecycleContactResponse = await request.post(`${apiUrl}/v1/auth/verify_signup_lifecycle_contact`, {
+			headers: {
+				Authorization: `Bearer ${adminApiKey}`,
+				'Content-Type': 'application/json'
+			},
+			data: {
+				hashed_email: sha256Base64(signupEmail.trim().toLowerCase()),
+				expected_email: signupEmail,
+				test_file: 'signup-skip-2fa-flow.spec.ts'
+			}
+		});
+		const lifecycleContactBody = await lifecycleContactResponse.json().catch(() => ({}));
+		expect(lifecycleContactResponse.ok(), JSON.stringify(lifecycleContactBody)).toBeTruthy();
+		expect(lifecycleContactBody).toMatchObject({
+			success: true,
+			row_exists: true,
+			decrypt_matches: true,
+			purpose: 'account_lifecycle',
+			source: 'signup'
+		});
+		logSignupCheckpoint('Verified signup lifecycle contact email row.', {
+			row_exists: lifecycleContactBody.row_exists,
+			decrypt_matches: lifecycleContactBody.decrypt_matches,
+			source: lifecycleContactBody.source
+		});
+	} else {
+		logSignupCheckpoint('Skipped lifecycle contact verification because OPENMATES_TEST_ACCOUNT_API_KEY is unavailable.');
+	}
 
 	// Logout
 	const signupLogoutButton = page.getByRole('button', { name: /logout/i }).first();

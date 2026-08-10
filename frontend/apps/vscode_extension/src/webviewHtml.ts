@@ -25,7 +25,7 @@ export interface WebviewSmokeLoginConfig {
 }
 
 export const VSCODE_REMOTE_ACCESS_SETUP_COPY =
-  "Install and start the OpenMates CLI on each machine where you want OpenMates to access project files.";
+  "Run the OpenMates CLI in the foreground on each machine where you want read-only access to project files. Closing it marks the source offline.";
 
 export function getWebviewHtml(options: WebviewHtmlOptions): string {
   if (options.bundledAppHtml && options.resolveBundledAssetUri) {
@@ -58,7 +58,7 @@ export function getWebviewHtml(options: WebviewHtmlOptions): string {
         <p>${escapeHtml(VSCODE_REMOTE_ACCESS_SETUP_COPY)}</p>
         <pre><code>npm install -g openmates
 openmates login
-openmates remote-access start --path ./my-project</code></pre>
+openmates remote-access --path ./my-project</code></pre>
       </section>
     </div>
     <script nonce="${options.nonce}" src="${options.scriptUri}"></script>
@@ -77,7 +77,7 @@ function getBundledAppHtml(options: WebviewHtmlOptions): string {
     remoteAccessSetupCopy: VSCODE_REMOTE_ACCESS_SETUP_COPY,
     smokeLogin: Boolean(options.smokeLogin),
   }));
-  const setupHtml = `<section class="openmates-vscode-setup" data-testid="vscode-remote-access-setup"><strong>VS Code setup:</strong> ${escapeHtml(VSCODE_REMOTE_ACCESS_SETUP_COPY)} <code>openmates remote-access start --path ./my-project</code></section>`;
+  const setupHtml = `<section class="openmates-vscode-setup" data-testid="vscode-remote-access-setup"><strong>VS Code setup:</strong> ${escapeHtml(VSCODE_REMOTE_ACCESS_SETUP_COPY)} <code>openmates remote-access --path ./my-project</code></section>`;
   const cspMeta = `<meta http-equiv="Content-Security-Policy" content="${escapeHtml(csp)}" />`;
   const configScript = `<script nonce="${options.nonce}" id="openmates-vscode-config" type="application/json">${config}</script>`;
   const bootstrapStyle = `<style nonce="${options.nonce}">${BOOTSTRAP_CSS}</style>`;

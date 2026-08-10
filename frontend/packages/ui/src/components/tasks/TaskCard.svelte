@@ -6,19 +6,30 @@
 -->
 
 <script lang="ts">
-  import type { UserTaskStatus, UserTaskViewModel } from '../../services/userTaskService';
+  import {
+    isWorkflowRunTaskProjectionViewModel,
+    type TasksBoardItem,
+    type UserTaskStatus,
+  } from '../../services/userTaskService';
 
   let {
     task,
     onMove,
     onStartAI,
+    onSkip,
+    onDelete,
+    onCancelWorkflowRun,
   }: {
-    task: UserTaskViewModel;
-    onMove: (task: UserTaskViewModel, status: UserTaskStatus) => void;
-    onStartAI: (task: UserTaskViewModel) => void;
+    task: TasksBoardItem;
+    onMove: (task: TasksBoardItem, status: UserTaskStatus) => void;
+    onStartAI: (task: TasksBoardItem) => void;
+    onSkip: (task: TasksBoardItem) => void;
+    onDelete: (task: TasksBoardItem) => void;
+    onCancelWorkflowRun: (task: TasksBoardItem) => void;
   } = $props();
 
   const statuses: UserTaskStatus[] = ['backlog', 'todo', 'in_progress', 'blocked', 'done'];
+  let workflowRun = $derived(isWorkflowRunTaskProjectionViewModel(task) ? task : null);
 
   function handleDragStart(event: DragEvent): void {
     event.dataTransfer?.setData('application/x-openmates-task-id', task.task_id);
@@ -33,22 +44,21 @@
 
 <article
   class="task-card"
-  draggable="true"
+  draggable={!workflowRun}
   ondragstart={handleDragStart}
   data-testid="task-card"
   data-task-id={task.task_id}
 >
   <div class="task-card-main">
-    <label class="done-toggle">
+    {#if !workflowRun}<label class="done-toggle" data-testid="task-done-toggle">
       <input
         type="checkbox"
         checked={task.status === 'done'}
         onchange={() => onMove(task, task.status === 'done' ? 'todo' : 'done')}
         aria-label={`Mark ${task.title || 'task'} done`}
-        data-testid="task-done-toggle"
       />
       <span></span>
-    </label>
+    </label>{/if}
     <div class="task-card-copy">
       <h3>{task.title || 'Untitled task'}</h3>
       {#if task.description}
@@ -66,20 +76,43 @@
   {/if}
 
   <footer class="task-card-footer">
-    <span class="assignee" data-assignee={task.assigneeType}>{task.assigneeType === 'ai' ? 'AI task' : 'My task'}</span>
+    <span class="assignee" data-assignee={task.assigneeType}>{workflowRun ? 'Workflow run' : task.assigneeType === 'ai' ? 'AI task' : 'My task'}</span>
     {#if task.dueAt}
       <span class="due">Due {new Date(task.dueAt * 1000).toLocaleDateString()}</span>
     {/if}
   </footer>
 
   <div class="task-actions" aria-label="Move task">
-    {#each statuses as status}
-      {#if status !== task.status}
-        <button type="button" onclick={() => onMove(task, status)} data-testid={`task-move-${status}`}>{formatStatus(status)}</button>
+    {#if workflowRun}
+      <a href={`/workflows#workflow-id=${encodeURIComponent(workflowRun.workflowId)}&workflow-tab=details`} data-testid="workflow-open">Open workflow</a>
+      {#if workflowRun.workflowRunId}
+        <a href={`/workflows#workflow-id=${encodeURIComponent(workflowRun.workflowId)}&workflow-tab=runs&run-id=${encodeURIComponent(workflowRun.workflowRunId)}`} data-testid="workflow-run-open">Open workflow run</a>
       {/if}
-    {/each}
-    {#if task.assigneeType !== 'ai' || task.status !== 'in_progress'}
+      {#if workflowRun.canCancel}
+        <button type="button" onclick={() => onCancelWorkflowRun(workflowRun)} data-testid="workflow-run-cancel">Cancel run</button>
+      {/if}
+      {#if workflowRun.canDelete}
+        <button type="button" onclick={() => onDelete(workflowRun)} data-testid="workflow-next-run-skip">Skip next run</button>
+      {/if}
+    {:else}
+      <a href={`/tasks/${encodeURIComponent(task.task_id)}`} data-testid="task-detail-link">Open</a>
+      {#each statuses as status}
+        {#if status !== task.status}
+          <button type="button" onclick={() => onMove(task, status)} data-testid={`task-move-${status}`}>{formatStatus(status)}</button>
+        {/if}
+      {/each}
+      {#if task.status !== 'blocked'}
+        <button type="button" onclick={() => onMove(task, 'blocked')} data-testid="task-block-button">Block</button>
+      {:else}
+        <button type="button" onclick={() => onMove(task, 'todo')} data-testid="task-unblock-button">Unblock</button>
+      {/if}
+      {#if task.status !== 'backlog'}
+        <button type="button" onclick={() => onSkip(task)} data-testid="task-skip-button">Skip</button>
+      {/if}
+      {#if task.assigneeType !== 'ai' || task.status !== 'in_progress'}
       <button class="ai-action" type="button" onclick={() => onStartAI(task)} data-testid="task-start-ai">Start with AI</button>
+      {/if}
+      <button class="danger-action" type="button" onclick={() => onDelete(task)} data-testid="task-delete-button">Delete</button>
     {/if}
   </div>
 </article>
@@ -103,9 +136,22 @@
     gap: 12px;
   }
 
+  .done-toggle {
+    position: relative;
+    display: inline-grid;
+    flex: 0 0 44px;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+  }
+
   .done-toggle input {
     position: absolute;
+    width: 1px;
+    height: 1px;
     opacity: 0;
+    pointer-events: none;
   }
 
   .done-toggle span {
@@ -188,8 +234,24 @@
     cursor: pointer;
   }
 
+  .task-actions a {
+    display: grid;
+    min-width: 44px;
+    min-height: 44px;
+    place-items: center;
+    border-radius: var(--radius-full);
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+    font-size: var(--font-size-xs);
+  }
+
   .task-actions .ai-action {
     background: var(--color-button-primary);
     color: var(--color-font-button);
+  }
+
+  .task-actions .danger-action {
+    background: var(--color-error, #c83a32);
+    color: var(--color-grey-0);
   }
 </style>

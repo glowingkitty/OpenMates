@@ -11,6 +11,9 @@ Architecture context: docs/architecture/infrastructure/cronjobs.md
 
 from __future__ import annotations
 
+import argparse
+import hashlib
+import json
 import re
 from collections import Counter
 from dataclasses import asdict, dataclass
@@ -18,8 +21,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
+from provider_requirements_manifest import build_manifest, missing_provider_metadata
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+SETTINGS_ROOT = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "components" / "settings"
+SETTINGS_ELEMENTS_ROOT = SETTINGS_ROOT / "elements"
+SETTINGS_RULESET_VERSION = 1
 
 SEVERITY_ORDER = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
 MAX_FINDINGS_PER_RULE = 25
@@ -245,14 +253,52 @@ def _collect_tag(lines: list[str], start_index: int) -> tuple[str, int]:
     return tag, index
 
 
-def audit_settings_ui_contract() -> list[Finding]:
+def _settings_files(paths: Iterable[Path | str] | None = None) -> list[Path]:
+    if paths is None:
+        return sorted(_iter_files(SETTINGS_ROOT, (".svelte",)))
+
+    settings_root = SETTINGS_ROOT.resolve()
+    scoped: set[Path] = set()
+    for raw_path in paths:
+        path = Path(raw_path)
+        candidate = path if path.is_absolute() else REPO_ROOT / path
+        candidate = candidate.resolve()
+        try:
+            candidate.relative_to(settings_root)
+        except ValueError as exc:
+            raise ValueError(f"Settings audit path is outside {SETTINGS_ROOT.relative_to(REPO_ROOT)}: {raw_path}") from exc
+        if not candidate.is_file() or candidate.suffix != ".svelte":
+            raise ValueError(f"Settings audit path must be an existing .svelte file: {raw_path}")
+        scoped.add(candidate)
+    return sorted(scoped)
+
+
+def settings_component_inventory() -> list[str]:
+    return sorted(path.stem for path in _iter_files(SETTINGS_ELEMENTS_ROOT, (".svelte",)))
+
+
+def settings_scope_manifest(paths: Iterable[Path | str]) -> dict:
+    files = [
+        {"path": _rel(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        for path in _settings_files(paths)
+    ]
+    inventory = settings_component_inventory()
+    snapshot_payload = {
+        "ruleset_version": SETTINGS_RULESET_VERSION,
+        "canonical_components": inventory,
+        "files": files,
+    }
+    encoded = json.dumps(snapshot_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {**snapshot_payload, "snapshot_id": f"sha256:{hashlib.sha256(encoded).hexdigest()}"}
+
+
+def audit_settings_ui_contract(paths: Iterable[Path | str] | None = None) -> list[Finding]:
     """Find deterministic settings UI contract violations."""
     findings: list[Finding] = []
-    settings_root = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "components" / "settings"
     hardcoded_color = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(")
     interactive_tag = re.compile(r"<\s*(button|input|select|textarea)\b")
 
-    for path in _iter_files(settings_root, (".svelte",)):
+    for path in _settings_files(paths):
         rel = _rel(path)
         lines = _read_lines(path)
         in_style_block = False
@@ -318,6 +364,23 @@ def audit_settings_ui_contract() -> list[Finding]:
                         recommendation="Prefer canonical components from settings/elements for settings controls.",
                     )
     return findings
+
+
+def build_settings_scope_report(paths: Iterable[Path | str]) -> dict:
+    manifest = settings_scope_manifest(paths)
+    findings = sorted(
+        audit_settings_ui_contract(item["path"] for item in manifest["files"]),
+        key=lambda item: (-SEVERITY_ORDER[item.severity], item.file, item.line, item.rule_id),
+    )
+    return {
+        "job": "settings-ui-scope-audit",
+        **manifest,
+        "summary": {
+            "total_findings": len(findings),
+            "counts_by_rule": dict(sorted(Counter(item.rule_id for item in findings).items())),
+        },
+        "findings": [asdict(finding) for finding in findings],
+    }
 
 
 def _simple_yaml_provider_blocks(lines: list[str]) -> list[tuple[int, str, list[str]]]:
@@ -480,11 +543,33 @@ def audit_export_import_contract() -> list[Finding]:
     return findings
 
 
+def audit_provider_requirements_contract() -> list[Finding]:
+    """Ensure provider YAML auth metadata can feed update preflight manifests."""
+
+    findings: list[Finding] = []
+    manifest = build_manifest()
+    for provider_id in missing_provider_metadata(manifest):
+        provider = next(item for item in manifest["providers"] if item["provider_id"] == provider_id)
+        _add(
+            findings,
+            audit="provider-requirements-contract",
+            rule_id="PROVIDER-AUTH-METADATA-MISSING",
+            severity="high",
+            file=provider["source"],
+            line=1,
+            title="Provider YAML lacks explicit auth requirement metadata",
+            evidence=provider_id,
+            recommendation="Add required_keys, optional_keys, or no_api_key: true so update preflight can diff provider requirements.",
+        )
+    return findings
+
+
 AUDITS = {
     "architecture-boundaries": audit_architecture_boundaries,
     "encryption-key-paths": audit_encryption_key_paths,
     "settings-ui-contract": audit_settings_ui_contract,
     "app-skill-contracts": audit_app_skill_contracts,
+    "provider-requirements-contract": audit_provider_requirements_contract,
     "export-import-contract": audit_export_import_contract,
 }
 
@@ -549,3 +634,20 @@ def should_fail(report: dict, threshold: str | None) -> bool:
     if threshold is None:
         return False
     return any(severity_at_or_above(item["severity"], threshold) for item in report.get("findings", []))
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Run a deterministic scoped settings UI contract audit.")
+    parser.add_argument("--settings-path", action="append", required=True, help="Settings .svelte path to audit. Repeatable.")
+    parser.add_argument("--fail-on", choices=sorted(SEVERITY_ORDER, key=SEVERITY_ORDER.get), default=None)
+    args = parser.parse_args(argv)
+    try:
+        report = build_settings_scope_report(args.settings_path)
+    except ValueError as exc:
+        parser.error(str(exc))
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return 1 if should_fail(report, args.fail_on) else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -5,14 +5,22 @@
  * Access at: /dev/preview/embeds/web/WebsiteEmbedFullscreen
  */
 
-/** Default props — shows a fullscreen website view with metadata */
-const defaultProps = {
+const decodedContent = {
   url: "https://svelte.dev",
   title: "Svelte — Cybernetically enhanced web apps",
   description:
     "Svelte is a radical new approach to building user interfaces. Write less code, use no virtual DOM, and create truly reactive apps.",
   favicon: "https://svelte.dev/favicon.png",
   image: "",
+};
+
+/** Default props — shows a fullscreen website view with metadata */
+const defaultProps = {
+  data: {
+    decodedContent,
+    embedData: { status: "finished" },
+    attrs: { app_id: "web", skill_id: "website" },
+  },
   onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: false,
@@ -34,12 +42,18 @@ export const variants = {
   /** With extra snippets */
   withSnippets: {
     ...defaultProps,
-    url: "https://github.com/sveltejs/svelte",
-    title: "sveltejs/svelte: Cybernetically enhanced web apps",
-    extra_snippets: [
-      "Svelte shifts work from the browser to a compile step that happens when you build your app.",
-      "Instead of using techniques like virtual DOM diffing, Svelte writes code that updates the DOM when state changes.",
-    ],
+    data: {
+      ...defaultProps.data,
+      decodedContent: {
+        ...decodedContent,
+        url: "https://github.com/sveltejs/svelte",
+        title: "sveltejs/svelte: Cybernetically enhanced web apps",
+        extra_snippets: [
+          "Svelte shifts work from the browser to a compile step that happens when you build your app.",
+          "Instead of using techniques like virtual DOM diffing, Svelte writes code that updates the DOM when state changes.",
+        ],
+      },
+    },
   },
 
   /** Opened from a source quote — quoted text should be highlighted in the source content */
@@ -64,7 +78,10 @@ export const variants = {
 
   /** Minimal — just URL, no prefetched metadata */
   minimal: {
-    url: "https://svelte.dev/page",
+    data: {
+      ...defaultProps.data,
+      decodedContent: { url: "https://svelte.dev/page" },
+    },
     onClose: () => {},
   },
 };

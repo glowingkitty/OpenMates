@@ -110,8 +110,7 @@ The main exceptions are browser-bound or high-risk account operations that canno
 | Share debug logs | Full | `settings privacy debug-logs share` prompts for consent unless `--confirm`/`--yes`. |
 | Reminders | Full | `settings reminders list/update/delete`; deletion requires confirmation unless `--yes`. |
 | Chat/backup notification preferences | Full | `settings notifications status/list/stream`, `email set`, and `backup set` use the web app's notification and WebSocket settings contracts. |
-| API key list/revoke | Full for safe actions | `settings developers api-keys list/revoke`. |
-| API key create | Web-only | Secret shown once and developer-device approval should stay browser-first unless a separate secure CLI design is approved. |
+| API key list/create/revoke | Full | `settings developers api-keys list/create/revoke`; key material is generated locally, plaintext is shown once, and generic raw settings mutation stays blocked. |
 | Developer devices | Web-only | Device approvals/revocations are sensitive. |
 | Webhooks | Missing | Web route exists; backend/API surface needs audit before CLI exposure. |
 | Support issue report | Full | `settings report-issue create/status`. |

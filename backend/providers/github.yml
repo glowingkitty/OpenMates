@@ -8,3 +8,10 @@ description: "Code hosting and collaboration platform used for public repository
 logo_svg: "logos/github.svg"
 region: "US"
 privacy_policy: "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
+optional_keys:
+  - env_key: "SECRET__GITHUB__TOKEN"
+    vault_path: "kv/data/providers/github"
+    vault_key: "token"
+    description: "Optional GitHub token for higher public API limits."
+    setup_url: "https://github.com/settings/tokens"
+    docs_url: "https://docs.github.com/en/rest/authentication/authenticating-to-the-rest-api"

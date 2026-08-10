@@ -1,0 +1,47 @@
+# backend/core/directus/schemas/notebook_run_outputs.yml
+#
+# Encrypted sidecar storage for Jupyter notebook cell outputs. These rows are
+# keyed by notebook embed and encrypted with that embed's key so notebook source
+# and user-specific execution output stay separate.
+notebook_run_outputs:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Primary Key — client-generated uuid for the output row."
+
+    chat_id:
+      type: string
+      note: "[Indexed] Chat containing the notebook embed. Plaintext for auth and sync routing."
+
+    notebook_embed_id:
+      type: string
+      note: "[Indexed] Notebook embed this output belongs to."
+
+    author_user_id:
+      type: string
+      note: "[Indexed] User id that ran the notebook. Used for owner-device sync and update authorization."
+
+    source_version:
+      type: string
+      note: "Optional notebook source/version identifier used to show stale outputs after source edits."
+
+    key_version:
+      type: integer
+      note: "Reserved for future key rotation diagnostics. Payload is encrypted with the embed key."
+
+    encrypted_payload:
+      type: textfield
+      note: "[Encrypted] JSON blob containing per-cell outputs, status, errors, timing, and saved_at."
+
+    created_at:
+      type: integer
+      note: "Unix timestamp (seconds) when the output row was created."
+
+    updated_at:
+      type: integer
+      note: "Unix timestamp (seconds) when the output row was last updated."
+
+  indexes:
+    - fields: [chat_id, notebook_embed_id, author_user_id]
+      unique: true

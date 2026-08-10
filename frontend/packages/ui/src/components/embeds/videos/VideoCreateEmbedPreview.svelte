@@ -15,8 +15,9 @@
   import VideoTimeline from './VideoTimeline.svelte';
   import { parseRemotionTimeline, type VideoManifest } from '../../../utils/remotionTimelineParser';
   import { fetchAndDecryptAudio, releaseCachedAudio } from '../audio/audioEmbedCrypto';
+  import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
 
-  interface VideoFileVariant { s3_key: string; mime_type?: string; duration_seconds?: number; }
+  interface VideoFileVariant { s3_key: string; mime_type?: string; duration_seconds?: number; aes_nonce?: string; encryption?: string; }
   type RemotionStatus = 'processing' | 'rendering' | 'finished' | 'error' | 'cancelled' | 'needs_rerender';
 
   interface Props {
@@ -72,10 +73,10 @@
   $effect(() => {
     if (initialVideoUrl && !videoUrl) videoUrl = initialVideoUrl;
     if (initialThumbnailUrl && !thumbnailUrl) thumbnailUrl = initialThumbnailUrl;
-    if (currentStatus === 'finished' && currentFiles?.original?.s3_key && currentS3BaseUrl && currentAesKey && currentAesNonce && !videoUrl) {
+    if (currentStatus === 'finished' && currentFiles?.original?.s3_key && currentS3BaseUrl && currentAesKey && hasMediaEncryptionMetadata(currentFiles.original, currentAesNonce) && !videoUrl) {
       void loadVideo();
     }
-    if (currentStatus === 'finished' && currentFiles?.thumbnail?.s3_key && currentS3BaseUrl && currentAesKey && currentAesNonce && !thumbnailUrl) {
+    if (currentStatus === 'finished' && currentFiles?.thumbnail?.s3_key && currentS3BaseUrl && currentAesKey && hasMediaEncryptionMetadata(currentFiles.thumbnail, currentAesNonce) && !thumbnailUrl) {
       void loadThumbnail();
     }
   });
@@ -88,14 +89,14 @@
   async function loadVideo() {
     const file = currentFiles?.original;
     if (!file?.s3_key) return;
-    videoUrl = await fetchAndDecryptAudio(currentS3BaseUrl, file.s3_key, currentAesKey, currentAesNonce, file.mime_type || 'video/mp4');
+    videoUrl = await fetchAndDecryptAudio(currentS3BaseUrl, file.s3_key, currentAesKey, currentAesNonce, file.mime_type || 'video/mp4', file);
     retainedVideoKey = file.s3_key;
   }
 
   async function loadThumbnail() {
     const file = currentFiles?.thumbnail;
     if (!file?.s3_key) return;
-    thumbnailUrl = await fetchAndDecryptAudio(currentS3BaseUrl, file.s3_key, currentAesKey, currentAesNonce, file.mime_type || 'image/png');
+    thumbnailUrl = await fetchAndDecryptAudio(currentS3BaseUrl, file.s3_key, currentAesKey, currentAesNonce, file.mime_type || 'image/png', file);
     retainedThumbnailKey = file.s3_key;
   }
 
@@ -163,12 +164,12 @@
 
 <style>
   .preview-details { width: 100%; height: 100%; display: flex; flex-direction: column; padding: 10px 12px 4px; box-sizing: border-box; overflow: hidden; }
-  .thumbnail-wrapper { position: relative; flex: 1; border-radius: 6px; overflow: hidden; background: var(--color-grey-15, #eee); }
+  .thumbnail-wrapper { position: relative; flex: 1; border-radius: var(--radius-2); overflow: hidden; background: var(--color-grey-20, #eee); }
   .thumbnail { width: 100%; height: 100%; object-fit: cover; }
   .play-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.25); opacity: 0; transition: opacity 0.15s; }
   .thumbnail-wrapper:hover .play-overlay { opacity: 1; }
-  .play-icon { font-size: 32px; color: white; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)); }
-  .duration-badge { position: absolute; bottom: 6px; right: 6px; padding: 2px 6px; border-radius: 4px; background: rgba(0, 0, 0, 0.7); color: white; font-size: 10px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .play-icon { font-size: var(--font-size-xxxl); color: white; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)); }
+  .duration-badge { position: absolute; bottom: 6px; right: 6px; padding: 2px 6px; border-radius: var(--radius-1); background: rgba(0, 0, 0, 0.7); color: white; font-size: var(--font-size-micro); font-weight: 500; font-variant-numeric: tabular-nums; }
   .timeline-wrapper { flex: 1; display: flex; flex-direction: column; gap: 4px; }
   .title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .video-title { font-size: 12px; font-weight: 500; color: var(--color-font-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

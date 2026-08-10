@@ -203,6 +203,8 @@ async def verify_authenticated_user(
             logger.warning("Invalid user data - missing user_id")
             return False, {}, refresh_token, "authentication_failed"
 
+        await directus_service.admin.repair_cached_admin_status(user_id, user_data)
+
         # If device verification is required
         if require_known_device:
             # Generate simplified device fingerprint hash

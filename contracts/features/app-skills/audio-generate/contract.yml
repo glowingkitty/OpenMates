@@ -1,0 +1,221 @@
+schema_version: 1
+id: feature.app-skill.audio-generate
+version: 1
+status: approved
+title: Audio Generate Sound Effects
+summary: >
+  Generate short non-speech sound effects from text prompts and expose them as
+  safe, billable, playable generated-audio results consistently across
+  OpenMates platforms.
+
+inherits:
+  - architecture.app-skill-execution@1
+  - architecture.platform-parity@1
+
+scope:
+  includes:
+    - Short UI and product sound-effect generation from text prompts
+    - Direct synchronous responses only when live provider latency remains suitable
+    - Playable generated-audio app-skill embeds with binary fields excluded from model inference
+    - Real ElevenLabs provider use through OpenMates-managed credentials
+  excludes:
+    - Text-to-speech, narration, singing, vocals, or spoken words
+    - Voice cloning, user-uploaded voice samples, or raw provider voice IDs
+    - Long-form music generation, audio-book generation, or automatic assistant voice playback
+    - Unauthenticated or public anonymous audio generation
+
+models:
+  AudioGenerateRequest:
+    requests:
+      type: array
+      required: true
+      items: AudioGenerateRequestItem
+      constraints: {min_items: 1, max_items: 5}
+
+  AudioGenerateRequestItem:
+    id:
+      type: string_or_integer
+      nullable: true
+      constraints: {auto_generate_when_missing: sequential_integer}
+    prompt:
+      type: string
+      required: true
+      constraints: {trim: true, blank: false, min_length: 1, max_length: 400}
+    provider:
+      type: enum
+      default: elevenlabs
+      values: [elevenlabs]
+      constraints: {future_expandable_provider_selection: true}
+    duration_seconds:
+      type: number
+      default: 1.0
+      constraints: {minimum: 0.5, maximum: 2.0}
+    prompt_influence:
+      type: number
+      default: 0.3
+      constraints: {minimum: 0.0, maximum: 1.0}
+    loop:
+      type: boolean
+      default: false
+    output_format:
+      type: enum
+      default: mp3_44100_128
+      values: [mp3_22050_32, mp3_24000_48, mp3_44100_32, mp3_44100_64, mp3_44100_96, mp3_44100_128, mp3_44100_192]
+    model:
+      type: enum
+      default: eleven_text_to_sound_v2
+      values: [eleven_text_to_sound_v2]
+
+  AudioGenerateResult:
+    id:
+      type: string_or_integer
+      required: true
+    status:
+      type: enum
+      required: true
+      values: [finished, error]
+    prompt:
+      type: string
+      required: true
+    generation_type:
+      type: enum
+      required: true
+      values: [sound_effect]
+    provider:
+      type: string
+      required: true
+      default: ElevenLabs
+    model:
+      type: string
+      required: true
+    mime_type:
+      type: string
+      required: true
+      constraints: {audio_only: true}
+    duration_seconds:
+      type: number
+      required: true
+      constraints: {minimum: 0.5, maximum: 2.0}
+    byte_length:
+      type: integer
+      required: true
+      constraints: {minimum: 1}
+    audio_base64:
+      type: string
+      nullable: true
+      constraints: {direct_response_only: true, exclude_from_llm_inference: true}
+    files:
+      type: object
+      nullable: true
+      constraints: {encrypted_generated_asset_metadata_when_persisted: true}
+    s3_base_url:
+      type: string
+      nullable: true
+      constraints: {required_when_files_present: true}
+    aes_key:
+      type: string
+      nullable: true
+      constraints: {required_when_files_present: true, exclude_from_llm_inference: true}
+    aes_nonce:
+      type: string
+      nullable: true
+      constraints: {required_when_files_present: true, exclude_from_llm_inference: true}
+    vault_wrapped_aes_key:
+      type: string
+      nullable: true
+      constraints: {required_when_files_present: true, exclude_from_llm_inference: true}
+    credits_charged:
+      type: integer
+      nullable: true
+      constraints: {minimum: 1}
+    error:
+      type: string
+      nullable: true
+      constraints: {secrets: forbidden, raw_provider_diagnostics: forbidden}
+
+  AudioGenerateResponse:
+    results:
+      type: array
+      required: true
+      items: AudioGenerateResult
+      constraints: {min_items: 0, max_items: 5, unique_by: id}
+    provider:
+      type: string
+      required: true
+      default: ElevenLabs
+    error:
+      type: string
+      nullable: true
+      constraints: {secrets: forbidden, raw_provider_diagnostics: forbidden}
+    ignore_fields_for_inference:
+      type: array
+      required: true
+      items: string
+      constraints: {must_include: [audio_base64, aes_key, aes_nonce, vault_wrapped_aes_key]}
+
+assertions:
+  - id: audio-generate.request.validated
+    type: validation
+    must: Invalid request shape, blank prompt, excessive batch size, unsupported provider, unsupported output format, or duration outside 0.5-2.0 seconds is rejected before provider execution.
+    depends_on: [models.AudioGenerateRequest, models.AudioGenerateRequestItem, examples.invalid_inputs, examples.boundary_cases]
+  - id: audio-generate.provider.explicit-selection
+    type: invariant
+    must: The request contract includes an explicit provider enum, defaulting to elevenlabs in v1, so future providers can extend the enum without changing the skill surface shape.
+    depends_on: [models.AudioGenerateRequestItem.provider, examples.valid_inputs, examples.invalid_inputs]
+  - id: audio-generate.request.ids-correlated
+    type: invariant
+    must: Each result preserves its caller ID or receives a unique sequential ID when none was supplied.
+    depends_on: [models.AudioGenerateRequestItem.id, models.AudioGenerateResult.id, examples.valid_inputs]
+  - id: audio-generate.speech.wrong-skill-rejected
+    type: behavior
+    must: Requests for spoken words, narration, vocals, or TTS through audio.generate are rejected with guidance to use audio.speak instead.
+    depends_on: [models.AudioGenerateRequestItem.prompt, examples.invalid_inputs, examples.safety_rejections]
+  - id: audio-generate.safety.blocks-abuse
+    type: security
+    must: Scam, deceptive media, public-figure voice/persona, or cloning-like prompts are rejected before provider execution.
+    depends_on: [examples.invalid_inputs, examples.safety_rejections]
+  - id: audio-generate.output.playable-audio
+    type: behavior
+    must: Successful outputs expose audio/mpeg-compatible playable data through direct responses and generated-audio embeds without requiring provider credentials on clients.
+    depends_on: [models.AudioGenerateResult, examples.successful_outputs]
+  - id: audio-generate.output.binary-excluded-from-inference
+    type: privacy
+    must: Audio bytes, encryption keys, nonces, wrapped keys, and raw provider diagnostics are excluded from LLM inference, logs, committed examples, and assistant prose.
+    depends_on: [models.AudioGenerateResponse.ignore_fields_for_inference, examples.successful_outputs, examples.error_outputs]
+  - id: audio-generate.billing.success-only
+    type: invariant
+    must: Credits are charged only for successful generated audio, using documented per-second pricing with at least a one-credit successful-output floor and idempotent billing.
+    depends_on: [models.AudioGenerateResult.credits_charged, examples.successful_outputs, examples.error_outputs]
+  - id: audio-generate.provider-error.visible
+    type: failure
+    must: Provider key, timeout, quota, and generation failures produce safe visible errors and are never represented as successful empty audio.
+    depends_on: [models.AudioGenerateResponse.error, examples.error_outputs]
+  - id: audio-generate.latency.direct-suitable
+    type: invariant
+    must: Direct synchronous execution remains enabled only when low-cost live probes show representative short requests complete within the 5-6 second target; otherwise the implementation must switch to a task-based generated-asset flow before release.
+    depends_on: [examples.boundary_cases]
+  - id: audio-generate.surface-parity
+    type: parity
+    must: REST API, CLI, npm/pip SDKs, web embed rendering, and Apple rendering preserve the same request, response, safety, billing, privacy, and error semantics or record explicit approved exceptions.
+    depends_on: [models, examples, surfaces]
+
+surfaces:
+  rest_api: {required: true}
+  cli: {required: true}
+  sdks:
+    required: true
+    parity: strict
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [valid_inputs, invalid_inputs, successful_outputs, error_outputs, boundary_cases, safety_rejections]

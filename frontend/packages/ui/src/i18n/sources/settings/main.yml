@@ -622,6 +622,54 @@ learning_mode_disabled:
   sv: Learning Mode inaktiverat.
   he: Learning Mode הושבת.
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+learning_mode_attempts_remaining:
+  context: Remaining passcode attempts before Learning Mode deactivation is locked
+  en: "{count} attempts remaining."
+  de: "Noch {count} Versuche."
+  zh: "还剩 {count} 次尝试。"
+  es: "Quedan {count} intentos."
+  fr: "Il reste {count} tentatives."
+  pt: "Restam {count} tentativas."
+  ru: "Осталось попыток: {count}."
+  ja: "残り{count}回試行できます。"
+  ko: "{count}번의 시도가 남았습니다."
+  it: "Restano {count} tentativi."
+  tr: "{count} deneme kaldı."
+  vi: "Còn {count} lần thử."
+  id: "Tersisa {count} percobaan."
+  pl: "Pozostało prób: {count}."
+  nl: "Nog {count} pogingen."
+  ar: "تبقت {count} محاولات."
+  hi: "{count} प्रयास शेष हैं।"
+  th: "เหลืออีก {count} ครั้ง"
+  cs: "Zbývá {count} pokusů."
+  sv: "{count} försök återstår."
+  he: "נותרו {count} ניסיונות."
+  verified_by_human: []
+learning_mode_locked:
+  context: Learning Mode deactivation lockout after too many incorrect passcodes
+  en: Deactivation is locked for 24 hours after too many incorrect attempts.
+  de: Die Deaktivierung ist nach zu vielen falschen Versuchen 24 Stunden lang gesperrt.
+  zh: 错误尝试次数过多，停用功能已锁定 24 小时。
+  es: La desactivación está bloqueada durante 24 horas tras demasiados intentos incorrectos.
+  fr: La désactivation est verrouillée pendant 24 heures après trop de tentatives incorrectes.
+  pt: A desativação fica bloqueada por 24 horas após muitas tentativas incorretas.
+  ru: Отключение заблокировано на 24 часа после слишком большого числа неверных попыток.
+  ja: 誤った試行が多すぎたため、無効化は24時間ロックされています。
+  ko: 잘못된 시도가 너무 많아 비활성화가 24시간 동안 잠겼습니다.
+  it: La disattivazione è bloccata per 24 ore dopo troppi tentativi errati.
+  tr: Çok fazla hatalı denemeden sonra devre dışı bırakma 24 saat kilitlenir.
+  vi: Việc tắt chế độ bị khóa trong 24 giờ sau quá nhiều lần thử sai.
+  id: Penonaktifan dikunci selama 24 jam setelah terlalu banyak percobaan salah.
+  pl: Wyłączenie jest zablokowane na 24 godziny po zbyt wielu błędnych próbach.
+  nl: Uitschakelen is 24 uur vergrendeld na te veel onjuiste pogingen.
+  ar: تم قفل إيقاف الوضع لمدة 24 ساعة بعد عدد كبير من المحاولات غير الصحيحة.
+  hi: बहुत अधिक गलत प्रयासों के बाद निष्क्रिय करना 24 घंटे के लिए लॉक है।
+  th: การปิดใช้งานถูกล็อกเป็นเวลา 24 ชั่วโมงหลังจากลองผิดหลายครั้งเกินไป
+  cs: Vypnutí je po příliš mnoha nesprávných pokusech zablokováno na 24 hodin.
+  sv: Inaktivering är låst i 24 timmar efter för många felaktiga försök.
+  he: ההשבתה נעולה למשך 24 שעות לאחר יותר מדי ניסיונות שגויים.
+  verified_by_human: []
 learning_mode_age_group_prompt:
   context: Prompt asking for the learner age group when enabling Learning Mode
   en: "Learner age group: under_10, 10_12, 13_15, 16_18, or adult"
@@ -2323,6 +2371,106 @@ developers_devices_revoke:
   he: בטל גישה
   verified_by_human: []
 
+developers_devices_reject:
+  context: Reject pending API key device button
+  en: Reject
+  de: Ablehnen
+  zh: 拒绝轮询
+  fr: Rejeter
+  pt: Rejeitar
+  ru: Отклонить
+  ja: 拒否
+  ko: 거절
+  it: Rifiuta
+  tr: Reddet
+  vi: Từ chối
+  id: Tolak
+  pl: Odrzuć
+  nl: Weigeren
+  ar: رفض
+  hi: अस्वीकार करें
+  th: ปฏิเสธ
+  cs: Odmítnout
+  sv: Neka
+  es: Rechazar
+  he: דחייה
+  verified_by_human: [en]
+
+developers_devices_ip_address:
+  context: API key device IP address detail label
+  en: IP address
+  de: IP-Adresse
+  zh: IP 地址
+  fr: Adresse IP
+  pt: Endereço IP
+  ru: IP-адрес
+  ja: IPアドレス
+  ko: IP 주소
+  it: Indirizzo IP
+  tr: IP adresi
+  vi: Địa chỉ IP
+  id: Alamat IP
+  pl: Adres IP
+  nl: IP-adres
+  ar: عنوان IP
+  hi: IP पता
+  th: ที่อยู่ IP
+  cs: IP adresa
+  sv: IP-adress
+  es: Dirección IP
+  he: כתובת IP
+  verified_by_human: [en]
+
+developers_devices_access_type:
+  context: API key device access type detail label
+  en: Access type
+  de: Zugriffstyp
+  zh: 访问类型
+  fr: "Type d'accès"
+  pt: Tipo de acesso
+  ru: Тип доступа
+  ja: アクセスタイプ
+  ko: 액세스 유형
+  it: Tipo di accesso
+  tr: Erişim türü
+  vi: Loại quyền truy cập
+  id: Tipe akses
+  pl: Typ dostępu
+  nl: Toegangstype
+  ar: نوع الوصول
+  hi: एक्सेस का प्रकार
+  th: ประเภทการเข้าถึง
+  cs: Typ přístupu
+  sv: Åtkomsttyp
+  es: Tipo de acceso
+  he: סוג גישה
+  verified_by_human: [en]
+
+developers_devices_api_key:
+  context: API key device API key detail label
+  en: API key
+  de: API-Key
+  zh: API 密钥
+  fr: Clé API
+  pt: Chave de API
+  ru: API-ключ
+  ja: APIキー
+  ko: API 키
+  it: Chiave API
+  tr: API anahtarı
+  vi: Mã API (API key)
+  id: Kunci API
+  pl: Klucz API
+  nl: API-sleutel
+  ar: مفتاح API
+  hi: API की (key)
+  th: คีย์ API
+  cs: API klíč
+  sv: API-nyckel
+  es: Clave de API
+  he: מפתח API
+  verified_by_human: [en]
+
 developers_devices_confirm_revoke:
   context: Confirm revoke device message
   en: Are you sure you want to revoke access for this device?
@@ -2421,6 +2569,31 @@ developers_devices_access_type_cli:
   cs: CLI
   sv: CLI
   he: CLI
+  verified_by_human: []
+
+developers_devices_access_type_sdk:
+  context: API key device access type for npm and pip SDK package clients
+  en: SDK
+  de: SDK
+  zh: SDK
+  es: SDK
+  fr: SDK
+  pt: SDK
+  ru: SDK
+  ja: SDK
+  ko: SDK
+  it: SDK
+  tr: SDK
+  vi: SDK
+  id: SDK
+  pl: SDK
+  nl: SDK
+  ar: SDK
+  hi: SDK
+  th: SDK
+  cs: SDK
+  sv: SDK
+  he: SDK
   verified_by_human: []
 
 developers_devices_access_type_pip:
@@ -4990,8 +5163,8 @@ server.anonymous_free_usage_budget.validation_percent:
   he: ערכי אחוזים חייבים להיות בין 0 ל-100.
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.validation_per_identity_cap:
-  context: Validation message when anonymous free usage has a positive monthly budget but no per-identity daily credits
-  en: Per-identity daily cap must be at least 1 credit when the monthly budget is above 0.
+  context: Validation message when enabled anonymous free usage is missing one of the required activation fields
+  en: To enable anonymous free usage, derived daily cap, derived weekly cap, and per-identity daily cap must all be at least 1 credit.
   de: Das Tageslimit pro Identität muss mindestens 1 Credit betragen, wenn das Monatsbudget über 0 liegt.
   zh: 当每月预算大于 0 时，每个身份的每日上限必须至少为 1 个额度。
   es: El límite diario por identidad debe ser de al menos 1 crédito cuando el presupuesto mensual es mayor que 0.
@@ -12901,6 +13074,31 @@ api_keys.copied_done:
   sv: Jag har kopierat nyckeln
   he: העתקתי את המפתח
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.confirm_device:
+  context: Quick link from an API key row to pending device approval
+  en: Confirm device
+  de: Gerät bestätigen
+  zh: 确认设备
+  es: Confirmar dispositivo
+  fr: Confirmer l'appareil
+  pt: Confirmar dispositivo
+  ru: Подтвердить устройство
+  ja: デバイスを確認
+  ko: 기기 확인
+  it: Conferma dispositivo
+  tr: Cihazı onayla
+  vi: Xác nhận thiết bị
+  id: Konfirmasi perangkat
+  pl: Potwierdź urządzenie
+  nl: Apparaat bevestigen
+  ar: تأكيد الجهاز
+  hi: डिवाइस की पुष्टि करें
+  th: ยืนยันอุปกรณ์
+  cs: Potvrdit zařízení
+  sv: Bekräfta enhet
+  he: אשר מכשיר
+  verified_by_human: [en]
 
 api_keys.loading:
   context: Loading text while API keys are loading

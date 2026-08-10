@@ -17,7 +17,62 @@ import SwiftUI
 struct OpenMatesWatchApp: App {
     var body: some Scene {
         WindowGroup {
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-chat-layout") {
+                WatchChatShellView(
+                    uiTestSnapshot: Self.uiTestSnapshot,
+                    selectedChatId: Self.uiTestChatId
+                )
+            } else {
+                WatchRootView()
+            }
+#else
             WatchRootView()
+#endif
         }
     }
+
+#if DEBUG
+    private static let uiTestChatId = "watch-ui-test-chat"
+
+    private static let uiTestSnapshot = WatchChatSnapshot(
+        chats: [
+            WatchChatSummary(
+                id: uiTestChatId,
+                title: "Watch layout",
+                lastMessageAt: "2026-08-03T00:00:00Z",
+                preview: "Embed preview",
+                isPinned: false,
+                encryptedTitle: nil,
+                encryptedPreview: nil,
+                encryptedChatKey: nil
+            ),
+        ],
+        messagesByChatId: [
+            uiTestChatId: [
+                WatchChatMessage(
+                    id: "watch-ui-test-message",
+                    chatId: uiTestChatId,
+                    role: .assistant,
+                    content: nil,
+                    encryptedContent: nil,
+                    embedRefs: [
+                        WatchEmbedRef(
+                            id: "watch-ui-test-embed",
+                            type: EmbedType.webWebsite.rawValue,
+                            status: "finished",
+                            data: [
+                                "title": AnyCodable("OpenMates Watch preview"),
+                                "url": AnyCodable("https://openmates.org"),
+                            ]
+                        ),
+                    ],
+                    createdAt: "2026-08-03T00:00:00Z",
+                    isPending: false
+                ),
+            ],
+        ],
+        savedAt: Date(timeIntervalSince1970: 0)
+    )
+#endif
 }

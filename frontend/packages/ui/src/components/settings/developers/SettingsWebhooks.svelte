@@ -138,7 +138,15 @@
   function generateWebhookKey(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let result = WEBHOOK_KEY_PREFIX;
-    for (let i = 0; i < 64; i++) result += chars[Math.floor(Math.random() * chars.length)];
+    const maxUnbiasedValue = Math.floor(256 / chars.length) * chars.length;
+    while (result.length < WEBHOOK_KEY_PREFIX.length + 64) {
+      const randomValues = crypto.getRandomValues(new Uint8Array(64));
+      for (const value of randomValues) {
+        if (value >= maxUnbiasedValue) continue;
+        result += chars.charAt(value % chars.length);
+        if (result.length >= WEBHOOK_KEY_PREFIX.length + 64) break;
+      }
+    }
     return result;
   }
 
@@ -204,7 +212,7 @@
     }
   }
 
-  async function deleteWebhook(id: string, name: string) {
+  async function deleteWebhook(id: string, _name: string) {
     if (!confirm($text('settings.developers_webhooks_delete_confirm'))) return;
     try {
       const response = await fetch(getApiEndpoint(`/v1/webhooks/${id}`), {

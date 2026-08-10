@@ -24,6 +24,16 @@ import {
 import { chatSyncService } from "../../../../services/chatSyncService";
 import { unmarkEmbedAsProcessed } from "../../../../services/chatSyncServiceHandlersAI";
 import { embedStore } from "../../../../services/embedStore";
+import {
+  dispatchEmbedFullscreen,
+  resolveEmbedFullscreenTarget,
+} from "../../../../services/embedFullscreenController";
+import {
+  hasFullscreenComponent,
+  resolveRegistryKey,
+} from "../../../../services/embedFullscreenResolver";
+import { resolveExampleFullscreenTarget } from "../../../../demo_chats/exampleChatStore";
+import { normalizeEmbedType as registryNormalizeEmbedType } from "../../../../data/embedRegistry.generated";
 import { mount, unmount } from "svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
 import MailSearchEmbedPreview from "../../../embeds/mail/MailSearchEmbedPreview.svelte";
@@ -40,7 +50,11 @@ import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPr
 import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte";
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
+import Model3DGenerateEmbedPreview from "../../../embeds/models3d/Model3DGenerateEmbedPreview.svelte";
+import Model3DSearchEmbedPreview from "../../../embeds/models3d/Model3DSearchEmbedPreview.svelte";
+import Model3DResultEmbedPreview from "../../../embeds/models3d/Model3DResultEmbedPreview.svelte";
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
+import AudioGenerateEmbedPreview from "../../../embeds/audio/AudioGenerateEmbedPreview.svelte";
 import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
 import VideoCreateEmbedPreview from "../../../embeds/videos/VideoCreateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
@@ -56,6 +70,8 @@ import { normalizeFitnessSearchContent } from "../../../embeds/fitness/fitnessEm
 import MathCalculateEmbedPreview from "../../../embeds/math/MathCalculateEmbedPreview.svelte";
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
+import DesignIconSearchEmbedPreview from "../../../embeds/design/DesignIconSearchEmbedPreview.svelte";
+import DesignIconResultEmbedPreview from "../../../embeds/design/DesignIconResultEmbedPreview.svelte";
 import HomeSearchEmbedPreview from "../../../embeds/home/HomeSearchEmbedPreview.svelte";
 import NutritionSearchEmbedPreview from "../../../embeds/nutrition/NutritionSearchEmbedPreview.svelte";
 import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
@@ -64,8 +80,16 @@ import SocialMediaSearchEmbedPreview from "../../../embeds/social_media/SocialMe
 import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecastEmbedPreview.svelte";
 import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRadarEmbedPreview.svelte";
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
+import BusinessCompanyFinancialsEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte";
+import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
+import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
+import { normalizeFinanceOverview } from "../../../embeds/finance/financeCheckAccountsContent";
 import CalendarActionEmbedPreview from "../../../embeds/calendar/CalendarActionEmbedPreview.svelte";
-import { proxyImage } from "../../../../utils/imageProxy";
+import GenericAppSkillEmbedPreview from "../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte";
+import {
+  MAX_WIDTH_PREVIEW_THUMBNAIL,
+  proxyImage,
+} from "../../../../utils/imageProxy";
 import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
 
 // Track mounted components for cleanup
@@ -73,6 +97,28 @@ const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
 const YOUTUBE_VIDEO_ID_RE = /^[a-zA-Z0-9_-]{11}$/;
 const YOUTUBE_URL_VIDEO_ID_RE =
   /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+
+function normalizeEmbedIdList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+  }
+  if (typeof value === "string") {
+    return value.split(/[|,\s]+/).map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function firstStringField(
+  content: Record<string, unknown> | null | undefined,
+  fields: string[],
+): string {
+  if (!content) return "";
+  for (const field of fields) {
+    const value = content[field];
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
 
 export class AppSkillUseRenderer implements EmbedRenderer {
   type = "app-skill-use";
@@ -307,6 +353,11 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       price_calendar_result: true,
       listing: true,
       weather_day: true,
+      model_result: true,
+      company_financial_result: true,
+      icon_result: true,
+      task: true,
+      workflow: true,
     };
     const childType = decodedContent?.type || embedData?.type;
     if (childType && CHILD_TYPE_OVERRIDES[childType as string]) {
@@ -325,6 +376,33 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // If this is images/search WITHOUT embed_ids, it's actually a child image_result.
       if (decodedContent.image_url || decodedContent.thumbnail_url) {
         skillId = "image_result";
+      }
+    } else if (
+      appId === "models3d" &&
+      skillId === "search" &&
+      decodedContent &&
+      !decodedContent.embed_ids
+    ) {
+      if (decodedContent.source_page_url || decodedContent.preview_image_url || decodedContent.thumbnail_url) {
+        skillId = "model_result";
+      }
+    } else if (
+      appId === "business" &&
+      skillId === "company_financials" &&
+      decodedContent &&
+      !decodedContent.embed_ids
+    ) {
+      if (decodedContent.company || decodedContent.cik || decodedContent.revenue || decodedContent.net_income) {
+        skillId = "company_financial_result";
+      }
+    } else if (
+      appId === "design" &&
+      skillId === "search_icons" &&
+      decodedContent &&
+      !decodedContent.embed_ids
+    ) {
+      if (decodedContent.icon_id || decodedContent.svg_path) {
+        skillId = "icon_result";
       }
     }
 
@@ -385,6 +463,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     if (!decodedContent.results && embedData?.results) {
       decodedContent.results = embedData.results;
     }
+    // Propagate the normalized status into skill-specific renderers. Some stored
+    // parent rows keep a stale top-level "processing" status even when decoded
+    // content already proves the embed finished.
+    decodedContent.status = status;
 
     console.debug("[AppSkillUseRenderer] Rendering embed:", {
       appId,
@@ -574,9 +656,96 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
 
+      if (appId === "tasks" && skillId === "create") {
+        return this.renderTaskCreateComponent(attrs, embedData, decodedContent, content);
+      }
+
+      if (appId === "tasks" && skillId === "search") {
+        return this.renderTaskSearchComponent(attrs, embedData, decodedContent, content);
+      }
+
+      if (appId === "tasks" && skillId === "task") {
+        return this.renderTaskChildComponent(attrs, embedData, decodedContent, content);
+      }
+
+      if (appId === "workflows" && skillId === "create-or-modify") {
+        return this.renderWorkflowCreateComponent(attrs, embedData, decodedContent, content);
+      }
+
+      if (appId === "workflows" && skillId === "search") {
+        return this.renderWorkflowSearchComponent(attrs, embedData, decodedContent, content);
+      }
+
+      if (appId === "workflows" && skillId === "workflow") {
+        return this.renderWorkflowChildComponent(attrs, embedData, decodedContent, content);
+      }
+
       // For images search, render images search preview using Svelte component
       if (appId === "images" && skillId === "search") {
         return this.renderImagesSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "models3d" && skillId === "search") {
+        return this.renderModel3DSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "models3d" && skillId === "model_result") {
+        return this.renderModel3DResultComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "business" && skillId === "company_financials") {
+        return this.renderBusinessCompanyFinancialsComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "business" && skillId === "company_financial_result") {
+        return this.renderBusinessCompanyFinancialResultComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "finance" && skillId === "check_accounts") {
+        return this.renderFinanceCheckAccountsComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "design" && skillId === "search_icons") {
+        return this.renderDesignIconSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "design" && skillId === "icon_result") {
+        return this.renderDesignIconResultComponent(
           attrs,
           embedData,
           decodedContent,
@@ -751,6 +920,37 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
 
+      if (appId === "audio" && (skillId === "generate" || skillId === "speak")) {
+        console.debug("[AppSkillUseRenderer] Rendering audio generate/speak for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderAudioGenerateComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+          skillId as "generate" | "speak",
+        );
+      }
+
+      if (appId === "models3d" && skillId === "generate") {
+        console.debug("[AppSkillUseRenderer] Rendering models3d generate for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderModel3DGenerateComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
       if (appId === "videos" && skillId === "generate") {
         console.debug("[AppSkillUseRenderer] Rendering video generate for", {
           appId,
@@ -878,6 +1078,209 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     return ["get-events", "create-event", "update-event", "delete-event"].includes(
       skillId,
     );
+  }
+
+  private prepareMount(content: HTMLElement): void {
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+  }
+
+  private async renderTaskCreateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): Promise<void> {
+    this.prepareMount(content);
+    try {
+      const { default: TaskCreateEmbedPreview } = await import("../../../embeds/tasks/TaskCreateEmbedPreview.svelte");
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(TaskCreateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query: decodedContent?.query || (attrs as any).query || "",
+          instruction: decodedContent?.instruction || decodedContent?.title || "",
+          status: (decodedContent?.status || embedData?.status || attrs.status || "processing") as "processing" | "finished" | "error",
+          results: decodedContent?.results || decodedContent?.preview_results || [],
+          resultCount: decodedContent?.result_count,
+          childEmbedIds: decodedContent?.embed_ids || embedData?.embed_ids || [],
+          taskId: decodedContent?.task_id || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting TaskCreateEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  private async renderTaskSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): Promise<void> {
+    this.prepareMount(content);
+    try {
+      const { default: TaskSearchEmbedPreview } = await import("../../../embeds/tasks/TaskSearchEmbedPreview.svelte");
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(TaskSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query: decodedContent?.query || (attrs as any).query || "",
+          status: (decodedContent?.status || embedData?.status || attrs.status || "processing") as "processing" | "finished" | "error",
+          results: decodedContent?.results || decodedContent?.preview_results || [],
+          resultCount: decodedContent?.result_count,
+          childEmbedIds: decodedContent?.embed_ids || embedData?.embed_ids || [],
+          taskId: decodedContent?.task_id || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting TaskSearchEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  private async renderTaskChildComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): Promise<void> {
+    this.prepareMount(content);
+    try {
+      const { default: TaskEmbedPreview } = await import("../../../embeds/tasks/TaskEmbedPreview.svelte");
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(TaskEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          taskId: decodedContent?.task_id || decodedContent?.id || "",
+          shortId: decodedContent?.short_id || "",
+          title: decodedContent?.title || "",
+          description: decodedContent?.description || "",
+          status: decodedContent?.status || "todo",
+          assignee: decodedContent?.assignee || decodedContent?.assignee_type || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting TaskEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  private async renderWorkflowCreateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): Promise<void> {
+    this.prepareMount(content);
+    try {
+      const { default: WorkflowCreateEmbedPreview } = await import("../../../embeds/workflows/WorkflowCreateEmbedPreview.svelte");
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(WorkflowCreateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query: decodedContent?.query || (attrs as any).query || "",
+          instruction: decodedContent?.instruction || decodedContent?.title || "",
+          status: (decodedContent?.status || embedData?.status || attrs.status || "processing") as "processing" | "finished" | "error",
+          results: decodedContent?.results || decodedContent?.preview_results || [],
+          resultCount: decodedContent?.result_count,
+          childEmbedIds: decodedContent?.embed_ids || embedData?.embed_ids || [],
+          taskId: decodedContent?.task_id || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting WorkflowCreateEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  private async renderWorkflowSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): Promise<void> {
+    this.prepareMount(content);
+    try {
+      const { default: WorkflowSearchEmbedPreview } = await import("../../../embeds/workflows/WorkflowSearchEmbedPreview.svelte");
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(WorkflowSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query: decodedContent?.query || (attrs as any).query || "",
+          status: (decodedContent?.status || embedData?.status || attrs.status || "processing") as "processing" | "finished" | "error",
+          results: decodedContent?.results || decodedContent?.preview_results || [],
+          resultCount: decodedContent?.result_count,
+          childEmbedIds: decodedContent?.embed_ids || embedData?.embed_ids || [],
+          taskId: decodedContent?.task_id || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting WorkflowSearchEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  private async renderWorkflowChildComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): Promise<void> {
+    this.prepareMount(content);
+    try {
+      const { default: WorkflowEmbedPreview } = await import("../../../embeds/workflows/WorkflowEmbedPreview.svelte");
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(WorkflowEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          workflowId: decodedContent?.workflow_id || decodedContent?.id || "",
+          title: decodedContent?.title || "",
+          description: decodedContent?.description || "",
+          status: decodedContent?.status || "manual",
+          enabled: typeof decodedContent?.enabled === "boolean" ? decodedContent.enabled : true,
+          triggerSummary: decodedContent?.trigger_summary || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting WorkflowEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
   }
 
   private renderCalendarActionComponent(
@@ -2179,6 +2582,156 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
   }
 
+  /** Render the models3d.search parent preview component. */
+  private renderModel3DSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "Printables";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const results =
+      decodedContent?.results ||
+      decodedContent?.preview_results ||
+      decodedContent?.preview_thumbnails ||
+      [];
+    const previewResultsJson = decodedContent?.preview_results_json || "";
+    const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids || [];
+    const childEmbedIds = typeof rawEmbedIds === "string"
+      ? rawEmbedIds.split("|").filter((id: string) => id.length > 0)
+      : Array.isArray(rawEmbedIds)
+        ? rawEmbedIds
+        : [];
+    const resultCount = typeof decodedContent?.result_count === "number"
+      ? decodedContent.result_count
+      : results.length || childEmbedIds.length;
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+      const component = mount(Model3DSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as "processing" | "finished" | "error",
+          results,
+          previewResultsJson,
+          resultCount,
+          childEmbedIds,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted Model3DSearchEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting Model3DSearchEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /** Render the design.search_icons parent preview component. */
+  private renderDesignIconSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "Icons";
+    const provider = decodedContent?.provider || "Iconify";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || decodedContent?.preview_results || [];
+    const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids || [];
+    const childEmbedIds = typeof rawEmbedIds === "string"
+      ? rawEmbedIds.split("|").filter((id: string) => id.length > 0)
+      : Array.isArray(rawEmbedIds)
+        ? rawEmbedIds
+        : [];
+    const resultCount = typeof decodedContent?.result_count === "number"
+      ? decodedContent.result_count
+      : results.length || childEmbedIds.length;
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+      const component = mount(DesignIconSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          result_count: resultCount,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted DesignIconSearchEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting DesignIconSearchEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
   /**
    * Render Social Media get-posts preview component.
    */
@@ -2370,6 +2923,352 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting ImageResultEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /** Render a preview-only models3d.model_result child card. */
+  private renderModel3DResultComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "finished";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+      const component = mount(Model3DResultEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          title: decodedContent?.title || "",
+          provider: decodedContent?.provider || "",
+          creatorName: decodedContent?.creator_name || "",
+          sourcePageUrl: decodedContent?.source_page_url || "",
+          previewImageUrl: decodedContent?.preview_image_url || "",
+          thumbnailUrl: decodedContent?.thumbnail_url || "",
+          license: decodedContent?.license || "",
+          filesCount: decodedContent?.files_count ?? null,
+          isFree: decodedContent?.is_free ?? null,
+          status: status as "processing" | "finished" | "error",
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted Model3DResultEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting Model3DResultEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /** Render the business.company_financials parent preview component. */
+  private renderBusinessCompanyFinancialsComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "SEC EDGAR";
+    const period = decodedContent?.period || "latest_annual";
+    const metricGroup = decodedContent?.metric_group || "summary";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const results = decodedContent?.results || decodedContent?.preview_results || [];
+    const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids || [];
+    const childEmbedIds = typeof rawEmbedIds === "string"
+      ? rawEmbedIds.split("|").filter((id: string) => id.length > 0)
+      : Array.isArray(rawEmbedIds)
+        ? rawEmbedIds
+        : [];
+    const resultCount = typeof decodedContent?.result_count === "number"
+      ? decodedContent.result_count
+      : results.length || childEmbedIds.length;
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(BusinessCompanyFinancialsEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          period,
+          metricGroup,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          resultCount,
+          results,
+          childEmbedIds,
+          taskId,
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(attrs, embedData, {
+              ...(decodedContent ?? {}),
+              app_id: "business",
+              skill_id: "company_financials",
+              query,
+              provider,
+              period,
+              metric_group: metricGroup,
+              result_count: resultCount,
+              embed_ids: childEmbedIds,
+            }),
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted BusinessCompanyFinancialsEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting BusinessCompanyFinancialsEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /** Render a preview-only business.company_financial_result child card. */
+  private renderBusinessCompanyFinancialResultComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "finished";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(BusinessCompanyFinancialResultEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          company: decodedContent?.company || "",
+          ticker: decodedContent?.ticker || "",
+          fiscalYear: decodedContent?.fiscal_year ?? null,
+          fiscalQuarter: decodedContent?.fiscal_quarter ?? null,
+          periodType: decodedContent?.period_type || "annual",
+          currency: decodedContent?.currency || "USD",
+          revenue: decodedContent?.revenue ?? null,
+          netIncome: decodedContent?.net_income ?? null,
+          filed: decodedContent?.filed || "",
+          form: decodedContent?.form || "",
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted BusinessCompanyFinancialResultEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting BusinessCompanyFinancialResultEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /** Render the finance.check_accounts parent preview component. */
+  private renderFinanceCheckAccountsComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const period = decodedContent?.period || "monthly";
+    const overview = normalizeFinanceOverview(decodedContent) || null;
+    const accountCount = typeof decodedContent?.account_count === "number"
+      ? decodedContent.account_count
+      : Array.isArray(overview?.accounts)
+        ? overview.accounts.length
+        : 0;
+    const transactionCount = typeof decodedContent?.transaction_count === "number"
+      ? decodedContent.transaction_count
+      : Array.isArray(overview?.transactions)
+        ? overview.transactions.length
+        : 0;
+    const summary = decodedContent?.summary || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(FinanceCheckAccountsEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          period,
+          accountCount,
+          transactionCount,
+          overview,
+          results: Array.isArray(decodedContent?.results) ? decodedContent.results : [],
+          summary,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          taskId: decodedContent?.task_id || "",
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(attrs, embedData, {
+              ...(decodedContent ?? {}),
+              app_id: "finance",
+              skill_id: "check_accounts",
+              period,
+              account_count: accountCount,
+              transaction_count: transactionCount,
+              overview,
+              summary,
+            }),
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted FinanceCheckAccountsEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting FinanceCheckAccountsEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /** Render a preview-only design.icon_result child card. */
+  private renderDesignIconResultComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "finished";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+      const component = mount(DesignIconResultEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          icon_id: decodedContent?.icon_id || "",
+          prefix: decodedContent?.prefix || "",
+          name: decodedContent?.name || "",
+          display_name: decodedContent?.display_name || "",
+          collection_name: decodedContent?.collection_name || "",
+          license_title: decodedContent?.license_title || decodedContent?.license_spdx || "",
+          svg_path: decodedContent?.svg_path || "",
+          status: status as "processing" | "finished" | "error",
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted DesignIconResultEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting DesignIconResultEmbedPreview:",
         error,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
@@ -3153,6 +4052,181 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   }
 
   /**
+   * Render generated SFX and speech embeds with the audio player preview.
+   */
+  private renderAudioGenerateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+    skillId: "generate" | "speak",
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+
+    const prompt = decodedContent?.prompt || decodedContent?.text_preview || "";
+    const mode =
+      decodedContent?.mode ||
+      (skillId === "speak" ? decodedContent?.voice : decodedContent?.generation_type) ||
+      (skillId === "speak" ? "speech" : "sound_effect");
+    const model = decodedContent?.model || "";
+    const durationSeconds = decodedContent?.duration_seconds;
+    const s3BaseUrl = decodedContent?.s3_base_url || "";
+    const files = decodedContent?.files || undefined;
+    const aesKey = decodedContent?.aes_key || "";
+    const aesNonce = decodedContent?.aes_nonce || "";
+    const previewAudioUrl = decodedContent?.previewAudioUrl || decodedContent?.preview_audio_url || "";
+    const error = decodedContent?.error || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(AudioGenerateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          skillId,
+          content: decodedContent,
+          prompt,
+          mode,
+          model,
+          durationSeconds,
+          s3BaseUrl,
+          files,
+          aesKey,
+          aesNonce,
+          previewAudioUrl,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+
+      console.debug(
+        "[AppSkillUseRenderer] Mounted AudioGenerateEmbedPreview component:",
+        {
+          embedId,
+          skillId,
+          status,
+          prompt: prompt.substring(0, 30) + "...",
+        },
+      );
+    } catch (mountError) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting AudioGenerateEmbedPreview component:",
+        mountError,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render generated 3D model embeds with the dedicated poster preview.
+   */
+  private renderModel3DGenerateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+
+    const prompt = decodedContent?.prompt || "";
+    const providerModel = decodedContent?.provider_model || decodedContent?.model || "";
+    const posterUrl = decodedContent?.posterUrl || decodedContent?.poster_url || "";
+    const s3BaseUrl = decodedContent?.s3_base_url || "";
+    const files = decodedContent?.files || undefined;
+    const aesKey = decodedContent?.aes_key || "";
+    const error = decodedContent?.error || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(Model3DGenerateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          prompt,
+          providerModel,
+          posterUrl,
+          s3BaseUrl,
+          files,
+          aesKey,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+
+      console.debug(
+        "[AppSkillUseRenderer] Mounted Model3DGenerateEmbedPreview component:",
+        {
+          embedId,
+          status,
+          prompt: prompt.substring(0, 30) + "...",
+        },
+      );
+    } catch (mountError) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting Model3DGenerateEmbedPreview component:",
+        mountError,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
    * Render generated video embeds with the dedicated video player preview.
    */
   private renderVideoGenerateComponent(
@@ -3177,6 +4251,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const aesKey = decodedContent?.aes_key || "";
     const aesNonce = decodedContent?.aes_nonce || "";
     const previewVideoUrl = decodedContent?.previewVideoUrl || decodedContent?.preview_video_url || "";
+    const previewImageUrl = decodedContent?.previewImageUrl || decodedContent?.preview_image_url || "";
     const error = decodedContent?.error || "";
 
     const existingComponent = mountedComponents.get(content);
@@ -3212,6 +4287,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           aesKey,
           aesNonce,
           previewVideoUrl,
+          previewImageUrl,
           status: status as "processing" | "finished" | "error",
           error,
           taskId,
@@ -4515,16 +5591,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
   }
 
-  private renderGenericSkill(
+  private async renderGenericSkill(
     attrs: EmbedNodeAttributes,
     embedData: any,
     decodedContent: any,
     content: HTMLElement,
-  ): void {
+  ): Promise<void> {
     // CRITICAL: Handle null decodedContent gracefully - use attrs as fallback
     const skillId = decodedContent?.skill_id || (attrs as any).skill_id || "";
     const appId = decodedContent?.app_id || (attrs as any).app_id || "";
-    const title = attrs.title || `${appId} | ${skillId}`;
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -4538,97 +5613,92 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       decodedContent,
     });
 
-    const previewLines = this.buildGenericPreviewLines(decodedContent);
-    const previewHtml = previewLines.length > 0
-      ? previewLines
-          .map((line) => `<div class="skill-result-preview-line">${this.escapeHtml(line)}</div>`)
-          .join("")
-      : `<div class="skill-result-preview-line">${this.escapeHtml(status === "finished" ? "Finished" : status)}</div>`;
+    this.prepareMount(content);
+    const previewImageUrl = await this.resolveInputPreviewImageUrl(decodedContent);
 
-    // Render generic skill preview - no need for embed-unified-container wrapper
-    // The container is already provided by Embed.ts, just create the content directly
-    const html = `
-      <div class="embed-content">
-        <div class="embed-app-icon ${appId}">
-          <span class="icon icon_${appId}"></span>
-        </div>
-        <div class="embed-text-content">
-          <div class="embed-text-line">${this.escapeHtml(title)}</div>
-          <div class="embed-text-line">${appId} | ${skillId}</div>
-        </div>
-        <div class="embed-extended-preview">
-          <div class="app-skill-preview-content">
-            <div class="skill-result-preview">${previewHtml}</div>
-          </div>
-        </div>
-      </div>
-    `;
+    const component = mount(GenericAppSkillEmbedPreview, {
+      target: content,
+      props: {
+        id: attrs.contentRef?.replace("embed:", "") || attrs.id || "",
+        appId,
+        skillId,
+        status: status as "processing" | "finished" | "error" | "cancelled",
+        provider: decodedContent?.provider || embedData?.provider || "",
+        resultCount: typeof decodedContent?.result_count === "number" ? decodedContent.result_count : undefined,
+        previewImageUrl,
+        taskId: decodedContent?.task_id || decodedContent?.skill_task_id || "",
+        isMobile: false,
+        onFullscreen: () => {
+          void this.openAppSkillOutputFullscreen(attrs, embedData, decodedContent);
+        },
+      },
+    });
 
-    content.innerHTML = html;
+    mountedComponents.set(content, component);
+  }
 
-    // Add click handler for fullscreen
-    if (status === "finished") {
-      content.style.cursor = "pointer";
-      content.addEventListener("click", () => {
-        this.openFullscreen(attrs, embedData, decodedContent);
-      });
+  private async resolveInputPreviewImageUrl(
+    decodedContent: Record<string, unknown> | null | undefined,
+  ): Promise<string> {
+    const inputEmbedId = normalizeEmbedIdList(decodedContent?.input_embed_ids)[0];
+    if (!inputEmbedId) return "";
+
+    try {
+      const inputEmbed = await resolveEmbed(inputEmbedId);
+      const inputContent = inputEmbed?.content
+        ? await decodeToonContent(inputEmbed.content)
+        : null;
+      const rawUrl = firstStringField(inputContent, [
+        "src",
+        "previewImageUrl",
+        "preview_image_url",
+        "thumbnail_url",
+        "public_thumbnail_url",
+        "image_url",
+      ]);
+      return proxyImage(rawUrl, MAX_WIDTH_PREVIEW_THUMBNAIL);
+    } catch (error) {
+      console.warn("[AppSkillUseRenderer] Failed to resolve app-skill input thumbnail:", error);
+      return "";
     }
   }
 
-  private buildGenericPreviewLines(decodedContent: Record<string, unknown> | null): string[] {
-    if (!decodedContent || typeof decodedContent !== "object") return [];
+  private async openAppSkillOutputFullscreen(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: Record<string, unknown> | null | undefined,
+  ): Promise<void> {
+    const outputEmbedId = normalizeEmbedIdList(decodedContent?.output_embed_ids)[0] ||
+      normalizeEmbedIdList(decodedContent?.embed_ids || embedData?.embed_ids)[0];
 
-    const skipKeys = new Set([
-      "app_id",
-      "skill_id",
-      "embed_id",
-      "embed_ids",
-      "embed_ref",
-      "status",
-      "aes_key",
-      "aes_nonce",
-      "iv",
-      "s3_key",
-      "s3_base_url",
-    ]);
-    const preferredKeys = [
-      "query",
-      "prompt",
-      "title",
-      "summary",
-      "result_count",
-      "error",
-      "provider",
-    ];
-    const lines: string[] = [];
-
-    for (const key of preferredKeys) {
-      const value = decodedContent[key];
-      const line = this.formatGenericPreviewValue(key, value);
-      if (line) lines.push(line);
+    if (!outputEmbedId) {
+      await this.openFullscreen(attrs, embedData, decodedContent);
+      return;
     }
 
-    for (const [key, value] of Object.entries(decodedContent)) {
-      if (skipKeys.has(key) || preferredKeys.includes(key)) continue;
-      const line = this.formatGenericPreviewValue(key, value);
-      if (line) lines.push(line);
-      if (lines.length >= 6) break;
+    try {
+      const outputEmbed = await resolveEmbed(outputEmbedId);
+      const outputContent = outputEmbed?.content
+        ? await decodeToonContent(outputEmbed.content)
+        : null;
+      const outputType = registryNormalizeEmbedType(outputEmbed?.type) || outputEmbed?.type || attrs.type;
+      const registryKey = resolveRegistryKey(outputType, outputContent ?? undefined);
+
+      if (outputEmbed && registryKey && hasFullscreenComponent(registryKey)) {
+        dispatchEmbedFullscreen({
+          embedId: outputEmbedId,
+          embedData: outputEmbed,
+          decodedContent: outputContent,
+          embedType: outputType,
+          attrs: undefined,
+        });
+        return;
+      }
+    } catch (error) {
+      console.warn("[AppSkillUseRenderer] Failed to open app-skill output fullscreen:", error);
     }
 
-    return lines.slice(0, 6);
-  }
-
-  private formatGenericPreviewValue(key: string, value: unknown): string | null {
-    if (typeof value === "string" && value.trim()) {
-      return `${key}: ${value.trim()}`;
-    }
-    if (typeof value === "number" || typeof value === "boolean") {
-      return `${key}: ${value}`;
-    }
-    if (Array.isArray(value)) {
-      return `${key}: ${value.length} item${value.length === 1 ? "" : "s"}`;
-    }
-    return null;
+    await this.openFullscreen(attrs, embedData, decodedContent);
   }
 
   /**
@@ -4704,24 +5774,160 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     embedData: any,
     decodedContent: any,
   ): Promise<void> {
-    // Dispatch custom event to open fullscreen view
-    // The fullscreen component will handle loading and displaying embed content
-    const event = new CustomEvent("embedfullscreen", {
-      detail: {
-        embedId: attrs.contentRef?.replace("embed:", ""),
-        embedData,
-        decodedContent,
-        embedType: "app-skill-use",
-        attrs,
-      },
-      bubbles: true,
-    });
+    const rawEmbedId = attrs.contentRef?.replace("embed:", "");
+    const attrsData = attrs as any;
+    let latestEmbedData = embedData;
+    let latestDecodedContent = decodedContent;
 
-    document.dispatchEvent(event);
+    if (rawEmbedId) {
+      try {
+        const resolvedEmbed = await resolveEmbed(rawEmbedId);
+        if (resolvedEmbed) {
+          latestEmbedData = resolvedEmbed;
+          latestDecodedContent = resolvedEmbed.content
+            ? await decodeToonContent(resolvedEmbed.content)
+            : latestDecodedContent;
+        }
+      } catch (error) {
+        console.warn(
+          "[AppSkillUseRenderer] Failed to refresh embed before fullscreen:",
+          error,
+        );
+      }
+    }
+
+    const fullscreenDecodedContent: Record<string, any> =
+      latestDecodedContent &&
+      typeof latestDecodedContent === "object" &&
+      !Array.isArray(latestDecodedContent)
+        ? { ...latestDecodedContent }
+        : {};
+    fullscreenDecodedContent.app_id ||= latestEmbedData?.app_id ||
+      embedData?.app_id ||
+      attrsData.app_id;
+    fullscreenDecodedContent.skill_id ||= latestEmbedData?.skill_id ||
+      embedData?.skill_id ||
+      attrsData.skill_id;
+    fullscreenDecodedContent.query ||= latestEmbedData?.query || embedData?.query ||
+      attrsData.query;
+    fullscreenDecodedContent.provider ||= latestEmbedData?.provider || embedData?.provider;
+    fullscreenDecodedContent.status ||= latestEmbedData?.status || embedData?.status;
+    fullscreenDecodedContent.embed_ids ||= latestEmbedData?.embed_ids ||
+      embedData?.embed_ids ||
+      attrsData.embed_ids;
+    fullscreenDecodedContent.result_count ||= latestEmbedData?.result_count ||
+      embedData?.result_count ||
+      attrsData.result_count;
+    fullscreenDecodedContent.results ||= latestEmbedData?.results || embedData?.results ||
+      attrsData.results;
+    fullscreenDecodedContent.preview_results ||= latestEmbedData?.preview_results ||
+      embedData?.preview_results ||
+      attrsData.preview_results;
+
+    const inferredEmbedType = this.inferFullscreenEmbedType(
+      attrs,
+      latestEmbedData,
+      fullscreenDecodedContent,
+    );
+    let targetEmbedId = rawEmbedId;
+    let focusChildEmbedId: string | undefined;
+
+    if (rawEmbedId) {
+      const resolvedTarget = await resolveEmbedFullscreenTarget(rawEmbedId, {
+        embedType: inferredEmbedType,
+        decodedContent: fullscreenDecodedContent,
+        exampleResolver: resolveExampleFullscreenTarget,
+      });
+      targetEmbedId = resolvedTarget.targetEmbedId;
+      focusChildEmbedId = resolvedTarget.focusChildEmbedId;
+    }
+
+    // Dispatch custom event to open fullscreen view.
+    // Direct child embeds (for example models3d model_result) must carry their
+    // concrete type so ActiveChat renders the child fullscreen instead of the
+    // generic parent app-skill fullscreen.
+    const detail = {
+      embedId: targetEmbedId,
+      embedData: latestEmbedData,
+      decodedContent: fullscreenDecodedContent,
+      embedType: inferredEmbedType,
+      attrs,
+      focusChildEmbedId,
+    };
+    dispatchEmbedFullscreen(detail);
     console.debug(
       "[AppSkillUseRenderer] Dispatched fullscreen event:",
-      event.detail,
+      detail,
     );
+  }
+
+  private inferFullscreenEmbedType(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+  ): string {
+    const contentType = decodedContent?.type;
+    if (typeof contentType === "string" && contentType !== "app_skill_use") {
+      return contentType;
+    }
+
+    const dataType = embedData?.type;
+    if (typeof dataType === "string" && dataType !== "app_skill_use") {
+      return dataType;
+    }
+
+    const appId = decodedContent?.app_id || embedData?.app_id || (attrs as any).app_id || "";
+    const skillId = decodedContent?.skill_id || embedData?.skill_id || (attrs as any).skill_id || "";
+    const childSkillTypes: Record<string, boolean> = {
+      image_result: true,
+      model_result: true,
+      company_financial_result: true,
+      weather_day: true,
+      listing: true,
+      event: true,
+      appointment: true,
+      stay: true,
+      product: true,
+      recipe: true,
+      task: true,
+      workflow: true,
+    };
+
+    if (childSkillTypes[skillId]) {
+      return skillId;
+    }
+
+    if (
+      appId === "models3d" &&
+      skillId === "search" &&
+      decodedContent &&
+      !decodedContent.embed_ids &&
+      (decodedContent.source_page_url || decodedContent.preview_image_url || decodedContent.thumbnail_url)
+    ) {
+      return "model_result";
+    }
+
+    if (
+      appId === "business" &&
+      skillId === "company_financials" &&
+      decodedContent &&
+      !decodedContent.embed_ids &&
+      (decodedContent.company || decodedContent.cik || decodedContent.revenue || decodedContent.net_income)
+    ) {
+      return "company_financial_result";
+    }
+
+    if (
+      appId === "images" &&
+      skillId === "search" &&
+      decodedContent &&
+      !decodedContent.embed_ids &&
+      (decodedContent.image_url || decodedContent.thumbnail_url)
+    ) {
+      return "image_result";
+    }
+
+    return "app-skill-use";
   }
 
   toMarkdown(attrs: EmbedNodeAttributes): string {

@@ -208,7 +208,7 @@ function detectNonCodeBlockElements(
     
     // Detect markdown syntax (headings, bold, italic, etc.)
     if (event.event === 'outside_block' && !inTableBlock && !isAnyFenceLine) {
-      detectMarkdownSyntax(line, i, partialEmbeds, unclosedBlocks, e2eMarkerRanges);
+      detectMarkdownSyntax(line, i, unclosedBlocks, e2eMarkerRanges);
     }
   }
 }
@@ -219,7 +219,6 @@ function detectNonCodeBlockElements(
 function detectMarkdownSyntax(
   line: string,
   lineIndex: number,
-  partialEmbeds: EmbedNodeAttributes[],
   unclosedBlocks: UnclosedBlock[],
   protectedRanges: ProtectedRange[] = []
 ): void {
@@ -227,8 +226,6 @@ function detectMarkdownSyntax(
   const pushToken = (start: number, end: number) => {
     if (start == null || end == null || end <= start) return;
     if (intersectsProtectedRange(start, end, protectedRanges)) return;
-    const id = generateUUID();
-    partialEmbeds.push({ id, type: 'markdown', status: 'processing', contentRef: `stream:${id}` });
     unclosedBlocks.push({ type: 'markdown', startLine: lineIndex, content: line.slice(start, end), tokenStartCol: start, tokenEndCol: end });
   };
 

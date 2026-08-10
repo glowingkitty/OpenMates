@@ -1,0 +1,561 @@
+title:
+  context: "Title of example chat: Berlin AI founder meetups map"
+  en: "Berlin AI founder meetups map"
+  de: "Berlin-Karte fuer KI-Gruender-Meetups"
+  zh: "Berlin AI founder meetups map"
+  es: "Berlin AI founder meetups map"
+  fr: "Berlin AI founder meetups map"
+  pt: "Berlin AI founder meetups map"
+  ru: "Berlin AI founder meetups map"
+  ja: "Berlin AI founder meetups map"
+  ko: "Berlin AI founder meetups map"
+  it: "Berlin AI founder meetups map"
+  tr: "Berlin AI founder meetups map"
+  vi: "Berlin AI founder meetups map"
+  id: "Berlin AI founder meetups map"
+  pl: "Berlin AI founder meetups map"
+  nl: "Berlin AI founder meetups map"
+  ar: "Berlin AI founder meetups map"
+  hi: "Berlin AI founder meetups map"
+  th: "Berlin AI founder meetups map"
+  cs: "Berlin AI founder meetups map"
+  sv: "Berlin AI founder meetups map"
+  he: "Berlin AI founder meetups map"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Berlin AI founder meetups map"
+  en: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  de: "Ein echter OpenMates-Chat, der Berliner KI-Events fuer Gruender findet, die beste Networking-Option hervorhebt und die Event-Refs in einer Kartenansicht rendert."
+  zh: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  es: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  fr: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  pt: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  ru: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  ja: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  ko: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  it: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  tr: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  vi: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  id: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  pl: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  nl: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  ar: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  hi: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  th: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  cs: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  sv: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  he: "A real OpenMates chat that finds Berlin AI founder events, highlights the best networking pick, and renders the event refs in a map view."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Berlin AI founder meetups map. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  de: "Finde bald stattfindende KI-Workshops und Meetups in Berlin, zeige die nuetzlichsten Optionen auf einer Karte und hebe die beste Wahl fuer einen Gruender hervor, der praktisches Networking sucht."
+  zh: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  es: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  fr: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  pt: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  ru: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  ja: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  ko: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  it: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  tr: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  vi: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  id: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  pl: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  nl: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  ar: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  hi: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  th: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  cs: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  sv: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  he: "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Berlin AI founder meetups map. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Hier sind die kommenden KI-Workshops und Meetups in Berlin, die sich am besten fuer Gruender eignen, die bauen, validieren und andere Builder kennenlernen wollen:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — Ein praktischer Vor-Ort-Workshop zu agentischen Coding-Tools. Ideal fuer Gruender, die ueber die Chatbox hinausgehen und Prototypen bauen wollen.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) im Miro Office — Eine offene Arbeitssession und Networking-Veranstaltung fuer Gruender, Engineers und Product-Leute, die Produkte shippen, Demos zeigen und Blocker gemeinsam loesen wollen.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Fokussiert auf profitable Chancen und die Validierung von KI-Geschaeftsmodellen.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — Ein praktischer Workshop, um generative KI fuer Business-Innovation und Wachstum zu nutzen.
+    ### Beste Option fuer praktisches Networking & Bauen: **Build Fridays Berlin**
+    Fuer einen Gruender mit Fokus auf **praktisches Networking** ist [Build Fridays Berlin](embed:build-fridays-berlin-O4R) die staerkste Wahl. Anders als klassische Webinar-Vortraege bringt es aktive Builder vor Ort zusammen (bei Miro) mit strukturierten Intros, offenem Hacking, Demo-Zeit und direktem Feedback von Gruendern und Engineers, die lieber shippen als reden. 
+    
+    Wenn du zusaetzlich einen intensiven technischen Workshop suchst, ist [Build your first app with AI in one evening](embed:build-your-first-K18) ebenfalls eine starke Hands-on-Option.
+    
+    Moechtest du Hilfe dabei, einen Pitch oder eine Projektdemo fuer eine dieser Sessions vorzubereiten?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "50dda9ce-723f-4e07-80d1-7da89a80dd39", "app_id": "events", "skill_id": "search", "query": "AI workshop meetup", "provider": "meetup", "providers": ["meetup"], "location": "Berlin, Germany"}
+    ```
+    
+    Here are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:
+    
+    1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.
+    2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.
+    3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.
+    4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.
+    ### Best Option for Practical Networking & Building: **Build Fridays Berlin**
+    For a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. 
+    
+    If you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.
+    
+    Would you like help preparing a pitch or project demo to bring to one of these sessions?
+    
+    ```embeds_map_view
+    title: Mapped results
+    embeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF
+    highlight: build-fridays-berlin-O4R
+    ```
+  verified_by_human: []

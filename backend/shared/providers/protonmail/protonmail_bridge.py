@@ -15,7 +15,7 @@ import imaplib
 import logging
 import os
 from dataclasses import dataclass
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 from email.header import decode_header
 from email.message import Message
 from email.utils import parsedate_to_datetime
@@ -291,6 +291,27 @@ def _safe_datetime_to_timestamp(value: Optional[str]) -> int:
         return 0
 
 
+def _iso_date_to_imap(value: Optional[str], *, add_days: int = 0) -> Optional[str]:
+    if not value:
+        return None
+    try:
+        parsed = datetime.strptime(value.strip(), "%Y-%m-%d") + timedelta(days=add_days)
+    except ValueError:
+        return None
+    return parsed.strftime("%d-%b-%Y")
+
+
+def _build_imap_search_criteria(start_date: Optional[str], end_date: Optional[str]) -> List[str]:
+    criteria = ["ALL"]
+    since = _iso_date_to_imap(start_date)
+    before = _iso_date_to_imap(end_date, add_days=1)
+    if since:
+        criteria.extend(["SINCE", since])
+    if before:
+        criteria.extend(["BEFORE", before])
+    return criteria
+
+
 def _snippet(text: str, limit: int = 220) -> str:
     normalized = " ".join(text.split())
     if len(normalized) <= limit:
@@ -315,6 +336,8 @@ def _search_messages_sync(
     query: str,
     mailbox: Optional[str],
     limit: int,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     imap_client = imaplib.IMAP4(config.bridge_host, config.bridge_imap_port)
     try:
@@ -324,7 +347,7 @@ def _search_messages_sync(
         if status != "OK":
             raise RuntimeError(f"Failed to select mailbox '{mailbox_to_use}'")
 
-        status, data = imap_client.uid("SEARCH", None, "ALL")
+        status, data = imap_client.uid("SEARCH", None, *_build_imap_search_criteria(start_date, end_date))
         if status != "OK" or not data or not data[0]:
             return []
 
@@ -402,6 +425,8 @@ async def search_protonmail_messages(
     query: str,
     mailbox: Optional[str],
     limit: int,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     normalized_limit = max(1, min(limit, MAX_RESULTS_HARD_LIMIT))
     return await asyncio.to_thread(
@@ -409,6 +434,8 @@ async def search_protonmail_messages(
         config=config,
         query=query,
         mailbox=mailbox,
+        start_date=start_date,
+        end_date=end_date,
         limit=normalized_limit,
     )
 

@@ -8,6 +8,8 @@ import tempfile
 import uuid
 import atexit
 import base64
+import binascii
+import re
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import tiktoken
 
@@ -18,6 +20,7 @@ from google.genai import errors as google_errors
 from pydantic import BaseModel
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.python_utils.thought_signature import serialize_thought_signature
 from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 from .openai_shared import calculate_token_breakdown
 
@@ -66,7 +69,7 @@ def _clamp_temperature_for_thinking_model(model_id: str, temperature: float) -> 
     is_thinking_gemini = (
         "gemini-2.5-" in model_lower
         or "gemini-3-" in model_lower
-        or "gemini-3." in model_lower  # e.g. gemini-3.1-pro-preview
+        or "gemini-3." in model_lower  # e.g. gemini-3.6-flash
     )
     if is_thinking_gemini and temperature < GEMINI_THINKING_MIN_TEMPERATURE:
         logger.info(
@@ -239,7 +242,69 @@ def _map_tools_to_google_format(tools: List[Dict[str, Any]]) -> Optional[List[ty
     return [types.Tool(function_declarations=function_declarations)] if function_declarations else None
 
 
-def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Optional[str], List[types.Content]):
+DATA_URL_RE = re.compile(r"^data:(?P<mime>[-\w.+/]+);base64,(?P<data>.+)$", re.DOTALL)
+
+
+def _media_resolution_from_image_url(image_url: Any) -> Any:
+    if not isinstance(image_url, dict):
+        return None
+    detail = str(image_url.get("detail") or "").strip().lower()
+    if detail in {"high", "original", "ultra_high", "ultra-high"}:
+        resolution_levels = getattr(types, "PartMediaResolutionLevel", None)
+        return getattr(resolution_levels, "MEDIA_RESOLUTION_ULTRA_HIGH", None)
+    return None
+
+
+def _parts_from_message_content(content: Any) -> List[types.Part]:
+    if not content:
+        return []
+    if isinstance(content, str):
+        return [types.Part.from_text(text=content)]
+    if not isinstance(content, list):
+        return [types.Part.from_text(text=str(content))]
+
+    parts: List[types.Part] = []
+    for block in content:
+        if not isinstance(block, dict):
+            parts.append(types.Part.from_text(text=str(block)))
+            continue
+        block_type = block.get("type")
+        if block_type == "text":
+            text = block.get("text")
+            if text:
+                parts.append(types.Part.from_text(text=str(text)))
+            continue
+        if block_type == "image_url":
+            image_url = block.get("image_url")
+            url = image_url.get("url") if isinstance(image_url, dict) else image_url
+            if not isinstance(url, str):
+                continue
+            match = DATA_URL_RE.match(url.strip())
+            if not match:
+                raise ValueError("Google Gemini multimodal messages only support data: image URLs")
+            try:
+                media_resolution = _media_resolution_from_image_url(image_url)
+                part_kwargs = {
+                    "data": base64.b64decode(match.group("data"), validate=True),
+                    "mime_type": match.group("mime"),
+                }
+                if media_resolution is not None:
+                    part_kwargs["media_resolution"] = media_resolution
+                try:
+                    parts.append(types.Part.from_bytes(**part_kwargs))
+                except TypeError:
+                    part_kwargs.pop("media_resolution", None)
+                    parts.append(types.Part.from_bytes(**part_kwargs))
+            except (binascii.Error, ValueError) as exc:
+                raise ValueError("Invalid base64 image data in Gemini multimodal message") from exc
+            continue
+        text = block.get("text") or block.get("content")
+        if text:
+            parts.append(types.Part.from_text(text=str(text)))
+    return parts
+
+
+def _prepare_messages_and_system_prompt(messages: List[Dict[str, Any]]) -> (Optional[str], List[types.Content]):
     """
     Convert OpenAI-compatible message format to Google Gemini format.
     
@@ -274,9 +339,10 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Opti
         content = msg.get("content", "")
         
         if role == "user":
-            # User message: Simple text content
-            if content:
-                history.append(types.Content(role="user", parts=[types.Part.from_text(text=content)]))
+            # User message: text or OpenAI-compatible multimodal content blocks.
+            parts = _parts_from_message_content(content)
+            if parts:
+                history.append(types.Content(role="user", parts=parts))
             i += 1
         
         elif role == "assistant":
@@ -319,7 +385,7 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Opti
             
             # Add text content if present (assistant may have both text and function calls)
             if content:
-                parts.append(types.Part.from_text(text=content))
+                parts.extend(_parts_from_message_content(content))
             
             if parts:
                 history.append(types.Content(role="model", parts=parts))
@@ -373,8 +439,17 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Opti
                                     header, b64_data = url.split(";base64,", 1)
                                     mime_type = header[len("data:"):]  # e.g. "image/webp"
                                     image_bytes = base64.b64decode(b64_data)
+                                    media_resolution = _media_resolution_from_image_url(image_url_data)
+                                    part_kwargs = {"data": image_bytes, "mime_type": mime_type}
+                                    if media_resolution is not None:
+                                        part_kwargs["media_resolution"] = media_resolution
+                                    try:
+                                        image_part = types.Part.from_bytes(**part_kwargs)
+                                    except TypeError:
+                                        part_kwargs.pop("media_resolution", None)
+                                        image_part = types.Part.from_bytes(**part_kwargs)
                                     tool_response_parts.append(
-                                        types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+                                        image_part
                                     )
                                 else:
                                     logger.warning(
@@ -451,7 +526,7 @@ def _normalize_google_model_id(model_id: str) -> str:
 async def invoke_google_ai_studio_chat_completions(
     task_id: str,
     model_id: str,
-    messages: List[Dict[str, str]],
+    messages: List[Dict[str, Any]],
     secrets_manager: Optional[SecretsManager] = None,
     temperature: float = 0.7,
     max_tokens: Optional[int] = None,
@@ -645,6 +720,9 @@ async def invoke_google_ai_studio_chat_completions(
                 try:
                     if chunk.candidates:
                         for candidate in chunk.candidates:
+                            candidate_thought_sig = serialize_thought_signature(
+                                getattr(candidate, 'thought_signature', None)
+                            )
                             if candidate.content and candidate.content.parts:
                                 for part in candidate.content.parts:
                                     # Check for function call on this part (with thought signature)
@@ -654,14 +732,10 @@ async def invoke_google_ai_studio_chat_completions(
                                         args_dict = dict(fc.args) if fc.args else {}
                                         # CRITICAL: Extract thought_signature from the part
                                         # The signature may be bytes (binary) - convert to base64 string for storage
-                                        thought_sig_raw = getattr(part, 'thought_signature', None)
-                                        thought_sig = None
-                                        if thought_sig_raw is not None:
-                                            if isinstance(thought_sig_raw, bytes):
-                                                # Convert bytes to base64 string for JSON serialization
-                                                thought_sig = base64.b64encode(thought_sig_raw).decode('utf-8')
-                                            elif isinstance(thought_sig_raw, str):
-                                                thought_sig = thought_sig_raw
+                                        thought_sig = (
+                                            serialize_thought_signature(getattr(part, 'thought_signature', None))
+                                            or candidate_thought_sig
+                                        )
                                         parsed_tool_call = ParsedGoogleToolCall(
                                             tool_call_id=f"{fc.name}-{uuid.uuid4().hex[:8]}",
                                             function_name=fc.name,
@@ -687,15 +761,11 @@ async def invoke_google_ai_studio_chat_completions(
                                         yield part.text
 
                             # Check for thinking signature on the candidate level (fallback)
-                            if hasattr(candidate, 'thought_signature') and candidate.thought_signature:
-                                # Convert bytes to base64 string if needed
-                                sig_value = candidate.thought_signature
-                                if isinstance(sig_value, bytes):
-                                    sig_value = base64.b64encode(sig_value).decode('utf-8')
+                            if candidate_thought_sig:
                                 logger.info(f"{log_prefix} Yielding thinking signature from candidate")
                                 yield UnifiedStreamChunk(
                                     type=StreamChunkType.THINKING_SIGNATURE,
-                                    signature=sig_value
+                                    signature=candidate_thought_sig
                                 )
                 except Exception as e:
                     # Fallback: If we can't parse candidates structure, use chunk.text
@@ -835,7 +905,7 @@ async def invoke_google_ai_studio_chat_completions(
 async def invoke_google_chat_completions(
     task_id: str,
     model_id: str,
-    messages: List[Dict[str, str]],
+    messages: List[Dict[str, Any]],
     secrets_manager: Optional[SecretsManager] = None,
     temperature: float = 0.7,
     max_tokens: Optional[int] = None,
@@ -1032,6 +1102,9 @@ async def invoke_google_chat_completions(
                 try:
                     if chunk.candidates:
                         for candidate in chunk.candidates:
+                            candidate_thought_sig = serialize_thought_signature(
+                                getattr(candidate, 'thought_signature', None)
+                            )
                             if candidate.content and candidate.content.parts:
                                 for part in candidate.content.parts:
                                     # Check for function call on this part (with thought signature)
@@ -1041,14 +1114,10 @@ async def invoke_google_chat_completions(
                                         args_dict = dict(fc.args) if fc.args else {}
                                         # CRITICAL: Extract thought_signature from the part
                                         # The signature may be bytes (binary) - convert to base64 string for storage
-                                        thought_sig_raw = getattr(part, 'thought_signature', None)
-                                        thought_sig = None
-                                        if thought_sig_raw is not None:
-                                            if isinstance(thought_sig_raw, bytes):
-                                                # Convert bytes to base64 string for JSON serialization
-                                                thought_sig = base64.b64encode(thought_sig_raw).decode('utf-8')
-                                            elif isinstance(thought_sig_raw, str):
-                                                thought_sig = thought_sig_raw
+                                        thought_sig = (
+                                            serialize_thought_signature(getattr(part, 'thought_signature', None))
+                                            or candidate_thought_sig
+                                        )
                                         parsed_tool_call = ParsedGoogleToolCall(
                                             tool_call_id=f"{fc.name}-{uuid.uuid4().hex[:8]}",
                                             function_name=fc.name,
@@ -1074,15 +1143,11 @@ async def invoke_google_chat_completions(
                                         yield part.text
 
                             # Check for thinking signature on the candidate level (fallback)
-                            if hasattr(candidate, 'thought_signature') and candidate.thought_signature:
-                                # Convert bytes to base64 string if needed
-                                sig_value = candidate.thought_signature
-                                if isinstance(sig_value, bytes):
-                                    sig_value = base64.b64encode(sig_value).decode('utf-8')
+                            if candidate_thought_sig:
                                 logger.info(f"{log_prefix} Yielding thinking signature from candidate")
                                 yield UnifiedStreamChunk(
                                     type=StreamChunkType.THINKING_SIGNATURE,
-                                    signature=sig_value
+                                    signature=candidate_thought_sig
                                 )
                 except Exception as e:
                     # Fallback: If we can't parse candidates structure, use chunk.text

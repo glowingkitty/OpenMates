@@ -25,17 +25,17 @@
 export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { chromium } = require('@playwright/test');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount
+	getTestAccount,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, sendMessage } = require('./helpers/chat-test-helpers');
 const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -110,14 +110,7 @@ async function sendMessageAndGetChatId(
 	message: string,
 	logFn: (msg: string) => void
 ): Promise<string> {
-	const messageEditor = page.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible({ timeout: 15000 });
-	await messageEditor.click();
-	await page.keyboard.type(message);
-
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled({ timeout: 10000 });
-	await sendButton.click();
+	await sendMessage(page, message, logFn);
 	logFn(`Message sent: "${message}"`);
 
 	// Wait for a real UUID chat ID in the URL (not the demo-for-everyone placeholder).
@@ -204,9 +197,32 @@ async function waitForChatInSidebarAndClick(
 			})
 		});
 
-	// Wait for it to appear (delivered via WebSocket real-time sync)
-	await expect(chatItem.first()).toBeVisible({ timeout: timeoutMs });
-	logFn(`Chat "${expectedTitleFragment}" appeared in sidebar — clicking to open.`);
+	// Wait for it to appear (delivered via WebSocket real-time sync). The sidebar
+	// renders a progressive slice of recent chats, so synced chats can exist in
+	// IndexedDB but sit below the initially mounted rows when older drafts sort first.
+	const deadline = Date.now() + timeoutMs;
+	let showMoreClicks = 0;
+	while (Date.now() < deadline) {
+		if (await chatItem.first().isVisible({ timeout: 1000 }).catch(() => false)) {
+			break;
+		}
+
+		const showMoreButton = page.getByTestId('show-more-chats');
+		if (
+			await showMoreButton.isVisible({ timeout: 500 }).catch(() => false) &&
+			await showMoreButton.isEnabled().catch(() => false)
+		) {
+			showMoreClicks += 1;
+			logFn(`Target chat not in mounted sidebar slice - clicking Show more (${showMoreClicks}).`);
+			await showMoreButton.click();
+			await page.waitForTimeout(500);
+			continue;
+		}
+
+		await page.waitForTimeout(1000);
+	}
+	await expect(chatItem.first()).toBeVisible({ timeout: 1000 });
+	logFn(`Chat "${expectedTitleFragment}" appeared in sidebar - clicking to open.`);
 
 	// Click the chat to open it
 	await chatItem.first().click();
@@ -226,6 +242,7 @@ async function assertChatDecryptedCorrectly(
 	page: any,
 	expectedAssistantText: string | RegExp,
 	sessionLabel: string,
+	chatId: string,
 	logs: SessionLogs,
 	logFn: (msg: string) => void
 ): Promise<void> {
@@ -247,8 +264,12 @@ async function assertChatDecryptedCorrectly(
 	}
 
 	// 2. No console decryption errors should have been captured for this session
-	if (logs.decryptionErrors.length > 0) {
-		const errSummary = logs.decryptionErrors.join('\n');
+	const relevantDecryptionErrors = logs.decryptionErrors.filter((error) =>
+		error.includes(chatId) ||
+		!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(error)
+	);
+	if (relevantDecryptionErrors.length > 0) {
+		const errSummary = relevantDecryptionErrors.join('\n');
 		throw new Error(
 			`[${sessionLabel}] Decryption errors detected while viewing chat:\n${errSummary}`
 		);
@@ -299,7 +320,7 @@ async function deleteActiveChat(page: any, logFn: (msg: string) => void): Promis
 
 // ─── Main test ───────────────────────────────────────────────────────────────
 
-test('multi-session encryption: two simultaneous sessions can send and read 4 chats without decryption errors', async () => {
+test('multi-session encryption: two simultaneous sessions can send and read 4 chats without decryption errors', async ({ browser }: { browser: any }) => {
 	test.slow();
 	// 4 chats × ~60s AI response + login + sync time = budget 10 minutes
 	test.setTimeout(600000);
@@ -322,7 +343,6 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 	// IMPORTANT: manually created contexts do NOT inherit playwright.config.ts baseURL,
 	// so we must pass it explicitly so that page.goto('/...') resolves correctly.
 	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
-	const browser = await chromium.launch();
 	const contextA = await browser.newContext({ baseURL });
 	const contextB = await browser.newContext({ baseURL });
 	const pageA = await contextA.newPage();
@@ -373,30 +393,32 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 		const chatScenarios = [
 			{
 				question: 'What is the capital of France?',
+				fixtureId: 'hidden_chats_1',
 				expectedAnswer: 'Paris' as string | RegExp,
 				expectedTitle: 'Capital'
 			},
 			{
-				question: 'What is 5 multiplied by 7?',
-				expectedAnswer: '35' as string | RegExp,
-				expectedTitle: '5'
+				question: 'What is the speed of light?',
+				fixtureId: 'hidden_chats_2',
+				expectedAnswer: '299,792' as string | RegExp,
+				expectedTitle: 'Speed'
 			},
 			{
-				question: 'Name one planet in our solar system.',
-				expectedAnswer: /.+/ as
-					| string
-					| RegExp,
-				expectedTitle: 'planet'
+				question: 'What is photosynthesis?',
+				fixtureId: 'hidden_chats_3',
+				expectedAnswer: 'Photosynthesis' as string | RegExp,
+				expectedTitle: 'photosynthesis'
 			},
 			{
-				question: 'What color is the sky on a clear day?',
-				expectedAnswer: 'blue' as string | RegExp,
-				expectedTitle: 'sky'
+				question: 'What is the boiling point of water?',
+				fixtureId: 'hidden_chats_4',
+				expectedAnswer: '100' as string | RegExp,
+				expectedTitle: 'Boiling'
 			}
 		];
 
 		for (let i = 0; i < chatScenarios.length; i++) {
-			const { question, expectedAnswer, expectedTitle } = chatScenarios[i];
+			const { question, fixtureId, expectedAnswer, expectedTitle } = chatScenarios[i];
 			const chatNum = i + 1;
 
 			logA(`\n===== CHAT ${chatNum}/4 =====`);
@@ -410,7 +432,7 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 			await startNewChat(pageA, logA);
 			await screenshotA(pageA, `chat${chatNum}-new-chat`);
 
-			const chatId = await sendMessageAndGetChatId(pageA, question, logA);
+			const chatId = await sendMessageAndGetChatId(pageA, withMockMarker(question, fixtureId), logA);
 			chatIds.push(chatId);
 
 			// ── Session A: Wait for AI response ──────────────────────────
@@ -430,6 +452,7 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 				pageA,
 				expectedAnswer,
 				`SESSION-A-chat${chatNum}`,
+				chatId,
 				logsA,
 				logA
 			);
@@ -447,6 +470,7 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 				pageB,
 				expectedAnswer,
 				`SESSION-B-chat${chatNum}`,
+				chatId,
 				logsB,
 				logB
 			);
@@ -465,9 +489,9 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 		for (const chatId of chatIds) {
 			try {
 				// Click the chat in Session A's sidebar to select it, then delete
-				const chatItem = pageA.getByTestId('chat-item-wrapper').filter({
-					has: pageA.locator(`[data-chat-id="${chatId}"]`)
-				});
+				const chatItem = pageA.locator(
+					`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`
+				);
 				if (await chatItem.isVisible().catch(() => false)) {
 					await chatItem.click();
 					await pageA.waitForTimeout(1000);

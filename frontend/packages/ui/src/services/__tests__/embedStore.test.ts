@@ -3,6 +3,51 @@ import { EmbedStore } from '../embedStore';
 import * as cryptoService from '../cryptoService';
 import type { EmbedStoreEntry } from '../../message_parsing/types';
 
+describe('EmbedStore.putEncrypted ref indexing', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it('defers child ref indexing until finalized parent data is readable', async () => {
+    const store = new EmbedStore();
+    const registerEmbedRef = vi.spyOn(store, 'registerEmbedRef');
+    const indexChildEmbedRefs = vi
+      .spyOn(store as unknown as { indexChildEmbedRefs(decoded: unknown): Promise<void> }, 'indexChildEmbedRefs')
+      .mockImplementation(async () => {
+        await expect(store.getRawEntry('embed:parent-1')).resolves.toMatchObject({
+          embed_id: 'parent-1',
+          status: 'finished',
+        });
+      });
+
+    await store.putEncrypted(
+      'embed:parent-1',
+      {
+        embed_id: 'parent-1',
+        encrypted_content: '<encrypted>',
+        status: 'finished',
+        embed_ids: ['child-1'],
+      },
+      'app_skill_use',
+      JSON.stringify({
+        app_id: 'events',
+        skill_id: 'search',
+        embed_ref: 'events-parent-A1b',
+        embed_ids: ['child-1'],
+      }),
+      { app_id: 'events', skill_id: 'search' },
+      {
+        skipEmbedRefRegistration: true,
+        deferChildEmbedRefRegistration: true,
+      },
+    );
+
+    expect(registerEmbedRef).not.toHaveBeenCalled();
+    expect(indexChildEmbedRefs).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('EmbedStore.getEmbedKey', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -163,6 +208,83 @@ describe('EmbedStore.resolveByRefDeep', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
+  });
+
+  it('repairs plaintext TOON refs without logging JSON parse errors', async () => {
+    const store = new EmbedStore();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const content = 'type: image\nembed_ref: berlin-weather-image\nurl: https://example.com/image.png';
+
+    store.registerStaticEmbed({
+      embedId: 'image-embed-id',
+      type: 'image',
+      content,
+    });
+
+    await expect(store.get('embed:image-embed-id')).resolves.toMatchObject({
+      embed_id: 'image-embed-id',
+      type: 'image',
+      embed_type: 'image',
+      status: 'finished',
+      content,
+    });
+    await expect(store.resolveByRefDeep('berlin-weather-image')).resolves.toBe(
+      'image-embed-id',
+    );
+    expect(consoleError).not.toHaveBeenCalledWith(
+      '[EmbedStore] Error parsing stored data as JSON:',
+      expect.anything(),
+    );
+  });
+
+  it('falls back to broad repair when a file ref ends with a six-hex content hash', async () => {
+    const store = new EmbedStore();
+
+    store.registerStaticEmbed({
+      embedId: 'pdf-embed-id',
+      type: 'pdf',
+      content: 'type: pdf\nembed_ref: sample-pdf-a1b2c3\nfilename: sample.pdf',
+    });
+
+    await expect(store.resolveByRefDeep('sample-pdf-a1b2c3')).resolves.toBe(
+      'pdf-embed-id',
+    );
+    expect(store.resolveByRef('sample-pdf-a1b2c3')).toBe('pdf-embed-id');
+  });
+
+  it('ignores non-TOON plaintext ref repair candidates without logging parse errors', async () => {
+    const store = new EmbedStore();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    store.registerStaticEmbed({
+      embedId: 'plain-text-embed-id',
+      type: 'text',
+      content: 'Dear [Recipient],\n\nThis is plain text, not a TOON or JSON embed payload.',
+    });
+
+    await expect(store.resolveByRefDeep('missing-embed-ref')).resolves.toBeNull();
+    expect(consoleError).not.toHaveBeenCalledWith(
+      '[EmbedStore] JSON fallback also failed:',
+      expect.anything(),
+    );
+  });
+
+  it('returns memory-only embeds without logging every cache hit', async () => {
+    const store = new EmbedStore();
+    const consoleDebug = vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+
+    store.setInMemoryOnly('embed:memory-only-id', {
+      embed_id: 'memory-only-id',
+      type: 'image_result',
+      skill_id: 'search',
+    });
+
+    await expect(store.get('embed:memory-only-id')).resolves.toMatchObject({
+      embed_id: 'memory-only-id',
+      type: 'image_result',
+      skill_id: 'search',
+    });
+    expect(consoleDebug).not.toHaveBeenCalled();
   });
 
   it('repairs video source quote refs that use a YouTube video ID', async () => {

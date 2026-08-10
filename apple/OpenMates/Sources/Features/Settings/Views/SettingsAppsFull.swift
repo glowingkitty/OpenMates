@@ -7,6 +7,10 @@
 // Svelte:  frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
 //          frontend/packages/ui/src/components/settings/SettingsAllApps.svelte
 //          frontend/packages/ui/src/components/settings/AppDetails.svelte
+//          frontend/packages/ui/src/components/settings/SkillDetails.svelte
+//          frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+//          frontend/packages/ui/src/components/settings/ContentEmbedDetails.svelte
+//          frontend/packages/ui/src/components/settings/SkillExamplesSection.svelte
 // CSS:     frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift, GradientTokens.generated.swift
@@ -20,9 +24,17 @@ struct SettingsAppsFullView: View {
     @State private var searchText = ""
     @State private var selectedApp: AppInfo?
     @State private var isShowingAllApps = false
+    @State private var mostUsedAppIDs: [String] = []
     let onOpenExampleChat: (String) -> Void
 
-    init(onOpenExampleChat: @escaping (String) -> Void = { _ in }) {
+    init(onOpenExampleChat: @escaping (String) -> Void = { chatId in
+        guard let url = URL(string: "openmates://chat/\(chatId)") else { return }
+        NotificationCenter.default.post(
+            name: .deepLinkReceived,
+            object: nil,
+            userInfo: ["url": url]
+        )
+    }) {
         self.onOpenExampleChat = onOpenExampleChat
     }
 
@@ -40,6 +52,7 @@ struct SettingsAppsFullView: View {
         let skills: [AppSkill]?
         var focusModes: [AppSkill]?
         var settingsAndMemories: [AppSkill]?
+        let contentTypes: [ContentType]
 
         var providerDisplayNames: [String] {
             let appProviders = providers?.map(\.displayName) ?? []
@@ -117,12 +130,20 @@ struct SettingsAppsFullView: View {
         let description: String?
         let pricing: [String: AnyCodable]?
         let providers: [ProviderRef]?
-        let howToUseExamples: [String]?
+        let providerDetails: [ProviderDetail]?
+        let howToUse: [String]?
         let exampleTitles: [String]?
         let exampleChatIds: [String]?
-        let processBullets: [String]?
+        let process: [String]?
         let systemPrompt: String?
-        let modelNames: [String]?
+        let models: [ModelDetail]?
+        let iconImage: String?
+        let type: String?
+
+        var howToUseExamples: [String]? { howToUse }
+        var processBullets: [String]? { process }
+        var modelNames: [String]? { models?.map(\.name) }
+        var valueType: String? { type }
 
         var providerDisplayNames: [String] {
             uniqueStrings((providers ?? []).map(\.displayName))
@@ -134,28 +155,81 @@ struct SettingsAppsFullView: View {
             description: String?,
             pricing: [String: AnyCodable]? = nil,
             providers: [ProviderRef]? = nil,
+            providerDetails: [ProviderDetail]? = nil,
             howToUseExamples: [String]? = nil,
             exampleTitles: [String]? = nil,
             exampleChatIds: [String]? = nil,
             processBullets: [String]? = nil,
             systemPrompt: String? = nil,
-            modelNames: [String]? = nil
+            modelNames: [String]? = nil,
+            models: [ModelDetail]? = nil,
+            iconImage: String? = nil,
+            valueType: String? = nil
         ) {
             self.id = id
             self.name = name
             self.description = description
             self.pricing = pricing
             self.providers = providers
-            self.howToUseExamples = howToUseExamples
+            self.providerDetails = providerDetails
+            self.howToUse = howToUseExamples
             self.exampleTitles = exampleTitles
             self.exampleChatIds = exampleChatIds
-            self.processBullets = processBullets
+            self.process = processBullets
             self.systemPrompt = systemPrompt
-            self.modelNames = modelNames
+            self.models = models ?? modelNames?.map {
+                ModelDetail(id: $0, name: $0, description: nil, providerId: "", providerName: "", pricing: nil)
+            }
+            self.iconImage = iconImage
+            self.type = valueType
+        }
+    }
+
+    struct ProviderDetail: Identifiable, Decodable {
+        let id: String
+        let name: String
+        let description: String?
+        let logoSvg: String?
+        let country: String?
+        let privacyPolicy: String?
+    }
+
+    struct ModelDetail: Identifiable, Decodable {
+        let id: String
+        let name: String
+        let description: String?
+        let providerId: String
+        let providerName: String
+        let pricing: [String: AnyCodable]?
+    }
+
+    struct ContentType: Identifiable, Decodable {
+        let id: String
+        let contentTypeId: String
+        let frontendType: String
+        let backendType: String
+        let skillId: String?
+        let name: String
+        let description: String
+        let icon: String?
+        let exampleKey: String
+        let order: Int
+    }
+
+    enum MentionKind {
+        case skill
+        case focus
+    }
+
+    static func mentionSyntax(appId: String, itemId: String, kind: MentionKind) -> String {
+        switch kind {
+        case .skill: return "@skill:\(appId):\(itemId)"
+        case .focus: return "@focus:\(appId):\(itemId)"
         }
     }
 
     static let appStoreExcludedAppIDs: Set<String> = ["ai"]
+    static let newChatDraftID = "composer:new-chat"
 
     static let webAppStoreCategoryKeys: [String] = [
         "top_picks",
@@ -178,20 +252,19 @@ struct SettingsAppsFullView: View {
         guard !searchText.isEmpty else { return apps }
         return apps.filter {
             $0.name.localizedCaseInsensitiveContains(searchText) ||
-            ($0.description?.localizedCaseInsensitiveContains(searchText) ?? false)
+            ($0.description?.localizedCaseInsensitiveContains(searchText) ?? false) ||
+            $0.providerDisplayNames.contains { $0.localizedCaseInsensitiveContains(searchText) }
         }
     }
 
     private var categoryEntries: [AppCategoryEntry] {
-        Self.categorizeApps(filteredApps).filter { !$0.apps.isEmpty }
+        Self.categorizeApps(filteredApps, mostUsedAppIDs: mostUsedAppIDs).filter { !$0.apps.isEmpty }
     }
 
     var body: some View {
         Group {
             if let selectedApp {
-                AppDetailView(app: selectedApp, onToggle: {
-                    toggleApp(selectedApp)
-                }, onOpenExampleChat: onOpenExampleChat) {
+                AppDetailView(app: selectedApp, onOpenExampleChat: onOpenExampleChat) {
                     withAnimation(.easeOut(duration: 0.2)) {
                         self.selectedApp = nil
                     }
@@ -258,7 +331,22 @@ struct SettingsAppsFullView: View {
                 .filter { !Self.appStoreExcludedAppIDs.contains($0.id) }
                 .sorted { $0.name < $1.name }
         } catch {
-            print("[Settings] Failed to load apps: \(error)")
+            NativeDiagnostics.warning(
+                "Apps metadata load failed errorType=\(type(of: error))",
+                category: "settings_apps"
+            )
+        }
+        do {
+            let response: MostUsedAppsResponse = try await APIClient.shared.request(
+                .get,
+                path: "/v1/apps/most-used?limit=5"
+            )
+            mostUsedAppIDs = response.apps.map(\.appId)
+        } catch {
+            NativeDiagnostics.warning(
+                "Most-used Apps metadata load failed errorType=\(type(of: error))",
+                category: "settings_apps"
+            )
         }
         isLoading = false
     }
@@ -289,6 +377,14 @@ struct SettingsAppsFullView: View {
         let apps: [String: AppMetadataItem]
     }
 
+    struct MostUsedAppsResponse: Decodable {
+        let apps: [MostUsedApp]
+    }
+
+    struct MostUsedApp: Decodable {
+        let appId: String
+    }
+
     struct AppMetadataItem: Decodable {
         let id: String
         let name: String
@@ -301,6 +397,7 @@ struct SettingsAppsFullView: View {
         let skills: [AppSkill]
         let focusModes: [AppSkill]
         let settingsAndMemories: [AppSkill]
+        let contentTypes: [ContentType]
 
     }
 
@@ -327,11 +424,12 @@ struct SettingsAppsFullView: View {
             lastUpdated: app.lastUpdated,
             skills: app.skills,
             focusModes: app.focusModes,
-            settingsAndMemories: app.settingsAndMemories
+            settingsAndMemories: app.settingsAndMemories,
+            contentTypes: app.contentTypes
         )
     }
 
-    static func categorizeApps(_ apps: [AppInfo]) -> [AppCategoryEntry] {
+    static func categorizeApps(_ apps: [AppInfo], mostUsedAppIDs: [String] = []) -> [AppCategoryEntry] {
         let sortedByName = apps.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         var buckets = Dictionary(uniqueKeysWithValues: webAppStoreCategoryKeys.map { ($0, [AppInfo]()) })
 
@@ -344,6 +442,11 @@ struct SettingsAppsFullView: View {
         }
 
         for app in sortedByName.prefix(5) { add(app, to: "top_picks") }
+        for appID in mostUsedAppIDs {
+            if let app = apps.first(where: { $0.id == appID }) {
+                add(app, to: "most_used")
+            }
+        }
 
         let newest = apps
             .filter { $0.lastUpdated?.isEmpty == false }
@@ -387,10 +490,25 @@ struct SettingsAppsFullView: View {
                 description: "Get a forecast",
                 pricing: ["fixed": AnyCodable(2)],
                 providers: [ProviderRef(name: "OpenWeather")],
+                providerDetails: [ProviderDetail(
+                    id: "openweather",
+                    name: "OpenWeather",
+                    description: "Weather data provider",
+                    logoSvg: "icons/openweather.svg",
+                    country: "US",
+                    privacyPolicy: nil
+                )],
                 howToUseExamples: ["Will it rain in Berlin tomorrow?"],
                 exampleTitles: ["Berlin forecast"],
                 exampleChatIds: ["example-flights-berlin-bangkok"],
-                modelNames: ["OpenWeather Forecast"]
+                models: [ModelDetail(
+                    id: "forecast-v2",
+                    name: "OpenWeather Forecast",
+                    description: "Forecast model",
+                    providerId: "openweather",
+                    providerName: "OpenWeather",
+                    pricing: nil
+                )]
             )],
             focusModes: [AppSkill(
                 id: "travel_weather",
@@ -402,7 +520,25 @@ struct SettingsAppsFullView: View {
                 processBullets: ["Check the forecast", "Recommend timing around bad weather"],
                 systemPrompt: "Prioritize weather-aware travel planning."
             )],
-            settingsAndMemories: [AppSkill(id: "home_location", name: "Home Location", description: "Remember a location")]
+            settingsAndMemories: [AppSkill(
+                id: "home_location",
+                name: "Home Location",
+                description: "Remember a location",
+                iconImage: "home.svg",
+                valueType: "single"
+            )],
+            contentTypes: [ContentType(
+                id: "weather.weather_day",
+                contentTypeId: "weather_day",
+                frontendType: "weather-day",
+                backendType: "weather_day",
+                skillId: "forecast",
+                name: "Weather day",
+                description: "A daily weather forecast.",
+                icon: "weather",
+                exampleKey: "weather.weather_day",
+                order: 10
+            )]
         )),
         appInfo(from: AppMetadataItem(
             id: "docs",
@@ -415,7 +551,8 @@ struct SettingsAppsFullView: View {
             lastUpdated: "2026-03-01",
             skills: [AppSkill(id: "summarize", name: "Summarize", description: "Summarize documents")],
             focusModes: [],
-            settingsAndMemories: []
+            settingsAndMemories: [],
+            contentTypes: []
         )),
     ]
 
@@ -441,16 +578,6 @@ struct SettingsAppsFullView: View {
         }
     }
 
-    private func toggleApp(_ app: AppInfo) {
-        Task {
-            let enabled = !(app.isInstalled ?? false)
-            try? await APIClient.shared.request(
-                .post, path: "/v1/apps/\(app.id)/toggle",
-                body: ["enabled": enabled]
-            ) as Data
-            await loadApps()
-        }
-    }
 }
 
 // MARK: - App row
@@ -674,6 +801,7 @@ private struct SettingsAllAppsNativeView: View {
                 query.isEmpty
                     || app.name.localizedCaseInsensitiveContains(query)
                     || (app.description?.localizedCaseInsensitiveContains(query) ?? false)
+                    || app.providerDisplayNames.contains { $0.localizedCaseInsensitiveContains(query) }
             }
             .sorted { lhs, rhs in
                 switch sortMode {
@@ -795,12 +923,13 @@ private struct SettingsAllAppsNativeView: View {
 
 struct AppDetailView: View {
     let app: SettingsAppsFullView.AppInfo
-    let onToggle: () -> Void
     let onOpenExampleChat: (String) -> Void
     let onBack: () -> Void
 
     @State private var selectedSkill: SettingsAppsFullView.AppSkill?
     @State private var selectedFocusMode: SettingsAppsFullView.AppSkill?
+    @State private var selectedMemory: SettingsAppsFullView.AppSkill?
+    @State private var selectedContent: SettingsAppsFullView.ContentType?
 
     var body: some View {
         if let selectedSkill {
@@ -813,6 +942,22 @@ struct AppDetailView: View {
             AppFocusModeDetailNativeView(app: app, focusMode: selectedFocusMode, onOpenExampleChat: onOpenExampleChat) {
                 withAnimation(.easeOut(duration: 0.2)) {
                     self.selectedFocusMode = nil
+                }
+            }
+        } else if let selectedMemory {
+            AppMemoryDetailNativeView(app: app, memory: selectedMemory) {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    self.selectedMemory = nil
+                }
+            }
+        } else if let selectedContent {
+            AppContentDetailNativeView(
+                app: app,
+                content: selectedContent,
+                onOpenExampleChat: onOpenExampleChat
+            ) {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    self.selectedContent = nil
                 }
             }
         } else {
@@ -872,7 +1017,42 @@ struct AppDetailView: View {
             if let memories = app.settingsAndMemories, !memories.isEmpty {
                 OMSettingsSection(AppStrings.appStoreMemories, icon: "settings") {
                     ForEach(memories) { memory in
-                        detailRow(memory, identifier: "settings-app-memory-row-\(memory.id)") {}
+                        detailRow(memory, identifier: "settings-app-memory-row-\(memory.id)") {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                selectedMemory = memory
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !app.contentTypes.isEmpty {
+                OMSettingsSection(AppStrings.localized("settings.app_store.content.title"), icon: "embed") {
+                    ForEach(app.contentTypes) { content in
+                        Button {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                selectedContent = content
+                            }
+                        } label: {
+                            HStack(spacing: .spacing4) {
+                                Icon(content.icon ?? "embed", size: 20)
+                                    .foregroundStyle(Color.buttonPrimary)
+                                VStack(alignment: .leading, spacing: .spacing1) {
+                                    Text(content.name)
+                                        .font(.omP.weight(.medium))
+                                        .foregroundStyle(Color.fontPrimary)
+                                    Text(content.description)
+                                        .font(.omXs)
+                                        .foregroundStyle(Color.fontSecondary)
+                                        .lineLimit(2)
+                                }
+                                Spacer()
+                            }
+                            .padding(.horizontal, .spacing5)
+                            .padding(.vertical, .spacing3)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("settings-app-content-row-\(content.contentTypeId)")
                     }
                 }
             }
@@ -918,6 +1098,102 @@ struct AppDetailView: View {
     }
 }
 
+private struct AppMemoryDetailNativeView: View {
+    let app: SettingsAppsFullView.AppInfo
+    let memory: SettingsAppsFullView.AppSkill
+    let onBack: () -> Void
+
+    var body: some View {
+        OMSettingsPage(title: memory.name, showsHeader: false) {
+            Color.clear.frame(height: 0).accessibilityIdentifier("settings-memory-detail-page")
+            appsDetailBackButton(title: app.name, identifier: "settings-memory-detail-back", action: onBack)
+            OMSettingsSection(AppStrings.localized("settings.app_store.settings_memories.title"), icon: "settings") {
+                appsDetailText(memory.description ?? "")
+                if let valueType = memory.valueType, !valueType.isEmpty {
+                    appsDetailPill(valueType)
+                }
+            }
+        }
+    }
+}
+
+private struct AppContentDetailNativeView: View {
+    let app: SettingsAppsFullView.AppInfo
+    let content: SettingsAppsFullView.ContentType
+    let onOpenExampleChat: (String) -> Void
+    let onBack: () -> Void
+
+    var body: some View {
+        OMSettingsPage(title: content.name, showsHeader: false) {
+            Color.clear.frame(height: 0).accessibilityIdentifier("settings-content-detail-page")
+            appsDetailBackButton(title: app.name, identifier: "settings-content-detail-back", action: onBack)
+            OMSettingsSection(content.name, icon: content.icon ?? "embed") {
+                appsDetailText(content.description)
+                HStack(spacing: .spacing2) {
+                    appsDetailPill(content.frontendType)
+                    if let skillId = content.skillId {
+                        appsDetailPill("\(app.id).\(skillId)")
+                    }
+                }
+                .padding(.horizontal, .spacing5)
+                .padding(.bottom, .spacing3)
+            }
+            if let chatIds = exampleChatIds(appId: app.id, itemId: content.contentTypeId, kind: .content),
+               !chatIds.isEmpty {
+                OMSettingsSection(AppStrings.appStoreExamples, icon: "chat") {
+                    horizontalTextCards(
+                        chatIds.map { _ in content.name },
+                        identifierPrefix: "settings-content-example-card",
+                        chatIds: chatIds,
+                        onOpenExampleChat: onOpenExampleChat
+                    )
+                }
+            }
+        }
+    }
+}
+
+private struct AppProviderDetailNativeView: View {
+    let app: SettingsAppsFullView.AppInfo
+    let provider: SettingsAppsFullView.ProviderDetail
+    let onBack: () -> Void
+
+    var body: some View {
+        OMSettingsPage(title: provider.name, showsHeader: false) {
+            Color.clear.frame(height: 0).accessibilityIdentifier("settings-provider-detail-page")
+            appsDetailBackButton(title: app.name, identifier: "settings-provider-detail-back", action: onBack)
+            OMSettingsSection(AppStrings.appStoreProviders, icon: "provider") {
+                appsDetailText(provider.description ?? "")
+                if let country = provider.country, !country.isEmpty {
+                    appsDetailPill(country)
+                }
+            }
+        }
+    }
+}
+
+private struct AppModelDetailNativeView: View {
+    let app: SettingsAppsFullView.AppInfo
+    let model: SettingsAppsFullView.ModelDetail
+    let onBack: () -> Void
+
+    var body: some View {
+        OMSettingsPage(title: model.name, showsHeader: false) {
+            Color.clear.frame(height: 0).accessibilityIdentifier("settings-model-detail-page")
+            appsDetailBackButton(title: app.name, identifier: "settings-model-detail-back", action: onBack)
+            OMSettingsSection(AppStrings.appStoreModels, icon: "skill") {
+                appsDetailText(model.description ?? "")
+                appsDetailPill(model.providerName)
+            }
+            if let pricing = model.pricing, !pricing.isEmpty {
+                OMSettingsSection(AppStrings.pricing, icon: "coins") {
+                    appsDetailText(formatPricing(pricing))
+                }
+            }
+        }
+    }
+}
+
 private struct AppSkillDetailNativeView: View {
     let app: SettingsAppsFullView.AppInfo
     let skill: SettingsAppsFullView.AppSkill
@@ -925,8 +1201,24 @@ private struct AppSkillDetailNativeView: View {
     let onBack: () -> Void
 
     @State private var mentionInserted = false
+    @State private var selectedProvider: SettingsAppsFullView.ProviderDetail?
+    @State private var selectedModel: SettingsAppsFullView.ModelDetail?
 
     var body: some View {
+        if let selectedProvider {
+            AppProviderDetailNativeView(app: app, provider: selectedProvider) {
+                self.selectedProvider = nil
+            }
+        } else if let selectedModel {
+            AppModelDetailNativeView(app: app, model: selectedModel) {
+                self.selectedModel = nil
+            }
+        } else {
+            skillBody
+        }
+    }
+
+    private var skillBody: some View {
         OMSettingsPage(title: skill.name, showsHeader: false) {
             Color.clear
                 .frame(height: 0)
@@ -947,12 +1239,14 @@ private struct AppSkillDetailNativeView: View {
                     .accessibilityIdentifier("settings-skill-pricing-value")
             }
 
-            if let examples = skill.exampleTitles, !examples.isEmpty {
+            let skillChatIds = skill.exampleChatIds ?? exampleChatIds(appId: app.id, itemId: skill.id, kind: .skill)
+            if let skillChatIds, !skillChatIds.isEmpty {
+                let examples = skill.exampleTitles ?? skillChatIds.map { _ in skill.name }
                 OMSettingsSection(AppStrings.appStoreExamples, icon: "skill") {
                     horizontalTextCards(
                         examples,
                         identifierPrefix: "settings-skill-example-card",
-                        chatIds: skill.exampleChatIds ?? fallbackExampleChatIds(appId: app.id, itemId: skill.id),
+                        chatIds: skillChatIds,
                         onOpenExampleChat: onOpenExampleChat
                     )
                 }
@@ -963,28 +1257,47 @@ private struct AppSkillDetailNativeView: View {
                     horizontalTextCards(howToUse, identifierPrefix: "settings-skill-how-to-use-card")
                     mentionButton(title: "@\(mentionDisplayName)", identifier: "settings-skill-mention-button") {
                         mentionInserted = true
+                        openComposerWithMention(kind: .skill)
                     }
                 }
             }
 
-            let providerNames = skill.providerDisplayNames
-            if !providerNames.isEmpty {
+            if let providers = skill.providerDetails, !providers.isEmpty {
                 OMSettingsSection(AppStrings.appStoreProviders, icon: "provider") {
-                    ForEach(providerNames, id: \.self) { provider in
-                        providerRow(provider)
+                    ForEach(providers) { provider in
+                        Button {
+                            selectedProvider = provider
+                        } label: {
+                            providerRow(provider.name)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("settings-skill-provider-item")
                     }
                 }
             }
 
-            if let modelNames = skill.modelNames, !modelNames.isEmpty {
+            if let models = skill.models, !models.isEmpty {
                 OMSettingsSection(AppStrings.appStoreModels, icon: "skill") {
-                    ForEach(modelNames, id: \.self) { model in
-                        Text(model)
-                            .font(.omP.weight(.medium))
-                            .foregroundStyle(Color.fontPrimary)
+                    ForEach(models) { model in
+                        Button {
+                            selectedModel = model
+                        } label: {
+                            HStack(spacing: .spacing4) {
+                                VStack(alignment: .leading, spacing: .spacing1) {
+                                    Text(model.name)
+                                        .font(.omP.weight(.medium))
+                                        .foregroundStyle(Color.fontPrimary)
+                                    Text(model.providerName)
+                                        .font(.omXs)
+                                        .foregroundStyle(Color.fontSecondary)
+                                }
+                                Spacer()
+                            }
                             .padding(.horizontal, .spacing5)
                             .padding(.vertical, .spacing3)
-                            .accessibilityIdentifier("settings-skill-model-item")
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("settings-skill-model-item")
                     }
                 }
             }
@@ -1016,17 +1329,32 @@ private struct AppSkillDetailNativeView: View {
 
     private var pricingText: String {
         guard let pricing = skill.pricing else { return "1 \(AppStrings.credits)" }
-        if let fixed = pricing["fixed"]?.value as? Int {
-            return "\(fixed) \(AppStrings.credits)"
-        }
-        if let fixed = pricing["fixed"]?.value as? Double {
-            return "\(fixed.formatted()) \(AppStrings.credits)"
-        }
-        return "1 \(AppStrings.credits)"
+        return formatPricing(pricing)
     }
 
     private var mentionDisplayName: String {
         "\(titleCase(app.id))-\(titleCase(skill.id.replacingOccurrences(of: "_", with: "-")))"
+    }
+
+    private func openComposerWithMention(kind: SettingsAppsFullView.MentionKind) {
+        let syntax = SettingsAppsFullView.mentionSyntax(appId: app.id, itemId: skill.id, kind: kind)
+        Task {
+            do {
+                try await DraftService.shared.saveDraft(
+                    canonicalMarkdown: syntax,
+                    preview: syntax,
+                    chatId: SettingsAppsFullView.newChatDraftID,
+                    revision: 1,
+                    draftVersion: 0
+                )
+                NotificationCenter.default.post(name: .newChat, object: nil)
+            } catch {
+                NativeDiagnostics.warning(
+                    "Apps skill mention insertion failed errorType=\(type(of: error))",
+                    category: "settings_apps"
+                )
+            }
+        }
     }
 
     private func providerRow(_ provider: String) -> some View {
@@ -1043,7 +1371,6 @@ private struct AppSkillDetailNativeView: View {
         }
         .padding(.horizontal, .spacing5)
         .padding(.vertical, .spacing3)
-        .accessibilityIdentifier("settings-skill-provider-item")
     }
 }
 
@@ -1064,12 +1391,14 @@ private struct AppFocusModeDetailNativeView: View {
 
             backButton
 
-            if let examples = focusMode.exampleTitles, !examples.isEmpty {
+            let focusChatIds = focusMode.exampleChatIds ?? exampleChatIds(appId: app.id, itemId: focusMode.id, kind: .focus)
+            if let focusChatIds, !focusChatIds.isEmpty {
+                let examples = focusMode.exampleTitles ?? focusChatIds.map { _ in focusMode.name }
                 OMSettingsSection(AppStrings.appStoreExamples, icon: "skill") {
                     horizontalTextCards(
                         examples,
                         identifierPrefix: "settings-focus-example-card",
-                        chatIds: focusMode.exampleChatIds ?? fallbackExampleChatIds(appId: app.id, itemId: focusMode.id),
+                        chatIds: focusChatIds,
                         onOpenExampleChat: onOpenExampleChat
                     )
                 }
@@ -1080,6 +1409,7 @@ private struct AppFocusModeDetailNativeView: View {
                     horizontalTextCards(howToUse, identifierPrefix: "settings-focus-how-to-use-card")
                     mentionButton(title: "@\(mentionDisplayName)", identifier: "settings-focus-mention-button") {
                         mentionInserted = true
+                        openComposerWithMention()
                     }
                 }
             }
@@ -1152,6 +1482,31 @@ private struct AppFocusModeDetailNativeView: View {
     private var mentionDisplayName: String {
         "\(titleCase(app.id))-\(titleCase(focusMode.id.replacingOccurrences(of: "_", with: "-")))"
     }
+
+    private func openComposerWithMention() {
+        let syntax = SettingsAppsFullView.mentionSyntax(
+            appId: app.id,
+            itemId: focusMode.id,
+            kind: .focus
+        )
+        Task {
+            do {
+                try await DraftService.shared.saveDraft(
+                    canonicalMarkdown: syntax,
+                    preview: syntax,
+                    chatId: SettingsAppsFullView.newChatDraftID,
+                    revision: 1,
+                    draftVersion: 0
+                )
+                NotificationCenter.default.post(name: .newChat, object: nil)
+            } catch {
+                NativeDiagnostics.warning(
+                    "Apps focus mention insertion failed errorType=\(type(of: error))",
+                    category: "settings_apps"
+                )
+            }
+        }
+    }
 }
 
 @MainActor
@@ -1195,13 +1550,30 @@ private func textCard(_ value: String) -> some View {
         .clipShape(RoundedRectangle(cornerRadius: .radius5))
 }
 
-private func fallbackExampleChatIds(appId: String, itemId: String) -> [String]? {
-    switch (appId, itemId) {
-    case ("travel", "search_connections"):
-        return ["example-flights-berlin-bangkok"]
-    default:
-        return nil
+private enum AppStoreExampleKind {
+    case skill
+    case focus
+    case content
+}
+
+private func exampleChatIds(appId: String, itemId: String, kind: AppStoreExampleKind) -> [String]? {
+    let key = "\(appId).\(itemId)"
+    let mapping: [String: [String]]
+    switch kind {
+    case .skill:
+        mapping = [
+            "images.search": ["example-gigantic-airplanes", "example-artemis-ii-mission"],
+            "travel.search_connections": ["example-flights-berlin-bangkok"],
+            "web.search": ["example-eu-chat-control-law"],
+        ]
+    case .focus:
+        mapping = [:]
+    case .content:
+        mapping = [
+            "web.website": ["example-eu-chat-control-law"],
+        ]
     }
+    return mapping[key]
 }
 
 private func uniqueStrings(_ values: [String]) -> [String] {
@@ -1228,4 +1600,64 @@ private func titleCase(_ value: String) -> String {
             return first.uppercased() + String(part.dropFirst())
         }
         .joined(separator: "-")
+}
+
+@MainActor
+private func appsDetailBackButton(
+    title: String,
+    identifier: String,
+    action: @escaping () -> Void
+) -> some View {
+    Button(action: action) {
+        HStack(spacing: .spacing3) {
+            Icon("back", size: 20)
+            Text(title).font(.omSmall.weight(.semibold))
+        }
+        .foregroundStyle(Color.buttonPrimary)
+        .padding(.horizontal, .spacing5)
+        .padding(.vertical, .spacing3)
+    }
+    .buttonStyle(.plain)
+    .accessibilityIdentifier(identifier)
+}
+
+@MainActor
+private func appsDetailText(_ value: String) -> some View {
+    Text(value)
+        .font(.omP)
+        .foregroundStyle(Color.fontPrimary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, .spacing5)
+        .padding(.vertical, .spacing3)
+}
+
+@MainActor
+private func appsDetailPill(_ value: String) -> some View {
+    Text(value)
+        .font(.omXs.weight(.medium))
+        .foregroundStyle(Color.fontSecondary)
+        .padding(.horizontal, .spacing4)
+        .padding(.vertical, .spacing2)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+        .padding(.horizontal, .spacing5)
+        .padding(.bottom, .spacing3)
+}
+
+@MainActor
+private func formatPricing(_ pricing: [String: AnyCodable]) -> String {
+    if let fixed = pricing["fixed"]?.value as? Int {
+        return "\(fixed) \(AppStrings.credits)"
+    }
+    if let perUnit = pricing["per_unit"]?.value as? [String: Any],
+       let credits = perUnit["credits"] {
+        return "\(credits) \(AppStrings.credits)"
+    }
+    if let perMinute = pricing["per_minute"]?.value as? Int {
+        return "\(perMinute) \(AppStrings.credits)"
+    }
+    if let perSecond = pricing["per_second"]?.value as? Int {
+        return "\(perSecond) \(AppStrings.credits)"
+    }
+    return AppStrings.credits
 }

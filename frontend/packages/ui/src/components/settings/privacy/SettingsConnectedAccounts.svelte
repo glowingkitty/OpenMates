@@ -9,12 +9,12 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { text } from '@repo/ui';
-    import SettingsItem from '../../SettingsItem.svelte';
     import { authStore } from '../../../stores/authStore';
     import { userProfile } from '../../../stores/userProfile';
     import {
         listConnectedAccounts,
         summarizeConnectedAccountRows,
+        updateConnectedAccount,
         type EncryptedConnectedAccountRow,
         type ConnectedAccountSummary
     } from '../../../services/connectedAccountStorageService';
@@ -30,6 +30,7 @@
         SettingsDetailRow,
         SettingsInfoBox,
         SettingsInput,
+        SettingsItem,
         SettingsSectionHeading,
         SettingsTextarea
     } from '../../settings/elements';
@@ -40,7 +41,7 @@
     let accountRows = $state<EncryptedConnectedAccountRow[]>([]);
     let selectedAccountId = $state('');
     let loading = $state(false);
-    let action = $state<'idle' | 'updating' | 'finalizing' | 'exporting'>('idle');
+    let action = $state<'idle' | 'updating' | 'finalizing' | 'exporting' | 'revoking'>('idle');
     let error = $state('');
     let success = $state('');
     let finalizedOAuthHandoffId = $state('');
@@ -184,6 +185,26 @@
         }
     }
 
+    async function revokeLocalConnector(account: ConnectedAccountSummary) {
+        if (account.execution_mode !== 'local_connector') return;
+        action = 'revoking';
+        error = '';
+        success = '';
+        try {
+            await updateConnectedAccount({
+                accountId: account.id,
+                patch: { connector_status: 'revoked' }
+            });
+            success = $text('settings.privacy.connected_accounts.revoked_success');
+            await loadConnectedAccounts(false);
+        } catch (revokeError) {
+            console.warn('[SettingsConnectedAccounts] Failed to revoke local connected account:', revokeError);
+            error = $text('settings.privacy.connected_accounts.revoke_error');
+        } finally {
+            action = 'idle';
+        }
+    }
+
     function getOAuthHandoffId(): string | null {
         if (typeof window === 'undefined') return null;
         return new URLSearchParams(window.location.search).get('oauth_handoff_id');
@@ -201,12 +222,22 @@
 
     function providerLabel(providerId: string): string {
         if (providerId === 'google_calendar') return $text('settings.privacy.connected_accounts.provider_google_calendar');
+        if (providerId === 'protonmail_bridge') return $text('settings.privacy.connected_accounts.provider_proton_mail_bridge');
         return providerId;
     }
 
     function appLabel(appId: string): string {
         if (appId === 'calendar') return $text('apps.calendar');
+        if (appId === 'mail') return $text('apps.mail');
         return appId;
+    }
+
+    function accountStatusLabel(account: ConnectedAccountSummary): string {
+        if (account.execution_mode !== 'local_connector') return $text('settings.privacy.connected_accounts.status_oauth');
+        if (account.connector_status === 'online') return $text('settings.privacy.connected_accounts.status_online_cli');
+        if (account.connector_status === 'revoked') return $text('settings.privacy.connected_accounts.status_revoked');
+        if (account.connector_status === 'setup_required') return $text('settings.privacy.connected_accounts.status_setup_required');
+        return $text('settings.privacy.connected_accounts.status_offline');
     }
 
     function capabilityLabels(capabilities: string[]): string {
@@ -227,6 +258,10 @@
 
     function needsCalendarWriteAccess(account: ConnectedAccountSummary): boolean {
         return account.app_id === 'calendar' && !account.capabilities.includes('write');
+    }
+
+    function canRevokeLocalConnector(account: ConnectedAccountSummary): boolean {
+        return account.execution_mode === 'local_connector' && account.connector_status !== 'revoked';
     }
 
     function selectConnectedAccount(accountId: string) {
@@ -264,9 +299,9 @@
                     <SettingsItem
                         type="subsubmenu"
                         icon={account.app_id}
-                        subtitleTop={providerLabel(account.provider_id)}
+                        subtitleTop={`${providerLabel(account.provider_id)} - ${account.execution_mode === 'local_connector' ? accountStatusLabel(account) : capabilityLabels(account.capabilities)}`}
                         title={account.label}
-                        subtitleBottom={capabilityLabels(account.capabilities)}
+                        data-testid="privacy-connected-account-item"
                         onClick={() => selectConnectedAccount(account.id)}
                     />
                 </div>
@@ -279,6 +314,7 @@
                         <SettingsDetailRow label={$text('settings.privacy.connected_accounts.account_label')} value={selectedAccount.label} />
                         <SettingsDetailRow label={$text('settings.privacy.connected_accounts.provider')} value={providerLabel(selectedAccount.provider_id)} />
                         <SettingsDetailRow label={$text('settings.privacy.connected_accounts.app')} value={appLabel(selectedAccount.app_id)} />
+                        <SettingsDetailRow label={$text('settings.privacy.connected_accounts.status')} value={accountStatusLabel(selectedAccount)} />
                         <SettingsDetailRow label={$text('settings.privacy.connected_accounts.capabilities')} value={capabilityLabels(selectedAccount.capabilities)} />
                         <SettingsDetailRow label={$text('settings.privacy.connected_accounts.runtime_modes')} value={runtimeModeLabels(selectedAccount.runtime_modes)} />
                     </SettingsCard>
@@ -321,6 +357,18 @@
                         onClick={() => addCalendarWriteAccess(selectedAccount as ConnectedAccountSummary)}
                     >
                         {$text('settings.privacy.connected_accounts.add_calendar_write')}
+                    </SettingsButton>
+                {/if}
+
+                {#if canRevokeLocalConnector(selectedAccount)}
+                    <SettingsButton
+                        dataTestid="privacy-connected-account-revoke-button"
+                        variant="secondary"
+                        loading={action === 'revoking'}
+                        disabled={action !== 'idle'}
+                        onClick={() => revokeLocalConnector(selectedAccount as ConnectedAccountSummary)}
+                    >
+                        {$text('settings.privacy.connected_accounts.revoke_local_connector')}
                     </SettingsButton>
                 {/if}
             {/if}

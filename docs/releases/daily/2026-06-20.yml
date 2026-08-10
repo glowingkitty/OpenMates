@@ -1,0 +1,2685 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-20'
+generated_at: '2026-07-09T15:47:07+00:00'
+range:
+  since: '2026-06-20T00:00:00+00:00'
+  until: '2026-06-20T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 57
+  section_counts:
+    features: 5
+    bug_fixes: 27
+    improvements: 0
+    docs: 7
+    tests: 16
+    infrastructure: 1
+    internal: 0
+    other: 1
+  newsletter_ready_items: 22
+  user_facing_items: 23
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add short report issue ids'
+    section: features
+    commits:
+    - ba2c51132
+    authored_at: '2026-06-20T18:13:02+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/utils/report_issue_ids.py
+    - backend/core/directus/schemas/issues.yml
+    - backend/tests/test_short_report_issue_ids.py
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add self-host local model support'
+    section: features
+    commits:
+    - 0b3ffa18a
+    authored_at: '2026-06-20T14:58:32+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/local_openai_compatible.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/utils/config_manager.py
+    - backend/core/docker-compose.selfhost.yml
+    - docs/self-hosting/setup.md
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/src/server.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add guest learning mode'
+    section: features
+    commits:
+    - 4527e1820
+    authored_at: '2026-06-20T13:59:21+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/shared/python_utils/learning_mode.py
+    - backend/tests/test_learning_mode_policy.py
+    - docs/specs/learning-mode/spec.yml
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/anonymous-free-usage.test.ts
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/learning-mode/SettingsLearningModeSetup.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/stores/learningModeStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: simplify feature availability'
+    section: features
+    commits:
+    - c5caae2db
+    authored_at: '2026-06-20T13:42:27+00:00'
+    changed_paths:
+    - .agents/skills/add-app-skill/SKILL.md
+    - .agents/skills/add-focus-mode/SKILL.md
+    - .agents/skills/add-memory-type/SKILL.md
+    - .claude/skills/add-app-skill/SKILL.md
+    - .claude/skills/add-focus-mode/SKILL.md
+    - .claude/skills/add-memory-type/SKILL.md
+    - AGENTS.md
+    - backend/apps/README.md
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/processing/tool_generator.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/apps/base_app.py
+    - backend/apps/base_app.yml
+    - backend/apps/base_skill.py
+    - backend/apps/books/app.yml
+    - backend/apps/books/focus_modes/book-discussion/SKILL.md
+    - backend/apps/books/focus_modes/book-recommendations/SKILL.md
+    - backend/apps/calendar/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/code/focus_modes/analyze-logs/SKILL.md
+    - backend/apps/code/focus_modes/check-security/SKILL.md
+    - backend/apps/code/focus_modes/code-walkthrough/SKILL.md
+    - backend/apps/code/focus_modes/learn-by-building/SKILL.md
+    - backend/apps/code/focus_modes/project-planner/SKILL.md
+    - backend/apps/code/focus_modes/refactor-code/SKILL.md
+    - backend/apps/code/focus_modes/research-solutions/SKILL.md
+    - backend/apps/code/focus_modes/setup-infrastructure/SKILL.md
+    - backend/apps/code/focus_modes/test-git-repo/SKILL.md
+    - backend/apps/code/skills/get_docs_skill.py
+    - backend/apps/docs/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/events/app.yml
+    - backend/apps/events/skills/search_skill.py
+    - backend/apps/fitness/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/health/focus_modes/health-insights/SKILL.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.md
+    - backend/apps/home/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/jobs/app.yml
+    - backend/apps/jobs/focus_modes/career-insights/SKILL.md
+    - backend/apps/life_coaching/app.yml
+    - backend/apps/life_coaching/focus_modes/crisis-support/SKILL.md
+    - backend/apps/mail/app.yml
+    - backend/apps/mail/skills/search_skill.py
+    - backend/apps/maps/app.yml
+    - backend/apps/maps/skills/search_skill.py
+    - backend/apps/math/app.yml
+    - backend/apps/math/skills/calculate_skill.py
+    - backend/apps/music/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/news/focus_modes/understand-the-news/SKILL.md
+    - backend/apps/news/skills/search_skill.py
+    - backend/apps/nutrition/app.yml
+    - backend/apps/openmates/app.yml
+    - backend/apps/openmates/focus_modes/welcome/SKILL.md
+    - backend/apps/openmates/skills/get_docs_skill.py
+    - backend/apps/openmates/skills/search_docs_skill.py
+    - backend/apps/openmates/skills/share_usecase_skill.py
+    - backend/apps/pcb_design/app.yml
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.md
+    - backend/apps/pdf/app.yml
+    - backend/apps/plants/app.yml
+    - backend/apps/plants/focus_modes/plant-care-guide/SKILL.md
+    - backend/apps/reminder/app.yml
+    - backend/apps/reminder/skills/cancel_reminder_skill.py
+    - backend/apps/reminder/skills/list_reminders_skill.py
+    - backend/apps/reminder/skills/set_reminder_skill.py
+    - backend/apps/shopping/app.yml
+    - backend/apps/social_media/app.yml
+    - backend/apps/social_media/focus_modes/content-calendar-strategist/SKILL.md
+    - backend/apps/social_media/skills/get_posts.py
+    - backend/apps/social_media/skills/search.py
+    - backend/apps/study/app.yml
+    - backend/apps/study/focus_modes/learn-topic/SKILL.md
+    - backend/apps/study/focus_modes/socratic-questioning/SKILL.md
+    - backend/apps/study/focus_modes/test-knowledge/SKILL.md
+    - backend/apps/study/focus_modes/what-to-study/SKILL.md
+    - backend/apps/travel/app.yml
+    - backend/apps/tv/app.yml
+    - backend/apps/videos/app.yml
+    - backend/apps/videos/focus_modes/analyze-video/SKILL.md
+    - backend/apps/videos/skills/search_skill.py
+    - backend/apps/videos/skills/transcript_skill.py
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/forecast_skill.py
+    - backend/apps/weather/skills/rain_radar_skill.py
+    - backend/apps/web/app.yml
+    - backend/apps/web/focus_modes/analyze-privacy/SKILL.md
+    - backend/apps/web/focus_modes/check-reputation/SKILL.md
+    - backend/apps/web/focus_modes/research/SKILL.md
+    - backend/apps/web/skills/read_skill.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/config/backend_config.yml
+    - backend/core/api/app/routes/application_preview.py
+    - backend/core/api/app/routes/apps.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/features.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/services/feature_availability_guards.py
+    - backend/core/api/app/services/feature_availability_service.py
+    - backend/core/api/app/services/skill_registry.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/api/app/utils/config_manager.py
+    - backend/core/api/main.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/tests/test_app_metadata_no_stage.py
+    - backend/tests/test_feature_availability_enforcement.py
+    - backend/tests/test_feature_availability_service.py
+    - backend/tests/test_postprocessor.py
+    - backend/tests/test_skill_executor_registry_refresh.py
+    - docs/architecture/apps/app-skills.md
+    - docs/architecture/apps/focus-modes.md
+    - docs/architecture/apps/function-calling.md
+    - docs/architecture/apps/rest-api.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/simplified-feature-availability/spec.yml
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    - frontend/packages/ui/src/types/apps.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
+  - title: 'feat: add account-wide learning mode'
+    section: features
+    commits:
+    - 51353ee18
+    authored_at: '2026-06-20T08:29:51+00:00'
+    changed_paths:
+    - backend/apps/ai/mates/activism.md
+    - backend/apps/ai/mates/business_development.md
+    - backend/apps/ai/mates/cooking_food.md
+    - backend/apps/ai/mates/design.md
+    - backend/apps/ai/mates/electrical_engineering.md
+    - backend/apps/ai/mates/finance.md
+    - backend/apps/ai/mates/general_knowledge.md
+    - backend/apps/ai/mates/history.md
+    - backend/apps/ai/mates/legal_law.md
+    - backend/apps/ai/mates/life_coach_psychology.md
+    - backend/apps/ai/mates/maker_prototyping.md
+    - backend/apps/ai/mates/marketing_sales.md
+    - backend/apps/ai/mates/medical_health.md
+    - backend/apps/ai/mates/movies_tv.md
+    - backend/apps/ai/mates/onboarding_support.md
+    - backend/apps/ai/mates/science.md
+    - backend/apps/ai/mates/software_development.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/mate_utils.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/learning_mode.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/users.yml
+    - backend/shared/python_utils/learning_mode.py
+    - backend/tests/test_learning_mode_policy.py
+    - backend/tests/test_learning_mode_prompts_and_embeds.py
+    - docs/specs/learning-mode/spec.yml
+    - docs/user-guide/cli/README.md
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/stores/learningModeStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: report invalid embed share passwords'
+    section: bug_fixes
+    commits:
+    - 6262edd1d
+    authored_at: '2026-06-20T19:37:28+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/embedShareEncryption.ts
+    - frontend/packages/ui/src/services/encryption/__tests__/shareEncryption.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: return generated short issue ids'
+    section: bug_fixes
+    commits:
+    - 43cd8db66
+    authored_at: '2026-06-20T19:32:01+00:00'
+    changed_paths:
+    - backend/core/api/app/utils/report_issue_ids.py
+    - backend/tests/test_short_report_issue_ids.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: prefer short issue ids in issue workflow CLI'
+    section: bug_fixes
+    commits:
+    - 8182e8544
+    authored_at: '2026-06-20T18:34:02+00:00'
+    changed_paths:
+    - scripts/issues.py
+    - scripts/tests/test_issues_cli.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: include short ids in issue debug lists'
+    section: bug_fixes
+    commits:
+    - 8f1a16a9d
+    authored_at: '2026-06-20T18:27:15+00:00'
+    changed_paths:
+    - backend/scripts/debug_issue.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: complete short report issue id flow'
+    section: bug_fixes
+    commits:
+    - bfbdf3d13
+    authored_at: '2026-06-20T18:26:19+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/api/app/routes/settings.py
+    - backend/scripts/debug_issue.py
+    - docs/specs/short-report-issue-ids/spec.yml
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssueConfirmation.svelte
+    - frontend/packages/ui/src/services/chatErrorReportConsent.ts
+    - frontend/packages/ui/src/services/issueReportSubmission.ts
+    - frontend/packages/ui/src/stores/reportIssueStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: repair learning mode settings header'
+    section: bug_fixes
+    commits:
+    - 09719b8bc
+    authored_at: '2026-06-20T18:02:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/learning-mode/SettingsLearningModeSetup.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide single workspace header toggle'
+    section: bug_fixes
+    commits:
+    - 36176b218
+    authored_at: '2026-06-20T17:43:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: simplify feature availability response'
+    section: bug_fixes
+    commits:
+    - 4ce6a280f
+    authored_at: '2026-06-20T15:42:31+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/features.py
+    - backend/core/api/app/services/feature_availability_service.py
+    - backend/tests/test_feature_availability_service.py
+    - docs/specs/simplified-feature-availability/spec.yml
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent learning mode notification retry loop'
+    section: bug_fixes
+    commits:
+    - b9ec4debd
+    authored_at: '2026-06-20T15:38:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/learningModeStore.test.ts
+    - frontend/packages/ui/src/stores/learningModeStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: recover partial chat indexeddb schemas'
+    section: bug_fixes
+    commits:
+    - bdbc3b791
+    authored_at: '2026-06-20T15:31:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/db.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow guest learning settings'
+    section: bug_fixes
+    commits:
+    - b69fa5add
+    authored_at: '2026-06-20T14:19:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: expose feature availability endpoint'
+    section: bug_fixes
+    commits:
+    - 6a54580e1
+    authored_at: '2026-06-20T14:03:01+00:00'
+    changed_paths:
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: email existing users during duplicate signup'
+    section: bug_fixes
+    commits:
+    - 6d90fb32b
+    authored_at: '2026-06-20T13:33:45+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_email.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/existing_account_email_task.py
+    - backend/core/api/templates/email/existing-account.mjml
+    - backend/tests/test_signup_existing_account_email.py
+    - frontend/packages/openmates-cli/tests/signup.test.ts
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: improve anonymous exhausted mobile flow'
+    section: bug_fixes
+    commits:
+    - 2c0d0c67c
+    authored_at: '2026-06-20T13:08:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore main settings row component'
+    section: bug_fixes
+    commits:
+    - 045c96e08
+    authored_at: '2026-06-20T11:17:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: update learning settings row'
+    section: bug_fixes
+    commits:
+    - c46e9dd39
+    authored_at: '2026-06-20T10:59:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/learning-mode.spec.ts
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: clear visible anonymous chat on budget rollback'
+    section: bug_fixes
+    commits:
+    - e90d06739
+    authored_at: '2026-06-20T10:47:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: move learning mode setup into settings page'
+    section: bug_fixes
+    commits:
+    - 8bea98990
+    authored_at: '2026-06-20T10:44:37+00:00'
+    changed_paths:
+    - docs/specs/learning-mode/spec.yml
+    - frontend/apps/web_app/tests/learning-mode.spec.ts
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsDropdown.svelte
+    - frontend/packages/ui/src/components/settings/learning-mode/SettingsLearningModeSetup.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - scripts/code_quality_guard.py
+    - scripts/tests/test_code_quality_guard_caddy.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add universal ASCII-smuggling guards'
+    section: bug_fixes
+    commits:
+    - c4562d7c9
+    authored_at: '2026-06-20T10:23:04+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/apps/pdf/services/ocr_service.py
+    - backend/apps/pdf/services/toc_detector.py
+    - backend/apps/pdf/skills/read_skill.py
+    - backend/apps/pdf/skills/search_skill.py
+    - backend/apps/pdf/tasks/process_task.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/utils/text_sanitization.py
+    - backend/tests/test_ascii_smuggling_boundaries.py
+    - backend/tests/test_audio_transcribe_ascii_sanitization.py
+    - backend/tests/test_pdf_ascii_smuggling_sanitization.py
+    - docs/specs/ascii-smuggling-universal-guards/spec.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: roll back anonymous chat on budget rejection'
+    section: bug_fixes
+    commits:
+    - 56fa4840e
+    authored_at: '2026-06-20T10:09:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow learning mode api on dev proxy'
+    section: bug_fixes
+    commits:
+    - 9d9f3258d
+    authored_at: '2026-06-20T09:24:51+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: allow learning mode api through proxy'
+    section: bug_fixes
+    commits:
+    - 2d1a92512
+    authored_at: '2026-06-20T09:22:52+00:00'
+    changed_paths:
+    - deployment/Caddyfile.example
+    - deployment/prod_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: keep anonymous draft when credits exhausted'
+    section: bug_fixes
+    commits:
+    - 1b1263a3c
+    authored_at: '2026-06-20T09:15:59+00:00'
+    changed_paths:
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: include learning mode request endpoint'
+    section: bug_fixes
+    commits:
+    - 2e2455546
+    authored_at: '2026-06-20T09:09:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/learningModeStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: derive browser API URL for dev app'
+    section: bug_fixes
+    commits:
+    - 170b5c2fb
+    authored_at: '2026-06-20T08:59:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/config/api.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: clear anonymous fallback typing by chat'
+    section: bug_fixes
+    commits:
+    - a9eca5158
+    authored_at: '2026-06-20T00:38:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: clear anonymous typing on terminal stream'
+    section: bug_fixes
+    commits:
+    - a568b5c2f
+    authored_at: '2026-06-20T00:25:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: record sparse availability verification'
+    section: docs
+    commits:
+    - 4b6310c91
+    authored_at: '2026-06-20T15:58:34+00:00'
+    changed_paths:
+    - docs/specs/simplified-feature-availability/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: verify feature availability spec'
+    section: docs
+    commits:
+    - 2a3b2fdd8
+    authored_at: '2026-06-20T14:50:54+00:00'
+    changed_paths:
+    - docs/specs/simplified-feature-availability/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record feature availability e2e pass'
+    section: docs
+    commits:
+    - 62d6d9799
+    authored_at: '2026-06-20T14:49:48+00:00'
+    changed_paths:
+    - docs/specs/simplified-feature-availability/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record guest learning mode evidence'
+    section: docs
+    commits:
+    - adfdc8463
+    authored_at: '2026-06-20T14:33:48+00:00'
+    changed_paths:
+    - docs/specs/learning-mode/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record feature availability e2e blocker'
+    section: docs
+    commits:
+    - 1dbdd0a57
+    authored_at: '2026-06-20T14:05:36+00:00'
+    changed_paths:
+    - docs/specs/simplified-feature-availability/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record signup email issue findings'
+    section: docs
+    commits:
+    - 4240745dd
+    authored_at: '2026-06-20T13:06:04+00:00'
+    changed_paths:
+    - docs/findings/issues/prod/2026/6e0933d1-c968-499f-8e21-cc602c164525-keinen-code-bekommen.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record learning mode e2e evidence'
+    section: docs
+    commits:
+    - fda18bb0a
+    authored_at: '2026-06-20T11:10:59+00:00'
+    changed_paths:
+    - docs/specs/learning-mode/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: align embed share password error'
+    section: tests
+    commits:
+    - fa6bc63ad
+    authored_at: '2026-06-20T19:42:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/embed/[embedId]/+page.svelte
+    - frontend/apps/web_app/tests/share-password-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover password protected sharing'
+    section: tests
+    commits:
+    - 7aefcdc36
+    authored_at: '2026-06-20T19:24:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/src/routes/share/embed/[embedId]/+page.svelte
+    - frontend/apps/web_app/tests/share-password-flow.spec.ts
+    - frontend/packages/openmates-cli/tests/shareEncryption.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: tolerate fast anonymous header updates'
+    section: tests
+    commits:
+    - bc93e44d0
+    authored_at: '2026-06-20T14:32:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: seed guest learning mode in anonymous spec'
+    section: tests
+    commits:
+    - 6a30e781a
+    authored_at: '2026-06-20T14:22:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: dismiss anonymous composer by control'
+    section: tests
+    commits:
+    - 1ab2fe2cb
+    authored_at: '2026-06-20T14:11:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert anonymous budget heading specifically'
+    section: tests
+    commits:
+    - 32be3808f
+    authored_at: '2026-06-20T11:42:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: open anonymous budget from server settings'
+    section: tests
+    commits:
+    - 523a42f77
+    authored_at: '2026-06-20T11:33:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: match normalized settings route in budget spec'
+    section: tests
+    commits:
+    - 9411b2493
+    authored_at: '2026-06-20T11:24:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize anonymous budget settings navigation'
+    section: tests
+    commits:
+    - ae2a51615
+    authored_at: '2026-06-20T11:15:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align learning row title assertion'
+    section: tests
+    commits:
+    - 290150ef1
+    authored_at: '2026-06-20T11:01:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/learning-mode.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: consume learning mode prompts once'
+    section: tests
+    commits:
+    - d4247aff7
+    authored_at: '2026-06-20T10:19:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/learning-mode.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover anonymous budget exhaustion draft'
+    section: tests
+    commits:
+    - 358e2b8ea
+    authored_at: '2026-06-20T09:00:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix learning mode toggle assertion'
+    section: tests
+    commits:
+    - c4a67b39a
+    authored_at: '2026-06-20T08:39:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/learning-mode.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add learning mode e2e coverage'
+    section: tests
+    commits:
+    - da853d460
+    authored_at: '2026-06-20T08:10:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/learning-mode.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: tolerate anonymous quota terminal stream'
+    section: tests
+    commits:
+    - 1412b14c4
+    authored_at: '2026-06-20T00:53:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: mock anonymous json response headers'
+    section: tests
+    commits:
+    - 226b1ae03
+    authored_at: '2026-06-20T00:36:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: deploy accumulated updates'
+    section: infrastructure
+    commits:
+    - f20bfd7af
+    authored_at: '2026-06-20T18:10:46+00:00'
+    changed_paths:
+    - .agents/skills/debug-issue/SKILL.md
+    - .claude/skills/debug-issue/SKILL.md
+    - .gitignore
+    - AGENTS.md
+    - backend/apps/ai/llm_providers/openai_openrouter.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/providers/zai.yml
+    - backend/tests/test_llm_utils_stream_fallback.py
+    - backend/tests/test_openai_openrouter.py
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/findings/issues/README.md
+    - docs/specs/short-report-issue-ids/spec.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - scripts/apple_remote.py
+    - scripts/code_quality_guard.py
+    - scripts/issues.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other:
+  - title: 'Merge pull request #471 from glowingkitty/dev'
+    section: other
+    commits:
+    - 74c88b619
+    authored_at: '2026-06-20T22:14:28+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: hide single workspace header toggle'
+    commits:
+    - 36176b218
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: simplify feature availability response'
+    commits:
+    - 4ce6a280f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: simplify feature availability'
+    commits:
+    - c5caae2db
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+marketing_candidates:
+  newsletter:
+  - title: 'fix: complete short report issue id flow'
+    commits:
+    - bfbdf3d13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add short report issue ids'
+    commits:
+    - ba2c51132
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: repair learning mode settings header'
+    commits:
+    - 09719b8bc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide single workspace header toggle'
+    commits:
+    - 36176b218
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: simplify feature availability response'
+    commits:
+    - 4ce6a280f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent learning mode notification retry loop'
+    commits:
+    - b9ec4debd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: recover partial chat indexeddb schemas'
+    commits:
+    - bdbc3b791
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add self-host local model support'
+    commits:
+    - 0b3ffa18a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: allow guest learning settings'
+    commits:
+    - b69fa5add
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add guest learning mode'
+    commits:
+    - 4527e1820
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: email existing users during duplicate signup'
+    commits:
+    - 6d90fb32b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve anonymous exhausted mobile flow'
+    commits:
+    - 2c0d0c67c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore main settings row component'
+    commits:
+    - 045c96e08
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: update learning settings row'
+    commits:
+    - c46e9dd39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: clear visible anonymous chat on budget rollback'
+    commits:
+    - e90d06739
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: move learning mode setup into settings page'
+    commits:
+    - 8bea98990
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add universal ASCII-smuggling guards'
+    commits:
+    - c4562d7c9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: roll back anonymous chat on budget rejection'
+    commits:
+    - 56fa4840e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep anonymous draft when credits exhausted'
+    commits:
+    - 1b1263a3c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: include learning mode request endpoint'
+    commits:
+    - 2e2455546
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add account-wide learning mode'
+    commits:
+    - 51353ee18
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: clear anonymous typing on terminal stream'
+    commits:
+    - a568b5c2f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: complete short report issue id flow'
+    commits:
+    - bfbdf3d13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add short report issue ids'
+    commits:
+    - ba2c51132
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: repair learning mode settings header'
+    commits:
+    - 09719b8bc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide single workspace header toggle'
+    commits:
+    - 36176b218
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: simplify feature availability response'
+    commits:
+    - 4ce6a280f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent learning mode notification retry loop'
+    commits:
+    - b9ec4debd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: recover partial chat indexeddb schemas'
+    commits:
+    - bdbc3b791
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add self-host local model support'
+    commits:
+    - 0b3ffa18a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: allow guest learning settings'
+    commits:
+    - b69fa5add
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add guest learning mode'
+    commits:
+    - 4527e1820
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: simplify feature availability'
+    commits:
+    - c5caae2db
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: email existing users during duplicate signup'
+    commits:
+    - 6d90fb32b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve anonymous exhausted mobile flow'
+    commits:
+    - 2c0d0c67c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore main settings row component'
+    commits:
+    - 045c96e08
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: update learning settings row'
+    commits:
+    - c46e9dd39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: clear visible anonymous chat on budget rollback'
+    commits:
+    - e90d06739
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: move learning mode setup into settings page'
+    commits:
+    - 8bea98990
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add universal ASCII-smuggling guards'
+    commits:
+    - c4562d7c9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: roll back anonymous chat on budget rejection'
+    commits:
+    - 56fa4840e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep anonymous draft when credits exhausted'
+    commits:
+    - 1b1263a3c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: include learning mode request endpoint'
+    commits:
+    - 2e2455546
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add account-wide learning mode'
+    commits:
+    - 51353ee18
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: clear anonymous typing on terminal stream'
+    commits:
+    - a568b5c2f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 74c88b619767753063bb294f36d1b55ed8c282d0
+    short_sha: 74c88b619
+    authored_at: '2026-06-20T22:14:28+02:00'
+    subject: 'Merge pull request #471 from glowingkitty/dev'
+    in_main: true
+    in_dev: false
+    changed_paths: []
+    related_feature_ids: []
+  - sha: fa6bc63ad2926b6d6c77e707c2159f2f79d516d3
+    short_sha: fa6bc63ad
+    authored_at: '2026-06-20T19:42:32+00:00'
+    subject: 'test: align embed share password error'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/embed/[embedId]/+page.svelte
+    - frontend/apps/web_app/tests/share-password-flow.spec.ts
+    related_feature_ids: []
+  - sha: 6262edd1d163ac78ace8426b27048abb884b3328
+    short_sha: 6262edd1d
+    authored_at: '2026-06-20T19:37:28+00:00'
+    subject: 'fix: report invalid embed share passwords'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/embedShareEncryption.ts
+    - frontend/packages/ui/src/services/encryption/__tests__/shareEncryption.test.ts
+    related_feature_ids: []
+  - sha: 43cd8db6678bc4c09685cb7b9e6bae4269be0162
+    short_sha: 43cd8db66
+    authored_at: '2026-06-20T19:32:01+00:00'
+    subject: 'fix: return generated short issue ids'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/utils/report_issue_ids.py
+    - backend/tests/test_short_report_issue_ids.py
+    related_feature_ids: []
+  - sha: 7aefcdc36b09338f61ce07f0139400bdb90b0967
+    short_sha: 7aefcdc36
+    authored_at: '2026-06-20T19:24:04+00:00'
+    subject: 'test: cover password protected sharing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/src/routes/share/embed/[embedId]/+page.svelte
+    - frontend/apps/web_app/tests/share-password-flow.spec.ts
+    - frontend/packages/openmates-cli/tests/shareEncryption.test.ts
+    related_feature_ids: []
+  - sha: 8182e8544b1f5e76e92040df92a7a53e42465873
+    short_sha: 8182e8544
+    authored_at: '2026-06-20T18:34:02+00:00'
+    subject: 'fix: prefer short issue ids in issue workflow CLI'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/issues.py
+    - scripts/tests/test_issues_cli.py
+    related_feature_ids: []
+  - sha: 8f1a16a9d2c07975a3a8fa0206180abb6b0b02c6
+    short_sha: 8f1a16a9d
+    authored_at: '2026-06-20T18:27:15+00:00'
+    subject: 'fix: include short ids in issue debug lists'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/scripts/debug_issue.py
+    related_feature_ids: []
+  - sha: bfbdf3d1363e4441d7ddf07c22af01f38ae928fc
+    short_sha: bfbdf3d13
+    authored_at: '2026-06-20T18:26:19+00:00'
+    subject: 'fix: complete short report issue id flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/api/app/routes/settings.py
+    - backend/scripts/debug_issue.py
+    - docs/specs/short-report-issue-ids/spec.yml
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssueConfirmation.svelte
+    - frontend/packages/ui/src/services/chatErrorReportConsent.ts
+    - frontend/packages/ui/src/services/issueReportSubmission.ts
+    - frontend/packages/ui/src/stores/reportIssueStore.ts
+    related_feature_ids: []
+  - sha: ba2c511327b4e9904a028c7450960a24ec128f9f
+    short_sha: ba2c51132
+    authored_at: '2026-06-20T18:13:02+00:00'
+    subject: 'feat: add short report issue ids'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/utils/report_issue_ids.py
+    - backend/core/directus/schemas/issues.yml
+    - backend/tests/test_short_report_issue_ids.py
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: f20bfd7af1d5ce0a17960e9c455fa108a374411f
+    short_sha: f20bfd7af
+    authored_at: '2026-06-20T18:10:46+00:00'
+    subject: 'chore: deploy accumulated updates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/debug-issue/SKILL.md
+    - .claude/skills/debug-issue/SKILL.md
+    - .gitignore
+    - AGENTS.md
+    - backend/apps/ai/llm_providers/openai_openrouter.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/providers/zai.yml
+    - backend/tests/test_llm_utils_stream_fallback.py
+    - backend/tests/test_openai_openrouter.py
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/findings/issues/README.md
+    - docs/specs/short-report-issue-ids/spec.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - scripts/apple_remote.py
+    - scripts/code_quality_guard.py
+    - scripts/issues.py
+    related_feature_ids: []
+  - sha: 09719b8bcb2bf418377c73baf56ca36ea6e4a6ac
+    short_sha: 09719b8bc
+    authored_at: '2026-06-20T18:02:12+00:00'
+    subject: 'fix: repair learning mode settings header'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/learning-mode/SettingsLearningModeSetup.svelte
+    related_feature_ids: []
+  - sha: 36176b218f1ffa72ca4b6972cc1ced50962818fc
+    short_sha: 36176b218
+    authored_at: '2026-06-20T17:43:14+00:00'
+    subject: 'fix: hide single workspace header toggle'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    related_feature_ids: []
+  - sha: 4b6310c912c102de30b5f1d399b5e3c3d937ebdd
+    short_sha: 4b6310c91
+    authored_at: '2026-06-20T15:58:34+00:00'
+    subject: 'docs: record sparse availability verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/simplified-feature-availability/spec.yml
+    related_feature_ids: []
+  - sha: 4ce6a280fcd8e50e58cfd8b2edcc85cda9b931e4
+    short_sha: 4ce6a280f
+    authored_at: '2026-06-20T15:42:31+00:00'
+    subject: 'fix: simplify feature availability response'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/features.py
+    - backend/core/api/app/services/feature_availability_service.py
+    - backend/tests/test_feature_availability_service.py
+    - docs/specs/simplified-feature-availability/spec.yml
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    related_feature_ids: []
+  - sha: b9ec4debdc17f1b50d4c63b18ba80e943c7e7ec1
+    short_sha: b9ec4debd
+    authored_at: '2026-06-20T15:38:00+00:00'
+    subject: 'fix: prevent learning mode notification retry loop'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/learningModeStore.test.ts
+    - frontend/packages/ui/src/stores/learningModeStore.ts
+    related_feature_ids: []
+  - sha: bdbc3b791caf394bc8bbc182a2e796cad2addf4f
+    short_sha: bdbc3b791
+    authored_at: '2026-06-20T15:31:58+00:00'
+    subject: 'fix: recover partial chat indexeddb schemas'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/db.ts
+    related_feature_ids: []
+  - sha: 0b3ffa18a91d3d7103ac22a71bdf578723439141
+    short_sha: 0b3ffa18a
+    authored_at: '2026-06-20T14:58:32+00:00'
+    subject: 'feat: add self-host local model support'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/local_openai_compatible.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/utils/config_manager.py
+    - backend/core/docker-compose.selfhost.yml
+    - docs/self-hosting/setup.md
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/src/server.ts
+    related_feature_ids: []
+  - sha: 2a3b2fdd831971ee4882968746db014519d252ff
+    short_sha: 2a3b2fdd8
+    authored_at: '2026-06-20T14:50:54+00:00'
+    subject: 'docs: verify feature availability spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/simplified-feature-availability/spec.yml
+    related_feature_ids: []
+  - sha: 62d6d9799db41afc87f755fb1c233ef52fe3753a
+    short_sha: 62d6d9799
+    authored_at: '2026-06-20T14:49:48+00:00'
+    subject: 'docs: record feature availability e2e pass'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/simplified-feature-availability/spec.yml
+    related_feature_ids: []
+  - sha: adfdc8463ccfdf4345b69b0f42c24ce35a3a2094
+    short_sha: adfdc8463
+    authored_at: '2026-06-20T14:33:48+00:00'
+    subject: 'docs: record guest learning mode evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/learning-mode/spec.yml
+    related_feature_ids: []
+  - sha: bc93e44d0eaaaa9db3135fa9fc5c3cdd2d758904
+    short_sha: bc93e44d0
+    authored_at: '2026-06-20T14:32:28+00:00'
+    subject: 'test: tolerate fast anonymous header updates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: 6a30e781aea12d1a713886b2cd78c55fc091ebc2
+    short_sha: 6a30e781a
+    authored_at: '2026-06-20T14:22:18+00:00'
+    subject: 'test: seed guest learning mode in anonymous spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: b69fa5addeebce0ae6a2a09b849c6cc88ae484f5
+    short_sha: b69fa5add
+    authored_at: '2026-06-20T14:19:29+00:00'
+    subject: 'fix: allow guest learning settings'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: 1ab2fe2cb49fae7de24fb10880c0879f775c4a22
+    short_sha: 1ab2fe2cb
+    authored_at: '2026-06-20T14:11:58+00:00'
+    subject: 'test: dismiss anonymous composer by control'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: 1dbdd0a571e5a3a2a0e1a6f7c1f8eaff15b1cfaa
+    short_sha: 1dbdd0a57
+    authored_at: '2026-06-20T14:05:36+00:00'
+    subject: 'docs: record feature availability e2e blocker'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/simplified-feature-availability/spec.yml
+    related_feature_ids: []
+  - sha: 6a54580e1de1677991f4765a8fc2378634a41774
+    short_sha: 6a54580e1
+    authored_at: '2026-06-20T14:03:01+00:00'
+    subject: 'fix: expose feature availability endpoint'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    related_feature_ids: []
+  - sha: 4527e1820edf8f044012c6d3a9681818c0893a7d
+    short_sha: 4527e1820
+    authored_at: '2026-06-20T13:59:21+00:00'
+    subject: 'feat: add guest learning mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/shared/python_utils/learning_mode.py
+    - backend/tests/test_learning_mode_policy.py
+    - docs/specs/learning-mode/spec.yml
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/anonymous-free-usage.test.ts
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/learning-mode/SettingsLearningModeSetup.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/stores/learningModeStore.ts
+    related_feature_ids: []
+  - sha: c5caae2db74a116dfc6593bc1fbdc82eacb71bea
+    short_sha: c5caae2db
+    authored_at: '2026-06-20T13:42:27+00:00'
+    subject: 'feat: simplify feature availability'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/add-app-skill/SKILL.md
+    - .agents/skills/add-focus-mode/SKILL.md
+    - .agents/skills/add-memory-type/SKILL.md
+    - .claude/skills/add-app-skill/SKILL.md
+    - .claude/skills/add-focus-mode/SKILL.md
+    - .claude/skills/add-memory-type/SKILL.md
+    - AGENTS.md
+    - backend/apps/README.md
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/processing/tool_generator.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/apps/base_app.py
+    - backend/apps/base_app.yml
+    - backend/apps/base_skill.py
+    - backend/apps/books/app.yml
+    - backend/apps/books/focus_modes/book-discussion/SKILL.md
+    - backend/apps/books/focus_modes/book-recommendations/SKILL.md
+    - backend/apps/calendar/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/code/focus_modes/analyze-logs/SKILL.md
+    - backend/apps/code/focus_modes/check-security/SKILL.md
+    - backend/apps/code/focus_modes/code-walkthrough/SKILL.md
+    - backend/apps/code/focus_modes/learn-by-building/SKILL.md
+    - backend/apps/code/focus_modes/project-planner/SKILL.md
+    - backend/apps/code/focus_modes/refactor-code/SKILL.md
+    - backend/apps/code/focus_modes/research-solutions/SKILL.md
+    - backend/apps/code/focus_modes/setup-infrastructure/SKILL.md
+    - backend/apps/code/focus_modes/test-git-repo/SKILL.md
+    - backend/apps/code/skills/get_docs_skill.py
+    - backend/apps/docs/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/events/app.yml
+    - backend/apps/events/skills/search_skill.py
+    - backend/apps/fitness/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/health/focus_modes/health-insights/SKILL.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.md
+    - backend/apps/home/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/jobs/app.yml
+    - backend/apps/jobs/focus_modes/career-insights/SKILL.md
+    - backend/apps/life_coaching/app.yml
+    - backend/apps/life_coaching/focus_modes/crisis-support/SKILL.md
+    - backend/apps/mail/app.yml
+    - backend/apps/mail/skills/search_skill.py
+    - backend/apps/maps/app.yml
+    - backend/apps/maps/skills/search_skill.py
+    - backend/apps/math/app.yml
+    - backend/apps/math/skills/calculate_skill.py
+    - backend/apps/music/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/news/focus_modes/understand-the-news/SKILL.md
+    - backend/apps/news/skills/search_skill.py
+    - backend/apps/nutrition/app.yml
+    - backend/apps/openmates/app.yml
+    - backend/apps/openmates/focus_modes/welcome/SKILL.md
+    - backend/apps/openmates/skills/get_docs_skill.py
+    - backend/apps/openmates/skills/search_docs_skill.py
+    - backend/apps/openmates/skills/share_usecase_skill.py
+    - backend/apps/pcb_design/app.yml
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.md
+    - backend/apps/pdf/app.yml
+    - backend/apps/plants/app.yml
+    - backend/apps/plants/focus_modes/plant-care-guide/SKILL.md
+    - backend/apps/reminder/app.yml
+    - backend/apps/reminder/skills/cancel_reminder_skill.py
+    - backend/apps/reminder/skills/list_reminders_skill.py
+    - backend/apps/reminder/skills/set_reminder_skill.py
+    - backend/apps/shopping/app.yml
+    - backend/apps/social_media/app.yml
+    - backend/apps/social_media/focus_modes/content-calendar-strategist/SKILL.md
+    - backend/apps/social_media/skills/get_posts.py
+    - backend/apps/social_media/skills/search.py
+    - backend/apps/study/app.yml
+    - backend/apps/study/focus_modes/learn-topic/SKILL.md
+    - backend/apps/study/focus_modes/socratic-questioning/SKILL.md
+    - backend/apps/study/focus_modes/test-knowledge/SKILL.md
+    - backend/apps/study/focus_modes/what-to-study/SKILL.md
+    - backend/apps/travel/app.yml
+    - backend/apps/tv/app.yml
+    - backend/apps/videos/app.yml
+    - backend/apps/videos/focus_modes/analyze-video/SKILL.md
+    - backend/apps/videos/skills/search_skill.py
+    - backend/apps/videos/skills/transcript_skill.py
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/forecast_skill.py
+    - backend/apps/weather/skills/rain_radar_skill.py
+    - backend/apps/web/app.yml
+    - backend/apps/web/focus_modes/analyze-privacy/SKILL.md
+    - backend/apps/web/focus_modes/check-reputation/SKILL.md
+    - backend/apps/web/focus_modes/research/SKILL.md
+    - backend/apps/web/skills/read_skill.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/config/backend_config.yml
+    - backend/core/api/app/routes/application_preview.py
+    - backend/core/api/app/routes/apps.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/features.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/services/feature_availability_guards.py
+    - backend/core/api/app/services/feature_availability_service.py
+    - backend/core/api/app/services/skill_registry.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/api/app/utils/config_manager.py
+    - backend/core/api/main.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/tests/test_app_metadata_no_stage.py
+    - backend/tests/test_feature_availability_enforcement.py
+    - backend/tests/test_feature_availability_service.py
+    - backend/tests/test_postprocessor.py
+    - backend/tests/test_skill_executor_registry_refresh.py
+    - docs/architecture/apps/app-skills.md
+    - docs/architecture/apps/focus-modes.md
+    - docs/architecture/apps/function-calling.md
+    - docs/architecture/apps/rest-api.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/simplified-feature-availability/spec.yml
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    - frontend/packages/ui/src/types/apps.ts
+    related_feature_ids:
+    - platform:projects
+  - sha: 6d90fb32b4f5dd6b55730d118f1bfef34a256ac7
+    short_sha: 6d90fb32b
+    authored_at: '2026-06-20T13:33:45+00:00'
+    subject: 'fix: email existing users during duplicate signup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_email.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/existing_account_email_task.py
+    - backend/core/api/templates/email/existing-account.mjml
+    - backend/tests/test_signup_existing_account_email.py
+    - frontend/packages/openmates-cli/tests/signup.test.ts
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    related_feature_ids: []
+  - sha: 2c0d0c67cb0c06532825bf6e4ee0bfa52ff1a743
+    short_sha: 2c0d0c67c
+    authored_at: '2026-06-20T13:08:23+00:00'
+    subject: 'fix: improve anonymous exhausted mobile flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: 4240745dd08466d200dca30196b033b5a58a8c16
+    short_sha: 4240745dd
+    authored_at: '2026-06-20T13:06:04+00:00'
+    subject: 'docs: record signup email issue findings'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/findings/issues/prod/2026/6e0933d1-c968-499f-8e21-cc602c164525-keinen-code-bekommen.md
+    related_feature_ids: []
+  - sha: 32be3808fd4843e786f7541bb0a3eb2845957ad8
+    short_sha: 32be3808f
+    authored_at: '2026-06-20T11:42:14+00:00'
+    subject: 'test: assert anonymous budget heading specifically'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    related_feature_ids: []
+  - sha: 523a42f77e517993deb117899d724d8b1fadff4f
+    short_sha: 523a42f77
+    authored_at: '2026-06-20T11:33:46+00:00'
+    subject: 'test: open anonymous budget from server settings'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    related_feature_ids: []
+  - sha: 9411b249398980b643632275eff0cb9439915f5f
+    short_sha: 9411b2493
+    authored_at: '2026-06-20T11:24:43+00:00'
+    subject: 'test: match normalized settings route in budget spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    related_feature_ids: []
+  - sha: 045c96e0897619967faffe2692a4a9b8960b2b37
+    short_sha: 045c96e08
+    authored_at: '2026-06-20T11:17:38+00:00'
+    subject: 'fix: restore main settings row component'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    related_feature_ids: []
+  - sha: ae2a5161521ac1ef728d493ac61c45055a28babe
+    short_sha: ae2a51615
+    authored_at: '2026-06-20T11:15:50+00:00'
+    subject: 'test: stabilize anonymous budget settings navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    related_feature_ids: []
+  - sha: fda18bb0a89e3393502bc80e30ca94505be024cf
+    short_sha: fda18bb0a
+    authored_at: '2026-06-20T11:10:59+00:00'
+    subject: 'docs: record learning mode e2e evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/learning-mode/spec.yml
+    related_feature_ids: []
+  - sha: 290150ef18208d15555adfe927eca3c7aedca454
+    short_sha: 290150ef1
+    authored_at: '2026-06-20T11:01:33+00:00'
+    subject: 'test: align learning row title assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/learning-mode.spec.ts
+    related_feature_ids: []
+  - sha: c46e9dd39103edc57592c8b94a8a4a1e611ba452
+    short_sha: c46e9dd39
+    authored_at: '2026-06-20T10:59:23+00:00'
+    subject: 'fix: update learning settings row'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/learning-mode.spec.ts
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    related_feature_ids: []
+  - sha: e90d067390d642aee730c016b05c186108383fde
+    short_sha: e90d06739
+    authored_at: '2026-06-20T10:47:43+00:00'
+    subject: 'fix: clear visible anonymous chat on budget rollback'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    related_feature_ids: []
+  - sha: 8bea98990387ff3b1c98ff835dfcfd44753fb463
+    short_sha: 8bea98990
+    authored_at: '2026-06-20T10:44:37+00:00'
+    subject: 'fix: move learning mode setup into settings page'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/learning-mode/spec.yml
+    - frontend/apps/web_app/tests/learning-mode.spec.ts
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsDropdown.svelte
+    - frontend/packages/ui/src/components/settings/learning-mode/SettingsLearningModeSetup.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - scripts/code_quality_guard.py
+    - scripts/tests/test_code_quality_guard_caddy.py
+    related_feature_ids: []
+  - sha: c4562d7c960173be783801be06aafb9aa83fd7f1
+    short_sha: c4562d7c9
+    authored_at: '2026-06-20T10:23:04+00:00'
+    subject: 'fix: add universal ASCII-smuggling guards'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/apps/pdf/services/ocr_service.py
+    - backend/apps/pdf/services/toc_detector.py
+    - backend/apps/pdf/skills/read_skill.py
+    - backend/apps/pdf/skills/search_skill.py
+    - backend/apps/pdf/tasks/process_task.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/utils/text_sanitization.py
+    - backend/tests/test_ascii_smuggling_boundaries.py
+    - backend/tests/test_audio_transcribe_ascii_sanitization.py
+    - backend/tests/test_pdf_ascii_smuggling_sanitization.py
+    - docs/specs/ascii-smuggling-universal-guards/spec.yml
+    related_feature_ids: []
+  - sha: d4247aff7b26def84f8f735c89caa0365c7841dd
+    short_sha: d4247aff7
+    authored_at: '2026-06-20T10:19:06+00:00'
+    subject: 'test: consume learning mode prompts once'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/learning-mode.spec.ts
+    related_feature_ids: []
+  - sha: 56fa4840e1c0377b16d33960bec947a7764f0b4a
+    short_sha: 56fa4840e
+    authored_at: '2026-06-20T10:09:24+00:00'
+    subject: 'fix: roll back anonymous chat on budget rejection'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    related_feature_ids: []
+  - sha: 9d9f3258d49fd79da529179e44fe61e3a8ca5b22
+    short_sha: 9d9f3258d
+    authored_at: '2026-06-20T09:24:51+00:00'
+    subject: 'fix: allow learning mode api on dev proxy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    related_feature_ids: []
+  - sha: 2d1a92512a0144a0ca9a7cde1a3eccd58a3d2675
+    short_sha: 2d1a92512
+    authored_at: '2026-06-20T09:22:52+00:00'
+    subject: 'fix: allow learning mode api through proxy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/Caddyfile.example
+    - deployment/prod_server/Caddyfile
+    related_feature_ids: []
+  - sha: 1b1263a3c2d8320a7add27320616d8192064b786
+    short_sha: 1b1263a3c
+    authored_at: '2026-06-20T09:15:59+00:00'
+    subject: 'fix: keep anonymous draft when credits exhausted'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    related_feature_ids: []
+  - sha: 2e2455546799afba418fc5d79e7b0fad2881a156
+    short_sha: 2e2455546
+    authored_at: '2026-06-20T09:09:13+00:00'
+    subject: 'fix: include learning mode request endpoint'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/learningModeStore.ts
+    related_feature_ids: []
+  - sha: 358e2b8ea086cb18d62f978dc1b26bf33af06130
+    short_sha: 358e2b8ea
+    authored_at: '2026-06-20T09:00:30+00:00'
+    subject: 'test: cover anonymous budget exhaustion draft'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: 170b5c2fb4d3f74ff7d7677ea3994f575f21f72c
+    short_sha: 170b5c2fb
+    authored_at: '2026-06-20T08:59:49+00:00'
+    subject: 'fix: derive browser API URL for dev app'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/config/api.ts
+    related_feature_ids: []
+  - sha: c4a67b39aafd78aa725afc3727c40b924df0e058
+    short_sha: c4a67b39a
+    authored_at: '2026-06-20T08:39:55+00:00'
+    subject: 'test: fix learning mode toggle assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/learning-mode.spec.ts
+    related_feature_ids: []
+  - sha: 51353ee1817c59c594c861014b5398f1bc3bcfb7
+    short_sha: 51353ee18
+    authored_at: '2026-06-20T08:29:51+00:00'
+    subject: 'feat: add account-wide learning mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/mates/activism.md
+    - backend/apps/ai/mates/business_development.md
+    - backend/apps/ai/mates/cooking_food.md
+    - backend/apps/ai/mates/design.md
+    - backend/apps/ai/mates/electrical_engineering.md
+    - backend/apps/ai/mates/finance.md
+    - backend/apps/ai/mates/general_knowledge.md
+    - backend/apps/ai/mates/history.md
+    - backend/apps/ai/mates/legal_law.md
+    - backend/apps/ai/mates/life_coach_psychology.md
+    - backend/apps/ai/mates/maker_prototyping.md
+    - backend/apps/ai/mates/marketing_sales.md
+    - backend/apps/ai/mates/medical_health.md
+    - backend/apps/ai/mates/movies_tv.md
+    - backend/apps/ai/mates/onboarding_support.md
+    - backend/apps/ai/mates/science.md
+    - backend/apps/ai/mates/software_development.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/mate_utils.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/learning_mode.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/users.yml
+    - backend/shared/python_utils/learning_mode.py
+    - backend/tests/test_learning_mode_policy.py
+    - backend/tests/test_learning_mode_prompts_and_embeds.py
+    - docs/specs/learning-mode/spec.yml
+    - docs/user-guide/cli/README.md
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/stores/learningModeStore.ts
+    related_feature_ids: []
+  - sha: da853d460186ce976e15d4932a4b21bc103ff24a
+    short_sha: da853d460
+    authored_at: '2026-06-20T08:10:16+00:00'
+    subject: 'test: add learning mode e2e coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/learning-mode.spec.ts
+    related_feature_ids: []
+  - sha: 1412b14c4f6bb18867244c3d32cf82eab1c405db
+    short_sha: 1412b14c4
+    authored_at: '2026-06-20T00:53:21+00:00'
+    subject: 'test: tolerate anonymous quota terminal stream'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: a9eca51589aa3fe7cf0047fa1c4b72785b0529f2
+    short_sha: a9eca5158
+    authored_at: '2026-06-20T00:38:34+00:00'
+    subject: 'fix: clear anonymous fallback typing by chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    related_feature_ids: []
+  - sha: 226b1ae034ebb6fd7fbed756e8bdd3666f559714
+    short_sha: 226b1ae03
+    authored_at: '2026-06-20T00:36:25+00:00'
+    subject: 'test: mock anonymous json response headers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    related_feature_ids: []
+  - sha: a568b5c2f2bfc9855925238971b625f04e28e2c6
+    short_sha: a568b5c2f
+    authored_at: '2026-06-20T00:25:43+00:00'
+    subject: 'fix: clear anonymous typing on terminal stream'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates expanded its Learning Mode capabilities to support both account-wide settings and guest access, while
+    introducing support for self-hosted local models. The project also streamlined issue reporting with short identifiers
+    and hardened the system against ASCII-smuggling attacks.
+  released_changes:
+  - text: Learning Mode is now available account-wide, allowing users to persist educational preferences across sessions.
+    evidence:
+      commits:
+      - 51353ee18
+    release_status: released_main
+  - text: A guest Learning Mode was added to provide educational features for anonymous users.
+    evidence:
+      commits:
+      - 4527e1820
+    release_status: released_main
+  - text: Self-hosters can now configure local OpenAI-compatible model providers for use within OpenMates.
+    evidence:
+      commits:
+      - 0b3ffa18a
+    release_status: released_main
+  - text: Issue reporting now utilizes short IDs to simplify tracking and communication between users and maintainers.
+    evidence:
+      commits:
+      - ba2c51132
+      - bfbdf3d13
+    release_status: released_main
+  bug_fixes:
+  - text: The anonymous usage flow was improved to better handle credit exhaustion, including keeping message drafts and rolling
+      back chat states on budget rejection.
+    evidence:
+      commits:
+      - 2c0d0c67c
+      - e90d06739
+      - 56fa4840e
+      - 1b1263a3c
+      - a568b5c2f
+    release_status: released_main
+  - text: Universal guards were implemented to prevent ASCII-smuggling in LLM outputs across various apps and skills.
+    evidence:
+      commits:
+      - c4562d7c9
+    release_status: released_main
+  - text: The signup process now correctly emails existing users who attempt to sign up again, preventing duplicate account
+      confusion.
+    evidence:
+      commits:
+      - 6d90fb32b
+    release_status: released_main
+  - text: Several UI and stability issues in the Learning Mode settings were resolved, including header repairs, guest access
+      fixes, and notification retry loops.
+    evidence:
+      commits:
+      - 8bea98990
+      - 09719b8bc
+      - c46e9dd39
+      - b69fa5add
+      - 2e2455546
+      - b9ec4debd
+    release_status: released_main
+  unreleased_progress:
+  - text: Work continues on simplifying feature availability logic, including updates to how the platform handles workspace
+      toggles and project-related gates.
+    evidence:
+      commits:
+      - c5caae2db
+      - 4ce6a280f
+      - 36176b218
+    release_status: released_main
+  internal_progress:
+  - text: Infrastructure updates were deployed to improve LLM streaming fallbacks and provider configurations.
+    evidence:
+      commits:
+      - f20bfd7af
+    release_status: released_main
+  - text: Test coverage was expanded for password-protected sharing and IndexedDB schema recovery.
+    evidence:
+      commits:
+      - fa6bc63ad
+      - 7aefcdc36
+      - bdbc3b791
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Account-wide Learning Mode.
+      evidence:
+        commits:
+        - 51353ee18
+      reason: This is a major user-facing feature that allows educational preferences to persist across the account.
+    - text: Guest Learning Mode.
+      evidence:
+        commits:
+        - 4527e1820
+      reason: Expands the accessibility of educational features to anonymous users.
+    - text: Support for self-hosted local models.
+      evidence:
+        commits:
+        - 0b3ffa18a
+      reason: Significant update for technical users and self-hosters.
+    - text: Short report issue identifiers.
+      evidence:
+        commits:
+        - ba2c51132
+        - bfbdf3d13
+      reason: Improves the user experience when reporting and tracking issues.
+    exclude:
+    - text: Simplified feature availability logic.
+      evidence:
+        commits:
+        - c5caae2db
+      reason: This change is related to the disabled platform:projects feature and is marked as an unreleased feature.
+    - text: Feature availability response and workspace toggle cleanups.
+      evidence:
+        commits:
+        - 4ce6a280f
+        - 36176b218
+      reason: These are internal refactors and UI cleanups related to feature availability gates.
+    rationale: The newsletter highlights major new features like expanded Learning Mode and local model support, while excluding
+      internal refactors and work related to disabled platform features.
+  social_video_recommendations:
+  - idea: A video demonstrating how to connect OpenMates to a local LLM provider for a fully self-hosted experience.
+    priority: high
+    reason: Self-hosting and local model support are highly requested features for privacy-conscious users.
+    evidence:
+      commits:
+      - 0b3ffa18a
+  quality_notes:
+  - Security hardening was a focus this update, with the implementation of universal ASCII-smuggling guards across all LLM-driven
+    skills.
+  - Anonymous user experience was refined through better state management during credit exhaustion.
+  validation_warnings: []

@@ -54,17 +54,27 @@ test.describe.configure({ mode: 'serial' });
  * Returns when the API Keys settings route is active.
  */
 async function ensureSettingsMenuOpen(page: any, logCheckpoint: (msg: string) => void): Promise<any> {
+	await applyPendingSoftwareUpdateIfVisible(page, logCheckpoint);
+
 	const settingsMenu = page.getByTestId('settings-menu');
 	if (!(await settingsMenu.isVisible({ timeout: 1000 }).catch(() => false))) {
-		const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
-		await expect(openSettingsButton).toBeVisible({ timeout: 10000 });
-		await openSettingsButton.click();
-		logCheckpoint('Opened settings menu.');
+		const closeSettingsButton = page.getByRole('button', { name: /close settings menu/i }).first();
+		if (await closeSettingsButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+			logCheckpoint('Settings menu was already open.');
+		} else {
+			const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
+			await expect(openSettingsButton).toBeVisible({ timeout: 10000 });
+			await openSettingsButton.click({ timeout: 5000, force: true });
+			logCheckpoint('Opened settings menu.');
+		}
 	}
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 
 	for (let i = 0; i < 5; i++) {
 		const activeView = await settingsMenu.getAttribute('data-active-view');
+		if (activeView === 'developers/api-keys') {
+			return settingsMenu;
+		}
 		if (!activeView || activeView === 'main') {
 			return settingsMenu;
 		}
@@ -83,11 +93,39 @@ async function ensureSettingsMenuOpen(page: any, logCheckpoint: (msg: string) =>
 	return settingsMenu;
 }
 
+async function applyPendingSoftwareUpdateIfVisible(
+	page: any,
+	logCheckpoint: (msg: string) => void
+): Promise<void> {
+	const refreshButton = page.getByRole('button', { name: /refresh now/i }).first();
+	if (!(await refreshButton.isVisible({ timeout: 1000 }).catch(() => false))) return;
+
+	logCheckpoint('Applying pending software update before settings navigation.');
+	await refreshButton.click();
+	await page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => undefined);
+	await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
+}
+
 async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
+	const existingSettingsMenu = page.getByTestId('settings-menu');
+	if (await existingSettingsMenu.isVisible({ timeout: 1000 }).catch(() => false)) {
+		const activeView = await existingSettingsMenu.getAttribute('data-active-view');
+		if (activeView === 'developers/api-keys') {
+			await expect(page.getByTestId('api-key-create-button')).toBeVisible({ timeout: 15000 });
+			logCheckpoint('API Keys page already loaded.');
+			return;
+		}
+	}
+
 	const settingsMenu = await ensureSettingsMenuOpen(page, logCheckpoint);
+	const activeView = await settingsMenu.getAttribute('data-active-view');
+	if (activeView === 'developers/api-keys') {
+		await expect(page.getByTestId('api-key-create-button')).toBeVisible({ timeout: 15000 });
+		logCheckpoint('API Keys page already loaded.');
+		return;
+	}
 
 	const developersItem = settingsMenu.getByRole('menuitem', { name: /developers/i }).first();
-	await developersItem.scrollIntoViewIfNeeded();
 	await expect(developersItem).toBeVisible({ timeout: 10000 });
 	await developersItem.click();
 	logCheckpoint('Navigated to Developers.');
@@ -103,7 +141,6 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 		.first();
 	const apiKeysVisible = await apiKeysItem.isVisible({ timeout: 5000 }).catch(() => false);
 	const targetItem = apiKeysVisible ? apiKeysItem : apiKeysItemFallback;
-	await targetItem.scrollIntoViewIfNeeded();
 	await expect(targetItem).toBeVisible({ timeout: 10000 });
 	await targetItem.click();
 	logCheckpoint('Navigated to API Keys.');
@@ -121,19 +158,29 @@ async function ensureDevelopersSettingsOpen(
 ): Promise<any> {
 	const settingsMenu = page.getByTestId('settings-menu');
 	if (!(await settingsMenu.isVisible({ timeout: 1000 }).catch(() => false))) {
-		const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
-		await expect(openSettingsButton).toBeVisible({ timeout: 10000 });
-		await openSettingsButton.click();
-		logCheckpoint('Opened settings menu.');
+		const closeSettingsButton = page.getByRole('button', { name: /close settings menu/i }).first();
+		if (await closeSettingsButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+			logCheckpoint('Settings menu was already open.');
+		} else {
+			const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
+			await expect(openSettingsButton).toBeVisible({ timeout: 10000 });
+			await openSettingsButton.click({ timeout: 5000, force: true });
+			logCheckpoint('Opened settings menu.');
+		}
 	}
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+	await page.waitForTimeout(500);
 
 	for (let i = 0; i < 5; i++) {
 		const activeView = await settingsMenu.getAttribute('data-active-view');
-		if (activeView === 'developers') {
+		if (activeView === 'developers' || activeView === 'developers/devices') {
 			return settingsMenu;
 		}
-		if (!activeView || activeView === 'main') {
+		if (!activeView) {
+			await page.waitForTimeout(250);
+			continue;
+		}
+		if (activeView === 'main') {
 			break;
 		}
 
@@ -149,6 +196,15 @@ async function ensureDevelopersSettingsOpen(
 		});
 	}
 
+	if (
+		await settingsMenu
+			.getByRole('heading', { name: /^devices$/i })
+			.isVisible({ timeout: 1000 })
+			.catch(() => false)
+	) {
+		return settingsMenu;
+	}
+
 	const developersItem = settingsMenu
 		.getByTestId('menu-item')
 		.filter({ hasText: /developers/i })
@@ -162,7 +218,36 @@ async function ensureDevelopersSettingsOpen(
 }
 
 async function navigateToDevices(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
+	const existingSettingsMenu = page.getByTestId('settings-menu');
+	if (await existingSettingsMenu.isVisible({ timeout: 1000 }).catch(() => false)) {
+		const activeView = await existingSettingsMenu.getAttribute('data-active-view');
+		if (activeView === 'developers/devices') {
+			const backButton = page.getByTestId('device-detail-back-button').first();
+			if (await backButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+				await backButton.click();
+			}
+
+			const bannerBackButton = page.getByTestId('banner-back-button').first();
+			const settingsBackButton = (await bannerBackButton.isVisible({ timeout: 1000 }).catch(() => false))
+				? bannerBackButton
+				: page.locator('#settings-back-button');
+			await expect(settingsBackButton).toBeVisible({ timeout: 5000 });
+			await settingsBackButton.click();
+			logCheckpoint('Returned to Developers settings menu to refresh Devices.');
+		}
+	}
+
 	const settingsMenu = await ensureDevelopersSettingsOpen(page, logCheckpoint);
+	if (
+		(await settingsMenu.getAttribute('data-active-view')) === 'developers/devices' ||
+		(await settingsMenu
+			.getByRole('heading', { name: /^devices$/i })
+			.isVisible({ timeout: 500 })
+			.catch(() => false))
+	) {
+		logCheckpoint('Devices page already loaded.');
+		return;
+	}
 
 	const devicesItem = settingsMenu
 		.getByTestId('menu-item')
@@ -173,7 +258,9 @@ async function navigateToDevices(page: any, logCheckpoint: (msg: string) => void
 	await devicesItem.click({ timeout: 8000 });
 	logCheckpoint('Navigated to Devices page.');
 
-	await expect(page.getByTestId('devices-container')).toBeVisible({ timeout: 8000 });
+	await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'developers/devices', {
+		timeout: 8000
+	});
 }
 
 async function completeDefaultApiKeyGuidedFlow(
@@ -348,9 +435,7 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	});
 	log('Clicked done button.');
 
-	// Verify the new key appears in the API keys list
-	await page.waitForTimeout(3000);
-
+	// Verify the new key appears in the API keys list immediately after Done.
 	const keyItems = page.getByTestId('api-key-item');
 	await expect(async () => {
 		const count = await keyItems.count();
@@ -358,8 +443,10 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	}).toPass({ timeout: 20000 });
 
 	const keyByName = page.getByTestId('api-key-item').filter({ hasText: keyName }).first();
-	const nameFound = await keyByName.isVisible({ timeout: 5000 }).catch(() => false);
-	log(`Key found by name "${keyName}": ${nameFound}. Total key items: ${await keyItems.count()}`);
+	await expect(keyByName, `Expected optimistic API key row ${keyName} to exist.`).toBeVisible({ timeout: 5000 });
+	await expect(keyByName).toContainText(/Full access/i);
+	await expect(keyByName).toContainText(/Unlimited credits/i);
+	log(`Key found by name "${keyName}" immediately. Total key items: ${await keyItems.count()}`);
 
 	await screenshot(page, 'key-in-list');
 	log('Key items visible in list after creation.');
@@ -561,93 +648,97 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Confirmed: REST API call correctly blocked before device approval.');
 
 	// ── Phase 4: Navigate to Devices and approve the pending device ───────────
-	const reviewDeviceButton = page.getByRole('button', { name: /review in developer settings/i }).first();
-	if (await reviewDeviceButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-		await reviewDeviceButton.click();
-		log('Opened Devices from pending-device notification.');
-	} else {
-		await navigateToDevices(page, log);
-	}
+	await navigateToDevices(page, log);
+	log('Opened Devices from Developers menu.');
 	await screenshot(page, 'devices-page');
 
-	const devicesContainer = page.getByTestId('devices-container');
-	await expect(devicesContainer).toBeVisible({ timeout: 8000 });
-
-	await page.waitForTimeout(2000);
-
-	let pendingCard = page.locator('[data-testid="device-card"].pending').first();
-	if (!(await pendingCard.isVisible({ timeout: 15000 }).catch(() => false))) {
-		log('Pending device card not visible yet; reloading and reopening Devices.');
-		await page.reload();
-		await page.waitForLoadState('domcontentloaded');
-		await navigateToDevices(page, log);
-		pendingCard = page.locator('[data-testid="device-card"].pending').first();
-		await expect(pendingCard).toBeVisible({ timeout: 30000 });
-	}
-	log('Found pending device card.');
+	const pendingRow = page.getByTestId('device-row').filter({ hasText: /REST API/ }).filter({ hasText: /Pending/i }).first();
+	await expect(pendingRow).toBeVisible({ timeout: 30000 });
+	await pendingRow.click();
+	log('Opened pending device detail.');
 	await screenshot(page, 'pending-device');
 
-	const approveButton = pendingCard.getByTestId('device-approve-button');
+	const approveButton = page.getByTestId('device-approve-button');
 	await expect(approveButton).toBeVisible({ timeout: 5000 });
 	await approveButton.click();
 	log('Clicked Approve button.');
 
-	await expect(pendingCard).not.toBeVisible({ timeout: 10000 });
-	log('Pending device card is gone — device approved.');
-
-	const approvedBadge = devicesContainer.locator('[data-testid="status-badge"].approved').first();
-	await expect(approvedBadge).toBeVisible({ timeout: 8000 });
-	log('Confirmed: Approved status badge is visible.');
+	await expect(approveButton).not.toBeVisible({ timeout: 10000 });
+	await expect(page.getByText(/Approved/i).first()).toBeVisible({ timeout: 8000 });
+	log('Confirmed: device approved.');
 	await screenshot(page, 'device-approved');
 
-	// ── Phase 5: Make SDK API call again — expect 200 ─────────────────────────
-	log(`Making SDK API call to ${sdkChatsUrl} with approved key...`);
+	// ── Phase 5: Immediately retry SDK API call — expect approval cache to be clear ─
+	log(`Immediately retrying SDK API call to ${sdkChatsUrl} with approved key...`);
 	const approvedResponse = await request.get(sdkChatsUrl, {
 		headers: { Authorization: `Bearer ${rawApiKey}` }
 	});
-	log(`REST API response (after device approval): ${approvedResponse.status()}`);
+	const approvedResponseBody = await approvedResponse.text();
+	log(`REST API response (immediately after device approval): ${approvedResponse.status()}`);
 	await screenshot(page, 'api-call-after-approval');
 
-	expect(approvedResponse.status()).toBe(200);
-	const approvedData = await approvedResponse.json();
+	expect(
+		approvedResponse.status(),
+		`Expected immediate retry after approval to pass, got ${approvedResponse.status()}: ${approvedResponseBody}`
+	).toBe(200);
+	const approvedData = JSON.parse(approvedResponseBody);
 	expect(approvedData).toHaveProperty('chats');
-	log('Confirmed: REST API call succeeded after device approval!');
+	log('Confirmed: REST API call succeeded immediately after device approval.');
+
+	// ── Phase 5a: Register npm and pip SDK devices — both should be labeled SDK ─
+	const sdkDeviceTypes = ['npm', 'pip'] as const;
+	for (const sdkDeviceType of sdkDeviceTypes) {
+		const sdkDeviceHeaders = {
+			Authorization: `Bearer ${rawApiKey}`,
+			'X-OpenMates-SDK': sdkDeviceType,
+			'X-OpenMates-Device-Identity': `${sdkDeviceType}:e2e:${Date.now()}`
+		};
+		const sdkBlockedResponse = await request.get(sdkChatsUrl, { headers: sdkDeviceHeaders });
+		const sdkBlockedBody = await sdkBlockedResponse.text();
+		log(`${sdkDeviceType} SDK API response (before device approval): ${sdkBlockedResponse.status()}`);
+		expect(
+			sdkBlockedResponse.status() === 403,
+			`Expected 403 for ${sdkDeviceType} SDK device before approval, got ${sdkBlockedResponse.status()}: ${sdkBlockedBody}`
+		).toBe(true);
+	}
+
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	log('Reloaded app before checking SDK device labels.');
+	await navigateToDevices(page, log);
+	const sdkPendingRows = page.getByTestId('device-row').filter({ hasText: /SDK/ }).filter({ hasText: /Pending/i });
+	await expect(sdkPendingRows.first()).toBeVisible({ timeout: 30000 });
+	await expect.poll(async () => sdkPendingRows.count(), { timeout: 30000 }).toBeGreaterThanOrEqual(2);
+	await expect(page.getByTestId('device-row').filter({ hasText: /npm Package|pip Package/i })).toHaveCount(0);
+	log('Confirmed: npm and pip package devices are labeled SDK in Devices.');
 
 	// ── Phase 5b: Register and approve the stable CLI API-key device ───────────
+	const cliDeviceIdentity = `cli:${os.platform()}:${os.arch()}:${Date.now()}`;
 	const cliDeviceHeaders = {
 		Authorization: `Bearer ${rawApiKey}`,
 		'User-Agent': `OpenMates CLI/0.1 (${os.platform()} ${os.release()})`,
 		'X-OpenMates-SDK': 'cli',
-		'X-OpenMates-Device-Identity': `cli:${os.platform()}:${os.arch()}`
+		'X-OpenMates-Device-Identity': cliDeviceIdentity
 	};
 	log('Making CLI-style SDK API call with new key; expecting pending-device block...');
 	const cliBlockedResponse = await request.get(sdkChatsUrl, { headers: cliDeviceHeaders });
+	const cliBlockedResponseBody = await cliBlockedResponse.text();
 	log(`CLI-style SDK API response (before device approval): ${cliBlockedResponse.status()}`);
 	expect(
 		cliBlockedResponse.status() === 403,
-		`Expected 403 for CLI device before approval, got ${cliBlockedResponse.status()}`
+		`Expected 403 for CLI device before approval, got ${cliBlockedResponse.status()}: ${cliBlockedResponseBody}`
 	).toBe(true);
 
-	await page.reload();
-	await page.waitForLoadState('domcontentloaded');
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	log('Reloaded app before reopening Devices for CLI device approval.');
 	await navigateToDevices(page, log);
-	await expect(devicesContainer).toBeVisible({ timeout: 8000 });
-	await page.waitForTimeout(2000);
-
-	let cliPendingCard = page.locator('[data-testid="device-card"].pending').first();
-	if (!(await cliPendingCard.isVisible({ timeout: 15000 }).catch(() => false))) {
-		log('CLI pending device card not visible yet; reloading and reopening Devices.');
-		await page.reload();
-		await page.waitForLoadState('domcontentloaded');
-		await navigateToDevices(page, log);
-		cliPendingCard = page.locator('[data-testid="device-card"].pending').first();
-		await expect(cliPendingCard).toBeVisible({ timeout: 30000 });
-	}
+	const cliPendingCard = page.getByTestId('device-row').filter({ hasText: /CLI/ }).filter({ hasText: /Pending/i }).first();
+	await expect(cliPendingCard).toBeVisible({ timeout: 30000 });
+	await cliPendingCard.click();
 	await screenshot(page, 'cli-pending-device');
-	const cliApproveButton = cliPendingCard.getByTestId('device-approve-button');
+	const cliApproveButton = page.getByTestId('device-approve-button');
 	await expect(cliApproveButton).toBeVisible({ timeout: 5000 });
 	await cliApproveButton.click();
-	await expect(cliPendingCard).not.toBeVisible({ timeout: 10000 });
+	await expect(cliApproveButton).not.toBeVisible({ timeout: 10000 });
 	await screenshot(page, 'cli-device-approved');
 
 	const cliApprovedResponse = await request.get(sdkChatsUrl, { headers: cliDeviceHeaders });

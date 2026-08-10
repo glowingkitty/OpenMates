@@ -45,10 +45,17 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	assertNoMissingTranslations,
-	getTestAccount
+	getE2EDebugUrl,
+	getTestAccount,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const {
+	loginToTestAccount,
+	sendMessage,
+	startNewChat,
+	waitForAssistantMessage
+} = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -76,13 +83,7 @@ async function loginAndNavigateToChat(
 	logCheckpoint('Logging in via loginToTestAccount (includes OTP retry with clock-drift compensation).');
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 
-	// Start a fresh chat if possible
-	const newChatButton = page.getByTestId('new-chat-button');
-	if (await newChatButton.isVisible()) {
-		logCheckpoint('Clicking New Chat button.');
-		await newChatButton.click();
-		await page.waitForTimeout(2000);
-	}
+	await startNewChat(page, logCheckpoint);
 
 	return { logCheckpoint, takeStepScreenshot };
 }
@@ -95,15 +96,7 @@ async function sendMessageAndGetChatId(
 	message: string,
 	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void
 ): Promise<string> {
-	const messageEditor = page.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible();
-	await messageEditor.click();
-	await page.keyboard.type(message);
-
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled();
-	await sendButton.click();
-	logCheckpoint(`Sent message: "${message}"`);
+	await sendMessage(page, message, logCheckpoint);
 
 	// Wait for chat ID to appear in URL
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
@@ -131,6 +124,99 @@ async function deleteActiveChat(
 		await expect(activeChatItem).not.toBeVisible({ timeout: 10000 });
 		logCheckpoint('Deleted active chat.');
 	}
+}
+
+async function ensureSidebarClosed(page: any): Promise<void> {
+	const sidebar = page.getByTestId('activity-history-wrapper');
+	if (await sidebar.isVisible().catch(() => false)) {
+		await page.getByTestId('sidebar-toggle').click();
+		await expect(sidebar).not.toBeVisible();
+	}
+}
+
+async function deleteChatById(page: any, chatId: string): Promise<void> {
+	const sidebar = page.getByTestId('activity-history-wrapper');
+	if (!(await sidebar.isVisible().catch(() => false))) {
+		await page.getByTestId('sidebar-toggle').click();
+		await expect(sidebar).toBeVisible();
+	}
+
+	const chatItems = page.getByTestId('chat-item-wrapper');
+	const itemCount = await chatItems.count();
+	for (let index = 0; index < itemCount; index += 1) {
+		const item = chatItems.nth(index);
+		if ((await item.getAttribute('data-chat-id')) !== chatId) continue;
+		await item.click({ button: 'right' });
+		const deleteButton = page.getByTestId('chat-context-delete');
+		await expect(deleteButton).toBeVisible();
+		await deleteButton.click();
+		await deleteButton.click();
+		await expect(item).not.toBeVisible({ timeout: 15000 });
+		return;
+	}
+
+	throw new Error(`Chat ${chatId} was not available for exact cleanup`);
+}
+
+async function coldBootAuthenticatedPage(context: any, baseURL: string): Promise<any> {
+	const page = await context.newPage();
+	const resetUrl = `${new URL(baseURL).origin}/e2e-connection-resilience-cold-boot`;
+	await page.route(resetUrl, (route: any) =>
+		route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Cold boot</title>' })
+	);
+	await page.goto(resetUrl);
+	await page.evaluate(async () => {
+		await new Promise<void>((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+			request.onerror = () => reject(request.error ?? new Error('Failed to open chats_db'));
+			request.onsuccess = () => {
+				const db = request.result;
+				const storesToClear = Array.from(db.objectStoreNames);
+				if (storesToClear.length === 0) {
+					db.close();
+					resolve();
+					return;
+				}
+				const transaction = db.transaction(storesToClear, 'readwrite');
+				transaction.onerror = () => {
+					db.close();
+					reject(transaction.error ?? new Error('Failed to clear local chat stores'));
+				};
+				transaction.oncomplete = () => {
+					db.close();
+					resolve();
+				};
+				for (const storeName of storesToClear) transaction.objectStore(storeName).clear();
+			};
+		});
+	});
+	await page.unroute(resetUrl);
+	return page;
+}
+
+async function sendMessageUntilChatIdAssigned(
+	page: any,
+	message: string,
+	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void,
+	protocolEvents: Array<{ direction: 'sent' | 'received'; type: string }> = []
+): Promise<string> {
+	const eventStartIndex = protocolEvents.length;
+	await sendMessage(page, message, logCheckpoint);
+	logCheckpoint('Recovery message sent; waiting for chat_message_added dispatch before closing origin.');
+
+	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 30000 });
+	await expect
+		.poll(
+			() =>
+				protocolEvents
+					.slice(eventStartIndex)
+					.some((event) => event.direction === 'sent' && event.type === 'chat_message_added'),
+			{ timeout: 30000 }
+		)
+		.toBe(true);
+	const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
+	expect(chatId).toBeTruthy();
+	return chatId;
 }
 
 // ---------------------------------------------------------------------------
@@ -205,7 +291,11 @@ test('delivers AI response after page reload during processing', async ({ page }
 	const { logCheckpoint, takeStepScreenshot } = await loginAndNavigateToChat(page, test, 'RELOAD');
 
 	// Send a message
-	const chatId = await sendMessageAndGetChatId(page, 'What is the capital of France?', logCheckpoint);
+	const chatId = await sendMessageAndGetChatId(
+		page,
+		withMockMarker('What is the capital of Germany?', 'chat_flow_capital'),
+		logCheckpoint
+	);
 	await takeStepScreenshot(page, 'message-sent');
 
 	// Wait briefly for the request to register on the server
@@ -234,12 +324,12 @@ test('delivers AI response after page reload during processing', async ({ page }
 	// The assistant response should arrive
 	await waitForAssistantMessage(page, {
 		which: 'last',
-		contains: 'Paris',
+		contains: 'Berlin',
 		timeout: 120000,
 		logCheckpoint
 	});
 	await takeStepScreenshot(page, 'response-after-reload');
-	logCheckpoint('AI response received after page reload. Contains "Paris".');
+	logCheckpoint('AI response received after page reload. Contains "Berlin".');
 
 	// Verify no missing translations on the chat page after reconnect
 	await assertNoMissingTranslations(page);
@@ -536,4 +626,217 @@ test('pending embed operations are flushed from IndexedDB on reconnect', async (
 	const flushed = countAfter < countBefore || flushAttempted;
 	expect(flushed).toBe(true);
 	logCheckpoint('Verified: pending embed operations flush was triggered on reconnect.');
+});
+
+// ---------------------------------------------------------------------------
+// Test 6: An independent browser context recovers and durably retains one response
+// ---------------------------------------------------------------------------
+test('secondary client recovers exactly one saved assistant message after origin disconnect and cold boot', async ({
+	browser
+}: {
+	browser: any;
+}) => {
+	test.slow();
+	test.setTimeout(300000);
+
+	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
+	const originContext = await browser.newContext({ baseURL });
+	const recoveryContext = await browser.newContext({ baseURL });
+	const origin = await originContext.newPage();
+	let secondary = await recoveryContext.newPage();
+	let chatId = '';
+	const logCheckpoint = createSignupLogger('SAVED_CHAT_RECOVERY');
+	const protocolEvents: Array<{
+		direction: 'sent' | 'received';
+		type: string;
+		state?: string;
+		jobId?: string;
+		requestId?: string;
+		chatId?: string;
+		availableJobs?: Array<{ jobId?: string; chatId?: string }>;
+	}> = [];
+	const recoveryProtocolEvents: typeof protocolEvents = [];
+	const captureProtocolEvents = (page: any, events: typeof protocolEvents) => page.on('websocket', (websocket: any) => {
+		const capture = (direction: 'sent' | 'received') => (frame: any) => {
+			try {
+				const message = JSON.parse(String(frame.payload));
+				if (typeof message.type === 'string') {
+					const availableJobs = Array.isArray(message.payload?.jobs)
+						? message.payload.jobs.map((job: any) => ({
+								jobId: typeof job?.job_id === 'string' ? job.job_id : undefined,
+								chatId: typeof job?.chat_id === 'string' ? job.chat_id : undefined
+							}))
+						: undefined;
+					// Keep failure diagnostics privacy-safe: protocol order needs only routing metadata.
+					events.push({
+						direction,
+						type: message.type,
+						state: typeof message.payload?.state === 'string' ? message.payload.state : undefined,
+						jobId: typeof message.payload?.job_id === 'string' ? message.payload.job_id : undefined,
+						requestId: typeof message.payload?.request_id === 'string' ? message.payload.request_id : undefined,
+						chatId: typeof message.payload?.chat_id === 'string' ? message.payload.chat_id : undefined,
+						availableJobs
+					});
+				}
+			} catch {
+				// WebSocket control frames are not JSON protocol messages.
+			}
+		};
+		websocket.on('framesent', capture('sent'));
+		websocket.on('framereceived', capture('received'));
+	});
+	captureProtocolEvents(origin, protocolEvents);
+	captureProtocolEvents(secondary, recoveryProtocolEvents);
+
+	try {
+		await origin.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginAndNavigateToChat(origin, test, 'SAVED_CHAT_RECOVERY_ORIGIN');
+		await ensureSidebarClosed(origin);
+
+		await secondary.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginAndNavigateToChat(secondary, test, 'SAVED_CHAT_RECOVERY_SECONDARY');
+		expect(origin.context()).not.toBe(secondary.context());
+		await expect(secondary.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+		await ensureSidebarClosed(secondary);
+
+		const uniquePrompt = `Recover this saved response ${Date.now()}-${test.info().workerIndex}`;
+		chatId = await sendMessageUntilChatIdAssigned(
+			origin,
+			withMockMarker(uniquePrompt, 'chat_flow_capital', 'slow'),
+			logCheckpoint,
+			protocolEvents
+		);
+		const originEventTypes = protocolEvents.map((event) => `${event.direction}:${event.type}`);
+		logCheckpoint('Origin protocol events observed before disconnect.', {
+			eventTypes: originEventTypes.slice(-20)
+		});
+		const preflightSentIndex = protocolEvents.findIndex(
+			(event) => event.direction === 'sent' && event.type === 'chat_turn_preflight'
+		);
+		const preflightAckIndex = protocolEvents.findIndex(
+			(event) => event.direction === 'received' && event.type === 'chat_turn_preflight_ack'
+		);
+		const inferenceSentIndex = protocolEvents.findIndex(
+			(event) => event.direction === 'sent' && event.type === 'chat_message_added'
+		);
+		if (preflightSentIndex >= 0 && preflightAckIndex >= 0 && inferenceSentIndex >= 0) {
+			expect(preflightSentIndex).toBeLessThan(preflightAckIndex);
+			expect(preflightAckIndex).toBeLessThan(inferenceSentIndex);
+			expect(protocolEvents[preflightAckIndex]?.state).toMatch(/^(LEGACY|PREPARED)$/);
+		}
+
+		await origin.close();
+		logCheckpoint('Closed origin before the deterministic slow response reached terminal persistence.', {
+			chatId
+		});
+
+		await secondary.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`), {
+			waitUntil: 'domcontentloaded'
+		});
+		await expect(secondary.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
+		await ensureSidebarClosed(secondary);
+		const recoveredAssistantMessages = secondary.getByTestId('message-assistant');
+		await expect(recoveredAssistantMessages).toHaveCount(1, { timeout: 120000 });
+		await expect(recoveredAssistantMessages.first()).toContainText('Berlin', { timeout: 120000 });
+		await expect(recoveredAssistantMessages).toHaveCount(1);
+		const findTargetRecoveryJob = () =>
+			recoveryProtocolEvents
+				.flatMap((event) =>
+					event.direction === 'received' && event.type === 'recovery_jobs_available'
+						? event.availableJobs ?? []
+						: []
+				)
+				.find((job) => job.chatId === chatId && job.jobId);
+		await expect
+			.poll(() => findTargetRecoveryJob()?.jobId ?? '', { timeout: 120000 })
+			.not.toBe('');
+		const targetJobId = findTargetRecoveryJob()!.jobId!;
+		const findClaimSent = () =>
+			recoveryProtocolEvents.find(
+				(event) =>
+					event.direction === 'sent' &&
+					event.type === 'recovery_job_claim' &&
+					event.jobId === targetJobId &&
+					event.requestId
+			);
+		await expect.poll(() => findClaimSent()?.requestId ?? '', { timeout: 30000 }).not.toBe('');
+		const claimSent = findClaimSent()!;
+		const findClaimReceived = () =>
+			recoveryProtocolEvents.find(
+				(event) =>
+					event.direction === 'received' &&
+					event.type === 'recovery_job_claimed' &&
+					event.chatId === chatId &&
+					event.jobId === targetJobId &&
+					event.requestId === claimSent.requestId
+			);
+		await expect.poll(() => findClaimReceived()?.requestId ?? '', { timeout: 30000 }).not.toBe('');
+		const claimReceived = findClaimReceived()!;
+		const findPersistSent = () =>
+			recoveryProtocolEvents.find(
+				(event) =>
+					event.direction === 'sent' &&
+					event.type === 'recovery_job_persist' &&
+					event.jobId === targetJobId &&
+					event.requestId
+			);
+		await expect.poll(() => findPersistSent()?.requestId ?? '', { timeout: 30000 }).not.toBe('');
+		const persistSent = findPersistSent()!;
+		const findPersistReceived = () =>
+			recoveryProtocolEvents.find(
+				(event) =>
+					event.direction === 'received' &&
+					event.type === 'recovery_job_persisted' &&
+					event.jobId === targetJobId &&
+					event.requestId === persistSent.requestId
+			);
+		await expect.poll(() => findPersistReceived()?.requestId ?? '', { timeout: 30000 }).not.toBe('');
+		const persistReceived = findPersistReceived()!;
+		const availableIndex = recoveryProtocolEvents.findIndex(
+			(event) =>
+				event.direction === 'received' &&
+				event.type === 'recovery_jobs_available' &&
+				event.availableJobs?.some((job) => job.jobId === targetJobId)
+		);
+		const claimSentIndex = recoveryProtocolEvents.indexOf(claimSent!);
+		const claimReceivedIndex = recoveryProtocolEvents.indexOf(claimReceived!);
+		const persistSentIndex = recoveryProtocolEvents.indexOf(persistSent!);
+		const persistReceivedIndex = recoveryProtocolEvents.indexOf(persistReceived!);
+		expect(availableIndex).toBeGreaterThanOrEqual(0);
+		expect(availableIndex).toBeLessThan(claimSentIndex);
+		expect(claimSentIndex).toBeLessThan(claimReceivedIndex);
+		expect(claimReceivedIndex).toBeLessThan(persistSentIndex);
+		expect(persistSentIndex).toBeLessThan(persistReceivedIndex);
+		expect(claimSent?.jobId).toBe(claimReceived?.jobId);
+		expect(claimSent?.requestId).toBe(claimReceived?.requestId);
+		expect(persistSent?.jobId).toBe(persistReceived?.jobId);
+		expect(persistSent?.requestId).toBe(persistReceived?.requestId);
+		// Focused backend/Directus contracts cover sealing, atomic terminal persistence,
+		// and recovery-job deletion; this test proves the live browser protocol sequence.
+
+		await secondary.close();
+		secondary = await coldBootAuthenticatedPage(recoveryContext, baseURL);
+		captureProtocolEvents(secondary, recoveryProtocolEvents);
+		await secondary.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`), {
+			waitUntil: 'domcontentloaded'
+		});
+		await expect(secondary.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
+		await ensureSidebarClosed(secondary);
+		const coldBootAssistantMessages = secondary.getByTestId('message-assistant');
+		await expect(coldBootAssistantMessages).toHaveCount(1, { timeout: 60000 });
+		await expect(coldBootAssistantMessages.first()).toContainText('Berlin');
+		await expect(coldBootAssistantMessages).toHaveCount(1);
+	} finally {
+		try {
+			if (!secondary.isClosed() && chatId) {
+				await deleteChatById(secondary, chatId);
+			}
+		} catch (cleanupError) {
+			logCheckpoint('Cleanup could not find the recovery test chat.', {
+				error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+			});
+		} finally {
+			await Promise.all([originContext.close(), recoveryContext.close()]);
+		}
+	}
 });

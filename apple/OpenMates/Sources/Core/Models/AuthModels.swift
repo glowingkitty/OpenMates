@@ -169,6 +169,13 @@ struct UserProfile: Codable, Identifiable {
     let encryptedSettings: String?
     let autoDeleteChatsAfterDays: Int?
     let pushNotificationEnabled: Bool?
+    let emailNotificationsEnabled: Bool?
+    let emailNotificationPreferences: [String: Bool]?
+    let backupReminderIntervalDays: Int?
+    let defaultAiModelSimple: String?
+    let defaultAiModelComplex: String?
+    let followUpSuggestionsEnabled: Bool?
+    let quickTipsEnabled: Bool?
 }
 
 // MARK: - Passkey

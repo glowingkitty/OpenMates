@@ -9,6 +9,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, 
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 from backend.core.api.app.services.notification_event_service import NotificationEventService
 from backend.core.api.app.utils.encryption import EncryptionService
 # Import ConnectionManager from the new module
@@ -33,6 +34,10 @@ from .handlers.websocket_handlers.code_run_output_handlers import (
     handle_upsert_code_run_output,
     handle_request_code_run_output,
 )
+from .handlers.websocket_handlers.notebook_run_output_handlers import (
+    handle_upsert_notebook_run_output,
+    handle_request_notebook_run_output,
+)
 from .handlers.websocket_handlers.offline_sync_handler import handle_sync_offline_changes
 from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
 from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft
@@ -47,6 +52,25 @@ from .handlers.websocket_handlers.sub_chat_confirmation_handler import handle_su
 from .handlers.websocket_handlers.sub_chat_stop_handler import handle_sub_chat_stop # Handler for stopping sequential sub-chat queues
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
+from .handlers.websocket_handlers.chat_turn_preflight_handler import handle_chat_turn_preflight
+from .handlers.websocket_handlers.chat_recovery_job_handlers import (
+    handle_recovery_job_claim,
+    handle_recovery_job_persist,
+    handle_recovery_job_renew,
+    send_available_recovery_jobs,
+)
+from .handlers.websocket_handlers.workflow_chat_delivery_handlers import (
+    handle_workflow_chat_delivery_ack,
+    handle_workflow_chat_delivery_claim,
+    handle_workflow_chat_delivery_persist,
+    send_available_workflow_chat_deliveries,
+)
+from .handlers.websocket_handlers.task_update_job_handlers import (
+    handle_task_update_job_claim,
+    handle_task_update_job_event_confirmed,
+    handle_task_update_job_persist,
+    send_available_task_update_jobs,
+)
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
@@ -64,6 +88,12 @@ from .handlers.websocket_handlers.sync_metadata_chats_handler import handle_sync
 from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspiration_viewed # Handler for daily inspiration view tracking
 from .handlers.websocket_handlers.inspiration_received_handler import handle_inspiration_received  # ACK handler for pending inspiration delivery
 from .handlers.websocket_handlers.sync_inspiration_chat_handler import handle_sync_inspiration_chat  # Handler for syncing inspiration-created chats across devices
+from .handlers.websocket_handlers.project_remote_access_handlers import (
+    handle_project_remote_access_complete,
+    handle_project_remote_access_disconnect,
+    handle_project_remote_access_heartbeat,
+    handle_project_remote_access_register,
+)
 from .handlers.websocket_handlers.update_chat_pinned_handler import handle_update_chat_pinned  # Handler for pin/unpin chat (cross-device sync)
 from .handlers.websocket_handlers.key_received_handler import handle_key_received  # Handler for key delivery acknowledgment (SYNC-01)
 from .handlers.websocket_handlers.chat_compression_checkpoint_handler import (
@@ -89,6 +119,26 @@ def _safe_payload_summary(payload: object) -> str:
     if isinstance(payload, list):
         return f"list_len={len(payload)}"
     return f"type={type(payload).__name__}"
+
+
+async def _send_available_recovery_jobs_for_final_stream(
+    *,
+    manager: ConnectionManager,
+    directus_service: DirectusService,
+    user_id: str,
+    user_id_hash: str,
+    device_fingerprint_hash: str,
+) -> None:
+    # Directus is the only authoritative recovery-job state. Do not synthesize
+    # AVAILABLE jobs from Redis final-frame metadata; another tab may already
+    # hold the lease, which creates noisy lease_conflict rejections.
+    await send_available_recovery_jobs(
+        manager=manager,
+        directus_service=directus_service,
+        user_id=user_id,
+        user_id_hash=user_id_hash,
+        device_fingerprint_hash=device_fingerprint_hash,
+    )
 
 
 # =============================================================================
@@ -618,6 +668,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
         return
     
     cache_service: CacheService = app.state.cache_service
+    directus_service: DirectusService | None = getattr(app.state, "directus_service", None)
     logger.debug("Starting Redis Pub/Sub listener for AI chat stream events (channel: chat_stream::*)...")
 
     await cache_service.client # Ensure connection
@@ -695,6 +746,27 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             logger.info(f"AI Stream Listener: Forwarded '{event_type}' to active chat on {user_id_uuid}/{device_hash}")
                     continue
 
+                if event_type in ("task_event", "task_update_jobs_available"):
+                    user_id_uuid = redis_payload.get("user_id_uuid")
+                    chat_id_from_payload = redis_payload.get("chat_id")
+                    if not user_id_uuid or not chat_id_from_payload:
+                        logger.warning(
+                            "AI Stream Listener: Malformed task payload on channel "
+                            f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                        )
+                        continue
+                    for device_hash, websocket_conn in manager.get_connections_for_user(user_id_uuid).items():
+                        if not manager.supports_task_update_jobs(user_id_uuid, device_hash):
+                            continue
+                        if chat_id_from_payload == manager.get_active_chat(user_id_uuid, device_hash):
+                            payload = {key: value for key, value in redis_payload.items() if key not in {"type", "user_id_uuid", "user_id_hash"}}
+                            await manager.send_personal_message(
+                                message={"type": event_type, "payload": payload},
+                                user_id=user_id_uuid,
+                                device_fingerprint_hash=device_hash,
+                            )
+                    continue
+
                 elif event_type == "ai_message_chunk":
                     user_id_uuid = redis_payload.get("user_id_uuid") # Use UUID for ConnectionManager
                     user_id_hash_for_logging = redis_payload.get("user_id_hash") # Keep for logging if needed
@@ -746,6 +818,15 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     # CRITICAL: Send messages immediately without blocking on completion
                     # WebSocket.send_json() is fast (just queues in buffer), so we can await it
                     # but we process all devices in parallel to avoid sequential delays
+                    should_announce_final_recovery_job = (
+                        directus_service is not None
+                        and redis_payload.get("is_final_chunk", False)
+                        and (
+                            redis_payload.get("recovery_protocol_version") == 1
+                            or redis_payload.get("recovery_provisional") is False
+                        )
+                    )
+
                     for device_hash, websocket_conn in user_connections.items():
                         if not manager.is_connection_completion_capable(user_id_uuid, device_hash):
                             logger.debug(
@@ -770,6 +851,17 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     # New standardized error format - already user-friendly, but convert to translation key for consistency
                                     logger.warning(f"AI Stream Listener: Detected standardized error in stream for chat {chat_id_from_payload}")
                                     redis_payload["full_content_so_far"] = "chat.an_error_occured"
+
+                            # The final frame lets the browser/test proceed to logout, so recovery
+                            # discovery must be ordered before it instead of racing in the background.
+                            if should_announce_final_recovery_job:
+                                await _send_available_recovery_jobs_for_final_stream(
+                                    manager=manager,
+                                    directus_service=directus_service,
+                                    user_id=user_id_uuid,
+                                    user_id_hash=redis_payload.get("user_id_hash"),
+                                    device_fingerprint_hash=device_hash,
+                                )
 
                             # CRITICAL: Send immediately - websocket.send_json() is fast (just queues message)
                             # This ensures chunks are forwarded as soon as they arrive from Redis
@@ -805,18 +897,37 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                         logger.warning(f"AI Stream Listener: Detected standardized error in background stream for chat {chat_id_from_payload}")
                                         full_content = "chat.an_error_occured"
                                 
+                                # The background final frame can also trigger logout/navigation, so
+                                # deliver recovery discovery first and let reconnects pick up any
+                                # lease released by logout.
+                                if should_announce_final_recovery_job:
+                                    await _send_available_recovery_jobs_for_final_stream(
+                                        manager=manager,
+                                        directus_service=directus_service,
+                                        user_id=user_id_uuid,
+                                        user_id_hash=redis_payload.get("user_id_hash"),
+                                        device_fingerprint_hash=device_hash,
+                                    )
+
                                 # Send background completion event with full response
                                 background_completion_payload = {
                                     "chat_id": chat_id_from_payload,
                                     "message_id": redis_payload.get("message_id"), # AI's message ID
                                     "user_message_id": redis_payload.get("user_message_id"),
+                                    "created_at": redis_payload.get("created_at"),
+                                    "is_final_chunk": True,
                                     "task_id": redis_payload.get("task_id"),
                                     "full_content": full_content,
                                     "model_name": redis_payload.get("model_name"),
                                     "category": redis_payload.get("category"),
                                     "interrupted_by_soft_limit": redis_payload.get("interrupted_by_soft_limit", False),
                                     "interrupted_by_revocation": redis_payload.get("interrupted_by_revocation", False),
-                                    "rejection_reason": redis_payload.get("rejection_reason")
+                                    "rejection_reason": redis_payload.get("rejection_reason"),
+                                    "recovery_job_id": redis_payload.get("recovery_job_id"),
+                                    "recovery_protocol_version": redis_payload.get("recovery_protocol_version"),
+                                    "awaiting_focus_mode_continuation": redis_payload.get("awaiting_focus_mode_continuation", False),
+                                    "is_focus_mode_continuation": redis_payload.get("is_focus_mode_continuation", False),
+                                    "is_sub_chat_continuation": redis_payload.get("is_sub_chat_continuation", False),
                                 }
                                 await manager.send_personal_message(
                                     message={"type": "ai_background_response_completed", "payload": background_completion_payload},
@@ -824,7 +935,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     device_fingerprint_hash=device_hash
                                 )
                                 logger.debug(f"AI Stream Listener: Sent 'ai_background_response_completed' to inactive chat device {user_id_uuid}/{device_hash}.")
-                                
+
                                 # Also send typing ended event for UI cleanup
                                 typing_ended_payload = {
                                     "chat_id": chat_id_from_payload,
@@ -1122,6 +1233,8 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         "harmful_response": redis_payload.get("harmful_response", 0.0),
                         "top_recommended_apps_for_user": redis_payload.get("top_recommended_apps_for_user", []),
                         "quick_tip_slugs": redis_payload.get("quick_tip_slugs", []),
+                        "source_title_v": redis_payload.get("source_title_v"),
+                        "source_metadata_v": redis_payload.get("source_metadata_v"),
                     }
 
                     # OPE-265: Include updated title when post-processing detected conversation drift
@@ -1230,6 +1343,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                             "summary_token_estimate": redis_payload.get("summary_token_estimate"),
                             "compressed_up_to_timestamp": redis_payload.get("compressed_up_to_timestamp"),
                             "summary_message_id": redis_payload.get("summary_message_id"),
+                            "summary_content": redis_payload.get("summary_content"),
                         }
                         # Include error if present (compression failed gracefully)
                         if redis_payload.get("error"):
@@ -1650,12 +1764,20 @@ async def listen_for_user_updates(app: FastAPI):
 
                 logger.debug(f"User Updates Listener: Received event for user {user_id_uuid}. Forwarding as '{event_for_client}'.")
 
-                await manager.broadcast_to_user_specific_event(
-                    user_id=user_id_uuid,
-                    event_name=event_for_client,
-                    payload=client_payload,
-                    exclude_device_hash=exclude_connection_hash,
-                )
+                target_device_hash = redis_payload.get("target_device_fingerprint_hash")
+                if target_device_hash:
+                    await manager.send_personal_message(
+                        {"type": event_for_client, "payload": client_payload},
+                        user_id_uuid,
+                        target_device_hash,
+                    )
+                else:
+                    await manager.broadcast_to_user_specific_event(
+                        user_id=user_id_uuid,
+                        event_name=event_for_client,
+                        payload=client_payload,
+                        exclude_device_hash=exclude_connection_hash,
+                    )
                 logger.debug(
                     f"User Updates Listener: Broadcasted '{event_for_client}' to user {user_id_uuid} "
                     f"with payload summary: {_safe_payload_summary(client_payload)}"
@@ -1988,6 +2110,35 @@ async def _deliver_pending_embeds(
         logger.error(f"[PENDING_EMBEDS] Error delivering pending embeds: {e}", exc_info=True)
 
 
+def _schedule_sync_metadata_chats_background(
+    *,
+    websocket: WebSocket,
+    manager: ConnectionManager,
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    user_id: str,
+    device_fingerprint_hash: str,
+    payload: dict,
+    user_otel_attrs: dict | None = None,
+) -> asyncio.Task:
+    # Metadata sync can send hundreds of chat summaries. Keep the receive loop
+    # free so latency-sensitive sends can still preflight and ACK promptly.
+    return asyncio.create_task(
+        handle_sync_metadata_chats(
+            websocket=websocket,
+            manager=manager,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_id=user_id,
+            device_fingerprint_hash=device_fingerprint_hash,
+            payload=payload,
+            user_otel_attrs=user_otel_attrs,
+        )
+    )
+
+
 # Authentication logic is now in auth_ws.py
 @router.websocket("")
 async def websocket_endpoint(
@@ -2006,6 +2157,9 @@ async def websocket_endpoint(
     user_id = auth_data["user_id"]
     device_fingerprint_hash = auth_data["device_fingerprint_hash"]
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    raw_capabilities = websocket.query_params.get("client_capabilities", "")
+    connection_capabilities = {item.strip() for item in raw_capabilities.split(",") if item.strip()}
+    supports_task_update_jobs = "task_update_jobs" in connection_capabilities
 
     # Extract user OTel attributes for privacy tier resolution (OTEL-02, OTEL-06).
     # These are set once per connection and passed to every handler span.
@@ -2017,7 +2171,51 @@ async def websocket_endpoint(
     }
 
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
-    await manager.connect(websocket, user_id, device_fingerprint_hash)
+    await manager.connect(
+        websocket,
+        user_id,
+        device_fingerprint_hash,
+        supports_task_update_jobs=supports_task_update_jobs,
+    )
+
+    try:
+        recovery_epoch = await ChatRecoveryCutoverController(
+            cache_service, directus_service
+        ).get_epoch(authoritative=True)
+    except Exception as exc:
+        logger.error("Authoritative recovery discovery epoch read failed", exc_info=exc)
+        recovery_epoch = 0
+    if recovery_epoch >= 1:
+        asyncio.create_task(
+            send_available_recovery_jobs(
+                manager=manager,
+                directus_service=directus_service,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                device_fingerprint_hash=device_fingerprint_hash,
+                user_otel_attrs=user_otel_attrs,
+            )
+        )
+
+    asyncio.create_task(
+        send_available_workflow_chat_deliveries(
+            manager=manager,
+            directus_service=directus_service,
+            user_id=user_id,
+            device_fingerprint_hash=device_fingerprint_hash,
+            user_otel_attrs=user_otel_attrs,
+        )
+    )
+
+    if supports_task_update_jobs:
+        asyncio.create_task(
+            send_available_task_update_jobs(
+                manager=manager,
+                cache_service=cache_service,
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash,
+            )
+        )
 
     # Deliver any pending reminder notifications that fired while the user was offline.
     # This runs as a background task so it doesn't block the WebSocket message loop.
@@ -2107,6 +2305,124 @@ async def websocket_endpoint(
             elif message_type == "ping":
                 await manager.send_personal_message({"type": "pong"}, user_id, device_fingerprint_hash)
             
+
+            elif message_type == "chat_turn_preflight":
+                await handle_chat_turn_preflight(
+                    manager=manager,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "recovery_job_claim":
+                await handle_recovery_job_claim(
+                    manager=manager,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "recovery_job_renew":
+                await handle_recovery_job_renew(
+                    manager=manager,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "recovery_job_persist":
+                await handle_recovery_job_persist(
+                    manager=manager,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "task_update_job_claim":
+                if not supports_task_update_jobs:
+                    await websocket.send_json({"type": "error", "payload": {"message": "Task update jobs require a task-update-jobs capable client"}})
+                    continue
+                await handle_task_update_job_claim(
+                    manager=manager,
+                    cache_service=cache_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    user_vault_key_id=_user_data.get("vault_key_id"),
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "task_update_job_persist":
+                if not supports_task_update_jobs:
+                    await websocket.send_json({"type": "error", "payload": {"message": "Task update jobs require a task-update-jobs capable client"}})
+                    continue
+                await handle_task_update_job_persist(
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "task_update_job_event_confirmed":
+                if not supports_task_update_jobs:
+                    await websocket.send_json({"type": "error", "payload": {"message": "Task update jobs require a task-update-jobs capable client"}})
+                    continue
+                await handle_task_update_job_event_confirmed(
+                    manager=manager,
+                    cache_service=cache_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "workflow_chat_delivery_claim":
+                await handle_workflow_chat_delivery_claim(
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "workflow_chat_delivery_persist":
+                await handle_workflow_chat_delivery_persist(
+                    manager=manager,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "workflow_chat_delivery_ack":
+                await handle_workflow_chat_delivery_ack(
+                    manager=manager,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
 
             elif message_type == "chat_message_added":
                 # This now handles new messages sent by the client.
@@ -2229,6 +2545,30 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
 
+            elif message_type == "upsert_notebook_run_output":
+                await handle_upsert_notebook_run_output(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "request_notebook_run_output":
+                await handle_request_notebook_run_output(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
             elif message_type == "request_cache_status":
                 logger.debug(f"User {user_id}, Device {device_fingerprint_hash}: Received 'request_cache_status'.")
                 try:
@@ -2278,6 +2618,7 @@ async def websocket_endpoint(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,
+                    directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
@@ -2754,7 +3095,7 @@ async def websocket_endpoint(
                 )
 
             elif message_type == "sync_metadata_chats":
-                await handle_sync_metadata_chats(
+                _schedule_sync_metadata_chats_background(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,
@@ -2829,6 +3170,50 @@ async def websocket_endpoint(
                         f"Received update_chat with no recognized fields from "
                         f"{user_id}/{device_fingerprint_hash}: {list(payload.keys())}"
                     )
+
+            elif message_type == "project_remote_access_register":
+                await handle_project_remote_access_register(
+                    websocket=websocket,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "project_remote_access_heartbeat":
+                await handle_project_remote_access_heartbeat(
+                    websocket=websocket,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "project_remote_access_disconnect":
+                await handle_project_remote_access_disconnect(
+                    websocket=websocket,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "project_remote_access_complete":
+                await handle_project_remote_access_complete(
+                    websocket=websocket,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
 
             elif message_type == "key_received":
                 # Client ACKs that it received and decrypted a chat encryption key.

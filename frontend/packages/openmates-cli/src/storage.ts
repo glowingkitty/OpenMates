@@ -14,10 +14,12 @@ import {
   chmodSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -45,6 +47,7 @@ export interface OpenMatesSession {
   createdAt: number;
   authorizerDeviceName: string | null;
   autoLogoutMinutes: number | null;
+  activeTeamId?: string | null;
 }
 
 interface AnonymousStateOnDisk {
@@ -78,6 +81,17 @@ interface SessionOnDisk {
   createdAt: number;
   authorizerDeviceName: string | null;
   autoLogoutMinutes: number | null;
+  activeTeamId?: string | null;
+}
+
+interface LocalTeamKeyEntry {
+  storage: MasterKeyStorageType;
+  encryptedData?: string;
+  plaintextKeyB64?: string;
+}
+
+interface LocalTeamKeysOnDisk {
+  teams: Record<string, LocalTeamKeyEntry>;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,6 +168,7 @@ export function saveSession(session: OpenMatesSession): void {
     createdAt: session.createdAt,
     authorizerDeviceName: session.authorizerDeviceName,
     autoLogoutMinutes: session.autoLogoutMinutes,
+    activeTeamId: session.activeTeamId ?? null,
     masterKeyStorage: result.type,
   };
 
@@ -186,8 +201,8 @@ export function saveSession(session: OpenMatesSession): void {
 
 /**
  * Load session from disk. Retrieves the master key from whatever storage
- * tier it was saved to. Auto-migrates legacy plaintext sessions to keychain
- * when possible.
+ * tier it was saved to. Legacy plaintext sessions remain readable but are not
+ * rewritten during load.
  */
 export function loadSession(): OpenMatesSession | null {
   const filePath = join(ensureStateDir(), "session.json");
@@ -195,24 +210,10 @@ export function loadSession(): OpenMatesSession | null {
   if (!onDisk) return null;
 
   let masterKey: string | null = null;
-  let emailEncryptionKey: string | null = null;
 
   // Legacy session (no masterKeyStorage field) — key is inline
   if (!onDisk.masterKeyStorage) {
     masterKey = onDisk.masterKeyExportedB64 ?? null;
-
-    // Auto-migrate: try to move key to keychain/encrypted storage
-    if (masterKey) {
-      emailEncryptionKey = getEmailEncryptionKeyFromDisk(onDisk);
-      const session = buildSession(onDisk, masterKey, emailEncryptionKey);
-      try {
-        saveSession(session);
-        process.stderr.write("Decrypting data...\n");
-      } catch {
-        // Migration failed — keep working with plaintext key in memory
-      }
-    }
-
     return masterKey ? buildSession(onDisk, masterKey, getEmailEncryptionKeyFromDisk(onDisk)) : null;
   }
 
@@ -259,9 +260,53 @@ export function clearSession(): void {
   if (onDisk?.emailEncryptionKeyStorage) {
     deleteMasterKey(onDisk.emailEncryptionKeyStorage, `${onDisk.hashedEmail}:email`);
   }
+  if (onDisk?.activeTeamId) {
+    deleteLocalTeamKey(onDisk.hashedEmail, onDisk.activeTeamId);
+  }
 
   if (existsSync(filePath)) {
     rmSync(filePath);
+  }
+}
+
+export function purgeLocalPrivateData(): void {
+  const stateDir = ensureStateDir();
+  const sessionFilePath = join(stateDir, "session.json");
+  const onDisk = readJsonFile<SessionOnDisk>(sessionFilePath);
+  const hashedEmail = onDisk?.hashedEmail ?? null;
+
+  clearSession();
+  purgeLocalTeamKeys(hashedEmail);
+  purgeSyncCaches(stateDir);
+}
+
+function purgeLocalTeamKeys(hashedEmail: string | null): void {
+  const filePath = join(ensureStateDir(), LOCAL_TEAM_KEYS_FILE);
+  const keys = readJsonFile<LocalTeamKeysOnDisk>(filePath);
+  if (!keys) return;
+
+  let changed = false;
+  const prefix = hashedEmail ? `${hashedEmail}:team:` : null;
+  for (const [storageId, entry] of Object.entries(keys.teams)) {
+    if (prefix && !storageId.startsWith(prefix)) continue;
+    deleteMasterKey(entry.storage, storageId);
+    delete keys.teams[storageId];
+    changed = true;
+  }
+
+  if (!changed) return;
+  if (Object.keys(keys.teams).length === 0) {
+    rmSync(filePath, { force: true });
+    return;
+  }
+  writeJsonFile(filePath, keys);
+}
+
+function purgeSyncCaches(stateDir: string): void {
+  for (const fileName of readdirSync(stateDir)) {
+    if (fileName === SYNC_CACHE_FILE || (fileName.startsWith("sync_cache.team.") && fileName.endsWith(".json"))) {
+      rmSync(join(stateDir, fileName), { force: true });
+    }
   }
 }
 
@@ -299,6 +344,7 @@ function buildSession(
     createdAt: onDisk.createdAt,
     authorizerDeviceName: onDisk.authorizerDeviceName,
     autoLogoutMinutes: onDisk.autoLogoutMinutes,
+    activeTeamId: onDisk.activeTeamId ?? null,
   };
 }
 
@@ -328,6 +374,10 @@ export interface CachedEmbedKey {
   [key: string]: unknown;
 }
 
+export interface CachedChatKeyWrapper {
+  [key: string]: unknown;
+}
+
 export interface CachedNewChatSuggestion {
   [key: string]: unknown;
 }
@@ -345,6 +395,8 @@ export interface SyncCache {
   embeds: CachedEmbed[];
   /** Embed keys for embed decryption */
   embedKeys: CachedEmbedKey[];
+  /** Chat key wrappers for wrapper-first chat decryption */
+  chatKeyWrappers?: CachedChatKeyWrapper[];
   /**
    * New chat suggestions from the last sync.
    * Each entry has id, chat_id, encrypted_suggestion, created_at.
@@ -354,19 +406,90 @@ export interface SyncCache {
 }
 
 const SYNC_CACHE_FILE = "sync_cache.json";
+const LOCAL_TEAM_KEYS_FILE = "team_keys.json";
 
-export function saveSyncCache(cache: SyncCache): void {
-  const filePath = join(ensureStateDir(), SYNC_CACHE_FILE);
+function teamKeyStorageId(hashedEmail: string, teamId: string): string {
+  const digest = createHash("sha256").update(teamId).digest("hex").slice(0, 32);
+  return `${hashedEmail}:team:${digest}`;
+}
+
+export function saveLocalTeamKey(hashedEmail: string, teamId: string, teamKeyB64: string): void {
+  const storageId = teamKeyStorageId(hashedEmail, teamId);
+  const result = storeMasterKey(teamKeyB64, storageId);
+  const filePath = join(ensureStateDir(), LOCAL_TEAM_KEYS_FILE);
+  const keys = readJsonFile<LocalTeamKeysOnDisk>(filePath) ?? { teams: {} };
+  keys.teams[storageId] = {
+    storage: result.type,
+    ...(result.type === "encrypted" ? { encryptedData: result.encryptedData } : {}),
+    ...(result.type === "plaintext" ? { plaintextKeyB64: teamKeyB64 } : {}),
+  };
+  writeJsonFile(filePath, keys);
+}
+
+export function loadLocalTeamKey(hashedEmail: string, teamId: string): string | null {
+  const storageId = teamKeyStorageId(hashedEmail, teamId);
+  const filePath = join(ensureStateDir(), LOCAL_TEAM_KEYS_FILE);
+  const entry = readJsonFile<LocalTeamKeysOnDisk>(filePath)?.teams[storageId];
+  if (!entry) return null;
+  if (entry.storage === "plaintext") return entry.plaintextKeyB64 ?? null;
+  return retrieveMasterKey(entry.storage, storageId, entry.encryptedData);
+}
+
+export function deleteLocalTeamKey(hashedEmail: string, teamId: string): void {
+  const storageId = teamKeyStorageId(hashedEmail, teamId);
+  deleteMasterKey("keychain", storageId);
+  const filePath = join(ensureStateDir(), LOCAL_TEAM_KEYS_FILE);
+  const keys = readJsonFile<LocalTeamKeysOnDisk>(filePath);
+  if (keys?.teams[storageId]) {
+    delete keys.teams[storageId];
+    writeJsonFile(filePath, keys);
+  }
+}
+
+export function pruneLocalTeamArtifacts(hashedEmail: string, teamIds: string[]): void {
+  const stateDir = ensureStateDir();
+  const allowedKeyIds = new Set(teamIds.map((teamId) => teamKeyStorageId(hashedEmail, teamId)));
+  const keysFilePath = join(stateDir, LOCAL_TEAM_KEYS_FILE);
+  const keys = readJsonFile<LocalTeamKeysOnDisk>(keysFilePath);
+  if (keys) {
+    let changed = false;
+    const prefix = `${hashedEmail}:team:`;
+    for (const storageId of Object.keys(keys.teams)) {
+      if (storageId.startsWith(prefix) && !allowedKeyIds.has(storageId)) {
+        deleteMasterKey("keychain", storageId);
+        delete keys.teams[storageId];
+        changed = true;
+      }
+    }
+    if (changed) writeJsonFile(keysFilePath, keys);
+  }
+
+  const allowedCacheFiles = new Set(teamIds.map((teamId) => syncCacheFile(teamId)));
+  for (const fileName of readdirSync(stateDir)) {
+    if (fileName.startsWith("sync_cache.team.") && fileName.endsWith(".json") && !allowedCacheFiles.has(fileName)) {
+      rmSync(join(stateDir, fileName), { force: true });
+    }
+  }
+}
+
+function syncCacheFile(teamId?: string | null): string {
+  if (!teamId) return SYNC_CACHE_FILE;
+  const digest = createHash("sha256").update(teamId).digest("hex").slice(0, 32);
+  return `sync_cache.team.${digest}.json`;
+}
+
+export function saveSyncCache(cache: SyncCache, teamId?: string | null): void {
+  const filePath = join(ensureStateDir(), syncCacheFile(teamId));
   writeJsonFile(filePath, cache);
 }
 
-export function loadSyncCache(): SyncCache | null {
-  const filePath = join(ensureStateDir(), SYNC_CACHE_FILE);
+export function loadSyncCache(teamId?: string | null): SyncCache | null {
+  const filePath = join(ensureStateDir(), syncCacheFile(teamId));
   return readJsonFile<SyncCache>(filePath);
 }
 
-export function clearSyncCache(): void {
-  const filePath = join(ensureStateDir(), SYNC_CACHE_FILE);
+export function clearSyncCache(teamId?: string | null): void {
+  const filePath = join(ensureStateDir(), syncCacheFile(teamId));
   if (existsSync(filePath)) {
     rmSync(filePath);
   }
@@ -381,8 +504,8 @@ export function clearSyncCache(): void {
  * expensive full Phase 3 syncs on every invocation while still catching
  * changes within a reasonable window.
  */
-export function isSyncCacheFresh(maxAgeMs = 300_000): boolean {
-  const cache = loadSyncCache();
+export function isSyncCacheFresh(maxAgeMs = 300_000, teamId?: string | null): boolean {
+  const cache = loadSyncCache(teamId);
   if (!cache) return false;
   return Date.now() - cache.syncedAt < maxAgeMs;
 }

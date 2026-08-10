@@ -14,43 +14,38 @@ import { fileURLToPath } from "node:url";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const scriptPath = resolve(repoRoot, "scripts/prepare_cli_publish_version.mjs");
 
-function version(channel, publishedVersions, options = {}) {
+function version(channel, publishedVersions) {
   const args = [
     scriptPath,
     `--channel=${channel}`,
     "--dry-run",
     `--published-versions=${publishedVersions.join(",")}`,
   ];
-  if (options.stableFloor) args.push(`--stable-floor=${options.stableFloor}`);
   return execFileSync("node", args, { cwd: repoRoot, encoding: "utf8" }).trim();
 }
 
 describe("prepare_cli_publish_version", () => {
-  it("starts dev prereleases at the configured base before any stable release exists", () => {
-    assert.equal(version("dev", ["0.13.9", "0.13.9-alpha.9"], { stableFloor: "none" }), "0.14.0-alpha.0");
+  it("starts dev prereleases at the configured base", () => {
+    assert.equal(version("dev", ["0.14.9", "0.14.9-alpha.9"]), "0.15.0-alpha.0");
   });
 
-  it("increments alpha indexes within the next stable patch", () => {
-    assert.equal(version("dev", ["0.14.0", "0.14.1-alpha.0", "0.14.1-alpha.3"], { stableFloor: "none" }), "0.14.1-alpha.4");
+  it("increments alpha indexes within the configured base", () => {
+    assert.equal(version("dev", ["0.15.0-alpha.0", "0.15.0-alpha.3"]), "0.15.0-alpha.4");
   });
 
-  it("moves dev to the next patch after the target stable has shipped", () => {
-    assert.equal(version("dev", ["0.14.0", "0.14.1"], { stableFloor: "none" }), "0.14.2-alpha.0");
+  it("keeps dev on the configured base after stable has shipped", () => {
+    assert.equal(version("dev", ["0.15.0", "0.15.1", "0.15.1-alpha.3"]), "0.15.0-alpha.0");
   });
 
-  it("promotes the latest alpha patch on main", () => {
-    assert.equal(version("main", ["0.14.0", "0.14.1-alpha.4"], { stableFloor: "none" }), "0.14.1");
+  it("publishes the configured stable base on main", () => {
+    assert.equal(version("main", ["0.15.0-alpha.4", "0.15.1"]), "0.15.0");
   });
 
-  it("patch bumps stable after the current target has shipped", () => {
-    assert.equal(version("main", ["0.14.0", "0.14.1"], { stableFloor: "none" }), "0.14.2");
+  it("ignores other release lines when finding alpha indexes", () => {
+    assert.equal(version("dev", ["0.14.0-alpha.9", "0.15.1-alpha.7", "0.16.0-alpha.2"]), "0.15.0-alpha.0");
   });
 
-  it("maps current npm state to the next release-line alpha", () => {
-    assert.equal(version("dev", ["0.14.5-alpha.0", "0.14.5"]), "0.14.6-alpha.0");
-  });
-
-  it("uses the stable floor when a registry has not published the latest product patch", () => {
-    assert.equal(version("dev", ["0.14.2", "0.14.3"], { stableFloor: "0.14.5" }), "0.14.6-alpha.0");
+  it("maps current npm state to the first fixed release-line alpha", () => {
+    assert.equal(version("dev", ["0.14.8-alpha.0", "0.14.8"]), "0.15.0-alpha.0");
   });
 });

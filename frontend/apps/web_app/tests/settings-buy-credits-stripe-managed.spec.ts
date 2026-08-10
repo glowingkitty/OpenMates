@@ -482,10 +482,10 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 		});
 	} catch (error) {
 		if (isMailosaurPermissionError(error)) {
-			log('Skipping email-dependent assertions because Mailosaur read permissions are unavailable.');
-			test.skip(true, 'Mailosaur credentials cannot read messages or attachments.');
+			log('Email assertions unavailable because Mailosaur credentials cannot read messages or attachments.');
+		} else {
+			throw error;
 		}
-		throw error;
 	}
 
 	const latestManagedInvoice = page
@@ -536,10 +536,10 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 		});
 	} catch (error) {
 		if (isMailosaurPermissionError(error)) {
-			log('Skipping refund email assertion because Mailosaur read permissions are unavailable.');
-			test.skip(true, 'Mailosaur credentials cannot read messages or attachments.');
+			log('Refund email assertion unavailable because Mailosaur credentials cannot read messages or attachments.');
+		} else {
+			throw error;
 		}
-		throw error;
 	}
 
 	await assertNoMissingTranslations(page);

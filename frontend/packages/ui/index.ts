@@ -23,6 +23,7 @@ export {
   getLucideIcon,
   CATEGORY_GRADIENTS,
 } from "./src/utils/categoryUtils";
+export * from "./src/utils/settingsHashUtils";
 export { parse_message } from "./src/message_parsing/parse_message";
 export { default as DevConsole } from "./src/components/DevConsole.svelte";
 export { default as HeroHeader } from "./src/components/HeroHeader.svelte";
@@ -36,6 +37,16 @@ export { default as Footer } from "./src/components/Footer.svelte";
 export { default as Settings } from "./src/components/Settings.svelte";
 export { default as ProjectsPage } from "./src/components/projects/ProjectsPage.svelte";
 export { default as WorkspaceHomeShell } from "./src/components/workspace/WorkspaceHomeShell.svelte";
+export { default as WorkflowSidebar } from "./src/components/workspace/WorkflowSidebar.svelte";
+export { default as WorkspaceDetailHeader } from "./src/components/workspace/WorkspaceDetailHeader.svelte";
+export { default as WorkspaceReportIssueButton } from "./src/components/workspace/WorkspaceReportIssueButton.svelte";
+export { default as ProjectDetailPage } from "./src/components/projects/ProjectDetailPage.svelte";
+export { default as WorkflowDetailPage } from "./src/components/workflows/WorkflowDetailPage.svelte";
+export { default as WorkflowTemplateShare } from "./src/components/workflows/WorkflowTemplateShare.svelte";
+export { default as TaskDetailPage } from "./src/components/tasks/TaskDetailPage.svelte";
+export { default as PlanDetailPage } from "./src/components/plans/PlanDetailPage.svelte";
+export { default as PlansWorkspacePage } from "./src/components/plans/PlansWorkspacePage.svelte";
+export * from "./src/components/workspace/detailMetadataAdapters";
 export { default as Login } from "./src/components/Login.svelte";
 export { default as Chats } from "./src/components/chats/Chats.svelte";
 export { default as SearchBar } from "./src/components/chats/search/SearchBar.svelte";
@@ -95,6 +106,7 @@ export * from "./src/stores/pushNotificationStore"; // Export push notification 
 export * from "./src/stores/networkStatusStore"; // Export network status store for offline/online detection
 export * from "./src/stores/pairSessionStore"; // Export pair session store for magic pair login
 export * from "./src/stores/workflowWorkspaceStore"; // Export workflows workspace cache/store
+export * from "./src/stores/workflowTemplateProjectionStore"; // Export encrypted Workflow template projection index
 export { personalDataStore } from "./src/stores/personalDataStore"; // Export privacy demo/store controls
 export { openSearch, setSearchQuery } from "./src/stores/searchStore"; // Export openSearch and setSearchQuery for global keyboard shortcuts + 404 screen
 export { notFoundPathStore } from "./src/stores/notFoundPathStore"; // Export 404 not-found path store
@@ -106,11 +118,13 @@ export * from "./src/demo_chats"; // Export demo chat data and helpers
 
 // Services
 export { chatDB, cryptoReady } from "./src/services/db"; // Export chat database + crypto init promise
+export { chatListCache } from "./src/services/chatListCache"; // Export chat list cache for route-level draft recovery
 export { anonymousChatStorage } from "./src/services/anonymousChatStorage"; // Export anonymous chat storage for route-level deep-link restore
 export { isAnonymousChatId } from "./src/services/anonymousChatIds"; // Export anonymous chat ID helper for route guards
 export { userDB } from "./src/services/userDB"; // Export user database
 export { chatSyncService } from "./src/services/chatSyncService"; // Export chat sync service
 export { webSocketService } from "./src/services/websocketService"; // Export WebSocket service for auth error handling
+export { installE2ETestHooks } from "./src/services/e2eTestHooks"; // Export dev-only E2E hooks for app startup
 export * from "./src/services/chatUrlService"; // Export chat URL service for deep linking
 export * from "./src/services/deepLinkHandler"; // Export unified deep link handler
 export * from "./src/services/workspacePrefetchService"; // Export workspace prefetch helpers
@@ -139,8 +153,10 @@ export {
 } from "./src/services/embedShareEncryption"; // Export embed share encryption utilities
 export { embedStore } from "./src/services/embedStore"; // Export embed store
 export type { EmbedKeyEntry } from "./src/services/embedStore";
+export * from "./src/services/embedFullscreenController";
 export * from "./src/services/projectService";
 export * from "./src/services/userTaskService";
+export * from "./src/services/workflowTemplateService";
 export { default as TasksPage } from "./src/components/tasks/TasksPage.svelte";
 export { default as TaskProposalReview } from "./src/components/tasks/TaskProposalReview.svelte";
 export { handleCodeRunOutputSyncedImpl } from "./src/services/handlersCodeRunOutputs";

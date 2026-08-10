@@ -74,6 +74,11 @@ If user passed `$ARGUMENTS` with a task ID (e.g. `OPE-123`), skip the recommenda
 
 Ask **up to 3 clarifying questions** about the single chosen task — one question per round, waiting for the user's answer before asking the next. Stop early if the task is clear enough.
 
+Every clarifying question must include `Recommendation:` with the evidence-based
+preferred answer and rationale plus `Examples:` with task-specific options or
+outcomes. If uncertain, recommend the safest reversible default and state the
+uncertainty.
+
 **Question selection strategy** — pick the most useful questions from:
 
 1. **Scope boundaries** — "Should we also fix Y or just the reported Z?"

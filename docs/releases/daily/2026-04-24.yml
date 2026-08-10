@@ -1,0 +1,810 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-24'
+generated_at: '2026-07-09T15:10:58+00:00'
+range:
+  since: '2026-04-24T00:00:00+00:00'
+  until: '2026-04-24T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 16
+  section_counts:
+    features: 1
+    bug_fixes: 14
+    improvements: 0
+    docs: 0
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 1
+  newsletter_ready_items: 10
+  user_facing_items: 10
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add Stripe Managed Payments for non-EU users (Checkout Sessions)'
+    section: features
+    commits:
+    - 16963fe6d
+    authored_at: '2026-04-24T16:07:03+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/payment/payment_service.py
+    - backend/core/api/app/services/payment/stripe_service.py
+    - backend/core/api/app/utils/geo_utils.py
+    - backend/scripts/stripe_revenue_check.py
+    - frontend/packages/ui/src/components/Payment.svelte
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    - scripts/stripe_audit.py
+    - shared/config/pricing.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: remove appearance from createEmbeddedCheckoutPage (not a valid param)'
+    section: bug_fixes
+    commits:
+    - 332f5cd98
+    authored_at: '2026-04-24T23:03:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add allow_redisplay_filters to Checkout Session saved_payment_method_options'
+    section: bug_fixes
+    commits:
+    - 6f321ad4a
+    authored_at: '2026-04-24T22:43:27+00:00'
+    changed_paths:
+    - backend/core/api/app/services/payment/stripe_service.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: show all saved cards in Checkout Session; apply dark mode to embedded checkout'
+    section: bug_fixes
+    commits:
+    - 1c7f9d6fc
+    authored_at: '2026-04-24T22:42:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: require passkey/OTP auth before opening Checkout Session for non-EU saved cards'
+    section: bug_fixes
+    commits:
+    - 3f2fed9a2
+    authored_at: '2026-04-24T22:25:52+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: require auth before managed Checkout Session; add managed-checkout-wrapper CSS'
+    section: bug_fixes
+    commits:
+    - ab040ea5e
+    authored_at: '2026-04-24T22:24:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show all saved cards; route to Checkout Session on Buy Now for non-EU cards'
+    section: bug_fixes
+    commits:
+    - 68d79d14f
+    authored_at: '2026-04-24T22:05:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: upgrade Stripe API version to 2026-03-25.dahlia for embedded_page support'
+    section: bug_fixes
+    commits:
+    - fff8bff63
+    authored_at: '2026-04-24T21:56:08+00:00'
+    changed_paths:
+    - backend/core/api/app/services/payment/stripe_service.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: expose card.country in list_payment_methods response'
+    section: bug_fixes
+    commits:
+    - 1882618d1
+    authored_at: '2026-04-24T21:34:25+00:00'
+    changed_paths:
+    - backend/core/api/app/services/payment/stripe_service.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: add card.country to list_payment_methods; guard non-EU cards in saved-method endpoint'
+    section: bug_fixes
+    commits:
+    - 3c726e3c4
+    authored_at: '2026-04-24T21:33:47+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route non-EU saved cards to Checkout Session (Managed Payments)'
+    section: bug_fixes
+    commits:
+    - b139ffebe
+    authored_at: '2026-04-24T21:33:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: sync global (non-EU) Stripe products for Managed Payments checkout'
+    section: bug_fixes
+    commits:
+    - 807801b76
+    authored_at: '2026-04-24T20:50:31+00:00'
+    changed_paths:
+    - backend/core/api/app/services/stripe_product_sync.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: skip bank_transfer_only tiers in Stripe product sync'
+    section: bug_fixes
+    commits:
+    - daa15e4c4
+    authored_at: '2026-04-24T10:52:24+00:00'
+    changed_paths:
+    - backend/core/api/app/services/stripe_product_sync.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: stripe product sync EUR-only, drop USD/JPY (Adaptive Pricing)'
+    section: bug_fixes
+    commits:
+    - 8aa636c84
+    authored_at: '2026-04-24T10:30:42+00:00'
+    changed_paths:
+    - backend/core/api/app/services/stripe_product_sync.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: prevent email text from clearing field; fix empty code embed on EmbedStore failure'
+    section: bug_fixes
+    commits:
+    - c0ff297e8
+    authored_at: '2026-04-24T09:24:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'revert: restore all multi-line pastes to code embed (remove looksLikeCode guard)'
+    section: other
+    commits:
+    - b0868ee8c
+    authored_at: '2026-04-24T09:45:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: remove appearance from createEmbeddedCheckoutPage (not a valid param)'
+    commits:
+    - 332f5cd98
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show all saved cards in Checkout Session; apply dark mode to embedded checkout'
+    commits:
+    - 1c7f9d6fc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: require passkey/OTP auth before opening Checkout Session for non-EU saved cards'
+    commits:
+    - 3f2fed9a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: require auth before managed Checkout Session; add managed-checkout-wrapper CSS'
+    commits:
+    - ab040ea5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show all saved cards; route to Checkout Session on Buy Now for non-EU cards'
+    commits:
+    - 68d79d14f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add card.country to list_payment_methods; guard non-EU cards in saved-method endpoint'
+    commits:
+    - 3c726e3c4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: route non-EU saved cards to Checkout Session (Managed Payments)'
+    commits:
+    - b139ffebe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Stripe Managed Payments for non-EU users (Checkout Sessions)'
+    commits:
+    - 16963fe6d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'revert: restore all multi-line pastes to code embed (remove looksLikeCode guard)'
+    commits:
+    - b0868ee8c
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent email text from clearing field; fix empty code embed on EmbedStore failure'
+    commits:
+    - c0ff297e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: remove appearance from createEmbeddedCheckoutPage (not a valid param)'
+    commits:
+    - 332f5cd98
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show all saved cards in Checkout Session; apply dark mode to embedded checkout'
+    commits:
+    - 1c7f9d6fc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: require passkey/OTP auth before opening Checkout Session for non-EU saved cards'
+    commits:
+    - 3f2fed9a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: require auth before managed Checkout Session; add managed-checkout-wrapper CSS'
+    commits:
+    - ab040ea5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show all saved cards; route to Checkout Session on Buy Now for non-EU cards'
+    commits:
+    - 68d79d14f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add card.country to list_payment_methods; guard non-EU cards in saved-method endpoint'
+    commits:
+    - 3c726e3c4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: route non-EU saved cards to Checkout Session (Managed Payments)'
+    commits:
+    - b139ffebe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Stripe Managed Payments for non-EU users (Checkout Sessions)'
+    commits:
+    - 16963fe6d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'revert: restore all multi-line pastes to code embed (remove looksLikeCode guard)'
+    commits:
+    - b0868ee8c
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent email text from clearing field; fix empty code embed on EmbedStore failure'
+    commits:
+    - c0ff297e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 332f5cd98864212490d70ac62a3893fc87dfef0f
+    short_sha: 332f5cd98
+    authored_at: '2026-04-24T23:03:11+00:00'
+    subject: 'fix: remove appearance from createEmbeddedCheckoutPage (not a valid param)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    related_feature_ids: []
+  - sha: 6f321ad4ad3633a81c2c353b8ed7f926a4cd2277
+    short_sha: 6f321ad4a
+    authored_at: '2026-04-24T22:43:27+00:00'
+    subject: 'fix: add allow_redisplay_filters to Checkout Session saved_payment_method_options'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/payment/stripe_service.py
+    related_feature_ids: []
+  - sha: 1c7f9d6fc781cfae3185ff111b39d82d42837ce1
+    short_sha: 1c7f9d6fc
+    authored_at: '2026-04-24T22:42:58+00:00'
+    subject: 'fix: show all saved cards in Checkout Session; apply dark mode to embedded checkout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    related_feature_ids: []
+  - sha: 3f2fed9a259c92f3fdee5894fe6509751f3bb726
+    short_sha: 3f2fed9a2
+    authored_at: '2026-04-24T22:25:52+00:00'
+    subject: 'fix: require passkey/OTP auth before opening Checkout Session for non-EU saved cards'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    related_feature_ids: []
+  - sha: ab040ea5e447e29f3bc856e1af80bb716c381d4f
+    short_sha: ab040ea5e
+    authored_at: '2026-04-24T22:24:22+00:00'
+    subject: 'fix: require auth before managed Checkout Session; add managed-checkout-wrapper CSS'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    related_feature_ids: []
+  - sha: 68d79d14f280d23075244240838d65ece8dd6158
+    short_sha: 68d79d14f
+    authored_at: '2026-04-24T22:05:07+00:00'
+    subject: 'fix: show all saved cards; route to Checkout Session on Buy Now for non-EU cards'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    related_feature_ids: []
+  - sha: fff8bff638117e99bf92a113ca8695bb21914ea1
+    short_sha: fff8bff63
+    authored_at: '2026-04-24T21:56:08+00:00'
+    subject: 'fix: upgrade Stripe API version to 2026-03-25.dahlia for embedded_page support'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/payment/stripe_service.py
+    related_feature_ids: []
+  - sha: 1882618d117570f3ba465939445c713617693c8a
+    short_sha: 1882618d1
+    authored_at: '2026-04-24T21:34:25+00:00'
+    subject: 'fix: expose card.country in list_payment_methods response'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/payment/stripe_service.py
+    related_feature_ids: []
+  - sha: 3c726e3c44c8f32a6e43f57cf30f422e7edf3377
+    short_sha: 3c726e3c4
+    authored_at: '2026-04-24T21:33:47+00:00'
+    subject: 'fix: add card.country to list_payment_methods; guard non-EU cards in saved-method endpoint'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    related_feature_ids: []
+  - sha: b139ffebe2aa308444a55d4d07b6673159979f01
+    short_sha: b139ffebe
+    authored_at: '2026-04-24T21:33:12+00:00'
+    subject: 'fix: route non-EU saved cards to Checkout Session (Managed Payments)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    related_feature_ids: []
+  - sha: 807801b7652965d8e9dd43fb824667aeb0dfee0f
+    short_sha: 807801b76
+    authored_at: '2026-04-24T20:50:31+00:00'
+    subject: 'fix: sync global (non-EU) Stripe products for Managed Payments checkout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/stripe_product_sync.py
+    related_feature_ids: []
+  - sha: 16963fe6d340167c8f7077fa0d499083748baf5f
+    short_sha: 16963fe6d
+    authored_at: '2026-04-24T16:07:03+00:00'
+    subject: 'feat: add Stripe Managed Payments for non-EU users (Checkout Sessions)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/payment/payment_service.py
+    - backend/core/api/app/services/payment/stripe_service.py
+    - backend/core/api/app/utils/geo_utils.py
+    - backend/scripts/stripe_revenue_check.py
+    - frontend/packages/ui/src/components/Payment.svelte
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    - scripts/stripe_audit.py
+    - shared/config/pricing.yml
+    related_feature_ids: []
+  - sha: daa15e4c430f4d1e6df6be86829814d34b568b47
+    short_sha: daa15e4c4
+    authored_at: '2026-04-24T10:52:24+00:00'
+    subject: 'fix: skip bank_transfer_only tiers in Stripe product sync'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/stripe_product_sync.py
+    related_feature_ids: []
+  - sha: 8aa636c8436e3e45ab63fc658ee67ff0689c2b4d
+    short_sha: 8aa636c84
+    authored_at: '2026-04-24T10:30:42+00:00'
+    subject: 'fix: stripe product sync EUR-only, drop USD/JPY (Adaptive Pricing)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/stripe_product_sync.py
+    related_feature_ids: []
+  - sha: b0868ee8c9f9c35b7447b7cc808aaf1e3c0e7fc5
+    short_sha: b0868ee8c
+    authored_at: '2026-04-24T09:45:11+00:00'
+    subject: 'revert: restore all multi-line pastes to code embed (remove looksLikeCode guard)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: c0ff297e811c00c6570a61f2a4bd2f5e56e2007b
+    short_sha: c0ff297e8
+    authored_at: '2026-04-24T09:24:53+00:00'
+    subject: 'fix: prevent email text from clearing field; fix empty code embed on EmbedStore failure'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced Stripe Managed Payments for non-EU users, enabling Checkout Sessions for international transactions.
+    The update also refined the messaging interface, specifically regarding code embeds and input field behavior.
+  released_changes:
+  - text: OpenMates added support for Stripe Managed Payments for users outside the EU, utilizing Checkout Sessions for credit
+      purchases.
+    evidence:
+      commits:
+      - 16963fe6d
+    release_status: released_main
+  - text: The project restored the ability to paste multi-line text into code embeds by removing the previous code-detection
+      guard.
+    evidence:
+      commits:
+      - b0868ee8c
+    release_status: released_main
+  bug_fixes:
+  - text: The payment interface now correctly displays all saved cards and applies dark mode styling to the embedded checkout
+      experience.
+    evidence:
+      commits:
+      - 1c7f9d6fc
+      - 68d79d14f
+      - b139ffebe
+    release_status: released_main
+  - text: Security for international payments was enhanced by requiring passkey or OTP authentication before opening Checkout
+      Sessions for non-EU saved cards.
+    evidence:
+      commits:
+      - 3f2fed9a2
+      - ab040ea5e
+    release_status: released_main
+  - text: The messaging input was updated to prevent email text from clearing the field and to handle EmbedStore failures
+      more gracefully.
+    evidence:
+      commits:
+      - c0ff297e8
+    release_status: released_main
+  - text: An invalid appearance parameter was removed from the embedded checkout page configuration.
+    evidence:
+      commits:
+      - 332f5cd98
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: The Stripe API was upgraded to version 2026-03-25.dahlia to support embedded pages.
+    evidence:
+      commits:
+      - fff8bff63
+    release_status: released_main
+  - text: Stripe product synchronization was refined to handle global products, skip bank-transfer-only tiers, and focus on
+      EUR pricing for adaptive pricing models.
+    evidence:
+      commits:
+      - 807801b76
+      - daa15e4c4
+      - 8aa636c84
+    release_status: released_main
+  - text: Internal payment method responses now include card country data and redisplay filters.
+    evidence:
+      commits:
+      - 6f321ad4a
+      - 1882618d1
+      - 3c726e3c4
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Stripe Managed Payments for non-EU users.
+      evidence:
+        commits:
+        - 16963fe6d
+      reason: This is a major expansion of payment accessibility for international users.
+    - text: Restored multi-line paste support for code embeds.
+      evidence:
+        commits:
+        - b0868ee8c
+      reason: Restores expected behavior for power users pasting code snippets.
+    - text: Messaging input and field stability fixes.
+      evidence:
+        commits:
+        - c0ff297e8
+      reason: Fixes a frustrating UI bug where input fields could be cleared unexpectedly.
+    exclude:
+    - text: Internal Stripe API and synchronization updates.
+      evidence:
+        commits:
+        - fff8bff63
+        - 807801b76
+        - daa15e4c4
+        - 8aa636c84
+        - 6f321ad4a
+        - 1882618d1
+      reason: These items are internal infrastructure or API refinements not directly visible to users.
+    rationale: The newsletter should highlight the expansion of payment options for international users and the restoration
+      of key messaging features.
+  social_video_recommendations:
+  - idea: Demonstrate the new international checkout flow, highlighting the seamless transition to Stripe Managed Payments
+      for non-EU users.
+    priority: high
+    reason: This is a significant product milestone for global accessibility.
+    evidence:
+      commits:
+      - 16963fe6d
+      - 1c7f9d6fc
+  quality_notes:
+  - The majority of the day's work focused on hardening the new international payment flow and ensuring consistent authentication
+    across different regions.
+  validation_warnings: []

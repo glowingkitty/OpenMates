@@ -44,6 +44,11 @@ plan-before-build flow as focus mode authoring: existing-state research,
 clarification, internal research, external research, more clarification, draft,
 feedback, finalization, then implementation.
 
+Every clarifying question must include `Recommendation:` with the evidence-based
+preferred answer and rationale plus `Examples:` with task-specific options or
+outcomes. If uncertain, recommend the safest reversible default and state the
+uncertainty.
+
 ### Step 1: Check Existing Memory Types
 
 First inspect how memory types already exist and how the target app is
@@ -139,7 +144,7 @@ The draft must include:
 - parent app
 - runtime memory ID
 - type (`single` or `list`)
-- stage (`planning`, `development`, or `production`)
+- default-enabled behavior, including `default_enabled: false` only when the memory type intentionally ships off
 - one-line description
 - schema fields, explicitly marking the 1-4 user-entered fields
 - required fields
@@ -166,6 +171,30 @@ Incorporate feedback and show the final version briefly. Confirm any remaining
 tradeoffs, such as default-enabled behavior, field count, required fields, or sensitive data
 boundaries.
 
+### Step 8b: Define Phase Gates
+
+Before implementation, record the phase gate in the draft, inline contract, or
+full spec:
+
+1. Implement and test memory behavior through OpenMates CLI against the dev
+   server first when the memory is created, read, selected, or used outside static
+   metadata. Mocked OpenMates API calls, mocked SDK clients, stubbed servers,
+   direct function calls, and fixture replay do not satisfy this gate.
+2. Implement and test npm SDK and pip SDK parity locally against the dev server
+   when the memory behavior is exposed programmatically. After local CLI and SDK
+   evidence is green, reproduce or wire the same coverage into GitHub Actions for
+   CI/daily tests.
+3. Implement web settings, mention dropdown behavior, and Playwright coverage only
+   after CLI and required SDK evidence are green.
+4. Run deployed Playwright visual smoke for larger web/UI surfaces in both laptop
+   and mobile viewports, fixing and redeploying any objective rendering, error,
+   loading, or responsiveness issue, then ask the user to confirm the deployed dev
+   web behavior works and looks correct before starting Apple parity. Use
+   Firecrawl only as a recorded fallback when Playwright is impractical or
+   blocked. `*.spec.ts` evidence alone is not enough.
+5. Start Apple parity only after CLI, SDK, web, and user-confirmation evidence are
+   complete, or after an explicit waiver/blocker is recorded.
+
 ### Step 9: Implement the Memory Type
 
 Update the current OpenMates metadata and i18n sources.
@@ -186,7 +215,7 @@ Rules:
 - Runtime `id` is snake_case.
 - Use `settings_and_memories`, not legacy `memory_fields` or `memory`, for new work.
 - Use `type: single` for one user preference object and `type: list` for repeatable entries.
-- New unverified memory types should usually start as `stage: development`.
+- Do not add `stage`; memory types are enabled by default unless `default_enabled: false` is explicitly needed.
 - Add `icon_image` only if an appropriate existing icon exists.
 - Keep user-entered schema fields to 1-4 whenever possible.
 - Mark exactly one useful `is_title: true` field for list readability when possible.
@@ -227,7 +256,7 @@ Name:
 App:
 Memory ID:
 Type: single | list
-Stage:
+Default enabled:
 
 Description:
 

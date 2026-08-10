@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
-"""Guard Apple product surfaces against forked message composers.
+"""Guard every Apple composer host against WebView regressions.
 
-The web MessageInput is the source of truth for composer visuals. Apple hosts
-may adapt container size and send plumbing, but product chat, quick capture, and
-share-extension instruction fields must route through the shared native composer
-contract instead of bespoke TextField/TextView styling. The editable product
-field must be the local Tiptap WKWebView bridge, while transcript rendering stays
-native unless a separate spec approves that scope. This audit is intentionally
-small and path-scoped so future changes fail before another composer fork lands.
+The rendered web MessageInput remains the visual and behavioral source of truth,
+but Apple editing is implemented with the shared native TextKit 2 contract.
+This path-scoped audit permits unrelated embed WKWebViews while rejecting any
+composer bridge, bundled Tiptap runtime, or bespoke product-host editor fork.
 """
 
 from __future__ import annotations
 
-import argparse
 import re
 import sys
 from dataclasses import dataclass
@@ -20,6 +16,10 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+COMPOSER_WEBVIEW = re.compile(r"\b(WKWebView|TiptapComposerWebView|WKScriptMessageHandler)\b")
+RAW_ERROR_LOG = re.compile(
+    r'print\("\[Chat\] (?:Recording transcription|Upload) error: \\\(error(?:\.localizedDescription)?\)'
+)
 
 
 @dataclass(frozen=True)
@@ -30,199 +30,147 @@ class SurfaceRule:
     description: str
 
 
-SWIFT_TEXT_INPUT = re.compile(r"\b(TextField|TextEditor|UITextView|NSTextView)\b")
-WEBVIEW_TRANSCRIPT = re.compile(r"\b(WKWebView|TiptapComposerWebView)\b")
-WEB_EMBED_BRIDGE_TOKENS = (
-    "insertEmbed",
-    "updateEmbed",
-    "removeEmbed",
-    "serializeMarkdown",
-    "getDiagnostics",
-)
-
 SURFACES = (
     SurfaceRule(
-        path=Path("apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift"),
-        required_tokens=("MessageComposerView", "TiptapComposerWebView"),
-        forbidden_patterns=(),
-        description="main chat composer",
+        Path("apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift"),
+        ("MessageComposerView",),
+        (COMPOSER_WEBVIEW,),
+        "main chat composer",
     ),
     SurfaceRule(
-        path=Path("apple/OpenMates/Sources/App/MainAppView.swift"),
-        required_tokens=("MessageComposerView",),
-        forbidden_patterns=(),
-        description="new-chat welcome composer",
+        Path("apple/OpenMates/Sources/App/MainAppView.swift"),
+        ("MessageComposerView",),
+        (COMPOSER_WEBVIEW,),
+        "new-chat composer",
     ),
     SurfaceRule(
-        path=Path("apple/OpenMates/Sources/App/OpenMatesApp.swift"),
-        required_tokens=("MessageComposerView", "quick-capture-composer"),
-        forbidden_patterns=(SWIFT_TEXT_INPUT,),
-        description="menu bar quick capture composer",
+        Path("apple/OpenMates/Sources/App/OpenMatesApp.swift"),
+        ("MessageComposerView", "quick-capture-composer"),
+        (COMPOSER_WEBVIEW,),
+        "quick-capture composer",
     ),
     SurfaceRule(
-        path=Path("apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift"),
-        required_tokens=("MessageComposerView", "quick-capture-composer"),
-        forbidden_patterns=(SWIFT_TEXT_INPUT,),
-        description="quick-capture debug preview composer",
+        Path("apple/OpenMatesShareExtension/ShareViewController.swift"),
+        ("NativeComposerSession", "NativeComposerTextView", "share-extension-message-input"),
+        (COMPOSER_WEBVIEW,),
+        "iOS share composer",
     ),
     SurfaceRule(
-        path=Path("apple/OpenMatesShareExtension/ShareViewController.swift"),
-        required_tokens=("message-composer", "message-field", "message-editor"),
-        forbidden_patterns=(SWIFT_TEXT_INPUT,),
-        description="iOS share extension composer adapter",
-    ),
-    SurfaceRule(
-        path=Path("apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift"),
-        required_tokens=("message-composer", "message-field", "message-editor"),
-        forbidden_patterns=(SWIFT_TEXT_INPUT,),
-        description="macOS share extension composer adapter",
+        Path("apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift"),
+        ("NativeComposerSession", "NativeComposerTextView", "share-extension-message-input"),
+        (COMPOSER_WEBVIEW,),
+        "macOS share composer",
     ),
 )
 
-TRANSCRIPT_NATIVE_SURFACES = (
-    Path("apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift"),
+REMOVED_ARTIFACTS = (
+    Path("apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift"),
+    Path("apple/OpenMates/Resources/TiptapComposer"),
+    Path("apple/OpenMatesTests/TiptapComposerBridgeTests.swift"),
+)
+
+SECURITY_SURFACES = (
+    Path("apple/OpenMates/Sources/Shared/Composer"),
     Path("apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift"),
+    Path("apple/OpenMates/Sources/Features/Chat/Views/MessageEditView.swift"),
+    Path("apple/OpenMatesShareExtension/ShareViewController.swift"),
+    Path("apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift"),
 )
 
 
-def _read(path: Path) -> str:
-    full_path = REPO_ROOT / path
+def forbidden_webview_matches(text: str) -> list[str]:
+    """Return forbidden composer-webview symbols for focused fixture tests."""
+    return [match.group(1) for match in COMPOSER_WEBVIEW.finditer(text)]
+
+
+def _read(root: Path, path: Path) -> str:
+    full_path = root / path
     if not full_path.exists():
         raise FileNotFoundError(f"Missing expected surface file: {path}")
     return full_path.read_text(encoding="utf-8")
 
 
-def _line_for(text: str, index: int) -> int:
-    return text.count("\n", 0, index) + 1
-
-
-def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--require-web-embed-parity",
-        action="store_true",
-        help="Require editor-owned embed bridge commands, diagnostics, and send serialization guards.",
-    )
-    return parser.parse_args()
-
-
-def main() -> int:
-    args = _parse_args()
+def audit(root: Path = REPO_ROOT) -> list[str]:
     failures: list[str] = []
-    shared_component = REPO_ROOT / "apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift"
-    shared_field_component = REPO_ROOT / "apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift"
-    if not shared_component.exists():
-        failures.append("Missing shared component: apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift")
-    if not shared_field_component.exists():
-        failures.append("Missing shared field component: apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift")
-    if shared_component.exists() and shared_field_component.exists():
-        shared_text = shared_component.read_text(encoding="utf-8")
-        shared_field_text = shared_field_component.read_text(encoding="utf-8")
-        if "TiptapComposerWebView" not in (shared_text + shared_field_text):
-            failures.append("Shared composer stack must host TiptapComposerWebView for the editable message editor")
-        for path, text in (
-            (shared_component, shared_text),
-            (shared_field_component, shared_field_text),
-        ):
-            for match in SWIFT_TEXT_INPUT.finditer(text):
-                line = _line_for(text, match.start())
-                failures.append(
-                    f"{path.relative_to(REPO_ROOT)}:{line}: shared composer stack contains native {match.group(1)} instead of TiptapComposerWebView"
-                )
+    shared_field = Path("apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift")
+    native_bridge = Path("apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift")
+    project = Path("apple/OpenMates.xcodeproj/project.pbxproj")
 
-    bridge_component = REPO_ROOT / "apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift"
-    if not bridge_component.exists():
-        failures.append("Missing Tiptap bridge component: apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift")
-    elif args.require_web_embed_parity:
-        bridge_text = bridge_component.read_text(encoding="utf-8")
-        for token in WEB_EMBED_BRIDGE_TOKENS:
-            if token not in bridge_text:
-                failures.append(f"Tiptap bridge component must support embed bridge token {token!r}")
-        if "embedLabels" not in bridge_text:
-            failures.append("Tiptap bridge component must expose editor-owned embed labels through diagnostics")
+    for path, token in (
+        (shared_field, "NativeComposerEditorView"),
+        (native_bridge, "usingTextLayoutManager: true"),
+    ):
+        try:
+            text = _read(root, path)
+        except FileNotFoundError as exc:
+            failures.append(str(exc))
+            continue
+        if token not in text:
+            failures.append(f"{path}: shared native composer must reference {token!r}")
+        for symbol in forbidden_webview_matches(text):
+            failures.append(f"{path}: shared native composer contains forbidden {symbol}")
 
-    composer_resource = REPO_ROOT / "apple/OpenMates/Resources/TiptapComposer/composer.js"
-    composer_index = REPO_ROOT / "apple/OpenMates/Resources/TiptapComposer/index.html"
-    composer_vendor = REPO_ROOT / "apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/core@3.26.0/es2022/core.bundle.mjs"
-    if not composer_resource.exists():
-        failures.append("Missing local Tiptap composer script: apple/OpenMates/Resources/TiptapComposer/composer.js")
+    for path in REMOVED_ARTIFACTS:
+        full_path = root / path
+        contains_artifact = full_path.is_file() or (
+            full_path.is_dir() and any(candidate.is_file() for candidate in full_path.rglob("*"))
+        )
+        if contains_artifact:
+            failures.append(f"Removed composer WebView artifact exists: {path}")
+
+    for path in SECURITY_SURFACES:
+        full_path = root / path
+        candidates = full_path.rglob("*.swift") if full_path.is_dir() else (full_path,)
+        for candidate in candidates:
+            text = candidate.read_text(encoding="utf-8")
+            relative = candidate.relative_to(root)
+            if "import CryptoKit" in text or "import CommonCrypto" in text:
+                failures.append(f"{relative}: composer UI/editor layer must not implement cryptography")
+            if "print(" in text:
+                failures.append(f"{relative}: composer UI/editor diagnostics must use NativeDiagnostics")
+
+    chat_view_model = Path("apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift")
+    try:
+        chat_view_model_text = _read(root, chat_view_model)
+    except FileNotFoundError as exc:
+        failures.append(str(exc))
     else:
-        composer_text = composer_resource.read_text(encoding="utf-8")
-        for token in ("from './vendor/tiptap-core.mjs'", "from './vendor/tiptap-starter-kit.mjs'", "new Editor"):
-            if token not in composer_text:
-                failures.append(f"Tiptap composer script must include real local Tiptap runtime token {token!r}")
-        if args.require_web_embed_parity:
-            for token in WEB_EMBED_BRIDGE_TOKENS:
-                if token not in composer_text:
-                    failures.append(f"Tiptap composer script must expose editor-owned embed bridge token {token!r}")
-            if "data-embed-type" not in composer_text or "embed-full-width-wrapper" not in composer_text:
-                failures.append("Tiptap composer script must render editor-owned embed diagnostics in the WebView document")
-            if "embedLabels" not in composer_text:
-                failures.append("Tiptap composer script must report editor-owned embed labels for accessibility diagnostics")
-    if not composer_index.exists():
-        failures.append("Missing local Tiptap composer index: apple/OpenMates/Resources/TiptapComposer/index.html")
-    elif "type=\"importmap\"" not in composer_index.read_text(encoding="utf-8"):
-        failures.append("Tiptap composer index must use a local import map for vendored @tiptap modules")
-    if not composer_vendor.exists():
-        failures.append("Missing vendored @tiptap/core module for offline WKWebView runtime")
+        if RAW_ERROR_LOG.search(chat_view_model_text):
+            failures.append(f"{chat_view_model}: composer upload/transcription diagnostics must not interpolate raw errors")
+
+    try:
+        project_text = _read(root, project)
+    except FileNotFoundError as exc:
+        failures.append(str(exc))
+    else:
+        if "TiptapComposer" in project_text:
+            failures.append(f"{project}: still contains Tiptap composer target membership")
 
     for rule in SURFACES:
         try:
-            text = _read(rule.path)
+            text = _read(root, rule.path)
         except FileNotFoundError as exc:
             failures.append(str(exc))
             continue
-
         for token in rule.required_tokens:
             if token not in text:
                 failures.append(f"{rule.path}: {rule.description} must reference {token!r}")
-
         for pattern in rule.forbidden_patterns:
             for match in pattern.finditer(text):
-                line = _line_for(text, match.start())
+                line = text.count("\n", 0, match.start()) + 1
                 failures.append(
-                    f"{rule.path}:{line}: {rule.description} contains bespoke {match.group(1)} instead of MessageComposerView"
+                    f"{rule.path}:{line}: {rule.description} contains forbidden {match.group(1)}"
                 )
+    return failures
 
-    if args.require_web_embed_parity:
-        chat_view_model = REPO_ROOT / "apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift"
-        if chat_view_model.exists():
-            chat_vm_text = chat_view_model.read_text(encoding="utf-8")
-            if "containsExistingComposerEmbedReferences" not in chat_vm_text:
-                failures.append(
-                    "ChatViewModel send path must guard against appending Swift pending embed references when editor markdown already owns embeds"
-                )
-            if "editorMarkdownReference" not in chat_vm_text or "filename" not in chat_vm_text:
-                failures.append("ComposerPendingEmbed must provide editor markdown references with filenames for WebView rendering")
-        else:
-            failures.append("Missing ChatViewModel.swift for composer send-path audit")
 
-        for test_path in (
-            REPO_ROOT / "apple/OpenMatesUITests/MessageInputAttachmentUITests.swift",
-            REPO_ROOT / "apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift",
-        ):
-            if not test_path.exists():
-                failures.append(f"Missing composer parity UI test file: {test_path.relative_to(REPO_ROOT)}")
-                continue
-            test_text = test_path.read_text(encoding="utf-8")
-            if "editor-owned" not in test_text and "embedCount" not in test_text:
-                failures.append(f"{test_path.relative_to(REPO_ROOT)} must assert editor-owned embed diagnostics, not only native pending strips")
-
-    for path in TRANSCRIPT_NATIVE_SURFACES:
-        try:
-            text = _read(path)
-        except FileNotFoundError as exc:
-            failures.append(str(exc))
-            continue
-        if path.name == "RichMarkdownRenderer.swift" and WEBVIEW_TRANSCRIPT.search(text):
-            failures.append(f"{path}: chat history renderer must remain native for this composer-only slice")
-
+def main() -> int:
+    failures = audit()
     if failures:
         print("Apple composer audit failed:", file=sys.stderr)
         for failure in failures:
             print(f"- {failure}", file=sys.stderr)
         return 1
-
     print("Apple composer audit passed")
     return 0
 

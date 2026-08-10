@@ -107,10 +107,21 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     // LIFECYCLE
     // ========================================================================
     
-    onMount(() => {
-        // Auto-start passkey authentication if available and autoStart is true
+    function initializeAuthMethod() {
+        if (show2FAInput && hasPassword && !passwordVerifiedFor2FA && tfaCode.length === 0 && !isAuthenticating) {
+            show2FAInput = false;
+            showPasswordInput = true;
+            errorMessage = null;
+            return;
+        }
+
+        if (showPasswordInput || show2FAInput || showEmailOtpInput || isPasskeyLoading || isAuthenticating) {
+            return;
+        }
+
+        // Auth capabilities can arrive after the modal mounts.
         if (autoStart && hasPasskey) {
-            handlePasskeyAuth();
+            void handlePasskeyAuth();
         } else if (hasPassword) {
             showPasswordInput = true;
         } else if (has2FA) {
@@ -118,6 +129,12 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         } else if (hasEmailOtp) {
             showEmailOtpInput = true;
         }
+    }
+
+    onMount(initializeAuthMethod);
+
+    $effect(() => {
+        initializeAuthMethod();
     });
 
     // ========================================================================
@@ -259,6 +276,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                     },
                     client_data_json: clientDataJSONB64,
                     authenticator_data: authenticatorDataB64,
+                    hashed_email: emailHash,
                     session_id: getSessionId()
                 })
             });
@@ -604,6 +622,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                         bind:value={password}
                         placeholder={$text('common.password')}
                         disabled={isPasswordLoading}
+                        dataTestid="password-input"
                         onKeydown={handlePasswordKeydown}
                     />
                     {#if errorMessage}

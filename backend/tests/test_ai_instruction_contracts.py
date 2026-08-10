@@ -15,13 +15,24 @@ MERMAID_INSTRUCTION_PATH = Path(__file__).resolve().parents[1] / "apps/ai/instru
 SOFTWARE_DEVELOPMENT_MATE_PATH = Path(__file__).resolve().parents[1] / "apps/ai/mates/software_development.md"
 
 
-def test_code_instruction_disables_application_preview_for_runnable_web_apps() -> None:
+def test_code_instruction_enables_application_preview_for_runnable_web_apps() -> None:
     instruction = CODE_BLOCK_INSTRUCTION_PATH.read_text(encoding="utf-8")
 
     assert "Runnable web apps" in instruction
-    assert "Application preview embeds are currently disabled" in instruction
-    assert "Do not emit `application_preview` fences" in instruction
-    assert "temporarily unavailable" in instruction
+    assert "emit one `application_preview` fence" in instruction
+    assert "json:package.json" in instruction
+    assert "src/App.svelte" in instruction
+    assert "Use normal language fences only when" in instruction
+
+
+def test_code_instruction_uses_notebook_artifacts_for_jupyter_requests() -> None:
+    instruction = CODE_BLOCK_INSTRUCTION_PATH.read_text(encoding="utf-8")
+
+    assert "Jupyter notebook artifacts" in instruction
+    assert "emit a notebook artifact instead of a normal Python script" in instruction
+    assert "notebook:filename.ipynb" in instruction
+    assert "# %% [markdown]" in instruction
+    assert "Do NOT emit raw nbformat JSON unless" in instruction
 
 
 def test_stream_consumer_suppresses_deferred_application_preview_chunks() -> None:
@@ -44,6 +55,25 @@ def test_stream_consumer_strips_raw_application_source_after_parent_embed() -> N
     assert "_strip_generated_application_source_text(" in source
 
 
+def test_stream_consumer_application_parent_finalizer_noops_without_code_files() -> None:
+    source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
+
+    assert "no generated code file embeds available for application parent" not in source
+    assert "if generated_code_file_embeds and not application_parent_embed_created:" in source
+
+
+def test_stream_consumer_rewrites_promoted_notebook_references() -> None:
+    source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
+
+    assert "def _replace_streamed_json_embed_reference_type" in source
+    assert "def _rewrite_json_embed_references_to_cached_types" in source
+    assert "finalized_as_notebook = EmbedService._is_notebook_artifact" in source
+    assert 'old_type="code"' in source
+    assert 'new_type="notebook"' in source
+    assert "cached_embed.get(\"type\") != \"notebook\"" in source
+    assert "reference_type_fixed_response = await _rewrite_json_embed_references_to_cached_types" in source
+
+
 def test_mermaid_instruction_is_inactive_and_prefers_source_only() -> None:
     instruction = MERMAID_INSTRUCTION_PATH.read_text(encoding="utf-8")
 
@@ -58,3 +88,11 @@ def test_software_development_mate_prefers_ascii_diagrams() -> None:
     assert "prefer readable ASCII/text diagrams" in prompt
     assert "Do not use Mermaid" in prompt
     assert "unless the user explicitly asks for Mermaid syntax" in prompt
+
+
+def test_software_development_mate_uses_application_preview_for_runnable_web_apps() -> None:
+    prompt = SOFTWARE_DEVELOPMENT_MATE_PATH.read_text(encoding="utf-8")
+
+    assert "runnable frontend web app" in prompt
+    assert "global `application_preview` bundle format" in prompt
+    assert "one runnable application embed" in prompt

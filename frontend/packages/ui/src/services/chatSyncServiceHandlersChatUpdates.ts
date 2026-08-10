@@ -1,6 +1,7 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
+import { userDB } from "./userDB";
 import { chatMetadataCache } from "./chatMetadataCache";
 import { chatListCache } from "./chatListCache";
 import type {
@@ -21,6 +22,14 @@ import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { encryptWithChatKey, decryptWithChatKey } from "./encryption/MessageEncryptor";
 import { decryptChatKeyWithMasterKey, encryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
+import { notificationStore } from "../stores/notificationStore";
+import { unreadMessagesStore } from "../stores/unreadMessagesStore";
+import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
+import { isChatVisiblyActive } from "./chatNotificationVisibility";
+
+const ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH = 120;
+// Keep this aligned with db/messageOperations.ts DEFAULT_MESSAGE_WINDOW_LIMIT.
+const METADATA_MESSAGE_WINDOW_HYDRATION_LIMIT = 30;
 
 /**
  * Pending message queue for cross-device sync.
@@ -58,6 +67,120 @@ const _pendingMessages: Map<string, Message[]> = new Map();
  * getChat + updateChat entirely on repeat calls.
  */
 const _chatKeyPersistedToIDB: Set<string> = new Set();
+
+function buildAssistantMessagePreview(content: string | undefined): string {
+  const plainText = (content || "")
+    .replace(/#{1,6}\s+/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`{1,3}[^`]*`{1,3}/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+    .replace(/>\s+/g, "")
+    .replace(/[-*+]\s+/g, "")
+    .replace(/\n+/g, " ")
+    .trim();
+
+  if (!plainText) return "New AI response ready";
+  return plainText.length > ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH
+    ? `${plainText.substring(0, ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH)}...`
+    : plainText;
+}
+
+function clearDraftOnlyShellForMessages(chat: Chat, messagesV: number): Chat {
+  if (
+    messagesV <= 0 ||
+    (chat.messages_v || 0) !== 0 ||
+    !(chat.encrypted_draft_md || chat.encrypted_draft_preview)
+  ) {
+    return chat;
+  }
+
+  return {
+    ...chat,
+    encrypted_draft_md: null,
+    encrypted_draft_preview: null,
+    draft_v: 0,
+  };
+}
+
+async function requestMissingMetadataMessageContent(
+  serviceInstance: ChatSynchronizationService,
+  chatId: string,
+  messagesV: number | undefined,
+): Promise<void> {
+  if (messagesV === undefined || !Number.isFinite(messagesV) || messagesV <= 0) {
+    return;
+  }
+
+  const expectedLatestCount = Math.min(
+    Math.max(Math.floor(messagesV), 0),
+    METADATA_MESSAGE_WINDOW_HYDRATION_LIMIT,
+  );
+  if (expectedLatestCount <= 0) return;
+
+  try {
+    const localWindow = await chatDB.getMessageWindowForChat(chatId, {
+      direction: "latest",
+    });
+    if (localWindow.messages.length >= expectedLatestCount) return;
+
+    console.info(
+      `[ChatSyncService:ChatUpdates] Local latest window for ${chatId} has ` +
+        `${localWindow.messages.length}/${expectedLatestCount} message(s); requesting chat content batch`,
+    );
+    await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([chatId]);
+  } catch (error) {
+    console.warn(
+      `[ChatSyncService:ChatUpdates] Could not verify local message window for metadata version on chat ${chatId}:`,
+      error,
+    );
+  }
+}
+
+async function notifyBackgroundAssistantBroadcast(
+  chatId: string,
+  message: Message,
+  chat: Chat,
+): Promise<void> {
+  if (
+    message.role !== "assistant" ||
+    chat.is_sub_chat ||
+    chat.parent_id ||
+    isChatVisiblyActive(chatId)
+  ) {
+    return;
+  }
+
+  unreadMessagesStore.incrementUnread(chatId);
+
+  let chatTitle = chat.title || "New message";
+  if (!chat.title && chat.encrypted_title) {
+    try {
+      await chatKeyManager.withKey(
+        chatId,
+        "decrypt-assistant-broadcast-notification-title",
+        async (chatKey) => {
+          const decryptedTitle = await decryptWithChatKey(chat.encrypted_title!, chatKey);
+          if (decryptedTitle) chatTitle = decryptedTitle;
+        },
+      );
+    } catch (titleError) {
+      console.debug(
+        "[ChatSyncService:ChatUpdates] Could not decrypt chat title for assistant broadcast notification, using fallback:",
+        titleError,
+      );
+    }
+  }
+
+  notificationStore.chatMessage(
+    chatId,
+    chatTitle,
+    buildAssistantMessagePreview(message.content),
+    undefined,
+    message.category || chat.category || undefined,
+  );
+}
 
 /**
  * Flush all messages that were held back because the chat key was missing.
@@ -137,6 +260,9 @@ export async function handleChatTitleUpdatedImpl(
       // Update encrypted title from broadcast
       chat.encrypted_title = payload.data.encrypted_title;
       chat.title_v = payload.versions.title_v;
+      if (payload.versions.metadata_v !== undefined) {
+        chat.metadata_v = payload.versions.metadata_v;
+      }
       chat.updated_at = Math.floor(Date.now() / 1000);
 
       // Use a separate transaction for updateChat (it will create its own internally)
@@ -145,6 +271,7 @@ export async function handleChatTitleUpdatedImpl(
       // Invalidate metadata cache so the next getDecryptedMetadata() call
       // re-decrypts from the freshly updated IDB record instead of serving
       // a stale (possibly null) cached title for up to 5 minutes.
+      chatListCache.markDirty();
       chatMetadataCache.invalidateChat(payload.chat_id);
 
       // DB operation completed successfully - dispatch event
@@ -153,6 +280,13 @@ export async function handleChatTitleUpdatedImpl(
           detail: { chat_id: payload.chat_id, type: "title_updated", chat },
         }),
       );
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("chatUpdated", {
+            detail: { chat_id: payload.chat_id, type: "title_updated", chat },
+          }),
+        );
+      }
     } else {
       console.debug(
         `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found for title update`,
@@ -205,13 +339,22 @@ export async function handleChatDraftUpdatedImpl(
   // making the transaction invalid by the time updateChat() is called.
   // Instead, use separate transactions for each operation (same fix as handleChatMessageReceivedImpl).
   try {
-    // First, get the chat without passing a transaction (getChat will create its own)
-    const chat = await chatDB.getChat(payload.chat_id);
+    // Draft fields are already encrypted with the user's master key. Avoid
+    // chatDB.getChat() here because it decrypts chat-key metadata and can block
+    // a draft-only sync shell when the chat key is unavailable or stale.
+    const chat = await chatDB.getRawChat(payload.chat_id);
+    let updatedChat: Chat;
 
     if (chat) {
       console.debug(
         `[ChatSyncService:ChatUpdates] Existing chat ${payload.chat_id} found for draft update. Local draft_v: ${chat.draft_v}, Incoming draft_v: ${payload.versions.draft_v}.`,
       );
+      if ((chat.draft_v ?? 0) > payload.versions.draft_v) {
+        console.info(
+          `[ChatSyncService:ChatUpdates] Ignoring stale chat_draft_updated for chat ${payload.chat_id}. Local draft_v=${chat.draft_v ?? 0}, incoming draft_v=${payload.versions.draft_v}.`,
+        );
+        return;
+      }
 
       // Check if this is a draft deletion (encrypted_draft_md is null)
       if (payload.data.encrypted_draft_md === null) {
@@ -223,6 +366,10 @@ export async function handleChatDraftUpdatedImpl(
       chat.encrypted_draft_md = payload.data.encrypted_draft_md;
       chat.encrypted_draft_preview =
         payload.data.encrypted_draft_preview || null;
+      chat.ideabucket = payload.data.ideabucket ?? chat.ideabucket;
+      chat.ideabucket_processing_window_id =
+        payload.data.ideabucket_processing_window_id ??
+        chat.ideabucket_processing_window_id;
       chat.draft_v = payload.versions.draft_v;
       // CRITICAL: Don't update last_edited_overall_timestamp from draft updates
       // Only messages should update this timestamp for proper sorting
@@ -233,8 +380,9 @@ export async function handleChatDraftUpdatedImpl(
       // chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp; // REMOVED
       chat.updated_at = Math.floor(Date.now() / 1000);
 
-      // Use a separate transaction for updateChat (it will create its own internally)
-      await chatDB.updateChat(chat);
+      // Store synced draft updates without decrypting/generating chat keys.
+      await chatDB.upsertRawChat(chat);
+      updatedChat = chat;
     } else {
       console.warn(
         `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found when handling chat_draft_updated broadcast. Creating new chat entry for draft.`,
@@ -246,14 +394,17 @@ export async function handleChatDraftUpdatedImpl(
         title_v: 0,
         encrypted_draft_md: payload.data.encrypted_draft_md,
         encrypted_draft_preview: payload.data.encrypted_draft_preview || null,
+        ideabucket: payload.data.ideabucket,
+        ideabucket_processing_window_id:
+          payload.data.ideabucket_processing_window_id ?? undefined,
         draft_v: payload.versions.draft_v,
         last_edited_overall_timestamp: payload.last_edited_overall_timestamp,
         unread_count: 0,
         created_at: payload.last_edited_overall_timestamp,
         updated_at: payload.last_edited_overall_timestamp,
       };
-      // Use a separate transaction for addChat (it will create its own internally)
-      await chatDB.addChat(newChatForDraft, undefined, { isFromSync: true });
+      await chatDB.upsertRawChat(newChatForDraft);
+      updatedChat = newChatForDraft;
     }
 
     // DB operations completed successfully - now do cache invalidation and event dispatch
@@ -264,13 +415,21 @@ export async function handleChatDraftUpdatedImpl(
 
     // Invalidate metadata cache since draft content changed
     chatMetadataCache.invalidateChat(payload.chat_id);
+    chatListCache.upsertChat(updatedChat);
 
     // Dispatch event to notify UI components
     serviceInstance.dispatchEvent(
       new CustomEvent("chatUpdated", {
-        detail: { chat_id: payload.chat_id, type: "draft" },
+        detail: { chat_id: payload.chat_id, type: "draft", chat: updatedChat },
       }),
     );
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+          detail: { chat_id: payload.chat_id, chat: updatedChat },
+        }),
+      );
+    }
   } catch (error) {
     console.error(
       `[ChatSyncService:ChatUpdates] Error in handleChatDraftUpdated for chat_id ${payload.chat_id}:`,
@@ -374,6 +533,7 @@ export async function handleNewChatMessageImpl(
     encrypted_chat_key?: string;
     /** Encrypted title — sent by sync_inspiration_chat_handler for cross-device inspiration chats */
     encrypted_title?: string;
+    encrypted_chat_summary?: string;
     /** Encrypted category — sent by sync_inspiration_chat_handler for cross-device inspiration chats */
     encrypted_category?: string;
     /** Inspiration video embed data — sent by sync_inspiration_chat_handler so
@@ -432,9 +592,11 @@ export async function handleNewChatMessageImpl(
         `[ChatSyncService:ChatUpdates] Creating new chat shell ${payload.chat_id} from new_chat_message event`,
       );
       isNewChat = true;
+      const userProfile = await userDB.getUserProfile();
 
       const newChat: Chat = {
         chat_id: payload.chat_id,
+        user_id: userProfile?.user_id ?? undefined,
         encrypted_title: payload.encrypted_title || null, // Set from payload if available (e.g. inspiration chat sync)
         encrypted_category: payload.encrypted_category || undefined, // Set from payload if available (e.g. inspiration chat sync)
         messages_v: payload.messages_v || 1,
@@ -475,9 +637,6 @@ export async function handleNewChatMessageImpl(
             payload.encrypted_chat_key,
           );
           if (chatKey) {
-            // Flush any regular messages and system messages queued before this key was available
-            await flushPendingMessagesForChat(payload.chat_id);
-            await flushPendingSystemMessagesForChat(payload.chat_id);
             // Decrypt title for immediate display
             if (payload.encrypted_title) {
               try {
@@ -532,9 +691,6 @@ export async function handleNewChatMessageImpl(
             payload.encrypted_chat_key,
           );
           if (chatKey) {
-            // Flush any regular messages and system messages queued before this key was set
-            await flushPendingMessagesForChat(payload.chat_id);
-            await flushPendingSystemMessagesForChat(payload.chat_id);
             console.info(
               `[ChatSyncService:ChatUpdates] Decrypted and cached chat key for new chat ${payload.chat_id}`,
             );
@@ -560,6 +716,11 @@ export async function handleNewChatMessageImpl(
       console.info(
         `[ChatSyncService:ChatUpdates] Created new chat shell ${payload.chat_id} successfully`,
       );
+
+      if (chatKeyManager.getKeySync(payload.chat_id)) {
+        await flushPendingMessagesForChat(payload.chat_id);
+        await flushPendingSystemMessagesForChat(payload.chat_id);
+      }
 
       // OPE-360: If an `ai_typing_started` event arrived before this
       // `new_chat_message` (race on secondary devices — typing event goes via
@@ -947,6 +1108,11 @@ export async function handleChatMessageReceivedImpl(
           },
         }),
       );
+      await notifyBackgroundAssistantBroadcast(
+        payload.chat_id,
+        incomingMessage,
+        chat,
+      );
     } else if (chat) {
       // CROSS-DEVICE KEY SAFETY: Before saving the message, verify the chat key
       // is available. Without the correct key, saveMessage() triggers
@@ -970,14 +1136,22 @@ export async function handleChatMessageReceivedImpl(
         // saves the messages, messages_v stays at 0 and the health check flags
         // the chat as having issues.
         if (payload.versions?.messages_v !== undefined) {
+          const chatWithDraftTombstone = clearDraftOnlyShellForMessages(
+            chat,
+            payload.versions.messages_v,
+          );
           const chatUpdate: Chat = {
-            ...chat,
+            ...chatWithDraftTombstone,
             messages_v: payload.versions.messages_v,
             last_edited_overall_timestamp:
               payload.last_edited_overall_timestamp,
             updated_at: Math.floor(Date.now() / 1000),
           };
           await chatDB.updateChat(chatUpdate);
+          if (chatWithDraftTombstone !== chat) {
+            chatMetadataCache.invalidateChat(payload.chat_id);
+            chatListCache.markDirty();
+          }
           console.info(
             `[ChatSyncService:ChatUpdates] Updated messages_v to ${payload.versions.messages_v} for chat ${payload.chat_id} despite missing key (message queued)`,
           );
@@ -989,13 +1163,31 @@ export async function handleChatMessageReceivedImpl(
         return;
       }
 
+      const existingLocalMessage = await chatDB.getMessage(incomingMessage.message_id);
+      if (incomingMessage.role === "assistant" && existingLocalMessage) {
+        if (
+          existingLocalMessage.created_at &&
+          incomingMessage.created_at &&
+          existingLocalMessage.created_at < incomingMessage.created_at
+        ) {
+          incomingMessage.created_at = existingLocalMessage.created_at;
+        }
+        if (!incomingMessage.user_message_id && existingLocalMessage.user_message_id) {
+          incomingMessage.user_message_id = existingLocalMessage.user_message_id;
+        }
+      }
+
       // Use separate transactions for each operation to avoid InvalidStateError
       await chatDB.saveMessage(incomingMessage);
 
       // CRITICAL: Only update specific fields, preserve all encrypted metadata
       // Create a minimal update object that only touches what we need to change
+      const chatWithDraftTombstone = clearDraftOnlyShellForMessages(
+        chat,
+        payload.versions.messages_v,
+      );
       const chatUpdate: Chat = {
-        ...chat, // Preserve ALL existing fields including encrypted_title, encrypted_icon, encrypted_category
+        ...chatWithDraftTombstone, // Preserve ALL existing fields including encrypted_title, encrypted_icon, encrypted_category
         messages_v: payload.versions.messages_v,
         last_edited_overall_timestamp: payload.last_edited_overall_timestamp,
         updated_at: Math.floor(Date.now() / 1000),
@@ -1012,6 +1204,10 @@ export async function handleChatMessageReceivedImpl(
 
       // Use a new transaction for updateChat
       await chatDB.updateChat(chatUpdate);
+      if (chatWithDraftTombstone !== chat) {
+        chatMetadataCache.invalidateChat(payload.chat_id);
+        chatListCache.markDirty();
+      }
 
       // Dispatch with the full chat object from DB to ensure consistency
       const finalChatState = await chatDB.getChat(payload.chat_id);
@@ -1026,6 +1222,11 @@ export async function handleChatMessageReceivedImpl(
             chat: finalChatState || chatUpdate,
           },
         }),
+      );
+      await notifyBackgroundAssistantBroadcast(
+        payload.chat_id,
+        incomingMessage,
+        finalChatState || chatUpdate,
       );
     } else {
       // This case implies a message arrived for a chat not in local DB.
@@ -1105,7 +1306,7 @@ export async function handleChatMessageConfirmedImpl(
         payload.new_messages_v !== undefined &&
         payload.new_messages_v !== null
       ) {
-        chat.messages_v = payload.new_messages_v;
+        chat.messages_v = Math.max(chat.messages_v || 0, payload.new_messages_v);
       }
       if (
         payload.new_last_edited_overall_timestamp !== undefined &&
@@ -1520,9 +1721,16 @@ export async function handleEncryptedChatMetadataImpl(
     chat_id: string;
     encrypted_chat_key?: string;
     encrypted_title?: string;
+    encrypted_chat_summary?: string;
     encrypted_icon?: string;
     encrypted_category?: string;
-    versions?: { messages_v?: number; title_v?: number; draft_v?: number };
+    encrypted_chat_category?: string;
+    versions?: {
+      messages_v?: number;
+      title_v?: number;
+      metadata_v?: number;
+      draft_v?: number;
+    };
   },
 ): Promise<void> {
   console.info(
@@ -1543,16 +1751,49 @@ export async function handleEncryptedChatMetadataImpl(
   // Instead, use separate transactions for each operation.
   try {
     // First, get the chat without passing a transaction (getChat will create its own)
-    const chat = await chatDB.getChat(payload.chat_id);
+    let chat = await chatDB.getChat(payload.chat_id);
+    let createdMetadataShell = false;
+    const encryptedCategory =
+      payload.encrypted_category ?? payload.encrypted_chat_category;
 
     if (!chat) {
-      console.warn(
-        `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found for encrypted_chat_metadata update broadcast`,
+      console.info(
+        `[ChatSyncService:ChatUpdates] Creating metadata-only chat shell ${payload.chat_id} from encrypted_chat_metadata broadcast`,
       );
-      return;
+      const now = Math.floor(Date.now() / 1000);
+      const userProfile = await userDB.getUserProfile();
+      chat = {
+        chat_id: payload.chat_id,
+        user_id: userProfile?.user_id ?? undefined,
+        encrypted_title: null,
+        title: null,
+        messages_v: 0,
+        title_v: 0,
+        draft_v: 0,
+        encrypted_draft_md: null,
+        encrypted_draft_preview: null,
+        last_edited_overall_timestamp: now,
+        unread_count: 0,
+        created_at: now,
+        updated_at: now,
+        processing_metadata: false,
+        waiting_for_metadata: false,
+        encrypted_chat_key: null,
+        anonymous_encrypted_chat_key: null,
+        encrypted_chat_summary: null,
+        encrypted_icon: null,
+        encrypted_category: null,
+        pinned: false,
+        is_shared: false,
+        is_private: false,
+        share_pii: false,
+        share_highlights: true,
+        is_metadata_only: true,
+      } as Chat;
+      createdMetadataShell = true;
     }
 
-    let changed = false;
+    let changed = createdMetadataShell;
 
     // Update encrypted_chat_key if provided.
     // IMPORTANT: AES-GCM uses a random IV, so the same raw key re-encrypted twice
@@ -1598,11 +1839,36 @@ export async function handleEncryptedChatMetadataImpl(
         );
       } else if (cachedKey) {
         // Genuinely different raw key — this is a real key rotation (e.g. hidden chat toggle).
-        // Clear the cached key so the new one is loaded on next access.
+        // Clear the cached key and accept the incoming key before any validation can
+        // call withKey(), otherwise withKey() may reload the stale IndexedDB key.
         console.info(
-          `[ChatSyncService:ChatUpdates] encrypted_chat_key changed for chat ${payload.chat_id} (raw key differs) — clearing cached key`,
+          `[ChatSyncService:ChatUpdates] encrypted_chat_key changed for chat ${payload.chat_id} (raw key differs) — accepting incoming key`,
         );
         chatDB.clearChatKey(payload.chat_id);
+        try {
+          const rawKey = await chatKeyManager.receiveKeyFromServer(
+            payload.chat_id,
+            payload.encrypted_chat_key,
+          );
+          if (rawKey) {
+            console.info(
+              `[ChatSyncService:ChatUpdates] Accepted rotated key for chat ${payload.chat_id} — ` +
+                `flushing pending messages`,
+            );
+            await flushPendingMessagesForChat(payload.chat_id);
+            await flushPendingSystemMessagesForChat(payload.chat_id);
+          } else {
+            console.warn(
+              `[ChatSyncService:ChatUpdates] Rotated key delivery for chat ${payload.chat_id} — ` +
+                `decryptChatKeyWithMasterKey returned null (master key unavailable?)`,
+            );
+          }
+        } catch (e) {
+          console.error(
+            `[ChatSyncService:ChatUpdates] Failed to decrypt rotated key for chat ${payload.chat_id}:`,
+            e,
+          );
+        }
       } else {
         // FIRST-TIME KEY DELIVERY: No cached key existed — this is a secondary device
         // receiving the chat key for the first time (e.g. brand-new chat created on
@@ -1665,12 +1931,25 @@ export async function handleEncryptedChatMetadataImpl(
     }
     let needsHeal = false;
 
+    const incomingMetadataV = payload.versions?.metadata_v;
+    const localMetadataV = chat.metadata_v || chat.title_v || 0;
+    const acceptsMetadataRevision =
+      incomingMetadataV === undefined || incomingMetadataV >= localMetadataV;
+
     for (const field of [
       "encrypted_title",
+      "encrypted_chat_summary",
       "encrypted_icon",
       "encrypted_category",
     ] as const) {
-      const incoming = payload[field];
+      const incoming =
+        field === "encrypted_category" ? encryptedCategory : payload[field];
+      if (
+        (field === "encrypted_title" || field === "encrypted_chat_summary") &&
+        !acceptsMetadataRevision
+      ) {
+        continue;
+      }
       if (incoming !== undefined && incoming !== chat[field]) {
         if (chatKey && chat[field]) {
           // We have both a key and a local value — validate the incoming field
@@ -1705,6 +1984,8 @@ export async function handleEncryptedChatMetadataImpl(
         }
         // Accept the incoming value (either validated OK or no local to compare)
         if (field === "encrypted_title") chat.encrypted_title = incoming;
+        else if (field === "encrypted_chat_summary")
+          chat.encrypted_chat_summary = incoming;
         else if (field === "encrypted_icon") chat.encrypted_icon = incoming;
         else if (field === "encrypted_category")
           chat.encrypted_category = incoming;
@@ -1722,6 +2003,15 @@ export async function handleEncryptedChatMetadataImpl(
         changed = true;
       }
       if (
+        payload.versions.metadata_v !== undefined &&
+        acceptsMetadataRevision
+      ) {
+        chat.metadata_v = payload.versions.metadata_v;
+        if (payload.versions.title_v !== undefined) {
+          chat.title_v = payload.versions.title_v;
+        }
+        changed = true;
+      } else if (
         payload.versions.title_v !== undefined &&
         payload.versions.title_v > (chat.title_v || 0)
       ) {
@@ -1739,8 +2029,12 @@ export async function handleEncryptedChatMetadataImpl(
 
     if (changed) {
       chat.updated_at = Math.floor(Date.now() / 1000);
-      // Use a separate transaction for updateChat (it will create its own internally)
-      await chatDB.updateChat(chat);
+      if (createdMetadataShell) {
+        await chatDB.addChat(chat, undefined, { isFromSync: true });
+      } else {
+        // Use a separate transaction for updateChat (it will create its own internally)
+        await chatDB.updateChat(chat);
+      }
       console.info(
         `[ChatSyncService:ChatUpdates] Successfully updated metadata for chat ${payload.chat_id} from broadcast`,
       );
@@ -1753,15 +2047,15 @@ export async function handleEncryptedChatMetadataImpl(
       chatMetadataCache.invalidateChat(payload.chat_id);
 
       // Dispatch event to notify UI components (e.g., Chats.svelte) to refresh
+      serviceInstance.dispatchEvent(
+        new CustomEvent("chatUpdated", {
+          detail: { chat_id: payload.chat_id, type: "metadata_updated", chat },
+        }),
+      );
       if (typeof window !== "undefined") {
         window.dispatchEvent(
-          new CustomEvent("chatHidden", {
-            detail: { chat_id: payload.chat_id },
-          }),
-        );
-        window.dispatchEvent(
           new CustomEvent("chatUpdated", {
-            detail: { chat_id: payload.chat_id, chat: chat },
+            detail: { chat_id: payload.chat_id, type: "metadata_updated", chat },
           }),
         );
       }
@@ -1774,6 +2068,12 @@ export async function handleEncryptedChatMetadataImpl(
         `[ChatSyncService:ChatUpdates] No changes needed for chat ${payload.chat_id} from broadcast`,
       );
     }
+
+    await requestMissingMetadataMessageContent(
+      serviceInstance,
+      payload.chat_id,
+      payload.versions?.messages_v,
+    );
 
     // SELF-HEAL: If we rejected corrupted fields from the broadcast, re-send our
     // correct local metadata to the server so it overwrites the corrupted version.

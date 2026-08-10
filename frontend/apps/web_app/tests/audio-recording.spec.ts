@@ -9,10 +9,12 @@
  * Microphone permission is auto-granted via browser context settings.
  *
  * Test matrix:
- *   1. Single tap  → no recording overlay; inline "Press & hold" label highlights
- *   2. Press & hold (>500ms) → recording overlay appears with correct UI elements
- *   3. Press & hold then release → recording completes, audio embed inserted
- *   4. Press & hold then Escape → recording cancelled, no embed inserted
+ *   1. Legacy manual dark mode → remains dark after app initialization
+ *   2. Single tap  → no recording overlay; inline "Press & hold" label highlights
+ *   3. Press & hold (>500ms) → recording overlay appears with correct UI elements
+ *   4. Active recording → quiet speech produces clearly visible rolling bars
+ *   5. Press & hold then release → recording completes, audio embed inserted
+ *   6. Press & hold then Escape → recording cancelled, no embed inserted
  */
 
 import { test, expect } from './helpers/cookie-audit';
@@ -56,6 +58,10 @@ test.afterEach(async ({}, testInfo) => {
  * message field editor so action buttons appear. Returns the message field locator.
  */
 async function setupAndFocusMessageField(page: any) {
+	await page.addInitScript(() => {
+		sessionStorage.removeItem('openmates.guest_interest_tags.v1');
+	});
+
 	await page.goto(getE2EDebugUrl('/'));
 
 	// Wait for the page to fully load. Logged-out users now land on the guest
@@ -124,6 +130,119 @@ async function waitForMicButton(page: any) {
 	return micButton;
 }
 
+async function guestInterestPromptGap(page: any): Promise<number> {
+	const promptBox = await page.getByText('What are your interests?').boundingBox();
+	const tagBox = await page.getByTestId('guest-interest-tags').boundingBox();
+	if (!promptBox || !tagBox) return Number.NEGATIVE_INFINITY;
+	return tagBox.y - (promptBox.y + promptBox.height);
+}
+
+async function installDeterministicAudioAnalyser(page: any) {
+	await page.addInitScript(() => {
+		const quietSpeechAmplitude = 8;
+		const testState = { frame: 0, closedContexts: 0 };
+		Object.defineProperty(window, '__waveformTestState', {
+			configurable: true,
+			value: testState
+		});
+
+		class DeterministicAnalyser {
+			fftSize = 256;
+			frequencyBinCount = 128;
+
+			getByteTimeDomainData(data: Uint8Array) {
+				const amplitude = testState.frame++ % 2 === 0 ? 0 : quietSpeechAmplitude;
+				for (let index = 0; index < data.length; index += 1) {
+					data[index] = 128 + Math.round(Math.sin((index / data.length) * Math.PI * 2) * amplitude);
+				}
+			}
+
+			disconnect() {}
+		}
+
+		class DeterministicSource {
+			connect(node: DeterministicAnalyser) {
+				return node;
+			}
+
+			disconnect() {}
+		}
+
+		class DeterministicAudioContext {
+			state = 'running';
+
+			createAnalyser() {
+				return new DeterministicAnalyser();
+			}
+
+			createMediaStreamSource() {
+				return new DeterministicSource();
+			}
+
+			close() {
+				testState.closedContexts += 1;
+				this.state = 'closed';
+				return Promise.resolve();
+			}
+		}
+
+		Object.defineProperty(window, 'AudioContext', {
+			configurable: true,
+			value: DeterministicAudioContext
+		});
+	});
+}
+
+async function installLegacyDarkModePreference(page: any) {
+	await page.emulateMedia({ colorScheme: 'light' });
+	await page.addInitScript(() => {
+		localStorage.removeItem('theme_mode');
+		localStorage.setItem('theme_preference', 'manual');
+		localStorage.setItem('theme', 'dark');
+	});
+}
+
+async function expectWaveformContained(overlay: any, waveform: any) {
+	await expect
+		.poll(async () => {
+			const overlayBox = await overlay.boundingBox();
+			const waveformBox = await waveform.boundingBox();
+			if (!overlayBox || !waveformBox) return false;
+
+			return (
+				waveformBox.x >= overlayBox.x &&
+				waveformBox.x + waveformBox.width <= overlayBox.x + overlayBox.width
+			);
+		})
+		.toBe(true);
+}
+
+async function expectPreviewWaveformFitsStrip(waveform: any) {
+	await expect
+		.poll(async () => {
+			return waveform.evaluate((stripElement: HTMLElement) => {
+				const barsElement = stripElement.firstElementChild as HTMLElement | null;
+				const barElements = barsElement ? Array.from(barsElement.children) as HTMLElement[] : [];
+				const firstBar = barElements[0];
+				const lastBar = barElements[barElements.length - 1];
+				if (!barsElement || !firstBar || !lastBar) return 'missing-bars';
+
+				const stripRect = stripElement.getBoundingClientRect();
+				const firstBarRect = firstBar.getBoundingClientRect();
+				const lastBarRect = lastBar.getBoundingClientRect();
+				if (barElements.length < 64) return `too-few-bars:${barElements.length}`;
+				if (barsElement.scrollWidth > barsElement.clientWidth + 1) {
+					return `scroll-overflow:${barsElement.scrollWidth}:${barsElement.clientWidth}`;
+				}
+				if (firstBarRect.left < stripRect.left - 1 || lastBarRect.right > stripRect.right + 1) {
+					return `visual-overflow:${firstBarRect.left}:${stripRect.left}:${lastBarRect.right}:${stripRect.right}`;
+				}
+				return 'ok';
+			});
+		})
+		.toBe('ok');
+}
+
 async function holdAndReleaseMicButton(page: any, micButton: any, holdMs = 1500) {
 	const micBox = await micButton.boundingBox();
 	if (!micBox) throw new Error('Mic button bounding box not found');
@@ -136,7 +255,7 @@ async function holdAndReleaseMicButton(page: any, micButton: any, holdMs = 1500)
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 5000 });
 	await page.waitForTimeout(holdMs);
-	await page.mouse.up();
+	await overlay.getByTestId('record-finish-button').click();
 	await expect(overlay).not.toBeVisible({ timeout: 10000 });
 }
 
@@ -145,7 +264,7 @@ async function dispatchHoldAndReleaseMicButton(page: any, micButton: any, holdMs
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 5000 });
 	await page.waitForTimeout(holdMs);
-	await page.dispatchEvent('body', 'mouseup');
+	await overlay.getByTestId('record-finish-button').click();
 	await expect(overlay).not.toBeVisible({ timeout: 10000 });
 }
 
@@ -156,71 +275,149 @@ async function getEditorPlainText(page: any): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 1: Single tap shows "Press & hold" hint (no recording overlay)
+// Test 1: Existing users keep their legacy manual dark mode preference
 // ─────────────────────────────────────────────────────────────────────────────
-test('single tap on mic button does not start recording', async ({ page }) => {
+test('legacy manual dark mode preference remains active on app load', async ({ page }) => {
+	test.setTimeout(60000);
+
+	await installLegacyDarkModePreference(page);
+	await page.goto(getE2EDebugUrl('/'));
+
+	await expect
+		.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme')))
+		.toBe('dark');
+	await expect
+		.poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
+		.toBe('rgb(23, 23, 23)');
+	await expect.poll(() => page.evaluate(() => localStorage.getItem('theme_mode'))).toBe('dark');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 2: Single tap starts recording and keeps the composer expanded
+// ─────────────────────────────────────────────────────────────────────────────
+test('single tap on mic button starts recording without focusing the text editor', async ({ page }) => {
 	test.setTimeout(60000);
 
 	await setupAndFocusMessageField(page);
 	const micButton = await waitForMicButton(page);
 
-	// Quick click (mousedown + mouseup within ~50ms) = single tap
+	// Quick click starts the explicit recording overlay.
 	await micButton.click({ delay: 50 });
-
-	// Recording overlay should NOT appear
-	const overlay = page.getByTestId('record-overlay');
-	await expect(overlay).not.toBeVisible({ timeout: 1000 });
-
-	// The inline "Press & hold to record" label should be visible
-	// (either already shown or force-shown via highlight)
-	const pressHoldLabel = page.getByTestId('press-hold-label');
-	await expect(pressHoldLabel).toBeVisible({ timeout: 2000 });
-
-	// Clicking the mic must not blur/collapse the desktop follow-up composer.
-	const messageField = page.getByTestId('message-field');
-	await expect(messageField).toHaveClass(/focused/);
-	await expect(messageField).not.toHaveClass(/compact/);
-
-	console.log('[TEST] Single tap: no overlay, press-hold label visible');
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Test 1b: Hold Space from chat surface starts recording without focusing input
-// ─────────────────────────────────────────────────────────────────────────────
-test('spacebar hold shows ESC cancel hint and escape cancels without inserting spaces', async ({ page }) => {
-	test.setTimeout(60000);
-
-	await setupAndFocusMessageField(page);
-
-	// Simulate the user being in the chat surface rather than inside the editor.
-	await page.getByTestId('message-field').evaluate((element: HTMLElement) => element.blur());
-	await page.getByTestId('message-editor').evaluate(() => {
-		const activeElement = document.activeElement as HTMLElement | null;
-		activeElement?.blur();
-	});
-	expect(await getEditorPlainText(page)).toBe('');
-	const embedCountBefore = await page.getByTestId('recording-preview').count();
-
-	await page.keyboard.down('Space');
 
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 5000 });
-	await expect(overlay.getByTestId('cancel-hint')).toContainText('Press ESC to cancel');
-	await expect(overlay.getByTestId('cancel-hint')).not.toContainText('Slide left to cancel');
+	await expect(overlay.getByTestId('release-text')).toContainText('Recording');
+	await expect(overlay.getByTestId('record-cancel-button')).toBeVisible();
+	await expect(overlay.getByTestId('record-finish-button')).toBeVisible();
+
+	// Recording keeps the composer expanded, but the editable field must release
+	// focus so touch devices do not open the software keyboard under the overlay.
+	const messageField = page.getByTestId('message-field');
+	await expect(messageField).not.toHaveClass(/compact/);
+	await expect
+		.poll(() =>
+			page.getByTestId('message-editor').evaluate((element: HTMLElement) =>
+				element.contains(document.activeElement)
+			)
+		)
+		.toBe(false);
+	expect(await getEditorPlainText(page)).toBe('');
+	await page.keyboard.type('must not reach editor');
+	expect(await getEditorPlainText(page)).toBe('');
+	await overlay.getByTestId('record-cancel-button').click();
+	await expect(overlay).not.toBeVisible({ timeout: 5000 });
+
+	console.log('[TEST] Single tap: recording overlay visible and composer expanded');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 2b: Keyboard shortcut starts recording without inserting text
+// ─────────────────────────────────────────────────────────────────────────────
+test('keyboard recording shortcut shows Enter and Escape controls without inserting text', async ({ page }) => {
+	test.setTimeout(60000);
+
+	await setupAndFocusMessageField(page);
+	const messageField = page.getByTestId('message-field');
+	await page.mouse.click(8, 8);
+	await expect(messageField).toHaveClass(/compact/, { timeout: 5000 });
+	expect(await getEditorPlainText(page)).toBe('');
+	const embedCountBefore = await page.getByTestId('recording-preview').count();
+
+	await page.keyboard.press('Control+Shift+M');
+	await expect(messageField).toHaveClass(/focused/);
+	await expect(messageField).not.toHaveClass(/compact/);
+
+	const overlay = page.getByTestId('record-overlay');
+	await expect(overlay).toBeVisible({ timeout: 5000 });
+	await expect(overlay.getByTestId('release-text')).toContainText('Recording');
+	await expect(overlay.getByTestId('record-shortcuts')).toContainText('Press Enter to finish');
+	await expect(overlay.getByTestId('record-shortcuts')).toContainText('Escape to cancel');
+
+	await page.mouse.move(20, 20);
+	await page.waitForTimeout(500);
+	await expect(overlay).toBeVisible();
+	expect(await getEditorPlainText(page)).toBe('');
+	expect(await page.getByTestId('recording-preview').count()).toBe(embedCountBefore);
 
 	await page.waitForTimeout(500);
-	await page.keyboard.press('Escape');
+	await overlay.getByTestId('record-cancel-button').click();
 	await expect(overlay).not.toBeVisible({ timeout: 5000 });
-	await page.keyboard.up('Space');
 
 	expect(await getEditorPlainText(page)).toBe('');
 	expect(await page.getByTestId('recording-preview').count()).toBe(embedCountBefore);
 
-	console.log('[TEST] Spacebar hold: ESC hint visible and cancel leaves editor empty');
+	console.log('[TEST] Keyboard recording shortcut: controls visible and cancel leaves editor empty');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 2: Press & hold shows recording overlay with expected UI elements
+// Test 2c: Keyboard recording shortcut must suppress focus-visible outlines.
+// ─────────────────────────────────────────────────────────────────────────────
+test('keyboard recording shortcut suppresses composer outline', async ({ page }) => {
+	test.setTimeout(60000);
+
+	await setupAndFocusMessageField(page);
+	const messageField = page.getByTestId('message-field');
+	await waitForMicButton(page);
+
+	await messageField.evaluate((element: HTMLElement) => element.focus());
+	await expect
+		.poll(() =>
+			messageField.evaluate((element: HTMLElement) => ({
+				isActive: document.activeElement === element,
+				outlineStyle: getComputedStyle(element).outlineStyle
+			}))
+		)
+		.toMatchObject({ isActive: true, outlineStyle: 'solid' });
+
+	await page.keyboard.press('Control+Shift+M');
+
+	const overlay = page.getByTestId('record-overlay');
+	await expect(overlay).toBeVisible({ timeout: 5000 });
+	await expect(overlay.getByTestId('record-shortcuts')).toContainText('Press Enter to finish');
+	await expect
+		.poll(() =>
+			overlay.evaluate((element: HTMLElement) => ({
+				outlineStyle: getComputedStyle(element).outlineStyle
+			}))
+		)
+		.toMatchObject({ outlineStyle: 'none' });
+	await expect
+		.poll(() =>
+			messageField.evaluate((element: HTMLElement) => ({
+				isActive: document.activeElement === element,
+				outlineStyle: getComputedStyle(element).outlineStyle
+			}))
+		)
+		.toMatchObject({ isActive: false, outlineStyle: 'none' });
+
+	await page.keyboard.press('Escape');
+	await expect(overlay).not.toBeVisible({ timeout: 5000 });
+
+	console.log('[TEST] Keyboard recording shortcut: overlay owns focus and composer outline is suppressed');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 3: Press & hold shows recording overlay with expected UI elements
 // ─────────────────────────────────────────────────────────────────────────────
 test('press and hold mic button shows recording overlay', async ({ page }) => {
 	test.setTimeout(60000);
@@ -244,29 +441,123 @@ test('press and hold mic button shows recording overlay', async ({ page }) => {
 	const timerPill = overlay.getByTestId('timer-pill');
 	await expect(timerPill).toBeVisible();
 
-	// 3. Cancel hint ("Slide left to cancel")
-	const cancelHint = overlay.getByTestId('cancel-hint');
-	await expect(cancelHint).toBeVisible();
 
-	// 4. Green mic circle
-	const micCircle = overlay.getByTestId('mic-button');
-	await expect(micCircle).toBeVisible();
+	// 3. Keyboard shortcut hint and explicit action buttons
+	await expect(overlay.getByTestId('record-shortcuts')).toContainText('Escape to cancel');
+	await expect(overlay.getByTestId('record-cancel-button')).toBeVisible();
+	await expect(overlay.getByTestId('record-finish-button')).toBeVisible();
 
 	console.log('[TEST] Press & hold: overlay visible with all UI elements');
 
-	// Release to clean up
-	await page.dispatchEvent('body', 'mouseup');
-	await page.waitForTimeout(1000);
+	// Cancel to clean up
+	await overlay.getByTestId('record-cancel-button').click();
+	await expect(overlay).not.toBeVisible({ timeout: 5000 });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 3: Press & hold then release → recording completes, audio embed inserted
+// Test 4: Active recording shows a responsive rolling waveform
+// ─────────────────────────────────────────────────────────────────────────────
+test('active recording shows live rolling waveform and releases analyser resources', async ({ page }) => {
+	test.setTimeout(60000);
+
+	await installDeterministicAudioAnalyser(page);
+	await setupAndFocusMessageField(page);
+	const micButton = await waitForMicButton(page);
+	await micButton.dispatchEvent('mousedown', { button: 0 });
+
+	const overlay = page.getByTestId('record-overlay');
+	await expect(overlay).toBeVisible({ timeout: 5000 });
+
+	const releaseText = overlay.getByTestId('release-text');
+	const waveform = overlay.getByTestId('recording-waveform');
+	const controls = overlay.getByTestId('record-controls');
+	await expect(waveform).toBeVisible();
+	await expect(waveform).toHaveAttribute('aria-hidden', 'true');
+	await expect
+		.poll(async () => (await overlay.boundingBox())?.height ?? 0)
+		.toBeGreaterThanOrEqual(220);
+
+	const bars = waveform.getByTestId('recording-waveform-bar');
+	expect(await bars.count()).toBeGreaterThan(20);
+
+	const initialLevels = await bars.evaluateAll((elements: Element[]) =>
+		elements.map((element) => element.getAttribute('data-level'))
+	);
+	await expect
+		.poll(
+			async () =>
+				bars.evaluateAll((elements: Element[]) =>
+					elements.map((element) => element.getAttribute('data-level'))
+				),
+			{ timeout: 5000 }
+		)
+		.not.toEqual(initialLevels);
+
+	const levels = (await bars.evaluateAll((elements: Element[]) =>
+		elements.map((element) => Number(element.getAttribute('data-level')))
+	)) as number[];
+	expect(levels.some((level) => level === 0)).toBeTruthy();
+	expect(levels.some((level) => level > 0)).toBeTruthy();
+
+	const minimumBarHeight = Math.min(
+		...(await bars.evaluateAll((elements: Element[]) =>
+			elements.map((element) => Number.parseFloat(getComputedStyle(element).height))
+		))
+	);
+	expect(minimumBarHeight).toBeGreaterThanOrEqual(2);
+	const maximumBarHeight = Math.max(
+		...(await bars.evaluateAll((elements: Element[]) =>
+			elements.map((element) => Number.parseFloat(getComputedStyle(element).height))
+		))
+	);
+	expect(maximumBarHeight).toBeGreaterThanOrEqual(24);
+
+	await expect
+		.poll(async () => {
+			const releaseBox = await releaseText.boundingBox();
+			const waveformBox = await waveform.boundingBox();
+			const controlsBox = await controls.boundingBox();
+			if (!releaseBox || !waveformBox || !controlsBox) return false;
+
+			return (
+				waveformBox.y >= releaseBox.y + releaseBox.height &&
+				waveformBox.y + waveformBox.height <= controlsBox.y
+			);
+		})
+		.toBe(true);
+	await expectWaveformContained(overlay, waveform);
+
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect(waveform).toBeVisible();
+	await expectWaveformContained(overlay, waveform);
+
+	await overlay.getByTestId('record-finish-button').click();
+	await expect(overlay).not.toBeVisible({ timeout: 10000 });
+	await expect
+		.poll(() =>
+			page.evaluate(() =>
+				(window as unknown as { __waveformTestState: { closedContexts: number } })
+					.__waveformTestState.closedContexts
+			)
+		)
+		.toBe(1);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 5: Press & hold then release → recording completes, audio embed inserted
 // ─────────────────────────────────────────────────────────────────────────────
 test('press hold and release creates audio embed', async ({ page }) => {
 	test.setTimeout(60000);
 
 	await setupAndFocusMessageField(page);
 	const micButton = await waitForMicButton(page);
+	const guestInterestRail = page.getByTestId('guest-interest-rail');
+	const guestInterestTags = page.getByTestId('guest-interest-tags');
+	const hasGuestInterestRail = await guestInterestRail.isVisible({ timeout: 10000 }).catch(() => false);
+	const guestInterestPromptGapBefore = hasGuestInterestRail ? await guestInterestPromptGap(page) : null;
+	if (guestInterestPromptGapBefore !== null) {
+		expect(guestInterestPromptGapBefore).toBeGreaterThanOrEqual(8);
+	}
 
 	// Count existing recording embeds before
 	const embedCountBefore = await page.getByTestId('recording-preview').count();
@@ -285,12 +576,33 @@ test('press hold and release creates audio embed', async ({ page }) => {
 		targetTestId: 'recording-preview',
 		screenshot: true
 	});
+	const previewWaveform = page.getByTestId('recording-preview-waveform').last();
+	await expect(previewWaveform).toBeVisible({ timeout: 10000 });
+	await expectPreviewWaveformFitsStrip(previewWaveform);
+	await expect(previewWaveform).toHaveAttribute('data-progress', '0');
+	if (guestInterestPromptGapBefore !== null) {
+		await expect(guestInterestTags).toBeVisible();
+		await expect
+			.poll(async () => {
+				const gap = await guestInterestPromptGap(page);
+				if (gap < 8) return `prompt-gap:${gap}`;
+				const shift = Math.abs(gap - guestInterestPromptGapBefore);
+				return shift <= 2 ? 'ok' : `gap-shift:${shift}`;
+			})
+			.toBe('ok');
+	}
+	await page.getByTestId('recording-preview-play-button').last().click();
+	await expect
+		.poll(async () => Number((await previewWaveform.getAttribute('data-progress')) ?? '0'), {
+			timeout: 5000
+		})
+		.toBeGreaterThan(0);
 
 	console.log('[TEST] Press hold release: audio embed inserted');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 3b: Authenticated recording uploads and reaches transcription endpoint
+// Test 5b: Authenticated recording uploads and reaches transcription endpoint
 // ─────────────────────────────────────────────────────────────────────────────
 test('authenticated press hold release uploads and transcribes audio embed', async ({ page }) => {
 	test.setTimeout(180000);
@@ -330,16 +642,18 @@ test('authenticated press hold release uploads and transcribes audio embed', asy
 		.last();
 	await expect(audioEmbed).toHaveAttribute('data-status', 'finished', { timeout: 60000 });
 	await expect(page.getByTestId('recording-preview').last()).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('recording-preview-waveform').last()).toBeVisible({ timeout: 10000 });
 
 	console.log('[TEST] Authenticated recording: upload + transcription completed');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 4: Press & hold then Escape → recording cancelled, no embed
+// Test 6: Press & hold then Escape → recording cancelled, no embed
 // ─────────────────────────────────────────────────────────────────────────────
 test('press hold then escape cancels recording', async ({ page }) => {
 	test.setTimeout(60000);
 
+	await installDeterministicAudioAnalyser(page);
 	await setupAndFocusMessageField(page);
 	const micButton = await waitForMicButton(page);
 
@@ -364,6 +678,14 @@ test('press hold then escape cancels recording', async ({ page }) => {
 	await page.waitForTimeout(1000);
 	const embedCountAfter = await page.getByTestId('recording-preview').count();
 	expect(embedCountAfter).toBe(embedCountBefore);
+	await expect
+		.poll(() =>
+			page.evaluate(() =>
+				(window as unknown as { __waveformTestState: { closedContexts: number } })
+					.__waveformTestState.closedContexts
+			)
+		)
+		.toBe(1);
 
 	console.log('[TEST] Press hold escape: recording cancelled, no embed');
 });

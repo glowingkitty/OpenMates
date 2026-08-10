@@ -15,7 +15,13 @@
   import type { ChatCompressionCheckpoint, Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
   import { parse_message } from '../message_parsing/parse_message';
+  import {
+    createAssistantRenderPlan,
+    type AssistantRenderPlan,
+  } from '../message_parsing/streamingMessageBlocks';
+  import { StreamingRenderScheduler } from '../message_parsing/streamingRenderScheduler';
   import { truncateTiptapContent } from '../utils/messageTruncation';
+  import { orderSharedInteractiveQuestionMessages } from '../utils/sharedInteractiveQuestionOrdering';
   import { restorePIIInText } from './enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../types/chat';
   import { piiVisibilityStore } from '../stores/piiVisibilityStore';
@@ -66,12 +72,24 @@
   import { introBannerVisible } from '../stores/uiStateStore';
   import { decodeToonContent, loadEmbedsWithRetry, resolveEmbed } from '../services/embedResolver';
   import { MAX_WIDTH_PREVIEW_THUMBNAIL, proxyImage } from '../utils/imageProxy';
+  import { extractSearchResultsFromContent } from './embeds/embedPreviewHydration';
   import { chatDB } from '../services/db';
+  import { chatKeyManager } from '../services/encryption/ChatKeyManager';
+  import { authStore } from '../stores/authStore';
   import { webSocketService } from '../services/websocketService';
+  import { getApiEndpoint } from '../config/api';
   import { activeChatStore } from '../stores/activeChatStore';
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
   import { panelState } from '../stores/panelStateStore';
+  import { chatSyncService } from '../services/chatSyncService';
+  import {
+    NORMAL_MESSAGE_PAGE_LIMIT,
+    pruneDecryptedMessageWindow,
+  } from '../utils/messageWindowPruning';
+
+  const FORGOTTEN_MESSAGE_PAGE_LIMIT = NORMAL_MESSAGE_PAGE_LIMIT;
+  const OLDER_MESSAGES_AUTOLOAD_THRESHOLD_PX = 180;
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -171,13 +189,7 @@
     return isRawChatErrorMessage(content) ? $text('chat.an_error_occured') : content;
   }
 
-  /**
-   * Merge short-delay assistant continuations for display.
-   * Backend may store two messages when async skills finish after the first turn
-   * (processing embeds first, continuation text later). We show one bubble.
-   */
-  const ASSISTANT_CONTINUATION_MERGE_WINDOW_MS = 60_000;
-
+  /** Merge only explicit focus-mode assistant continuations for display. */
   function mergeAssistantContinuationsForDisplay(incoming: GlobalMessage[]): GlobalMessage[] {
     const result: GlobalMessage[] = [];
     for (let i = 0; i < incoming.length; i++) {
@@ -187,10 +199,7 @@
         prev?.role === 'assistant' &&
         curr.role === 'assistant' &&
         !isRawChatErrorMessage(curr.content) &&
-        (
-          hasFocusModeActivationEmbed(prev.content) ||
-          messagesWithinMergeWindow(prev.created_at, curr.created_at)
-        )
+        hasFocusModeActivationEmbed(prev.content)
       );
       if (
         isAssistantContinuation
@@ -209,15 +218,6 @@
     return result;
   }
 
-  function messagesWithinMergeWindow(previousCreatedAt: number | undefined, currentCreatedAt: number | undefined): boolean {
-    if (typeof previousCreatedAt !== 'number' || typeof currentCreatedAt !== 'number') return false;
-    return Math.abs(toMilliseconds(currentCreatedAt) - toMilliseconds(previousCreatedAt)) <= ASSISTANT_CONTINUATION_MERGE_WINDOW_MS;
-  }
-
-  function toMilliseconds(timestamp: number): number {
-    return timestamp < 1e12 ? timestamp * 1000 : timestamp;
-  }
-
   /**
    * Restore PII placeholders in markdown content using the provided mappings.
    * Returns the markdown with placeholders replaced by highlighted original values.
@@ -232,6 +232,8 @@
     const mappingsArray = Array.from(mappings.values());
     return restorePIIInText(markdown, mappingsArray);
   }
+
+  const assistantRenderPlans = new Map<string, AssistantRenderPlan>();
 
   // Helper function to map incoming message structure to InternalMessage
   // IMPORTANT: piiMappings parameter is optional - when provided, PII restoration is applied
@@ -252,15 +254,21 @@
         contentToProcess = restorePIIInMarkdown(contentToProcess, piiMappings);
       }
       
-      // Content is markdown string - convert to Tiptap JSON with unified parsing (includes embed parsing)
-      // CRITICAL FIX: Use 'write' mode for streaming messages to show 'processing' status on embeds
-      // This ensures users see "processing" state during streaming instead of waiting for embed data
-      const parseMode = incomingMessage.status === 'streaming' ? 'write' : 'read';
-      const tiptapJson = parse_message(contentToProcess, parseMode, {
-        unifiedParsingEnabled: true,
-        role: incomingMessage.role
-      });
-      processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
+      if (incomingMessage.role === 'assistant') {
+        const plan = createAssistantRenderPlan(contentToProcess, {
+          phase: incomingMessage.status === 'streaming' ? 'streaming' : 'final',
+          previous: assistantRenderPlans.get(incomingMessage.message_id),
+          chatId: incomingMessage.chat_id,
+        });
+        assistantRenderPlans.set(incomingMessage.message_id, plan);
+        processedContent = plan.document;
+      } else {
+        const tiptapJson = parse_message(contentToProcess, 'read', {
+          unifiedParsingEnabled: true,
+          role: incomingMessage.role
+        });
+        processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
+      }
 
       // Apply truncation at TipTap level for user messages to avoid breaking node structure
       if (incomingMessage.role === 'user' && incomingMessage.content.length > 1000) {
@@ -301,10 +309,51 @@
  
   // Array that holds all chat messages using $state (Svelte 5 runes mode)
   let messages = $state<InternalMessage[]>([]);
+  type ScheduledAssistantRender = {
+    message: GlobalMessage;
+    piiMappings: Map<string, PIIMapping>;
+  };
+  const streamingRenderSchedulers = new Map<string, StreamingRenderScheduler<ScheduledAssistantRender>>();
+  const streamingRenderRevisions = new Map<string, { content: string; revision: number }>();
+
+  function getStreamingRenderScheduler(messageId: string): StreamingRenderScheduler<ScheduledAssistantRender> {
+    const existing = streamingRenderSchedulers.get(messageId);
+    if (existing) return existing;
+
+    const scheduler = new StreamingRenderScheduler<ScheduledAssistantRender>({
+      onFlush: ({ message, piiMappings }, revision) => {
+        if (streamingRenderRevisions.get(messageId)?.revision !== revision) return;
+        const compiled = G_mapToInternalMessage(message, piiMappings);
+        messages = messages.map(current => current.id === messageId ? compiled : current);
+      },
+    });
+    streamingRenderSchedulers.set(messageId, scheduler);
+    return scheduler;
+  }
+
+  function cancelStreamingRender(messageId: string): void {
+    streamingRenderSchedulers.get(messageId)?.cancel();
+    streamingRenderSchedulers.delete(messageId);
+    streamingRenderRevisions.delete(messageId);
+  }
+
+  function cancelAllStreamingRenders(): void {
+    for (const scheduler of streamingRenderSchedulers.values()) scheduler.cancel();
+    streamingRenderSchedulers.clear();
+    streamingRenderRevisions.clear();
+    assistantRenderPlans.clear();
+  }
   let headerImageBubbles = $state<HeaderImageBubble[] | null>(null);
   let headerImageBubbleRequestId = 0;
   let headerImageBubbleCandidateKey = '';
+  let headerImageBubbleRetryTick = $state(0);
+  let headerImageBubbleRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  let headerImageBubbleRetryBaseKey = '';
+  let headerImageBubbleRetryCount = 0;
+  let headerImageBubbleChildIdsByParent = $state<Map<string, string[]>>(new Map());
   const HEADER_IMAGE_BUBBLE_LIMIT = 8;
+  const HEADER_IMAGE_BUBBLE_RETRY_LIMIT = 10;
+  const HEADER_IMAGE_BUBBLE_RETRY_DELAY_MS = 1000;
   const VIRTUALIZATION_THRESHOLD = 160;
   const VIRTUALIZATION_OVERSCAN = 24;
   const VIRTUALIZATION_ESTIMATED_MESSAGE_HEIGHT = 132;
@@ -322,6 +371,108 @@
     return [];
   }
 
+  function rememberHeaderImageBubbleChildIds(parentEmbedId: unknown, childEmbedIds: unknown): void {
+    if (typeof parentEmbedId !== 'string') return;
+    const normalizedChildIds = normalizeEmbedIds(childEmbedIds);
+    if (normalizedChildIds.length === 0) return;
+
+    const existingChildIds = headerImageBubbleChildIdsByParent.get(parentEmbedId) ?? [];
+    if (existingChildIds.join('|') === normalizedChildIds.join('|')) return;
+
+    headerImageBubbleChildIdsByParent = new Map(headerImageBubbleChildIdsByParent).set(parentEmbedId, normalizedChildIds);
+    headerImageBubbleRetryTick += 1;
+  }
+
+  function mergeEmbedIds(...groups: string[][]): string[] {
+    return [...new Set(groups.flat())];
+  }
+
+  function clearHeaderImageBubbleRetry() {
+    if (!headerImageBubbleRetryTimer) return;
+    clearTimeout(headerImageBubbleRetryTimer);
+    headerImageBubbleRetryTimer = null;
+  }
+
+  function scheduleHeaderImageBubbleRetry(baseKey: string): boolean {
+    if (headerImageBubbleRetryTimer || headerImageBubbleRetryCount >= HEADER_IMAGE_BUBBLE_RETRY_LIMIT) return false;
+
+    headerImageBubbleRetryCount += 1;
+    headerImageBubbleRetryTimer = setTimeout(() => {
+      headerImageBubbleRetryTimer = null;
+      if (headerImageBubbleRetryBaseKey === baseKey) {
+        headerImageBubbleRetryTick += 1;
+      }
+    }, HEADER_IMAGE_BUBBLE_RETRY_DELAY_MS);
+    return true;
+  }
+
+  function flattenImagePreviewResults(values: unknown[]): ImageResultContent[] {
+    const results: ImageResultContent[] = [];
+
+    for (const value of values) {
+      if (!value || typeof value !== 'object') continue;
+
+      const record = value as Record<string, unknown>;
+      if (Array.isArray(record.results)) {
+        results.push(...flattenImagePreviewResults(record.results));
+        continue;
+      }
+
+      if (isImageResultContent(record)) {
+        results.push(record);
+      }
+    }
+
+    return results;
+  }
+
+  function parseImagePreviewResultsJson(value: unknown): ImageResultContent[] {
+    if (typeof value !== 'string' || !value.trim()) return [];
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? flattenImagePreviewResults(parsed) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function isImageResultContent(value: unknown): value is ImageResultContent {
+    return !!value && typeof value === 'object';
+  }
+
+  function getParentPreviewImageResults(decodedParent: Record<string, unknown> | null): ImageResultContent[] {
+    if (!decodedParent) return [];
+
+    const previewResults = extractSearchResultsFromContent(
+      decodedParent,
+      ['preview_results', 'preview_thumbnails', 'results'],
+    );
+    const flattenedPreviewResults = flattenImagePreviewResults(previewResults);
+    if (flattenedPreviewResults.length > 0) return flattenedPreviewResults;
+
+    return parseImagePreviewResultsJson(decodedParent.preview_results_json);
+  }
+
+  function appendHeaderImageBubble(
+    result: ImageResultContent,
+    bubbles: HeaderImageBubble[],
+    seen: Set<string>,
+    parentEmbedId: string,
+    childEmbedId: string,
+  ): boolean {
+    const rawUrl = result.thumbnail_url || result.image_url;
+    if (!rawUrl || seen.has(rawUrl)) return false;
+
+    seen.add(rawUrl);
+    bubbles.push({
+      imageUrl: proxyImage(rawUrl, MAX_WIDTH_PREVIEW_THUMBNAIL),
+      parentEmbedId,
+      childEmbedId,
+      title: result.title,
+    });
+    return bubbles.length >= HEADER_IMAGE_BUBBLE_LIMIT;
+  }
+
   function collectImageSearchCandidates(node: TiptapNode | undefined, candidates: ImageSearchCandidate[]) {
     if (!node) return;
 
@@ -336,9 +487,13 @@
       const skillId = attrs.skill_id;
       const contentRef = attrs.contentRef;
       if (appId === 'images' && skillId === 'search' && typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
+        const parentEmbedId = contentRef.slice('embed:'.length);
         candidates.push({
-          parentEmbedId: contentRef.slice('embed:'.length),
-          childEmbedIds: normalizeEmbedIds(attrs.embed_ids),
+          parentEmbedId,
+          childEmbedIds: mergeEmbedIds(
+            normalizeEmbedIds(attrs.embed_ids),
+            headerImageBubbleChildIdsByParent.get(parentEmbedId) ?? [],
+          ),
         });
       }
     }
@@ -354,9 +509,23 @@
 
     for (const candidate of candidates) {
       let childEmbedIds = candidate.childEmbedIds;
+      const parentEmbed = await resolveEmbed(candidate.parentEmbedId);
+      const decodedParent = parentEmbed?.content ? await decodeToonContent(parentEmbed.content) : null;
+
+      const parentPreviewResults = getParentPreviewImageResults(decodedParent);
+      for (let index = 0; index < parentPreviewResults.length; index += 1) {
+        if (appendHeaderImageBubble(
+          parentPreviewResults[index],
+          bubbles,
+          seen,
+          candidate.parentEmbedId,
+          `${candidate.parentEmbedId}:preview:${index}`,
+        )) {
+          return bubbles;
+        }
+      }
+
       if (childEmbedIds.length === 0) {
-        const parentEmbed = await resolveEmbed(candidate.parentEmbedId);
-        const decodedParent = parentEmbed?.content ? await decodeToonContent(parentEmbed.content) : null;
         childEmbedIds = normalizeEmbedIds(decodedParent?.embed_ids ?? parentEmbed?.embed_ids);
       }
       if (childEmbedIds.length === 0) continue;
@@ -365,17 +534,10 @@
       const childEmbeds = await loadEmbedsWithRetry(childEmbedIds.slice(0, remainingCount), 3, 250);
       for (const childEmbed of childEmbeds) {
         const decodedChild = childEmbed.content ? await decodeToonContent(childEmbed.content) as ImageResultContent | null : null;
-        const rawUrl = decodedChild?.thumbnail_url || decodedChild?.image_url;
-        if (!rawUrl || seen.has(rawUrl)) continue;
-
-        seen.add(rawUrl);
-        bubbles.push({
-          imageUrl: proxyImage(rawUrl, MAX_WIDTH_PREVIEW_THUMBNAIL),
-          parentEmbedId: candidate.parentEmbedId,
-          childEmbedId: childEmbed.embed_id,
-          title: decodedChild?.title,
-        });
-        if (bubbles.length >= HEADER_IMAGE_BUBBLE_LIMIT) return bubbles;
+        const childResults = decodedChild ? flattenImagePreviewResults([decodedChild]) : [];
+        for (const childResult of childResults) {
+          if (appendHeaderImageBubble(childResult, bubbles, seen, candidate.parentEmbedId, childEmbed.embed_id)) return bubbles;
+        }
       }
     }
 
@@ -560,10 +722,33 @@
   let showForgottenMessages = $state(false);
   let oldCompressedMessages = $state<GlobalMessage[]>([]);
   let oldCompressedMessagesLoading = $state(false);
+  let oldCompressedMessagesHasMore = $state(false);
+  let oldCompressedMessagesNextBeforeTimestamp = $state<number | null>(null);
+  let oldCompressedMessagesNextBeforeMessageId = $state<string | null>(null);
+  let oldCompressedMessagesCheckpointId = $state<string | null>(null);
+  const LOCAL_FORGOTTEN_CURSOR_SENTINEL = '\uffff';
 
   let latestCompressionCheckpoint = $derived.by(() => {
     if (!compressionCheckpoints || compressionCheckpoints.length === 0) return null;
     return [...compressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
+  });
+
+  let locallyAvailableForgottenMessages = $derived.by(() => {
+    if (!latestCompressionCheckpoint) return [] as typeof messages;
+    return messages.filter(
+      (msg) => (msg.original_message?.created_at ?? 0) <= latestCompressionCheckpoint.compressed_up_to_timestamp,
+    );
+  });
+
+  $effect(() => {
+    const checkpointId = latestCompressionCheckpoint?.id ?? null;
+    if (checkpointId === oldCompressedMessagesCheckpointId) return;
+    oldCompressedMessagesCheckpointId = checkpointId;
+    oldCompressedMessages = [];
+    oldCompressedMessagesHasMore = false;
+    oldCompressedMessagesNextBeforeTimestamp = null;
+    oldCompressedMessagesNextBeforeMessageId = null;
+    showForgottenMessages = false;
   });
 
   function makeCompressionSummaryMessage(checkpoint: ChatCompressionCheckpoint): InternalMessage {
@@ -604,7 +789,8 @@
   /** Messages before the compression summary (the "forgotten" ones). */
   let forgottenMessages = $derived.by(() => {
     if (latestCompressionCheckpoint) {
-      return oldCompressedMessages.map((message) => G_mapToInternalMessage(message));
+      const loadedMessages = oldCompressedMessages.map((message) => G_mapToInternalMessage(message));
+      return loadedMessages.length > 0 ? loadedMessages : locallyAvailableForgottenMessages;
     }
     if (!hasCompressionSummary) return [] as typeof messages;
     return messages.slice(0, compressionSummaryIndex);
@@ -709,22 +895,127 @@
       showForgottenMessages = !showForgottenMessages;
       return;
     }
-    if (!showForgottenMessages && oldCompressedMessages.length === 0) {
-      oldCompressedMessagesLoading = true;
+    if (!showForgottenMessages && oldCompressedMessages.length === 0 && locallyAvailableForgottenMessages.length === 0) {
+      await loadForgottenMessagePage();
+    }
+    showForgottenMessages = !showForgottenMessages;
+  }
+
+  async function loadForgottenMessagePage(): Promise<void> {
+    if (!latestCompressionCheckpoint || oldCompressedMessagesLoading) return;
+    oldCompressedMessagesLoading = true;
+    const beforeTimestamp = oldCompressedMessagesNextBeforeTimestamp ?? latestCompressionCheckpoint.compressed_up_to_timestamp;
+    const beforeMessageId = oldCompressedMessagesNextBeforeMessageId ?? undefined;
+    try {
+      if (isSharedChat) {
+        const params = new URLSearchParams({
+          checkpoint_id: latestCompressionCheckpoint.id,
+          before_timestamp: String(beforeTimestamp),
+          limit: String(FORGOTTEN_MESSAGE_PAGE_LIMIT),
+        });
+        if (beforeMessageId) params.set('before_message_id', beforeMessageId);
+        const response = await fetch(getApiEndpoint(`/v1/share/chat/${latestCompressionCheckpoint.chat_id}/messages?${params.toString()}`));
+        if (!response.ok) throw new Error(`Shared forgotten-message fetch failed: ${response.status}`);
+        await handleOldMessagesResponse(await response.json() as {
+          chat_id: string;
+          checkpoint_id: string;
+          messages?: Array<string | GlobalMessage>;
+          has_more?: boolean;
+          next_before_timestamp?: number | null;
+          next_before_message_id?: string | null;
+        });
+        return;
+      }
+      const servedFromLocalHistory = await loadLocalForgottenMessagePage(beforeTimestamp, beforeMessageId);
+      if (servedFromLocalHistory) {
+        oldCompressedMessagesLoading = false;
+        return;
+      }
       await webSocketService.sendMessage('get_compressed_chat_old_messages', {
         chat_id: latestCompressionCheckpoint.chat_id,
         checkpoint_id: latestCompressionCheckpoint.id,
-        before_timestamp: latestCompressionCheckpoint.compressed_up_to_timestamp,
-        limit: 250,
+        before_timestamp: beforeTimestamp,
+        before_message_id: beforeMessageId,
+        limit: FORGOTTEN_MESSAGE_PAGE_LIMIT,
       });
+    } catch (error) {
+      oldCompressedMessagesLoading = false;
+      console.warn('[ChatHistory] Failed to load forgotten messages', error);
     }
-    showForgottenMessages = !showForgottenMessages;
+  }
+
+  async function loadLocalForgottenMessagePage(
+    beforeTimestamp: number,
+    beforeMessageId: string | undefined,
+  ): Promise<boolean> {
+    if (!latestCompressionCheckpoint) return false;
+    try {
+      const window = await chatDB.getMessageWindowForChat(latestCompressionCheckpoint.chat_id, {
+        direction: 'before',
+        beforeTimestamp,
+        beforeMessageId: beforeMessageId ?? LOCAL_FORGOTTEN_CURSOR_SENTINEL,
+        limit: FORGOTTEN_MESSAGE_PAGE_LIMIT,
+      });
+      const messagesBeforeBoundary = window.messages.filter(
+        (message) => message.created_at <= latestCompressionCheckpoint!.compressed_up_to_timestamp,
+      );
+      if (messagesBeforeBoundary.length === 0) return false;
+
+      await chatDB.recordMessageWindowPage(latestCompressionCheckpoint.chat_id, window, {
+        direction: 'before',
+        pageKind: 'forgotten',
+      });
+
+      const existingIds = new Set(oldCompressedMessages.map((message) => message.message_id));
+      const newMessages = messagesBeforeBoundary.filter((message) => !existingIds.has(message.message_id));
+      oldCompressedMessages = [...newMessages, ...oldCompressedMessages].sort(
+        (a, b) => a.created_at - b.created_at || a.message_id.localeCompare(b.message_id),
+      );
+      oldCompressedMessagesHasMore = window.hasMoreBefore;
+      oldCompressedMessagesNextBeforeTimestamp = window.startCursor;
+      oldCompressedMessagesNextBeforeMessageId = window.startCursorMessageId;
+      return true;
+    } catch (error) {
+      console.warn('[ChatHistory] Failed to read local forgotten messages', error);
+      return false;
+    }
+  }
+
+  function getOlderMessagesCursor(): InternalMessage | null {
+    return messages.find((message) => {
+      if (message.role === 'system' && message.category === 'compression_summary') return false;
+      if (isForgottenMessage(message)) return false;
+      return !!message.original_message?.created_at && !!message.id;
+    }) ?? null;
+  }
+
+  function requestOlderMessages(): void {
+    const cursorMessage = getOlderMessagesCursor();
+    if (!hasOlderMessages || olderMessagesLoading || !cursorMessage?.original_message) return;
+    dispatch('loadOlderMessages', {
+      beforeTimestamp: cursorMessage.original_message.created_at,
+      beforeMessageId: cursorMessage.id,
+      firstMessageId: cursorMessage.id,
+    });
+  }
+
+  function isForgottenMessage(msg: InternalMessage): boolean {
+    if (!latestCompressionCheckpoint) return false;
+    if (isCompressionSummaryMessage(msg)) return false;
+    return (msg.original_message?.created_at ?? 0) <= latestCompressionCheckpoint.compressed_up_to_timestamp;
+  }
+
+  function isCompressionSummaryMessage(msg: InternalMessage): boolean {
+    return msg.role === 'system' && (msg.category === 'compression_summary' || msg.original_message?.category === 'compression_summary');
   }
 
   async function handleOldMessagesResponse(payload: {
     chat_id: string;
     checkpoint_id: string;
     messages?: Array<string | GlobalMessage>;
+    has_more?: boolean;
+    next_before_timestamp?: number | null;
+    next_before_message_id?: string | null;
   }): Promise<void> {
     if (!latestCompressionCheckpoint || payload.checkpoint_id !== latestCompressionCheckpoint.id) return;
     const prepared: GlobalMessage[] = [];
@@ -748,7 +1039,14 @@
         console.warn('[ChatHistory] Failed to decrypt compressed old message', message.message_id, error);
       }
     }
-    oldCompressedMessages = prepared;
+    const existingIds = new Set(oldCompressedMessages.map((message) => message.message_id));
+    oldCompressedMessages = [
+      ...prepared.filter((message) => !existingIds.has(message.message_id)),
+      ...oldCompressedMessages,
+    ].sort((a, b) => a.created_at - b.created_at || a.message_id.localeCompare(b.message_id));
+    oldCompressedMessagesHasMore = !!payload.has_more;
+    oldCompressedMessagesNextBeforeTimestamp = payload.next_before_timestamp ?? null;
+    oldCompressedMessagesNextBeforeMessageId = payload.next_before_message_id ?? null;
     oldCompressedMessagesLoading = false;
   }
 
@@ -819,6 +1117,7 @@
 
   // Props using Svelte 5 runes mode
   let {
+    disablePointerEvents = false,
     messageInputHeight = 0,
     sourceMessages = [],
     containerWidth = 0,
@@ -835,6 +1134,7 @@
     chatHeaderRenderKey = 0,
     chatCreatedAt = null,
     chatTimeLabel = 'started',
+    isDraftOnly = false,
     isNewChatGeneratingTitle = false,
     isNewChatCreditsError = false,
     isCreditsRestored = false,
@@ -851,9 +1151,13 @@
     followUpSuggestions = [],
     quickTipSlugs = [],
     compressionCheckpoints = [],
+    hasOlderMessages = false,
+    olderMessagesLoading = false,
     onSuggestionClick = undefined,
+    onChatNavigate = undefined,
     canAnnotate = true,
   }: {
+    disablePointerEvents?: boolean;
     messageInputHeight?: number;
     sourceMessages?: GlobalMessage[];
     containerWidth?: number;
@@ -874,7 +1178,9 @@
     /** Unix timestamp in seconds of when the chat was created or published. */
     chatCreatedAt?: number | null;
     /** Label variant for the timestamp line in the header banner. */
-    chatTimeLabel?: 'started' | 'published';
+    chatTimeLabel?: 'started' | 'published' | 'saved';
+    /** True when this is a persisted draft shell with no sent messages or generated metadata. */
+    isDraftOnly?: boolean;
     /** True while the server is still generating the title/category/icon for a new chat.
      *  Shows the "Creating new chat ..." shimmer placeholder instead of the full card. */
     isNewChatGeneratingTitle?: boolean;
@@ -921,14 +1227,106 @@
     quickTipSlugs?: string[];
     /** Callback fired when the user clicks a follow-up suggestion. */
     onSuggestionClick?: (suggestion: string) => void;
+    onChatNavigate?: (chatId: string) => Promise<void> | void;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
+    hasOlderMessages?: boolean;
+    olderMessagesLoading?: boolean;
   } = $props();
+
+  let hydratedQuickTipSlugs = $state<string[]>([]);
+  let effectiveQuickTipSlugs = $derived(
+    quickTipSlugs.length > 0 ? quickTipSlugs : hydratedQuickTipSlugs
+  );
+  // Persisted tips are a login-recovery fallback only; once live props own a chat,
+  // do not revive its previous tips after a later message clears them.
+  let quickTipPropsSeenChatId: string | null = null;
+  let quickTipHydrationAttemptKey: string | null = null;
+  let quickTipKeyReadyVersion = $state(0);
+  let quickTipHydrationGeneration = 0;
+
+  onMount(() => chatKeyManager.onKeyReady((chatId) => {
+    if (chatId === currentChatId) quickTipKeyReadyVersion += 1;
+  }));
+
+  $effect(() => {
+    const isAuthenticated = $authStore.isAuthenticated;
+    const chatId = currentChatId;
+    const lastMessageRole = sourceMessages[sourceMessages.length - 1]?.role;
+    const hydrationAttemptKey = chatId ? `${chatId}:${quickTipKeyReadyVersion}` : null;
+    const generation = ++quickTipHydrationGeneration;
+
+    if (!isAuthenticated) {
+      hydratedQuickTipSlugs = [];
+      quickTipPropsSeenChatId = null;
+      quickTipHydrationAttemptKey = null;
+      return;
+    }
+    if (quickTipSlugs.length > 0) {
+      hydratedQuickTipSlugs = [];
+      quickTipPropsSeenChatId = chatId ?? null;
+      return;
+    }
+    if (
+      !chatId ||
+      lastMessageRole !== 'assistant' ||
+      isPublicChat(chatId) ||
+      quickTipPropsSeenChatId === chatId ||
+      quickTipHydrationAttemptKey === hydrationAttemptKey
+    ) {
+      hydratedQuickTipSlugs = [];
+      return;
+    }
+    hydratedQuickTipSlugs = [];
+    quickTipHydrationAttemptKey = hydrationAttemptKey;
+
+    void (async () => {
+      try {
+        const storedChat = await chatDB.getChat(chatId);
+        if (!storedChat?.encrypted_quick_tip_slugs) return;
+        const chatKey = await chatKeyManager.getKey(chatId);
+        if (!chatKey) return;
+        const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+        const slugs = await decryptArrayWithChatKey(storedChat.encrypted_quick_tip_slugs, chatKey) || [];
+        if (
+          generation === quickTipHydrationGeneration &&
+          $authStore.isAuthenticated &&
+          currentChatId === chatId &&
+          quickTipSlugs.length === 0
+        ) {
+          hydratedQuickTipSlugs = slugs;
+        }
+      } catch (error) {
+        console.error(`[ChatHistory] Failed to hydrate quick tips for chat ${chatId}:`, error);
+      }
+    })();
+  });
+
+  async function navigateToChat(chatId: string): Promise<void> {
+    if (onChatNavigate) {
+      await onChatNavigate(chatId);
+      return;
+    }
+    activeChatStore.setActiveChat(chatId);
+  }
+
+  let lastSourceSyncChatKey = $state<string | undefined>(undefined);
 
   $effect(() => {
     const incomingMessages = sourceMessages;
-    if (incomingMessages.length === 0) return;
+    const sourceChatKey = currentChatId ?? incomingMessages[0]?.chat_id;
+    const sourceChatChanged = sourceChatKey !== lastSourceSyncChatKey;
     const internalMessagesEmpty = untrack(() => messages.length === 0);
-    if (!internalMessagesEmpty) return;
+
+    if (incomingMessages.length === 0) {
+      if (sourceChatChanged) {
+        lastSourceSyncChatKey = sourceChatKey;
+        untrack(() => updateMessages([]));
+      }
+      return;
+    }
+
+    if (!internalMessagesEmpty && !sourceChatChanged) return;
+    lastSourceSyncChatKey = sourceChatKey;
     untrack(() => updateMessages(incomingMessages));
   });
 
@@ -946,19 +1344,16 @@
   
   // --- Parent chat / Sub-chat "Return" header tracking ---
   let parentChatId = $state<string | null>(null);
-  let parentChatTitle = $state<string | null>(null);
 
   async function checkParentChat(activeId: string | null | undefined, retries = 5) {
     if (!activeId) {
       parentChatId = null;
-      parentChatTitle = null;
       return;
     }
     try {
       const staticChat = getStaticExampleChat(activeId);
       if (staticChat?.parent_id) {
         parentChatId = staticChat.parent_id;
-        parentChatTitle = getStaticExampleChat(staticChat.parent_id)?.title || "Parent Chat";
         return;
       }
 
@@ -968,19 +1363,15 @@
       const chat = await getChat(chatDB, activeId);
       if (chat && chat.parent_id) {
         parentChatId = chat.parent_id;
-        const parentChat = await getChat(chatDB, chat.parent_id);
-        parentChatTitle = parentChat?.title || "Parent Chat";
       } else if (chat?.is_sub_chat && retries > 0) {
         await new Promise(resolve => setTimeout(resolve, 300));
         return checkParentChat(activeId, retries - 1);
       } else {
         parentChatId = null;
-        parentChatTitle = null;
       }
     } catch (e) {
       console.error('Error checking parent chat:', e);
       parentChatId = null;
-      parentChatTitle = null;
     }
   }
 
@@ -1125,7 +1516,7 @@
   );
 
   let showQuickTipsInHistory = $derived(
-    quickTipSlugs.length > 0 &&
+    effectiveQuickTipSlugs.length > 0 &&
     lastAssistantMessageId !== null &&
     !isCurrentlyStreaming
   );
@@ -1156,6 +1547,20 @@
 
   onMount(() => {
     submittedAssistantFeedbackKeys = loadSubmittedAssistantFeedbackKeys();
+  });
+
+  onMount(() => {
+    const handleEmbedUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        embed_id?: string;
+        child_embed_ids?: string[] | string;
+        embed_ids?: string[] | string;
+      }>).detail;
+      rememberHeaderImageBubbleChildIds(detail?.embed_id, detail?.child_embed_ids ?? detail?.embed_ids);
+    };
+
+    chatSyncService.addEventListener('embedUpdated', handleEmbedUpdated);
+    return () => chatSyncService.removeEventListener('embedUpdated', handleEmbedUpdated);
   });
 
   onDestroy(() => {
@@ -1232,20 +1637,48 @@
   // NOTE: The centered AI status overlay has been removed. The spacer system directly uses
   // `processingPhase !== null` to know when AI processing is happening (affects scroll behaviour).
 
+  let chatHeaderWritable = $derived(
+    !!currentChatId &&
+    !isIncognito &&
+    !isExampleChat &&
+    !isSharedChat &&
+    !isDraftOnly &&
+    !isPublicChat(currentChatId)
+  );
+
   // Whether to show the chat header card (or its loading placeholder) at the top of the chat.
-  // Only shown for new chats — existing chats opened from the sidebar never show this.
+  // Owned writable chats keep the unified detail shell visible even while encrypted
+  // metadata is still catching up after hash/cold-boot navigation.
   // The header is visible as long as any of these are true:
   //   a) isNewChatGeneratingTitle is true (shimmer placeholder state), or
   //   b) we have a title (loaded state; category may be missing on older partial metadata), or
   //   c) isNewChatCreditsError is true (credits error state), or
-  //   d) isIncognito is true (always show the incognito header immediately)
-  let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle);
+  //   d) isIncognito is true (always show the incognito header immediately), or
+  //   e) isSharedChat is true (badge remains visible even if shared metadata has no title), or
+  //   f) this is an owned writable chat whose encrypted title is not yet available.
+  let showChatHeader = $derived(
+    isDraftOnly || isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat || chatHeaderWritable,
+  );
+
+  async function saveChatHeaderTitle(title: string): Promise<void> {
+    if (!currentChatId || !chatHeaderWritable) throw new Error('Chat title is read-only');
+    await chatSyncService.sendUpdateTitle(currentChatId, title);
+  }
+
+  async function saveChatHeaderSummary(summary: string): Promise<void> {
+    if (!currentChatId || !chatHeaderWritable) throw new Error('Chat summary is read-only');
+    await chatSyncService.sendUpdateSummary(currentChatId, summary);
+  }
 
   $effect(() => {
     const requestId = ++headerImageBubbleRequestId;
+    const retryTick = headerImageBubbleRetryTick;
 
     if (!showChatHeader || isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError) {
       headerImageBubbleCandidateKey = '';
+      headerImageBubbleRetryBaseKey = '';
+      headerImageBubbleRetryCount = 0;
+      clearHeaderImageBubbleRetry();
       headerImageBubbles = null;
       void persistResumeCardImageBubbles(null);
       return;
@@ -1258,6 +1691,9 @@
 
     if (candidates.length === 0) {
       headerImageBubbleCandidateKey = '';
+      headerImageBubbleRetryBaseKey = '';
+      headerImageBubbleRetryCount = 0;
+      clearHeaderImageBubbleRetry();
       headerImageBubbles = null;
       void persistResumeCardImageBubbles(null);
       return;
@@ -1266,9 +1702,16 @@
     const embedUpdateKey = messages
       .map(message => message._embedUpdateTimestamp ?? '')
       .join('|');
-    const candidateKey = `${candidates
+    const baseCandidateKey = `${candidates
       .map(candidate => `${candidate.parentEmbedId}:${candidate.childEmbedIds.join('|')}`)
       .join(';')}#${embedUpdateKey}`;
+    if (baseCandidateKey !== headerImageBubbleRetryBaseKey) {
+      headerImageBubbleRetryBaseKey = baseCandidateKey;
+      headerImageBubbleRetryCount = 0;
+      clearHeaderImageBubbleRetry();
+    }
+
+    const candidateKey = `${baseCandidateKey}#retry:${retryTick}`;
     if (candidateKey === headerImageBubbleCandidateKey) return;
     headerImageBubbleCandidateKey = candidateKey;
 
@@ -1276,15 +1719,24 @@
       .then((bubbles) => {
         if (requestId !== headerImageBubbleRequestId) return;
         headerImageBubbles = bubbles.length > 0 ? bubbles : null;
-        void persistResumeCardImageBubbles(
-          bubbles.length > 0 ? bubbles.map(({ imageUrl, title }) => ({ imageUrl, title })).slice(0, 2) : null,
-        );
+        if (bubbles.length > 0) {
+          headerImageBubbleRetryCount = 0;
+          clearHeaderImageBubbleRetry();
+          void persistResumeCardImageBubbles(bubbles.map(({ imageUrl, title }) => ({ imageUrl, title })).slice(0, 2));
+          return;
+        }
+
+        if (!scheduleHeaderImageBubbleRetry(baseCandidateKey)) {
+          void persistResumeCardImageBubbles(null);
+        }
       })
       .catch((error) => {
         if (requestId !== headerImageBubbleRequestId) return;
         console.warn('[ChatHistory] Failed to resolve image-search header bubbles:', error);
         headerImageBubbles = null;
-        void persistResumeCardImageBubbles(null);
+        if (!scheduleHeaderImageBubbleRetry(baseCandidateKey)) {
+          void persistResumeCardImageBubbles(null);
+        }
       });
   });
 
@@ -1397,6 +1849,7 @@
    * when the fade-out is complete.
    */
   export async function clearMessages(): Promise<void> {
+    cancelAllStreamingRenders();
     messages = [];
     lastUserMessageId = null;
     shouldScrollToNewUserMessage = false;
@@ -1458,16 +1911,77 @@
 
     const previousMessagesLength = messages.length;
     
+    const orderedMessages = orderSharedInteractiveQuestionMessages(newMessagesArray);
+
     // Display merge: show focus activation + following assistant as one bubble
-    const mergedForDisplay = mergeAssistantContinuationsForDisplay(newMessagesArray);
+    const mergedForDisplay = mergeAssistantContinuationsForDisplay(orderedMessages);
     
     // Build cumulative PII mappings from all user messages in the incoming array
     // This allows assistant messages to restore PII from any preceding user message
     const piiMappings = buildCumulativePIIMappings(mergedForDisplay);
+    const scheduledAssistantRenders: Array<{
+      scheduler: StreamingRenderScheduler<ScheduledAssistantRender>;
+      value: ScheduledAssistantRender;
+      revision: number;
+      semanticBoundary: boolean;
+    }> = [];
+    const activeStreamingMessageIds = new Set<string>();
     
     const newInternalMessages = mergedForDisplay.map(newMessage => {
         const oldMessage = messages.find(m => m.id === newMessage.message_id);
         const hasEmbedUpdate = (newMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp !== undefined;
+
+        if (
+            newMessage.role === 'assistant' &&
+            newMessage.status === 'streaming' &&
+            typeof newMessage.content === 'string'
+        ) {
+            activeStreamingMessageIds.add(newMessage.message_id);
+
+            if (!oldMessage || localeChanged || hasEmbedUpdate) {
+                cancelStreamingRender(newMessage.message_id);
+                const revision = 1;
+                streamingRenderRevisions.set(newMessage.message_id, {
+                    content: newMessage.content,
+                    revision,
+                });
+                getStreamingRenderScheduler(newMessage.message_id).seedRenderedRevision(revision);
+                return G_mapToInternalMessage(newMessage, piiMappings);
+            }
+
+            const previousRevision = streamingRenderRevisions.get(newMessage.message_id);
+            if (previousRevision?.content === newMessage.content) {
+                return {
+                    ...oldMessage,
+                    status: newMessage.status,
+                    original_message: newMessage,
+                    appCards: (newMessage as MessageWithEmbedMetadata).appCards,
+                };
+            }
+
+            const revision = (previousRevision?.revision ?? 0) + 1;
+            streamingRenderRevisions.set(newMessage.message_id, {
+                content: newMessage.content,
+                revision,
+            });
+            scheduledAssistantRenders.push({
+              scheduler: getStreamingRenderScheduler(newMessage.message_id),
+              value: { message: newMessage, piiMappings },
+              revision,
+              semanticBoundary: newMessage.content.slice(previousRevision?.content.length || 0).includes('\n\n') ||
+                /```\s*$/.test(newMessage.content),
+            });
+
+            // Keep the last compiled document until the per-message scheduler flushes.
+            return {
+                ...oldMessage,
+                status: newMessage.status,
+                original_message: newMessage,
+                appCards: (newMessage as MessageWithEmbedMetadata).appCards,
+            };
+        }
+
+        cancelStreamingRender(newMessage.message_id);
 
         // PERFORMANCE OPTIMIZATION: Skip G_mapToInternalMessage entirely for messages
         // whose raw content, status, and metadata have not changed since the last render.
@@ -1568,7 +2082,26 @@
       }
     }
 
-    messages = newInternalMessages;
+    const prunedWindow = pruneDecryptedMessageWindow(newInternalMessages, {
+      compressionCheckpoints,
+    });
+    if (prunedWindow.prunedCount > 0) {
+      console.debug(`[ChatHistory] Pruned ${prunedWindow.prunedCount} decrypted normal message(s) from active UI window`);
+    }
+    messages = prunedWindow.messages;
+    const renderedMessageIds = new Set(messages.map(message => message.id));
+    for (const messageId of streamingRenderSchedulers.keys()) {
+      if (!activeStreamingMessageIds.has(messageId) || !renderedMessageIds.has(messageId)) {
+        cancelStreamingRender(messageId);
+      }
+    }
+    for (const messageId of assistantRenderPlans.keys()) {
+      if (!renderedMessageIds.has(messageId)) assistantRenderPlans.delete(messageId);
+    }
+    for (const { scheduler, value, revision, semanticBoundary } of scheduledAssistantRenders) {
+      scheduler.update(value, revision);
+      if (semanticBoundary) scheduler.flushSemanticBoundary();
+    }
     // Add a log to confirm this path is taken and what the new messages are.
     // console.debug('[ChatHistory] updateMessages: messages array REPLACED (intelligent assignment). New internal messages:', JSON.parse(JSON.stringify(messages)));
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
@@ -1936,7 +2469,6 @@
   let scrollDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   let isRestoringScroll = false;
   let scrollFrame: number | null = null;
-  let olderWindowRequestInFlight = false;
 
   // Track scroll position with optimized performance using requestAnimationFrame
   // This ensures smooth scrolling without blocking the main thread
@@ -1945,6 +2477,15 @@
     if (isRestoringScroll) return;
 
     updateVirtualRangeAroundScroll();
+
+    if (
+      container &&
+      container.scrollTop <= OLDER_MESSAGES_AUTOLOAD_THRESHOLD_PX &&
+      hasOlderMessages &&
+      !olderMessagesLoading
+    ) {
+      requestOlderMessages();
+    }
 
     // Detect if user has manually scrolled away during streaming.
     // If streaming is active and the user scrolls upward (away from the bottom),
@@ -1994,17 +2535,6 @@
     
     // Dispatch immediate event for UI state changes (button visibility)
     dispatch('scrollPositionUI', { isAtBottom: isAtBottomLocal, isAtTop: isAtTopLocal });
-    if (isAtTopLocal && !olderWindowRequestInFlight && messages.length > 0) {
-      olderWindowRequestInFlight = true;
-      dispatch('loadOlderMessages', {
-        beforeTimestamp: messages[0].created_at,
-        beforeMessageId: messages[0].message_id,
-        firstMessageId: messages[0].message_id,
-      });
-      setTimeout(() => {
-        olderWindowRequestInFlight = false;
-      }, 500);
-    }
   }
 
   // Find the last message that's currently visible in viewport
@@ -2206,11 +2736,13 @@
 
   // Cleanup on component destroy
   onDestroy(() => {
+    cancelAllStreamingRenders();
     // Cancel any pending scroll tracking operations
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
     if (scrollFrame) cancelAnimationFrame(scrollFrame);
     // Clear spacer safety timeout
     if (spacerSafetyTimeout) clearTimeout(spacerSafetyTimeout);
+    clearHeaderImageBubbleRetry();
     // Unsubscribe from PII visibility store
     unsubPiiVisibility();
   });
@@ -2222,7 +2754,7 @@
     - Messages are aligned to the top for ChatGPT-style behavior.
     - Wrapped in a positioning parent so the AI processing overlay can float above the scroll area.
 -->
-<div class="chat-history-wrapper" style={containerStyle}>
+<div class="chat-history-wrapper" class:disable-pointer-events={disablePointerEvents} style={containerStyle}>
 <div 
     class="chat-history-container"
     data-testid="chat-history-container"
@@ -2236,10 +2768,10 @@
             type="button"
             class="return-to-parent-button"
             data-testid="return-to-parent-button"
-            title={`Return to ${parentChatTitle}`}
+            title={$text('chats.chat.sub_chats.return_to_parent')}
             style="position: absolute; top: 12px; left: 12px; z-index: 10001; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 20px; background: var(--grey10); border: 1.5px solid var(--grey30); color: var(--fontPrimary); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s, background 0.2s;"
             onclick={() => {
-                activeChatStore.setActiveChat(parentChatId);
+                void navigateToChat(parentChatId);
             }}
         >
             <span style="display: flex; align-items: center;">
@@ -2248,7 +2780,7 @@
                     <polyline points="12 19 5 12 12 5"></polyline>
                 </svg>
             </span>
-            <span>Return</span>
+            <span>{$text('chats.chat.sub_chats.return_to_parent')}</span>
         </button>
     {/if}
     <!-- Chat header banner: absolutely positioned at the top of the scroll container
@@ -2265,6 +2797,7 @@
                 summary={chatSummary}
                 {chatCreatedAt}
                 {chatTimeLabel}
+                {isDraftOnly}
                 isLoading={isNewChatGeneratingTitle}
                 isCreditsError={isNewChatCreditsError}
                 {isIncognito}
@@ -2280,6 +2813,9 @@
                 onHighlightJump={handleHighlightJump}
                 {autoplayVideo}
                 {showSignupCta}
+                writable={chatHeaderWritable}
+                onSaveTitle={saveChatHeaderTitle}
+                onSaveDescription={saveChatHeaderSummary}
             />
             {/key}
         </div>
@@ -2297,10 +2833,11 @@
     {#if showMessages}
         <div class="chat-history-content" 
              data-testid="chat-history-content"
-             class:has-messages={displayMessages.length > 0}
-             class:has-header={showChatHeader}
-             data-virtualized={shouldVirtualizeMessages ? 'true' : 'false'}
-             data-rendered-message-count={virtualizedDisplayMessages.length}
+              class:has-messages={displayMessages.length > 0}
+              class:has-header={showChatHeader}
+              data-virtualized={shouldVirtualizeMessages ? 'true' : 'false'}
+              data-source-message-count={sourceMessages.length}
+              data-rendered-message-count={virtualizedDisplayMessages.length}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
 
@@ -2310,6 +2847,7 @@
               <div class="forgotten-messages-toggle">
                 <button
                   class="forgotten-messages-btn"
+                  data-testid="show-forgotten-messages"
                   onclick={() => { void toggleForgottenMessages(); }}
                 >
                   {showForgottenMessages
@@ -2319,6 +2857,21 @@
                     <span class="forgotten-count">({forgottenMessages.length})</span>
                   {/if}
                 </button>
+                {#if showForgottenMessages && oldCompressedMessagesHasMore}
+                  <button
+                    class="forgotten-messages-btn secondary"
+                    data-testid="show-more-forgotten-messages"
+                    onclick={() => { void loadForgottenMessagePage(); }}
+                    disabled={oldCompressedMessagesLoading}
+                  >
+                    {oldCompressedMessagesLoading ? $text('chat.compression.loading_messages') : $text('chat.compression.show_more_forgotten')}
+                  </button>
+                {/if}
+                {#if showForgottenMessages && forgottenMessages.length > 0}
+                  <p class="forgotten-messages-note" id="forgotten-messages-note">
+                    {$text('chat.compression.forgotten_note')}
+                  </p>
+                {/if}
               </div>
             {/if}
 
@@ -2331,19 +2884,25 @@
                      to prevent visual glitches when content height changes rapidly.
                      Duration 0 effectively disables the animation without removing the directive. -->
                 <div class="message-wrapper {msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
-                     class:target-message={$messageHighlightStore === msg.id}
-                     data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
-                     data-message-id={msg.id}
-                     style={`
-                          opacity: ${latestCompressionCheckpoint && (msg.original_message?.created_at ?? 0) <= latestCompressionCheckpoint.compressed_up_to_timestamp ? 0.6 : (($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 0.4 : (msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)))};
+                      class:target-message={$messageHighlightStore === msg.id}
+                      class:forgotten-message={isForgottenMessage(msg)}
+                      class:compression-boundary-wrapper={showForgottenMessages && isCompressionSummaryMessage(msg)}
+                      data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
+                      data-forgotten={isForgottenMessage(msg) ? 'true' : 'false'}
+                      data-message-id={msg.id}
+                      data-streaming={msg.status === 'streaming' ? 'true' : 'false'}
+                      aria-describedby={isForgottenMessage(msg) ? 'forgotten-messages-note' : undefined}
+                      style={`
+                            opacity: ${($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 0.4 : (msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1))};
                          ${($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 'pointer-events: none;' : ''}
                          ${msg.status === 'failed' ? 'border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : ''}
-                     `}
-                     in:fade={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 300 }}
-                     animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
+                      `}
+                      in:fade={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 300 }}
+                      animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
                     <ChatMessage
                         role={msg.role}
                         category={msg.category}
+                        sender_name={msg.sender_name}
                         model_name={msg.model_name}
                         content={msg.content as string | Record<string, unknown> | null}
                         status={msg.status}
@@ -2363,7 +2922,9 @@
                         isFirstMessage={(shouldVirtualizeMessages ? virtualStartIndex + msgIndex : msgIndex) === 0}
                         {isCreditsRestored}
                         {onResend}
+                        {onChatNavigate}
                         {canAnnotate}
+                        isForgottenMessage={isForgottenMessage(msg)}
                     />
 
                 </div>
@@ -2427,7 +2988,7 @@
             {#if showQuickTipsInHistory}
                 <div class="quick-tips-wrapper" in:fade={{ duration: 200 }}>
                     <QuickTipsCard
-                        slugs={quickTipSlugs}
+                        slugs={effectiveQuickTipSlugs}
                         category={chatCategory}
                         on:action={(event) => handleQuickTipAction(event.detail)}
                     />
@@ -2515,6 +3076,10 @@
     top: 0;
     left: 0;
     right: 0;
+  }
+
+  .chat-history-wrapper.disable-pointer-events {
+    pointer-events: none;
   }
 
   .chat-history-container {
@@ -2729,7 +3294,7 @@
     all: unset;
     cursor: pointer;
     color: var(--color-grey-40);
-    font-size: 15px;
+    font-size: var(--font-size-small);
     line-height: 1;
     transition: color var(--duration-fast) var(--easing-default), transform var(--duration-fast) var(--easing-default);
   }
@@ -2755,7 +3320,7 @@
     all: unset;
     cursor: pointer;
     color: var(--color-grey-100);
-    background: var(--color-grey-15);
+    background: var(--color-grey-10);
     border: 1px solid var(--color-grey-30);
     border-radius: var(--radius-6);
     padding: 4px 10px;
@@ -2850,6 +3415,11 @@
     justify-content: center;
   }
 
+  .message-wrapper.compression-boundary-wrapper {
+    flex-direction: column;
+    align-items: center;
+  }
+
   .message-wrapper :global(.chat-message) {
     width: 100%;
   }
@@ -2860,11 +3430,14 @@
     border-radius: var(--radius-8);
   }
 
-  /* "Show earlier messages" toggle button for compressed chats.
+  /* Forgotten-message controls for compressed chats.
      Appears above the message list when a compression summary exists. */
   .forgotten-messages-toggle {
     display: flex;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
+    gap: var(--spacing-2);
     padding: 8px 0 4px;
   }
 
@@ -2876,7 +3449,7 @@
     font-size: var(--font-size-xxs);
     font-weight: 500;
     color: var(--color-grey-60, #888);
-    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+    background: var(--color-grey-10, rgba(255, 255, 255, 0.05));
     border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
     border-radius: var(--radius-8);
     cursor: pointer;
@@ -2886,6 +3459,20 @@
   .forgotten-messages-btn:hover {
     background: var(--color-grey-20, rgba(255, 255, 255, 0.08));
     color: var(--color-grey-80, #ccc);
+  }
+
+  .forgotten-messages-btn:disabled {
+    cursor: wait;
+    opacity: 0.6;
+  }
+
+  .forgotten-messages-note {
+    margin: 0;
+    max-width: min(520px, calc(100vw - 48px));
+    color: var(--color-grey-60, #8a8a8a);
+    font-size: var(--font-size-xxs);
+    line-height: 1.35;
+    text-align: center;
   }
 
   .forgotten-count {

@@ -29,7 +29,7 @@
 -->
 
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
@@ -221,6 +221,7 @@
     if (extracted) return extracted;
     return generateFilenameFromTitle(displayTitle);
   });
+  let downloadFilename = $derived((displayFilename || 'document').replace(/\.docx$/i, '') + '.docx');
 
   // Calculate word count from content if not provided
   let actualWordCount = $derived.by(() => {
@@ -255,6 +256,7 @@
   const PAGE_GAP = 32;
   const PAGE_MARGIN_Y = 96;
   const SPACER_HEIGHT = PAGE_MARGIN_Y + PAGE_GAP + PAGE_MARGIN_Y; // 224px
+  const DOWNLOAD_URL_REVOKE_DELAY_MS = 60_000;
 
   // =============================================
   // Zoom State
@@ -363,6 +365,9 @@
   let canvasScrollEl: HTMLDivElement | undefined = $state(undefined);
   let pageCount = $state(1);
   let artifactPageUrls = $state<Record<string, string>>({});
+  let preparedDocxDownloadUrl = $state<string | null>(null);
+  let preparedDocxDownloadKey = $state<string | null>(null);
+  let preparedDocxDownloadPromise = $state<Promise<Blob> | null>(null);
   let displayedArtifactPageUrls = $derived(
       Object.keys(artifactPageUrls).length > 0 ? artifactPageUrls : (previewPageUrls ?? {})
     );
@@ -381,6 +386,43 @@
       .catch((error) => {
         console.error('[DocsEmbedFullscreen] Failed to load DOCX preview pages:', error);
       });
+  });
+
+  $effect(() => {
+    const downloadKey = docxS3Key && aesKey ? `${docxS3Key}:${aesKey}` : null;
+    if (downloadKey === untrack(() => preparedDocxDownloadKey)) return;
+
+    const previousUrl = untrack(() => preparedDocxDownloadUrl);
+    if (previousUrl) URL.revokeObjectURL(previousUrl);
+    preparedDocxDownloadUrl = null;
+    preparedDocxDownloadKey = downloadKey;
+    preparedDocxDownloadPromise = null;
+    if (!docxS3Key || !aesKey) return;
+
+    let cancelled = false;
+    const promise = fetchAndDecryptDocArtifact(
+      docxS3Key,
+      aesKey,
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    );
+    preparedDocxDownloadPromise = promise;
+    promise
+      .then((docxBlob) => {
+        if (cancelled) return;
+        preparedDocxDownloadUrl = URL.createObjectURL(docxBlob);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error('[DocsEmbedFullscreen] Failed to prepare DOCX download:', error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  });
+
+  onDestroy(() => {
+    if (preparedDocxDownloadUrl) URL.revokeObjectURL(preparedDocxDownloadUrl);
   });
 
   // =============================================
@@ -614,6 +656,21 @@
   // Action Handlers
   // =============================================
 
+  function triggerBlobDownload(blob: Blob, downloadFilename: string): void {
+    const url = URL.createObjectURL(blob);
+    triggerPreparedDownloadUrl(url, downloadFilename);
+    window.setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_URL_REVOKE_DELAY_MS);
+  }
+
+  function triggerPreparedDownloadUrl(url: string, downloadFilename: string): void {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = downloadFilename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
   async function handleCopy() {
     try {
       const contentToCopy = piiRevealed && hasPII
@@ -635,22 +692,19 @@
     try {
       console.debug('[DocsEmbedFullscreen] Starting document download as .docx');
 
-      const downloadFilename = (displayFilename || 'document').replace(/\.docx$/i, '') + '.docx';
-
       if (docxS3Key && aesKey) {
-        const docxBlob = await fetchAndDecryptDocArtifact(
-          docxS3Key,
-          aesKey,
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        );
-        const url = URL.createObjectURL(docxBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = downloadFilename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        if (preparedDocxDownloadUrl) {
+          triggerPreparedDownloadUrl(preparedDocxDownloadUrl, downloadFilename);
+        } else {
+          const docxBlob = preparedDocxDownloadPromise
+            ? await preparedDocxDownloadPromise
+            : await fetchAndDecryptDocArtifact(
+                docxS3Key,
+                aesKey,
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              );
+          triggerBlobDownload(docxBlob, downloadFilename);
+        }
         notificationStore.success('Document downloaded successfully');
         return;
       }
@@ -694,14 +748,7 @@ ${downloadHtmlContent}
         margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
       }) as Blob;
 
-      const url = URL.createObjectURL(docxBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = downloadFilename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      triggerBlobDownload(docxBlob, downloadFilename);
 
       notificationStore.success('Document downloaded successfully');
     } catch (error) {
@@ -717,6 +764,8 @@ ${downloadHtmlContent}
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
+  downloadHref={preparedDocxDownloadUrl}
+  {downloadFilename}
   currentEmbedId={embedId}
   skillIconName={skillIconName}
   embedHeaderTitle={displayFilename}
@@ -737,7 +786,7 @@ ${downloadHtmlContent}
 >
   {#snippet content()}
     {#if Object.keys(displayedArtifactPageUrls).length > 0}
-      <div class="doc-viewer-canvas">
+      <div class="doc-viewer-canvas" data-testid="doc-artifact-pages" data-download-ready={preparedDocxDownloadUrl ? 'true' : 'false'}>
         <div
           class="doc-canvas-scroll"
           bind:this={canvasScrollEl}

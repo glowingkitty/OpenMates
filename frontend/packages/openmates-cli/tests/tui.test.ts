@@ -28,6 +28,7 @@ describe("CLI TUI defaults", () => {
     assert.match(output, /openmates chats new "Explain SQLite strict tables"/);
     assert.match(output, /openmates chats new "Review @\.\/src\/app\.ts"/);
     assert.match(output, /openmates embeds show <embed-id>/);
+    assert.match(output, /openmates workflows list/);
     assert.match(output, /openmates --help/);
   });
 });
@@ -152,5 +153,146 @@ describe("CLI TUI renderer", () => {
     const frame = renderTuiFrame(state, 80, 24);
 
     assert.match(frame, /> 16\. Example 15/);
+  });
+
+  it("renders workflow list and workflow run output summaries", () => {
+    const state = createInitialTuiState();
+    state.screen = "workflows";
+    state.workflows = [
+      {
+        id: "wf-rain",
+        title: "Daily rain check",
+        status: "active",
+        enabled: true,
+        trigger_summary: "Manual",
+        last_run_status: "completed",
+        run_content_retention: "last_5",
+        current_version_id: "v1",
+        created_at: 1,
+        updated_at: 2,
+      },
+    ];
+
+    const listFrame = renderTuiFrame(state, 96, 24);
+
+    assert.match(listFrame, /Workflows/);
+    assert.match(listFrame, /> Daily rain check \(enabled\) last: completed/);
+    assert.match(listFrame, /wf-rain/);
+    assert.match(listFrame, /Enter open/);
+
+    state.screen = "workflow";
+    state.activeWorkflow = {
+      ...(state.workflows[0] ?? {
+        id: "wf-rain",
+        title: "Daily rain check",
+        status: "active" as const,
+        enabled: true,
+        current_version_id: "v1",
+        created_at: 1,
+        updated_at: 2,
+      }),
+      graph: {
+        version: 1,
+        trigger_node_id: "trigger",
+        nodes: [
+          { id: "trigger", type: "manual_trigger", title: "Manual start", config: {} },
+          { id: "forecast", type: "app_skill_action", title: "Weather forecast", config: { app: "weather", skill: "forecast", input: { location: "Berlin" } } },
+          { id: "notify", type: "send_notification", title: "Notify me", config: { title: "Rain check" } },
+        ],
+        edges: [],
+      },
+    };
+    state.workflowRuns = [
+      {
+        id: "run-1",
+        workflow_id: "wf-rain",
+        version_id: "v1",
+        trigger_type: "manual",
+        status: "completed",
+        started_at: 10,
+        content_retention_mode: "last_5",
+        content_available: true,
+        content_storage: "durable",
+        node_runs: [
+          {
+            id: "node-run-1",
+            run_id: "run-1",
+            workflow_id: "wf-rain",
+            node_id: "forecast",
+            node_type: "app_skill",
+            status: "completed",
+            output_summary: { provider: "DWD", rainy: "false" },
+          },
+        ],
+      },
+    ];
+
+    const detailFrame = renderTuiFrame(state, 100, 28);
+
+    assert.match(detailFrame, /Workflow: Daily rain check/);
+    assert.match(detailFrame, /\[Graph\] {2}Runs/);
+    assert.match(detailFrame, /> \[manual trigger\] Manual start/);
+    assert.match(detailFrame, /\[app skill\] Weather forecast/);
+    assert.match(detailFrame, /g graph {3}r runs/);
+
+    state.workflowTab = "runs";
+    state.selectedWorkflowNodeIndex = 1;
+
+    const runsFrame = renderTuiFrame(state, 100, 32);
+
+    assert.match(runsFrame, /Graph {2}\[Runs\]/);
+    assert.match(runsFrame, /> run-1 {2}completed/);
+    assert.match(runsFrame, /Run graph: run-1 \(completed\)/);
+    assert.match(runsFrame, /> \[app skill\] Weather forecast \[completed\]/);
+    assert.match(runsFrame, /output: provider=DWD, rainy=false/);
+  });
+
+  it("renders task workspace list and detail actions", () => {
+    const state = createInitialTuiState();
+    state.screen = "tasks";
+    state.tasks = [
+      {
+        taskId: "task-1",
+        shortId: "OM-6",
+        title: "Ship CLI tasks",
+        description: "Cover terminal commands",
+        tags: [],
+        latestInstruction: "",
+        status: "in_progress",
+        assigneeType: "ai",
+        assigneeHash: null,
+        primaryChatId: "chat-1",
+        linkedProjectIds: [],
+        planId: null,
+        dueAt: null,
+        priority: 0,
+        position: 1,
+        queueState: "active",
+        blockedReasonCode: null,
+        aiExecutionState: "running",
+        version: 1,
+        encrypted: {} as never,
+      },
+    ];
+
+    const listFrame = renderTuiFrame(state, 96, 24);
+    assert.match(listFrame, /Tasks/);
+    assert.match(listFrame, /> OM-6 {2}in_progress {2}OpenMates {2}Ship CLI tasks/);
+    assert.match(listFrame, /Enter open/);
+
+    state.screen = "task";
+    state.activeTask = state.tasks[0] ?? null;
+    const detailFrame = renderTuiFrame(state, 96, 24);
+    assert.match(detailFrame, /Task: OM-6/);
+    assert.match(detailFrame, /Description: Cover terminal commands/);
+    assert.match(detailFrame, /c create/);
+    assert.match(detailFrame, /e edit/);
+    assert.match(detailFrame, /x delete/);
+    assert.match(detailFrame, /r reorder/);
+    assert.match(detailFrame, /s start/);
+    assert.match(detailFrame, /d done/);
+    assert.match(detailFrame, /b block/);
+    assert.match(detailFrame, /u unblock/);
+    assert.match(detailFrame, /k skip/);
   });
 });

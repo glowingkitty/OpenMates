@@ -303,6 +303,60 @@ class IssueTimelineResponse(BaseModel):
     generated_at: str
 
 
+def _escape_openobserve_sql_literal(value: str) -> str:
+    """Escape a string for use as a single-quoted OpenObserve SQL literal."""
+    return value.replace("'", "''")
+
+
+def _build_issue_timeline_sql_queries(issue_id: str, user_id: str = "") -> List[tuple[str, Optional[str], str]]:
+    """Build the fixed OpenObserve SQL queries used by the issue timeline endpoint."""
+    issue_id_esc = _escape_openobserve_sql_literal(issue_id)
+    search_terms = [issue_id_esc]
+    if user_id:
+        search_terms.append(_escape_openobserve_sql_literal(user_id))
+
+    like_clauses = " OR ".join(
+        f"message LIKE '%{term}%'" for term in search_terms
+    )
+
+    issue_report_sql = (
+        f"SELECT _timestamp, message, level "
+        f'FROM "client_issue_report" '
+        f"WHERE issue_id = '{issue_id_esc}' OR message LIKE '%{issue_id_esc}%' "
+        f"ORDER BY _timestamp ASC"
+    )
+    browser_console_sql = (
+        f"SELECT _timestamp, message, level "
+        f'FROM "client_console" '
+        f"WHERE {like_clauses} "
+        f"ORDER BY _timestamp ASC"
+    )
+    raw_container_sql = (
+        f"SELECT _timestamp, container, service, message, level "
+        f'FROM "default" '
+        f"WHERE ({like_clauses}) "
+        f"ORDER BY _timestamp ASC"
+    )
+    api_sql = (
+        f"SELECT _timestamp, container, service, message, level "
+        f'FROM "default" '
+        f"WHERE job = 'api-logs' AND ({like_clauses}) "
+        f"ORDER BY _timestamp ASC"
+    )
+
+    return [
+        (issue_report_sql, "browser", "client_issue_report"),
+        (browser_console_sql, "browser", "client_console"),
+        (raw_container_sql, None, "default"),
+        (api_sql, "api", "default"),
+    ]
+
+
+def _is_openobserve_missing_stream_response(status: int, body: str) -> bool:
+    """OpenObserve returns 400 for SQL searches against streams that do not exist yet."""
+    return status in {400, 404} and "stream not found" in body.lower()
+
+
 class InspectResponse(BaseModel):
     """Generic response model for inspection endpoints."""
     success: bool
@@ -740,9 +794,10 @@ async def get_issue_timeline(
 
     Anchors the time window to the issue's created_at timestamp and runs three parallel
     OpenObserve SQL queries:
-      1. Browser console snapshot: job=client-issue-report AND issue_id=<id>
-      2. Backend container logs: container-logs mentioning issue_id or user_id
-      3. API application logs: api-logs mentioning issue_id or user_id
+      1. Browser issue-report snapshot: client_issue_report tagged with issue_id
+      2. Browser console logs: client_console mentioning issue_id or user_id
+      3. Raw container stdout: default stream mentioning issue_id or user_id
+      4. Structured API logs: default stream job=api-logs mentioning issue_id or user_id
 
     Returns all events merged and sorted chronologically so the CLI can render a
     unified timeline without needing to decrypt the S3 YAML.
@@ -788,19 +843,7 @@ async def get_issue_timeline(
         end_us = now_us
 
     # 3. Run parallel OpenObserve SQL queries
-    def _sql_esc(s: str) -> str:
-        return s.replace("'", "''")
-
-    issue_id_esc = _sql_esc(issue_id)
-    search_terms = [issue_id_esc]
-    if user_id:
-        search_terms.append(_sql_esc(user_id))
-
-    like_clauses = " OR ".join(
-        f"log LIKE '%{t}%' OR message LIKE '%{t}%'" for t in search_terms
-    )
-
-    async def _query(sql: str) -> List[Dict[str, Any]]:
+    async def _query(sql: str, stream: str) -> List[Dict[str, Any]]:
         """Execute one SQL query against the local OpenObserve instance."""
         sql_body = sql.strip().rstrip(";")
         if " limit " not in sql_body.lower():
@@ -818,58 +861,32 @@ async def get_issue_timeline(
                     if resp.status == 200:
                         data = await resp.json()
                         return data.get("hits", [])
+                    error_text = await resp.text()
+                    if _is_openobserve_missing_stream_response(resp.status, error_text):
+                        return []
                     logger.warning(
-                        f"OpenObserve timeline query failed ({resp.status}): "
-                        f"{(await resp.text())[:200]}"
+                        f"OpenObserve timeline query failed (stream={stream}, status={resp.status}): "
+                        f"{error_text[:200]}"
                     )
                     return []
         except Exception as exc:
-            logger.warning(f"OpenObserve timeline query error: {exc}")
+            logger.warning(f"OpenObserve timeline query error (stream={stream}): {exc}")
             return []
 
-    browser_sql = (
-        f"SELECT _timestamp, message, level "
-        f'FROM "default" '
-        f"WHERE job = 'client-issue-report' AND issue_id = '{issue_id_esc}' "
-        f"ORDER BY _timestamp ASC"
-    )
-    container_sql = (
-        f"SELECT _timestamp, container, service, log, message, level "
-        f'FROM "default" '
-        f"WHERE job = 'container-logs' AND ({like_clauses}) "
-        f"ORDER BY _timestamp ASC"
-    )
-    api_sql = (
-        f"SELECT _timestamp, container, service, log, message, level "
-        f'FROM "default" '
-        f"WHERE job = 'api-logs' AND ({like_clauses}) "
-        f"ORDER BY _timestamp ASC"
-    )
-
-    browser_hits, container_hits, api_hits = await asyncio.gather(
-        _query(browser_sql),
-        _query(container_sql),
-        _query(api_sql),
-    )
+    timeline_queries = _build_issue_timeline_sql_queries(issue_id, user_id)
+    query_results = await asyncio.gather(*[_query(sql, stream) for sql, _, stream in timeline_queries])
 
     # 4. Normalise hits into IssueTimelineEvent objects
     raw_events: List[Dict[str, Any]] = []
 
-    for hit in browser_hits:
-        raw_events.append({
-            "ts_us":   int(hit.get("_timestamp", 0)),
-            "level":   (hit.get("level") or "info").lower(),
-            "source":  "browser",
-            "message": (hit.get("message") or "").strip()[:200],
-        })
-
-    for hit in container_hits + api_hits:
-        raw_events.append({
-            "ts_us":   int(hit.get("_timestamp", 0)),
-            "level":   (hit.get("level") or "info").lower(),
-            "source":  (hit.get("container") or hit.get("service") or "unknown"),
-            "message": (hit.get("message") or hit.get("log") or "").strip()[:200],
-        })
+    for (_, source_override, _), hits in zip(timeline_queries, query_results):
+        for hit in hits:
+            raw_events.append({
+                "ts_us":   int(hit.get("_timestamp", 0)),
+                "level":   (hit.get("level") or "info").lower(),
+                "source":  source_override or hit.get("container") or hit.get("service") or "unknown",
+                "message": (hit.get("message") or "").strip()[:200],
+            })
 
     # Deduplicate and sort
     seen: set = set()

@@ -36,7 +36,7 @@ embed_keys:
     
     key_type:
       type: string
-      note: "[Indexed] Type of key wrapper: 'master' (wrapped with user's master key), 'chat' (wrapped with chat key), or 'project' (wrapped with project key)."
+      note: "[Indexed] Type of key wrapper: 'master' (wrapped with user's master key), 'chat' (wrapped with chat key), 'project' (wrapped with project key), 'plan' (wrapped with plan key), or 'team' (wrapped with team key)."
     
     hashed_chat_id:
       type: string
@@ -45,10 +45,25 @@ embed_keys:
     hashed_project_id:
       type: string
       note: "[Indexed, Nullable] For key_type='project': SHA256(project_id) indicating which project key was used to wrap. Null for master/chat keys."
+
+    hashed_plan_id:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] For key_type='plan': SHA256(plan_id) indicating which plan key was used to wrap. Null for unrelated key types."
+
+    hashed_team_id:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] For key_type='team': SHA256(team_id) indicating which team key was used to wrap. Null for unrelated key types."
+
+    team_key_epoch:
+      type: integer
+      nullable: true
+      note: "Team key rotation epoch for key_type='team'. Not related to chat completion recovery epochs."
     
     encrypted_embed_key:
       type: string
-      note: "The embed's encryption key wrapped with the appropriate key. For key_type='master': AES(embed_key, master_key). For key_type='chat': AES(embed_key, chat_key). For key_type='project': AES(embed_key, project_key)."
+      note: "The embed's encryption key wrapped with the appropriate key. For key_type='master': AES(embed_key, master_key). For key_type='chat': AES(embed_key, chat_key). For key_type='project': AES(embed_key, project_key). For key_type='plan': AES(embed_key, plan_key). For key_type='team': AES(embed_key, team_key at team_key_epoch)."
     
     hashed_user_id:
       type: string

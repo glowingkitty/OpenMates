@@ -76,7 +76,7 @@ export interface MessageMatchSnippet {
   embedFocusIsActive?: boolean;
 }
 
-/** A single metadata snippet showing context around a search match in summary or tags */
+/** A single metadata snippet showing context around a search match in summary, tags, or draft preview */
 export interface MetadataMatchSnippet {
   chatId: string;
   /** The snippet text with context words around the match */
@@ -85,8 +85,8 @@ export interface MetadataMatchSnippet {
   matchStart: number;
   /** Length of the matched text within the snippet */
   matchLength: number;
-  /** Where the match was found: 'summary' or 'tags' */
-  matchSource: "summary" | "tags";
+  /** Where the match was found */
+  matchSource: "summary" | "tags" | "draft";
 }
 
 /** A chat search result containing title match info and message match snippets */
@@ -640,15 +640,14 @@ async function resolveEmbedText(
     });
 
     // --- Example chat embed path (unauthenticated users) ---
-    // Example chat embeds live in exampleChatStore (cleartext, separate from embedStore).
-    // They are not encrypted, so we parse the JSON content directly without TOON decoding.
+    // Example chat embeds live in exampleChatStore (cleartext, separate from embedStore),
+    // but their content is still TOON-encoded like regular embed rows.
     const demoEmbed = getExampleChatEmbed(embedId);
     if (demoEmbed) {
       try {
-        const decoded = JSON.parse(demoEmbed.content) as Record<
-          string,
-          unknown
-        >;
+        const { decodeToonContent } = await import("./embedResolver");
+        const decoded = await decodeToonContent(demoEmbed.content) as Record<string, unknown> | null;
+        if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) return null;
         const text = extractTextFromEmbed(normalizedType, decoded);
         if (!text) return null;
         const sourceLabel = EMBED_TYPE_LABELS[normalizedType] || "Embed";
@@ -837,14 +836,14 @@ const indexedChatIds = new Set<string>();
 
 /**
  * Metadata search index for expanded search (chats 101–1000).
- * Stores decrypted summary and tags for metadata-only chats so they
+ * Stores decrypted summary, tags, and draft previews for metadata-only chats so they
  * can be searched without loading messages from the server.
  *
- * Key: chatId, Value: { summary, tags } — already decrypted plaintext.
+ * Key: chatId, Value: { summary, tags, draftPreview } — already decrypted plaintext.
  */
 const metadataIndex = new Map<
   string,
-  { summary: string | null; tags: string[] | null }
+  { summary: string | null; tags: string[] | null; draftPreview: string | null }
 >();
 
 /** Track which chats have had their metadata indexed */
@@ -1021,6 +1020,7 @@ async function indexChatMetadata(chat: Chat): Promise<void> {
       metadataIndex.set(chat.chat_id, {
         summary: metadata.summary,
         tags: metadata.tags,
+        draftPreview: metadata.draftPreview,
       });
     }
     indexedMetadataChatIds.add(chat.chat_id);
@@ -1086,7 +1086,7 @@ export async function warmUpMetadataSearchIndex(chats: Chat[]): Promise<void> {
 }
 
 /**
- * Search metadata (summary + tags) for a single chat using the metadataIndex.
+ * Search metadata (summary + tags + draft preview) for a single chat using the metadataIndex.
  * Used for metadata-only chats that have been pre-indexed.
  */
 function searchMetadataInChat(
@@ -1095,11 +1095,17 @@ function searchMetadataInChat(
 ): MetadataMatchSnippet[] {
   const meta = metadataIndex.get(chatId);
   if (!meta) return [];
-  return searchMetadataInline(chatId, query, meta.summary, meta.tags);
+  return searchMetadataInline(
+    chatId,
+    query,
+    meta.summary,
+    meta.tags,
+    meta.draftPreview,
+  );
 }
 
 /**
- * Search metadata (summary + tags) inline using provided values.
+ * Search metadata (summary + tags + draft preview) inline using provided values.
  * Shared implementation used by both metadataIndex lookup and inline cache search.
  */
 function searchMetadataInline(
@@ -1107,6 +1113,7 @@ function searchMetadataInline(
   query: string,
   summary: string | null,
   tags: string[] | null,
+  draftPreview: string | null = null,
 ): MetadataMatchSnippet[] {
   const snippets: MetadataMatchSnippet[] = [];
   const lowerQuery = query.toLowerCase();
@@ -1145,6 +1152,27 @@ function searchMetadataInline(
         });
         break; // One tag match is sufficient
       }
+    }
+  }
+
+  // Search in unsent draft previews so draft-only chats without a title/message
+  // remain discoverable across CLI, web, and cold-boot sync paths.
+  if (draftPreview) {
+    const lowerDraftPreview = draftPreview.toLowerCase();
+    const idx = lowerDraftPreview.indexOf(lowerQuery);
+    if (idx !== -1) {
+      const { snippet, snippetMatchStart, snippetMatchLength } = buildSnippet(
+        draftPreview,
+        idx,
+        query.length,
+      );
+      snippets.push({
+        chatId,
+        snippet,
+        matchStart: snippetMatchStart,
+        matchLength: snippetMatchLength,
+        matchSource: "draft",
+      });
     }
   }
 
@@ -1528,8 +1556,29 @@ export async function search(
   );
 
   if (unindexedChats.length > 0) {
-    // Index unindexed chats — this is the "cold start" path
-    await Promise.all(unindexedChats.map((c) => indexChatMessages(c.chat_id)));
+    const publicUnindexedChats = unindexedChats.filter((c) =>
+      isPublicChat(c.chat_id),
+    );
+    const privateUnindexedChats = unindexedChats.filter(
+      (c) => !isPublicChat(c.chat_id),
+    );
+
+    // Public/example chats can contain many embed references. Keep that indexing
+    // in the background so draft-preview and title matches can render first.
+    if (publicUnindexedChats.length > 0 && !warmUpInProgress) {
+      warmUpSearchIndex(publicUnindexedChats.map((c) => c.chat_id)).catch((error) => {
+        console.error("[SearchService] Error warming public search index:", error);
+      });
+    }
+
+    if (privateUnindexedChats.length > 0 && !warmUpInProgress) {
+      // Index unindexed private chats — this is the "cold start" path. When
+      // background warm-up is already running, return title/metadata matches
+      // immediately instead of duplicating expensive indexing in the foreground.
+      await Promise.all(
+        privateUnindexedChats.map((c) => indexChatMessages(c.chat_id)),
+      );
+    }
   }
 
   // Lazy-index metadata for metadata-only chats not yet indexed
@@ -1590,6 +1639,7 @@ export async function search(
           trimmedQuery,
           meta.summary,
           meta.tags,
+          meta.draftPreview,
         );
       }
     }

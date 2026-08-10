@@ -418,11 +418,14 @@ class EmailTemplateService:
                 'community_share_notification',
                 'password-security-reminder',
                 'post-purchase-security-setup',
-                'incomplete-signup-deletion-reminder', 'incomplete-signup-account-deleted',
+                'bank-transfer-amount-notice',
+                'bank-transfer-duplicate-reference',
+                'inactive-account-deletion-reminder', 'inactive-account-deleted',
                 'account-deletion-warning-correction',
                 'storage-billing-failed-1', 'storage-billing-failed-2',
                 'storage-billing-failed-3', 'storage-files-deleted',
                 'openrouter_model_watch', 'free-testing-budget-exhausted',
+                'billing-processing-error',
             }
             is_transactional = template in transactional_templates
             

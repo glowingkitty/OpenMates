@@ -443,16 +443,25 @@
   // Store cached metadata at component level
   let cachedMetadata: DecryptedChatMetadata | null = $state(null);
 
+  function normalizePlaintextChatTitle(title: string | null | undefined): string | null {
+    const trimmed = title?.trim();
+    if (!trimmed || trimmed.toLowerCase() === 'untitled chat') return null;
+    return trimmed;
+  }
+
   // Active focus mode badge: derived from cachedMetadata.activeFocusId.
   // Shows a small circle in the bottom-right of the category circle when a focus mode is active.
   // Format of activeFocusId: "{app_id}-{focus_mode_id}" e.g. "jobs-career_insights"
   let liveActiveFocusId = $derived(chat ? ($activeChatFocusStore[chat.chat_id] ?? null) : null);
   let activeFocusId = $derived(cachedMetadata?.activeFocusId ?? liveActiveFocusId);
   let activeFocusBadgeAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
+  let plaintextChatTitle = $derived(normalizePlaintextChatTitle(chat?.title));
+  let messageChatTitle = $state<string | null>(null);
+  let displayChatTitle = $derived(cachedMetadata?.title ?? messageChatTitle ?? plaintextChatTitle);
   
   // CRITICAL: Track if we're waiting for title (reactive variable for template)
   // This ensures we keep showing "Processing..." until title is ready
-  let isWaitingForTitle = $derived(!cachedMetadata?.title && !chat.title && 
+  let isWaitingForTitle = $derived(!displayChatTitle && 
                                     (chat.waiting_for_metadata === true || 
                                      (lastMessage && (lastMessage.status === 'processing' || lastMessage.status === 'sending'))));
 
@@ -462,9 +471,12 @@
       lastMessage = null;
       displayLabel = '';
       displayText = '';
+      messageChatTitle = null;
       cachedMetadata = null;
       return;
     }
+
+    messageChatTitle = null;
 
     // INCOGNITO CHAT HANDLING: Incognito chats store title/category/icon directly (no encryption,
     // no IndexedDB). All metadata is read directly from the chat object, and messages are loaded
@@ -733,7 +745,18 @@
           }
         }
       }
-      
+
+      messageChatTitle = normalizePlaintextChatTitle(lastMessage?.current_chat_title);
+      if (!messageChatTitle && !cachedMetadata?.title && currentChat.chat_id === activeChatId) {
+        try {
+          const messages = await chatDB.getMessagesForChat(currentChat.chat_id);
+          const titledMessage = [...messages].reverse().find((message) => message.current_chat_title);
+          messageChatTitle = normalizePlaintextChatTitle(titledMessage?.current_chat_title);
+        } catch (error) {
+          console.debug(`[Chat] Error loading message title fallback for ${currentChat.chat_id}:`, error);
+        }
+      }
+
       // CRITICAL: Use cached metadata for category/icon to avoid repeated decryption
       // The chatMetadataCache already decrypts and caches category/icon, so use it!
       // This ensures consistent behavior and avoids redundant decryption calls
@@ -835,7 +858,10 @@
         : extractTextFromTiptap(lastMessage.content);
     } else if (draftTextContent) {
       // If there's a draft, display draft information
-      if (cachedMetadata?.title) {
+      if (isIdeaBucketChat) {
+        displayLabel = $text('chat.ideabucket_draft');
+        displayText = draftTextContent;
+      } else if (displayChatTitle) {
         // For titled chats with draft, use specific translation that includes the beginning
         displayLabel = $text('enter_message.draft_with_beginning').replace('{draft_beginning}', truncateText(draftTextContent, 30));
         displayText = ''; // The label itself contains the preview for this case
@@ -1077,6 +1103,7 @@
   let isActive = $derived(activeChatId === chat?.chat_id);
   let isSharedByOthers = $derived(!!chat?.is_shared_by_others);
   let isOwnerShared = $derived(!!chat?.is_shared && !isSharedByOthers);
+  let isIdeaBucketChat = $derived(chat?.ideabucket === true);
   
   // Get unread count from store for this chat
   let unreadCount = $derived($unreadMessagesStore.unreadCounts.get(chat?.chat_id || '') || 0);
@@ -1130,14 +1157,14 @@
     !!chat?.encrypted_draft_preview ||
     !!chat?.encrypted_draft_md
   );
-  let isDraftOnly = $derived(chat && hasDraftIndicator && !cachedMetadata?.title && !chat.title && (!lastMessage || lastMessage === null));
+  let isDraftOnly = $derived(chat && hasDraftIndicator && !displayChatTitle && (!lastMessage || lastMessage === null));
   
   // Detect if this is a chat waiting for metadata (new chat that just sent first message)
   // These chats should show message content with status indicator, similar to draft-only but with message
   // CRITICAL: Also check if title is missing even if waiting_for_metadata was cleared (cache might not be updated yet)
   let isWaitingForMetadata = $derived(chat && 
     ((chat.waiting_for_metadata === true) || 
-     (!cachedMetadata?.title && !chat.title && lastMessage && (lastMessage.status === 'processing' || lastMessage.status === 'sending'))) 
+     (!displayChatTitle && lastMessage && (lastMessage.status === 'processing' || lastMessage.status === 'sending'))) 
     && lastMessage);
 
   // Context menu handlers
@@ -2065,13 +2092,16 @@
             <span class="draft-content-as-title">{truncateText(displayText, 60)}</span>
           {/if}
         </div>
-      {:else if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || isWaitingForTitle) && !currentTypingMateInfo && !cachedMetadata?.title && !chat.title}
+      {:else if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || isWaitingForTitle) && !currentTypingMateInfo && !displayChatTitle}
         <!-- Status-only layout: only shown when we genuinely have no title yet.
-             Once title/category/icon arrive (cachedMetadata.title or chat.title is set),
+             Once title/category/icon arrive, 
              we fall through to the chat-with-profile layout so the title is shown immediately
              even while the AI is still processing the response. -->
         <div class="status-only-preview">
           {#if displayLabel}<span class="status-label">{displayLabel}</span>{/if}
+          {#if isIdeaBucketChat}
+            <span class="ideabucket-chat-badge" data-testid="ideabucket-chat-badge">{$text('chat.ideabucket_badge')}</span>
+          {/if}
           {#if displayText}<span class="status-content-preview">{truncateText(displayText, 60)}</span>{/if}
         </div>
       {:else if isWaitingForMetadata}
@@ -2081,12 +2111,18 @@
           {#if displayLabel}
             <span class="status-message">{displayLabel}</span>
           {/if}
+          {#if isIdeaBucketChat}
+            <span class="ideabucket-chat-badge" data-testid="ideabucket-chat-badge">{$text('chat.ideabucket_badge')}</span>
+          {/if}
           <span class="draft-content-as-title">{truncateText(displayText, 60)}</span>
         </div>
       {:else if isDraftOnly}
         <!-- Draft-only chat: left-aligned without mate profile -->
         <div class="draft-only-layout">
-          <span class="status-message">{$text('enter_message.draft')}</span>
+          <span class="status-message" data-testid={isIdeaBucketChat ? 'ideabucket-chat-list-label' : undefined}>{isIdeaBucketChat ? $text('chat.ideabucket_draft') : $text('enter_message.draft')}</span>
+          {#if isIdeaBucketChat}
+            <span class="ideabucket-chat-badge" data-testid="ideabucket-chat-badge">{$text('chat.ideabucket_badge')}</span>
+          {/if}
           <span class="draft-content-as-title">{truncateText(draftTextContent, 60)}</span>
         </div>
       {:else}
@@ -2259,9 +2295,9 @@
                 <!-- Search result mode: use pre-highlighted HTML title (has <mark> tags for matched text) -->
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <span class="chat-title" data-testid="chat-title">{@html highlightedTitle}</span>
-              {:else if chat.title || cachedMetadata?.title}
+              {:else if displayChatTitle}
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                <span class="chat-title" data-testid="chat-title">{@html chat.title || cachedMetadata?.title}</span>
+                <span class="chat-title" data-testid="chat-title">{@html displayChatTitle}</span>
               {:else if isWaitingForTitle}
                 <!-- Show "Processing..." as title when waiting for metadata -->
                 <span class="chat-title processing-title" data-testid="chat-title">{$text('common.processing')}</span>
@@ -2275,6 +2311,9 @@
                   <span class="clickable-icon icon_pin" title="Pinned"></span>
                 </span>
               {/if}
+              {#if isIdeaBucketChat}
+                <span class="ideabucket-chat-badge" data-testid="ideabucket-chat-badge">{$text('chat.ideabucket_badge')}</span>
+              {/if}
               <!-- Incognito label badge removed: incognito chats are now grouped under their own
                    "INCOGNITO" sidebar section header, making per-chat badges redundant. -->
             </div>
@@ -2286,7 +2325,7 @@
                 {typingIndicatorInTitleView}
               </span>
             {:else if displayLabel && !currentTypingMateInfo} 
-              <span class="status-message">
+              <span class="status-message" data-testid={isIdeaBucketChat ? 'ideabucket-chat-list-label' : undefined}>
                 {displayLabel}{#if displayText && displayLabel !== $text('enter_message.draft_with_beginning').replace('{draft_beginning}', truncateText(draftTextContent, 30))}&nbsp;{truncateText(displayText, 60)}{/if}
               </span>
             {:else if displayText && !currentTypingMateInfo} 
@@ -2436,6 +2475,19 @@
     border-radius: 2px;
     position: relative;
     flex-shrink: 0;
+  }
+
+  .ideabucket-chat-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 1px 7px;
+    font-size: var(--font-size-tiny);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: white;
+    background: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #f59e0b 100%);
+    box-shadow: 0 0 10px rgba(219, 39, 119, 0.25);
   }
 
 

@@ -112,6 +112,32 @@ export function buildPrivacyPolicyContent(
   lines.push(`*${t("legal.privacy.last_updated")}: ${formattedDate}*`);
   lines.push("");
 
+  const quickAnswerItems = [
+    "employee_access",
+    "device_only_encryption",
+    "recent_context_cache",
+    "storage_protection",
+    "third_party_providers",
+    "model_training",
+    "placeholder_protection",
+    "logs_diagnostics",
+    "deletion",
+    "open_source",
+    "sensitive_topics",
+    "highest_privacy",
+  ];
+
+  lines.push(`## ${t("legal.privacy.quick_answers.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.quick_answers.intro"));
+  lines.push("");
+  for (const item of quickAnswerItems) {
+    lines.push(`### ${t(`legal.privacy.quick_answers.${item}.question`)}`);
+    lines.push("");
+    lines.push(t(`legal.privacy.quick_answers.${item}.answer`));
+    lines.push("");
+  }
+
   // ──────────────────────────────────────────────────────────────
   // Section 1 — Overview
   // ──────────────────────────────────────────────────────────────
@@ -167,6 +193,7 @@ export function buildPrivacyPolicyContent(
     openrouter: "legal.privacy.providers.ai_models.openrouter.heading",
     fal: "legal.privacy.providers.image_generation.fal.heading",
     recraft: "legal.privacy.providers.image_generation.recraft.heading",
+    hi3d: "legal.privacy.providers.model_generation.hi3d.heading",
     google_vertex_ai: "legal.privacy.providers.music_generation.google_vertex_ai.heading",
   };
 
@@ -266,7 +293,21 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.image_generation.recraft", privacyPolicyLinks.recraft);
   renderProvider("legal.privacy.providers.image_generation.bfl", privacyPolicyLinks.bfl);
 
-  // Group E — Music generation
+  // Group D2 — Audio generation and text-to-speech
+  lines.push(`### ${t("legal.privacy.providers.audio_generation.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.audio_generation.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.audio_generation.elevenlabs", privacyPolicyLinks.elevenLabs);
+
+  // Group E — 3D model generation
+  lines.push(`### ${t("legal.privacy.providers.model_generation.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.model_generation.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.model_generation.hi3d", privacyPolicyLinks.hi3d);
+
+  // Group F — Music generation
   lines.push(`### ${t("legal.privacy.providers.music_generation.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.music_generation.description"));
@@ -289,8 +330,10 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   renderProvider("legal.privacy.providers.web_and_search.brave", privacyPolicyLinks.brave);
   renderProvider("legal.privacy.providers.web_and_search.firecrawl", privacyPolicyLinks.firecrawl);
+  renderProvider("legal.privacy.providers.web_and_search.iconify", privacyPolicyLinks.iconify);
   renderProvider("legal.privacy.providers.web_and_search.webshare", privacyPolicyLinks.webshare);
   renderProvider("legal.privacy.providers.web_and_search.google_maps", privacyPolicyLinks.googleMaps);
+  renderProvider("legal.privacy.providers.web_and_search.geoapify", privacyPolicyLinks.geoapify);
   renderProvider("legal.privacy.providers.web_and_search.youtube", privacyPolicyLinks.youtube);
 
   // Group F — Travel
@@ -349,7 +392,8 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   renderProvider("legal.privacy.providers.electronics.ti_webench", privacyPolicyLinks.tiWebench);
 
-  // Group M — Mail
+  // Group M — Mail. Proton Mail Bridge is rendered through the Proton provider
+  // entry because the CLI connector keeps Bridge credentials local.
   lines.push(`### ${t("legal.privacy.providers.mail.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.mail.description"));

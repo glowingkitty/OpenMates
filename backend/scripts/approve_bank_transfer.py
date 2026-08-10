@@ -10,6 +10,10 @@ not simulate a Revolut webhook, so no Revolut webhook secret is required.
 Run inside the API container:
     docker exec api python /app/backend/scripts/approve_bank_transfer.py \
       --reference OM-2026-ABCD1234 --received-cents 5000 --apply
+
+Show the support contact for a transfer without changing data:
+    docker exec api python /app/backend/scripts/approve_bank_transfer.py \
+      --reference OM-2026-ABCD1234 --show-contact-email
 """
 
 from __future__ import annotations
@@ -36,6 +40,8 @@ if "/app/backend" not in sys.path:
 from backend.core.api.app.services.cache import CacheService  # noqa: E402
 from backend.core.api.app.services.compliance import ComplianceService  # noqa: E402
 from backend.core.api.app.services.directus.directus import DirectusService  # noqa: E402
+from backend.core.api.app.services.team_billing_service import TeamBillingService  # noqa: E402
+from backend.core.api.app.utils.bank_transfer_references import bank_transfer_reference_lookup_variants  # noqa: E402
 from backend.core.api.app.utils.encryption import EncryptionService  # noqa: E402
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
 
@@ -45,6 +51,7 @@ logger = logging.getLogger("approve_bank_transfer")
 AMOUNT_TOLERANCE_CENTS = 50
 PAID_SIGNUP_COMPLETION_LAST_OPENED = "/chat/new"
 PENDING_BANK_TRANSFERS_COLLECTION = "pending_bank_transfers"
+MANUAL_APPROVAL_IN_PROGRESS_STATUS = "admin_review"
 INVOICE_SENDER_SECRET_PATH = "kv/data/providers/invoice_sender"
 PURCHASE_CONFIRMATION_TASK = (
     "app.tasks.email_tasks.purchase_confirmation_email_task."
@@ -65,17 +72,19 @@ def _paid_signup_completion_update_payload(**extra_fields: Any) -> dict[str, Any
 
 
 async def _fetch_order(directus: DirectusService, reference: str) -> dict[str, Any]:
-    rows = await directus.get_items(
-        PENDING_BANK_TRANSFERS_COLLECTION,
-        params={
-            "filter[reference][_eq]": reference,
-            "limit": 1,
-        },
-        no_cache=True,
-    )
-    if not rows:
-        raise ApprovalError(f"No bank transfer order found for reference '{reference}'.")
-    return rows[0]
+    for candidate_reference in bank_transfer_reference_lookup_variants(reference):
+        rows = await directus.get_items(
+            PENDING_BANK_TRANSFERS_COLLECTION,
+            params={
+                "filter[reference][_eq]": candidate_reference,
+                "limit": 1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        if rows:
+            return rows[0]
+    raise ApprovalError(f"No bank transfer order found for reference '{reference}'.")
 
 
 async def _update_order(
@@ -83,9 +92,47 @@ async def _update_order(
     item_id: str,
     data: dict[str, Any],
 ) -> None:
-    updated = await directus.update_item(PENDING_BANK_TRANSFERS_COLLECTION, item_id, data)
+    updated = await directus.update_item(
+        PENDING_BANK_TRANSFERS_COLLECTION,
+        item_id,
+        data,
+        admin_required=True,
+    )
     if not updated:
         raise ApprovalError(f"Failed to update bank transfer Directus item {item_id}.")
+    if "status" in data:
+        rows = await directus.get_items(
+            PENDING_BANK_TRANSFERS_COLLECTION,
+            params={
+                "filter[id][_eq]": item_id,
+                "fields": "id,status",
+                "limit": 1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        persisted_status = rows[0].get("status") if rows else None
+        if persisted_status != data["status"]:
+            raise ApprovalError(
+                f"Bank transfer Directus item {item_id} status update did not persist: "
+                f"expected '{data['status']}', got '{persisted_status}'."
+            )
+
+
+async def _mark_manual_approval_started(
+    directus: DirectusService,
+    item_id: str,
+    received_cents: int,
+) -> None:
+    await _update_order(
+        directus,
+        item_id,
+        {
+            "status": MANUAL_APPROVAL_IN_PROGRESS_STATUS,
+            "received_amount_cents": received_cents,
+            "admin_note": "Manual approval in progress via approve_bank_transfer.py",
+        },
+    )
 
 
 async def _get_user_profile(
@@ -129,7 +176,7 @@ async def _sender_details(secrets: SecretsManager) -> dict[str, str]:
     }
 
 
-def _print_order(order: dict[str, Any], received_cents: int) -> None:
+def _print_order(order: dict[str, Any], received_cents: int | None) -> None:
     print("\nBank transfer order")
     print(f"  Directus ID: {order.get('id')}")
     print(f"  Order ID:    {order.get('order_id')}")
@@ -137,9 +184,35 @@ def _print_order(order: dict[str, Any], received_cents: int) -> None:
     print(f"  Status:      {order.get('status')}")
     print(f"  Type:        {order.get('order_type', 'credit_purchase')}")
     print(f"  User ID:     {order.get('user_id')}")
+    if order.get("team_id"):
+        print(f"  Team ID:     {order.get('team_id')}")
     print(f"  Expected:    €{int(order.get('amount_expected_cents') or 0) / 100:.2f}")
-    print(f"  Received:    €{received_cents / 100:.2f}")
+    if received_cents is not None:
+        print(f"  Received:    €{received_cents / 100:.2f}")
     print(f"  Credits:     {order.get('credits_amount')}")
+
+
+async def _decrypt_contact_email(
+    directus: DirectusService,
+    encryption: EncryptionService,
+    order: dict[str, Any],
+) -> str:
+    user_id = order.get("user_id")
+    email_encryption_key = order.get("email_encryption_key")
+    if not user_id:
+        raise ApprovalError("Bank transfer order has no user_id.")
+    if not email_encryption_key:
+        raise ApprovalError("Bank transfer order has no email_encryption_key.")
+
+    user_fields = await directus.get_user_fields_direct(user_id, ["encrypted_email_address"])
+    encrypted_email = (user_fields or {}).get("encrypted_email_address")
+    if not encrypted_email:
+        raise ApprovalError(f"User {user_id} has no encrypted_email_address.")
+
+    contact_email = await encryption.decrypt_with_email_key(encrypted_email, email_encryption_key)
+    if not contact_email or "@" not in contact_email:
+        raise ApprovalError("Could not decrypt a valid contact email for this bank transfer.")
+    return contact_email
 
 
 async def approve(args: argparse.Namespace) -> int:
@@ -155,6 +228,12 @@ async def approve(args: argparse.Namespace) -> int:
         order = await _fetch_order(directus, args.reference)
         _print_order(order, args.received_cents)
 
+        if args.show_contact_email:
+            contact_email = await _decrypt_contact_email(directus, encryption, order)
+            print("\nContact email")
+            print(f"  Email:       {contact_email}")
+            return 0
+
         item_id = order.get("id")
         order_id = order.get("order_id")
         reference = order.get("reference")
@@ -166,10 +245,10 @@ async def approve(args: argparse.Namespace) -> int:
 
         if not item_id or not order_id or not reference:
             raise ApprovalError("Bank transfer order is missing id/order_id/reference.")
-        if order_type != "credit_purchase":
+        if order_type not in {"credit_purchase", "team_credit_purchase"}:
             raise ApprovalError(
                 f"Order {order_id} is '{order_type}', not a credit purchase. "
-                "This script only grants user credits."
+                "This script only grants user or team credits."
             )
         if status == "completed":
             print("\nAlready completed. No credits granted.")
@@ -180,6 +259,8 @@ async def approve(args: argparse.Namespace) -> int:
             raise ApprovalError(f"Order {order_id} has no user_id.")
         if credits_amount <= 0:
             raise ApprovalError(f"Order {order_id} has invalid credits_amount={credits_amount}.")
+        if args.received_cents is None:
+            raise ApprovalError("Received amount is required for approval.")
 
         diff = args.received_cents - expected_cents
         if abs(diff) > AMOUNT_TOLERANCE_CENTS and not args.allow_amount_mismatch:
@@ -189,6 +270,70 @@ async def approve(args: argparse.Namespace) -> int:
                 f"received €{args.received_cents / 100:.2f}. "
                 "Use --allow-amount-mismatch only after manual review."
             )
+
+        if order_type == "team_credit_purchase":
+            team_id = order.get("team_id")
+            if not team_id:
+                raise ApprovalError(f"Team credit order {order_id} has no team_id.")
+
+            print("\nTeam credit change")
+            print(f"  Add:         {credits_amount}")
+            print(f"  Team ID:     {team_id}")
+
+            if not args.apply:
+                print("\nDry run only. Re-run with --apply to approve and grant team credits.")
+                return 0
+
+            await _mark_manual_approval_started(directus, item_id, args.received_cents)
+            completed_at = datetime.now(timezone.utc).isoformat()
+            await TeamBillingService(directus).add_credits(
+                team_id=str(team_id),
+                actor_user_id=str(user_id),
+                event_id=f"bank-transfer:{order_id}",
+                credits=credits_amount,
+                event_type="purchase",
+                encrypted_metadata=None,
+            )
+            order_update = {
+                "status": "completed",
+                "completed_at": completed_at,
+                "received_amount_cents": args.received_cents,
+                "admin_note": "Manually approved team credits via approve_bank_transfer.py",
+            }
+            if args.bank_transaction_id:
+                order_update["revolut_transaction_id"] = args.bank_transaction_id
+            await _update_order(directus, item_id, order_update)
+            await cache.update_bank_transfer_status(
+                order_id=order_id,
+                reference=reference,
+                status="completed",
+                extra_fields={
+                    "completed_at": completed_at,
+                    "received_amount_cents": args.received_cents,
+                },
+            )
+            await cache.increment_stat("income_eur_cents", args.received_cents)
+            await cache.increment_stat("credits_sold", credits_amount)
+            await cache.update_liability(credits_amount)
+            await cache.increment_stat("purchase_count")
+            await cache.increment_json_stat("purchases_by_provider", "team_bank_transfer_manual")
+            ComplianceService.log_financial_transaction(
+                user_id=user_id,
+                transaction_type="team_credit_purchase",
+                amount=credits_amount,
+                currency="eur",
+                status="success",
+                details={
+                    "order_id": order_id,
+                    "team_id": team_id,
+                    "provider": "team_bank_transfer_manual",
+                    "received_amount_cents": args.received_cents,
+                    "bank_transaction_id": args.bank_transaction_id,
+                },
+            )
+            print("\nApproved. Team credits granted and bank transfer marked completed.")
+            print("Confirmation email skipped for team credit orders until team invoices are implemented.")
+            return 0
 
         user_profile = await _get_user_profile(directus, cache, user_id)
         current_credits = int(user_profile["credits"])
@@ -204,6 +349,7 @@ async def approve(args: argparse.Namespace) -> int:
             print("\nDry run only. Re-run with --apply to approve and grant credits.")
             return 0
 
+        await _mark_manual_approval_started(directus, item_id, args.received_cents)
         completed_at = datetime.now(timezone.utc).isoformat()
         encrypted_credits, _ = await encryption.encrypt_with_user_key(
             str(new_total_credits),
@@ -306,13 +452,23 @@ def parse_args() -> argparse.Namespace:
         description="Manually approve a pending bank transfer credit purchase.",
     )
     parser.add_argument("--reference", required=True, help="Payment reference, e.g. OM-2026-ABCD1234")
-    parser.add_argument("--received-cents", required=True, type=int, help="Amount received in cents, e.g. 5000 for €50.00")
+    parser.add_argument("--received-cents", type=int, help="Amount received in cents, e.g. 5000 for €50.00")
     parser.add_argument("--bank-transaction-id", help="Optional bank/Revolut transaction ID for audit trail")
     parser.add_argument("--allow-amount-mismatch", action="store_true", help="Approve even when outside the ±€0.50 tolerance")
     parser.add_argument("--no-email", action="store_true", help="Do not queue the purchase confirmation email")
+    parser.add_argument(
+        "--show-contact-email",
+        action="store_true",
+        help="Print the decrypted contact email for the transfer and exit without changing data",
+    )
     parser.add_argument("--apply", action="store_true", help="Actually grant credits and complete the order")
     parser.add_argument("--verbose", action="store_true", help="Enable info logging")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.show_contact_email and args.apply:
+        parser.error("--show-contact-email cannot be combined with --apply")
+    if not args.show_contact_email and args.received_cents is None:
+        parser.error("--received-cents is required unless --show-contact-email is used")
+    return args
 
 
 if __name__ == "__main__":

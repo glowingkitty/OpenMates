@@ -32,10 +32,12 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	assertNoMissingTranslations,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
@@ -85,7 +87,7 @@ async function createTestChat(
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 	await messageEditor.click();
-	await page.keyboard.type(message);
+	await page.keyboard.type(withMockMarker(message, 'chat_flow_capital', 'instant'));
 
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
@@ -94,19 +96,32 @@ async function createTestChat(
 
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
 	// Wait for AI response so the chat has content
-	const assistantResponse = page.getByTestId('message-assistant');
-	await expect(assistantResponse.last()).toBeVisible({ timeout: 45000 });
+	await waitForAssistantMessage(page, { which: 'last', timeout: 60000, logCheckpoint });
 	await waitForChatSettled(page);
 	await page.waitForTimeout(3000); // Allow title to generate
 }
 
 /** Ensure sidebar is open (on narrow viewports it's closed by default). */
 async function ensureSidebarOpen(page: any): Promise<void> {
-	const toggle = page.locator('[data-testid="sidebar-toggle"]');
-	if (await toggle.isVisible().catch(() => false)) {
-		await toggle.click();
-		await page.waitForTimeout(1000);
+	const activityHistory = page.getByTestId('activity-history-wrapper');
+	if (await activityHistory.isVisible({ timeout: 1000 }).catch(() => false)) {
+		return;
 	}
+
+	const toggle = page.locator('[data-testid="sidebar-toggle"]');
+	if (!(await toggle.isVisible({ timeout: 5000 }).catch(() => false))) {
+		return;
+	}
+
+	const dismissButtons = page.getByRole('button', { name: /dismiss notification/i });
+	for (let i = 0; i < 5; i += 1) {
+		const dismissButton = dismissButtons.first();
+		if (!(await dismissButton.isVisible({ timeout: 500 }).catch(() => false))) break;
+		await dismissButton.dispatchEvent('click').catch(() => undefined);
+	}
+
+	await toggle.click({ timeout: 5000 });
+	await expect(activityHistory).toBeVisible({ timeout: 10000 });
 }
 
 // ---------------------------------------------------------------------------
@@ -237,12 +252,13 @@ test('marks a chat as unread showing unread badge, then marks as read removing b
 	await ensureSidebarOpen(page);
 	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
+	const chatId = await activeChatItem.getAttribute('data-chat-id');
+	if (!chatId) throw new Error('Active chat item is missing data-chat-id');
+	const targetChatItem = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
+	const targetUnreadBadge = targetChatItem.getByTestId('unread-badge');
 
 	// Verify no unread badge initially (active chat is read by default)
-	// Note: badge may appear inside active chat item OR the item may lose .active after context menu actions.
-	// We scope to any .unread-badge within .chat-item-wrapper for robustness.
-	const unreadBadgeInPage = page.getByTestId('chat-item-wrapper').locator('[data-testid="unread-badge"]').first();
-	const hasBadgeInitially = await unreadBadgeInPage.isVisible({ timeout: 2000 }).catch(() => false);
+	const hasBadgeInitially = await targetUnreadBadge.isVisible({ timeout: 2000 }).catch(() => false);
 	log(`Unread badge initially visible: ${hasBadgeInitially}`);
 
 	// --- MARK UNREAD ---
@@ -256,11 +272,9 @@ test('marks a chat as unread showing unread badge, then marks as read removing b
 	await markUnreadButton.click();
 	log('Clicked "Mark as Unread".');
 
-	// Verify unread badge appears anywhere in the chat list
-	// (The active chat item may lose .active class after context menu interactions)
+	// Verify unread badge appears on the chat created by this test.
 	await expect(async () => {
-		const badge = page.getByTestId('chat-item-wrapper').locator('[data-testid="unread-badge"]').first();
-		await expect(badge).toBeVisible();
+		await expect(targetUnreadBadge).toBeVisible();
 	}).toPass({ timeout: 15000 });
 
 	await screenshot(page, 'unread-badge-visible');
@@ -268,12 +282,7 @@ test('marks a chat as unread showing unread badge, then marks as read removing b
 
 	// --- MARK READ ---
 	log('Right-clicking to mark as read...');
-	// Try to re-open context menu on the chat item that now shows unread badge
-	const chatItemWithBadge = page
-		.getByTestId('chat-item-wrapper')
-		.filter({ has: page.getByTestId('unread-badge') })
-		.first();
-	await chatItemWithBadge.click({ button: 'right' });
+	await targetChatItem.click({ button: 'right' });
 	await expect(menuContainer).toBeVisible({ timeout: 5000 });
 	await screenshot(page, 'context-menu-for-read');
 
@@ -284,8 +293,7 @@ test('marks a chat as unread showing unread badge, then marks as read removing b
 
 	// Verify unread badge disappears
 	await expect(async () => {
-		const badge = page.getByTestId('chat-item-wrapper').locator('[data-testid="unread-badge"]').first();
-		await expect(badge).not.toBeVisible();
+		await expect(targetUnreadBadge).not.toBeVisible();
 	}).toPass({ timeout: 10000 });
 
 	await screenshot(page, 'unread-badge-gone');
@@ -361,6 +369,45 @@ test('downloads the active chat as a file via context menu', async ({ page }: { 
 	log(`Download initiated: ${downloadStarted}`);
 
 	await assertNoMissingTranslations(page);
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
+	log('Test complete.');
+});
+
+test('reloads combined chat settings deep link with private chat context', async ({ page }: { page: any }) => {
+	test.slow();
+	test.setTimeout(300000);
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('CHAT_MGMT_SETTINGS_DEEPLINK');
+	const screenshot = createStepScreenshotter(log);
+	await archiveExistingScreenshots(log);
+
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(3000);
+
+	await createTestChat(page, 'Reply in one short sentence: settings deep links should survive reload.', log);
+	const chatIdMatch = page.url().match(/chat-id=([^&]+)/);
+	const chatId = chatIdMatch?.[1];
+	if (!chatId) throw new Error('Created chat URL is missing chat-id');
+
+	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}&settings=chats/${chatId}/tasks`), {
+		waitUntil: 'domcontentloaded'
+	});
+
+	const settingsMenu = page.getByTestId('settings-menu');
+	await expect(settingsMenu).toBeVisible({ timeout: 15000 });
+	await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${chatId}`, {
+		timeout: 15000
+	});
+
+	const chatSettingsPage = settingsMenu.getByTestId('chat-settings-page');
+	await expect(chatSettingsPage).toBeVisible({ timeout: 15000 });
+	await expect(chatSettingsPage).not.toContainText(/Open a chat before viewing chat settings/i, {
+		timeout: 15000
+	});
+	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-tasks')).toBeVisible({ timeout: 15000 });
+
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 	log('Test complete.');
 });

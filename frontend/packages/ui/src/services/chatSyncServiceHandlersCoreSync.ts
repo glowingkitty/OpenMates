@@ -8,6 +8,7 @@ import { userDB } from "./userDB";
 import { chatListCache } from "./chatListCache";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
+import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
 import {
   filterPersistableSyncedMessages,
@@ -18,6 +19,7 @@ import {
   hasEncryptedChatKeyMismatch,
   mergeServerChatWithLocal,
 } from "./chatSyncMerge";
+import { isChatVisiblyActive } from "./chatNotificationVisibility";
 import type {
   InitialSyncResponsePayload,
   Phase1LastChatPayload,
@@ -32,6 +34,8 @@ import type {
 } from "../types/chat";
 import type { EmbedType } from "../message_parsing/types";
 
+const RECENT_ASSISTANT_BATCH_NOTIFICATION_WINDOW_SECONDS = 5 * 60;
+
 /**
  * Yield control back to the browser's main thread.
  * This prevents long-running sync operations from blocking UI rendering,
@@ -39,6 +43,68 @@ import type { EmbedType } from "../message_parsing/types";
  */
 function yieldToMainThread(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function buildBatchAssistantMessagePreview(message: Message): string {
+  const plainText = (message.content || "")
+    .replace(/#{1,6}\s+/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`{1,3}[^`]*`{1,3}/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+    .replace(/>\s+/g, "")
+    .replace(/[-*+]\s+/g, "")
+    .replace(/\n+/g, " ")
+    .trim();
+
+  if (!plainText) return "New AI response ready";
+  return plainText.length > 120 ? `${plainText.substring(0, 120)}...` : plainText;
+}
+
+async function notifyBackgroundAssistantBatchMessage(
+  chatId: string,
+  messages: Message[],
+  chat: Chat,
+): Promise<void> {
+  if (chat.is_sub_chat || chat.parent_id || isChatVisiblyActive(chatId)) return;
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const assistantMessage = messages.find((message) =>
+    message.role === "assistant" &&
+    typeof message.created_at === "number" &&
+    nowSeconds - message.created_at <= RECENT_ASSISTANT_BATCH_NOTIFICATION_WINDOW_SECONDS
+  );
+  if (!assistantMessage) return;
+
+  unreadMessagesStore.incrementUnread(chatId);
+
+  let chatTitle = chat.title || "New message";
+  if (!chat.title && chat.encrypted_title) {
+    try {
+      await chatKeyManager.withKey(
+        chatId,
+        "decrypt-batch-assistant-notification-title",
+        async (chatKey) => {
+          const decryptedTitle = await decryptWithChatKey(chat.encrypted_title!, chatKey);
+          if (decryptedTitle) chatTitle = decryptedTitle;
+        },
+      );
+    } catch (titleError) {
+      console.debug(
+        "[ChatSyncService:CoreSync] Could not decrypt chat title for batch assistant notification, using fallback:",
+        titleError,
+      );
+    }
+  }
+
+  notificationStore.chatMessage(
+    chatId,
+    chatTitle,
+    buildBatchAssistantMessagePreview(assistantMessage),
+    undefined,
+    assistantMessage.category || chat.category || undefined,
+  );
 }
 
 export async function handleInitialSyncResponseImpl(
@@ -98,28 +164,32 @@ export async function handleInitialSyncResponseImpl(
             );
             if (!cleartextTitle) {
               titleDecryptFail++;
-              cleartextTitle = serverChat.encrypted_title;
             }
           } else {
             keyDecryptFail++;
-            cleartextTitle = serverChat.encrypted_title;
           }
         } else if (serverChat.encrypted_title) {
           missingKey++;
-          cleartextTitle = serverChat.encrypted_title;
         }
 
         const chat: Chat = {
           chat_id: serverChat.chat_id,
+          title: cleartextTitle,
           encrypted_title: serverChat.encrypted_title,
+          encrypted_chat_summary: serverChat.encrypted_chat_summary,
           messages_v: serverChat.versions.messages_v,
           title_v: serverChat.versions.title_v,
+          metadata_v: serverChat.versions.metadata_v,
           draft_v: serverChat.versions.draft_v,
           encrypted_draft_md: serverChat.encrypted_draft_md,
           encrypted_draft_preview: serverChat.encrypted_draft_preview,
+          ideabucket: serverChat.ideabucket,
+          ideabucket_processing_window_id: serverChat.ideabucket_processing_window_id,
+          ideabucket_triggered_at: serverChat.ideabucket_triggered_at,
           encrypted_chat_key: serverChat.encrypted_chat_key, // Add encrypted chat key for decryption
           encrypted_icon: serverChat.encrypted_icon, // Add encrypted icon for decryption
           encrypted_category: serverChat.encrypted_category, // Add encrypted category for decryption
+          encrypted_quick_tip_slugs: serverChat.encrypted_quick_tip_slugs,
           encrypted_shared_short_url: serverChat.encrypted_shared_short_url,
           last_edited_overall_timestamp:
             serverChat.last_edited_overall_timestamp,
@@ -311,12 +381,41 @@ export async function handlePhase1LastChatImpl(
     const currentUserId = userProfile?.user_id;
     await chatDB.init();
 
+    const isKeyOptionalChat = (details: Partial<Chat> & { id?: string }): boolean =>
+      !!(
+        details.id?.startsWith("demo-") ||
+        details.id?.startsWith("legal-") ||
+        details.is_anonymous ||
+        details.anonymous_encrypted_chat_key
+      );
+
+    const hasUsableChatKey = (
+      details: Partial<Chat> & { id?: string },
+      existingChat: Chat | null,
+      chatId: string,
+    ): boolean => {
+      if (
+        details.encrypted_chat_key ||
+        existingChat?.encrypted_chat_key ||
+        isKeyOptionalChat(details)
+      ) {
+        return true;
+      }
+      console.warn(
+        `[ChatSyncService:CoreSync] Phase 1a - skipping ${chatId}: missing encrypted_chat_key`,
+      );
+      return false;
+    };
+
     // Helper to build Chat from server metadata
     const buildChat = async (
       details: Partial<Chat> & { id: string },
-    ): Promise<Chat> => {
+    ): Promise<Chat | null> => {
       const existingChat = await chatDB.getChat(details.id);
-      const keyMismatch = hasEncryptedChatKeyMismatch(details, existingChat);
+      if (!hasUsableChatKey(details, existingChat, details.id)) {
+        return null;
+      }
+      const keyMismatch = await hasEncryptedChatKeyMismatch(details, existingChat);
 
       if (keyMismatch) {
         console.warn(
@@ -333,23 +432,28 @@ export async function handlePhase1LastChatImpl(
 
     // Collect all chats to decrypt: last-opened + recent metadata
     const allPhase1Chats: Chat[] = [];
+    let acceptedLastChatId: string | null = null;
 
     if (payload.chat_details && payload.chat_id) {
       const lastChat = await buildChat({
         ...payload.chat_details,
         id: payload.chat_id,
       } as Partial<Chat> & { id: string });
-      allPhase1Chats.push(lastChat);
-      await chatDB.addChat(lastChat, undefined, {
-        isFromSync: true,
-        forceIncomingEncryptedChatKey: false,
-      });
-      chatListCache.upsertChat(lastChat);
+      if (lastChat) {
+        allPhase1Chats.push(lastChat);
+        acceptedLastChatId = lastChat.chat_id;
+        await chatDB.addChat(lastChat, undefined, {
+          isFromSync: true,
+          forceIncomingEncryptedChatKey: false,
+        });
+        chatListCache.upsertChat(lastChat);
+      }
     }
 
     if (payload.recent_chat_metadata) {
       for (const meta of payload.recent_chat_metadata) {
         const chat = await buildChat(meta);
+        if (!chat) continue;
         allPhase1Chats.push(chat);
         await chatDB.addChat(chat, undefined, {
           isFromSync: true,
@@ -418,9 +522,11 @@ export async function handlePhase1LastChatImpl(
     // Store in phasedSyncStateStore for immediate rendering
     phasedSyncState.setRecentChats(recentChatsDecrypted);
 
-    // Populate resume card for the last-opened chat (first in the list)
-    if (recentChatsDecrypted.length > 0 && payload.chat_id && payload.chat_details) {
-      const lastChat = recentChatsDecrypted[0];
+    // Populate resume card only when the last-opened chat survived validation.
+    const lastChat = acceptedLastChatId
+      ? recentChatsDecrypted.find(({ chat }) => chat.chat_id === acceptedLastChatId)
+      : undefined;
+    if (lastChat) {
       phasedSyncState.setResumeChatData(
         lastChat.chat,
         lastChat.title,
@@ -460,7 +566,7 @@ export async function handlePhase1LastChatImpl(
 
     // --- Handle daily inspirations (unchanged from before) ---
     try {
-      const { dailyInspirationStore } =
+      const { dailyInspirationStore, hasCompleteAuthenticatedDailySet } =
         await import("../stores/dailyInspirationStore");
 
       if (payload.daily_inspirations && payload.daily_inspirations.length > 0) {
@@ -470,7 +576,10 @@ export async function handlePhase1LastChatImpl(
           const savedInspirations = await processInspirationRecordsFromSync(
             payload.daily_inspirations,
           );
-          if (savedInspirations && savedInspirations.length > 0) {
+          if (
+            savedInspirations
+            && hasCompleteAuthenticatedDailySet(savedInspirations)
+          ) {
             dailyInspirationStore.setInspirations(savedInspirations, {
               personalized: true,
             });
@@ -522,6 +631,9 @@ export async function handlePhase1bChatContentImpl(
       `${payload.embeds?.length || 0} embeds, ${payload.embed_keys?.length || 0} embed_keys`,
   );
 
+  const deferredChatIds = new Set<string>();
+  let phase1bFailed = false;
+
   try {
     // Store messages for each chat (encrypted, no decryption)
     for (const chatData of payload.chats || []) {
@@ -566,6 +678,7 @@ export async function handlePhase1bChatContentImpl(
         const persistableMessages = messageFilter.messages;
         if (messageFilter.skippedChatIds.has(chatData.chat_id)) {
           await markSyncedMessagesDeferred(chatData.chat_id, "Phase 1b content sync");
+          deferredChatIds.add(chatData.chat_id);
           continue;
         }
         if (persistableMessages.length > 0) {
@@ -652,9 +765,39 @@ export async function handlePhase1bChatContentImpl(
       );
     }
 
-    console.info("[ChatSyncService:CoreSync] ✅ Phase 1b complete");
+    if (payload.notebook_run_outputs && payload.notebook_run_outputs.length > 0) {
+      const { handleNotebookRunOutputSyncedImpl } = await import("./handlersNotebookRunOutputs");
+      await Promise.all(
+        payload.notebook_run_outputs.map((output) => handleNotebookRunOutputSyncedImpl(output)),
+      );
+    }
+
+    if (deferredChatIds.size > 0) {
+      console.warn(
+        `[ChatSyncService:CoreSync] Phase 1b deferred content for ${deferredChatIds.size} chat(s): ${Array.from(deferredChatIds).join(", ")}`,
+      );
+    } else {
+      console.info("[ChatSyncService:CoreSync] ✅ Phase 1b complete");
+    }
   } catch (error) {
+    phase1bFailed = true;
     console.error("[ChatSyncService:CoreSync] Phase 1b error:", error);
+  }
+
+  if (phase1bFailed) {
+    serviceInstance.dispatchEvent(
+      new CustomEvent("phase_1b_chat_content_error", { detail: payload }),
+    );
+    return;
+  }
+
+  if (deferredChatIds.size > 0) {
+    serviceInstance.dispatchEvent(
+      new CustomEvent("phase_1b_chat_content_deferred", {
+        detail: { ...payload, deferred_chat_ids: Array.from(deferredChatIds) },
+      }),
+    );
+    return;
   }
 
   serviceInstance.dispatchEvent(
@@ -929,18 +1072,26 @@ export async function handleChatContentBatchResponseImpl(
         // and trigger another full re-sync.
         const versionInfo = payload.versions_by_chat_id?.[chatId];
         if (versionInfo && versionInfo.messages_v !== undefined) {
+          const localMessageCount = await chatDB.getMessageCountForChat(chatId);
+          const updatedMessagesV = Math.max(
+            chat.messages_v || 0,
+            versionInfo.messages_v,
+            localMessageCount,
+          );
           console.info(
             `[ChatSyncService:CoreSync] Batch response: Updating messages_v for chat ${chatId}: ` +
-              `${chat.messages_v} → ${versionInfo.messages_v} (server_message_count: ${versionInfo.server_message_count})`,
+              `${chat.messages_v} → ${updatedMessagesV} (server_message_count: ${versionInfo.server_message_count})`,
           );
-          chat.messages_v = versionInfo.messages_v;
+          chat.messages_v = updatedMessagesV;
         }
 
         await chatDB.updateChat(chat);
+        chatListCache.upsertChat(chat);
+        await notifyBackgroundAssistantBatchMessage(chatId, persistableMessages, chat);
         updatedChatCount++;
         serviceInstance.dispatchEvent(
           new CustomEvent("chatUpdated", {
-            detail: { chat_id: chatId, messagesUpdated: true },
+            detail: { chat_id: chatId, chat, messagesUpdated: true },
           }),
         );
       }
@@ -1015,6 +1166,15 @@ export async function handleChatContentBatchResponseImpl(
     );
     await Promise.all(
       payload.code_run_outputs.map((output) => handleCodeRunOutputSyncedImpl(output)),
+    );
+  }
+
+  if (payload.notebook_run_outputs && payload.notebook_run_outputs.length > 0) {
+    const { handleNotebookRunOutputSyncedImpl } = await import(
+      "./handlersNotebookRunOutputs"
+    );
+    await Promise.all(
+      payload.notebook_run_outputs.map((output) => handleNotebookRunOutputSyncedImpl(output)),
     );
   }
 }

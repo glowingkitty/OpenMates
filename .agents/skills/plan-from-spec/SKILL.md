@@ -34,6 +34,8 @@ Before writing the plan, confirm the spec has:
   external dependency, or explicitly scheduled for pre-implementation checking
 - Required acceptance criteria have `coverage_status`, `verification_scope`, and
   `verification_ids` when the spec is ready for implementation
+- Schema V2 `implementation_state`, approvals, decisions, attempts, and handoff
+  records when the spec is newly authored or actively resumed
 
 Run:
 
@@ -53,6 +55,10 @@ docs/specs/<slug>/spec.yml
 
 The plan must include:
 
+- Governing `contract_refs`, affected permanent assertion IDs, exact surface
+  proof, documentation impact, and whether the work is a new contract, semantic
+  amendment, or implementation-only change.
+
 - Link to the spec
 - Existing patterns and files to reuse
 - Technical architecture and boundaries
@@ -62,12 +68,23 @@ The plan must include:
 - Migration/backfill/rollout needs if any
 - Observability/logging needs if any
 - Verification strategy with exact test commands where known
+- For shared product surfaces, implementation phase order: CLI against the dev
+  server first, npm SDK and pip SDK parity locally against the dev server second,
+  GitHub Actions CI/daily-test reproduction only after local CLI and SDK success,
+  web third, deployed Playwright visual smoke fourth for larger web UI in both
+  laptop and mobile viewports, user confirmation fifth, Apple last
 - Required assumptions that must be checked before implementation and which
   source areas or subagents should verify them
 - required assumptions must not be left unchecked when they block implementation
 - Acceptance-criteria coverage mapping: each required AC must map to concrete
   `verification_ids`, a user-confirmed/manual check, a waiver path, or a blocker
 - Open questions and risks
+- Whether a material technical-plan decision needs user approval beyond the
+  approved product contract
+- For required demonstrations, select the real capture source, caption renderer,
+  deterministic text privacy scan, frame sampling, artifact retention, and
+  Discord delivery path. The plan must state that the full video never enters
+  model context and that exact captions are written only after normal green gates.
 
 ### Step 4: Keep The Plan Minimal
 
@@ -79,6 +96,26 @@ If a plan has vague criteria such as "all tests pass" or "no regressions", do
 not leave them as final checks. Normalize them into concrete scoped checks such
 as backend pytest, CLI, npm SDK, pip SDK, Playwright, Apple build/test, full CI,
 manual review, or user confirmation.
+
+For app skills, focus modes, embeds, memory types, provider-backed behavior, and
+other cross-client features, the first implementation slice must complete CLI
+implementation and testing against the dev server before SDK, web, or Apple work
+starts. After dev CLI evidence is green, the same CLI coverage must be moved or
+wired into GitHub Actions for daily tests before the plan proceeds to SDK parity.
+The CLI evidence must use real CLI commands against the real dev API/WebSocket
+path with real auth/test-account state; mocked OpenMates API calls, mocked SDK
+clients, stubbed servers, direct function calls, and fixture replay do not
+satisfy it. Web work must wait for CLI and required SDK parity. Larger UI work
+must include a deployed Playwright visual-smoke plan for both laptop and mobile
+viewports before user confirmation. Firecrawl is a fallback only when Playwright
+is impractical or blocked.
+Apple work must wait for CLI, SDK, web, visual smoke when required, and user
+confirmation that deployed dev web behavior works and looks correct.
+
+Record `approvals.implementation_plan: pending` and stop when the plan introduces
+a material architecture, security, privacy, migration, rollout, or external
+dependency decision not covered by the approved product contract. Otherwise,
+record why a separate technical approval is not required.
 
 ### Step 5: Output Summary
 
@@ -97,6 +134,7 @@ Next: run `tasks-from-spec docs/specs/<slug>/spec.yml`
 
 - Do not write implementation code during this skill.
 - Every plan section must trace back to scenario or acceptance-criteria IDs.
+- Update `handoff` with the next action before finishing this planning step.
 - Prefer existing utilities, components, providers, schemas, and architecture.
 - If a plan requires a risky dependency, schema, privacy, or auth decision not
   present in the spec, stop and ask.

@@ -84,7 +84,12 @@ const {
 	getTestAccount
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const {
+	loginToTestAccount,
+	deleteActiveChat,
+	waitForChatReady,
+	waitForAssistantMessage
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 // ─── Log buckets ─────────────────────────────────────────────────────────────
@@ -111,6 +116,7 @@ test.afterEach(async ({}, testInfo: any) => {
 });
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const PDF_QUESTION = 'What are the secret words written on each page of this PDF? List the word for page 1 and page 2.';
 
 // PDF fixture path
 const SAMPLE_PDF = path.join(__dirname, 'fixtures', 'sample.pdf');
@@ -222,8 +228,8 @@ async function waitForLocalEmbedStoreEntry(
 ): Promise<void> {
 	await expect
 		.poll(
-			async () =>
-				page.evaluate(async (id: string) => {
+			async () => {
+				const hasIndexedDbEntry = await page.evaluate(async (id: string) => {
 					return new Promise<boolean>((resolve) => {
 						const request = indexedDB.open('chats_db');
 						request.onerror = () => resolve(false);
@@ -246,11 +252,24 @@ async function waitForLocalEmbedStoreEntry(
 							};
 						};
 					});
-				}, embedId),
+				}, embedId);
+				if (hasIndexedDbEntry) return true;
+
+				return page
+					.locator(`[data-testid="message-editor"] [data-embed-id="${embedId}"]`)
+					.evaluateAll((nodes: Element[]) =>
+						nodes.some((node) => {
+							const wrapper = node.closest('[data-testid="embed-full-width-wrapper"]');
+							const status = node.getAttribute('data-status') ?? wrapper?.getAttribute('data-embed-status');
+							const text = node.textContent ?? '';
+							return status === 'finished' && text.includes('sample.pdf') && text.includes('2 pages');
+						})
+					);
+			},
 			{ timeout: 60000, intervals: [1000] }
 		)
 		.toBe(true);
-	logCheckpoint(`Local EmbedStore row ready for PDF embed ${embedId}.`);
+	logCheckpoint(`Local EmbedStore or draft UI data ready for PDF embed ${embedId}.`);
 }
 
 /**
@@ -412,6 +431,7 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	await loginToTestAccount(page, log, screenshot);
 	await page.waitForTimeout(3000);
 	await openNewChat(page, log);
+	await waitForChatReady(page, log);
 	await screenshot(page, '01-new-chat-ready');
 
 	// Attach sample.pdf via the file input.
@@ -451,9 +471,9 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 		.catch(() => false);
 	log(`Editor preview image visible: ${editorPreviewVisible} (TOON may still be in transit)`);
 
-	// The send path requires the embed payload to be resolvable from the local
-	// EmbedStore. The UI status/title can flip to finished before that IDB row is
-	// available, so wait for the exact key sendersChatMessages resolves.
+	// The send path requires the embed payload to be resolvable locally. Finished
+	// draft PDFs can live in the in-memory EmbedStore before the chat exists, so
+	// accept either the IndexedDB row or the finished editor card for this embed id.
 	const uploadedEmbedId = await editorEmbedWrapper
 		.first()
 		.locator('[data-embed-id]')
@@ -473,10 +493,18 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(300);
 	const editor = page.getByTestId('message-editor');
-	await editor.press('End');
-	await page.keyboard.type(
-		'What are the secret words written on each page of this PDF? List the word for page 1 and page 2.'
-	);
+	await editor.evaluate((container: HTMLElement) => {
+		const editable = (container.querySelector('.ProseMirror') as HTMLElement | null) ?? container;
+		editable.focus();
+		const range = document.createRange();
+		range.selectNodeContents(editable);
+		range.collapse(false);
+		const selection = window.getSelection();
+		selection?.removeAllRanges();
+		selection?.addRange(range);
+	});
+	await page.keyboard.type(PDF_QUESTION);
+	await expect(editor).toContainText(PDF_QUESTION, { timeout: 5000 });
 
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeVisible({ timeout: 15000 });
@@ -495,32 +523,12 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	await screenshot(page, '04-message-sent');
 	saveWarnErrorLogs('pdf', 'after_send');
 
-	// Wait for AI to start responding.
-	// If the message is stuck in "Sending..." after 30s (WebSocket disconnect),
-	// reload the page to reconnect and retry delivery.
 	const activeChatContainer = page.getByTestId('active-chat-container');
-	const preSendCount = await activeChatContainer.locator('[data-testid="message-assistant"]').count();
-	const assistantMessages = activeChatContainer.locator('[data-testid="message-assistant"]');
-
-	let reloadAttempted = false;
-	await expect(async () => {
-		const count = await assistantMessages.count();
-		if (count <= preSendCount) {
-			// If still no AI response after 30s and we haven't reloaded yet,
-			// the message may be stuck due to WebSocket disconnect. Reload to reconnect.
-			if (!reloadAttempted) {
-				const sendingIndicator = page.locator('text=Sending...');
-				const isStuck = await sendingIndicator.isVisible({ timeout: 500 }).catch(() => false);
-				if (isStuck) {
-					reloadAttempted = true;
-					log('Message stuck in "Sending..." — reloading page to reconnect WebSocket.');
-					await page.reload();
-					await page.waitForTimeout(5000);
-				}
-			}
-			throw new Error(`No new assistant message yet (count=${count})`);
-		}
-	}).toPass({ timeout: 120000, intervals: [2000] });
+	const assistantMessage = await waitForAssistantMessage(page, {
+		which: 'last',
+		timeout: 120000,
+		logCheckpoint: log
+	});
 
 	// Wait for AI PDF skill card to appear (AI uses pdf/read, pdf/view, or pdf/search)
 	// The skill card appears before the text response completes streaming.
@@ -531,7 +539,7 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	// Wait for stable (non-streaming) AI text response
 	let stableText = '';
 	await expect(async () => {
-		const text = await assistantMessages.last().textContent();
+		const text = await assistantMessage.textContent();
 		if (!text || text.trim().length < 10) throw new Error('Response too short');
 		if (text === stableText) return;
 		stableText = text ?? '';

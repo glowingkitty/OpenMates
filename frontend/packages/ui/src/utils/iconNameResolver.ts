@@ -53,8 +53,10 @@ export const ICON_NAME_MAP: Record<string, string> = {
     'books': 'book',
     'code': 'coding',
     'events': 'event',
+    'finance': 'finance',
     'health': 'heart',
     'images': 'image',
+    'models3d': '3dmodels',
     'social_media': 'socialmedia',
     // Icon names that don't match SVG filenames
     'api-keys': 'coding',

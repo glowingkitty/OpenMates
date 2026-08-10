@@ -50,7 +50,9 @@
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
+  import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
   import { resolveHeaderSwipeNavigation } from './headerSwipeNavigation';
+  import WorkspaceDetailHeader from './workspace/WorkspaceDetailHeader.svelte';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
 
@@ -64,6 +66,7 @@
     isCreditsError = false,
     chatCreatedAt = null,
     chatTimeLabel = 'started',
+    isDraftOnly = false,
     /** When true, renders the incognito-specific variant: fixed dark gradient, anonym icon,
      *  and "Incognito Mode" as the title. Overrides all other visual states. */
     isIncognito = false,
@@ -97,6 +100,10 @@
     /** When true, shows a large Sign Up CTA below the title inside the banner.
      *  Only used for intro chats shown to non-authenticated users. */
     showSignupCta = false,
+    titleTestId = 'chat-header-title',
+    writable,
+    onSaveTitle,
+    onSaveDescription,
   }: {
     title?: string;
     currentChatId?: string | null;
@@ -108,7 +115,8 @@
      *  Replaces the "Creating new chat..." shimmer with a static "Not enough credits" state. */
     isCreditsError?: boolean;
     chatCreatedAt?: number | null;
-    chatTimeLabel?: 'started' | 'published';
+    chatTimeLabel?: 'started' | 'published' | 'saved';
+    isDraftOnly?: boolean;
     isIncognito?: boolean;
     /** True when this chat is a pre-made example chat (shown to non-authenticated users).
      *  Displays an "Example chat" badge in the loaded header state. */
@@ -141,6 +149,10 @@
     autoplayVideo?: boolean;
     /** When true, shows a large Sign Up CTA below the title inside the banner. */
     showSignupCta?: boolean;
+    titleTestId?: string;
+    writable: boolean;
+    onSaveTitle: (title: string) => void | Promise<void>;
+    onSaveDescription: (summary: string) => void | Promise<void>;
   } = $props();
 
   /** True when the static-image slideshow should render inside the media frame. */
@@ -207,7 +219,10 @@
     $text('demo_chats.for_everyone.teaser_line3'),
   ]);
   const isIntroTeaserChat = $derived(currentChatId === 'demo-for-everyone');
-  const teaserCopyLines = $derived(isIntroTeaserChat ? introTeaserCopyLines : [title]);
+  const displayTitle = $derived(
+    title || (isSharedChat ? $text('chat.header.shared_chat') : writable ? $text('common.untitled_chat') : '')
+  );
+  const teaserCopyLines = $derived(isIntroTeaserChat ? introTeaserCopyLines : [displayTitle]);
 
   // ─── In-place video player ────────────────────────────────────────────────
   //
@@ -554,8 +569,9 @@
   /** Whether the loaded state should be shown (transition from processing → loaded).
    *  For incognito chats, this is always true — there's no loading phase.
    *  Category can be absent on legacy/cross-device partial metadata; render the
-   *  title with the primary gradient instead of keeping the header stuck loading. */
-  let isLoaded = $derived(isIncognito || (!isLoading && !!title));
+   *  title or shared-chat label with the primary gradient instead of keeping the
+   *  header stuck loading. */
+  let isLoaded = $derived(isIncognito || (!isLoading && !!displayTitle));
 
   /** Whether to show the summary with its expand animation. */
   let showSummary = $derived(isLoaded && !!summary);
@@ -632,6 +648,11 @@
 
   /** Whether to show the creation time line. Only shown once the loaded header is visible. */
   let showTime = $derived(isLoaded && !!formattedTime);
+  let lastSavedLabel = $derived(
+    isDraftOnly && showTime
+      ? $text('chat.header.last_saved', { values: { time: formattedTime } })
+      : '',
+  );
 
   // ─── Highlights pill ───────────────────────────────────────────────────────
   /** True when at least one highlight exists in the chat — render the yellow pill. */
@@ -661,15 +682,14 @@
 
   function handleImageBubbleClick(e: MouseEvent, bubble: { parentEmbedId: string; childEmbedId: string }) {
     e.stopPropagation();
-    document.dispatchEvent(new CustomEvent('embedfullscreen', {
-      detail: {
-        embedId: bubble.parentEmbedId,
-        embedType: 'app-skill-use',
-        focusChildEmbedId: bubble.childEmbedId,
-        hasChatContext: true,
-      },
-    }));
+    dispatchEmbedFullscreen({
+      embedId: bubble.parentEmbedId,
+      embedType: 'app-skill-use',
+      focusChildEmbedId: bubble.childEmbedId,
+      hasChatContext: true,
+    });
   }
+
 </script>
 
 <!-- Banner container: always rendered when either loading or loaded.
@@ -789,29 +809,39 @@
         <div class="teaser-split-left">
           {#if isIntroTeaserChat}
             <div class="ai-header-icon" data-testid="chat-header-icon"></div>
-          {:else if IconComponent}
-            <div class="loaded-icon" data-testid="chat-header-icon">
-              <IconComponent size={38} color="white" />
+            <div class="teaser-copy" aria-label={teaserCopyLines.join(' ')}>
+              {#each teaserCopyLines as line, index}
+                <span
+                  class="loaded-title teaser-title teaser-copy-line"
+                  data-testid={index === 0 ? 'chat-header-title' : undefined}
+                >{line}</span>
+              {/each}
+            </div>
+          {:else}
+            <div class="teaser-copy">
+              <WorkspaceDetailHeader
+                title={displayTitle}
+                description={summary ?? ''}
+                category={category ?? 'general'}
+                icon={icon ?? 'ai'}
+                {writable}
+                {onSaveTitle}
+                {onSaveDescription}
+                embedded
+                alignment="start"
+                {titleTestId}
+                descriptionTestId="chat-header-summary"
+                showDescription={showSummary || writable}
+                descriptionClampLines={3}
+                iconTestId="chat-header-icon"
+              />
             </div>
           {/if}
-
-          <div class="teaser-copy" aria-label={teaserCopyLines.join(' ')}>
-            {#each teaserCopyLines as line, index}
-              <span
-                class="loaded-title teaser-title teaser-copy-line"
-                data-testid={index === 0 ? 'chat-header-title' : undefined}
-              >{line}</span>
-            {/each}
-          </div>
 
           {#if isExampleChat}
             <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
           {:else if isSharedChat}
             <span class="chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
-          {/if}
-
-          {#if !isIntroTeaserChat && showSummary}
-            <p class="loaded-summary teaser-summary" data-testid="chat-header-summary">{summary}</p>
           {/if}
 
           {#if showSignupCta}
@@ -948,9 +978,19 @@
           <!-- Title rendered above the media frame -->
           {#if !showSignupCta}
             <div class="loaded-content">
-              <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
-                   never render as HTML to prevent stored XSS via prompt injection. -->
-              <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+              <WorkspaceDetailHeader
+                title={displayTitle}
+                description=""
+                category={category ?? 'general'}
+                icon={icon ?? 'ai'}
+                {writable}
+                {onSaveTitle}
+                {onSaveDescription}
+                embedded
+                {titleTestId}
+                showDescription={false}
+                showIcon={false}
+              />
 
               {#if isExampleChat}
                 <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
@@ -1050,28 +1090,34 @@
         </div>
       {:else}
         <div class="loaded-content">
-          <!-- Category icon: only shown when no header media (video or slideshow) -->
-          {#if isIntroTeaserChat}
-            <div class="ai-header-icon" data-testid="chat-header-icon"></div>
-          {:else if IconComponent}
-            <div class="loaded-icon" data-testid="chat-header-icon">
-              <IconComponent size={38} color="white" />
-            </div>
-          {/if}
+          <WorkspaceDetailHeader
+            title={displayTitle}
+            description={summary ?? ''}
+            category={isDraftOnly ? 'general_knowledge' : category ?? 'general'}
+            icon={isDraftOnly ? 'lightbulb' : icon ?? 'ai'}
+            writable={isDraftOnly ? false : writable}
+            {onSaveTitle}
+            {onSaveDescription}
+            metadata={!isDraftOnly && showTime ? formattedTime : ''}
+            embedded
+            {titleTestId}
+            descriptionTestId="chat-header-summary"
+            showDescription={!isDraftOnly && (showSummary || writable)}
+            descriptionClampLines={3}
+            iconTestId="chat-header-icon"
+          />
 
-          <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
-               never render as HTML to prevent stored XSS via prompt injection. -->
-          <span class="loaded-title" data-testid="chat-header-title">{title}</span>
-
-          {#if isExampleChat}
+          {#if isDraftOnly}
+            <span class="chat-kind-badge" data-testid="draft-chat-badge">{$text('enter_message.draft')}</span>
+            <span
+              class="draft-last-saved"
+              data-testid="draft-chat-last-saved"
+              data-saved-at={chatCreatedAt ?? ''}
+            >{lastSavedLabel}</span>
+          {:else if isExampleChat}
             <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
           {:else if isSharedChat}
             <span class="chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
-          {/if}
-
-          <!-- Summary: fades in with max-height expand when available -->
-          {#if showSummary}
-            <p class="loaded-summary" data-testid="chat-header-summary">{summary}</p>
           {/if}
 
           <!-- Highlights pill: yellow annotation-layer count. Clickable when an
@@ -1088,10 +1134,6 @@
             >{highlightPillLabel}</button>
           {/if}
 
-          <!-- Creation time -->
-          {#if showTime}
-            <span class="loaded-time">{formattedTime}</span>
-          {/if}
         </div>
       {/if}
     {/if}
@@ -1298,21 +1340,16 @@
        its paint must be kept fresh when its own size/contents change, rather
        than being cached at a stale position. */
     contain: layout paint;
+    color: #fff;
+  }
+
+  .loaded-content :global(.workspace-detail-header.embedded) {
+    color: #fff;
   }
 
   @keyframes fadeIn {
     from { opacity: 0; }
     to   { opacity: 1; }
-  }
-
-  /* Category icon (38×38px, centered) */
-  .loaded-icon {
-    width: 38px;
-    height: 38px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
   }
 
   /* Title: 20px, white, bold, centered, truncated to 2 lines.
@@ -1321,7 +1358,7 @@
     display: block;
     font-size: var(--font-size-h3);
     font-weight: 700;
-    color: var(--color-font-button);
+    color: #fff;
     text-align: center;
     line-height: 1.3;
     max-width: 100%;
@@ -1341,10 +1378,18 @@
     padding: 3px 12px;
     font-size: var(--font-size-xs);
     font-weight: 600;
-    color: var(--color-font-button);
+    color: #fff;
     background: rgba(255, 255, 255, 0.2);
     border-radius: 20px;
     letter-spacing: 0.02em;
+  }
+
+  .draft-last-saved {
+    display: block;
+    margin-top: var(--spacing-3);
+    color: rgba(255, 255, 255, 0.75);
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
   }
 
   /* Highlights pill: yellow chip showing "N highlights" or "N highlights, M
@@ -1381,41 +1426,6 @@
   .highlight-count-pill:disabled {
     cursor: default;
     opacity: 0.85;
-  }
-
-  /* Summary: 14px, white, centered. Always white regardless of theme — sits on
-     the branded gradient header. No entrance animation: the previous
-     `summaryExpand` keyframe (opacity + max-height 0 → 1 / 100px) could get
-     stuck at the 0% keyframe when the header mounted while scrolled out of view
-     (e.g. right after closing a fullscreen embed), leaving the summary
-     collapsed and invisible until a scroll forced a recomposite. */
-  .loaded-summary {
-    margin: calc(var(--spacing-1) + 2px) 0 0;
-    font-size: var(--font-size-small);
-    font-weight: 500;
-    color: var(--color-font-button);
-    line-height: 1.45;
-    text-align: center;
-    /* Clamp to 3 lines */
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    opacity: 1;
-    max-height: 100px; /* enough for 3 lines */
-  }
-
-  /* Creation time: 14px, white at 0.7 opacity.
-     No entrance animation — see note on .loaded-content above for why offscreen
-     CSS animations were causing title/summary/time to render invisibly. */
-  .loaded-time {
-    font-size: var(--font-size-small);
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.85);
-    text-align: center;
-    margin-top: var(--spacing-1);
-    opacity: 1;
   }
 
   /* ─── Incognito header icon (38×38px) — uses anonym.svg via CSS mask ─── */
@@ -1918,16 +1928,6 @@
     max-width: 360px;
   }
 
-  .is-mobile-header .loaded-icon {
-    width: 32px;
-    height: 32px;
-  }
-
-  .is-mobile-header .loaded-icon :global(svg) {
-    width: 32px !important;
-    height: 32px !important;
-  }
-
   .is-mobile-header .ai-header-icon {
     width: 32px;
     height: 32px;
@@ -1935,12 +1935,6 @@
 
   .is-mobile-header .loaded-title {
     font-size: var(--font-size-lg);
-  }
-
-  .is-mobile-header .loaded-summary {
-    font-size: var(--font-size-xs);
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
   }
 
   /* Smaller decorative icons on mobile, closer to edges */
@@ -2035,12 +2029,6 @@
     text-align: left !important;
     -webkit-line-clamp: 1 !important;
     line-clamp: 1 !important;
-  }
-
-  .teaser-summary {
-    text-align: left !important;
-    -webkit-line-clamp: 3 !important;
-    line-clamp: 3 !important;
   }
 
   .teaser-split-right {
@@ -2150,15 +2138,9 @@
     width: min(78vw, 560px);
   }
 
-  .is-compact-teaser-header .ai-header-icon,
-  .is-compact-teaser-header .loaded-icon {
+  .is-compact-teaser-header .ai-header-icon {
     width: 54px;
     height: 54px;
-  }
-
-  .is-compact-teaser-header .loaded-icon :global(svg) {
-    width: 54px !important;
-    height: 54px !important;
   }
 
   .is-compact-teaser-header .teaser-video-box.hovering {

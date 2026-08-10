@@ -270,6 +270,101 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(merged, [textMapping, attachmentMapping])
     }
 
+    func testKnownPIIRewriteUsesPriorMappingsBeforeSend() {
+        let pipeline = ChatSendPipeline()
+        let priorMappings = [
+            PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL"),
+            PIIMapping(placeholder: "[MERCHANT_STREAMING_001]", original: "Spotify", type: "MERCHANT_STREAMING"),
+        ]
+        let previous = Self.userMessage(id: "message-1", mappings: priorMappings)
+
+        let result = pipeline.contentAndMappingsForSend(
+            content: "Email alice@example.com and summarize Spotify spend.",
+            existingMessages: [previous]
+        )
+
+        XCTAssertEqual(result.content, "Email [EMAIL_1_com] and summarize [MERCHANT_STREAMING_001] spend.")
+        XCTAssertEqual(result.piiMappings, priorMappings)
+    }
+
+    func testKnownPIIRewritePrefersLongestOriginalAndDedupesMappings() {
+        let pipeline = ChatSendPipeline()
+        let short = PIIMapping(placeholder: "[MERCHANT_SOFTWARE_001]", original: "ACME", type: "MERCHANT_SOFTWARE")
+        let long = PIIMapping(placeholder: "[MERCHANT_SOFTWARE_002]", original: "ACME GmbH", type: "MERCHANT_SOFTWARE")
+        let previous = Self.userMessage(id: "message-1", mappings: [short, long])
+
+        let result = pipeline.contentAndMappingsForSend(
+            content: "Compare ACME GmbH with ACME GmbH.",
+            existingMessages: [previous]
+        )
+
+        XCTAssertEqual(result.content, "Compare [MERCHANT_SOFTWARE_002] with [MERCHANT_SOFTWARE_002].")
+        XCTAssertEqual(result.piiMappings, [long])
+    }
+
+    func testKnownPIIRewriteRespectsCurrentSendExclusions() {
+        let pipeline = ChatSendPipeline()
+        let priorMapping = PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL")
+        let currentMapping = PIIMapping(placeholder: "[PHONE_1_567]", original: "+49 170 1234567", type: "PHONE")
+        let previous = Self.userMessage(id: "message-1", mappings: [priorMapping])
+
+        let result = pipeline.contentAndMappingsForSend(
+            content: "Keep alice@example.com visible but redact +49 170 1234567.",
+            existingMessages: [previous],
+            piiMappings: [currentMapping],
+            excludedPIIOriginals: ["alice@example.com"]
+        )
+
+        XCTAssertEqual(result.content, "Keep alice@example.com visible but redact +49 170 1234567.")
+        XCTAssertEqual(result.piiMappings, [currentMapping])
+    }
+
+    func testKnownPIIRewriteProtectsEmbedReferenceBlocks() {
+        let mapping = PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL")
+        let content = """
+        Ask alice@example.com about this embed.
+
+        ```json
+        {"type":"docs-doc","embed_id":"alice@example.com"}
+        ```
+        """
+
+        let result = PIIDetector.rewriteKnownPIIPlaceholders(in: content, mappings: [mapping])
+
+        XCTAssertTrue(result.text.contains("Ask [EMAIL_1_com] about this embed."))
+        XCTAssertTrue(result.text.contains("\"embed_id\":\"alice@example.com\""))
+        XCTAssertEqual(result.appliedMappings, [mapping])
+    }
+
+    func testComposerDocumentRewriteUsesCurrentAttachmentMappingsBeforeDetection() throws {
+        let attachmentMapping = PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL")
+        let document = ComposerDocumentV1(
+            version: 1,
+            nodes: [
+                .text(id: "text-1", source: "Summarize alice@example.com from "),
+                .embed(
+                    id: "embed-1",
+                    embedType: "docs-doc",
+                    canonicalSource: "```json\n{\"embed_id\":\"embed-1\"}\n```",
+                    referenceOnly: true,
+                    display: .init(title: "Private doc", mediaKind: "docs-doc")
+                )
+            ]
+        )
+
+        let rewrite = ComposerPIIDecorations.rewriteKnownPIIPlaceholders(
+            document: document,
+            mappings: [attachmentMapping]
+        )
+        let redaction = ComposerPIIDecorations.redactedDocument(document: rewrite.document)
+        let markdown = try ComposerMarkdownAdapter.serialize(redaction.document)
+        let mappings = PIIDetector.mergePIIMappings(rewrite.appliedMappings + redaction.mappings)
+
+        XCTAssertTrue(markdown.contains("Summarize [EMAIL_1_com] from"))
+        XCTAssertFalse(markdown.contains("alice@example.com"))
+        XCTAssertEqual(mappings, [attachmentMapping])
+    }
+
     func testPrivacyFilterTokenDecoderBuildsExactSpansFromBIOESLabels() {
         let text = "Tell Ada Lovelace the token is hunter2."
         let nsText = text as NSString
@@ -522,6 +617,58 @@ final class ChatSendPipelineParityTests: XCTestCase {
         )
     }
 
+    func testNativeAttachEmbedsCreatesUserAudioPreviewRefsFromCanonicalJson() throws {
+        let content = """
+        ```json
+        {"type":"audio-recording","embed_id":"audio-embed-1"}
+        ```
+        """
+        let message = Message(
+            id: "user-audio-1",
+            chatId: "chat-1",
+            role: .user,
+            content: content,
+            encryptedContent: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            appId: nil,
+            isStreaming: false,
+            embedRefs: nil
+        )
+
+        let attached = PublicChatContent.attachEmbeds(to: [message])
+        let updated = try XCTUnwrap(attached.messages.first)
+
+        XCTAssertEqual(updated.content, "[[embed:audio-embed-1]]")
+        XCTAssertEqual(updated.embedRefs?.map(\.id), ["audio-embed-1"])
+        XCTAssertEqual(attached.records["audio-embed-1"]?.type, "audio-recording")
+        XCTAssertEqual(updated.renderDocumentForDisplay?.blocks.first?.kind, .embedGroup)
+    }
+
+    func testNativeAttachEmbedsPreservesExistingInlineEmbedMarkersAsRefs() throws {
+        let message = Message(
+            id: "assistant-inline-1",
+            chatId: "chat-1",
+            role: .assistant,
+            content: "[[embed:embed-inline]]\n\n```json\n{\"type\":\"web-website\",\"embed_id\":\"embed-json\"}\n```\n\n[!](embed:embed-large)",
+            encryptedContent: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            appId: "web",
+            isStreaming: false,
+            embedRefs: nil
+        )
+
+        let updated = try XCTUnwrap(PublicChatContent.attachEmbeds(to: [message]).messages.first)
+
+        XCTAssertEqual(updated.embedRefs?.map(\.id), ["embed-inline", "embed-json", "embed-large"])
+        XCTAssertEqual(updated.content?.contains("[[embedref:embed-large]]"), true)
+        XCTAssertEqual(updated.content?.contains("[[embed:embed-inline]]"), true)
+        let blocks = try XCTUnwrap(updated.renderDocumentForDisplay?.blocks)
+        XCTAssertEqual(blocks.map(\.kind), [.embedGroup, .embedGroup])
+        XCTAssertEqual(blocks.flatMap(\.embedReferences).map(\.id), ["embed-inline", "embed-json", "embed-large"])
+    }
+
     func testPendingAssistantResponseQueueStoresOnlyIdsAndDedupes() throws {
         let suiteName = "ChatSendPipelineParityTests"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -587,6 +734,19 @@ final class ChatSendPipelineParityTests: XCTestCase {
         )
     }
 
+    func testEncryptedUserStorageClaimIsSharedAcrossPipelineInstancesAndRetryableAfterFailure() {
+        let messageId = "claim-\(UUID().uuidString)"
+        let firstPipeline = ChatSendPipeline()
+        let secondPipeline = ChatSendPipeline()
+
+        XCTAssertTrue(firstPipeline.claimEncryptedUserStorage(messageId: messageId))
+        XCTAssertFalse(secondPipeline.claimEncryptedUserStorage(messageId: messageId))
+
+        firstPipeline.releaseEncryptedUserStorage(messageId: messageId)
+        XCTAssertTrue(secondPipeline.claimEncryptedUserStorage(messageId: messageId))
+        secondPipeline.releaseEncryptedUserStorage(messageId: messageId)
+    }
+
     func testIncognitoPayloadUsesRequestScopedHistoryWithoutEncryptedStorageFields() {
         let pipeline = ChatSendPipeline()
         let chat = Chat(
@@ -631,6 +791,24 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(history?.count, 1)
         XCTAssertEqual(history?.first?["content"] as? String, "Private prompt")
         XCTAssertNil(history?.first?["encrypted_content"])
+    }
+}
+
+private extension ChatSendPipelineParityTests {
+    static func userMessage(id: String, mappings: [PIIMapping]) -> Message {
+        Message(
+            id: id,
+            chatId: "chat-1",
+            role: .user,
+            content: "Previous message",
+            encryptedContent: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            appId: nil,
+            isStreaming: false,
+            embedRefs: nil,
+            piiMappings: mappings
+        )
     }
 }
 

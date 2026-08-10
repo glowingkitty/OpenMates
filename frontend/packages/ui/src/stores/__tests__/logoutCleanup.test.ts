@@ -20,6 +20,8 @@ import { get } from "svelte/store";
 
 // Track which cleanup functions were called
 const cleanupCalls: string[] = [];
+let currentActiveChatId: string | null = "private-chat-1";
+let userDatabaseDeleteGate: Promise<void> | null = null;
 
 vi.mock("../../services/chatListCache", () => ({
   chatListCache: {
@@ -46,9 +48,10 @@ vi.mock("../../services/db", () => ({
 
 vi.mock("../../services/userDB", () => ({
   userDB: {
-    deleteDatabase: vi.fn(async () =>
-      cleanupCalls.push("userDB.deleteDatabase"),
-    ),
+    deleteDatabase: vi.fn(async () => {
+      cleanupCalls.push("userDB.deleteDatabase");
+      if (userDatabaseDeleteGate) await userDatabaseDeleteGate;
+    }),
   },
 }));
 
@@ -66,8 +69,16 @@ vi.mock("../chatNavigationStore", () => ({
 
 vi.mock("../activeChatStore", () => ({
   activeChatStore: {
-    clearActiveChat: vi.fn(() => cleanupCalls.push("activeChatStore.clearActiveChat")),
+    get: vi.fn(() => currentActiveChatId),
+    clearActiveChat: vi.fn(() => {
+      currentActiveChatId = null;
+      cleanupCalls.push("activeChatStore.clearActiveChat");
+    }),
   },
+}));
+
+vi.mock("../../demo_chats/exampleChatStore", () => ({
+  isExampleChat: vi.fn((chatId: string) => chatId.startsWith("example-")),
 }));
 
 vi.mock("../../services/sharedChatKeyStorage", () => ({
@@ -209,22 +220,43 @@ vi.mock("../signupState", async () => {
 });
 
 vi.mock("../notificationStore", () => ({
-  notificationStore: { autoLogout: vi.fn(), error: vi.fn() },
+  SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY: "security-reminder",
+  notificationStore: {
+    autoLogout: vi.fn(),
+    error: vi.fn(),
+    removeNotificationsByDedupeKey: vi.fn((dedupeKey: string) =>
+      cleanupCalls.push(`notificationStore.removeNotificationsByDedupeKey:${dedupeKey}`),
+    ),
+  },
 }));
 
 vi.mock("../theme", () => ({
   applyServerDarkMode: vi.fn(),
 }));
 
+vi.mock("../uiFont", () => ({
+  applyServerUiFont: vi.fn(),
+}));
+
+vi.mock("../../services/topicPreferencesSync", () => ({
+  promoteGuestTopicPreferencesIfNeeded: vi.fn(async () => undefined),
+}));
+
+vi.mock("../serverStatusStore", () => ({
+  markDeviceReceivedFreeTestingCredits: vi.fn(),
+}));
+
 vi.mock("../../services/clientLogForwarder", () => ({
   clientLogForwarder: {
     start: vi.fn(),
     stop: vi.fn(),
+    stopEphemeral: vi.fn(),
   },
 }));
 
 vi.mock("../../demo_chats/loadDefaultInspirations", () => ({
   loadDefaultInspirations: vi.fn(),
+  loadGuestOnboardingInspirations: vi.fn(),
 }));
 
 vi.mock("../../services/pendingChatDeletions", () => ({
@@ -234,7 +266,13 @@ vi.mock("../../services/pendingChatDeletions", () => ({
 vi.mock("svelte-i18n", async () => {
   const { writable } = await import("svelte/store");
   return {
+    _: writable((key: string) => key),
+    addMessages: vi.fn(),
+    getLocaleFromNavigator: vi.fn(() => "en"),
+    init: vi.fn(),
     locale: writable("en"),
+    register: vi.fn(),
+    waitLocale: vi.fn(async () => undefined),
   };
 });
 
@@ -246,9 +284,13 @@ const mockFetch = vi.fn().mockResolvedValue({
 vi.stubGlobal("fetch", mockFetch);
 
 // Mock document.cookie for deleteAllCookies
-Object.defineProperty(document, "cookie", {
-  writable: true,
-  value: "",
+vi.stubGlobal("document", { cookie: "" });
+Object.assign(window, {
+  location: {
+    hash: "",
+    origin: "http://test",
+    search: "",
+  },
 });
 
 // ─── Import module under test AFTER all mocks ───────────────────────────
@@ -259,6 +301,8 @@ import { authStore } from "../authState";
 describe("logout cleanup completeness", () => {
   beforeEach(() => {
     cleanupCalls.length = 0;
+    currentActiveChatId = "private-chat-1";
+    userDatabaseDeleteGate = null;
     vi.clearAllMocks();
     authStore.set({ isAuthenticated: true, isInitialized: true });
   });
@@ -279,6 +323,9 @@ describe("logout cleanup completeness", () => {
     expect(cleanupCalls).toContain("aiTypingStore.reset");
     expect(cleanupCalls).toContain("workflowWorkspaceStore.reset");
     expect(cleanupCalls).toContain("dailyInspirationStore.reset");
+    expect(cleanupCalls).toContain(
+      "notificationStore.removeNotificationsByDedupeKey:security-reminder",
+    );
     expect(cleanupCalls).toContain("resetUserAvailableSkills");
     expect(cleanupCalls).toContain("clearKeyFromStorage");
     expect(cleanupCalls).toContain("clearAllEmailData");
@@ -286,11 +333,37 @@ describe("logout cleanup completeness", () => {
     expect(cleanupCalls).toContain("disconnectAndClearHandlers");
   });
 
+  it("starts chat and user database deletion together", async () => {
+    let releaseUserDatabaseDelete = () => {};
+    userDatabaseDeleteGate = new Promise<void>((resolve) => {
+      releaseUserDatabaseDelete = resolve;
+    });
+
+    try {
+      await logout();
+      await Promise.resolve();
+
+      expect(cleanupCalls).toContain("userDB.deleteDatabase");
+      expect(cleanupCalls).toContain("chatDB.deleteDatabase");
+    } finally {
+      releaseUserDatabaseDelete();
+    }
+  });
+
   it("sets authStore to not authenticated but still initialized", async () => {
     await logout();
     const state = get(authStore);
     expect(state.isAuthenticated).toBe(false);
     expect(state.isInitialized).toBe(true);
+  });
+
+  it("preserves an active static example chat during local logout cleanup", async () => {
+    currentActiveChatId = "example-printable-benchy-phone-stand";
+
+    await logout();
+
+    expect(cleanupCalls).not.toContain("activeChatStore.clearActiveChat");
+    expect(currentActiveChatId).toBe("example-printable-benchy-phone-stand");
   });
 
   it("cleanup order: crypto cleared BEFORE auth state reset", async () => {

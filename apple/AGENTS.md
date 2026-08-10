@@ -49,6 +49,22 @@ Before touching native product UI, inspect the actual web app route where the co
 
 If an interaction state is needed, drive the existing `*.spec.ts` test or a temporary browser/scripted flow based on existing tests to reach that state, then inspect the computed values. Svelte and CSS source files explain intent, but the browser-computed output is the final parity target.
 
+## Apple/Web Parity Program
+
+For broad Apple UI parity work, use the program contract in `docs/specs/apple-ui-parity-program/spec.yml` and the matrix in `docs/architecture/apple/parity-matrix.md` before adding one-off native UI tests.
+
+For deterministic debugging and parity evidence, start with `python3 scripts/apple_evidence_bundle.py --surface chat` or `--surface all`. This writes a sanitized JSON bundle under `test-results/apple-evidence/`, runs the Linux-safe static parity gates by default, and can opt into remote Mac evidence with `--remote build-ios`, `--remote test-ios --only-testing <target>`, or `--remote startup-ios`.
+
+The current rollout is chat-first. Regenerate the inventory with `python3 scripts/apple_parity_audit.py`; the program data lives in `test-results/apple-parity-inventory.json` under `programs.apple_ui_parity_program`.
+
+Use the hybrid gate consistently:
+
+- Blocking from the start: missing mappings, missing required identifiers, missing fixtures, stale fixtures, missing native tests, missing known renderers, forbidden generic fallbacks, broken behavior, and structural order drift.
+- Warning from the start: unpromoted visual/style drift from typography, spacing, color, radius, shadow, animation, or rasterization.
+- Promotable to blocking: reviewed visual/style checks with an explicit surface, state, tolerance, artifact source, and native-difference rule.
+
+For chat parity changes, run `python3 scripts/apple_chat_parity_audit.py` after regenerating the inventory. It verifies the chat guardrails and the Apple UI parity program inventory before Mac/Xcode evidence is available.
+
 ## SwiftUI / UIKit Strategy
 
 OpenMates is SwiftUI-first for product UI composition, design-token usage, and parity with the Svelte web source of truth. Do not rewrite screens to UIKit by default.
@@ -123,36 +139,49 @@ auth keys, and local filesystem paths outside generic placeholders.
 Remote verification flow:
 
 1. Run `python3 scripts/apple_remote.py status` to confirm redacted SSH reachability before running build commands.
-2. Locate the Mac checkout without printing private paths. Prefer known local
+2. Run `python3 scripts/apple_remote.py doctor` to verify Xcode, simulator,
+   repository, scheme, and current Watch-test readiness. The doctor command is
+   intentionally sanitized and should be the first stop for AI agents before
+   deeper native debugging.
+3. Locate the Mac checkout without printing private paths. Prefer known local
    configuration; if needed, use a sanitized project lookup for
    `apple/OpenMates.xcodeproj` and report only success or `project_not_found`.
-3. Commit and push intended local changes before Mac verification. Do not copy
+4. Commit and push intended local changes before Mac verification. Do not copy
    edited source files to the Mac checkout by hand except for throwaway local
    experiments that will never be committed. Git is the source of truth for
    getting updated source onto the Mac.
-4. In the Mac checkout, run `git status --short` and avoid overwriting local user changes.
-5. Update the Mac checkout with `git pull --ff-only` when the tree is clean. If
+5. In the Mac checkout, run `git status --short` and avoid overwriting local user changes.
+6. Update the Mac checkout with `git pull --ff-only` when the tree is clean. If
    the Mac checkout is dirty, stop and resolve the dirty state explicitly before
    testing committed changes.
-6. Before native end-to-end UI tests that depend on first-run, login, signup,
+7. Before native end-to-end UI tests that depend on first-run, login, signup,
    permissions, local storage, Keychain, or notification prompts, uninstall the
    app from the target simulator so the run starts from a clean app container:
    `python3 scripts/apple_remote.py simctl -- uninstall booted org.openmates.app`.
    Ignore the uninstall error only when the app is already absent.
-7. At minimum, run `python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"`
+8. At minimum, run `python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"`
    to prove the native project compiles.
-8. For native test coverage, run `python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/<testName>"`.
-9. For visual or interaction parity, run a simulator build with a concrete
-   destination, install and launch the app with `python3 scripts/apple_remote.py
-   simctl -- <args>`, optionally adjust simulator UI state, and capture a
-   screenshot.
-10. After verification, shut down any simulator booted by the session with
+9. For native test coverage, run `python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/<testName>"`.
+10. For iOS startup, crash, screenshot-status, and log-status evidence, run
+    `python3 scripts/apple_remote.py verify-ios-startup --simulator "iPhone 17" --duration 60`.
+    Add `--fresh-install` only when the check intentionally needs first-run or
+    clean-container state.
+11. For macOS startup, crash, and log evidence, run
+    `python3 scripts/apple_remote.py verify-macos-startup --duration 60`.
+    The macOS verifier skips broad desktop screenshots by default for privacy;
+    use a targeted macOS UI test artifact for visual evidence.
+12. For Apple Watch runtime launch checks, run
+    `python3 scripts/apple_remote.py verify-watch-startup --simulator "Apple Watch Series 11 (46mm)" --duration 60`.
+    Current Watch unit tests live under the iOS unit-test target, so use
+    `python3 scripts/apple_remote.py test-ios --only-testing "OpenMatesTests/<WatchTestName>"`
+    until `doctor` reports a dedicated Watch test scheme.
+13. After verification, shut down any simulator booted by the session with
     `python3 scripts/apple_remote.py cleanup` unless the operator explicitly asks
     to keep it running.
-11. Clean up only temporary artifacts created by the current session, such as
+14. Clean up only temporary artifacts created by the current session, such as
     copied screenshots or throwaway build logs. Do not delete unrelated
     DerivedData, caches, or local checkout changes.
-12. Report only generic evidence in committed docs and summaries: build command
+15. Report only generic evidence in committed docs and summaries: build command
     class, scheme, simulator family, result, and sanitized failure classes such as
     `ssh_failed`, `project_not_found`, or `xcode_build_failed`. Keep private
     connection details in local shell history or operator notes, not repo files.

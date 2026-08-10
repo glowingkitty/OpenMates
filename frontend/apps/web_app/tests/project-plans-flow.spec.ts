@@ -12,6 +12,10 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
+function projectHashUrlPattern(projectId: string): RegExp {
+	return new RegExp(`/projects#(?:[^#]*&)?project-id=${projectId}(?:&|$)`);
+}
+
 test.describe('Project-linked Plans V1 flow', () => {
 	test('creates a project-linked plan card', async ({ page }) => {
 		test.setTimeout(120000);
@@ -27,11 +31,14 @@ test.describe('Project-linked Plans V1 flow', () => {
 		await page.goto(getE2EDebugUrl('/projects'), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
 
-		await page.getByTestId('project-create-main-button').click();
-		await expect(page.getByTestId('projects-sidebar')).toBeVisible({ timeout: 30000 });
-		await page.getByTestId('project-name-input').fill(projectName);
-		await page.getByTestId('project-create-button').click();
-		await expect(page.getByTestId('project-card').filter({ hasText: projectName }).first()).toBeVisible({ timeout: 30000 });
+		const created = page.waitForResponse(
+			(response) => response.request().method() === 'POST' && response.url().endsWith('/v1/projects') && response.ok()
+		);
+		await page.getByTestId('project-input-textarea').fill(projectName);
+		await page.getByTestId('project-input-submit').click();
+		const projectId = (await (await created).json()).project.project_id;
+		await expect(page).toHaveURL(projectHashUrlPattern(projectId));
+		await expect(page.getByTestId('workspace-detail-title')).toHaveText(projectName, { timeout: 30000 });
 
 		const projectTasks = page.getByTestId('project-tasks-section');
 		await expect(projectTasks).toBeVisible({ timeout: 30000 });

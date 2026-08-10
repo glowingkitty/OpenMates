@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 """Tests for the unattended failed-test auto-fix controller.
 
 These tests exercise the controller logic without spawning OpenCode, posting to
@@ -25,6 +26,8 @@ def test_process_group_verifies_when_opencode_omits_summary_after_success(monkey
         suite="playwright",
         tests=[{"suite": "playwright", "file": "a11y-pages.spec.ts", "status": "failed"}],
         verify_command=["python3", "scripts/tests.py", "run", "--spec", "a11y-pages.spec.ts"],
+        campaign_key="campaign-test",
+        debug_group_key="g01-test",
     )
     args = Namespace(
         dry_run=False,
@@ -53,6 +56,7 @@ def test_process_group_verifies_when_opencode_omits_summary_after_success(monkey
     monkeypatch.setattr(controller, "track_session_files", lambda session_id, files: None)
     monkeypatch.setattr(controller, "run_verification", lambda group, timeout: ("passed", 0, "ok"))
     monkeypatch.setattr(controller, "post_discord", lambda summary, color=0x3B82F6: True)
+    monkeypatch.setattr(controller, "persist_campaign_attempt", lambda group, summary: None)
 
     summary = controller.process_group(group, "run1", args)
 

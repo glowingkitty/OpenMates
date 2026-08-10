@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 """SDK CLI parity API-key authorization contracts.
 
 Purpose: verify SDK parity route shells enforce API-key scope metadata.
@@ -8,26 +9,34 @@ Scope: focused authorization tests; product route wiring is tested per surface.
 
 import sys
 import hashlib
+import importlib
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 
-from backend.core.api.app.routes import sdk as sdk_routes
-from backend.core.api.app.routes.sdk import (
-    _dispatch_sdk_surface,
-    _extract_chat_response_content,
-    _require_sdk_scope_for_surface,
-)
+try:
+    from backend.core.api.app.routes import sdk as sdk_routes
+    from backend.core.api.app.routes.sdk import (
+        _dispatch_sdk_surface,
+        _extract_chat_response_content,
+        _extract_chat_response_model_name,
+        _require_sdk_scope_for_surface,
+    )
+except ImportError as _exc:
+    pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
 
 
 class _FakeDirectusService:
     def __init__(self):
         self.chat = SimpleNamespace(
+            get_user_chats_metadata=self.get_user_chats_metadata,
             get_new_chat_suggestions_for_user=self.get_new_chat_suggestions_for_user,
             check_chat_ownership=self.check_chat_ownership,
             get_chat_metadata=self.get_chat_metadata,
             get_all_messages_for_chat=self.get_all_messages_for_chat,
+            get_message_window_for_chat=self.get_message_window_for_chat,
+            get_message_count_for_chat=self.get_message_count_for_chat,
             delete_all_messages_for_chat=self.delete_all_messages_for_chat,
             delete_all_drafts_for_chat=self.delete_all_drafts_for_chat,
             persist_delete_chat=self.persist_delete_chat,
@@ -37,10 +46,36 @@ class _FakeDirectusService:
             get_embed_keys_by_hashed_chat_id=self.get_embed_keys_by_hashed_chat_id,
             get_embed_keys_by_embed_id=self.get_embed_keys_by_embed_id,
         )
+        self.chat_key_wrapper = SimpleNamespace(
+            get_wrappers_by_hashed_chat_ids_batch=self.get_wrappers_by_hashed_chat_ids_batch,
+            list_authorized_wrappers=self.list_authorized_wrappers,
+        )
         self.suggestion_queries = []
+        self.chat_metadata_queries = []
+        self.chat_key_wrapper_queries = []
+        self.message_window_queries = []
+        self.full_message_reads = 0
         self.ownership_allowed = True
         self.embed_owner_allowed = True
         self.deleted_chat_id = None
+        self.compression_checkpoints = [
+            {
+                "id": "checkpoint-1",
+                "chat_id": "chat-1",
+                "hashed_user_id": hashlib.sha256(b"user-1").hexdigest(),
+                "encrypted_summary": "cipher-summary",
+                "compressed_up_to_timestamp": 10,
+            }
+        ]
+        self.chat_key_wrappers = [
+            {
+                "id": "chat-wrapper-1",
+                "hashed_chat_id": hashlib.sha256(b"chat-1").hexdigest(),
+                "hashed_user_id": hashlib.sha256(b"user-1").hexdigest(),
+                "key_type": "master",
+                "encrypted_chat_key": "cipher-wrapper",
+            }
+        ]
 
     async def get_user_profile(self, user_id):
         return True, {
@@ -57,6 +92,10 @@ class _FakeDirectusService:
         self.suggestion_queries.append((hashed_user_id, limit))
         return [{"id": "suggestion-1"}, {"id": "suggestion-2"}]
 
+    async def get_user_chats_metadata(self, user_id, **kwargs):
+        self.chat_metadata_queries.append((user_id, kwargs))
+        return [{"id": "chat-1", "encrypted_title": "cipher-title"}]
+
     async def check_chat_ownership(self, chat_id, user_id):
         return self.ownership_allowed and chat_id == "chat-1" and user_id == "user-1"
 
@@ -67,7 +106,31 @@ class _FakeDirectusService:
 
     async def get_all_messages_for_chat(self, chat_id, decrypt_content=False):
         assert decrypt_content is False
+        self.full_message_reads += 1
         return [{"id": "message-1", "encrypted_content": "cipher-content"}]
+
+    async def get_message_window_for_chat(self, **kwargs):
+        self.message_window_queries.append(kwargs)
+        return {
+            "messages": [
+                {
+                    "id": "row-1",
+                    "client_message_id": "message-1",
+                    "chat_id": kwargs["chat_id"],
+                    "encrypted_content": "cipher-content",
+                    "content": "plaintext must not leak",
+                    "created_at": 50,
+                }
+            ],
+            "has_more_before": True,
+            "has_more_after": False,
+            "start_cursor": {"created_at": 50, "message_id": "message-1"},
+            "end_cursor": {"created_at": 50, "message_id": "message-1"},
+            "anchor_found": True,
+        }
+
+    async def get_message_count_for_chat(self, chat_id):
+        return 101 if chat_id == "chat-1" else 0
 
     async def delete_all_messages_for_chat(self, chat_id):
         self.deleted_chat_id = chat_id
@@ -92,7 +155,31 @@ class _FakeDirectusService:
     async def get_embed_keys_by_embed_id(self, embed_id):
         return [{"hashed_embed_id": "hash-embed-1", "key_type": "master", "encrypted_embed_key": "cipher-key"}]
 
-    async def get_items(self, collection, params=None):
+    async def get_wrappers_by_hashed_chat_ids_batch(self, hashed_chat_ids, *, hashed_user_id=None):
+        self.chat_key_wrapper_queries.append((hashed_chat_ids, hashed_user_id))
+        return [
+            wrapper for wrapper in self.chat_key_wrappers
+            if wrapper["hashed_chat_id"] in hashed_chat_ids
+            and (hashed_user_id is None or wrapper["hashed_user_id"] == hashed_user_id)
+        ]
+
+    async def list_authorized_wrappers(self, chat_id, user_id):
+        if not await self.check_chat_ownership(chat_id, user_id):
+            return []
+        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        return await self.get_wrappers_by_hashed_chat_ids_batch([hashed_chat_id], hashed_user_id=hashed_user_id)
+
+    async def get_items(self, collection, params=None, **kwargs):
+        if collection == "chat_compression_checkpoints":
+            filters = (params or {}).get("filter") or {}
+            chat_id = filters.get("chat_id", {}).get("_eq")
+            hashed_user_id = filters.get("hashed_user_id", {}).get("_eq")
+            return [
+                checkpoint for checkpoint in self.compression_checkpoints
+                if checkpoint["chat_id"] == chat_id
+                and checkpoint["hashed_user_id"] == hashed_user_id
+            ]
         if collection == "embeds":
             if not self.embed_owner_allowed:
                 return []
@@ -106,6 +193,13 @@ class _FakeCacheService:
     def __init__(self):
         self.suggestions = None
         self.cached_suggestions = None
+        self.removed_chat_ids = []
+        self.deleted_app_data = []
+        self.deleted_embed_cache = []
+
+    @property
+    async def client(self):
+        return None
 
     async def get_new_chat_suggestions(self, hashed_user_id):
         return self.suggestions
@@ -114,18 +208,42 @@ class _FakeCacheService:
         self.cached_suggestions = (hashed_user_id, suggestions, ttl)
         return True
 
+    async def remove_chat_from_ids_versions(self, user_id, chat_id):
+        self.removed_chat_ids.append((user_id, chat_id))
+        return True
+
+    async def delete_chat_app_settings_memories(self, user_id, chat_id):
+        self.deleted_app_data.append((user_id, chat_id))
+        return 1
+
+    async def delete_chat_embed_cache(self, chat_id):
+        self.deleted_embed_cache.append(chat_id)
+        return 1
+
+
+class _FakeConnectionManager:
+    def __init__(self):
+        self.broadcasts = []
+
+    async def broadcast_to_user(self, message, user_id, exclude_device_hash=None):
+        self.broadcasts.append((message, user_id, exclude_device_hash))
+
 
 class _FakeRequest:
-    def __init__(self, method="GET", query_params=None):
+    def __init__(self, method="GET", query_params=None, headers=None, cookies=None):
         directus_service = _FakeDirectusService()
         cache_service = _FakeCacheService()
+        connection_manager = _FakeConnectionManager()
         self.method = method
         self.query_params = query_params or {}
+        self.headers = headers or {}
+        self.cookies = cookies or {}
         self.app = SimpleNamespace(
             state=SimpleNamespace(
                 directus_service=directus_service,
                 cache_service=cache_service,
                 encryption_service=SimpleNamespace(),
+                connection_manager=connection_manager,
             )
         )
 
@@ -157,6 +275,52 @@ def test_selected_scope_allows_matching_sdk_surface():
     )
 
     assert required_scope == "notification:write"
+
+
+def test_full_access_allows_sdk_api_key_management():
+    required_scope = _require_sdk_scope_for_surface(
+        _api_key_info({"full_access": True}),
+        "settings",
+        "POST",
+        "api-keys",
+    )
+
+    assert required_scope == "developer:api_keys:create"
+
+
+def test_developer_scope_allows_sdk_api_key_read_only():
+    required_scope = _require_sdk_scope_for_surface(
+        _api_key_info(
+            {
+                "full_access": False,
+                "scopes": {"developer": ["developer:api_keys:read"]},
+            }
+        ),
+        "settings",
+        "GET",
+        "api-keys",
+    )
+
+    assert required_scope == "developer:api_keys:read"
+
+    with pytest.raises(HTTPException) as exc:
+        _require_sdk_scope_for_surface(
+            _api_key_info(
+                {
+                    "full_access": False,
+                    "scopes": {"developer": ["developer:api_keys:read"]},
+                }
+            ),
+            "settings",
+            "POST",
+            "api-keys",
+        )
+
+    assert exc.value.status_code == 403
+    assert exc.value.detail == {
+        "error": "missing_scope",
+        "missing_scope": "developer:api_keys:create",
+    }
 
 
 def test_missing_scope_returns_typed_error_detail():
@@ -235,6 +399,13 @@ def test_sdk_chat_response_normalizes_openai_completion_shape():
     }
 
     assert _extract_chat_response_content(result) == "SDK live npm smoke ok"
+
+
+def test_sdk_chat_response_extracts_model_name_shapes():
+    assert _extract_chat_response_model_name({"model_name": "Mistral Small 3.2"}) == "Mistral Small 3.2"
+    assert _extract_chat_response_model_name({"modelName": "GPT Test"}) == "GPT Test"
+    assert _extract_chat_response_model_name({"model": "OpenAI Test"}) == "OpenAI Test"
+    assert _extract_chat_response_model_name({"usage": {"model_name": "Claude Test"}}) == "Claude Test"
 
 
 @pytest.mark.asyncio
@@ -370,6 +541,34 @@ async def test_sdk_dispatch_memory_types_uses_apps_api_route(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_sdk_memories_accept_first_party_session_auth(monkeypatch):
+    async def fake_session_auth(**kwargs):
+        assert kwargs["refresh_token"] == "session-token"
+        return SimpleNamespace(id="user-1")
+
+    auth_dependencies = importlib.import_module(
+        "backend.core.api.app.routes.auth_routes.auth_dependencies"
+    )
+    monkeypatch.setattr(auth_dependencies, "get_current_user", fake_session_auth)
+    request = _FakeRequest(cookies={"auth_refresh_token": "session-token"})
+
+    result = await sdk_routes.sdk_surface_root(request, "memories", Response(), None)
+
+    assert result == {"memories": []}
+
+
+@pytest.mark.asyncio
+async def test_sdk_non_memory_surfaces_still_require_api_key():
+    request = _FakeRequest(cookies={"auth_refresh_token": "session-token"})
+
+    with pytest.raises(HTTPException) as exc:
+        await sdk_routes.sdk_surface_root(request, "billing", Response(), None)
+
+    assert exc.value.status_code == 401
+    assert exc.value.detail == "Missing API key bearer token"
+
+
+@pytest.mark.asyncio
 async def test_sdk_dispatch_rejects_unbounded_new_chat_suggestions_limit():
     with pytest.raises(HTTPException) as exc:
         await _dispatch_sdk_surface(
@@ -403,6 +602,35 @@ async def test_sdk_account_export_requires_chat_and_billing_scopes():
 
     assert exc.value.status_code == 403
     assert exc.value.detail == {"error": "missing_scope", "missing_scope": "chat:read_existing"}
+
+
+@pytest.mark.anyio
+async def test_sdk_chat_list_uses_admin_directus_read_after_api_key_auth(monkeypatch):
+    request = _FakeRequest(query_params={"limit": "25", "offset": "5"})
+
+    async def fake_auth(_request):
+        return {
+            "user_id": "user-1",
+            "api_key_metadata": {
+                "full_access": False,
+                "scopes": {"chat": ["chat:read_existing"]},
+            },
+        }
+
+    monkeypatch.setattr(sdk_routes, "_authenticate_sdk_request", fake_auth)
+
+    result = await sdk_routes.list_sdk_chats(request, limit=25, offset=5)
+
+    assert result["chats"] == [
+        {
+            "id": "chat-1",
+            "encrypted_title": "cipher-title",
+            "chat_key_wrappers": request.app.state.directus_service.chat_key_wrappers,
+        }
+    ]
+    assert request.app.state.directus_service.chat_metadata_queries == [
+        ("user-1", {"limit": 25, "offset": 5, "admin_required": True})
+    ]
 
 
 @pytest.mark.asyncio
@@ -457,6 +685,82 @@ async def test_sdk_dispatch_billing_invoices_reuses_billing_overview(monkeypatch
 
 
 @pytest.mark.asyncio
+async def test_sdk_dispatch_billing_usage_overview_reuses_settings_route(monkeypatch):
+    async def fake_get_usage_overview(
+        request,
+        granularity,
+        days,
+        weeks,
+        months,
+        current_user,
+        directus_service,
+        cache_service,
+        encryption_service,
+    ):
+        assert granularity == "weekly"
+        assert days == 30
+        assert weeks == 4
+        assert months == 12
+        assert current_user.id == "user-1"
+        assert directus_service is request.app.state.directus_service
+        assert cache_service is request.app.state.cache_service
+        assert encryption_service is request.app.state.encryption_service
+        return {"granularity": granularity, "totals": {"credits": 42}}
+
+    fake_settings_routes = SimpleNamespace(get_usage_overview=fake_get_usage_overview)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.settings", fake_settings_routes)
+
+    result = await _dispatch_sdk_surface(
+        _FakeRequest(method="GET", query_params={"granularity": "weekly", "weeks": "4"}),
+        {"user_id": "user-1"},
+        "billing",
+        "usage/overview",
+        None,
+    )
+
+    assert result == {"granularity": "weekly", "totals": {"credits": 42}}
+
+
+@pytest.mark.asyncio
+async def test_sdk_dispatch_billing_usage_details_and_chat_total_reuse_settings_routes(monkeypatch):
+    async def fake_get_usage_details(**kwargs):
+        assert kwargs["type"] == "chat"
+        assert kwargs["identifier"] == "chat-1"
+        assert kwargs["year_month"] == "2026-08"
+        assert kwargs["current_user"].id == "user-1"
+        return {"entries": [{"charge_id": "charge-1"}]}
+
+    async def fake_get_chat_total_credits(**kwargs):
+        assert kwargs["chat_id"] == "chat-1"
+        assert kwargs["current_user"].id == "user-1"
+        return {"chat_id": "chat-1", "total_credits": 42}
+
+    fake_settings_routes = SimpleNamespace(
+        get_usage_details=fake_get_usage_details,
+        get_chat_total_credits=fake_get_chat_total_credits,
+    )
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.settings", fake_settings_routes)
+
+    details = await _dispatch_sdk_surface(
+        _FakeRequest(method="GET", query_params={"type": "chat", "identifier": "chat-1", "year_month": "2026-08"}),
+        {"user_id": "user-1"},
+        "billing",
+        "usage/details",
+        None,
+    )
+    chat_total = await _dispatch_sdk_surface(
+        _FakeRequest(method="GET", query_params={"chat_id": "chat-1"}),
+        {"user_id": "user-1"},
+        "billing",
+        "usage/chat-total",
+        None,
+    )
+
+    assert details == {"entries": [{"charge_id": "charge-1"}]}
+    assert chat_total == {"chat_id": "chat-1", "total_credits": 42}
+
+
+@pytest.mark.anyio
 async def test_sdk_dispatch_chat_delete_requires_ownership_and_deletes_chat():
     request = _FakeRequest(method="DELETE")
 
@@ -470,6 +774,16 @@ async def test_sdk_dispatch_chat_delete_requires_ownership_and_deletes_chat():
 
     assert result == {"success": True, "chat_id": "chat-1"}
     assert request.app.state.directus_service.deleted_chat_id == "chat-1"
+    assert request.app.state.cache_service.removed_chat_ids == [("user-1", "chat-1")]
+    assert request.app.state.cache_service.deleted_app_data == [("user-1", "chat-1")]
+    assert request.app.state.cache_service.deleted_embed_cache == ["chat-1"]
+    assert request.app.state.connection_manager.broadcasts == [
+        (
+            {"type": "chat_deleted", "payload": {"chat_id": "chat-1", "tombstone": True}},
+            "user-1",
+            None,
+        )
+    ]
 
 
 @pytest.mark.asyncio
@@ -521,7 +835,94 @@ async def test_sdk_load_chat_returns_encrypted_chat_and_messages_after_ownership
         "messages": [{"id": "message-1", "encrypted_content": "cipher-content"}],
         "embeds": [{"embed_id": "embed-1", "encrypted_content": "cipher-embed"}],
         "embed_keys": [{"hashed_embed_id": "hash-embed-1", "key_type": "master", "encrypted_embed_key": "cipher-key"}],
+        "chat_key_wrappers": request.app.state.directus_service.chat_key_wrappers,
     }
+
+
+@pytest.mark.anyio
+async def test_sdk_chat_messages_returns_bounded_encrypted_window_after_ownership(monkeypatch):
+    async def fake_authenticate(request):
+        return {
+            "user_id": "user-1",
+            "api_key_metadata": {
+                "full_access": False,
+                "scopes": {"chat": ["chat:read_existing"]},
+            },
+        }
+
+    monkeypatch.setattr(sdk_routes, "_authenticate_sdk_request", fake_authenticate)
+    request = _FakeRequest(method="GET")
+
+    result = await sdk_routes.get_sdk_chat_messages(
+        request,
+        "chat-1",
+        direction="latest",
+        limit=sdk_routes.DEFAULT_SDK_MESSAGE_WINDOW_LIMIT,
+        before_timestamp=None,
+        before_message_id=None,
+        after_timestamp=None,
+        after_message_id=None,
+        anchor_message_id=None,
+        respect_compression_boundary=True,
+    )
+
+    assert result["chat"] == {"id": "chat-1", "encrypted_title": "cipher-title", "encrypted_chat_key": "cipher-key"}
+    assert result["messages"] == [
+        {
+            "id": "row-1",
+            "client_message_id": "message-1",
+            "chat_id": "chat-1",
+            "encrypted_content": "cipher-content",
+            "created_at": 50,
+            "message_id": "message-1",
+        }
+    ]
+    assert result["has_more_before"] is True
+    assert result["has_more_after"] is False
+    assert result["server_message_count"] == 101
+    assert result["compression_boundary_timestamp"] == 10
+    assert result["chat_key_wrappers"] == request.app.state.directus_service.chat_key_wrappers
+    assert request.app.state.directus_service.message_window_queries == [
+        {
+            "chat_id": "chat-1",
+            "direction": "latest",
+            "limit": sdk_routes.DEFAULT_SDK_MESSAGE_WINDOW_LIMIT,
+            "before_timestamp": None,
+            "before_message_id": None,
+            "after_timestamp": None,
+            "after_message_id": None,
+            "anchor_message_id": None,
+            "lower_bound_timestamp": 10,
+        }
+    ]
+    assert request.app.state.directus_service.full_message_reads == 0
+
+
+@pytest.mark.anyio
+async def test_sdk_chat_messages_hides_chats_owned_by_other_users(monkeypatch):
+    async def fake_authenticate(request):
+        return {"user_id": "user-2", "api_key_metadata": {"full_access": True}}
+
+    monkeypatch.setattr(sdk_routes, "_authenticate_sdk_request", fake_authenticate)
+    request = _FakeRequest(method="GET")
+
+    with pytest.raises(HTTPException) as exc:
+        await sdk_routes.get_sdk_chat_messages(
+            request,
+            "chat-1",
+            direction="latest",
+            limit=sdk_routes.DEFAULT_SDK_MESSAGE_WINDOW_LIMIT,
+            before_timestamp=None,
+            before_message_id=None,
+            after_timestamp=None,
+            after_message_id=None,
+            anchor_message_id=None,
+            respect_compression_boundary=True,
+        )
+
+    assert exc.value.status_code == 404
+    assert request.app.state.directus_service.message_window_queries == []
+    assert request.app.state.directus_service.full_message_reads == 0
 
 
 @pytest.mark.asyncio

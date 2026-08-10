@@ -219,6 +219,7 @@ async def undo_connected_account_action(
                 chat_id=body.chat_id,
                 message_id=body.message_id,
                 app_id="calendar",
+                provider_id="google",
                 action=broker_action,
                 action_scope=action_scope,
             )
@@ -230,6 +231,7 @@ async def undo_connected_account_action(
                 chat_id=body.chat_id,
                 message_id=body.message_id,
                 app_id="calendar",
+                provider_id="google",
                 action=broker_action,
                 action_scope=action_scope,
             )

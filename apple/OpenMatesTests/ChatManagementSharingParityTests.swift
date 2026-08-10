@@ -1,8 +1,10 @@
 // Unit coverage for native chat management metadata parity.
 // These tests are deterministic and do not use network calls, credentials,
-// private chat content, share URLs, or webhook secrets. They protect the local
-// chat ordering and merge behavior that backs the Apple chat-management UI.
+// private chat content, real share URLs, or webhook secrets. They protect the
+// local chat ordering, share crypto contract, and merge behavior that back the
+// Apple chat-management UI.
 
+import CryptoKit
 import XCTest
 #if os(iOS)
 import UIKit
@@ -20,6 +22,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
             typesAndTitles,
             [
                 "org.openmates.ask|\(AppStrings.quickActionAsk)",
+                "org.openmates.record-request|\(AppStrings.quickActionRecordRequest)",
                 "org.openmates.ask-about-photo|\(AppStrings.quickActionAskAboutPhoto)",
                 "org.openmates.search|\(AppStrings.search)",
                 "org.openmates.incognito-ask|\(AppStrings.quickActionIncognitoAsk)"
@@ -28,9 +31,10 @@ final class ChatManagementSharingParityTests: XCTestCase {
 
         XCTAssertEqual(AppQuickAction(shortcutItem: UIApplicationShortcutItem(type: "org.openmates.newchat", localizedTitle: "New Chat")), .ask)
         XCTAssertEqual(AppQuickAction(shortcutItem: items[0]), .ask)
-        XCTAssertEqual(AppQuickAction(shortcutItem: items[1]), .askAboutPhoto)
-        XCTAssertEqual(AppQuickAction(shortcutItem: items[2]), .search)
-        XCTAssertEqual(AppQuickAction(shortcutItem: items[3]), .incognitoAsk)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[1]), .recordRequest)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[2]), .askAboutPhoto)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[3]), .search)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[4]), .incognitoAsk)
         #endif
     }
 
@@ -50,6 +54,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
             typesAndTitles,
             [
                 "org.openmates.ask|Ask",
+                "org.openmates.record-request|Record request",
                 "org.openmates.ask-about-photo|Ask About Photo",
                 "org.openmates.search|Search",
                 "org.openmates.incognito-ask|Incognito Ask"
@@ -105,6 +110,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
             await manager.setLanguage(language)
             let titles = [
                 AppStrings.quickActionAsk,
+                AppStrings.quickActionRecordRequest,
                 AppStrings.quickActionAskAboutPhoto,
                 AppStrings.quickActionIncognitoAsk
             ]
@@ -161,6 +167,108 @@ final class ChatManagementSharingParityTests: XCTestCase {
         XCTAssertEqual(merged?.isPinned, true)
         XCTAssertEqual(merged?.isArchived, false)
         XCTAssertEqual(merged?.messagesV, 2)
+    }
+
+    func testShareBlobsUseWebFieldsForEveryDuration() async throws {
+        let key = SymmetricKey(data: Data((0..<32).map(UInt8.init)))
+
+        for duration in ShareDuration.allCases {
+            let encryptedBlob = try await ShareLinkCrypto.encryptedShareBlob(
+                identifier: "chat-share-fixture",
+                key: key,
+                duration: duration,
+                password: nil,
+                keyField: "chat_encryption_key"
+            )
+            let values = try await decryptShareBlob(
+                encryptedBlob,
+                identifier: "chat-share-fixture"
+            )
+
+            XCTAssertEqual(values["chat_encryption_key"], rawData(key).base64EncodedString())
+            XCTAssertEqual(values["duration_seconds"], String(duration.rawValue))
+            XCTAssertEqual(values["pwd"], "0")
+            XCTAssertNotNil(values["generated_at"])
+        }
+    }
+
+    func testPasswordProtectedEmbedShareBlobUsesWebDerivation() async throws {
+        let key = SymmetricKey(data: Data(repeating: 7, count: 32))
+        let identifier = "embed-share-fixture"
+        let password = "password1"
+        let encryptedBlob = try await ShareLinkCrypto.encryptedShareBlob(
+            identifier: identifier,
+            key: key,
+            duration: .sevenDays,
+            password: password,
+            keyField: "embed_encryption_key"
+        )
+        let values = try await decryptShareBlob(
+            encryptedBlob,
+            identifier: identifier
+        )
+        let passwordKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(
+            password: password,
+            salt: Data("openmates-pwd-\(identifier)".utf8)
+        )
+        let encryptedKey = try XCTUnwrap(values["embed_encryption_key"])
+
+        XCTAssertEqual(
+            try XCTUnwrap(String(data: decryptURLSafe(encryptedKey, using: passwordKey), encoding: .utf8)),
+            rawData(key).base64EncodedString()
+        )
+        XCTAssertEqual(values["duration_seconds"], String(ShareDuration.sevenDays.rawValue))
+        XCTAssertEqual(values["pwd"], "1")
+    }
+
+    func testDurableShortLinksUseWebTwoHundredThousandRoundDerivation() async throws {
+        let longURL = try XCTUnwrap(URL(string: "https://app.example.invalid/share/chat/chat-share-fixture#key=opaque"))
+        let encrypted = try await ShareLinkCrypto.encryptedShortURL(longURL)
+        let shortKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(
+            password: encrypted.shortKey,
+            salt: Data("omts-v1-\(encrypted.token)".utf8),
+            iterations: 200_000
+        )
+        let shortURL = try ShareLinkCrypto.shortURL(
+            webURL: try XCTUnwrap(URL(string: "https://app.example.invalid")),
+            token: encrypted.token,
+            shortKey: encrypted.shortKey
+        )
+
+        XCTAssertEqual(try decryptURLSafe(encrypted.encryptedURL, using: shortKey), Data(longURL.absoluteString.utf8))
+        XCTAssertEqual(shortURL.path, "/s/\(encrypted.token)")
+        XCTAssertEqual(shortURL.fragment, encrypted.shortKey)
+        XCTAssertEqual(encrypted.token.count, 8)
+        XCTAssertEqual(encrypted.shortKey.count, 22)
+    }
+
+    private func decryptShareBlob(
+        _ encryptedBlob: String,
+        identifier: String
+    ) async throws -> [String: String] {
+        let identifierKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(
+            password: identifier,
+            salt: Data("openmates-share-v1".utf8)
+        )
+        let decrypted = try decryptURLSafe(encryptedBlob, using: identifierKey)
+        let serialized = try XCTUnwrap(String(data: decrypted, encoding: .utf8))
+        let components = try XCTUnwrap(URLComponents(string: "https://fixture.invalid/?\(serialized)"))
+        return Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).compactMap { item in
+            item.value.map { (item.name, $0) }
+        })
+    }
+
+    private func decryptURLSafe(_ value: String, using key: SymmetricKey) throws -> Data {
+        var base64 = value
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        base64.append(String(repeating: "=", count: (4 - base64.count % 4) % 4))
+        let combined = try XCTUnwrap(Data(base64Encoded: base64))
+        return try AES.GCM.open(AES.GCM.SealedBox(combined: combined), using: key)
+    }
+
+    private func rawData(_ key: SymmetricKey) -> Data {
+        key.withUnsafeBytes { Data($0) }
     }
 
     private func makeChat(

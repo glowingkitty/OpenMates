@@ -8,6 +8,12 @@ from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
+# Models3D shares the existing image-generation worker because both workloads
+# need the same encrypted S3/Vault media services and no separate worker exists.
+SHARED_APP_QUEUES = {
+    "models3d": "app_images",
+}
+
 
 async def execute_skill_via_celery(
     app_id: str,
@@ -47,9 +53,9 @@ async def execute_skill_via_celery(
         # This matches the pattern used in ask_skill: "apps.ai.tasks.skill_ask"
         task_name = f"apps.{app_id}.tasks.skill_{skill_id}"
         
-        # Queue name follows the pattern: app_{app_id}
-        # This routes the task to the app's dedicated Celery worker container
-        queue_name = f"app_{app_id}"
+        # Most apps use a dedicated queue. Shared-media apps use the worker that
+        # already owns their required private media services.
+        queue_name = SHARED_APP_QUEUES.get(app_id, f"app_{app_id}")
         
         # Dispatch the task to the app's queue
         # The task will be executed in the app's Celery worker container
@@ -181,4 +187,3 @@ async def get_celery_task_status(
             "result": None,
             "error": {"message": f"Error checking task status: {str(e)}"}
         }
-

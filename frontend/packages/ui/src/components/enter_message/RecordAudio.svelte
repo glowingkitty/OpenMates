@@ -1,31 +1,26 @@
 <!-- frontend/packages/ui/src/components/enter_message/RecordAudio.svelte -->
 <!--
   Audio recording UI — renders as a full overlay inside .message-field.
-  Replaces the normal message field appearance with a purple/blue gradient
-  while recording is in progress, matching the Figma design:
+  Replaces the normal message field appearance while recording is in progress.
+
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
 
   ┌──────────────────────────────────────────────────────┐
-  │              Release to finish                       │  ← bold, centered
+  │              Recording...                           │
   │                                                      │
-  │  [00:01]   ← Slide left to cancel     [●mic]         │  ← controls row
+  │  [00:01]                  [Cancel] [Finish]          │  ← controls row
   └──────────────────────────────────────────────────────┘
 
-  Release / stop behaviour:
+  Finish / cancel behaviour:
   ─────────────────────────
-  The overlay covers the entire message field (inset:0, z-index:200), so the
-  original mic button underneath can never receive mouseup/touchend after the
-  overlay mounts. We therefore own ALL pointer-release and keyboard events here,
-  via document-level listeners attached on mount and removed on destroy:
+  The overlay covers the entire message field (inset:0, z-index:200). Recording
+  starts on the initial mic press and then stays active until an explicit finish
+  or cancel action:
 
-    • mouseup   → stop()  (complete recording → audiorecorded event)
-    • touchend  → stop()  (complete recording on mobile)
+    • Finish button / Enter → stop()  (complete recording → audiorecorded event)
+    • Cancel button / Escape → cancel()  (discard recording)
     • keydown Escape → cancel()  (discard recording)
-
-  Drag-left-to-cancel:
-  ────────────────────
-  mousemove / touchmove track horizontal displacement from the start position.
-  Dragging left >100px triggers cancel(). The mic circle follows the drag so
-  the user gets visual feedback.
 
   Exported methods (called by parent as fallback):
     stop()   — complete the recording
@@ -35,9 +30,10 @@
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
+    import { buildWaveformFromLevels, type AudioWaveformData } from '../../utils/audioWaveform';
 
     const dispatch = createEventDispatcher<{
-        audiorecorded: { blob: Blob; duration: number; mimeType: string };
+        audiorecorded: { blob: Blob; duration: number; mimeType: string; waveform?: AudioWaveformData };
         close: void;
         cancel: void;
         recordingStateChange: { active: boolean };
@@ -45,14 +41,12 @@
 
     // --- Props ---
     interface Props {
-        initialPosition: { x: number; y: number };
+    initialPosition: { x: number; y: number };
         externalStream?: MediaStream | null;
-        startedFromKeyboard?: boolean;
     }
     let {
         initialPosition,
         externalStream = null,
-        startedFromKeyboard = false
     }: Props = $props();
 
     // --- Internal State ---
@@ -62,14 +56,10 @@
     let recordedChunks: Blob[] = [];
     let recordingTime = $state(0);
     let recordingInterval: ReturnType<typeof setInterval> | null = null;
-    let startPosition = { x: 0, y: 0 };
-    let currentPosition = { x: 0, y: 0 };
     let isCancelled = false;
     // Whether stop() has already been called (prevents double-stop from both
     // document mouseup and parent's onRecordMouseUp after tick()).
     let stopAlreadyCalled = false;
-    // Horizontal drag offset for the cancel animation (negative = dragging left)
-    let dragOffsetX = $state(0);
     // Guard: ignore pointer-release events until the MediaRecorder has actually
     // started. Without this, a queued/bubbled mouseup from the original press
     // interaction fires before getUserMedia resolves, causing stopInternal to see
@@ -80,6 +70,23 @@
     // null = no pending release; false = complete; true = cancel.
     let pendingReleaseCancel: boolean | null = null;
 
+    const WAVEFORM_SAMPLE_COUNT = 64;
+    const WAVEFORM_FFT_SIZE = 256;
+    const WAVEFORM_SAMPLE_INTERVAL_MS = 50;
+    const WAVEFORM_NOISE_FLOOR = 0.005;
+    const WAVEFORM_MIN_DECIBELS = -46;
+    const WAVEFORM_MAX_DECIBELS = -18;
+    const WAVEFORM_MIN_VISIBLE_LEVEL = 0.04;
+
+    let waveformSamples = $state<number[]>(createEmptyWaveform());
+    let recordedWaveformLevels: number[] = [];
+    let waveformContext: AudioContext | null = null;
+    let waveformSource: MediaStreamAudioSourceNode | null = null;
+    let waveformAnalyser: AnalyserNode | null = null;
+    let waveformAnimationFrame: number | null = null;
+    let lastWaveformSampleAt = 0;
+    let recordOverlayElement: HTMLDivElement | null = null;
+
     const logger = {
         debug: (...args: unknown[]) => console.debug('[RecordAudio]', ...args),
         info:  (...args: unknown[]) => console.info('[RecordAudio]',  ...args),
@@ -89,16 +96,15 @@
     // --- Lifecycle ---
     onMount(() => {
         logger.debug('Component mounted, starting recording.');
-        startPosition = { ...initialPosition };
-        currentPosition = { ...startPosition };
+        void initialPosition;
 
-        // Attach document-level listeners so release / Escape work even though
-        // the overlay completely covers the original mic button.
-        document.addEventListener('mouseup',   handleDocumentMouseUp);
-        document.addEventListener('touchend',  handleDocumentTouchEnd);
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        // Attach document-level key handling so Enter/Escape work while the
+        // overlay owns focus and pointer events.
         document.addEventListener('keydown',   handleKeyDown);
+
+        requestAnimationFrame(() => {
+            recordOverlayElement?.focus({ preventScroll: true });
+        });
 
         initializeAndStartRecording();
         dispatch('recordingStateChange', { active: true });
@@ -106,14 +112,11 @@
 
     onDestroy(() => {
         logger.debug('Component destroying.');
+        stopWaveform();
         // Guard: don't double-stop if stop/cancel already ran
         if (!stopAlreadyCalled) {
             stopInternal(true);
         }
-        document.removeEventListener('mouseup',   handleDocumentMouseUp);
-        document.removeEventListener('touchend',  handleDocumentTouchEnd);
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('touchmove', handleTouchMove);
         document.removeEventListener('keydown',   handleKeyDown);
         dispatch('recordingStateChange', { active: false });
     });
@@ -123,6 +126,7 @@
         isCancelled = false;
         stopAlreadyCalled = false;
         recordedChunks = [];
+        recordedWaveformLevels = [];
 
         try {
             let streamToUse: MediaStream;
@@ -158,6 +162,7 @@
 
             mediaRecorder.onstop = () => {
                 logger.debug('MediaRecorder stopped.');
+                stopWaveform();
 
                 // Release the mic track
                 if (internalStream) {
@@ -169,12 +174,14 @@
                     const finalMimeType = mediaRecorder?.mimeType || mimeType;
                     const blob = new Blob(recordedChunks, { type: finalMimeType });
                     const finalDuration = recordingTime;
+                    const waveform = buildWaveformFromLevels(recordedWaveformLevels, finalDuration);
                     logger.info('Recording finished:', {
                         blobSize: `${(blob.size / 1024).toFixed(2)} KB`,
                         duration:  `${finalDuration}s`,
                         mimeType:  blob.type,
+                        waveformSamples: waveform?.samples.length ?? 0,
                     });
-                    dispatch('audiorecorded', { blob, duration: finalDuration, mimeType: finalMimeType });
+                    dispatch('audiorecorded', { blob, duration: finalDuration, mimeType: finalMimeType, waveform });
                 } else {
                     logger.info(isCancelled ? 'Recording cancelled.' : 'Recording stopped with no data.');
                     dispatch('cancel');
@@ -182,6 +189,7 @@
 
                 isRecording = false;
                 recordedChunks = [];
+                recordedWaveformLevels = [];
                 recordingTime = 0;
                 stopRecordingTimer();
                 dispatch('close');
@@ -197,6 +205,7 @@
             readyForRelease = true;
             logger.info('MediaRecorder started.');
             startRecordingTimer();
+            startWaveform(streamToUse);
 
             // If a pointer-release or Escape arrived while we were waiting for
             // getUserMedia + MediaRecorder init, honour it now.
@@ -212,6 +221,7 @@
             logger.error('Failed to initialize recording:', err);
             isRecording = false;
             stopRecordingTimer();
+            stopWaveform();
             if (internalStream) {
                 internalStream.getTracks().forEach(track => track.stop());
                 internalStream = null;
@@ -235,6 +245,7 @@
         logger.info(`Stopping recording. Cancelled: ${isCancelled}`);
 
         stopRecordingTimer();
+        stopWaveform();
         isRecording = false;
 
         if (mediaRecorder && (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused')) {
@@ -278,42 +289,113 @@
         return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
 
-    // --- Document-level pointer release → complete recording ---
+    // --- Live waveform ---
 
-    /**
-     * mouseup anywhere on the document completes the recording.
-     * This fires even though the overlay covers the original mic button.
-     *
-     * Ignored until readyForRelease is true — prevents a queued/bubbled mouseup
-     * from the original press interaction from stopping the recording before the
-     * MediaRecorder has had time to initialise (getUserMedia is async).
-     */
-    function handleDocumentMouseUp(_event: MouseEvent) {
-        if (!readyForRelease) {
-            logger.debug('Document mouseup — deferred (not ready for release yet).');
-            pendingReleaseCancel = false; // queue: complete when ready
-            return;
-        }
-        logger.debug('Document mouseup — completing recording.');
-        stopInternal(false); // not cancelled
+    function createEmptyWaveform(): number[] {
+        return Array.from({ length: WAVEFORM_SAMPLE_COUNT }, () => 0);
     }
 
-    /**
-     * touchend anywhere on the document completes the recording on mobile.
-     * Same readyForRelease guard as mouseup.
-     */
-    function handleDocumentTouchEnd(_event: TouchEvent) {
-        if (!readyForRelease) {
-            logger.debug('Document touchend — deferred (not ready for release yet).');
-            pendingReleaseCancel = false; // queue: complete when ready
-            return;
+    function startWaveform(stream: MediaStream) {
+        stopWaveform();
+
+        try {
+            const audioWindow = window as unknown as {
+                AudioContext?: typeof AudioContext;
+                webkitAudioContext?: typeof AudioContext;
+            };
+            const AudioContextConstructor = audioWindow.AudioContext ?? audioWindow.webkitAudioContext;
+            if (!AudioContextConstructor) {
+                throw new Error('Web Audio API is unavailable.');
+            }
+
+            waveformContext = new AudioContextConstructor();
+            waveformSource = waveformContext.createMediaStreamSource(stream);
+            waveformAnalyser = waveformContext.createAnalyser();
+            waveformAnalyser.fftSize = WAVEFORM_FFT_SIZE;
+            waveformSource.connect(waveformAnalyser);
+
+            if (waveformContext.state === 'suspended') {
+                void waveformContext.resume().catch((error) => {
+                    logger.error('Failed to resume waveform AudioContext:', error);
+                });
+            }
+
+            const timeDomainData = new Uint8Array(waveformAnalyser.frequencyBinCount);
+            lastWaveformSampleAt = 0;
+
+            const sampleWaveform = (timestamp: number) => {
+                if (!waveformAnalyser || !waveformContext || !isRecording) return;
+
+                if (timestamp - lastWaveformSampleAt >= WAVEFORM_SAMPLE_INTERVAL_MS) {
+                    waveformAnalyser.getByteTimeDomainData(timeDomainData);
+                    const level = normalizeWaveformLevel(timeDomainData);
+                    recordedWaveformLevels.push(level);
+                    waveformSamples = [...waveformSamples.slice(1), level];
+                    lastWaveformSampleAt = timestamp;
+                }
+
+                waveformAnimationFrame = requestAnimationFrame(sampleWaveform);
+            };
+
+            waveformAnimationFrame = requestAnimationFrame(sampleWaveform);
+        } catch (error) {
+            logger.error('Failed to initialize live waveform:', error);
+            stopWaveform();
         }
-        logger.debug('Document touchend — completing recording.');
-        stopInternal(false);
     }
 
-    // --- Escape key → cancel recording ---
+    function normalizeWaveformLevel(timeDomainData: Uint8Array): number {
+        let sumOfSquares = 0;
+        for (const sample of timeDomainData) {
+            const centeredSample = (sample - 128) / 128;
+            sumOfSquares += centeredSample * centeredSample;
+        }
+
+        const rms = Math.sqrt(sumOfSquares / timeDomainData.length);
+        if (rms <= WAVEFORM_NOISE_FLOOR) return 0;
+
+        const decibels = 20 * Math.log10(rms);
+        return Math.min(
+            1,
+            Math.max(0, (decibels - WAVEFORM_MIN_DECIBELS) / (WAVEFORM_MAX_DECIBELS - WAVEFORM_MIN_DECIBELS))
+        );
+    }
+
+    function stopWaveform() {
+        if (waveformAnimationFrame !== null) {
+            cancelAnimationFrame(waveformAnimationFrame);
+            waveformAnimationFrame = null;
+        }
+
+        waveformSource?.disconnect();
+        waveformAnalyser?.disconnect();
+
+        const contextToClose = waveformContext;
+        waveformSource = null;
+        waveformAnalyser = null;
+        waveformContext = null;
+        lastWaveformSampleAt = 0;
+        waveformSamples = createEmptyWaveform();
+
+        if (contextToClose && contextToClose.state !== 'closed') {
+            void contextToClose.close().catch((error) => {
+                logger.error('Failed to close waveform AudioContext:', error);
+            });
+        }
+    }
+
+    // --- Keyboard shortcuts ---
     function handleKeyDown(event: KeyboardEvent) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            if (!readyForRelease) {
+                logger.debug('Enter pressed — deferred finish (not ready yet).');
+                pendingReleaseCancel = false;
+                return;
+            }
+            logger.debug('Enter pressed — finishing recording.');
+            stopInternal(false);
+        }
         if (event.key === 'Escape') {
             event.preventDefault();
             if (!readyForRelease) {
@@ -323,37 +405,6 @@
             }
             logger.debug('Escape pressed — cancelling recording.');
             stopInternal(true); // cancelled
-        }
-    }
-
-    // --- Drag / Cancel Logic ---
-    function handleMouseMove(event: MouseEvent) {
-        if (!isRecording || !readyForRelease) return;
-        currentPosition = { x: event.clientX, y: event.clientY };
-        updateDragState();
-    }
-
-    function handleTouchMove(event: TouchEvent) {
-        if (!isRecording || !readyForRelease) return;
-        event.preventDefault();
-        if (event.touches.length > 0) {
-            currentPosition = { x: event.touches[0].clientX, y: event.touches[0].clientY };
-            updateDragState();
-        }
-    }
-
-    function updateDragState() {
-        const deltaX = currentPosition.x - startPosition.x;
-        const deltaY = currentPosition.y - startPosition.y;
-        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-        // Only show leftward drag visually
-        dragOffsetX = Math.min(0, deltaX);
-
-        // Cancel when dragged left >100px total distance AND mostly horizontal
-        if (distance > 100 && deltaX < -60) {
-            logger.debug('Recording cancelled by drag.');
-            stopInternal(true);
         }
     }
 
@@ -387,37 +438,50 @@
   pointer-events: none on the overlay itself so clicks/taps fall through to
   document-level listeners — no need to intercept on the div.
 -->
-<div class="record-overlay" data-testid="record-overlay" transition:fade={{ duration: 150 }}>
-    <!-- Top: "Release to finish" heading -->
-    <div class="record-header">
-        <span class="release-text" data-testid="release-text">{$text('enter_message.record_audio.release_to_finish')}</span>
+<div
+    bind:this={recordOverlayElement}
+    class="record-overlay"
+    data-testid="record-overlay"
+    tabindex="-1"
+    transition:fade={{ duration: 150 }}
+>
+    <div class="record-content">
+        <!-- Top: explicit completion/cancellation shortcuts. -->
+        <div class="record-header">
+            <span class="release-text" data-testid="release-text">
+                {$text('enter_message.record_audio.recording')}
+            </span>
+            <span class="record-shortcuts" data-testid="record-shortcuts">
+                {$text('enter_message.record_audio.enter_to_finish_escape_to_cancel')}
+            </span>
+        </div>
+
+        <!-- Recent microphone levels enter on the right and roll left. -->
+        <div class="recording-waveform" data-testid="recording-waveform" aria-hidden="true">
+            {#each waveformSamples as level, index (index)}
+                <span
+                    class="recording-waveform-bar"
+                    data-testid="recording-waveform-bar"
+                    data-level={level.toFixed(3)}
+                    style:height={`${Math.max(WAVEFORM_MIN_VISIBLE_LEVEL, level) * 100}%`}
+                ></span>
+            {/each}
+        </div>
     </div>
 
-    <!-- Bottom controls: timer | cancel hint | mic circle -->
-    <div class="record-controls">
-        <!-- Red timer pill -->
+    <!-- Bottom controls: timer | explicit actions -->
+    <div class="record-controls" data-testid="record-controls">
         <div class="timer-pill" data-testid="timer-pill">
             {formatTime(recordingTime)}
         </div>
 
-        <!-- Pointer/touch starts can drag left; keyboard starts cancel with Escape. -->
-        <div class="cancel-hint" data-testid="cancel-hint" style="opacity: {Math.max(0.3, 1 + dragOffsetX / 80)}">
-            {#if startedFromKeyboard}
-                <span class="cancel-text">{$text('enter_message.record_audio.press_esc_to_cancel')}</span>
-            {:else}
-                <span class="cancel-arrow">‹</span>
-                <span class="cancel-text">{$text('enter_message.record_audio.slide_left_to_cancel')}</span>
-            {/if}
-        </div>
-
-        <!-- Green mic circle follows horizontal drag -->
-        <div
-            class="mic-button"
-            data-testid="mic-button"
-            class:recording={isRecording}
-            style="transform: translateX({Math.max(-120, dragOffsetX)}px)"
-        >
-            <div class="mic-icon icon_recordaudio"></div>
+        <div class="record-action-buttons" data-testid="record-action-buttons">
+            <button type="button" class="record-action-button cancel" data-testid="record-cancel-button" onclick={cancel}>
+                {$text('enter_message.record_audio.cancel')}
+            </button>
+            <button type="button" class="record-action-button finish" data-testid="record-finish-button" onclick={stop}>
+                {$text('enter_message.record_audio.finish')}
+            </button>
         </div>
     </div>
 </div>
@@ -440,14 +504,36 @@
         overflow: hidden;
     }
 
-    /* "Release to finish" heading */
+    .record-overlay:focus,
+    .record-overlay:focus-visible {
+        outline: none;
+    }
+
+    :global(html[data-recording-shortcut-active='true'] [data-testid='active-chat-container']:focus-visible),
+    :global(html[data-recording-shortcut-active='true'] [data-testid='active-chat-container'] :focus-visible) {
+        outline: none !important;
+    }
+
+    .record-content {
+        width: 100%;
+        min-height: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-4);
+    }
+
+    /* Recording heading and keyboard shortcut hint */
     .record-header {
         width: 100%;
         text-align: center;
-        flex: 1;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: var(--spacing-1);
     }
 
     .release-text {
@@ -455,6 +541,36 @@
         font-weight: 700;
         color: white;
         letter-spacing: 0.01em;
+    }
+
+    .record-shortcuts {
+        color: rgba(255, 255, 255, 0.72);
+        font-size: var(--font-size-xs);
+        font-weight: 500;
+    }
+
+    .recording-waveform {
+        width: min(100%, 480px);
+        height: 64px;
+        min-height: 64px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(1px, 0.4vw, 4px);
+        padding-inline: var(--spacing-2);
+        box-sizing: border-box;
+        color: white;
+        overflow: hidden;
+    }
+
+    .recording-waveform-bar {
+        width: clamp(1px, 0.25vw, 3px);
+        min-height: 2px;
+        max-height: 100%;
+        flex: 0 1 3px;
+        background-color: currentColor;
+        border-radius: var(--radius-full);
     }
 
     /* Bottom controls row */
@@ -466,7 +582,6 @@
         gap: var(--spacing-4);
     }
 
-    /* Red timer pill */
     .timer-pill {
         background-color: #ff4444;
         color: white;
@@ -480,62 +595,53 @@
         letter-spacing: 0.02em;
     }
 
-    /* "Slide left to cancel" hint */
-    .cancel-hint {
+    .record-action-buttons {
         display: flex;
         align-items: center;
-        gap: var(--spacing-2);
-        color: rgba(255, 255, 255, 0.7);
-        font-size: var(--font-size-xs);
-        font-weight: 400;
+        justify-content: flex-end;
+        gap: var(--spacing-3);
         flex: 1;
-        justify-content: center;
-        transition: opacity 0.1s ease-out;
-        user-select: none;
     }
 
-    .cancel-arrow {
-        font-size: var(--font-size-h3-mobile);
-        line-height: 1;
-        color: rgba(255, 255, 255, 0.5);
+    .record-action-button {
+        border: 0;
+        border-radius: var(--radius-8);
+        padding: var(--spacing-4) var(--spacing-8);
+        color: white;
+        font: inherit;
+        font-size: var(--font-size-small);
+        font-weight: 700;
+        cursor: pointer;
     }
 
-    /* Green mic button circle */
-    .mic-button {
-        width: 44px;
-        height: 44px;
-        background-color: #4caf50;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        transition: transform 0.05s ease-out, background-color 0.15s ease;
-        cursor: grabbing;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-        will-change: transform;
+    .record-action-button.cancel {
+        background: rgba(255, 255, 255, 0.18);
     }
 
-    .mic-button.recording {
-        background-color: #43a047;
-        animation: mic-pulse 1.8s ease-in-out infinite;
+    .record-action-button.finish {
+        background: var(--color-button-primary);
+        color: white;
     }
 
-    @keyframes mic-pulse {
-        0%, 100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
-        50%       { box-shadow: 0 2px 16px rgba(76, 175, 80, 0.6), 0 0 0 6px rgba(76, 175, 80, 0.2); }
+    .record-action-button.finish:hover {
+        background: var(--color-button-primary-hover);
     }
 
-    /* Mic icon (mask-based CSS icon, white) */
-    .mic-icon {
-        width: 22px;
-        height: 22px;
-        background-color: white;
-        -webkit-mask-size: contain;
-        mask-size: contain;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-        -webkit-mask-position: center;
-        mask-position: center;
+    .record-action-button.finish:active {
+        background: var(--color-button-primary-pressed);
+    }
+
+    @media (max-width: 520px) {
+        .record-controls {
+            align-items: stretch;
+        }
+
+        .record-action-buttons {
+            gap: var(--spacing-2);
+        }
+
+        .record-action-button {
+            padding-inline: var(--spacing-6);
+        }
     }
 </style>

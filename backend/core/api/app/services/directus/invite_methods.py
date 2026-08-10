@@ -1,5 +1,7 @@
 import logging
 
+from backend.core.api.app.utils.invite_code import fingerprint_invite_code
+
 logger = logging.getLogger(__name__)
 
 async def get_invite_code(self, code: str) -> dict:
@@ -7,11 +9,11 @@ async def get_invite_code(self, code: str) -> dict:
     cached_data = await self.cache.get(cache_key)
     
     if cached_data:
-        logger.info(f"Using cached invite code data for code: {code}")
+        logger.info("Using cached invite code data for code: %s", fingerprint_invite_code(code))
         return cached_data
         
     try:
-        logger.info(f"Checking invite code: {code}")
+        logger.info("Checking invite code: %s", fingerprint_invite_code(code))
         collection_name = "invite_codes"
         url = f"{self.base_url}/items/{collection_name}"
         params = {"filter[code][_eq]": code}
@@ -33,7 +35,7 @@ async def get_invite_code(self, code: str) -> dict:
         else:
             logger.warning(f"Directus API error for {collection_name}: {response.status_code} - {response.text}")
     
-        logger.info(f"Invite code not found: {code}")
+        logger.info("Invite code not found: %s", fingerprint_invite_code(code))
         return None
             
     except Exception as e:
@@ -45,7 +47,7 @@ async def consume_invite_code(self, invite_code: str, code_data: dict) -> bool:
     Consumes an invite code by either deleting it or decrementing remaining_uses.
     """
     if not code_data or 'id' not in code_data:
-        logger.error(f"Cannot consume invite code {invite_code}: Invalid code_data provided.")
+        logger.error("Cannot consume invite code %s: Invalid code_data provided.", fingerprint_invite_code(invite_code))
         return False
 
     code_id = code_data.get('id')
@@ -60,34 +62,34 @@ async def consume_invite_code(self, invite_code: str, code_data: dict) -> bool:
 
     try:
         if remaining_uses <= 1:
-            logger.info(f"Deleting invite code {invite_code} (ID: {code_id}) as remaining uses <= 1.")
+            logger.info("Deleting invite code %s (ID: %s) as remaining uses <= 1.", fingerprint_invite_code(invite_code), code_id)
             response = await self._make_api_request("DELETE", url)
             # DELETE often returns 204 No Content on success
             if response.status_code == 204 or response.status_code == 200:
-                logger.info(f"Successfully deleted invite code {invite_code}")
+                logger.info("Successfully deleted invite code %s", fingerprint_invite_code(invite_code))
                 # Clear cache for this specific code
                 await self.cache.delete(f"invite_code:{invite_code}")
                 return True
             else:
-                logger.error(f"Failed to delete invite code {invite_code}. Status: {response.status_code} - {response.text}")
+                logger.error("Failed to delete invite code %s. Status: %s - %s", fingerprint_invite_code(invite_code), response.status_code, response.text)
                 return False
         else:
             new_uses = remaining_uses - 1
-            logger.info(f"Decrementing remaining uses for invite code {invite_code} (ID: {code_id}) from {remaining_uses} to {new_uses}.")
+            logger.info("Decrementing remaining uses for invite code %s (ID: %s) from %s to %s.", fingerprint_invite_code(invite_code), code_id, remaining_uses, new_uses)
             payload = {"remaining_uses": new_uses}
             response = await self._make_api_request("PATCH", url, json=payload)
             
             if response.status_code == 200:
-                logger.info(f"Successfully decremented remaining uses for invite code {invite_code}")
+                logger.info("Successfully decremented remaining uses for invite code %s", fingerprint_invite_code(invite_code))
                 # Update cache with new data (or simply delete to force refresh)
                 await self.cache.delete(f"invite_code:{invite_code}") 
                 return True
             else:
-                logger.error(f"Failed to decrement remaining uses for invite code {invite_code}. Status: {response.status_code} - {response.text}")
+                logger.error("Failed to decrement remaining uses for invite code %s. Status: %s - %s", fingerprint_invite_code(invite_code), response.status_code, response.text)
                 return False
                 
     except Exception as e:
-        logger.error(f"Error consuming invite code {invite_code}: {str(e)}", exc_info=True)
+        logger.error("Error consuming invite code %s: %s", fingerprint_invite_code(invite_code), str(e), exc_info=True)
         return False
 
 async def get_all_invite_codes(self):

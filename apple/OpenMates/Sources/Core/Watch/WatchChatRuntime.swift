@@ -14,7 +14,6 @@ enum WatchUIContract {
         "watch-pair-login",
         "watch-pair-confirm-iphone-title",
         "watch-pair-confirm-iphone-description",
-        "watch-pair-login-without-iphone-button",
         "watch-pair-manual-fallback",
         "watch-pair-token",
         "watch-pair-url",
@@ -25,6 +24,12 @@ enum WatchUIContract {
         "watch-pair-waiting-label",
         "watch-pair-pin-input",
         "watch-pair-refresh-button",
+        "watch-pair-self-host-button",
+        "watch-pair-self-host-input",
+        "watch-pair-self-host-connect-button",
+        "watch-pair-self-host-cancel-button",
+        "watch-pair-self-host-error",
+        "watch-pair-use-production-button",
     ]
 
     static let chatFlowIdentifiers = [
@@ -50,12 +55,14 @@ enum WatchUIContract {
         "watch-embed-continuation",
         "watch-embed-open-device",
         "watch-embed-qr-payload",
+        "watch-embed-notification-request",
     ]
 
     static let forbiddenProductChrome = [
         "List",
         "Form",
         "NavigationStack",
+        "TabView",
         "navigationTitle",
         "toolbar",
     ]
@@ -91,8 +98,16 @@ struct WatchChatMessage: Codable, Equatable, Identifiable, Sendable {
     let role: Role
     var content: String?
     var encryptedContent: String?
+    var embedRefs: [WatchEmbedRef]? = nil
     let createdAt: String
     var isPending: Bool
+}
+
+struct WatchEmbedRef: Codable, Equatable, Identifiable, @unchecked Sendable {
+    let id: String
+    let type: String
+    let status: String?
+    let data: [String: AnyCodable]?
 }
 
 struct WatchPendingTextSend: Codable, Equatable, Identifiable, Sendable {
@@ -255,7 +270,26 @@ struct WatchRemoteMessage: Equatable, Sendable {
     let role: WatchChatMessage.Role
     let content: String?
     let encryptedContent: String?
+    let embedRefs: [WatchEmbedRef]?
     let createdAt: String
+
+    init(
+        id: String,
+        chatId: String,
+        role: WatchChatMessage.Role,
+        content: String?,
+        encryptedContent: String?,
+        embedRefs: [WatchEmbedRef]? = nil,
+        createdAt: String
+    ) {
+        self.id = id
+        self.chatId = chatId
+        self.role = role
+        self.content = content
+        self.encryptedContent = encryptedContent
+        self.embedRefs = embedRefs
+        self.createdAt = createdAt
+    }
 }
 
 protocol WatchChatAPI: Sendable {
@@ -274,7 +308,7 @@ protocol WatchChatSyncSocket: AnyObject {
 
 @MainActor
 protocol WatchChatCrypto: AnyObject {
-    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary
+    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary?
     func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage
     func encryptText(_ text: String, for chat: WatchChatSummary) async throws -> String
 }
@@ -338,6 +372,10 @@ final class WatchChatRuntime: ObservableObject {
     private let syncSession: WatchSyncSession?
     private var pendingTextSends: [WatchPendingTextSend] = []
     private static let incognitoChatIdPrefix = "incognito-"
+    private static let recentChatLimit = 20
+    private static let hiddenCandidateFetchLimit = 40
+    private static let fetchRetryAttempts = 4
+    private static let fetchRetryDelayNanoseconds: UInt64 = 750_000_000
 
     init(
         currentUserId: String? = nil,
@@ -353,6 +391,21 @@ final class WatchChatRuntime: ObservableObject {
         self.syncSocket = syncSocket
         self.syncSession = syncSession
     }
+
+#if DEBUG
+    init(uiTestSnapshot snapshot: WatchChatSnapshot, selectedChatId: String) {
+        self.api = APIClient.shared
+        self.cache = WatchChatOfflineCache()
+        self.crypto = WatchChatCryptoService(currentUserId: nil)
+        self.syncSocket = nil
+        self.syncSession = nil
+        self.chats = snapshot.chats
+        self.messagesByChatId = snapshot.messagesByChatId
+        self.pendingTextSends = snapshot.pendingTextSends
+        self.pendingAudioEmbeds = snapshot.pendingAudioEmbeds
+        self.selectedChatId = selectedChatId
+    }
+#endif
 
     var selectedChat: WatchChatSummary? {
         guard let selectedChatId else { return nil }
@@ -376,8 +429,10 @@ final class WatchChatRuntime: ObservableObject {
         }
 
         do {
-            let fetchedChats = try await api.fetchRecentChats(limit: 20)
-            chats = Self.sortedChats(await decryptChats(fetchedChats))
+            let fetchedChats = try await fetchWithRetry {
+                try await api.fetchRecentChats(limit: Self.hiddenCandidateFetchLimit)
+            }
+            chats = Array(Self.sortedChats(await decryptChats(fetchedChats)).prefix(Self.recentChatLimit))
             if selectedChatId == nil {
                 selectedChatId = chats.first?.id
             }
@@ -406,7 +461,9 @@ final class WatchChatRuntime: ObservableObject {
         }
 
         do {
-            let messages = try await api.fetchMessages(chatId: chat.id)
+            let messages = try await fetchWithRetry {
+                try await api.fetchMessages(chatId: chat.id)
+            }
             messagesByChatId[chat.id] = Self.sortedMessages(await decryptMessages(messages))
             isOffline = false
             errorMessage = nil
@@ -438,6 +495,7 @@ final class WatchChatRuntime: ObservableObject {
             role: .user,
             content: trimmed,
             encryptedContent: encryptedContent,
+            embedRefs: nil,
             createdAt: createdAt,
             isPending: true
         )
@@ -505,11 +563,41 @@ final class WatchChatRuntime: ObservableObject {
         )
     }
 
+    private func fetchWithRetry<T>(_ operation: () async throws -> T) async throws -> T {
+        var lastError: Error?
+        for attempt in 1...Self.fetchRetryAttempts {
+            do {
+                return try await operation()
+            } catch {
+                lastError = error
+                guard attempt < Self.fetchRetryAttempts,
+                      Self.shouldRetryFetchError(error),
+                      !Task.isCancelled else {
+                    throw error
+                }
+                try await Task.sleep(nanoseconds: Self.fetchRetryDelayNanoseconds)
+            }
+        }
+        throw lastError ?? URLError(.unknown)
+    }
+
+    private static func shouldRetryFetchError(_ error: Error) -> Bool {
+        guard let urlError = error as? URLError else { return false }
+        switch urlError.code {
+        case .networkConnectionLost, .timedOut, .cannotConnectToHost, .notConnectedToInternet:
+            return true
+        default:
+            return false
+        }
+    }
+
     private func decryptChats(_ remoteChats: [WatchRemoteChat]) async -> [WatchChatSummary] {
         var result: [WatchChatSummary] = []
         result.reserveCapacity(remoteChats.count)
         for chat in remoteChats {
-            result.append(await crypto.decryptChat(chat))
+            if let decrypted = await crypto.decryptChat(chat) {
+                result.append(decrypted)
+            }
         }
         return result
     }
@@ -746,8 +834,10 @@ private final class WatchChatCryptoService: WatchChatCrypto {
         self.currentUserId = currentUserId
     }
 
-    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary {
-        let key = await chatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey)
+    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary? {
+        guard let key = await chatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey) else {
+            return nil
+        }
         let title = await decrypt(chat.encryptedTitle, key: key) ?? chat.title
         let preview = await decrypt(chat.encryptedChatSummary, key: key) ?? chat.chatSummary
         return WatchChatSummary(
@@ -765,12 +855,14 @@ private final class WatchChatCryptoService: WatchChatCrypto {
     func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage {
         let key = chatKeys[message.chatId]
         let content = await decrypt(message.encryptedContent, key: key) ?? message.content
+        let embedRefs = message.embedRefs ?? WatchMessageContentSanitizer.inlineEmbedRefs(content: content)
         return WatchChatMessage(
             id: message.id,
             chatId: message.chatId,
             role: message.role,
             content: content,
             encryptedContent: message.encryptedContent,
+            embedRefs: embedRefs.isEmpty ? nil : embedRefs,
             createdAt: message.createdAt,
             isPending: false
         )
@@ -897,6 +989,7 @@ private struct WatchChatMessageDTO: Decodable {
     let role: WatchChatMessage.Role
     let content: String?
     let encryptedContent: String?
+    let embedRefs: [WatchEmbedRef]?
     let createdAt: String
 
     private enum CodingKeys: String, CodingKey {
@@ -908,6 +1001,8 @@ private struct WatchChatMessageDTO: Decodable {
         case content
         case encryptedContent
         case encryptedContentSnake = "encrypted_content"
+        case embedRefs
+        case embedRefsSnake = "embed_refs"
         case createdAt
         case createdAtSnake = "created_at"
     }
@@ -922,6 +1017,8 @@ private struct WatchChatMessageDTO: Decodable {
         content = try container.decodeIfPresent(String.self, forKey: .content)
         encryptedContent = try container.decodeIfPresent(String.self, forKey: .encryptedContent)
             ?? container.decodeIfPresent(String.self, forKey: .encryptedContentSnake)
+        embedRefs = try container.decodeIfPresent([WatchEmbedRef].self, forKey: .embedRefs)
+            ?? container.decodeIfPresent([WatchEmbedRef].self, forKey: .embedRefsSnake)
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
             ?? container.decodeIfPresent(String.self, forKey: .createdAtSnake)
             ?? ""
@@ -952,6 +1049,7 @@ private extension WatchRemoteMessage {
             role: dto.role,
             content: dto.content,
             encryptedContent: dto.encryptedContent,
+            embedRefs: dto.embedRefs,
             createdAt: dto.createdAt,
         )
     }

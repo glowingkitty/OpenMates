@@ -50,6 +50,7 @@ import RecordingEmbedPreview from "../../../embeds/audio/RecordingEmbedPreview.s
 import { authStore } from "../../../../stores/authStore";
 import { embedStore } from "../../../../services/embedStore";
 import { resolveEmbed } from "../../../../services/embedResolver";
+import type { AudioWaveformData } from "../../../../utils/audioWaveform";
 
 // Track mounted Svelte components for cleanup (keyed by the DOM element)
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -67,12 +68,16 @@ interface RecordingEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
   uploadError?: string;
   /** Transcript text from Mistral Voxtral */
   transcript?: string;
+  /** Generated title summarizing the transcript */
+  title?: string;
   transcriptOriginal?: string;
   transcriptCorrected?: string;
   useCorrected?: boolean;
   correctionModel?: string;
   /** Formatted duration (e.g. "0:42") */
   duration?: string;
+  /** Compact full-track RMS envelope for rendering without fetching audio */
+  waveform?: AudioWaveformData;
   /** Server-assigned embed_id (populated after upload) */
   uploadEmbedId?: string;
   /** S3 file metadata from upload server */
@@ -175,12 +180,14 @@ export class RecordingRenderer implements EmbedRenderer {
           const s3BaseUrl = parsed.s3_base_url as string | undefined;
           const aesKey = parsed.aes_key as string | undefined;
           const aesNonce = parsed.aes_nonce as string | undefined;
+          const title = parsed.title as string | undefined;
           const transcript = parsed.transcript as string | undefined;
           const transcriptOriginal = parsed.transcript_original as string | undefined;
           const transcriptCorrected = parsed.transcript_corrected as string | undefined;
           const useCorrected = parsed.use_corrected as boolean | undefined;
           const correctionModel = parsed.correction_model as string | undefined;
           const duration = (parsed.duration as string) || attrs.duration;
+          const waveform = (parsed.waveform as AudioWaveformData | undefined) || attrs.waveform;
           const filename = (parsed.filename as string) || attrs.filename;
           const mimeType = (parsed.mime_type as string) || attrs.mimeType;
           const model = (parsed.model as string) || undefined;
@@ -191,12 +198,14 @@ export class RecordingRenderer implements EmbedRenderer {
             s3BaseUrl,
             aesKey,
             aesNonce,
+            title,
             transcript,
             transcriptOriginal,
             transcriptCorrected,
             useCorrected,
             correctionModel,
             duration,
+            waveform,
             filename,
             mimeType,
             model,
@@ -275,6 +284,7 @@ export class RecordingRenderer implements EmbedRenderer {
             composed: true,
             detail: {
               transcript: attrs.transcript,
+              title: attrs.title,
               transcriptOriginal: attrs.transcriptOriginal,
               transcriptCorrected: attrs.transcriptCorrected,
               useCorrected: attrs.useCorrected,
@@ -282,6 +292,7 @@ export class RecordingRenderer implements EmbedRenderer {
               blobUrl: attrs.blobUrl,
               filename: attrs.filename,
               duration: attrs.duration,
+              waveform: attrs.waveform,
               s3Files: attrs.s3Files,
               s3BaseUrl: attrs.s3BaseUrl,
               aesKey: attrs.aesKey,
@@ -289,23 +300,6 @@ export class RecordingRenderer implements EmbedRenderer {
               embedId: attrs.id,
               model: attrs.model,
               isEditable,
-            },
-          }),
-        );
-      };
-
-      const handleToggleCorrected = (useCorrectedVal: boolean) => {
-        const targetTranscript = useCorrectedVal ? attrs.transcriptCorrected : attrs.transcriptOriginal;
-        content.dispatchEvent(
-          new CustomEvent("updaterecordingattrs", {
-            bubbles: true,
-            composed: true,
-            detail: {
-              embedId: attrs.id,
-              attrs: {
-                useCorrected: useCorrectedVal,
-                transcript: targetTranscript,
-              },
             },
           }),
         );
@@ -355,11 +349,13 @@ export class RecordingRenderer implements EmbedRenderer {
           blobUrl: attrs.blobUrl,
           uploadError: attrs.uploadError,
           transcript: attrs.transcript,
+          title: attrs.title,
           transcriptOriginal: attrs.transcriptOriginal,
           transcriptCorrected: attrs.transcriptCorrected,
           useCorrected: attrs.useCorrected,
           correctionModel: attrs.correctionModel,
           duration: attrs.duration,
+          waveform: attrs.waveform,
           s3Files: attrs.s3Files,
           s3BaseUrl: attrs.s3BaseUrl,
           aesKey: attrs.aesKey,
@@ -373,7 +369,6 @@ export class RecordingRenderer implements EmbedRenderer {
           // and status is 'error' (transcription failed). Guard prevents showing
           // retry when upload itself failed (no S3 data to retry from).
           onRetry: attrs.s3Files ? handleRetry : undefined,
-          onToggleCorrected: handleToggleCorrected,
         },
       });
 
@@ -381,10 +376,12 @@ export class RecordingRenderer implements EmbedRenderer {
 
       console.debug("[RecordingRenderer] Mounted RecordingEmbedPreview:", {
         filename: attrs.filename,
+        title: attrs.title,
         status: attrs.status,
         hasBlobUrl: !!attrs.blobUrl,
         hasTranscript: !!attrs.transcript,
         hasDuration: !!attrs.duration,
+        hasWaveform: !!attrs.waveform,
         isEditable,
         model: attrs.model,
       });

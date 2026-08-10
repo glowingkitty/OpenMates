@@ -9,6 +9,12 @@ globs:
 
 ## Privacy Policy Updates
 
+## API Privacy And Encryption Boundaries
+
+When adding or changing REST API or WebSocket behavior, verify and document the endpoint access model before implementation: unauthenticated public REST API, developer API-key REST API, first-party client surface only, or internal-only.
+
+For any endpoint that touches client-side encrypted chat, memory, file, key, sync, or share data, default to first-party or internal-only access. Public/developer REST access requires an approved spec that explicitly covers auth, owner/team scoping, rate limits, credit/budget controls, decrypted plaintext handling, logging redaction, and why the endpoint does not let arbitrary developers bypass client-side encryption boundaries.
+
 When adding a new third-party provider, update ALL of these:
 1. `shared/docs/privacy_policy.yml`
 2. `i18n/sources/legal/privacy.yml`

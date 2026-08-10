@@ -32,6 +32,7 @@ from datetime import datetime, timezone
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
+from backend.shared.python_utils.e2e_user_detection import is_non_production_e2e_user_profile
 
 logger = logging.getLogger(__name__)
 DAILY_VIDEO_COUNT = 3
@@ -334,6 +335,49 @@ async def _is_first_run_done(cache_service: Any, user_id: str) -> bool:
         return False
 
 
+async def _load_inspiration_user_profile(
+    cache_service: Any,
+    user_id: str,
+    directus_service: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Best-effort profile lookup for non-production E2E account suppression."""
+    try:
+        if hasattr(cache_service, "get_user_by_id"):
+            cached_user = await cache_service.get_user_by_id(user_id)
+            if isinstance(cached_user, dict) and cached_user:
+                return cached_user
+    except Exception:
+        logger.debug("[DailyInspiration] Cache user lookup failed for %s...", user_id[:8], exc_info=True)
+
+    if directus_service is None or not hasattr(directus_service, "get_user_profile"):
+        return {}
+
+    try:
+        success, profile, _message = await directus_service.get_user_profile(user_id)
+        if success and isinstance(profile, dict):
+            return profile
+    except Exception:
+        logger.debug("[DailyInspiration] Directus user lookup failed for %s...", user_id[:8], exc_info=True)
+    return {}
+
+
+async def _should_skip_e2e_inspiration_user(
+    cache_service: Any,
+    user_id: str,
+    task_id: str,
+    directus_service: Optional[Any] = None,
+) -> bool:
+    profile = await _load_inspiration_user_profile(cache_service, user_id, directus_service)
+    if not is_non_production_e2e_user_profile(profile):
+        return False
+    logger.info(
+        "[DailyInspiration][%s] Skipping generation for non-production E2E user %s...",
+        task_id,
+        user_id[:8],
+    )
+    return True
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Public entry point: called from ask_skill_task.py after first paid request
 # ─────────────────────────────────────────────────────────────────────────────
@@ -344,6 +388,7 @@ async def trigger_first_run_inspirations(
     secrets_manager: Any,
     task_id: str = "daily_inspiration_first_run",
     language: str = "en",
+    directus_service: Optional[Any] = None,
 ) -> None:
     """
     Trigger immediate inspiration generation for a user's first paid request.
@@ -364,6 +409,8 @@ async def trigger_first_run_inspirations(
         logger.debug(
             f"[DailyInspiration][{task_id}] First-run already completed for user {user_id[:8]}... — skipping"
         )
+        return
+    if await _should_skip_e2e_inspiration_user(cache_service, user_id, task_id, directus_service):
         return
 
     logger.info(
@@ -499,6 +546,14 @@ async def _generate_daily_inspirations_async(task: BaseServiceTask) -> Dict[str,
 
             # Extract the user's language for personalised generation
             user_language = paid_data.get("language", "en") or "en"
+            if await _should_skip_e2e_inspiration_user(
+                cache_service,
+                user_id,
+                task_id,
+                getattr(task, "_directus_service", None),
+            ):
+                skipped += 1
+                continue
 
             # How many inspirations did this user view?
             viewed_count = await cache_service.get_viewed_inspiration_count(user_id)

@@ -10,6 +10,7 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptAudio, releaseCachedAudio } from '../audio/audioEmbedCrypto';
+  import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
 
   interface VideoFileVariant {
     s3_key: string;
@@ -17,6 +18,8 @@
     format?: string;
     mime_type?: string;
     duration_seconds?: number;
+    aes_nonce?: string;
+    encryption?: string;
   }
 
   interface Props {
@@ -30,6 +33,7 @@
     aesKey?: string;
     aesNonce?: string;
     previewVideoUrl?: string;
+    previewImageUrl?: string;
     status: 'processing' | 'finished' | 'error';
     error?: string;
     taskId?: string;
@@ -39,7 +43,7 @@
 
   let {
     id, prompt = '', model = '', durationSeconds, resolution = '', s3BaseUrl = '', files,
-    aesKey = '', aesNonce = '', previewVideoUrl = '', status, error = '', taskId, isMobile = false, onFullscreen,
+    aesKey = '', aesNonce = '', previewVideoUrl = '', previewImageUrl = '', status, error = '', taskId, isMobile = false, onFullscreen,
   }: Props = $props();
 
   let videoUrl = $state<string | undefined>();
@@ -56,6 +60,7 @@
   let updatedFiles = $state<{ original?: VideoFileVariant } | undefined>();
   let updatedAesKey = $state<string | undefined>();
   let updatedAesNonce = $state<string | undefined>();
+  let updatedPreviewImageUrl = $state<string | undefined>();
   let updatedError = $state<string | undefined>();
 
   const currentStatus = $derived(updatedStatus ?? status);
@@ -67,6 +72,7 @@
   const currentFiles = $derived(updatedFiles ?? files);
   const currentAesKey = $derived(updatedAesKey ?? aesKey);
   const currentAesNonce = $derived(updatedAesNonce ?? aesNonce);
+  const currentPreviewImageUrl = $derived(updatedPreviewImageUrl ?? previewImageUrl);
   const currentError = $derived(updatedError ?? error);
 
   $effect(() => {
@@ -74,7 +80,7 @@
       videoUrl = previewVideoUrl;
       return;
     }
-    if (currentStatus === 'finished' && !videoUrl && currentFiles?.original?.s3_key && currentS3BaseUrl && currentAesKey && currentAesNonce) {
+    if (currentStatus === 'finished' && !videoUrl && currentFiles?.original?.s3_key && currentS3BaseUrl && currentAesKey && hasMediaEncryptionMetadata(currentFiles.original, currentAesNonce)) {
       loadVideo();
     }
   });
@@ -88,7 +94,7 @@
     if (!file?.s3_key) return;
     try {
       videoError = undefined;
-      videoUrl = await fetchAndDecryptAudio(currentS3BaseUrl, file.s3_key, currentAesKey, currentAesNonce, file.mime_type || 'video/mp4');
+      videoUrl = await fetchAndDecryptAudio(currentS3BaseUrl, file.s3_key, currentAesKey, currentAesNonce, file.mime_type || 'video/mp4', file);
       retainedS3Key = file.s3_key;
     } catch (err) {
       videoError = err instanceof Error ? err.message : 'Failed to load video';
@@ -106,6 +112,9 @@
     updatedFiles = typeof decoded.files === 'object' && decoded.files !== null ? decoded.files as { original?: VideoFileVariant } : updatedFiles;
     updatedAesKey = typeof decoded.aes_key === 'string' ? decoded.aes_key : updatedAesKey;
     updatedAesNonce = typeof decoded.aes_nonce === 'string' ? decoded.aes_nonce : updatedAesNonce;
+    updatedPreviewImageUrl = typeof decoded.previewImageUrl === 'string'
+      ? decoded.previewImageUrl
+      : (typeof decoded.preview_image_url === 'string' ? decoded.preview_image_url : updatedPreviewImageUrl);
     updatedError = typeof decoded.error === 'string' ? decoded.error : updatedError;
   }
 
@@ -132,7 +141,7 @@
   {#snippet details()}
     <div class="video-generate-preview" data-testid="video-generate-preview">
       {#if currentStatus === 'finished' && videoUrl}
-        <video src={videoUrl} controls playsinline preload="metadata" data-testid="video-generate-video">
+        <video src={videoUrl} poster={currentPreviewImageUrl || undefined} controls playsinline preload="metadata" data-testid="video-generate-video">
           <track kind="captions" src="data:text/vtt,WEBVTT" />
         </video>
       {:else if videoError}

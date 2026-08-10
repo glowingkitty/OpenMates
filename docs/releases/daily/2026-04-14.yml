@@ -1,0 +1,3958 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-14'
+generated_at: '2026-07-09T15:07:01+00:00'
+range:
+  since: '2026-04-14T00:00:00+00:00'
+  until: '2026-04-14T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 96
+  section_counts:
+    features: 27
+    bug_fixes: 54
+    improvements: 2
+    docs: 7
+    tests: 5
+    infrastructure: 0
+    internal: 0
+    other: 1
+  newsletter_ready_items: 62
+  user_facing_items: 62
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add window.onboarding() debug command for QA testing'
+    section: features
+    commits:
+    - 5487f58ea
+    authored_at: '2026-04-14T22:52:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/debugUtils.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: autoplay video from start in fullscreen — no thumbnail step'
+    section: features
+    commits:
+    - f2c8f6944
+    authored_at: '2026-04-14T22:42:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/videos/DirectVideoEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: DirectVideoEmbedFullscreen matches VideoEmbedFullscreen visual pattern'
+    section: features
+    commits:
+    - ba64e373e
+    authored_at: '2026-04-14T22:22:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/videos/DirectVideoEmbedFullscreen.svelte
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: enable message input search in intro/example chats for unauthenticated users'
+    section: features
+    commits:
+    - db21fe4f9
+    authored_at: '2026-04-14T20:23:10+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/services/searchService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: intro video fullscreen via UnifiedEmbedFullscreen at ActiveChat level'
+    section: features
+    commits:
+    - 7417e7e35
+    authored_at: '2026-04-14T20:11:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/stores/introVideoFullscreenStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: use embed fullscreen shell for intro video (DirectVideoEmbedFullscreen)'
+    section: features
+    commits:
+    - 7b6b55b70
+    authored_at: '2026-04-14T19:28:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/embeds/videos/DirectVideoEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: video header — start time, scroll pause, deep link, hide title'
+    section: features
+    commits:
+    - c14dc3091
+    authored_at: '2026-04-14T19:15:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: video header — ChatHeader, ChatHistory, for_everyone data'
+    section: features
+    commits:
+    - 213333dbf
+    authored_at: '2026-04-14T18:48:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: video header remaining files (ChatHeader, ChatHistory, types, for_everyone)'
+    section: features
+    commits:
+    - '590453162'
+    authored_at: '2026-04-14T18:46:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/types.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: video header — ChatHeader, ChatHistory, types, for_everyone data'
+    section: features
+    commits:
+    - 725bfbf68
+    authored_at: '2026-04-14T18:26:08+00:00'
+    changed_paths:
+    - scripts/upload_to_api_video.sh
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add api.video intro video to for-everyone chat header'
+    section: features
+    commits:
+    - 577f87228
+    authored_at: '2026-04-14T18:25:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: admin email notifications for bank transfer issues'
+    section: features
+    commits:
+    - 437fac490
+    authored_at: '2026-04-14T16:58:07+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add onContextMenu prop to ChatEmbedPreview'
+    section: features
+    commits:
+    - edbe3365d
+    authored_at: '2026-04-14T15:55:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/ChatEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add right-click context menu to example chat cards'
+    section: features
+    commits:
+    - d3aa16ae7
+    authored_at: '2026-04-14T15:53:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/ExampleChatsGroup.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: account holder name, continue-to-app button, signup bank transfer reminder email'
+    section: features
+    commits:
+    - fd941673a
+    authored_at: '2026-04-14T14:53:54+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/api/app/tasks/email_tasks/bank_transfer_reminder_email_task.py
+    - frontend/packages/ui/src/components/Payment.svelte
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    - frontend/packages/ui/src/components/signup/steps/payment/PaymentTopContent.svelte
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: account holder name, continue-to-app button, signup bank transfer reminder email'
+    section: features
+    commits:
+    - 62c835f68
+    authored_at: '2026-04-14T14:45:39+00:00'
+    changed_paths:
+    - backend/core/api/templates/email/bank-transfer-reminder.mjml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: SEPA bank transfer support via Revolut Business'
+    section: features
+    commits:
+    - 95fb183a2
+    authored_at: '2026-04-14T11:51:21+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/cache.py
+    - backend/core/api/app/services/cache_bank_transfer_mixin.py
+    - backend/core/api/app/services/cache_base.py
+    - backend/core/api/app/services/cache_config.py
+    - backend/core/api/app/services/payment/payment_service.py
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/api/app/tasks/bank_transfer_expiry_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/directus/schemas/invoices.yml
+    - backend/core/directus/schemas/pending_bank_transfers.yml
+    - backend/tests/test_bank_transfer.py
+    - docs/architecture/payments/payment-processing.md
+    - frontend/packages/ui/src/components/Payment.svelte
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    - frontend/packages/ui/src/components/payment/ProcessingPayment.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPricing.svelte
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCredits.svelte
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    - frontend/packages/ui/src/components/settings/billing/autotopup/SettingsLowBalanceAutotopup.svelte
+    - frontend/packages/ui/src/components/settings/billing/autotopup/SettingsMonthlyAutotopup.svelte
+    - frontend/packages/ui/src/components/settings/giftcards/SettingsGiftCardsBuy.svelte
+    - frontend/packages/ui/src/components/settings/support/SettingsSupportOneTime.svelte
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/config/pricing.ts
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    - scripts/revolut_business_setup.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: SEPA bank transfer support via Revolut Business'
+    section: features
+    commits:
+    - d68998bd9
+    authored_at: '2026-04-14T11:16:50+00:00'
+    changed_paths:
+    - scripts/dependabot-processed.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add German inline wiki links to all 5 example chats (+ Linear OPE-425)'
+    section: features
+    commits:
+    - e475aec96
+    authored_at: '2026-04-14T11:16:40+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/example_chats/artemis_ii_mission.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/beautiful_single_page_html.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/creativity_drawing_meetups_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/eu_chat_control_law.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/flights_berlin_bangkok.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/gigantic_airplanes.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: SEPA bank transfer support via Revolut Business'
+    section: features
+    commits:
+    - c5e2ee076
+    authored_at: '2026-04-14T11:15:50+00:00'
+    changed_paths:
+    - shared/config/pricing.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add inline wiki links to 4 more example chats'
+    section: features
+    commits:
+    - 551b03b76
+    authored_at: '2026-04-14T10:58:27+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/example_chats/beautiful_single_page_html.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/creativity_drawing_meetups_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/eu_chat_control_law.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/flights_berlin_bangkok.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/gigantic_airplanes.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: differentiated wiki proxy rate limits (15/min anon, 60/min authed)'
+    section: features
+    commits:
+    - 136d2a44e
+    authored_at: '2026-04-14T10:33:40+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/wikipedia_proxy.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(privacy): add cli-no-credential-prompts + no-external-resources promises'
+    section: features
+    commits:
+    - 110fdf27c
+    authored_at: '2026-04-14T08:37:35+00:00'
+    changed_paths:
+    - .claude/hooks/cli-credential-prompt-guard.sh
+    - .claude/hooks/external-resources-guard.sh
+    - backend/tests/test_privacy_promises.py
+    - docs/architecture/privacy/privacy-promises.md
+    - frontend/apps/web_app/tests/cli-pair-login.spec.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - frontend/packages/ui/src/legal/privacyPromises.generated.ts
+    - shared/docs/privacy_promises.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: require auth on wikipedia proxy, charge 1 credit per API key request'
+    section: features
+    commits:
+    - f08e2bde5
+    authored_at: '2026-04-14T08:36:25+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/wikipedia_proxy.py
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: proxy Wikipedia requests through backend to protect user IP'
+    section: features
+    commits:
+    - 17990ec7f
+    authored_at: '2026-04-14T08:27:43+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/wikipedia_proxy.py
+    - backend/core/api/main.py
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(ui): internal deep links get OpenMates badge + CTA-orange text'
+    section: features
+    commits:
+    - a66d7b191
+    authored_at: '2026-04-14T00:33:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(ui): clearer click feedback + unified CTA-orange for clickable text'
+    section: features
+    commits:
+    - d59b95ca5
+    authored_at: '2026-04-14T00:20:37+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsButton.svelte
+    - frontend/packages/ui/src/styles/fields.css
+    - frontend/packages/ui/src/styles/markdown.css
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: intro video — title i18n key, embed header gradient, autoplay collision'
+    section: bug_fixes
+    commits:
+    - 769539b1c
+    authored_at: '2026-04-14T21:00:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/embeds/videos/DirectVideoEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: ChatHeader onMount assigned to $derived showVideoFullscreen — use store instead'
+    section: bug_fixes
+    commits:
+    - 9a9bc69e8
+    authored_at: '2026-04-14T20:47:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: intro video fullscreen side-by-side layout + title positioning'
+    section: bug_fixes
+    commits:
+    - a834972d7
+    authored_at: '2026-04-14T20:29:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: defer chatSyncService websocketStatus subscription to prevent TDZ crash'
+    section: bug_fixes
+    commits:
+    - 57cfa67bc
+    authored_at: '2026-04-14T19:55:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: defer authStore.subscribe in WebSocketService constructor to prevent TDZ crash'
+    section: bug_fixes
+    commits:
+    - b25fda17a
+    authored_at: '2026-04-14T19:44:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/websocketService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: smoke test re-notify, docker grace period, restart hook'
+    section: bug_fixes
+    commits:
+    - 7f4140593
+    authored_at: '2026-04-14T19:11:17+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: hide credit-purchase content from support contribution bank transfer'
+    section: bug_fixes
+    commits:
+    - 3d095cd88
+    authored_at: '2026-04-14T18:21:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: commit remaining donation-language fix files'
+    section: bug_fixes
+    commits:
+    - b53174727
+    authored_at: '2026-04-14T17:42:53+00:00'
+    changed_paths:
+    - .claude/hooks/donation-language-guard.sh
+    - backend/core/api/app/routes/payments.py
+    - backend/core/directus/schemas/pending_bank_transfers.yml
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove donation language from support payment section and fix required label'
+    section: bug_fixes
+    commits:
+    - cb9519ed4
+    authored_at: '2026-04-14T17:40:57+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(OPE-421,422): privacy policy + stale Revolut cleanup'
+    section: bug_fixes
+    commits:
+    - 01e95a6c0
+    authored_at: '2026-04-14T17:20:53+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - shared/docs/privacy_policy.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: signup spec reference assertion uses MOCK_REFERENCE constant'
+    section: bug_fixes
+    commits:
+    - 87ad33bcb
+    authored_at: '2026-04-14T16:40:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: signup bank transfer spec — mock returns 110k tier amount (€100)'
+    section: bug_fixes
+    commits:
+    - c71afbac5
+    authored_at: '2026-04-14T16:33:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: invoice task bank_transfer support + signup bank transfer spec'
+    section: bug_fixes
+    commits:
+    - 5f9d10dd0
+    authored_at: '2026-04-14T16:26:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: bank transfer invoice email — restructure key fallback logic'
+    section: bug_fixes
+    commits:
+    - 695906dea
+    authored_at: '2026-04-14T16:20:15+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: invoice email task handles bank_transfer provider'
+    section: bug_fixes
+    commits:
+    - 725ad77d7
+    authored_at: '2026-04-14T16:18:26+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: spec copy button check uses .copied class not text'
+    section: bug_fixes
+    commits:
+    - 15aed4a50
+    authored_at: '2026-04-14T15:50:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: BankTransferPayment canonical settings UI + correct reference hint text'
+    section: bug_fixes
+    commits:
+    - 096a122b0
+    authored_at: '2026-04-14T15:44:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: rewrite BankTransferPayment with canonical settings UI elements'
+    section: bug_fixes
+    commits:
+    - 73f29c1ab
+    authored_at: '2026-04-14T15:42:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: unit tests — add _account_holder_name to bank details test fixtures'
+    section: bug_fixes
+    commits:
+    - 19a9e11f9
+    authored_at: '2026-04-14T15:26:19+00:00'
+    changed_paths:
+    - backend/tests/test_bank_transfer.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: BankTransferPayment use getApiEndpoint() for all API calls'
+    section: bug_fixes
+    commits:
+    - 85e0452c6
+    authored_at: '2026-04-14T15:14:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: clarify images-search exempt from one-search-call limit in proactive skill instruction'
+    section: bug_fixes
+    commits:
+    - eb10954db
+    authored_at: '2026-04-14T15:07:25+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_proactive_skill_usage_instruction.md
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: signup bank transfer spec timeout 360s → 600s'
+    section: bug_fixes
+    commits:
+    - 6bd64c0d3
+    authored_at: '2026-04-14T13:56:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: bank transfer spec success text — check confirmation screen not unmounted component'
+    section: bug_fixes
+    commits:
+    - 340b71534
+    authored_at: '2026-04-14T13:38:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(tests): polar — retry delete-account TOTP on invalid/expired token'
+    section: bug_fixes
+    commits:
+    - 5faed213d
+    authored_at: '2026-04-14T13:29:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: extend bank transfer spec success timeout to 90s'
+    section: bug_fixes
+    commits:
+    - 81f10fca2
+    authored_at: '2026-04-14T13:26:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(tests): polar — only waitForURL when finish-setup button was clicked'
+    section: bug_fixes
+    commits:
+    - 0bd4ab360
+    authored_at: '2026-04-14T13:22:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: update_items -> update_item in bank transfer webhook + sandbox reference parsing'
+    section: bug_fixes
+    commits:
+    - 0122e9ebc
+    authored_at: '2026-04-14T13:15:17+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(tests): polar spec — 900s timeout + guard finish-setup click'
+    section: bug_fixes
+    commits:
+    - 2ebe5eb48
+    authored_at: '2026-04-14T13:14:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: sandbox topup reference in leg description'
+    section: bug_fixes
+    commits:
+    - 9baea73ff
+    authored_at: '2026-04-14T13:11:49+00:00'
+    changed_paths:
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: support Stripe spec strict mode — use .first() on success locator'
+    section: bug_fixes
+    commits:
+    - 55e2ab869
+    authored_at: '2026-04-14T13:05:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-stripe.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: support Stripe spec — hardcode /config mock and fix fillStripeCardDetails call'
+    section: bug_fixes
+    commits:
+    - 6f6c75542
+    authored_at: '2026-04-14T13:00:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-stripe.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: wiki-inline-text color + brighter images embed dark mode'
+    section: bug_fixes
+    commits:
+    - 2644c35ed
+    authored_at: '2026-04-14T12:59:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/scripts/build-tokens.js
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use getApiEndpoint() in SettingsSupportOneTime for bank transfer check'
+    section: bug_fixes
+    commits:
+    - 31240fa74
+    authored_at: '2026-04-14T12:53:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/support/SettingsSupportOneTime.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: getApiEndpoint for support bank transfer check + add support Stripe spec'
+    section: bug_fixes
+    commits:
+    - 418171e6d
+    authored_at: '2026-04-14T12:51:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-stripe.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use getApiEndpoint() for bank transfer availability check'
+    section: bug_fixes
+    commits:
+    - ef621348b
+    authored_at: '2026-04-14T12:50:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(tests): suppress Chrome password popup blocking polar post-payment click'
+    section: bug_fixes
+    commits:
+    - f9e505dbc
+    authored_at: '2026-04-14T12:48:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/playwright.config.ts
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: bank transfer spec — hardcode /config mock, add polar create-support-order mock'
+    section: bug_fixes
+    commits:
+    - 5df9651c5
+    authored_at: '2026-04-14T12:34:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: bank transfer spec — mock /config to resolve async race on button visibility'
+    section: bug_fixes
+    commits:
+    - 4e35e350e
+    authored_at: '2026-04-14T12:27:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(tests): polar billing — scroll to reveal fields, use polarIframe.fill'
+    section: bug_fixes
+    commits:
+    - 4fb24fc10
+    authored_at: '2026-04-14T12:21:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: bank transfer spec selector — exact match for €10 tier'
+    section: bug_fixes
+    commits:
+    - 55a39748b
+    authored_at: '2026-04-14T12:20:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(tests): polar billing — fix polarFrame scope + scan all sub-iframes'
+    section: bug_fixes
+    commits:
+    - ec29dc907
+    authored_at: '2026-04-14T12:12:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(tests): fill polar billing address/city via Stripe sub-iframe'
+    section: bug_fixes
+    commits:
+    - e27b30b17
+    authored_at: '2026-04-14T12:04:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: resolve Vercel build failure — wrong casing in webSocketService import'
+    section: bug_fixes
+    commits:
+    - 3a3f5904a
+    authored_at: '2026-04-14T11:58:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: suppress Stripe sync warning for EUR-only bank transfer tier'
+    section: bug_fixes
+    commits:
+    - 00fff835f
+    authored_at: '2026-04-14T11:52:51+00:00'
+    changed_paths:
+    - backend/core/api/app/services/stripe_product_sync.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: remove broken wiki links (Client-side_scanning, Glassmorphism) + fix 2 German slugs'
+    section: bug_fixes
+    commits:
+    - bab645461
+    authored_at: '2026-04-14T11:45:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/example_chats/beautiful_single_page_html.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/eu_chat_control_law.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/gigantic_airplanes.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: wikipedia proxy 500 — slowapi limit callable takes no args'
+    section: bug_fixes
+    commits:
+    - 266b8c705
+    authored_at: '2026-04-14T10:49:11+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/wikipedia_proxy.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(tests): polar billing fields + drop racy chat title equality'
+    section: bug_fixes
+    commits:
+    - 3c00fda34
+    authored_at: '2026-04-14T10:48:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide share button on wiki fullscreen + allow trusted origin without auth'
+    section: bug_fixes
+    commits:
+    - eb3db9223
+    authored_at: '2026-04-14T10:18:47+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/wikipedia_proxy.py
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preprocessing llm attempts last fallback even if cache says unhealthy'
+    section: bug_fixes
+    commits:
+    - 50035da3d
+    authored_at: '2026-04-14T09:06:18+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/llm_utils.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: provider health check tolerates 2 transient failures before unhealthy'
+    section: bug_fixes
+    commits:
+    - 2b0faf453
+    authored_at: '2026-04-14T08:53:14+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/health_check_tasks.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(ui): center OpenMates icon inside internal-link badge'
+    section: bug_fixes
+    commits:
+    - 20a03bde0
+    authored_at: '2026-04-14T08:17:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(ui): internal-link badge selector uses markdown-link-internal class'
+    section: bug_fixes
+    commits:
+    - 5ffa59f79
+    authored_at: '2026-04-14T00:47:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: upgrade Pillow to 12.2.0 (GHSA-whj4-6x5x-4v2j)'
+    section: bug_fixes
+    commits:
+    - eec550b6a
+    authored_at: '2026-04-14T00:31:17+00:00'
+    changed_paths:
+    - backend/core/api/requirements.txt
+    - backend/preview/requirements.txt
+    - backend/upload/requirements.txt
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: mutual exclusivity between wiki/embed fullscreen + flat study icon'
+    section: bug_fixes
+    commits:
+    - 2c0a9285a
+    authored_at: '2026-04-14T00:01:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements:
+  - title: 'refactor: split 110k tier test into own spec file'
+    section: improvements
+    commits:
+    - e37d83645
+    authored_at: '2026-04-14T14:10:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'refactor: switch to inline (wiki:Title) links with backend auto-strip of invalid'
+    section: improvements
+    commits:
+    - 4b02fa48b
+    authored_at: '2026-04-14T09:54:33+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/instructions/base_wikipedia_linking_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/artemis-ii-mission.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/eu-chat-control-law-criticisms.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/artemis_ii_mission.yml
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/stores/wikiTopicsStore.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  docs:
+  - title: 'docs: add api.video privacy links to canonical YAML and links.ts'
+    section: docs
+    commits:
+    - 08a94daad
+    authored_at: '2026-04-14T17:56:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/config/links.ts
+    - shared/docs/privacy_policy.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: add api.video to privacy policy (source files)'
+    section: docs
+    commits:
+    - 9c8d0b0b7
+    authored_at: '2026-04-14T17:55:32+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: add api.video to privacy policy'
+    section: docs
+    commits:
+    - b92417a46
+    authored_at: '2026-04-14T17:54:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: mandate firecrawl URL verification before saving privacy policy URLs'
+    section: docs
+    commits:
+    - 10307c0d2
+    authored_at: '2026-04-14T17:28:36+00:00'
+    changed_paths:
+    - .claude/rules/privacy.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: update video hosting decision to api.video'
+    section: docs
+    commits:
+    - f3b36880f
+    authored_at: '2026-04-14T17:19:49+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/video-hosting.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: video hosting provider decision (Bunny Stream)'
+    section: docs
+    commits:
+    - b8f4dcd78
+    authored_at: '2026-04-14T17:09:18+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/video-hosting.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs(privacy): add privacy-promises architecture doc'
+    section: docs
+    commits:
+    - 5847b9656
+    authored_at: '2026-04-14T00:18:40+00:00'
+    changed_paths:
+    - docs/architecture/privacy/privacy-promises.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: add intro video fullscreen assertion to unauthenticated spec'
+    section: tests
+    commits:
+    - c6781b0ea
+    authored_at: '2026-04-14T20:12:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add settings-buy-credits-bank-transfer spec (110k tier)'
+    section: tests
+    commits:
+    - f7f910c44
+    authored_at: '2026-04-14T14:11:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: signup flow bank transfer spec'
+    section: tests
+    commits:
+    - 540b2db52
+    authored_at: '2026-04-14T13:38:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: E2E specs for SEPA bank transfer UI flow (OPE-423)'
+    section: tests
+    commits:
+    - 9a9f477dd
+    authored_at: '2026-04-14T11:58:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'debug(tests): add frame diagnostic to polar billing address step'
+    section: tests
+    commits:
+    - 3a6436e19
+    authored_at: '2026-04-14T11:45:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'revert(ui): restore per-app colors for embed/wiki inline links; keep OpenMates badge on internal links'
+    section: other
+    commits:
+    - bfe55fb92
+    authored_at: '2026-04-14T00:52:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/styles/markdown.css
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: autoplay video from start in fullscreen — no thumbnail step'
+    commits:
+    - f2c8f6944
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: DirectVideoEmbedFullscreen matches VideoEmbedFullscreen visual pattern'
+    commits:
+    - ba64e373e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: intro video — title i18n key, embed header gradient, autoplay collision'
+    commits:
+    - 769539b1c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: ChatHeader onMount assigned to $derived showVideoFullscreen — use store instead'
+    commits:
+    - 9a9bc69e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: intro video fullscreen side-by-side layout + title positioning'
+    commits:
+    - a834972d7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: enable message input search in intro/example chats for unauthenticated users'
+    commits:
+    - db21fe4f9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: intro video fullscreen via UnifiedEmbedFullscreen at ActiveChat level'
+    commits:
+    - 7417e7e35
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: use embed fullscreen shell for intro video (DirectVideoEmbedFullscreen)'
+    commits:
+    - 7b6b55b70
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: video header — start time, scroll pause, deep link, hide title'
+    commits:
+    - c14dc3091
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: video header — ChatHeader, ChatHistory, for_everyone data'
+    commits:
+    - 213333dbf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add api.video intro video to for-everyone chat header'
+    commits:
+    - 577f87228
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide credit-purchase content from support contribution bank transfer'
+    commits:
+    - 3d095cd88
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: commit remaining donation-language fix files'
+    commits:
+    - b53174727
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: admin email notifications for bank transfer issues'
+    commits:
+    - 437fac490
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: signup spec reference assertion uses MOCK_REFERENCE constant'
+    commits:
+    - 87ad33bcb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: signup bank transfer spec — mock returns 110k tier amount (€100)'
+    commits:
+    - c71afbac5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: invoice task bank_transfer support + signup bank transfer spec'
+    commits:
+    - 5f9d10dd0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add onContextMenu prop to ChatEmbedPreview'
+    commits:
+    - edbe3365d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add right-click context menu to example chat cards'
+    commits:
+    - d3aa16ae7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: spec copy button check uses .copied class not text'
+    commits:
+    - 15aed4a50
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: BankTransferPayment canonical settings UI + correct reference hint text'
+    commits:
+    - 096a122b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: BankTransferPayment use getApiEndpoint() for all API calls'
+    commits:
+    - 85e0452c6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: clarify images-search exempt from one-search-call limit in proactive skill instruction'
+    commits:
+    - eb10954db
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: account holder name, continue-to-app button, signup bank transfer reminder email'
+    commits:
+    - fd941673a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'refactor: split 110k tier test into own spec file'
+    commits:
+    - e37d83645
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: signup bank transfer spec timeout 360s → 600s'
+    commits:
+    - 6bd64c0d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: bank transfer spec success text — check confirmation screen not unmounted component'
+    commits:
+    - 340b71534
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(tests): polar — retry delete-account TOTP on invalid/expired token'
+    commits:
+    - 5faed213d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: extend bank transfer spec success timeout to 90s'
+    commits:
+    - 81f10fca2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(tests): polar — only waitForURL when finish-setup button was clicked'
+    commits:
+    - 0bd4ab360
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: update_items -> update_item in bank transfer webhook + sandbox reference parsing'
+    commits:
+    - 0122e9ebc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(tests): polar spec — 900s timeout + guard finish-setup click'
+    commits:
+    - 2ebe5eb48
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: support Stripe spec strict mode — use .first() on success locator'
+    commits:
+    - 55e2ab869
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: support Stripe spec — hardcode /config mock and fix fillStripeCardDetails call'
+    commits:
+    - 6f6c75542
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: wiki-inline-text color + brighter images embed dark mode'
+    commits:
+    - 2644c35ed
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use getApiEndpoint() in SettingsSupportOneTime for bank transfer check'
+    commits:
+    - 31240fa74
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: getApiEndpoint for support bank transfer check + add support Stripe spec'
+    commits:
+    - 418171e6d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use getApiEndpoint() for bank transfer availability check'
+    commits:
+    - ef621348b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(tests): suppress Chrome password popup blocking polar post-payment click'
+    commits:
+    - f9e505dbc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: bank transfer spec — hardcode /config mock, add polar create-support-order mock'
+    commits:
+    - 5df9651c5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: bank transfer spec — mock /config to resolve async race on button visibility'
+    commits:
+    - 4e35e350e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(tests): polar billing — scroll to reveal fields, use polarIframe.fill'
+    commits:
+    - 4fb24fc10
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: bank transfer spec selector — exact match for €10 tier'
+    commits:
+    - 55a39748b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(tests): polar billing — fix polarFrame scope + scan all sub-iframes'
+    commits:
+    - ec29dc907
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(tests): fill polar billing address/city via Stripe sub-iframe'
+    commits:
+    - e27b30b17
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: resolve Vercel build failure — wrong casing in webSocketService import'
+    commits:
+    - 3a3f5904a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: SEPA bank transfer support via Revolut Business'
+    commits:
+    - 95fb183a2
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: wikipedia proxy 500 — slowapi limit callable takes no args'
+    commits:
+    - 266b8c705
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(tests): polar billing fields + drop racy chat title equality'
+    commits:
+    - 3c00fda34
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: differentiated wiki proxy rate limits (15/min anon, 60/min authed)'
+    commits:
+    - 136d2a44e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide share button on wiki fullscreen + allow trusted origin without auth'
+    commits:
+    - eb3db9223
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'refactor: switch to inline (wiki:Title) links with backend auto-strip of invalid'
+    commits:
+    - 4b02fa48b
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preprocessing llm attempts last fallback even if cache says unhealthy'
+    commits:
+    - 50035da3d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(privacy): add cli-no-credential-prompts + no-external-resources promises'
+    commits:
+    - 110fdf27c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: require auth on wikipedia proxy, charge 1 credit per API key request'
+    commits:
+    - f08e2bde5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: proxy Wikipedia requests through backend to protect user IP'
+    commits:
+    - 17990ec7f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(ui): center OpenMates icon inside internal-link badge'
+    commits:
+    - 20a03bde0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'revert(ui): restore per-app colors for embed/wiki inline links; keep OpenMates badge on internal links'
+    commits:
+    - bfe55fb92
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(ui): internal-link badge selector uses markdown-link-internal class'
+    commits:
+    - 5ffa59f79
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(ui): internal deep links get OpenMates badge + CTA-orange text'
+    commits:
+    - a66d7b191
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(ui): clearer click feedback + unified CTA-orange for clickable text'
+    commits:
+    - d59b95ca5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: mutual exclusivity between wiki/embed fullscreen + flat study icon'
+    commits:
+    - 2c0a9285a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: autoplay video from start in fullscreen — no thumbnail step'
+    commits:
+    - f2c8f6944
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: DirectVideoEmbedFullscreen matches VideoEmbedFullscreen visual pattern'
+    commits:
+    - ba64e373e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: intro video — title i18n key, embed header gradient, autoplay collision'
+    commits:
+    - 769539b1c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: ChatHeader onMount assigned to $derived showVideoFullscreen — use store instead'
+    commits:
+    - 9a9bc69e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: intro video fullscreen side-by-side layout + title positioning'
+    commits:
+    - a834972d7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: enable message input search in intro/example chats for unauthenticated users'
+    commits:
+    - db21fe4f9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: intro video fullscreen via UnifiedEmbedFullscreen at ActiveChat level'
+    commits:
+    - 7417e7e35
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: use embed fullscreen shell for intro video (DirectVideoEmbedFullscreen)'
+    commits:
+    - 7b6b55b70
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: video header — start time, scroll pause, deep link, hide title'
+    commits:
+    - c14dc3091
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: video header — ChatHeader, ChatHistory, for_everyone data'
+    commits:
+    - 213333dbf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add api.video intro video to for-everyone chat header'
+    commits:
+    - 577f87228
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide credit-purchase content from support contribution bank transfer'
+    commits:
+    - 3d095cd88
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: commit remaining donation-language fix files'
+    commits:
+    - b53174727
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: admin email notifications for bank transfer issues'
+    commits:
+    - 437fac490
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: signup spec reference assertion uses MOCK_REFERENCE constant'
+    commits:
+    - 87ad33bcb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: signup bank transfer spec — mock returns 110k tier amount (€100)'
+    commits:
+    - c71afbac5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: invoice task bank_transfer support + signup bank transfer spec'
+    commits:
+    - 5f9d10dd0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add onContextMenu prop to ChatEmbedPreview'
+    commits:
+    - edbe3365d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add right-click context menu to example chat cards'
+    commits:
+    - d3aa16ae7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: spec copy button check uses .copied class not text'
+    commits:
+    - 15aed4a50
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: BankTransferPayment canonical settings UI + correct reference hint text'
+    commits:
+    - 096a122b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: BankTransferPayment use getApiEndpoint() for all API calls'
+    commits:
+    - 85e0452c6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: clarify images-search exempt from one-search-call limit in proactive skill instruction'
+    commits:
+    - eb10954db
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: account holder name, continue-to-app button, signup bank transfer reminder email'
+    commits:
+    - fd941673a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'refactor: split 110k tier test into own spec file'
+    commits:
+    - e37d83645
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: signup bank transfer spec timeout 360s → 600s'
+    commits:
+    - 6bd64c0d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: bank transfer spec success text — check confirmation screen not unmounted component'
+    commits:
+    - 340b71534
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(tests): polar — retry delete-account TOTP on invalid/expired token'
+    commits:
+    - 5faed213d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: extend bank transfer spec success timeout to 90s'
+    commits:
+    - 81f10fca2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(tests): polar — only waitForURL when finish-setup button was clicked'
+    commits:
+    - 0bd4ab360
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: update_items -> update_item in bank transfer webhook + sandbox reference parsing'
+    commits:
+    - 0122e9ebc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(tests): polar spec — 900s timeout + guard finish-setup click'
+    commits:
+    - 2ebe5eb48
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: support Stripe spec strict mode — use .first() on success locator'
+    commits:
+    - 55e2ab869
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: support Stripe spec — hardcode /config mock and fix fillStripeCardDetails call'
+    commits:
+    - 6f6c75542
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wiki-inline-text color + brighter images embed dark mode'
+    commits:
+    - 2644c35ed
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use getApiEndpoint() in SettingsSupportOneTime for bank transfer check'
+    commits:
+    - 31240fa74
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: getApiEndpoint for support bank transfer check + add support Stripe spec'
+    commits:
+    - 418171e6d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use getApiEndpoint() for bank transfer availability check'
+    commits:
+    - ef621348b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(tests): suppress Chrome password popup blocking polar post-payment click'
+    commits:
+    - f9e505dbc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: bank transfer spec — hardcode /config mock, add polar create-support-order mock'
+    commits:
+    - 5df9651c5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: bank transfer spec — mock /config to resolve async race on button visibility'
+    commits:
+    - 4e35e350e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(tests): polar billing — scroll to reveal fields, use polarIframe.fill'
+    commits:
+    - 4fb24fc10
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: bank transfer spec selector — exact match for €10 tier'
+    commits:
+    - 55a39748b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(tests): polar billing — fix polarFrame scope + scan all sub-iframes'
+    commits:
+    - ec29dc907
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(tests): fill polar billing address/city via Stripe sub-iframe'
+    commits:
+    - e27b30b17
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: resolve Vercel build failure — wrong casing in webSocketService import'
+    commits:
+    - 3a3f5904a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: SEPA bank transfer support via Revolut Business'
+    commits:
+    - 95fb183a2
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wikipedia proxy 500 — slowapi limit callable takes no args'
+    commits:
+    - 266b8c705
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(tests): polar billing fields + drop racy chat title equality'
+    commits:
+    - 3c00fda34
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: differentiated wiki proxy rate limits (15/min anon, 60/min authed)'
+    commits:
+    - 136d2a44e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide share button on wiki fullscreen + allow trusted origin without auth'
+    commits:
+    - eb3db9223
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'refactor: switch to inline (wiki:Title) links with backend auto-strip of invalid'
+    commits:
+    - 4b02fa48b
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preprocessing llm attempts last fallback even if cache says unhealthy'
+    commits:
+    - 50035da3d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(privacy): add cli-no-credential-prompts + no-external-resources promises'
+    commits:
+    - 110fdf27c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: require auth on wikipedia proxy, charge 1 credit per API key request'
+    commits:
+    - f08e2bde5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: proxy Wikipedia requests through backend to protect user IP'
+    commits:
+    - 17990ec7f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(ui): center OpenMates icon inside internal-link badge'
+    commits:
+    - 20a03bde0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'revert(ui): restore per-app colors for embed/wiki inline links; keep OpenMates badge on internal links'
+    commits:
+    - bfe55fb92
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(ui): internal-link badge selector uses markdown-link-internal class'
+    commits:
+    - 5ffa59f79
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(ui): internal deep links get OpenMates badge + CTA-orange text'
+    commits:
+    - a66d7b191
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(ui): clearer click feedback + unified CTA-orange for clickable text'
+    commits:
+    - d59b95ca5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: mutual exclusivity between wiki/embed fullscreen + flat study icon'
+    commits:
+    - 2c0a9285a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 5487f58ea1a7733031933946181f60aaecd59847
+    short_sha: 5487f58ea
+    authored_at: '2026-04-14T22:52:24+00:00'
+    subject: 'feat: add window.onboarding() debug command for QA testing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/debugUtils.ts
+    related_feature_ids: []
+  - sha: f2c8f69444a71355ddf728b9252def7178d97eaf
+    short_sha: f2c8f6944
+    authored_at: '2026-04-14T22:42:44+00:00'
+    subject: 'feat: autoplay video from start in fullscreen — no thumbnail step'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/videos/DirectVideoEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: ba64e373e67afeab153657983ddf1bc22ef3cc20
+    short_sha: ba64e373e
+    authored_at: '2026-04-14T22:22:31+00:00'
+    subject: 'feat: DirectVideoEmbedFullscreen matches VideoEmbedFullscreen visual pattern'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/videos/DirectVideoEmbedFullscreen.svelte
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    related_feature_ids: []
+  - sha: 769539b1c5e04c238dbcf93b7042da0111380f18
+    short_sha: 769539b1c
+    authored_at: '2026-04-14T21:00:54+00:00'
+    subject: 'fix: intro video — title i18n key, embed header gradient, autoplay collision'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/embeds/videos/DirectVideoEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 9a9bc69e858025e898042597fc36f85267278cdf
+    short_sha: 9a9bc69e8
+    authored_at: '2026-04-14T20:47:08+00:00'
+    subject: 'fix: ChatHeader onMount assigned to $derived showVideoFullscreen — use store instead'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: a834972d7c4a2dbe0e80208afcdf77df866b1b46
+    short_sha: a834972d7
+    authored_at: '2026-04-14T20:29:02+00:00'
+    subject: 'fix: intro video fullscreen side-by-side layout + title positioning'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: db21fe4f9d50139f10fb7b61d7d5b0556168a3bd
+    short_sha: db21fe4f9
+    authored_at: '2026-04-14T20:23:10+00:00'
+    subject: 'feat: enable message input search in intro/example chats for unauthenticated users'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/services/searchService.ts
+    related_feature_ids: []
+  - sha: c6781b0ea6959985608b9084cd5fe6893d69ec24
+    short_sha: c6781b0ea
+    authored_at: '2026-04-14T20:12:34+00:00'
+    subject: 'test: add intro video fullscreen assertion to unauthenticated spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 7417e7e35b9fab5532992d92f80baa7546ea2e20
+    short_sha: 7417e7e35
+    authored_at: '2026-04-14T20:11:56+00:00'
+    subject: 'feat: intro video fullscreen via UnifiedEmbedFullscreen at ActiveChat level'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/stores/introVideoFullscreenStore.ts
+    related_feature_ids: []
+  - sha: 57cfa67bcbff2fbacd3c90ef24430cb17e60c0f7
+    short_sha: 57cfa67bc
+    authored_at: '2026-04-14T19:55:47+00:00'
+    subject: 'fix: defer chatSyncService websocketStatus subscription to prevent TDZ crash'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    related_feature_ids: []
+  - sha: b25fda17ad90e84320274bbabd1e57c9394711e8
+    short_sha: b25fda17a
+    authored_at: '2026-04-14T19:44:45+00:00'
+    subject: 'fix: defer authStore.subscribe in WebSocketService constructor to prevent TDZ crash'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/websocketService.ts
+    related_feature_ids: []
+  - sha: 7b6b55b70a653a902d903522b69e35358fbd2779
+    short_sha: 7b6b55b70
+    authored_at: '2026-04-14T19:28:26+00:00'
+    subject: 'feat: use embed fullscreen shell for intro video (DirectVideoEmbedFullscreen)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/embeds/videos/DirectVideoEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: c14dc30914dbe7725aeac0fe5fc5e59733da1e1d
+    short_sha: c14dc3091
+    authored_at: '2026-04-14T19:15:46+00:00'
+    subject: 'feat: video header — start time, scroll pause, deep link, hide title'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    related_feature_ids: []
+  - sha: 7f41405938b228b7f9e3f0557c13407bc5f75ccd
+    short_sha: 7f4140593
+    authored_at: '2026-04-14T19:11:17+00:00'
+    subject: 'fix: smoke test re-notify, docker grace period, restart hook'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: 213333dbfa1f0e7bdd4ec9d93014d863a051e764
+    short_sha: 213333dbf
+    authored_at: '2026-04-14T18:48:09+00:00'
+    subject: 'feat: video header — ChatHeader, ChatHistory, for_everyone data'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    related_feature_ids: []
+  - sha: 590453162ae637fd77e81308433c7dc30c7d9c23
+    short_sha: '590453162'
+    authored_at: '2026-04-14T18:46:11+00:00'
+    subject: 'feat: video header remaining files (ChatHeader, ChatHistory, types, for_everyone)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/types.ts
+    related_feature_ids: []
+  - sha: 725bfbf68a54e7cc8dac9c9a18c4c5ecadbb415c
+    short_sha: 725bfbf68
+    authored_at: '2026-04-14T18:26:08+00:00'
+    subject: 'feat: video header — ChatHeader, ChatHistory, types, for_everyone data'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/upload_to_api_video.sh
+    related_feature_ids: []
+  - sha: 577f872284b3277ab61f0ddf3ade31459e55ceaf
+    short_sha: 577f87228
+    authored_at: '2026-04-14T18:25:48+00:00'
+    subject: 'feat: add api.video intro video to for-everyone chat header'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 3d095cd883a63f91f94a7f75be24c8e0212f7f22
+    short_sha: 3d095cd88
+    authored_at: '2026-04-14T18:21:11+00:00'
+    subject: 'fix: hide credit-purchase content from support contribution bank transfer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    related_feature_ids: []
+  - sha: 08a94daad019db970fd3d9c0963576d664a95673
+    short_sha: 08a94daad
+    authored_at: '2026-04-14T17:56:09+00:00'
+    subject: 'docs: add api.video privacy links to canonical YAML and links.ts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/config/links.ts
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+  - sha: 9c8d0b0b7a3d8b19464a51b0e6e49644697a22bd
+    short_sha: 9c8d0b0b7
+    authored_at: '2026-04-14T17:55:32+00:00'
+    subject: 'docs: add api.video to privacy policy (source files)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    related_feature_ids: []
+  - sha: b92417a46fbd20893421e09deb19c669a2ed69b6
+    short_sha: b92417a46
+    authored_at: '2026-04-14T17:54:38+00:00'
+    subject: 'docs: add api.video to privacy policy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    related_feature_ids: []
+  - sha: b53174727d6703dccf7f239f872aade0243b81dc
+    short_sha: b53174727
+    authored_at: '2026-04-14T17:42:53+00:00'
+    subject: 'fix: commit remaining donation-language fix files'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/donation-language-guard.sh
+    - backend/core/api/app/routes/payments.py
+    - backend/core/directus/schemas/pending_bank_transfers.yml
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    related_feature_ids: []
+  - sha: cb9519ed4a1a8e4f391f2ac8cce80f947ae85058
+    short_sha: cb9519ed4
+    authored_at: '2026-04-14T17:40:57+00:00'
+    subject: 'fix: remove donation language from support payment section and fix required label'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    related_feature_ids: []
+  - sha: 10307c0d2aa265a87730f3951b11c8aef2e7e323
+    short_sha: 10307c0d2
+    authored_at: '2026-04-14T17:28:36+00:00'
+    subject: 'docs: mandate firecrawl URL verification before saving privacy policy URLs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/rules/privacy.md
+    related_feature_ids: []
+  - sha: 01e95a6c07a6e0fd1dbeaa85e4fb32d817bae507
+    short_sha: 01e95a6c0
+    authored_at: '2026-04-14T17:20:53+00:00'
+    subject: 'fix(OPE-421,422): privacy policy + stale Revolut cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+  - sha: f3b36880f609cfc8a384630468de146134d9a05d
+    short_sha: f3b36880f
+    authored_at: '2026-04-14T17:19:49+00:00'
+    subject: 'docs: update video hosting decision to api.video'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/video-hosting.md
+    related_feature_ids: []
+  - sha: b8f4dcd78a12e3c2f0088215ccb1105eb3049e35
+    short_sha: b8f4dcd78
+    authored_at: '2026-04-14T17:09:18+00:00'
+    subject: 'docs: video hosting provider decision (Bunny Stream)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/video-hosting.md
+    related_feature_ids: []
+  - sha: 437fac490330f3a233829ccf446a2201c90fc395
+    short_sha: 437fac490
+    authored_at: '2026-04-14T16:58:07+00:00'
+    subject: 'feat: admin email notifications for bank transfer issues'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    related_feature_ids: []
+  - sha: 87ad33bcbecb369b657af7f612dd3dc1f562608d
+    short_sha: 87ad33bcb
+    authored_at: '2026-04-14T16:40:16+00:00'
+    subject: 'fix: signup spec reference assertion uses MOCK_REFERENCE constant'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: c71afbac5b3d7b5212a73368ba36ffb23d17b7f4
+    short_sha: c71afbac5
+    authored_at: '2026-04-14T16:33:40+00:00'
+    subject: 'fix: signup bank transfer spec — mock returns 110k tier amount (€100)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: 5f9d10dd0766a9ffecf59c5fe6d0c477dedf4444
+    short_sha: 5f9d10dd0
+    authored_at: '2026-04-14T16:26:39+00:00'
+    subject: 'fix: invoice task bank_transfer support + signup bank transfer spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: 695906dea3096d06b912af42be0f709083464e91
+    short_sha: 695906dea
+    authored_at: '2026-04-14T16:20:15+00:00'
+    subject: 'fix: bank transfer invoice email — restructure key fallback logic'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    related_feature_ids: []
+  - sha: 725ad77d7688e791769802e4347a325c6f2988bc
+    short_sha: 725ad77d7
+    authored_at: '2026-04-14T16:18:26+00:00'
+    subject: 'fix: invoice email task handles bank_transfer provider'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    related_feature_ids: []
+  - sha: edbe3365d9ab45c2a1d7069c09f287361f27dcb0
+    short_sha: edbe3365d
+    authored_at: '2026-04-14T15:55:05+00:00'
+    subject: 'feat: add onContextMenu prop to ChatEmbedPreview'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/ChatEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: d3aa16ae7c3e30739f8b6e31fe77328ceac372ff
+    short_sha: d3aa16ae7
+    authored_at: '2026-04-14T15:53:59+00:00'
+    subject: 'feat: add right-click context menu to example chat cards'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/ExampleChatsGroup.svelte
+    related_feature_ids: []
+  - sha: 15aed4a5002e83dd1792c2ea94bf61ccbd0fd66c
+    short_sha: 15aed4a50
+    authored_at: '2026-04-14T15:50:24+00:00'
+    subject: 'fix: spec copy button check uses .copied class not text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: 096a122b0c1f7ac1fd1e0917b5aaea39ea837289
+    short_sha: 096a122b0
+    authored_at: '2026-04-14T15:44:25+00:00'
+    subject: 'fix: BankTransferPayment canonical settings UI + correct reference hint text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    related_feature_ids: []
+  - sha: 73f29c1ab35df63b93025ff8842a2766ff561405
+    short_sha: 73f29c1ab
+    authored_at: '2026-04-14T15:42:03+00:00'
+    subject: 'fix: rewrite BankTransferPayment with canonical settings UI elements'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    related_feature_ids: []
+  - sha: 19a9e11f9776840cf40368c92b1efe28f0e8702c
+    short_sha: 19a9e11f9
+    authored_at: '2026-04-14T15:26:19+00:00'
+    subject: 'fix: unit tests — add _account_holder_name to bank details test fixtures'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_bank_transfer.py
+    related_feature_ids: []
+  - sha: 85e0452c6e0759ab2bdca137d4bff95775a7deb8
+    short_sha: 85e0452c6
+    authored_at: '2026-04-14T15:14:24+00:00'
+    subject: 'fix: BankTransferPayment use getApiEndpoint() for all API calls'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    related_feature_ids: []
+  - sha: eb10954dbf4e66524991c23a4b332db1ff9b3c8e
+    short_sha: eb10954db
+    authored_at: '2026-04-14T15:07:25+00:00'
+    subject: 'fix: clarify images-search exempt from one-search-call limit in proactive skill instruction'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_proactive_skill_usage_instruction.md
+    related_feature_ids: []
+  - sha: fd941673a2793bd69fcdcb0ef2632d8afaabed5d
+    short_sha: fd941673a
+    authored_at: '2026-04-14T14:53:54+00:00'
+    subject: 'feat: account holder name, continue-to-app button, signup bank transfer reminder email'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/api/app/tasks/email_tasks/bank_transfer_reminder_email_task.py
+    - frontend/packages/ui/src/components/Payment.svelte
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    - frontend/packages/ui/src/components/signup/steps/payment/PaymentTopContent.svelte
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    related_feature_ids: []
+  - sha: 62c835f68fb80fa5aa56551f54fe6489ab63e086
+    short_sha: 62c835f68
+    authored_at: '2026-04-14T14:45:39+00:00'
+    subject: 'feat: account holder name, continue-to-app button, signup bank transfer reminder email'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/templates/email/bank-transfer-reminder.mjml
+    related_feature_ids: []
+  - sha: f7f910c441e518b4e4dc52195c83acc41b071436
+    short_sha: f7f910c44
+    authored_at: '2026-04-14T14:11:00+00:00'
+    subject: 'test: add settings-buy-credits-bank-transfer spec (110k tier)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: e37d836454f69e79c96a7cb9b35101c1e82a4060
+    short_sha: e37d83645
+    authored_at: '2026-04-14T14:10:42+00:00'
+    subject: 'refactor: split 110k tier test into own spec file'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: 6bd64c0d3e12bff4df50e66f012e841566c132a5
+    short_sha: 6bd64c0d3
+    authored_at: '2026-04-14T13:56:13+00:00'
+    subject: 'fix: signup bank transfer spec timeout 360s → 600s'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: 540b2db5200e47cb2f80e0c49dea63950288213c
+    short_sha: 540b2db52
+    authored_at: '2026-04-14T13:38:36+00:00'
+    subject: 'test: signup flow bank transfer spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: 340b71534919b47b6cdd093d8a5f971fb2371aad
+    short_sha: 340b71534
+    authored_at: '2026-04-14T13:38:19+00:00'
+    subject: 'fix: bank transfer spec success text — check confirmation screen not unmounted component'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: 5faed213dede46e1a7dc5c0de75a997f92175359
+    short_sha: 5faed213d
+    authored_at: '2026-04-14T13:29:53+00:00'
+    subject: 'fix(tests): polar — retry delete-account TOTP on invalid/expired token'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 81f10fca2d0524b6397abbb4ce969deaaaf02834
+    short_sha: 81f10fca2
+    authored_at: '2026-04-14T13:26:07+00:00'
+    subject: 'fix: extend bank transfer spec success timeout to 90s'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: 0bd4ab3600632120e6af2bbc70c55588f4b12792
+    short_sha: 0bd4ab360
+    authored_at: '2026-04-14T13:22:11+00:00'
+    subject: 'fix(tests): polar — only waitForURL when finish-setup button was clicked'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 0122e9ebcb2fa20c145a9642677404da1c6bdeb8
+    short_sha: 0122e9ebc
+    authored_at: '2026-04-14T13:15:17+00:00'
+    subject: 'fix: update_items -> update_item in bank transfer webhook + sandbox reference parsing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    related_feature_ids: []
+  - sha: 2ebe5eb4885acf4ab8659d7189aaea876ffb69c9
+    short_sha: 2ebe5eb48
+    authored_at: '2026-04-14T13:14:40+00:00'
+    subject: 'fix(tests): polar spec — 900s timeout + guard finish-setup click'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 9baea73ff4fb40949b2abaaca93143d52b7fc913
+    short_sha: 9baea73ff
+    authored_at: '2026-04-14T13:11:49+00:00'
+    subject: 'fix: sandbox topup reference in leg description'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    related_feature_ids: []
+  - sha: 55e2ab869d46b0ffd59ee6bdbf869cf159fd461f
+    short_sha: 55e2ab869
+    authored_at: '2026-04-14T13:05:46+00:00'
+    subject: 'fix: support Stripe spec strict mode — use .first() on success locator'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-stripe.spec.ts
+    related_feature_ids: []
+  - sha: 6f6c755425774c899c9f06e0cbf42ba6ab8a2162
+    short_sha: 6f6c75542
+    authored_at: '2026-04-14T13:00:26+00:00'
+    subject: 'fix: support Stripe spec — hardcode /config mock and fix fillStripeCardDetails call'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-stripe.spec.ts
+    related_feature_ids: []
+  - sha: 2644c35edb9c5fb1fb3adc7715e8ab53ab511c06
+    short_sha: 2644c35ed
+    authored_at: '2026-04-14T12:59:50+00:00'
+    subject: 'fix: wiki-inline-text color + brighter images embed dark mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/scripts/build-tokens.js
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    related_feature_ids: []
+  - sha: 31240fa74d7f45f607b202ac0bc731ce7683dac4
+    short_sha: 31240fa74
+    authored_at: '2026-04-14T12:53:08+00:00'
+    subject: 'fix: use getApiEndpoint() in SettingsSupportOneTime for bank transfer check'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/support/SettingsSupportOneTime.svelte
+    related_feature_ids: []
+  - sha: 418171e6d9f7bc8f16a4f68fb715237ae2205ef9
+    short_sha: 418171e6d
+    authored_at: '2026-04-14T12:51:15+00:00'
+    subject: 'fix: getApiEndpoint for support bank transfer check + add support Stripe spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-stripe.spec.ts
+    related_feature_ids: []
+  - sha: ef621348bc3c437b5f4fb768d1c9b83ce691a79f
+    short_sha: ef621348b
+    authored_at: '2026-04-14T12:50:01+00:00'
+    subject: 'fix: use getApiEndpoint() for bank transfer availability check'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    related_feature_ids: []
+  - sha: f9e505dbc149d9d60593118b9dc1b39608cf82ac
+    short_sha: f9e505dbc
+    authored_at: '2026-04-14T12:48:16+00:00'
+    subject: 'fix(tests): suppress Chrome password popup blocking polar post-payment click'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/playwright.config.ts
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 5df9651c58a7174b683252694f7dd3dcbf11a783
+    short_sha: 5df9651c5
+    authored_at: '2026-04-14T12:34:28+00:00'
+    subject: 'fix: bank transfer spec — hardcode /config mock, add polar create-support-order mock'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: 4e35e350e8ee51519e7fcbbc39ba0b2a37d2a69a
+    short_sha: 4e35e350e
+    authored_at: '2026-04-14T12:27:27+00:00'
+    subject: 'fix: bank transfer spec — mock /config to resolve async race on button visibility'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: 4fb24fc103537fff0a506123c9f054bb15956381
+    short_sha: 4fb24fc10
+    authored_at: '2026-04-14T12:21:34+00:00'
+    subject: 'fix(tests): polar billing — scroll to reveal fields, use polarIframe.fill'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 55a39748b8739f657c6878e16f76db664cf3e4d0
+    short_sha: 55a39748b
+    authored_at: '2026-04-14T12:20:17+00:00'
+    subject: 'fix: bank transfer spec selector — exact match for €10 tier'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: ec29dc907e29d9259806ef5f3cf7f2310af50327
+    short_sha: ec29dc907
+    authored_at: '2026-04-14T12:12:14+00:00'
+    subject: 'fix(tests): polar billing — fix polarFrame scope + scan all sub-iframes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: e27b30b1782665caa9e9b3107fb9ecb2b7988ddc
+    short_sha: e27b30b17
+    authored_at: '2026-04-14T12:04:29+00:00'
+    subject: 'fix(tests): fill polar billing address/city via Stripe sub-iframe'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 9a9f477dd157035df99b41c57cac4e2780c1bad8
+    short_sha: 9a9f477dd
+    authored_at: '2026-04-14T11:58:57+00:00'
+    subject: 'test: E2E specs for SEPA bank transfer UI flow (OPE-423)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: 3a3f5904a29b4391e5820da244eb9ab022be28b6
+    short_sha: 3a3f5904a
+    authored_at: '2026-04-14T11:58:17+00:00'
+    subject: 'fix: resolve Vercel build failure — wrong casing in webSocketService import'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    related_feature_ids: []
+  - sha: 00fff835f6e6b307ee54b231644a1310ca2927a2
+    short_sha: 00fff835f
+    authored_at: '2026-04-14T11:52:51+00:00'
+    subject: 'fix: suppress Stripe sync warning for EUR-only bank transfer tier'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/stripe_product_sync.py
+    related_feature_ids: []
+  - sha: 95fb183a255a4d5b23b9ba763fbaf53f3f7e0994
+    short_sha: 95fb183a2
+    authored_at: '2026-04-14T11:51:21+00:00'
+    subject: 'feat: SEPA bank transfer support via Revolut Business'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/cache.py
+    - backend/core/api/app/services/cache_bank_transfer_mixin.py
+    - backend/core/api/app/services/cache_base.py
+    - backend/core/api/app/services/cache_config.py
+    - backend/core/api/app/services/payment/payment_service.py
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/api/app/tasks/bank_transfer_expiry_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/directus/schemas/invoices.yml
+    - backend/core/directus/schemas/pending_bank_transfers.yml
+    - backend/tests/test_bank_transfer.py
+    - docs/architecture/payments/payment-processing.md
+    - frontend/packages/ui/src/components/Payment.svelte
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    - frontend/packages/ui/src/components/payment/ProcessingPayment.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPricing.svelte
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCredits.svelte
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    - frontend/packages/ui/src/components/settings/billing/autotopup/SettingsLowBalanceAutotopup.svelte
+    - frontend/packages/ui/src/components/settings/billing/autotopup/SettingsMonthlyAutotopup.svelte
+    - frontend/packages/ui/src/components/settings/giftcards/SettingsGiftCardsBuy.svelte
+    - frontend/packages/ui/src/components/settings/support/SettingsSupportOneTime.svelte
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/config/pricing.ts
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    - scripts/revolut_business_setup.py
+    related_feature_ids: []
+  - sha: 3a6436e19d4cff8c8c6b52cf3b626b7cfe6a2153
+    short_sha: 3a6436e19
+    authored_at: '2026-04-14T11:45:37+00:00'
+    subject: 'debug(tests): add frame diagnostic to polar billing address step'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: bab64546199bbabe295a311c416e656ac5692aa1
+    short_sha: bab645461
+    authored_at: '2026-04-14T11:45:36+00:00'
+    subject: 'fix: remove broken wiki links (Client-side_scanning, Glassmorphism) + fix 2 German slugs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/example_chats/beautiful_single_page_html.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/eu_chat_control_law.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/gigantic_airplanes.yml
+    related_feature_ids: []
+  - sha: d68998bd90a8b524d1908cbf9d89dc70438a618b
+    short_sha: d68998bd9
+    authored_at: '2026-04-14T11:16:50+00:00'
+    subject: 'feat: SEPA bank transfer support via Revolut Business'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/dependabot-processed.json
+    related_feature_ids: []
+  - sha: e475aec9675b4582c14faa9911dbc45a1ee1ee12
+    short_sha: e475aec96
+    authored_at: '2026-04-14T11:16:40+00:00'
+    subject: 'feat: add German inline wiki links to all 5 example chats (+ Linear OPE-425)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/example_chats/artemis_ii_mission.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/beautiful_single_page_html.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/creativity_drawing_meetups_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/eu_chat_control_law.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/flights_berlin_bangkok.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/gigantic_airplanes.yml
+    related_feature_ids: []
+  - sha: c5e2ee076e5e2f54e7c08c1377fd2880c272f471
+    short_sha: c5e2ee076
+    authored_at: '2026-04-14T11:15:50+00:00'
+    subject: 'feat: SEPA bank transfer support via Revolut Business'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - shared/config/pricing.yml
+    related_feature_ids: []
+  - sha: 551b03b76c0a98a3de5c815af3d62b3ead62f842
+    short_sha: 551b03b76
+    authored_at: '2026-04-14T10:58:27+00:00'
+    subject: 'feat: add inline wiki links to 4 more example chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/example_chats/beautiful_single_page_html.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/creativity_drawing_meetups_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/eu_chat_control_law.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/flights_berlin_bangkok.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/gigantic_airplanes.yml
+    related_feature_ids: []
+  - sha: 266b8c7056f1718d5c45731a04e372090c94bf4d
+    short_sha: 266b8c705
+    authored_at: '2026-04-14T10:49:11+00:00'
+    subject: 'fix: wikipedia proxy 500 — slowapi limit callable takes no args'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/wikipedia_proxy.py
+    related_feature_ids: []
+  - sha: 3c00fda3436090a73500494679287d6a791c9b05
+    short_sha: 3c00fda34
+    authored_at: '2026-04-14T10:48:22+00:00'
+    subject: 'fix(tests): polar billing fields + drop racy chat title equality'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 136d2a44e90069a459cef1af289a7b53ca06b642
+    short_sha: 136d2a44e
+    authored_at: '2026-04-14T10:33:40+00:00'
+    subject: 'feat: differentiated wiki proxy rate limits (15/min anon, 60/min authed)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/wikipedia_proxy.py
+    related_feature_ids: []
+  - sha: eb3db92232934484945c0937535d84ae8d7f0e31
+    short_sha: eb3db9223
+    authored_at: '2026-04-14T10:18:47+00:00'
+    subject: 'fix: hide share button on wiki fullscreen + allow trusted origin without auth'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/wikipedia_proxy.py
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    related_feature_ids: []
+  - sha: 4b02fa48baacbb5cc1354f63e6071955efa50cd7
+    short_sha: 4b02fa48b
+    authored_at: '2026-04-14T09:54:33+00:00'
+    subject: 'refactor: switch to inline (wiki:Title) links with backend auto-strip of invalid'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/instructions/base_wikipedia_linking_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/artemis-ii-mission.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/eu-chat-control-law-criticisms.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/artemis_ii_mission.yml
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/stores/wikiTopicsStore.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 50035da3d3bff5a98fc3380247c54325758bf53f
+    short_sha: 50035da3d
+    authored_at: '2026-04-14T09:06:18+00:00'
+    subject: 'fix: preprocessing llm attempts last fallback even if cache says unhealthy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/llm_utils.py
+    related_feature_ids: []
+  - sha: 2b0faf453e60502d2c62f4717a0db93c73d3d79d
+    short_sha: 2b0faf453
+    authored_at: '2026-04-14T08:53:14+00:00'
+    subject: 'fix: provider health check tolerates 2 transient failures before unhealthy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/health_check_tasks.py
+    related_feature_ids: []
+  - sha: 110fdf27cf3c1cc8345d47607b613f49b7f2965a
+    short_sha: 110fdf27c
+    authored_at: '2026-04-14T08:37:35+00:00'
+    subject: 'feat(privacy): add cli-no-credential-prompts + no-external-resources promises'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/cli-credential-prompt-guard.sh
+    - .claude/hooks/external-resources-guard.sh
+    - backend/tests/test_privacy_promises.py
+    - docs/architecture/privacy/privacy-promises.md
+    - frontend/apps/web_app/tests/cli-pair-login.spec.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - frontend/packages/ui/src/legal/privacyPromises.generated.ts
+    - shared/docs/privacy_promises.yml
+    related_feature_ids: []
+  - sha: f08e2bde53bbd6ed74ebcbbd6ee58c7918fcf949
+    short_sha: f08e2bde5
+    authored_at: '2026-04-14T08:36:25+00:00'
+    subject: 'feat: require auth on wikipedia proxy, charge 1 credit per API key request'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/wikipedia_proxy.py
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    related_feature_ids: []
+  - sha: 17990ec7f966c744e8e82a54e4129e3df491be98
+    short_sha: 17990ec7f
+    authored_at: '2026-04-14T08:27:43+00:00'
+    subject: 'feat: proxy Wikipedia requests through backend to protect user IP'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/wikipedia_proxy.py
+    - backend/core/api/main.py
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    related_feature_ids: []
+  - sha: 20a03bde0d0e27d2ef6f76b56f7e7b90a9f2823b
+    short_sha: 20a03bde0
+    authored_at: '2026-04-14T08:17:06+00:00'
+    subject: 'fix(ui): center OpenMates icon inside internal-link badge'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: bfe55fb925d3b6df120b2df775080cfa139699b7
+    short_sha: bfe55fb92
+    authored_at: '2026-04-14T00:52:30+00:00'
+    subject: 'revert(ui): restore per-app colors for embed/wiki inline links; keep OpenMates badge on internal links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/styles/markdown.css
+    related_feature_ids: []
+  - sha: 5ffa59f79eaedbd1439245ad783145e8e56aa4f3
+    short_sha: 5ffa59f79
+    authored_at: '2026-04-14T00:47:44+00:00'
+    subject: 'fix(ui): internal-link badge selector uses markdown-link-internal class'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: a66d7b19102a0d355a35261302896cc55290f341
+    short_sha: a66d7b191
+    authored_at: '2026-04-14T00:33:06+00:00'
+    subject: 'feat(ui): internal deep links get OpenMates badge + CTA-orange text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: eec550b6a181f04d614226436173a7c71ce380fc
+    short_sha: eec550b6a
+    authored_at: '2026-04-14T00:31:17+00:00'
+    subject: 'fix: upgrade Pillow to 12.2.0 (GHSA-whj4-6x5x-4v2j)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/requirements.txt
+    - backend/preview/requirements.txt
+    - backend/upload/requirements.txt
+    related_feature_ids: []
+  - sha: d59b95ca567718296a4539bcbded77656b83cae5
+    short_sha: d59b95ca5
+    authored_at: '2026-04-14T00:20:37+00:00'
+    subject: 'feat(ui): clearer click feedback + unified CTA-orange for clickable text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsButton.svelte
+    - frontend/packages/ui/src/styles/fields.css
+    - frontend/packages/ui/src/styles/markdown.css
+    related_feature_ids: []
+  - sha: 5847b9656248cf604af8065088be92033522bdec
+    short_sha: 5847b9656
+    authored_at: '2026-04-14T00:18:40+00:00'
+    subject: 'docs(privacy): add privacy-promises architecture doc'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/privacy/privacy-promises.md
+    related_feature_ids: []
+  - sha: 2c0a9285a7668588e97cf91783a8270556d09c8e
+    short_sha: 2c0a9285a
+    authored_at: '2026-04-14T00:01:41+00:00'
+    subject: 'fix: mutual exclusivity between wiki/embed fullscreen + flat study icon'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced SEPA bank transfer support via Revolut Business, implemented a privacy-preserving Wikipedia
+    proxy to protect user IP addresses, and significantly enhanced the video onboarding experience with new header controls
+    and fullscreen capabilities. The update also includes new privacy promises regarding CLI usage and external resources,
+    alongside extensive UI polish and security-related dependency upgrades.
+  released_changes:
+  - text: OpenMates now supports SEPA bank transfers via Revolut Business for credit purchases and support contributions,
+      including automated reminder emails and admin notifications for transfer issues.
+    evidence:
+      commits:
+      - 95fb183a2
+      - fd941673a
+      - 437fac490
+    release_status: released_main
+  - text: A new backend proxy for Wikipedia requests protects user IP addresses; the system now uses a credit-based auth model
+      for these requests with differentiated rate limits for anonymous and authenticated users.
+    evidence:
+      commits:
+      - 17990ec7f
+      - f08e2bde5
+      - 136d2a44e
+      - 4b02fa48b
+    release_status: released_main
+  - text: The project added an enhanced video header to chats featuring autoplay, scroll-to-pause logic, and deep-linking
+      support, alongside a unified fullscreen shell for intro videos.
+    evidence:
+      commits:
+      - c14dc3091
+      - 7417e7e35
+      - 7b6b55b70
+      - f2c8f6944
+      - ba64e373e
+      - 577f87228
+    release_status: released_main
+  - text: 'Two new privacy promises were added: a guarantee against credential prompts in CLI tools and a promise regarding
+      the non-usage of external resources.'
+    evidence:
+      commits:
+      - 110fdf27c
+    release_status: released_main
+  - text: UI improvements include an OpenMates badge for internal deep links, unified CTA-orange for clickable text, right-click
+      context menus for example chats, and enabled search suggestions for unauthenticated users.
+    evidence:
+      commits:
+      - a66d7b191
+      - d59b95ca5
+      - d3aa16ae7
+      - edbe3365d
+      - db21fe4f9
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved several Wikipedia embed issues, including mutual exclusivity between fullscreen modes, missing share buttons,
+      and incorrect inline link colors.
+    evidence:
+      commits:
+      - 2c0a9285a
+      - eb3db9223
+      - 2644c35ed
+    release_status: released_main
+  - text: Refined the bank transfer UI to use canonical settings elements, corrected reference hint text, and removed donation-related
+      language from support sections.
+    evidence:
+      commits:
+      - 096a122b0
+      - 3d095cd88
+      - b53174727
+    release_status: released_main
+  - text: Fixed a logic error where the preprocessing LLM would skip its final fallback attempt if the cache indicated an
+      unhealthy state.
+    evidence:
+      commits:
+      - 50035da3d
+    release_status: released_main
+  - text: Corrected intro video layout issues, including title positioning in side-by-side views and autoplay collisions.
+    evidence:
+      commits:
+      - 769539b1c
+      - a834972d7
+      - 9a9bc69e8
+    release_status: released_main
+  - text: Resolved a Vercel build failure caused by an incorrect casing in the WebSocket service import.
+    evidence:
+      commits:
+      - 3a3f5904a
+    release_status: released_main
+  unreleased_progress:
+  - text: Added a window.onboarding() debug command to facilitate QA testing of the signup and intro flows.
+    evidence:
+      commits:
+      - 5487f58ea
+    release_status: released_main
+  - text: Internal documentation was updated to cover the privacy-promises architecture and the decision to use api.video
+      for hosting.
+    evidence:
+      commits:
+      - 5847b9656
+      - f3b36880f
+      - b8f4dcd78
+    release_status: released_main
+  - text: Expanded the E2E test suite with dedicated specs for bank transfer tiers and signup flows.
+    evidence:
+      commits:
+      - e37d83645
+      - 9a9f477dd
+      - 540b2db52
+      - f7f910c44
+    release_status: released_main
+  internal_progress:
+  - text: Upgraded Pillow to version 12.2.0 to address a security vulnerability (GHSA-whj4-6x5x-4v2j).
+    evidence:
+      commits:
+      - eec550b6a
+    release_status: released_main
+  - text: Adjusted provider health checks to tolerate two transient failures before marking a service as unhealthy.
+    evidence:
+      commits:
+      - 2b0faf453
+    release_status: released_main
+  - text: Prevented Temporal Dead Zone (TDZ) crashes by deferring store subscriptions in the WebSocket and ChatSync services.
+    evidence:
+      commits:
+      - 57cfa67bc
+      - b25fda17a
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: SEPA Bank Transfer Support via Revolut Business
+      evidence:
+        commits:
+        - 95fb183a2
+        - fd941673a
+      reason: Major new payment method expanding accessibility for European users.
+    - text: Privacy-Focused Wikipedia Proxy with Rate Limiting
+      evidence:
+        commits:
+        - 17990ec7f
+        - f08e2bde5
+        - 136d2a44e
+      reason: Significant privacy improvement protecting user IP addresses during Wikipedia browsing.
+    - text: New Privacy Promises for CLI and External Resources
+      evidence:
+        commits:
+        - 110fdf27c
+      reason: New verifiable privacy guarantees for CLI and external resource usage.
+    - text: Upgraded Video Header and Intro Experience
+      evidence:
+        commits:
+        - c14dc3091
+        - 7417e7e35
+        - f2c8f6944
+      reason: Enhanced onboarding experience with deep-linkable video headers and improved fullscreen playback.
+    - text: Unified UI Feedback and Internal Deep Link Badging
+      evidence:
+        commits:
+        - a66d7b191
+        - d59b95ca5
+      reason: UI polish for better navigation and clearer interactive elements.
+    exclude:
+    - text: window.onboarding() debug command
+      evidence:
+        commits:
+        - 5487f58ea
+      reason: Internal QA debug command.
+    - text: Video hosting provider decision docs
+      evidence:
+        commits:
+        - f3b36880f
+        - b8f4dcd78
+      reason: Internal infrastructure documentation.
+    - text: Smoke test and Docker grace period fixes
+      evidence:
+        commits:
+        - 7f4140593
+      reason: CI/Test infrastructure maintenance.
+    rationale: The update is headlined by the introduction of SEPA bank transfers and a major privacy-focused overhaul of
+      how Wikipedia content is handled. These changes, along with new privacy promises and a refined video onboarding experience,
+      provide strong material for user communication.
+  social_video_recommendations:
+  - idea: A walkthrough of the new SEPA bank transfer flow, showing how users can now top up credits without a credit card.
+    priority: high
+    reason: This is a major accessibility feature for European users that differentiates the payment experience.
+    evidence:
+      commits:
+      - 95fb183a2
+      - fd941673a
+  - idea: A short clip demonstrating the new video header, showing how it pauses on scroll and expands into the new fullscreen
+      shell.
+    priority: medium
+    reason: The new video interactions are highly visual and improve the first-time user experience.
+    evidence:
+      commits:
+      - c14dc3091
+      - 7417e7e35
+  quality_notes:
+  - Extensive E2E test coverage was added for the new SEPA bank transfer flow, including signup and credit purchase scenarios.
+  - Privacy infrastructure was strengthened with automated guards against credential prompts in CLI hooks.
+  - UI consistency was improved by unifying CTA colors and adding explicit badging for internal deep links.
+  validation_warnings: []

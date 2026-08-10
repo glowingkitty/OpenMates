@@ -16,7 +16,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.14.0"
+    MARKETING_VERSION: "0.15.0"
     CURRENT_PROJECT_VERSION: 12
     DEVELOPMENT_TEAM: Z9B2YFKN2X
     CODE_SIGN_STYLE: Automatic
@@ -31,6 +31,15 @@ packages:
   LucideIcons:
     url: https://github.com/JakubMazur/lucide-icons-swift.git
     from: 1.8.0
+  Sodium:
+    url: https://github.com/jedisct1/swift-sodium.git
+    from: 0.9.1
+  Yams:
+    url: https://github.com/jpsim/Yams.git
+    from: 5.1.3
+  ZIPFoundation:
+    url: https://github.com/weichsel/ZIPFoundation.git
+    from: 0.9.19
 
 targets:
   OpenMates:
@@ -67,6 +76,7 @@ targets:
         type: folder
     resources:
       # Xcode asset catalogs with theme-aware colors and custom icons
+      - path: OpenMates/Resources/BrandAssets.xcassets
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Icons.xcassets
     settings:
@@ -125,14 +135,17 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         UIAppFonts:
-          - LexendDeca-Light.ttf
-          - LexendDeca-Regular.ttf
-          - LexendDeca-Medium.ttf
-          - LexendDeca-SemiBold.ttf
-          - LexendDeca-Bold.ttf
-          - LexendDeca-ExtraBold.ttf
+          - Fonts/LexendDeca-Light.ttf
+          - Fonts/LexendDeca-Regular.ttf
+          - Fonts/LexendDeca-Medium.ttf
+          - Fonts/LexendDeca-SemiBold.ttf
+          - Fonts/LexendDeca-Bold.ttf
+          - Fonts/LexendDeca-ExtraBold.ttf
     dependencies:
       - package: LucideIcons
+      - package: Sodium
+      - package: Yams
+      - package: ZIPFoundation
       - target: OpenMatesShareExtension
         platforms: [iOS]
       - target: OpenMatesShareExtension_macOS
@@ -221,12 +234,12 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
         UIAppFonts:
-          - LexendDeca-Light.ttf
-          - LexendDeca-Regular.ttf
-          - LexendDeca-Medium.ttf
-          - LexendDeca-SemiBold.ttf
-          - LexendDeca-Bold.ttf
-          - LexendDeca-ExtraBold.ttf
+          - Fonts/LexendDeca-Light.ttf
+          - Fonts/LexendDeca-Regular.ttf
+          - Fonts/LexendDeca-Medium.ttf
+          - Fonts/LexendDeca-SemiBold.ttf
+          - Fonts/LexendDeca-Bold.ttf
+          - Fonts/LexendDeca-ExtraBold.ttf
 
   # Share extension — share URLs, text, and images from other apps into OpenMates chats
   OpenMatesShareExtension:
@@ -239,12 +252,20 @@ targets:
       - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
       - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
       - path: OpenMates/Sources/Shared/Extensions/AnyCodable.swift
+      - path: OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+      - path: OpenMates/Sources/Shared/Composer/AppleComposerRendererRegistry.swift
+      - path: OpenMates/Sources/Shared/Composer/ComposerEmbedLifecycle.swift
+      - path: OpenMates/Sources/Shared/Composer/ComposerTextAttachment.swift
+      - path: OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+      - path: OpenMates/Sources/Shared/Composer/NativeComposerSession.swift
+      - path: OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
     settings:
       base:
         INFOPLIST_FILE: OpenMatesShareExtension/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.share
         CODE_SIGN_ENTITLEMENTS: OpenMatesShareExtension/OpenMatesShareExtension.entitlements
         SWIFT_VERSION: "6.0"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) OPENMATES_SHARE_EXTENSION
     entitlements:
       path: OpenMatesShareExtension/OpenMatesShareExtension.entitlements
       properties:
@@ -265,12 +286,20 @@ targets:
       - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
       - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
       - path: OpenMates/Sources/Shared/Extensions/AnyCodable.swift
+      - path: OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+      - path: OpenMates/Sources/Shared/Composer/AppleComposerRendererRegistry.swift
+      - path: OpenMates/Sources/Shared/Composer/ComposerEmbedLifecycle.swift
+      - path: OpenMates/Sources/Shared/Composer/ComposerTextAttachment.swift
+      - path: OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+      - path: OpenMates/Sources/Shared/Composer/NativeComposerSession.swift
+      - path: OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
     settings:
       base:
         INFOPLIST_FILE: OpenMatesShareExtensionMacOS/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.sharemacos
         CODE_SIGN_ENTITLEMENTS: OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements
         SWIFT_VERSION: "6.0"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) OPENMATES_SHARE_EXTENSION
     entitlements:
       path: OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements
       properties:
@@ -318,6 +347,38 @@ targets:
         TEST_TARGET_NAME: OpenMates_iOS
         SWIFT_VERSION: "6.0"
 
+  OpenMatesMacUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: OpenMatesMacUITests
+      - path: OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+      - path: OpenMatesUITests/TooltipHelpParityUITests.swift
+    dependencies:
+      - target: OpenMates_macOS
+    settings:
+      base:
+        INFOPLIST_FILE: OpenMatesUITests/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.macuitests
+        PRODUCT_NAME: OpenMatesMacUITests
+        TEST_TARGET_NAME: OpenMates_macOS
+        SWIFT_VERSION: "6.0"
+
+  OpenMatesWatchUITests:
+    type: bundle.ui-testing
+    platform: watchOS
+    sources:
+      - path: OpenMatesWatchUITests
+    dependencies:
+      - target: OpenMatesWatch
+    settings:
+      base:
+        INFOPLIST_FILE: OpenMatesUITests/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.watchuitests
+        PRODUCT_NAME: OpenMatesWatchUITests
+        TEST_TARGET_NAME: OpenMatesWatch
+        SWIFT_VERSION: "6.0"
+
   OpenMatesTests:
     type: bundle.unit-test
     platform: iOS
@@ -340,10 +401,51 @@ schemes:
       targets:
         OpenMates_iOS: all
     test:
+      environmentVariables:
+        OPENMATES_TEST_ACCOUNT_EMAIL: $(OPENMATES_TEST_ACCOUNT_EMAIL)
+        OPENMATES_TEST_ACCOUNT_PASSWORD: $(OPENMATES_TEST_ACCOUNT_PASSWORD)
+        OPENMATES_TEST_ACCOUNT_OTP_KEY: $(OPENMATES_TEST_ACCOUNT_OTP_KEY)
       targets:
         - OpenMatesTests
         - OpenMatesUITests
+  OpenMates_iOS_UI_Tests:
+    build:
+      targets:
+        OpenMates_iOS: all
+    test:
+      environmentVariables:
+        OPENMATES_TEST_ACCOUNT_EMAIL: $(OPENMATES_TEST_ACCOUNT_EMAIL)
+        OPENMATES_TEST_ACCOUNT_PASSWORD: $(OPENMATES_TEST_ACCOUNT_PASSWORD)
+        OPENMATES_TEST_ACCOUNT_OTP_KEY: $(OPENMATES_TEST_ACCOUNT_OTP_KEY)
+      targets:
+        - OpenMatesUITests
+  OpenMates_iOS_Unit_Tests:
+    build:
+      targets:
+        OpenMates_iOS: all
+    test:
+      environmentVariables:
+        OPENMATES_TEST_ACCOUNT_EMAIL: $(OPENMATES_TEST_ACCOUNT_EMAIL)
+        OPENMATES_TEST_ACCOUNT_PASSWORD: $(OPENMATES_TEST_ACCOUNT_PASSWORD)
+        OPENMATES_TEST_ACCOUNT_OTP_KEY: $(OPENMATES_TEST_ACCOUNT_OTP_KEY)
+      targets:
+        - OpenMatesTests
+  OpenMates_macOS:
+    build:
+      targets:
+        OpenMates_macOS: all
+    test:
+      targets:
+        - OpenMatesMacUITests
   OpenMatesWatch:
     build:
       targets:
         OpenMatesWatch: all
+  OpenMatesWatchUITests:
+    build:
+      targets:
+        OpenMatesWatch: all
+        OpenMatesWatchUITests: [test]
+    test:
+      targets:
+        - OpenMatesWatchUITests

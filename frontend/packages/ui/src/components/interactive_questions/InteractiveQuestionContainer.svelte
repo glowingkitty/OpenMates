@@ -25,6 +25,7 @@
   import { chatSyncService } from '../../services/chatSyncService';
   import type { Message } from '../../types/chat';
   import { activeChatStore } from '../../stores/activeChatStore';
+  import { orderSharedInteractiveQuestionMessages } from '../../utils/sharedInteractiveQuestionOrdering';
   import ChoiceQuestion from './renderers/ChoiceQuestion.svelte';
   import InputQuestion from './renderers/InputQuestion.svelte';
   import SliderQuestion from './renderers/SliderQuestion.svelte';
@@ -42,9 +43,10 @@
 
   // Reactive message list state
   let loadedHistory = $state<Message[]>([]);
+  let orderedHistory = $derived(orderSharedInteractiveQuestionMessages(loadedHistory));
 
   // Reactive state: find if already answered in subsequent messages
-  let answeredState = $derived(findSubsequentResponse(loadedHistory, payload.id));
+  let answeredState = $derived(findSubsequentResponse(orderedHistory, payload.id));
   let isAnswered = $derived(!!answeredState);
 
   // Selection states managed by the child renderers
@@ -213,7 +215,7 @@
 
   .interactive-question-card.locked {
     background: transparent;
-    border-color: var(--color-grey-15, #f1f3f5);
+    border-color: var(--color-grey-20, #f1f3f5);
     box-shadow: none;
     padding: var(--spacing-12, 12px) 0;
   }
@@ -226,7 +228,7 @@
   }
 
   .type-badge {
-    font-size: 11px;
+    font-size: var(--font-size-tiny, 0.6875rem);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -264,7 +266,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 12px;
+    font-size: var(--font-size-xxs, 0.75rem);
     font-weight: 500;
     color: var(--color-font-secondary, #495057);
   }
@@ -284,7 +286,7 @@
     justify-content: flex-end;
     gap: var(--spacing-12, 12px);
     width: 100%;
-    border-top: 1px solid var(--color-grey-15, #f1f3f5);
+    border-top: 1px solid var(--color-grey-20, #f1f3f5);
     padding-top: var(--spacing-12, 12px);
   }
 
@@ -304,7 +306,7 @@
 
   .btn-clear {
     background: none;
-    border-color: var(--color-grey-35, #ced4da);
+    border-color: var(--color-grey-40, #ced4da);
     color: var(--color-font-primary, #212529);
   }
 

@@ -26,6 +26,8 @@ import httpx
 from PIL import Image
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from backend.shared.python_utils.media_encryption import encrypt_media_variants, load_media_write_version
+
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.utils.image_processing import process_svg_for_storage
@@ -510,13 +512,13 @@ async def _async_vectorize_image(
         if not vault_key_id:
             raise Exception(f"Vault key ID not found for user {user_id}")
 
-        # Generate local symmetric key for this set of images
-        aes_key = os.urandom(32)  # AES-256
-        nonce = os.urandom(12)  # GCM nonce
-        aesgcm = AESGCM(aes_key)
+        encrypted_variants = encrypt_media_variants(
+            processed_images,
+            write_version=load_media_write_version(),
+        )
 
         # Wrap the local AES key using Vault
-        aes_key_b64 = base64.b64encode(aes_key).decode("utf-8")
+        aes_key_b64 = encrypted_variants.aes_key_b64
         encrypted_aes_key_vault, _ = (
             await task._encryption_service.encrypt_with_user_key(
                 aes_key_b64, vault_key_id
@@ -525,7 +527,7 @@ async def _async_vectorize_image(
         if not encrypted_aes_key_vault:
             raise Exception("Failed to wrap AES key with Vault")
 
-        nonce_b64 = base64.b64encode(nonce).decode("utf-8")
+        nonce_b64 = encrypted_variants.legacy_nonce_b64 or ""
 
         # 9. Encrypt and upload each version to S3
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -539,7 +541,7 @@ async def _async_vectorize_image(
         }
 
         for format_key, content in processed_images.items():
-            encrypted_payload = aesgcm.encrypt(nonce, content, None)
+            encrypted_payload = encrypted_variants.payloads[format_key]
 
             if format_key == "original":
                 ext = "svg"
@@ -576,6 +578,7 @@ async def _async_vectorize_image(
                 "height": height,
                 "size_bytes": len(content),
                 "format": stored_format,
+                **encrypted_variants.metadata[format_key],
             }
 
         # 10. Prepare embed content

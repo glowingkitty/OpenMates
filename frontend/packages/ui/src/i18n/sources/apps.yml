@@ -1,3 +1,101 @@
+finance:
+  context: App name for the Finance app
+  en: Finance
+  de: Finanzen
+  zh: Finance
+  es: Finance
+  fr: Finance
+  pt: Finance
+  ru: Finance
+  ja: Finance
+  ko: Finance
+  it: Finance
+  tr: Finance
+  vi: Finance
+  id: Finance
+  pl: Finance
+  nl: Finance
+  ar: Finance
+  hi: Finance
+  th: Finance
+  cs: Finance
+  sv: Finance
+  he: Finance
+  verified_by_human: [en, de]
+finance.description:
+  context: Description for the Finance app
+  en: Check accounts, statements, spending, and projections.
+  de: Konten, Auszüge, Ausgaben und Prognosen prüfen.
+  zh: Check accounts, statements, spending, and projections.
+  es: Check accounts, statements, spending, and projections.
+  fr: Check accounts, statements, spending, and projections.
+  pt: Check accounts, statements, spending, and projections.
+  ru: Check accounts, statements, spending, and projections.
+  ja: Check accounts, statements, spending, and projections.
+  ko: Check accounts, statements, spending, and projections.
+  it: Check accounts, statements, spending, and projections.
+  tr: Check accounts, statements, spending, and projections.
+  vi: Check accounts, statements, spending, and projections.
+  id: Check accounts, statements, spending, and projections.
+  pl: Check accounts, statements, spending, and projections.
+  nl: Check accounts, statements, spending, and projections.
+  ar: Check accounts, statements, spending, and projections.
+  hi: Check accounts, statements, spending, and projections.
+  th: Check accounts, statements, spending, and projections.
+  cs: Check accounts, statements, spending, and projections.
+  sv: Check accounts, statements, spending, and projections.
+  he: Check accounts, statements, spending, and projections.
+  verified_by_human: [en, de]
+
+ideabucket:
+  context: App name for the IdeaBucket app
+  en: IdeaBucket
+  de: IdeaBucket
+  zh: IdeaBucket
+  es: IdeaBucket
+  fr: IdeaBucket
+  pt: IdeaBucket
+  ru: IdeaBucket
+  ja: IdeaBucket
+  ko: IdeaBucket
+  it: IdeaBucket
+  tr: IdeaBucket
+  vi: IdeaBucket
+  id: IdeaBucket
+  pl: IdeaBucket
+  nl: IdeaBucket
+  ar: IdeaBucket
+  hi: IdeaBucket
+  th: IdeaBucket
+  cs: IdeaBucket
+  sv: IdeaBucket
+  he: IdeaBucket
+  verified_by_human: [en, de]
+ideabucket.description:
+  context: Description for the IdeaBucket app
+  en: Capture ideas quickly and process them later with OpenMates.
+  de: Ideen schnell erfassen und später mit OpenMates verarbeiten.
+  zh: Capture ideas quickly and process them later with OpenMates.
+  es: Capture ideas quickly and process them later with OpenMates.
+  fr: Capture ideas quickly and process them later with OpenMates.
+  pt: Capture ideas quickly and process them later with OpenMates.
+  ru: Capture ideas quickly and process them later with OpenMates.
+  ja: Capture ideas quickly and process them later with OpenMates.
+  ko: Capture ideas quickly and process them later with OpenMates.
+  it: Capture ideas quickly and process them later with OpenMates.
+  tr: Capture ideas quickly and process them later with OpenMates.
+  vi: Capture ideas quickly and process them later with OpenMates.
+  id: Capture ideas quickly and process them later with OpenMates.
+  pl: Capture ideas quickly and process them later with OpenMates.
+  nl: Capture ideas quickly and process them later with OpenMates.
+  ar: Capture ideas quickly and process them later with OpenMates.
+  hi: Capture ideas quickly and process them later with OpenMates.
+  th: Capture ideas quickly and process them later with OpenMates.
+  cs: Capture ideas quickly and process them later with OpenMates.
+  sv: Capture ideas quickly and process them later with OpenMates.
+  he: Capture ideas quickly and process them later with OpenMates.
+  verified_by_human: [en, de]
+
 ai:
   context: App name for the AI app
   en: AI
@@ -93,6 +191,54 @@ ai.skills.ask.description:
   cs: Ptejte se textem, obrázky a dalšími médii.
   sv: Fråga med text, bilder och annat media.
   he: שאל באמצעות טקסט, תמונות ומדיה נוספת.
+  verified_by_human: [en, de]
+business:
+  context: App name for the Business app
+  en: Business
+  de: Business
+  zh: Business
+  es: Business
+  fr: Business
+  pt: Business
+  ru: Business
+  ja: Business
+  ko: Business
+  it: Business
+  tr: Business
+  vi: Business
+  id: Business
+  pl: Business
+  nl: Business
+  ar: Business
+  hi: Business
+  th: Business
+  cs: Business
+  sv: Business
+  he: Business
+  verified_by_human: [en, de]
+business.description:
+  context: Description for the Business app
+  en: Research companies and public business data.
+  de: Recherchiere Unternehmen und öffentliche Geschäftsdaten.
+  zh: Research companies and public business data.
+  es: Research companies and public business data.
+  fr: Research companies and public business data.
+  pt: Research companies and public business data.
+  ru: Research companies and public business data.
+  ja: Research companies and public business data.
+  ko: Research companies and public business data.
+  it: Research companies and public business data.
+  tr: Research companies and public business data.
+  vi: Research companies and public business data.
+  id: Research companies and public business data.
+  pl: Research companies and public business data.
+  nl: Research companies and public business data.
+  ar: Research companies and public business data.
+  hi: Research companies and public business data.
+  th: Research companies and public business data.
+  cs: Research companies and public business data.
+  sv: Research companies and public business data.
+  he: Research companies and public business data.
   verified_by_human: [en, de]
 calendar:
   context: App name for the Calendar app
@@ -1246,6 +1392,54 @@ diagrams.description:
   sv: Skapa flöden, sekvenser, tidslinjer och mer.
   he: יצירת זרימות, רצפים, צירי זמן ועוד.
   verified_by_human: []
+design:
+  context: App name for the Design app
+  en: Design
+  de: Design
+  zh: 设计
+  es: Diseño
+  fr: Design
+  pt: Design
+  ru: Дизайн
+  ja: デザイン
+  ko: 디자인
+  it: Design
+  tr: Tasarım
+  vi: Thiết kế
+  id: Desain
+  pl: Projektowanie
+  nl: Ontwerp
+  ar: التصميم
+  hi: डिज़ाइन
+  th: ออกแบบ
+  cs: Design
+  sv: Design
+  he: עיצוב
+  verified_by_human: [en, de]
+design.description:
+  context: Description for the Design app
+  en: Find icons and visual assets for product design.
+  de: Finde Icons und visuelle Assets fürs Produktdesign.
+  zh: 查找用于产品设计的图标和视觉素材。
+  es: Encuentra iconos y recursos visuales para diseño de producto.
+  fr: Trouvez des icônes et des éléments visuels pour le design produit.
+  pt: Encontre ícones e recursos visuais para design de produto.
+  ru: Находите иконки и визуальные ресурсы для продуктового дизайна.
+  ja: プロダクトデザイン用のアイコンやビジュアル素材を探します。
+  ko: 제품 디자인용 아이콘과 시각 자료를 찾으세요.
+  it: Trova icone e risorse visive per il product design.
+  tr: Ürün tasarımı için simgeler ve görsel varlıklar bulun.
+  vi: Tìm biểu tượng và tài nguyên trực quan cho thiết kế sản phẩm.
+  id: Temukan ikon dan aset visual untuk desain produk.
+  pl: Znajduj ikony i zasoby wizualne do projektowania produktu.
+  nl: Vind iconen en visuele assets voor productontwerp.
+  ar: ابحث عن أيقونات وموارد مرئية لتصميم المنتجات.
+  hi: प्रोडक्ट डिज़ाइन के लिए आइकन और विज़ुअल एसेट खोजें।
+  th: ค้นหาไอคอนและทรัพยากรภาพสำหรับการออกแบบผลิตภัณฑ์
+  cs: Najděte ikony a vizuální podklady pro produktový design.
+  sv: Hitta ikoner och visuella resurser för produktdesign.
+  he: מצא אייקונים ונכסים חזותיים לעיצוב מוצר.
+  verified_by_human: [en, de]
 docs:
   context: App name for the Docs app
   en: Docs
@@ -1773,6 +1967,102 @@ events.search.description:
   cs: Najděte meetupy, konference a místní akce.
   sv: Hitta meetups, konferenser och lokala evenemang.
   he: מצא מפגשים, כנסים ואירועים מקומיים.
+  verified_by_human: []
+plans:
+  context: App name for the Plans app
+  en: Plans
+  de: Pläne
+  zh: 计划
+  es: Planes
+  fr: Plans
+  pt: Planos
+  ru: Планы
+  ja: プラン
+  ko: 계획
+  it: Piani
+  tr: Planlar
+  vi: Kế hoạch
+  id: Rencana
+  pl: Plany
+  nl: Plannen
+  ar: الخطط
+  hi: योजनाएँ
+  th: แผน
+  cs: Plány
+  sv: Planer
+  he: תוכניות
+  verified_by_human: []
+plans.description:
+  context: Description for the Plans app
+  en: Coordinate durable plans, checks, and next steps.
+  de: Dauerhafte Pläne, Prüfungen und nächste Schritte koordinieren.
+  zh: 协调长期计划、检查和后续步骤。
+  es: Coordina planes duraderos, comprobaciones y próximos pasos.
+  fr: Coordonnez des plans durables, des vérifications et les prochaines étapes.
+  pt: Coordene planos duráveis, verificações e próximos passos.
+  ru: Координируйте долгосрочные планы, проверки и следующие шаги.
+  ja: 継続的な計画、確認、次のステップを調整します。
+  ko: 지속적인 계획, 점검, 다음 단계를 조율하세요.
+  it: Coordina piani duraturi, verifiche e prossimi passi.
+  tr: Kalıcı planları, kontrolleri ve sonraki adımları koordine edin.
+  vi: Điều phối kế hoạch lâu dài, kiểm tra và các bước tiếp theo.
+  id: Koordinasikan rencana tahan lama, pemeriksaan, dan langkah berikutnya.
+  pl: Koordynuj trwałe plany, kontrole i kolejne kroki.
+  nl: Coördineer duurzame plannen, controles en vervolgstappen.
+  ar: نسّق الخطط الدائمة والفحوصات والخطوات التالية.
+  hi: टिकाऊ योजनाओं, जाँचों और अगले चरणों का समन्वय करें।
+  th: ประสานแผนระยะยาว การตรวจสอบ และขั้นตอนถัดไป
+  cs: Koordinujte trvalé plány, kontroly a další kroky.
+  sv: Samordna varaktiga planer, kontroller och nästa steg.
+  he: תיאום תוכניות מתמשכות, בדיקות ושלבים הבאים.
+  verified_by_human: []
+projects:
+  context: App name for the Projects app
+  en: Projects
+  de: Projekte
+  zh: 项目
+  es: Proyectos
+  fr: Projets
+  pt: Projetos
+  ru: Проекты
+  ja: プロジェクト
+  ko: 프로젝트
+  it: Progetti
+  tr: Projeler
+  vi: Dự án
+  id: Proyek
+  pl: Projekty
+  nl: Projecten
+  ar: المشاريع
+  hi: प्रोजेक्ट
+  th: โปรเจกต์
+  cs: Projekty
+  sv: Projekt
+  he: פרויקטים
+  verified_by_human: []
+projects.description:
+  context: Description for the Projects app
+  en: Organize chats, files, embeds, and project workspaces.
+  de: Chats, Dateien, Einbettungen und Projektarbeitsbereiche organisieren.
+  zh: 整理聊天、文件、嵌入内容和项目工作区。
+  es: Organiza chats, archivos, embeds y espacios de trabajo de proyectos.
+  fr: Organisez les chats, fichiers, embeds et espaces de projet.
+  pt: Organize chats, arquivos, embeds e espaços de projeto.
+  ru: Организуйте чаты, файлы, встраивания и рабочие области проектов.
+  ja: チャット、ファイル、埋め込み、プロジェクトワークスペースを整理します。
+  ko: 채팅, 파일, 임베드, 프로젝트 작업 공간을 정리하세요.
+  it: Organizza chat, file, embed e spazi di lavoro di progetto.
+  tr: Sohbetleri, dosyaları, gömmeleri ve proje çalışma alanlarını düzenleyin.
+  vi: Sắp xếp cuộc trò chuyện, tệp, embed và không gian làm việc dự án.
+  id: Atur chat, file, embed, dan ruang kerja proyek.
+  pl: Organizuj czaty, pliki, osadzenia i przestrzenie projektowe.
+  nl: Organiseer chats, bestanden, embeds en projectwerkruimtes.
+  ar: نظّم الدردشات والملفات والتضمينات ومساحات عمل المشاريع.
+  hi: चैट, फ़ाइलें, एम्बेड और प्रोजेक्ट कार्यक्षेत्र व्यवस्थित करें।
+  th: จัดระเบียบแชต ไฟล์ embed และพื้นที่ทำงานโปรเจกต์
+  cs: Organizujte chaty, soubory, embedy a projektové pracovní prostory.
+  sv: Organisera chattar, filer, embeds och projektarbetsytor.
+  he: ארגון צ'אטים, קבצים, הטמעות וסביבות עבודה של פרויקטים.
   verified_by_human: []
 workflows:
   context: App name for the Workflows app
@@ -2638,6 +2928,54 @@ mindmaps.description:
   sv: Skapa strukturerade idékartor och ämnesträd för brainstorming.
   he: יצירת מפות רעיונות מובנות ועצי נושאים לסיעור מוחות.
   verified_by_human: [en, de]
+models3d:
+  context: App name for the 3D Models app
+  en: 3D Models
+  de: 3D-Modelle
+  zh: 3D Models
+  es: 3D Models
+  fr: 3D Models
+  pt: 3D Models
+  ru: 3D Models
+  ja: 3D Models
+  ko: 3D Models
+  it: 3D Models
+  tr: 3D Models
+  vi: 3D Models
+  id: 3D Models
+  pl: 3D Models
+  nl: 3D Models
+  ar: 3D Models
+  hi: 3D Models
+  th: 3D Models
+  cs: 3D Models
+  sv: 3D Models
+  he: 3D Models
+  verified_by_human: [en, de]
+models3d.description:
+  context: Description for the 3D Models app
+  en: Generate 3D models from prompts or reference images.
+  de: Generiere 3D-Modelle aus Prompts oder Referenzbildern.
+  zh: Generate 3D models from prompts or reference images.
+  es: Generate 3D models from prompts or reference images.
+  fr: Generate 3D models from prompts or reference images.
+  pt: Generate 3D models from prompts or reference images.
+  ru: Generate 3D models from prompts or reference images.
+  ja: Generate 3D models from prompts or reference images.
+  ko: Generate 3D models from prompts or reference images.
+  it: Generate 3D models from prompts or reference images.
+  tr: Generate 3D models from prompts or reference images.
+  vi: Generate 3D models from prompts or reference images.
+  id: Generate 3D models from prompts or reference images.
+  pl: Generate 3D models from prompts or reference images.
+  nl: Generate 3D models from prompts or reference images.
+  ar: Generate 3D models from prompts or reference images.
+  hi: Generate 3D models from prompts or reference images.
+  th: Generate 3D models from prompts or reference images.
+  cs: Generate 3D models from prompts or reference images.
+  sv: Generate 3D models from prompts or reference images.
+  he: Generate 3D models from prompts or reference images.
+  verified_by_human: [en, de]
 math:
   context: App name for the Math app
   en: Math
@@ -2685,6 +3023,54 @@ math.description:
   cs: Řešte rovnice, počítejte a kreslete grafy funkcí.
   sv: Lös ekvationer, beräkna och rita funktioner.
   he: פתרון משוואות, ביצוע חישובים וסרטוט פונקציות.
+  verified_by_human: []
+tasks:
+  context: App name for the Tasks app
+  en: Tasks
+  de: Aufgaben
+  zh: 任务
+  es: Tareas
+  fr: Tâches
+  pt: Tarefas
+  ru: Задачи
+  ja: タスク
+  ko: 작업
+  it: Attività
+  tr: Görevler
+  vi: Nhiệm vụ
+  id: Tugas
+  pl: Zadania
+  nl: Taken
+  ar: المهام
+  hi: कार्य
+  th: งาน
+  cs: Úkoly
+  sv: Uppgifter
+  he: משימות
+  verified_by_human: []
+tasks.description:
+  context: Description for the Tasks app
+  en: Create, track, and manage tasks and checklists.
+  de: Aufgaben und Checklisten erstellen, verfolgen und verwalten.
+  zh: 创建、跟踪和管理任务与清单。
+  es: Crea, sigue y gestiona tareas y listas de verificación.
+  fr: Créez, suivez et gérez des tâches et des listes de contrôle.
+  pt: Crie, acompanhe e gerencie tarefas e listas de verificação.
+  ru: Создавайте, отслеживайте и управляйте задачами и чек-листами.
+  ja: タスクとチェックリストを作成、追跡、管理しましょう。
+  ko: 작업과 체크리스트를 만들고 추적하고 관리하세요.
+  it: Crea, monitora e gestisci attività e liste di controllo.
+  tr: Görevler ve kontrol listeleri oluşturun, izleyin ve yönetin.
+  vi: Tạo, theo dõi và quản lý nhiệm vụ cùng danh sách kiểm tra.
+  id: Buat, lacak, dan kelola tugas serta daftar periksa.
+  pl: Twórz, śledź i zarządzaj zadaniami oraz listami kontrolnymi.
+  nl: Maak, volg en beheer taken en checklists.
+  ar: أنشئ المهام وقوائم التحقق وتابعها وأدرها.
+  hi: कार्य और चेकलिस्ट बनाएं, ट्रैक करें और प्रबंधित करें।
+  th: สร้าง ติดตาม และจัดการงานกับเช็กลิสต์
+  cs: Vytvářejte, sledujte a spravujte úkoly a kontrolní seznamy.
+  sv: Skapa, följ upp och hantera uppgifter och checklistor.
+  he: צרו, עקבו ונהלו משימות ורשימות תיוג.
   verified_by_human: []
 shopping:
   context: App name for the Shopping app

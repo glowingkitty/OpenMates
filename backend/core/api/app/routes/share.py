@@ -13,17 +13,22 @@ from typing import Dict, Any, Optional, List, Literal
 from urllib.parse import urlparse
 from urllib.request import Request as UrlRequest, urlopen
 from fastapi import APIRouter, HTTPException, Request, Depends, Query, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services import cache_config
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.models.user import User
+from backend.core.api.app.services.user_plan_share_bundle import get_shared_chat_plans
+from backend.core.api.app.services.user_task_share_bundle import get_shared_chat_tasks
 
 logger = logging.getLogger(__name__)
+CHAT_COMPRESSION_CHECKPOINT_COLLECTION = "chat_compression_checkpoints"
+DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT = 30
+MAX_SHARED_MESSAGE_WINDOW_LIMIT = 100
 
 router = APIRouter(
     prefix="/v1/share",
@@ -75,6 +80,16 @@ class UnshareChatRequest(BaseModel):
 
 # --- Helper Functions ---
 
+SHARED_SUB_CHAT_FIELDS = (
+    "id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,"
+    "last_edited_overall_timestamp,unread_count,encrypted_chat_summary,"
+    "encrypted_icon,encrypted_category,parent_id,is_sub_chat,budget_limit,budget_spent"
+)
+SHARED_SUB_CHAT_FIELDS_WITHOUT_METADATA_VERSION = ",".join(
+    field for field in SHARED_SUB_CHAT_FIELDS.split(",") if field != "metadata_v"
+)
+
+
 def generate_dummy_encrypted_data(chat_id: str) -> Dict[str, Any]:
     """
     Generate deterministic dummy encrypted data for a chat ID.
@@ -118,6 +133,73 @@ async def get_shared_chat_or_dummy(chat_id: str, directus_service: DirectusServi
         return None, dummy_data
     return chat, None
 
+
+async def get_shared_sub_chats(
+    chat_id: str,
+    directus_service: DirectusService,
+) -> List[Dict[str, Any]]:
+    base_params = {
+        "filter[parent_id][_eq]": chat_id,
+        "sort": "created_at",
+        "limit": -1,
+    }
+    for fields in (
+        SHARED_SUB_CHAT_FIELDS,
+        SHARED_SUB_CHAT_FIELDS_WITHOUT_METADATA_VERSION,
+    ):
+        params = dict(base_params)
+        params["fields"] = fields
+        response = await directus_service.get_items(
+            "chats",
+            params=params,
+            admin_required=True,
+            return_none_on_403=True,
+        )
+        if response is not None:
+            return response or []
+    logger.warning(
+        "Shared sub-chat metadata remained permission-denied after field fallback for chat %s",
+        chat_id,
+    )
+    return []
+
+
+def dedupe_shared_embeds(embeds: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    seen_embed_ids: set[str] = set()
+    deduped: List[Dict[str, Any]] = []
+    for embed in embeds:
+        embed_id = embed.get("embed_id")
+        if isinstance(embed_id, str) and embed_id:
+            if embed_id in seen_embed_ids:
+                continue
+            seen_embed_ids.add(embed_id)
+        deduped.append(embed)
+    return deduped
+
+
+async def get_shared_chat_embeds_and_keys(
+    hashed_chat_id: str,
+    directus_service: DirectusService,
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Return encrypted embeds reachable by the shared chat's key wrappers.
+
+    Access model: unauthenticated public share endpoint. The route still returns
+    only client-encrypted embed records and chat-scoped key wrappers for the
+    already-shared chat hash; no plaintext or fragment key is exposed.
+    """
+    embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
+    embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(
+        hashed_chat_id,
+        include_master_keys=False,
+    )
+    hashed_embed_ids = [
+        key.get("hashed_embed_id")
+        for key in embed_keys or []
+        if isinstance(key.get("hashed_embed_id"), str)
+    ]
+    key_addressable_embeds = await directus_service.embed.get_embeds_by_hashed_embed_ids(hashed_embed_ids)
+    return dedupe_shared_embeds([*(embeds or []), *key_addressable_embeds]), embed_keys or []
+
 def sanitize_shared_pii(messages: List[Any], share_pii: bool) -> List[Any]:
     if share_pii or not messages:
         return messages
@@ -151,8 +233,7 @@ async def get_shared_chat_auxiliary_payload(
     if share_highlights is None:
         share_highlights = True
 
-    embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
-    embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id, include_master_keys=False)
+    embeds, embed_keys = await get_shared_chat_embeds_and_keys(hashed_chat_id, directus_service)
     message_highlights = []
     if share_highlights:
         message_highlights = await directus_service.get_items(
@@ -175,24 +256,45 @@ async def get_shared_chat_auxiliary_payload(
         },
         admin_required=True,
     ) or []
-    sub_chats = await directus_service.get_items(
-        "chats",
+    sub_chats = await get_shared_sub_chats(chat_id, directus_service)
+    shared_plans = await get_shared_chat_plans(chat_id, hashed_chat_id, directus_service)
+    shared_tasks = await get_shared_chat_tasks(chat_id, hashed_chat_id, directus_service)
+    return {
+        "embeds": embeds or [],
+        "embed_keys": embed_keys,
+        "sub_chats": sub_chats,
+        "plans": shared_plans["plans"],
+        "plan_key_wrappers": shared_plans["plan_key_wrappers"],
+        "tasks": shared_tasks["tasks"],
+        "task_key_wrappers": shared_tasks["task_key_wrappers"],
+        "code_run_outputs": code_run_outputs,
+        "message_highlights": message_highlights,
+        "share_highlights": bool(share_highlights),
+    }
+
+
+async def get_shared_chat_compression_checkpoints(
+    chat_id: str,
+    directus_service: DirectusService,
+) -> List[Dict[str, Any]]:
+    """Return encrypted compression checkpoints for a public shared chat.
+
+    Access model: unauthenticated public share endpoint scoped by an unguessable
+    shared chat id. The server returns only client-encrypted checkpoint summaries
+    and boundary metadata; the share URL fragment key remains client-only.
+    """
+    return await directus_service.get_items(
+        CHAT_COMPRESSION_CHECKPOINT_COLLECTION,
         params={
-            "filter[parent_id][_eq]": chat_id,
-            "fields": "id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_icon,encrypted_category,parent_id,is_sub_chat,budget_limit,budget_spent",
+            "filter": {"chat_id": {"_eq": chat_id}},
+            "fields": "id,chat_id,encrypted_summary,compressed_up_to_timestamp,compressed_message_count,summary_token_estimate,key_version,created_at,updated_at",
             "sort": "created_at",
             "limit": -1,
         },
         admin_required=True,
     ) or []
-    return {
-        "embeds": embeds or [],
-        "embed_keys": embed_keys or [],
-        "sub_chats": sub_chats,
-        "code_run_outputs": code_run_outputs,
-        "message_highlights": message_highlights,
-        "share_highlights": bool(share_highlights),
-    }
+
+
 
 def shared_chat_metadata_payload(chat_id: str, chat: Dict[str, Any]) -> Dict[str, Any]:
     return {
@@ -284,17 +386,9 @@ async def get_shared_chat(
                 sanitized_messages.append(sanitized)
             messages = sanitized_messages
         
-        # Get embeds for the chat (encrypted, as stored in database)
         import hashlib
         hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-        embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
-        
-        # Get embed_keys for this chat (wrapped key architecture)
-        # These contain AES(embed_key, chat_key) entries that allow shared chat recipients
-        # to unwrap embed_keys using the chat_encryption_key from the share link
-        # NOTE: For share links, we only need chat key entries (not master keys) since
-        # share recipients don't have access to the owner's master key
-        embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id, include_master_keys=False)
+        embeds, embed_keys = await get_shared_chat_embeds_and_keys(hashed_chat_id, directus_service)
 
         message_highlights = []
         if share_highlights:
@@ -320,16 +414,8 @@ async def get_shared_chat(
             admin_required=True,
         ) or []
 
-        sub_chats = await directus_service.get_items(
-            "chats",
-            params={
-                "filter[parent_id][_eq]": chat_id,
-                "fields": "id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_icon,encrypted_category,parent_id,is_sub_chat,budget_limit,budget_spent",
-                "sort": "created_at",
-                "limit": -1,
-            },
-            admin_required=True,
-        ) or []
+        sub_chats = await get_shared_sub_chats(chat_id, directus_service)
+        compression_checkpoints = await get_shared_chat_compression_checkpoints(chat_id, directus_service)
         
         return {
             "chat_id": chat_id,
@@ -340,8 +426,9 @@ async def get_shared_chat(
             "encrypted_category": chat.get("encrypted_category"),  # Category name encrypted with chat key
             "messages": messages or [],
             "embeds": embeds or [],
-            "embed_keys": embed_keys or [],
+            "embed_keys": embed_keys,
             "sub_chats": sub_chats,
+            "compression_checkpoints": compression_checkpoints,
             "code_run_outputs": code_run_outputs,
             "message_highlights": message_highlights,
             "share_pii": share_pii,
@@ -370,6 +457,7 @@ async def get_shared_chat_manifest(
             return dummy or generate_dummy_encrypted_data(chat_id)
         payload = shared_chat_metadata_payload(chat_id, chat)
         payload.update(await get_shared_chat_auxiliary_payload(chat_id, chat, directus_service))
+        payload["compression_checkpoints"] = await get_shared_chat_compression_checkpoints(chat_id, directus_service)
         payload["messages"] = []
         return payload
     except Exception as e:
@@ -386,7 +474,8 @@ async def get_shared_chat_message_window(
     before_timestamp: int = Query(default=2147483647),
     before_message_id: Optional[str] = Query(default=None),
     target_message_id: Optional[str] = Query(default=None),
-    limit: int = Query(default=40, ge=1, le=100),
+    checkpoint_id: Optional[str] = Query(default=None),
+    limit: int = Query(default=DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT, ge=1, le=MAX_SHARED_MESSAGE_WINDOW_LIMIT),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """Get a bounded encrypted shared-chat message window."""
@@ -395,9 +484,36 @@ async def get_shared_chat_message_window(
             before_message_id = None
         if not isinstance(target_message_id, str):
             target_message_id = None
+        if not isinstance(checkpoint_id, str):
+            checkpoint_id = None
         chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
         if dummy is not None or chat is None:
             return {"chat_id": chat_id, "messages": (dummy or {}).get("messages", []), "has_more": False, "next_before_timestamp": None}
+        checkpoint_boundary_timestamp = None
+        if checkpoint_id:
+            checkpoint_rows = await directus_service.get_items(
+                CHAT_COMPRESSION_CHECKPOINT_COLLECTION,
+                params={
+                    "filter": {
+                        "id": {"_eq": checkpoint_id},
+                        "chat_id": {"_eq": chat_id},
+                    },
+                    "limit": 1,
+                },
+                admin_required=True,
+            )
+            if not checkpoint_rows:
+                return {
+                    "chat_id": chat_id,
+                    "messages": [],
+                    "has_more": False,
+                    "next_before_timestamp": None,
+                    "next_before_message_id": None,
+                    "checkpoint_id": checkpoint_id,
+                    "is_forgotten_page": True,
+                    "error": "Compression checkpoint not found.",
+                }
+            checkpoint_boundary_timestamp = int(checkpoint_rows[0].get("compressed_up_to_timestamp") or 0)
         if target_message_id:
             target_message = await directus_service.chat.get_message_for_chat_by_client_id(
                 chat_id=chat_id,
@@ -405,6 +521,8 @@ async def get_shared_chat_message_window(
             )
             if target_message:
                 before_timestamp = min(int(before_timestamp), int(target_message.get("created_at") or before_timestamp))
+        if checkpoint_boundary_timestamp:
+            before_timestamp = min(int(before_timestamp), checkpoint_boundary_timestamp)
         messages = await directus_service.chat.get_messages_for_chat_before_timestamp(
             chat_id=chat_id,
             before_timestamp=before_timestamp,
@@ -433,6 +551,10 @@ async def get_shared_chat_message_window(
             "next_before_timestamp": next_before_timestamp,
             "next_before_message_id": next_before_message_id,
             "target_message_id": target_message_id,
+            "checkpoint_id": checkpoint_id,
+            "checkpoint_boundary_timestamp": checkpoint_boundary_timestamp,
+            "is_forgotten_page": bool(checkpoint_id),
+            "messages_v": chat.get("messages_v"),
         }
     except Exception as e:
         logger.error(f"Error fetching shared chat messages {chat_id}: {e}", exc_info=True)
@@ -1184,6 +1306,8 @@ DEFAULT_CHAT_TITLE = "Shared Chat - OpenMates"
 DEFAULT_CHAT_DESCRIPTION = "View this shared conversation on OpenMates"
 DEFAULT_EMBED_TITLE = "Shared Embed - OpenMates"
 DEFAULT_EMBED_DESCRIPTION = "View this shared content on OpenMates"
+DEFAULT_WORKFLOW_TEMPLATE_TITLE = "Shared Workflow Template - OpenMates"
+DEFAULT_WORKFLOW_TEMPLATE_DESCRIPTION = "Import this reusable workflow template on OpenMates"
 
 OG_IMAGE_WIDTH = 1200
 OG_IMAGE_HEIGHT = 630
@@ -1214,10 +1338,12 @@ OG_CATEGORY_GRADIENTS: Dict[str, tuple[str, str]] = {
 
 class CreateShortUrlRequest(BaseModel):
     """Request model for creating a short URL."""
+    model_config = ConfigDict(extra="forbid")
+
     token: str = Field(..., description="Lookup token (6-12 base62 chars, generated client-side)")
     encrypted_url: str = Field(..., description="AES-GCM encrypted share URL blob (opaque to server)")
-    content_type: Literal["chat", "embed"] = Field(..., description="Shared content type")
-    content_id: str = Field(..., description="Chat ID or embed ID associated with the share")
+    content_type: Literal["chat", "embed", "workflow_template"] = Field(..., description="Shared content type")
+    content_id: str = Field(..., description="Chat, embed, or Workflow template ID associated with the share")
     password_protected: bool = Field(default=False, description="Whether crawler metadata must hide content metadata")
     ttl_seconds: Optional[int] = Field(
         default=None,
@@ -1286,12 +1412,60 @@ async def _verify_short_link_target(
             raise HTTPException(status_code=403, detail="You do not have permission to share this chat")
         return current_user_hash
 
+    if payload.content_type == "workflow_template":
+        projection_owner_hash = "user_sha256:" + current_user_hash
+        projections = await directus_service.get_items(
+            "workflow_template_projections",
+            params={
+                "filter[template_id][_eq]": payload.content_id,
+                "fields": "template_id,workflow_id,hashed_user_id,source_version,revoked_at",
+                "limit": 1,
+            },
+            admin_required=True,
+        )
+        if not projections:
+            raise HTTPException(status_code=404, detail="Workflow template projection not found")
+        projection = projections[0]
+        if projection.get("hashed_user_id") != projection_owner_hash:
+            raise HTTPException(status_code=403, detail="You do not have permission to share this workflow template")
+        if projection.get("revoked_at"):
+            raise HTTPException(status_code=409, detail="Workflow template projection is revoked")
+
+        workflows = await directus_service.get_items(
+            "workflows",
+            params={
+                "filter[id][_eq]": projection["workflow_id"],
+                "fields": "id,version,status,hashed_user_id",
+                "limit": 1,
+            },
+            admin_required=True,
+        )
+        if not workflows:
+            raise HTTPException(status_code=409, detail="Workflow template projection is stale")
+        workflow = workflows[0]
+        if workflow.get("hashed_user_id") != projection_owner_hash:
+            raise HTTPException(status_code=403, detail="You do not have permission to share this workflow template")
+        if workflow.get("status") == "deleted" or int(workflow.get("version") or 0) != int(projection["source_version"]):
+            raise HTTPException(status_code=409, detail="Workflow template projection is stale")
+        return current_user_hash
+
     embed = await directus_service.embed.get_embed_by_id(payload.content_id)
     if not embed:
         raise HTTPException(status_code=404, detail="Embed not found")
     if embed.get("hashed_user_id") != current_user_hash:
         raise HTTPException(status_code=403, detail="You do not have permission to share this embed")
     return current_user_hash
+
+
+async def _mark_chat_shared_for_short_url(content_id: str, directus_service: DirectusService) -> None:
+    updated = await directus_service.update_item(
+        "chats",
+        content_id,
+        {"is_shared": True, "is_private": False},
+        admin_required=True,
+    )
+    if updated is None:
+        raise ShortUrlStorageUnavailable("Failed to mark chat as shared for short URL")
 
 
 async def _create_directus_item(directus_service: DirectusService, collection: str, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -1438,6 +1612,19 @@ async def _build_short_url_metadata(
             "image_text": DEFAULT_EMBED_DESCRIPTION,
             "image": "/images/og-image.jpg",
             "content_type": "embed",
+            "password_protected": password_protected,
+            "category": None,
+            "icon": None,
+            "image_bubbles": [],
+        }
+
+    if content_type == "workflow_template":
+        return {
+            "title": DEFAULT_WORKFLOW_TEMPLATE_TITLE,
+            "description": DEFAULT_WORKFLOW_TEMPLATE_DESCRIPTION,
+            "image_text": DEFAULT_WORKFLOW_TEMPLATE_DESCRIPTION,
+            "image": "/images/og-image.jpg",
+            "content_type": "workflow_template",
             "password_protected": password_protected,
             "category": None,
             "icon": None,
@@ -1820,7 +2007,7 @@ def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
 async def create_short_url(
     request: Request,
     payload: CreateShortUrlRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_api_key),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
 ) -> Dict[str, Any]:
@@ -1862,6 +2049,8 @@ async def create_short_url(
             )
 
         hashed_user_id = await _verify_short_link_target(payload, current_user, directus_service)
+        if payload.content_type == "chat":
+            await _mark_chat_shared_for_short_url(payload.content_id, directus_service)
         now = int(time.time())
         expires_at = now + payload.ttl_seconds if payload.ttl_seconds else None
         try:
@@ -1882,20 +2071,16 @@ async def create_short_url(
                 },
             )
         except ShortUrlStorageUnavailable as exc:
+            if payload.content_type == "workflow_template":
+                logger.warning("Durable short URL storage unavailable for a workflow template share: %s", exc)
+                raise HTTPException(status_code=503, detail="Workflow template sharing is temporarily unavailable") from exc
             logger.warning(
                 "Durable short URL storage unavailable; using cache fallback for token=%s: %s",
                 payload.token,
                 exc,
             )
             expires_at = await _store_short_url_cache_fallback(payload, cache_service, now)
-        logger.info(
-            "Short URL created: token=%s, content_type=%s, content_id=%s, expires_at=%s, user=%s",
-            payload.token,
-            payload.content_type,
-            payload.content_id,
-            expires_at,
-            current_user.id,
-        )
+        logger.info("Short URL created: token=%s, content_type=%s, expires_at=%s", payload.token, payload.content_type, expires_at)
 
         return {"success": True, "expires_at": expires_at}
 
@@ -1904,6 +2089,36 @@ async def create_short_url(
     except Exception as e:
         logger.error(f"Error creating short URL: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to create short URL")
+
+
+@router.delete("/short-url/{token}")
+async def revoke_short_url(
+    token: str,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Revoke an owner-authorized durable short URL without touching runtime content."""
+    if not SHORT_URL_TOKEN_PATTERN.match(token):
+        raise HTTPException(status_code=404, detail="Not found")
+    record = await _get_short_link_record(token, directus_service)
+    if not record:
+        raise HTTPException(status_code=404, detail="Short link not found")
+    if record.get("hashed_user_id") != hashlib.sha256(current_user.id.encode()).hexdigest():
+        raise HTTPException(status_code=403, detail="You do not have permission to revoke this short link")
+    if record.get("revoked_at"):
+        return {"success": True, "revoked_at": record["revoked_at"]}
+
+    now = int(time.time())
+    updated = await directus_service.update_item(
+        SHORT_URL_COLLECTION,
+        record["id"],
+        {"revoked_at": now, "updated_at": now},
+        admin_required=True,
+    )
+    if updated is None:
+        raise HTTPException(status_code=500, detail="Failed to revoke short link")
+    logger.info("Short URL revoked: token=%s, content_type=%s", token, record.get("content_type"))
+    return {"success": True, "revoked_at": now}
 
 
 @router.get("/short-url/{token}", response_model=ResolveShortUrlResponse)
@@ -1933,7 +2148,11 @@ async def resolve_short_url(
 
         record = await _get_short_link_record(token, directus_service)
         if record and not _short_link_is_expired_or_revoked(record):
+            if record.get("content_type") == "chat" and record.get("content_id"):
+                await _mark_chat_shared_for_short_url(str(record["content_id"]), directus_service)
             return {"encrypted_url": record["encrypted_url"]}
+        if record:
+            raise HTTPException(status_code=404, detail="Short link expired or not found")
 
         # Legacy fallback for old Redis-backed /s/#token-shortKey links created
         # before durable short links moved the token into the path.

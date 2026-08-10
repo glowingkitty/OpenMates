@@ -1,0 +1,132 @@
+shared_hooks:
+  - name: bash-guard.sh
+    event: PreToolUse
+    matcher: Bash
+    tools: [claude, codex, opencode]
+    opencode_terms: [guardBash]
+  - name: e2e-encryption-guard.sh
+    event: PreToolUse
+    matcher: apply_patch|Edit|Write
+    tools: [claude, codex, opencode]
+    opencode_delegates_to_codex_bridge: true
+    opencode_terms: ['runBridge("PreToolUse"']
+  - name: pre-edit-guard.sh
+    event: PreToolUse
+    matcher: apply_patch|Edit|Write
+    tools: [claude, codex, opencode]
+    opencode_delegates_to_codex_bridge: true
+    opencode_terms: ['runBridge("PreToolUse"']
+  - name: pii-logger-guard.sh
+    event: PreToolUse
+    matcher: apply_patch|Edit|Write
+    tools: [claude, codex, opencode]
+    opencode_delegates_to_codex_bridge: true
+    opencode_terms: ['runBridge("PreToolUse"']
+  - name: css-selector-in-specs.sh
+    event: PreToolUse
+    matcher: apply_patch|Edit|Write
+    tools: [claude, codex, opencode]
+    opencode_delegates_to_codex_bridge: true
+    opencode_terms: ['runBridge("PreToolUse"']
+  - name: svelte5-legacy-syntax.sh
+    event: PreToolUse
+    matcher: apply_patch|Edit|Write
+    tools: [claude, codex, opencode]
+    opencode_delegates_to_codex_bridge: true
+    opencode_terms: ['runBridge("PreToolUse"']
+  - name: native-ios-control-guard.sh
+    event: PreToolUse
+    matcher: apply_patch|Edit|Write
+    tools: [claude, codex, opencode]
+    opencode_delegates_to_codex_bridge: true
+    opencode_terms: ['runBridge("PreToolUse"']
+  - name: auto-track.sh
+    event: PostToolUse
+    matcher: apply_patch|Edit|Write
+    tools: [claude, codex, opencode]
+    opencode_delegates_to_codex_bridge: true
+    opencode_terms: ['runBridge("PostToolUse"']
+  - name: skill-embed-registry-guard.sh
+    event: PostToolUse
+    matcher: apply_patch|Edit|Write
+    tools: [claude, codex, opencode]
+    opencode_delegates_to_codex_bridge: true
+    opencode_terms: ['runBridge("PostToolUse"']
+  - name: contract-test-impact.sh
+    event: PostToolUse
+    matcher: apply_patch|Edit|Write
+    tools: [claude, codex, opencode]
+    opencode_delegates_to_codex_bridge: true
+    opencode_terms: ['runBridge("PostToolUse"']
+  - name: lint-design-tokens.sh
+    event: PostToolUse
+    matcher: apply_patch|Edit|Write
+    tools: [claude, codex]
+    codex_terms: [lint-design-tokens.sh]
+    exceptions:
+      opencode: OpenCode keeps interactive post-edit hooks minimal; design-token lint still runs through Codex hooks and deploy/code-quality checks.
+  - name: lint-swift-design-tokens.sh
+    event: PostToolUse
+    matcher: apply_patch|Edit|Write
+    tools: [claude, codex]
+    codex_terms: [lint-swift-design-tokens.sh]
+    exceptions:
+      opencode: OpenCode keeps interactive post-edit hooks minimal; Swift design-token lint still runs through Codex hooks and deploy/code-quality checks.
+  - name: check-uncommitted.sh
+    event: Stop
+    matcher: Stop
+    tools: [codex]
+    codex_terms: [check-uncommitted.sh]
+    exceptions:
+      claude: Tracked Claude baseline keeps stop handling minimal; Claude local settings may add this as an operator preference.
+      opencode: OpenCode uses worktree guards and sessions.py deploy state instead of a Stop lifecycle hook.
+tracked_hook_exceptions:
+  - name: .tests/run-hook-tests.sh
+    reason: Hook test helper, not an agent lifecycle hook.
+  - name: analytics-sdk-forbidden.sh
+    reason: Local-only Claude privacy hook retained for compatibility; not part of the shared baseline yet.
+  - name: auto-rebuild-translations.sh
+    reason: Local-only Claude convenience hook; shared workflows rely on explicit translation/build checks.
+  - name: cli-credential-prompt-guard.sh
+    reason: Local-only Claude credential-prompt guard retained for compatibility; not part of the shared baseline yet.
+  - name: code-debt-pre-edit-guard.sh
+    reason: Dormant local debt guard, not used by the current shared OpenCode/Codex baseline.
+  - name: cookie-consent-gate.sh
+    reason: Local-only Claude privacy hook retained for compatibility; not part of the shared baseline yet.
+  - name: docs-claims-impact.sh
+    reason: Local-only documentation impact hook retained for compatibility; deterministic docs audits cover shared enforcement.
+  - name: donation-language-guard.sh
+    reason: Local-only Claude legal-language hook retained for compatibility; not part of the shared baseline yet.
+  - name: encryption-architecture-reminder.sh
+    reason: Local-only reminder hook; shared blocking coverage is e2e-encryption-guard.sh.
+  - name: external-resources-guard.sh
+    reason: Local-only Claude privacy hook retained for compatibility; not part of the shared baseline yet.
+  - name: legal-text-lastupdated-bump.sh
+    reason: Local-only Claude legal hook retained for compatibility; not part of the shared baseline yet.
+  - name: linear-context-auto-prefetch.sh
+    reason: Local-only prompt-context helper; not a shared safety hook.
+  - name: privacy-promise-guard.sh
+    reason: Local-only Claude privacy hook retained for compatibility; deterministic privacy tests cover shared enforcement.
+  - name: provider-registry-sync.sh
+    reason: Local-only provider metadata helper retained for compatibility; provider audits cover shared enforcement.
+  - name: reinject-session.sh
+    reason: Claude session helper, not applicable to Codex/OpenCode runtime parity.
+  - name: session-gate.sh
+    reason: Claude session helper, not applicable to Codex/OpenCode runtime parity.
+  - name: settings-canonical-elements.sh
+    reason: Local-only settings UI hook retained for compatibility; settings audits cover shared enforcement.
+  - name: svelte-swift-counterpart-linker.sh
+    reason: Local-only Apple parity helper; not part of the shared editing baseline.
+  - name: tdd-session-context.sh
+    reason: Claude session-start context helper; OpenCode core instructions and spec workflow audits cover shared guidance.
+  - name: testid-drift-detector.sh
+    reason: Local-only UI test-id helper retained for compatibility; not part of the shared baseline yet.
+quickstart:
+  path: docs/contributing/guides/agent-workflow-quickstart.md
+  required_terms:
+    - sync_agent_parity.py --check
+    - audit_opencode_output_quality.py
+    - audit_agent_tooling_parity.py
+    - sessions.py worktree ensure
+    - sessions.py edit-lease
+    - sessions.py deploy

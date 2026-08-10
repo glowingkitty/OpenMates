@@ -6,7 +6,9 @@
 # Architecture context: scripts/apple_ui_contracts.py
 
 import sys
+import json
 from pathlib import Path
+from datetime import UTC, datetime
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -17,8 +19,18 @@ if str(SCRIPTS_DIR) not in sys.path:
 import apple_ui_contracts  # noqa: E402
 
 
-def _write_repo_fixture(tmp_path: Path, registry_keys: list[str], *, content_cases: list[str]) -> None:
+def _write_repo_fixture(
+    tmp_path: Path,
+    registry_keys: list[str],
+    *,
+    content_cases: list[str],
+    fullscreen_keys: list[str] | None = None,
+    generic_cases: list[str] | None = None,
+) -> None:
     registry_entries = "\n".join(f'  "{key}": "Demo.svelte",' for key in registry_keys)
+    fullscreen_entries = "\n".join(
+        f'  "{key}": "DemoFullscreen.svelte",' for key in (fullscreen_keys if fullscreen_keys is not None else registry_keys)
+    )
     registry_path = tmp_path / "frontend/packages/ui/src/data/embedRegistry.generated.ts"
     registry_path.parent.mkdir(parents=True)
     registry_path.write_text(
@@ -26,7 +38,7 @@ def _write_repo_fixture(tmp_path: Path, registry_keys: list[str], *, content_cas
         f"{registry_entries}\n"
         "};\n"
         "export const EMBED_FULLSCREEN_COMPONENTS: Record<string, string> = {\n"
-        f"{registry_entries}\n"
+        f"{fullscreen_entries}\n"
         "};\n",
         encoding="utf-8",
     )
@@ -97,7 +109,13 @@ def _write_repo_fixture(tmp_path: Path, registry_keys: list[str], *, content_cas
 
     content_path = tmp_path / "apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift"
     content_path.parent.mkdir(parents=True)
-    content_path.write_text("\n".join(f"case .{case}" for case in content_cases), encoding="utf-8")
+    dedicated_dispatch = "\n".join(f"case .{case}: DedicatedRenderer()" for case in content_cases)
+    generic_dispatch = "\n".join(f"case .{case}: GenericEmbedRenderer()" for case in (generic_cases or []))
+    app_specific_identifiers = "\n".join(
+        f'let identifier_{index} = "{identifier}"'
+        for index, identifier in enumerate(sorted(apple_ui_contracts.REQUIRED_APP_SPECIFIC_EMBED_IDENTIFIERS))
+    )
+    content_path.write_text(f"{dedicated_dispatch}\n{generic_dispatch}\n{app_specific_identifiers}", encoding="utf-8")
 
 
 def test_embed_audit_allows_explicit_fixture_aliases_and_renderer_only_keys(tmp_path, monkeypatch) -> None:
@@ -122,13 +140,96 @@ def test_embed_audit_allows_explicit_fixture_aliases_and_renderer_only_keys(tmp_
     assert warnings == ["visual/style contract checks are agent-reviewed for embeds until specific surfaces are promoted"]
 
 
-def test_embed_audit_warns_for_unclassified_registry_key(tmp_path, monkeypatch) -> None:
-    """New registry keys need a fixture alias or explicit renderer-only coverage."""
+def test_embed_audit_fails_for_unclassified_registry_key(tmp_path, monkeypatch) -> None:
+    """New registry keys require a fixture and cannot pass as a warning."""
 
     _write_repo_fixture(tmp_path, ["app:demo:unknown"], content_cases=[])
     monkeypatch.setattr(apple_ui_contracts, "REPO_ROOT", tmp_path)
 
     errors, warnings = apple_ui_contracts.audit_embeds()
 
-    assert errors == []
-    assert "no direct Apple debug fixture id found for registry key: app:demo:unknown" in warnings
+    assert "missing Apple debug fixture for registry key: app:demo:unknown" in errors
+    assert warnings == ["visual/style contract checks are agent-reviewed for embeds until specific surfaces are promoted"]
+
+
+def test_embed_audit_fails_when_web_preview_or_fullscreen_surface_is_missing(tmp_path, monkeypatch) -> None:
+    """Every product embed key must expose both web surfaces before Apple parity can pass."""
+
+    _write_repo_fixture(
+        tmp_path,
+        ["app:demo:unknown"],
+        fullscreen_keys=[],
+        content_cases=["demoUnknown"],
+    )
+    monkeypatch.setattr(apple_ui_contracts, "REPO_ROOT", tmp_path)
+
+    errors, _ = apple_ui_contracts.audit_embeds()
+
+    assert "web embed registry keys missing fullscreen components: app:demo:unknown" in errors
+
+
+def test_embed_audit_fails_when_known_type_uses_generic_native_renderer(tmp_path, monkeypatch) -> None:
+    """Generic native rendering cannot satisfy a known product embed contract."""
+
+    _write_repo_fixture(
+        tmp_path,
+        ["app:demo:unknown"],
+        content_cases=[],
+        generic_cases=["demoUnknown"],
+    )
+    monkeypatch.setattr(apple_ui_contracts, "REPO_ROOT", tmp_path)
+
+    errors, _ = apple_ui_contracts.audit_embeds()
+
+    assert "known Apple embed types use GenericEmbedRenderer: app:demo:unknown" in errors
+
+
+def test_embeds_contract_validation_accepts_rendered_manifest_shape(tmp_path) -> None:
+    """Generated embed contracts use app/surface manifests rather than generic state arrays."""
+
+    contract = {
+        "schemaVersion": 1,
+        "surface": "embeds",
+        "dimension": {"id": "iphone-light-ltr", "width": 390, "height": 844},
+        "apps": [
+            {"appId": app_id, "sectionCount": 1, "screenshotPath": f"{app_id}/page.png", "sections": []}
+            for app_id in sorted(apple_ui_contracts.REQUIRED_EMBED_SHOWCASE_APPS)
+        ],
+        "surfaces": [
+            {
+                "key": "tasks:create:1",
+                "appId": "tasks",
+                "skillLabel": "Create tasks",
+                "sources": {"inline": True, "quote": True, "groupSmall": True, "groupLarge": True, "preview": True, "fullscreen": True},
+                "previews": [{"capture": {"testId": "embed-preview"}, "screenshotPath": "tasks/preview.png"}],
+                "fullscreen": {"testId": "fs-clip"},
+                "artifacts": {"section": "tasks/section.png", "fullscreen": "tasks/fullscreen.png"},
+            }
+        ],
+        "registrySurfaces": [{"registryKey": "tasks-task", "surface": "preview", "exists": True}],
+    }
+    path = tmp_path / "embeds.generated.json"
+    path.write_text(json.dumps(contract), encoding="utf-8")
+
+    assert apple_ui_contracts.validate_contract(path, surface="embeds") == []
+
+
+def test_embeds_contract_validation_rejects_missing_required_apps(tmp_path) -> None:
+    """A promoted embed contract must cover the full web showcase app set."""
+
+    contract = {
+        "schemaVersion": 1,
+        "surface": "embeds",
+        "dimension": {"id": "iphone-light-ltr"},
+        "apps": [],
+        "surfaces": [],
+        "registrySurfaces": [],
+        "generatedAt": datetime.now(UTC).isoformat(),
+    }
+    path = tmp_path / "embeds.generated.json"
+    path.write_text(json.dumps(contract), encoding="utf-8")
+
+    errors = apple_ui_contracts.validate_contract(path, surface="embeds")
+
+    assert "embeds contract requires a non-empty apps array" in errors
+    assert any(error.startswith("embeds contract missing apps:") for error in errors)

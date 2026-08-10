@@ -6,10 +6,14 @@
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/DemoMessageContent.svelte
+//          frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+//          frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
 //          frontend/packages/ui/src/components/embeds/ExampleChatsGroup.svelte
 //          frontend/packages/ui/src/components/embeds/ChatEmbedPreview.svelte
 //          frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
 // CSS:     ChatEmbedPreview.svelte <style>
+//          SourceQuoteBlock.svelte .source-quote-block, .source-quote-text,
+//            .source-quote-badge
 //          .chat-embed-card { width:300px; height:200px; border-radius:30px;
 //            box-shadow:0 8px 24px rgba(0,0,0,.16),0 2px 6px rgba(0,0,0,.1) }
 //          .card-icon { width:32px; height:32px }
@@ -587,6 +591,7 @@ enum MarkdownParser {
 
 struct RichMarkdownView: View {
     let content: String
+    let renderDocument: ChatHistoryRenderDocument?
     let isUserMessage: Bool
     let onOpenPublicChat: ((String) -> Void)?
     let embedLookup: [String: EmbedRecord]
@@ -599,6 +604,7 @@ struct RichMarkdownView: View {
 
     init(
         content: String,
+        renderDocument: ChatHistoryRenderDocument? = nil,
         isUserMessage: Bool,
         onOpenPublicChat: ((String) -> Void)? = nil,
         embedLookup: [String: EmbedRecord] = [:],
@@ -609,6 +615,7 @@ struct RichMarkdownView: View {
         searchHighlightQuery: String? = nil
     ) {
         self.content = content
+        self.renderDocument = renderDocument
         self.isUserMessage = isUserMessage
         self.onOpenPublicChat = onOpenPublicChat
         self.embedLookup = embedLookup
@@ -617,13 +624,115 @@ struct RichMarkdownView: View {
         self.onEmbedTap = onEmbedTap
         self.onInteractiveQuestionSubmit = onInteractiveQuestionSubmit
         self.searchHighlightQuery = searchHighlightQuery
-        self.blocks = MarkdownParser.parse(content)
+        self.blocks = renderDocument == nil ? MarkdownParser.parse(content) : []
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                blockView(for: block)
+            if let renderDocument {
+                ForEach(renderDocument.blocks) { block in
+                    documentBlockView(for: block)
+                }
+            } else {
+                ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                    blockView(for: block)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func documentBlockView(for block: ChatHistoryRenderBlock) -> some View {
+        switch block.kind {
+        case .paragraph:
+            inlineText(block.text ?? "")
+        case .heading:
+            HeaderView(level: block.headingLevel ?? 1, text: block.text ?? "", isUserMessage: isUserMessage, searchHighlightQuery: searchHighlightQuery)
+        case .codeBlock:
+            CodeBlockView(language: block.language, code: block.text ?? "", searchHighlightQuery: searchHighlightQuery)
+        case .blockquote:
+            BlockquoteView(
+                text: block.text ?? "",
+                isUserMessage: isUserMessage,
+                allEmbedRecords: allEmbedRecords,
+                onEmbedTap: onEmbedTap,
+                searchHighlightQuery: searchHighlightQuery
+            )
+            .accessibilityIdentifier("generic-blockquote")
+        case .sourceQuote:
+            if let reference = block.embedReferences.first, let embed = resolveEmbed(reference) {
+                SourceQuoteView(
+                    quote: block.text ?? "",
+                    embed: embed,
+                    onEmbedTap: onEmbedTap,
+                    searchHighlightQuery: searchHighlightQuery
+                )
+            } else {
+                BlockquoteView(
+                    text: block.text ?? "",
+                    isUserMessage: isUserMessage,
+                    allEmbedRecords: allEmbedRecords,
+                    onEmbedTap: onEmbedTap,
+                    searchHighlightQuery: searchHighlightQuery
+                )
+                .accessibilityIdentifier("source-quote-unavailable")
+            }
+        case .horizontalRule:
+            Divider().padding(.vertical, .spacing2)
+        case .unorderedList, .orderedList:
+            ListBlockView(
+                items: block.items,
+                ordered: block.kind == .orderedList,
+                isUserMessage: isUserMessage,
+                allEmbedRecords: allEmbedRecords,
+                onEmbedTap: onEmbedTap,
+                searchHighlightQuery: searchHighlightQuery
+            )
+        case .table:
+            TableBlockView(headers: block.tableHeaders, rows: block.tableRows, isUserMessage: isUserMessage, searchHighlightQuery: searchHighlightQuery)
+        case .embedGroup:
+            resolvedEmbedGroup(block.embedReferences.compactMap(resolveEmbed), isLargePreview: block.embedReferences.first?.isLargePreview == true)
+        case .interactiveQuestionFallback:
+            interactiveQuestionFallback
+        case .interactiveQuestion, .demoGroup, .hiddenProtocol:
+            EmptyView()
+        }
+    }
+
+    private func inlineText(_ text: String) -> some View {
+        InlineMarkdownText(
+            content: text,
+            isUserMessage: isUserMessage,
+            allEmbedRecords: allEmbedRecords,
+            onEmbedTap: onEmbedTap,
+            searchHighlightQuery: searchHighlightQuery
+        )
+    }
+
+    private var interactiveQuestionFallback: some View {
+        Text(AppStrings.interactiveQuestionFailed)
+            .font(.omP)
+            .foregroundStyle(Color.fontSecondary)
+            .padding(.spacing4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.grey10)
+            .clipShape(RoundedRectangle(cornerRadius: .radius4))
+    }
+
+    @ViewBuilder
+    private func resolvedEmbedGroup(_ embeds: [EmbedRecord], isLargePreview: Bool) -> some View {
+        let visibleEmbeds = embeds.filter { !hiddenEmbedIds.contains($0.id) }
+        if !visibleEmbeds.isEmpty {
+            if isLargePreview {
+                LargeEmbedPreviewCarousel(embeds: visibleEmbeds, allEmbedRecords: allEmbedRecords) { embed in
+                    onEmbedTap?(embed)
+                }
+            } else {
+                ForEach(EmbedGrouper.group(visibleEmbeds)) { group in
+                    GroupedEmbedView(group: group, allEmbedRecords: allEmbedRecords) { embed in
+                        onEmbedTap?(embed)
+                    }
+                }
             }
         }
     }
@@ -708,13 +817,7 @@ struct RichMarkdownView: View {
             AppleInteractiveQuestionCard(payload: payload, onSubmit: onInteractiveQuestionSubmit)
 
         case .interactiveQuestionFallback:
-            Text(AppStrings.interactiveQuestionFailed)
-                .font(.omP)
-                .foregroundStyle(Color.fontSecondary)
-                .padding(.spacing4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.grey10)
-                .clipShape(RoundedRectangle(cornerRadius: .radius4))
+            interactiveQuestionFallback
 
         case .hiddenProtocol:
             EmptyView()
@@ -728,6 +831,16 @@ struct RichMarkdownView: View {
             }
         }
         return embedLookup[reference.value] ?? allEmbedRecords[reference.value]
+    }
+
+    private func resolveEmbed(_ reference: ChatHistoryEmbedReference) -> EmbedRecord? {
+        if reference.isReference {
+            return allEmbedRecords.values.first { record in
+                let rawReference = record.rawData?["embed_ref"]?.value as? String
+                return rawReference == reference.id || record.id == reference.id || record.id.hasSuffix(reference.id)
+            }
+        }
+        return embedLookup[reference.id] ?? allEmbedRecords[reference.id]
     }
 }
 
@@ -2095,42 +2208,12 @@ struct BlockquoteView: View {
 
     var body: some View {
         if let sourceQuote {
-            Button {
-                onEmbedTap?(sourceQuote.embed)
-            } label: {
-                VStack(alignment: .leading, spacing: .spacing4) {
-                    Text(SearchTextHighlighter.attributed(
-                        "\"\(sourceQuote.quote)\"",
-                        query: searchHighlightQuery,
-                        foregroundColor: Color.fontPrimary
-                    ))
-                        .font(.omSmall)
-                        .fontWeight(.medium)
-                        .italic()
-                        .lineLimit(5)
-                        .multilineTextAlignment(.leading)
-
-                    HStack(spacing: .spacing3) {
-                        AppIconView(appId: sourceQuote.embed.appId ?? EmbedType(rawValue: sourceQuote.embed.type)?.appId ?? "web", size: 18)
-                        Text(sourceLabel(for: sourceQuote.embed))
-                            .font(.omMicro)
-                            .fontWeight(.medium)
-                            .foregroundStyle(Color.grey60)
-                            .lineLimit(1)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, .spacing8)
-                .padding(.vertical, .spacing6)
-                .background(Color.grey25)
-                .overlay(alignment: .leading) {
-                    Rectangle()
-                        .fill(Color.buttonPrimary)
-                        .frame(width: 3)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: .radius3))
-            }
-            .buttonStyle(.plain)
+            SourceQuoteView(
+                quote: sourceQuote.quote,
+                embed: sourceQuote.embed,
+                onEmbedTap: onEmbedTap,
+                searchHighlightQuery: searchHighlightQuery
+            )
         } else {
             HStack(spacing: .spacing3) {
                 RoundedRectangle(cornerRadius: 1.5)
@@ -2148,17 +2231,6 @@ struct BlockquoteView: View {
             }
             .padding(.vertical, .spacing1)
         }
-    }
-
-    private func sourceLabel(for embed: EmbedRecord) -> String {
-        let raw = embed.rawData ?? [:]
-        if let source = firstString(in: raw, keys: ["source", "source_domain"]) {
-            return source
-        }
-        if let host = host(from: firstString(in: raw, keys: ["source_page_url", "url"])) {
-            return host
-        }
-        return EmbedType(rawValue: embed.type)?.displayName ?? embed.type
     }
 
     private func resolveSourceEmbed(_ ref: String) -> EmbedRecord? {
@@ -2202,6 +2274,70 @@ struct BlockquoteView: View {
     private func host(from value: String?) -> String? {
         guard let value, let url = URL(string: value), let host = url.host else { return nil }
         return host.replacingOccurrences(of: "www.", with: "")
+    }
+}
+
+private struct SourceQuoteView: View {
+    let quote: String
+    let embed: EmbedRecord
+    let onEmbedTap: ((EmbedRecord) -> Void)?
+    let searchHighlightQuery: String?
+
+    var body: some View {
+        Button {
+            onEmbedTap?(embed)
+        } label: {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                Text(SearchTextHighlighter.attributed(
+                    "\"\(quote)\"",
+                    query: searchHighlightQuery,
+                    foregroundColor: Color.fontPrimary
+                ))
+                    .font(.omSmall)
+                    .fontWeight(.medium)
+                    .italic()
+                    .lineLimit(5)
+                    .multilineTextAlignment(.leading)
+
+                HStack(spacing: .spacing3) {
+                    AppIconView(appId: embed.appId ?? EmbedType(rawValue: embed.type)?.appId ?? "web", size: 18)
+                    Text(sourceLabel)
+                        .font(.omMicro)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.grey60)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, .spacing8)
+            .padding(.vertical, .spacing6)
+            .background(Color.grey25)
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(AppIconView.gradient(forAppId: embed.appId ?? EmbedType(rawValue: embed.type)?.appId ?? "web"))
+                    .frame(width: 3)
+            }
+            .clipShape(UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: .radius3, topTrailingRadius: .radius3))
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("source-quote-block")
+        .accessibilityAddTraits(.isButton)
+    }
+
+    private var sourceLabel: String {
+        let raw = embed.rawData ?? [:]
+        for key in ["source", "source_domain"] {
+            if let value = raw[key]?.value as? String, !value.isEmpty { return value }
+        }
+        for key in ["source_page_url", "url"] {
+            if let value = raw[key]?.value as? String,
+               let host = URL(string: value)?.host,
+               !host.isEmpty {
+                return host
+            }
+        }
+        return EmbedType(rawValue: embed.type)?.displayName ?? embed.type
     }
 }
 

@@ -90,6 +90,10 @@
     onCopy?: () => void;
     /** Optional download handler (for download button) - downloads the embed */
     onDownload?: () => void;
+    /** Optional prepared download URL. When set, the top-bar download action is a native anchor. */
+    downloadHref?: string | null;
+    /** Suggested filename for prepared native-anchor downloads. */
+    downloadFilename?: string;
     /** Optional calendar handler - downloads an .ics calendar file for scheduled embeds */
     onCalendar?: () => void;
     /** Optional run handler - starts sandbox execution for executable code embeds */
@@ -325,6 +329,8 @@
     onClose,
     onCopy,
     onDownload,
+    downloadHref = null,
+    downloadFilename = 'download',
     onCalendar,
     onRun,
     onShare,
@@ -1367,6 +1373,8 @@
       {showShare}
       showCopy={!!onCopy}
       showDownload={!!onDownload}
+      {downloadHref}
+      {downloadFilename}
       showCalendar={!!onCalendar}
       {showRun}
       {runActive}

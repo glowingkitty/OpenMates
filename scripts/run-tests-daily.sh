@@ -205,6 +205,19 @@ rm -f "$DAILY_ARCHIVE"
 cp "$LAST_RUN" "$DAILY_ARCHIVE"
 echo "[daily-runner] Archived result to $DAILY_ARCHIVE"
 
+# Keep the deterministic failed-test queue in sync with the same artifact used
+# for Discord/email summaries. This is non-fatal so notification dispatch still
+# happens if Directus is temporarily unavailable.
+echo "[daily-runner] Importing daily result into Directus test control plane..."
+if python3 "$SCRIPT_DIR/tests.py" import-run "$DAILY_ARCHIVE" \
+  --source daily_runner \
+  --external-run-id "$TODAY" \
+  --workflow daily >/dev/null; then
+  echo "[daily-runner] Imported daily result into Directus test control plane"
+else
+  echo "[daily-runner] WARNING: could not import daily result into Directus test control plane (non-fatal)"
+fi
+
 # --- Prune test-results data older than 7 days ---
 # Deletes JSON archives, per-run JSON files, screenshots, reports, and hourly run
 # data whose filename date (or mtime as fallback) is older than the cutoff.

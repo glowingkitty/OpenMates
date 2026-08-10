@@ -36,12 +36,18 @@
   import { authStore } from '../../../stores/authStore';
   import { loginInterfaceOpen } from '../../../stores/uiStateStore';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { extractTravelFare, formatFareCoverage, formatTravelFare, type TravelFare } from './fareDisplay';
 
   /** Segment data within a leg */
   interface SegmentData {
     carrier: string;
     carrier_code?: string;
     number?: string;
+    mode?: string;
+    line?: string;
+    operator?: string;
+    source_provider?: string;
+    fare_coverage?: string;
     departure_station: string;
     departure_time: string;
     scheduled_departure_time?: string;
@@ -79,12 +85,31 @@
   }
 
   /** Layover data between segments */
+  interface TransferAmenityGroup {
+    label?: string;
+    status?: string;
+    count?: number;
+    items?: string[];
+  }
+
+  interface TransferAmenities {
+    provider?: string;
+    data_source?: string;
+    status?: string;
+    cache_hit?: boolean;
+    groups?: Record<string, TransferAmenityGroup>;
+  }
+
   interface LayoverData {
     airport: string;
     airport_code?: string;
     duration?: string;
     duration_minutes?: number;
     overnight?: boolean;
+    latitude?: number;
+    longitude?: number;
+    meets_min_transfer?: boolean;
+    amenities?: TransferAmenities;
   }
 
   /** Leg data */
@@ -106,13 +131,33 @@
     layovers?: LayoverData[];
   }
 
+  interface TransferQuality {
+    min_transfer_minutes?: number;
+    has_transfers?: boolean;
+    short_transfer_count?: number;
+    unknown_transfer_count?: number;
+  }
+
+  interface OptimizationData {
+    optimized_by?: string;
+    badge?: string;
+    original_transfer_station?: string;
+    optimized_transfer_station?: string;
+    min_transfer_minutes?: number;
+    transfer_minutes?: number;
+    confidence?: string;
+  }
+
   /** Connection data */
   interface ConnectionData {
     embed_id: string;
     type?: string;
     transport_method?: string;
     trip_type?: string;
-    total_price?: string;
+    source_provider?: string;
+    total_price?: string | number;
+    fare?: TravelFare | null;
+    fare_is_partial?: boolean;
     currency?: string;
     bookable_seats?: number;
     last_ticketing_date?: string;
@@ -138,6 +183,8 @@
     co2_kg?: number;
     co2_typical_kg?: number;
     co2_difference_percent?: number;
+    transfer_quality?: TransferQuality;
+    optimization?: OptimizationData;
     /**
      * Persisted flight track data from Flightradar24.
      * Present after a successful get_flight lookup (post-persist).
@@ -184,6 +231,36 @@
     onNavigateNext,
   }: Props = $props();
 
+  function readTransferQuality(content: Record<string, unknown>): TransferQuality | undefined {
+    if (typeof content.transfer_quality === 'object' && content.transfer_quality !== null) {
+      return content.transfer_quality as TransferQuality;
+    }
+
+    const hasFlatQuality = content.transfer_quality_min_transfer_minutes !== undefined || content.transfer_quality_has_transfers !== undefined;
+    if (!hasFlatQuality) return undefined;
+
+    const readNumber = (value: unknown): number | undefined => {
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value !== 'string' || value.trim() === '') return undefined;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+    const readBoolean = (value: unknown): boolean | undefined => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value !== 'string') return undefined;
+      if (value.toLowerCase() === 'true') return true;
+      if (value.toLowerCase() === 'false') return false;
+      return undefined;
+    };
+
+    return {
+      min_transfer_minutes: readNumber(content.transfer_quality_min_transfer_minutes),
+      has_transfers: readBoolean(content.transfer_quality_has_transfers),
+      short_transfer_count: readNumber(content.transfer_quality_short_transfer_count),
+      unknown_transfer_count: readNumber(content.transfer_quality_unknown_transfer_count),
+    };
+  }
+
   // Build the connection object from data.decodedContent
   // The decodedContent fields map directly to ConnectionData since ActiveChat
   // previously passed the whole decodedContent as-is to construct the connection prop
@@ -197,7 +274,12 @@
     type: typeof dc.type === 'string' ? dc.type : undefined,
     transport_method: typeof dc.transport_method === 'string' ? dc.transport_method : undefined,
     trip_type: typeof dc.trip_type === 'string' ? dc.trip_type : undefined,
-    total_price: typeof dc.total_price === 'string' ? dc.total_price : (typeof dc.price === 'string' ? dc.price : undefined),
+    source_provider: typeof dc.source_provider === 'string' ? dc.source_provider : undefined,
+    total_price: typeof dc.total_price === 'string' || typeof dc.total_price === 'number'
+      ? dc.total_price
+      : (typeof dc.price === 'string' || typeof dc.price === 'number' ? dc.price : undefined),
+    fare: extractTravelFare(dc as Record<string, unknown>) ?? null,
+    fare_is_partial: typeof dc.fare_is_partial === 'boolean' ? dc.fare_is_partial : undefined,
     currency: typeof dc.currency === 'string' ? dc.currency : undefined,
     bookable_seats: typeof dc.bookable_seats === 'number' ? dc.bookable_seats : undefined,
     last_ticketing_date: typeof dc.last_ticketing_date === 'string' ? dc.last_ticketing_date : undefined,
@@ -221,19 +303,26 @@
     co2_kg: typeof dc.co2_kg === 'number' ? dc.co2_kg : undefined,
     co2_typical_kg: typeof dc.co2_typical_kg === 'number' ? dc.co2_typical_kg : undefined,
     co2_difference_percent: typeof dc.co2_difference_percent === 'number' ? dc.co2_difference_percent : undefined,
+    transfer_quality: readTransferQuality(dc as Record<string, unknown>),
+    optimization: (typeof dc.optimization === 'object' && dc.optimization !== null) ? dc.optimization as OptimizationData : undefined,
     flight_track: (typeof dc.flight_track === 'object' && dc.flight_track !== null) ? dc.flight_track as ConnectionData['flight_track'] : undefined,
   }));
 
   // Defensive: connection may be undefined during async component loading in dev preview
   type MaybeConnection = ConnectionData | undefined;
   
-  // Format price
+  // Format price/fare state
   let formattedPrice = $derived.by(() => {
     const conn = connection as MaybeConnection;
-    if (!conn?.total_price) return '';
-    const num = parseFloat(conn.total_price);
-    if (isNaN(num)) return `${conn.currency || 'EUR'} ${conn.total_price}`;
-    return `${conn.currency || 'EUR'} ${num.toFixed(num % 1 === 0 ? 0 : 2)}`;
+    if (!conn) return '';
+    return formatTravelFare(conn);
+  });
+
+  let fareSummary = $derived.by(() => {
+    const fare = (connection as MaybeConnection)?.fare;
+    if (!fare?.summary) return '';
+    if (fare.confidence === 'confirmed') return '';
+    return fare.summary;
   });
   
   // Route summary
@@ -366,6 +455,58 @@
     if (!formattedPrice) return '';
     return `${formattedPrice} | ${tripTypeLabel}`;
   });
+
+  let optimizationBadge = $derived.by(() => {
+    const optimization = (connection as MaybeConnection)?.optimization;
+    if (optimization?.optimized_by !== 'openmates') return '';
+    return optimization.badge || 'Optimized by OpenMates';
+  });
+
+  let optimizationSummary = $derived.by(() => {
+    const optimization = (connection as MaybeConnection)?.optimization;
+    if (!optimization || optimization.optimized_by !== 'openmates') return '';
+    const from = optimization.original_transfer_station;
+    const to = optimization.optimized_transfer_station;
+    if (from && to) return `Transfer adjusted from ${from} to ${to}.`;
+    if (to) return `Transfer fixed at ${to}.`;
+    return 'Route synthesized from bounded train-run overlap.';
+  });
+
+  let transferQualitySummary = $derived.by(() => {
+    const quality = (connection as MaybeConnection)?.transfer_quality;
+    if (!quality?.has_transfers) return '';
+    const parts: string[] = [];
+    if (quality.min_transfer_minutes != null) parts.push(`Minimum transfer: ${quality.min_transfer_minutes} min`);
+    if ((quality.short_transfer_count || 0) > 0) parts.push(`${quality.short_transfer_count} short transfer${quality.short_transfer_count === 1 ? '' : 's'}`);
+    if ((quality.unknown_transfer_count || 0) > 0) parts.push(`${quality.unknown_transfer_count} unknown transfer${quality.unknown_transfer_count === 1 ? '' : 's'}`);
+    return parts.join(' · ');
+  });
+
+  const AMENITY_GROUP_ORDER = ['food_drink', 'shops', 'toilets'];
+  const AMENITY_FALLBACK_LABELS: Record<string, string> = {
+    food_drink: 'Food and drinks',
+    shops: 'Shops',
+    toilets: 'Toilets',
+  };
+
+  function amenityGroupStatus(group: TransferAmenityGroup | undefined, key: string): string {
+    if (!group) return `${AMENITY_FALLBACK_LABELS[key] || key}: unknown`;
+    const label = group.label || AMENITY_FALLBACK_LABELS[key] || key;
+    if (typeof group.count === 'number' && group.count > 0) return `${label}: ${group.count}`;
+    const status = (group.status || 'unknown').replace(/_/g, ' ');
+    return `${label}: ${status}`;
+  }
+
+  function layoverTransferStatus(layover: LayoverData | undefined): string {
+    if (!layover) return '';
+    const parts: string[] = [];
+    if (layover.duration_minutes != null) {
+      parts.push(`${layover.duration_minutes} min transfer`);
+    }
+    if (layover.meets_min_transfer === true) parts.push('meets minimum');
+    if (layover.meets_min_transfer === false) parts.push('below minimum');
+    return parts.join(' · ');
+  }
 
   /** Map center derived from midpoint of route waypoints */
   let mapCenter = $derived.by(() => {
@@ -1294,6 +1435,8 @@
   /** Leaflet map instance (set by onMapReady) */
   let map: LeafletMap | null = null;
 
+  let routeLineLayer: import('leaflet').LayerGroup | null = null;
+
   let routeFitCorrectionTimer: ReturnType<typeof setTimeout> | null = null;
 
   const ROUTE_MAP_PADDING_PX = 40;
@@ -1301,6 +1444,76 @@
   const ROUTE_DETAIL_CARD_LEFT_PX = 24;
   const ROUTE_DETAIL_CARD_WIDTH_PX = 345;
   const ROUTE_DETAIL_CARD_GAP_PX = 24;
+
+  interface RouteLineStyle {
+    colorVar: string;
+    fallbackColor: string;
+    weight: number;
+    dashArray?: string;
+  }
+
+  interface RouteLineSegment {
+    transportType: string;
+    points: [number, number][];
+    style: RouteLineStyle;
+  }
+
+  // Leaflet writes inline SVG strokes and does not reliably resolve CSS var(...).
+  // Resolve token values at draw time and keep these fallbacks only as a safety net.
+  const ROUTE_LINE_STYLES: Record<string, RouteLineStyle> = {
+    regional_train: { colorVar: '--color-chat-rainbow-green', fallbackColor: '#30d158', weight: 4 },
+    long_distance_train: { colorVar: '--color-primary-start', fallbackColor: '#4867cd', weight: 4 },
+    train: { colorVar: '--color-primary-start', fallbackColor: '#4867cd', weight: 4 },
+    tram: { colorVar: '--color-chat-rainbow-purple', fallbackColor: '#bf5af2', weight: 3.5 },
+    subway: { colorVar: '--color-chat-rainbow-purple', fallbackColor: '#bf5af2', weight: 3.5 },
+    bus: { colorVar: '--color-warning', fallbackColor: '#e67e22', weight: 3.5, dashArray: '8 6' },
+    ferry: { colorVar: '--color-chat-rainbow-cyan', fallbackColor: '#32ade6', weight: 3.5, dashArray: '10 5' },
+    flight: { colorVar: '--color-chat-rainbow-cyan', fallbackColor: '#32ade6', weight: 3, dashArray: '12 7' },
+    walk: { colorVar: '--color-grey-70', fallbackColor: '#666666', weight: 2.5, dashArray: '4 6' },
+    unknown: { colorVar: '--color-grey-70', fallbackColor: '#666666', weight: 3, dashArray: '6 6' },
+  };
+
+  const LONG_DISTANCE_RAIL_PATTERN = /\b(ICE|IC|EC|TGV|THA|RJ|RJX|NJ|EN)\b/;
+  const REGIONAL_RAIL_PATTERN = /\b(RE\d*|RB\d*|S\d*|SBAHN|S-BAHN|REGIONAL)\b/;
+  const RAIL_PRODUCT_PATTERN = /\b(ICE|IC|EC|TGV|THA|RJ|RJX|NJ|EN|RE\d*|RB\d*|S\d*|SBAHN|S-BAHN|REGIONAL)\b/;
+
+  function resolveRouteColor(style: RouteLineStyle): string {
+    if (typeof window === 'undefined') return style.fallbackColor;
+    const resolved = getComputedStyle(document.documentElement).getPropertyValue(style.colorVar).trim();
+    return resolved || style.fallbackColor;
+  }
+
+  function routeLineStyleFor(transportType: string): RouteLineStyle {
+    return ROUTE_LINE_STYLES[transportType] || ROUTE_LINE_STYLES.unknown;
+  }
+
+  function classifyTransportType(segment: SegmentData): string {
+    const mode = (segment.mode || '').toLowerCase();
+    const product = `${segment.carrier || ''} ${segment.line || ''} ${segment.number || ''} ${segment.operator || ''}`.toUpperCase();
+    const railProduct = RAIL_PRODUCT_PATTERN.test(product);
+
+    if (mode === 'airplane' || mode === 'flight') return 'flight';
+    if (mode === 'tram') return 'tram';
+    if (mode === 'subway') return 'subway';
+    if (mode === 'bus') return 'bus';
+    if (mode === 'ferry') return 'ferry';
+    if (mode === 'walk' || mode === 'walking') return 'walk';
+
+    if (mode === 'train' || railProduct) {
+      if (LONG_DISTANCE_RAIL_PATTERN.test(product)) return 'long_distance_train';
+      if (REGIONAL_RAIL_PATTERN.test(product)) return 'regional_train';
+      return 'train';
+    }
+
+    return 'unknown';
+  }
+
+  function segmentHasCoordinates(segment: SegmentData): boolean {
+    return segment.departure_latitude != null &&
+      segment.departure_longitude != null &&
+      segment.arrival_latitude != null &&
+      segment.arrival_longitude != null;
+  }
 
   function clearRouteFitCorrectionTimer() {
     if (routeFitCorrectionTimer) {
@@ -1335,9 +1548,9 @@
   }
   
   /**
-   * Collect all unique airport coordinates from the connection legs/segments.
-   * Returns an ordered array of waypoints: [(lat, lng, iataCode), ...]
-   * following the flight path from first departure to final arrival.
+   * Collect all unique stop coordinates from the connection legs/segments.
+   * Returns an ordered array of waypoints following the route from first
+   * departure to final arrival.
    */
   let routeWaypoints = $derived.by(() => {
     const conn = connection as MaybeConnection;
@@ -1349,7 +1562,7 @@
     for (const leg of conn.legs) {
       if (!leg.segments) continue;
       for (const seg of leg.segments) {
-        // Add departure airport
+        // Add departure stop
         if (
           seg.departure_latitude != null &&
           seg.departure_longitude != null &&
@@ -1363,7 +1576,7 @@
           });
           seen.add(seg.departure_station);
         }
-        // Add arrival airport
+        // Add arrival stop
         if (
           seg.arrival_latitude != null &&
           seg.arrival_longitude != null &&
@@ -1432,10 +1645,36 @@
     return points;
   }
 
+  let routeLineSegments = $derived.by(() => {
+    const conn = connection as MaybeConnection;
+    if (!conn?.legs) return [];
+
+    const segments: RouteLineSegment[] = [];
+    for (const leg of conn.legs) {
+      for (const segment of leg.segments || []) {
+        if (!segmentHasCoordinates(segment)) continue;
+
+        const transportType = classifyTransportType(segment);
+        const start: [number, number] = [segment.departure_latitude!, segment.departure_longitude!];
+        const end: [number, number] = [segment.arrival_latitude!, segment.arrival_longitude!];
+        const points = transportType === 'flight'
+          ? greatCircleArc(start[0], start[1], end[0], end[1], 60)
+          : [start, end];
+
+        segments.push({
+          transportType,
+          points,
+          style: routeLineStyleFor(transportType),
+        });
+      }
+    }
+    return segments;
+  });
+
   /**
    * onMapReady callback for EntryWithMapTemplate.
    * Called with the raw Leaflet map instance and L module when the map is mounted.
-   * Draws flight arcs, FR24 tracks, and airport markers.
+   * Draws segment-colored route lines, FR24 tracks, and stop markers.
    */
   function handleMapReady(mapInstance: unknown, leafletModule: unknown) {
     map = mapInstance as LeafletMap;
@@ -1444,7 +1683,7 @@
     if (!L || !map || routeWaypoints.length < 2) return;
 
     try {
-      const airportIcon = L.divIcon({
+      const stopIcon = L.divIcon({
         className: 'travel-route-marker',
         html: '<div class="marker-dot"></div>',
         iconSize: [16, 16],
@@ -1452,43 +1691,51 @@
       });
 
       for (const wp of routeWaypoints) {
-        L.marker([wp.lat, wp.lng], { icon: airportIcon })
+        L.marker([wp.lat, wp.lng], { icon: stopIcon })
           .addTo(map)
           .bindPopup(wp.code);
       }
 
-      drawFlightPath();
+      drawRoutePath();
     } catch (err) {
       console.error('[TravelConnectionEmbedFullscreen] Failed to render map overlays:', err);
     }
   }
 
-  function drawFlightPath() {
+  function drawRoutePath() {
     if (!L || !map) return;
 
-    let boundsLatLngs: import('leaflet').LatLng[];
+    routeLineLayer?.remove();
+    routeLineLayer = L.layerGroup().addTo(map);
+
+    const boundsLatLngs: import('leaflet').LatLng[] = [];
 
     if (resolvedFlightTrack && resolvedFlightTrack.tracks.length >= 2) {
       const trackLatLngs = resolvedFlightTrack.tracks.map(p => L.latLng(p.lat, p.lon));
-      L.polyline(trackLatLngs, {
-        color: 'var(--color-primary, #6366f1)',
-        weight: 2.5,
+      const style = routeLineStyleFor('flight');
+      const line = L.polyline(trackLatLngs, {
+        color: resolveRouteColor(style),
+        weight: style.weight,
         opacity: 0.85,
-      }).addTo(map);
-      boundsLatLngs = trackLatLngs;
+        dashArray: style.dashArray,
+      }).addTo(routeLineLayer);
+      const element = line.getElement();
+      element?.setAttribute('data-testid', 'travel-route-path');
+      element?.setAttribute('data-transport-type', 'flight');
+      boundsLatLngs.push(...trackLatLngs);
     } else {
-      boundsLatLngs = [];
-      for (let i = 0; i < routeWaypoints.length - 1; i++) {
-        const wp1 = routeWaypoints[i];
-        const wp2 = routeWaypoints[i + 1];
-        const arcPoints = greatCircleArc(wp1.lat, wp1.lng, wp2.lat, wp2.lng, 60);
-        const arcLatLngs = arcPoints.map(([lat, lng]) => L.latLng(lat, lng));
+      for (const segment of routeLineSegments) {
+        const arcLatLngs = segment.points.map(([lat, lng]) => L!.latLng(lat, lng));
         boundsLatLngs.push(...arcLatLngs);
-        L.polyline(arcLatLngs, {
-          color: 'var(--color-primary, #6366f1)',
-          weight: 2.5,
-          opacity: 0.7,
-        }).addTo(map);
+        const line = L.polyline(arcLatLngs, {
+          color: resolveRouteColor(segment.style),
+          weight: segment.style.weight,
+          opacity: 0.82,
+          dashArray: segment.style.dashArray,
+        }).addTo(routeLineLayer);
+        const element = line.getElement();
+        element?.setAttribute('data-testid', 'travel-route-path');
+        element?.setAttribute('data-transport-type', segment.transportType);
       }
     }
 
@@ -1496,16 +1743,18 @@
     scheduleOneTimeRouteFitCorrection(boundsLatLngs);
   }
 
-  // Redraw flight path when FR24 track data loads after map is already mounted
+  // Redraw route paths when loaded track or segment data changes after map mount.
   $effect(() => {
-    if (resolvedFlightTrack && map && L) {
-      drawFlightPath();
+    if ((resolvedFlightTrack || routeLineSegments.length > 0) && map && L) {
+      drawRoutePath();
     }
   });
 
   // Cleanup on destroy
   onDestroy(() => {
     clearRouteFitCorrectionTimer();
+    routeLineLayer?.remove();
+    routeLineLayer = null;
     map = null;
     L = null;
   });
@@ -1572,6 +1821,30 @@
         <div class="travel-class-label">{travelClassLabel}</div>
       {/if}
 
+      {#if formattedPrice}
+        <div class="fare-summary" data-testid="connection-fare-summary">
+          <span class="fare-summary-label">{formattedPrice}</span>
+          {#if fareSummary}
+            <span class="fare-summary-detail">{fareSummary}</span>
+          {/if}
+        </div>
+      {/if}
+
+      {#if optimizationBadge}
+        <div class="optimization-summary" data-testid="optimized-by-openmates-badge">
+          <span class="optimization-badge">{optimizationBadge}</span>
+          {#if optimizationSummary}
+            <span class="optimization-detail">{optimizationSummary}</span>
+          {/if}
+        </div>
+      {/if}
+
+      {#if transferQualitySummary}
+        <div class="transfer-quality-summary" data-testid="transfer-quality-summary">
+          {transferQualitySummary}
+        </div>
+      {/if}
+
       {#if startAirportName}
         <div class="start-airport">
           <span class="start-label">Start:</span>
@@ -1586,6 +1859,7 @@
             {@const arrChanged = hasRealtimeChange(segment.arrival_time, segment.actual_arrival_time)}
             {@const depDelayClass = delayClass(segment.departure_delay_minutes)}
             {@const arrDelayClass = delayClass(segment.arrival_delay_minutes)}
+            {@const fareCoverageLabel = formatFareCoverage(segment.fare_coverage)}
             <div class="segment-card" data-testid="segment-card">
               <div class="segment-left">
                 <div class="time-badge" class:daytime={segment.departure_is_daytime === true} class:nighttime={segment.departure_is_daytime !== true}>
@@ -1637,6 +1911,9 @@
                     {#if segment.realtime_notes && segment.realtime_notes.length > 0}
                       <span class="carrier-aircraft">{segment.realtime_notes.slice(0, 2).join(' · ')}</span>
                     {/if}
+                    {#if fareCoverageLabel}
+                      <span class="fare-coverage-pill" data-testid="segment-fare-coverage">{fareCoverageLabel}</span>
+                    {/if}
                   </div>
                 </div>
                 <div class="segment-airport-code" data-testid="arrival-code">
@@ -1650,6 +1927,7 @@
 
             {#if segIdx < leg.segments.length - 1}
               {@const layover = leg.layovers?.[segIdx]}
+              {@const transferStatus = layoverTransferStatus(layover)}
               <div class="layover-section" data-testid="layover-section">
                 {#if layover?.overnight}
                   <div class="layover-overnight-badge">
@@ -1663,6 +1941,25 @@
                 <div class="layover-airport-text">
                   Layover in{#if layover?.airport}<br/>{layover.airport}{/if}
                 </div>
+                {#if transferStatus}
+                  <div class="layover-transfer-status" data-testid="layover-transfer-status">
+                    {transferStatus}
+                  </div>
+                {/if}
+                {#if layover?.amenities?.groups}
+                  <div class="transfer-amenities" data-testid="transfer-amenities">
+                    {#each AMENITY_GROUP_ORDER as amenityKey}
+                      <span class="transfer-amenity-pill" data-testid={`transfer-amenity-${amenityKey.replace('_', '-')}`}>
+                        {amenityGroupStatus(layover.amenities.groups[amenityKey], amenityKey)}
+                      </span>
+                    {/each}
+                    {#if layover.amenities.provider}
+                      <span class="transfer-amenity-source">
+                        {layover.amenities.data_source || layover.amenities.provider}{layover.amenities.cache_hit ? ' · cached' : ''}
+                      </span>
+                    {/if}
+                  </div>
+                {/if}
               </div>
             {/if}
           {/each}
@@ -1721,6 +2018,13 @@
   .flight-card { display: flex; flex-direction: column; gap: var(--spacing-6); }
   .route-header-pill { background: var(--color-grey-10); border-radius: 11px; padding: 8px 14px; font-size: 1rem; font-weight: 700; color: var(--color-font-primary); text-align: center; }
   .travel-class-label { font-size: 1rem; font-weight: 700; color: var(--color-font-primary); text-align: center; }
+  .fare-summary { display: flex; flex-direction: column; gap: var(--spacing-1); padding: 10px 14px; border-radius: 11px; background: rgba(var(--color-primary-rgb), 0.08); color: var(--color-font-primary); text-align: center; }
+  .fare-summary-label { font-size: 0.938rem; font-weight: 800; color: var(--color-primary); }
+  .fare-summary-detail { font-size: 0.75rem; font-weight: 600; color: var(--color-grey-60); line-height: 1.35; }
+  .optimization-summary { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-1); padding: 10px 14px; border-radius: 11px; background: rgba(var(--color-primary-rgb), 0.1); text-align: center; }
+  .optimization-badge { font-size: 0.75rem; font-weight: 900; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.03em; }
+  .optimization-detail { font-size: 0.75rem; font-weight: 700; color: var(--color-grey-60); line-height: 1.35; }
+  .transfer-quality-summary { padding: 8px 12px; border-radius: 11px; background: var(--color-grey-10); color: var(--color-grey-70); font-size: 0.75rem; font-weight: 800; text-align: center; }
   .start-airport { font-size: 0.875rem; font-weight: 700; color: var(--color-grey-50); text-align: center; }
 
   .segment-card { display: flex; gap: 12px; background: var(--color-grey-10); border-radius: 15px; padding: 14px; }
@@ -1749,11 +2053,16 @@
   .carrier-aircraft { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
   .status-pill { display: inline-flex; width: fit-content; padding: 3px 8px; border-radius: 999px; font-size: 0.688rem; font-weight: 800; }
   .status-pill.cancelled { color: #991b1b; background: #fee2e2; }
+  .fare-coverage-pill { display: inline-flex; width: fit-content; padding: 3px 8px; border-radius: 999px; background: var(--color-grey-20); color: var(--color-grey-70); font-size: 0.688rem; font-weight: 800; }
 
   .layover-section { display: flex; flex-direction: column; gap: var(--spacing-2); padding: 8px 14px; }
   .layover-overnight-badge { display: inline-flex; align-items: center; gap: var(--spacing-2); padding: 4px 12px; border-radius: 58px; background: linear-gradient(to right, #365dad, #1745a1); color: white; font-size: 1rem; font-weight: 700; width: fit-content; }
   .layover-duration-text { font-size: 1.25rem; font-weight: 700; background: linear-gradient(164deg, rgb(72, 103, 205) 9%, rgb(90, 133, 235) 90%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .layover-airport-text { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
+  .layover-transfer-status { font-size: 0.75rem; font-weight: 800; color: var(--color-grey-60); }
+  .transfer-amenities { display: flex; flex-wrap: wrap; gap: var(--spacing-2); align-items: center; }
+  .transfer-amenity-pill { display: inline-flex; padding: 3px 8px; border-radius: 999px; background: var(--color-grey-20); color: var(--color-grey-70); font-size: 0.688rem; font-weight: 800; }
+  .transfer-amenity-source { flex-basis: 100%; font-size: 0.688rem; color: var(--color-grey-50); font-weight: 700; }
 
   .summary-fallback { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px 0; font-size: 1rem; color: var(--color-font-primary); font-weight: 600; }
   .fr24-attribution { font-size: 0.7rem; color: var(--color-grey-50); text-align: right; margin-top: 4px; }

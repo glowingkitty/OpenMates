@@ -33,6 +33,7 @@
     import { embedPreviewRegistry } from '../../../services/embedPreviewRegistry';
     import { copyToClipboard } from '../../../utils/clipboardUtils';
     import { getApiEndpoint } from '../../../config/api';
+    import { getSharedChatUrl } from '../../../services/sharedChatKeyStorage';
     import {
         generateShortUrlParts,
         encryptShareUrl,
@@ -77,12 +78,16 @@
         };
     }
     
-    // Props - the chat ID of the currently active chat
+    // Props - active route plus optional explicit chat context for embedded panels
     let { 
-        activeSettingsView = 'share'
+        activeSettingsView = 'share',
+        chatId = null,
     }: {
         activeSettingsView?: string;
+        chatId?: string | null;
     } = $props();
+
+    let isShareViewActive = $derived(activeSettingsView === 'share' || activeSettingsView === 'shared/share');
     
     // ===============================
     // State Variables
@@ -247,16 +252,16 @@
 
     // Check for embed context on mount, when (window as EmbedWindow).__embedShareContext changes, 
     // when settingsDeepLink is set to 'shared/share' (Share button clicked),
-    // and when component becomes active (activeSettingsView is 'share')
+    // and when component becomes active (activeSettingsView is 'share' or 'shared/share')
     $effect(() => {
         const windowEmbedContext = (window as EmbedWindow).__embedShareContext;
         const deepLink = $settingsDeepLink;
-        const isActive = activeSettingsView === 'share';
+        const isActive = isShareViewActive;
         
         // Check for embed context when:
         // 1. (window as EmbedWindow).__embedShareContext exists (embed share button clicked)
         // 2. settingsDeepLink is set to 'shared/share' (share settings opened)
-        // 3. Component becomes active (activeSettingsView is 'share')
+        // 3. Component becomes active (activeSettingsView is 'share' or 'shared/share')
         if (windowEmbedContext) {
             // If we already have an embed context and it's different, reset share state
             if (embedContext && embedContext.embed_id !== windowEmbedContext.embed_id) {
@@ -294,6 +299,28 @@
     // This remains stable even when user switches to other chats
     // Only updates when a new share link is generated
     let sharedChatId = $state<string | null>(null);
+
+    function normalizeChatId(value: string | null | undefined): string | null {
+        return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+    }
+
+    $effect(() => {
+        if (isEmbedSharing) return;
+
+        const explicitChatId = normalizeChatId(chatId);
+        if (!explicitChatId) return;
+
+        if (isLinkGenerated && sharedChatId && explicitChatId !== sharedChatId) {
+            console.debug('[SettingsShare] Explicit chat changed, resetting share state. Old:', sharedChatId, 'New:', explicitChatId);
+            resetGeneratedState();
+        }
+
+        if (explicitChatId !== currentChatId) {
+            prepareChatOwnershipState(explicitChatId);
+            currentChatId = explicitChatId;
+            console.debug('[SettingsShare] Synced currentChatId from explicit chatId:', currentChatId);
+        }
+    });
 
     // ONLY update currentChatId when Share button is explicitly clicked
     // Watch settingsDeepLink for 'shared/share' - this is set when Share button is clicked
@@ -536,51 +563,20 @@
                 console.debug('[SettingsShare] Public chat (demo/legal) share link generated:', generatedLink);
                 return;
             }
+
+            const restoredSharedUrl = await restoreStoredSharedChatUrl(currentChatId);
+            if (restoredSharedUrl) {
+                console.debug('[SettingsShare] Restored original shared chat link:', currentChatId);
+                return;
+            }
             
-            // For shared chats user doesn't own: reconstruct original share link
-            // Use default settings (no password, no expiration) since we don't have original settings
+            // For shared chats the user doesn't own: restore the original share link.
+            // We no longer reconstruct from the raw chat key because that would drop
+            // owner-chosen password/expiry settings from the original URL.
             // Check ownership directly (not using derived value since it might not be updated yet)
             if ($authStore.isAuthenticated && !isPublicChatType && !isOwnedByUser) {
-                try {
-                    // Get the chat encryption key from cache (it was stored when user accessed the shared chat)
-                    const chatEncryptionKey = await getChatEncryptionKey();
-                    
-                    // Create encrypted blob with default settings (no password, no expiration)
-                    // This reconstructs the share link, though it may differ from original if original had password/expiration
-                    const encryptedBlob = await generateShareKeyBlob(
-                        currentChatId,
-                        chatEncryptionKey,
-                        0, // No expiration
-                        undefined // No password
-                    );
-                    
-                    const baseUrl = window.location.origin;
-                    const longShareLink = `${baseUrl}/share/chat/${currentChatId}#key=${encryptedBlob}`;
-                    const shareLinkResult = await createPrimaryShareLink(
-                        longShareLink,
-                        'chat',
-                        currentChatId,
-                        0,
-                        false,
-                        false,
-                    );
-                    generatedLink = shareLinkResult.url;
-                    generatedLongLink = longShareLink;
-                    generatedShareContentType = null;
-                    generatedShareContentId = '';
-                    generatedSharePasswordProtected = false;
-                    isLinkGenerated = true;
-                    isConfigurationStep = false;
-                    // Store the shared chat ID to keep it stable when user switches chats
-                    sharedChatId = currentChatId;
-                    generateQRCode(generatedLink);
-                    console.debug('[SettingsShare] Shared chat (not owned) share link generated:', generatedLink);
-                    return;
-                } catch (error) {
-                    console.error('[SettingsShare] Error generating share link for shared chat:', error);
-                    // If we can't get the key, we can't generate the link
-                    return;
-                }
+                console.warn('[SettingsShare] Original shared chat link is not available; refusing to regenerate unrestricted non-owner link:', currentChatId);
+                return;
             }
             
             // For owned chats: use configured settings
@@ -652,6 +648,31 @@
             console.debug('[SettingsShare] Share link generated successfully');
         } catch (error) {
             console.error('[SettingsShare] Error generating share link:', error);
+        }
+    }
+
+    async function restoreStoredSharedChatUrl(chatId: string): Promise<boolean> {
+        try {
+            const { chatDB } = await import('../../../services/db');
+            const chat = await chatDB.getChat(chatId);
+            if (!chat?.is_shared_by_others) return false;
+
+            const originalUrl = await getSharedChatUrl(chatId);
+            if (!originalUrl) return false;
+
+            generatedLink = originalUrl;
+            generatedLongLink = originalUrl;
+            generatedShareContentType = null;
+            generatedShareContentId = '';
+            generatedSharePasswordProtected = false;
+            isLinkGenerated = true;
+            isConfigurationStep = false;
+            sharedChatId = chatId;
+            generateQRCode(generatedLink);
+            return true;
+        } catch (error) {
+            console.error('[SettingsShare] Failed to restore original shared chat URL:', error);
+            return false;
         }
     }
 
@@ -2154,6 +2175,11 @@
                 </button>
             {/if}
         </div>
+    {:else if displayChatId && currentChat?.is_shared_by_others}
+        <div class="encryption-info" data-testid="share-original-link-unavailable">
+            <div class="info-icon">🔒</div>
+            <p>The original share link is not stored on this device. Open the chat from its share link again to save it here.</p>
+        </div>
     {/if}
     {/if}
 {/if}
@@ -2266,7 +2292,7 @@
         border: 1px solid var(--color-grey-30);
         border-radius: var(--radius-3);
         font-size: var(--font-size-small);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         color: var(--color-grey-100);
         transition: border-color var(--duration-normal) var(--easing-default);
     }
@@ -2297,7 +2323,7 @@
         padding: var(--spacing-4) var(--spacing-8);
         border: 1px solid var(--color-grey-30);
         border-radius: var(--radius-8);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         color: var(--color-grey-80);
         font-size: var(--font-size-xs);
         cursor: pointer;
@@ -2320,7 +2346,7 @@
         align-items: flex-start;
         gap: var(--spacing-5);
         padding: var(--spacing-6) var(--spacing-8);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
     }
@@ -2341,7 +2367,7 @@
     .chat-info-display {
         margin-bottom: var(--spacing-8);
         padding: var(--spacing-8);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
     }
@@ -2386,7 +2412,7 @@
         align-items: flex-start;
         gap: var(--spacing-5);
         padding: var(--spacing-6) var(--spacing-8);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
         margin-top: var(--spacing-4);
@@ -2410,7 +2436,7 @@
         align-items: flex-start;
         gap: var(--spacing-5);
         padding: var(--spacing-6) var(--spacing-8);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
         margin-top: var(--spacing-4);
@@ -2444,7 +2470,7 @@
     }
     
     .back-to-config-button:hover {
-        background-color: var(--color-grey-15, #e8e8e8);
+        background-color: var(--color-grey-20);
         border-color: var(--color-grey-40);
     }
 
@@ -2491,7 +2517,7 @@
     }
     
     .copy-link-button:hover {
-        background-color: var(--color-grey-15, #e8e8e8);
+        background-color: var(--color-grey-20);
         border-color: var(--color-grey-50);
     }
     
@@ -2538,7 +2564,7 @@
         flex-direction: column;
         align-items: center;
         padding: var(--spacing-10);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         border-radius: var(--radius-5);
     }
     
@@ -2553,7 +2579,7 @@
         background-color: white;
         padding: var(--spacing-6);
         border-radius: var(--radius-3);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-xs);
         border: none;
         cursor: default;
         width: auto;
@@ -2605,7 +2631,7 @@
         right: 0;
         bottom: 0;
         background-color: white;
-        z-index: 9999;
+        z-index: var(--z-index-tooltip);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -2710,7 +2736,7 @@
         flex-direction: column;
         gap: var(--spacing-5);
         padding: var(--spacing-8);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         border-radius: var(--radius-4);
         border: 1px solid var(--color-grey-20);
     }
@@ -2745,7 +2771,7 @@
         padding: var(--spacing-3) var(--spacing-6);
         border: 1px solid var(--color-grey-30);
         border-radius: var(--radius-7);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         color: var(--color-grey-80);
         font-size: var(--font-size-xxs);
         cursor: pointer;
@@ -2776,7 +2802,7 @@
     }
 
     .short-link-generate-button:hover:not(:disabled) {
-        background-color: var(--color-grey-15, #e8e8e8);
+        background-color: var(--color-grey-20);
     }
 
     .short-link-generate-button:disabled {
@@ -2799,7 +2825,7 @@
     }
 
     .short-link-copy-button:hover {
-        background-color: var(--color-grey-15, #e8e8e8);
+        background-color: var(--color-grey-20);
         border-color: var(--color-grey-50);
     }
 

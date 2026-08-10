@@ -1,0 +1,49 @@
+#!/usr/bin/env node
+/*
+ * Performance contracts for debounced presence persistence.
+ * Streaming bursts must collapse to bounded asynchronous writes and must never
+ * synchronously spawn one Python process per token delta.
+ * Run: node --test scripts/tests/test_opencode_presence_performance.mjs.
+ */
+
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
+
+const { createPresenceSchedulerForTest } = OpenMatesHooks.test;
+
+test("streaming burst persists at most once per debounce interval", async () => {
+  const writes = [];
+  let callback;
+  const scheduler = createPresenceSchedulerForTest({
+    debounceMs: 100,
+    persist: async (record) => writes.push(record),
+    setTimer: (fn) => { callback = fn; return 1; },
+    clearTimer: () => {},
+  });
+  for (let index = 0; index < 100; index += 1) scheduler.schedule({ session_id: "ses-a", sequence: index });
+  assert.equal(writes.length, 0);
+  await callback();
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].sequence, 99);
+});
+
+test("slow stores retain only the latest bounded pending record", async () => {
+  let release;
+  const writes = [];
+  const scheduler = createPresenceSchedulerForTest({
+    debounceMs: 0,
+    persist: async (record) => { writes.push(record.sequence); await new Promise((resolve) => { release = resolve; }); },
+    setTimer: (fn) => { queueMicrotask(fn); return 1; },
+    clearTimer: () => {},
+  });
+  scheduler.schedule({ session_id: "ses-a", sequence: 1 });
+  await new Promise((resolve) => setImmediate(resolve));
+  for (let index = 2; index <= 50; index += 1) scheduler.schedule({ session_id: "ses-a", sequence: index });
+  assert.ok(scheduler.pendingCount() <= 1);
+  release();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(writes, [1, 50]);
+  release();
+});

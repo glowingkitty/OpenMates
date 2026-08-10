@@ -7,9 +7,96 @@
 import Foundation
 import CryptoKit
 import CommonCrypto
+import Security
+
+enum SecureRandomError: LocalizedError {
+    case generationFailed(OSStatus)
+
+    var errorDescription: String? {
+        "Secure random generation failed"
+    }
+}
+
+enum SecureRandom {
+    typealias Fill = (_ count: Int, _ buffer: UnsafeMutableRawPointer) -> OSStatus
+
+    static func data(count: Int, fill: Fill? = nil) throws -> Data {
+        precondition(count >= 0)
+        if count == 0 { return Data() }
+        var bytes = [UInt8](repeating: 0, count: count)
+        let source = fill ?? { count, buffer in
+            SecRandomCopyBytes(kSecRandomDefault, count, buffer)
+        }
+        let status = bytes.withUnsafeMutableBytes { buffer in
+            source(count, buffer.baseAddress!)
+        }
+        guard status == errSecSuccess else {
+            throw SecureRandomError.generationFailed(status)
+        }
+        return Data(bytes)
+    }
+
+    static func index(upperBound: Int, fill: Fill? = nil) throws -> Int {
+        precondition((1...256).contains(upperBound))
+        let maxUnbiasedValue = (256 / upperBound) * upperBound
+        while true {
+            let value = Int(try data(count: 1, fill: fill)[0])
+            if value < maxUnbiasedValue { return value % upperBound }
+        }
+    }
+
+    static func string(length: Int, alphabet: [Character], fill: Fill? = nil) throws -> String {
+        precondition(length >= 0 && !alphabet.isEmpty && alphabet.count <= 256)
+        return try String((0..<length).map { _ in
+            alphabet[try index(upperBound: alphabet.count, fill: fill)]
+        })
+    }
+
+    static func recoveryKey(length: Int = 24, fill: Fill? = nil) throws -> String {
+        let sets = [
+            Array("ABCDEFGHJKLMNPQRSTUVWXYZ"),
+            Array("abcdefghijkmnopqrstuvwxyz"),
+            Array("23456789"),
+            Array("#-=+_&%$"),
+        ]
+        let alphabet = sets.flatMap { $0 }
+        precondition(length >= sets.count)
+        var result = try sets.map { set in
+            set[try index(upperBound: set.count, fill: fill)]
+        }
+        while result.count < length {
+            result.append(alphabet[try index(upperBound: alphabet.count, fill: fill)])
+        }
+        for position in stride(from: result.count - 1, through: 1, by: -1) {
+            result.swapAt(position, try index(upperBound: position + 1, fill: fill))
+        }
+        return String(result)
+    }
+}
 
 actor CryptoManager {
     static let shared = CryptoManager()
+
+    typealias PBKDF2Derivation = @Sendable (Data, Data, UInt32) -> (status: Int32, key: Data)
+
+    struct RecoveryEnvelope: Equatable, Sendable {
+        let v: Int
+        let epk: String
+        let nonce: String
+        let ciphertext: String
+    }
+
+    struct RecoveryKeyPair: Equatable, Sendable {
+        let privateKey: String
+        let publicKey: String
+    }
+
+    private static let recoveryProtocolVersion = 1
+    private static let recoveryKeyLength = 32
+    private static let recoveryNonceLength = 12
+    private static let recoveryMaximumPayloadBytes = 16 * 1024 * 1024
+    private static let recoveryKeySalt = Data(SHA256.hash(data: Data("openmates:chat-recovery:v1".utf8)))
+    private static let recoveryEnvelopeKeySalt = Data(SHA256.hash(data: Data("openmates:chat-recovery-envelope:v1".utf8)))
 
     private init() {}
 
@@ -42,40 +129,48 @@ actor CryptoManager {
         return Data(hash).base64EncodedString()
     }
 
-    /// Derive wrapping key from password using PBKDF2-SHA256 with 100,000 iterations.
-    /// Mirrors web: crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" })
-    func deriveWrappingKeyFromPassword(password: String, salt: Data) -> SymmetricKey {
-        var derivedKey = Data(count: 32) // 256 bits
-        let passwordData = password.data(using: .utf8)!
+    /// Derive a wrapping key using PBKDF2-SHA256.
+    /// Defaults to the web's 100,000-round password contract; callers with a
+    /// separate protocol, such as durable share URLs, provide their own count.
+    func deriveWrappingKeyFromPassword(
+        password: String,
+        salt: Data,
+        iterations: UInt32 = 100_000,
+        derivation: PBKDF2Derivation? = nil
+    ) throws -> SymmetricKey {
+        let result = (derivation ?? Self.pbkdf2)(Data(password.utf8), salt, iterations)
+        guard result.status == kCCSuccess, result.key.count == 32 else {
+            throw CryptoError.keyDerivationFailed
+        }
+        return SymmetricKey(data: result.key)
+    }
 
+    /// Derive the pair-login bundle key from PIN + token.
+    /// Mirrors SettingsSessionsPairInitiate.svelte: PBKDF2-SHA256(PIN, upperToken, 100k) → AES-256-GCM.
+    func derivePairLoginKey(pin: String, token: String) throws -> SymmetricKey {
+        try deriveWrappingKeyFromPassword(password: pin, salt: Data(token.uppercased().utf8))
+    }
+
+    private static func pbkdf2(password: Data, salt: Data, iterations: UInt32) -> (status: Int32, key: Data) {
+        var derivedKey = Data(count: 32)
         let status = derivedKey.withUnsafeMutableBytes { derivedBytes in
-            passwordData.withUnsafeBytes { passwordBytes in
+            password.withUnsafeBytes { passwordBytes in
                 salt.withUnsafeBytes { saltBytes in
                     CCKeyDerivationPBKDF(
                         CCPBKDFAlgorithm(kCCPBKDF2),
                         passwordBytes.baseAddress?.assumingMemoryBound(to: Int8.self),
-                        passwordData.count,
+                        password.count,
                         saltBytes.baseAddress?.assumingMemoryBound(to: UInt8.self),
                         salt.count,
                         CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
-                        100_000,
+                        iterations,
                         derivedBytes.baseAddress?.assumingMemoryBound(to: UInt8.self),
                         32
                     )
                 }
             }
         }
-        if status != kCCSuccess {
-            assertionFailure("PBKDF2 derivation failed with status \(status)")
-        }
-
-        return SymmetricKey(data: derivedKey)
-    }
-
-    /// Derive the pair-login bundle key from PIN + token.
-    /// Mirrors SettingsSessionsPairInitiate.svelte: PBKDF2-SHA256(PIN, upperToken, 100k) → AES-256-GCM.
-    func derivePairLoginKey(pin: String, token: String) -> SymmetricKey {
-        deriveWrappingKeyFromPassword(password: pin, salt: Data(token.uppercased().utf8))
+        return (status, derivedKey)
     }
 
     // MARK: - Master key operations
@@ -153,6 +248,168 @@ actor CryptoManager {
     /// Format D: base64(IV[12 bytes] || ciphertext+tag), matching the web app.
     func encryptWithMasterKey(_ plaintext: String, masterKey: SymmetricKey) throws -> String {
         try encryptBlob(Data(plaintext.utf8), key: masterKey, includeFingerprint: false)
+    }
+
+    // MARK: - Chat completion recovery
+
+    func deriveRecoveryKeyPair(
+        chatKey: SymmetricKey,
+        chatId: String,
+        keyVersion: UInt32
+    ) throws -> RecoveryKeyPair {
+        let chatKeyData = chatKey.withUnsafeBytes { Data($0) }
+        guard chatKeyData.count == Self.recoveryKeyLength else {
+            throw CryptoError.invalidKeyLength
+        }
+
+        var info = try Self.lengthPrefixedCanonicalUUID(chatId, field: "chat_id")
+        try Self.appendKeyVersion(keyVersion, to: &info)
+        let privateKeyData = HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: chatKey,
+            salt: Self.recoveryKeySalt,
+            info: info,
+            outputByteCount: Self.recoveryKeyLength
+        ).withUnsafeBytes { Data($0) }
+        let privateKey = try Curve25519.KeyAgreement.PrivateKey(rawRepresentation: privateKeyData)
+
+        return RecoveryKeyPair(
+            privateKey: Self.encodeBase64URL(privateKeyData),
+            publicKey: Self.encodeBase64URL(privateKey.publicKey.rawRepresentation)
+        )
+    }
+
+    func buildRecoveryAssociatedData(
+        ownerId: String,
+        chatId: String,
+        turnId: String,
+        jobId: String,
+        assistantMessageId: String,
+        keyVersion: UInt32
+    ) throws -> Data {
+        var associatedData = Data("OMCR1".utf8)
+        for (value, field) in [
+            (ownerId, "owner_id"),
+            (chatId, "chat_id"),
+            (turnId, "turn_id"),
+            (jobId, "job_id"),
+            (assistantMessageId, "assistant_message_id"),
+        ] {
+            associatedData.append(try Self.lengthPrefixedCanonicalUUID(value, field: field))
+        }
+        try Self.appendKeyVersion(keyVersion, to: &associatedData)
+        return associatedData
+    }
+
+    func sealRecoveryPayload(
+        _ payload: Data,
+        recoveryPublicKey: String,
+        ownerId: String,
+        chatId: String,
+        turnId: String,
+        jobId: String,
+        assistantMessageId: String,
+        keyVersion: UInt32,
+        ephemeralPrivateKey: String? = nil,
+        nonce: String? = nil
+    ) throws -> RecoveryEnvelope {
+        guard payload.count <= Self.recoveryMaximumPayloadBytes else {
+            throw CryptoError.payloadTooLarge
+        }
+
+        let privateKeyData = try ephemeralPrivateKey.map {
+            try Self.decodeBase64URL($0, field: "ephemeral_private_key")
+        } ?? Curve25519.KeyAgreement.PrivateKey().rawRepresentation
+        guard privateKeyData.count == Self.recoveryKeyLength else {
+            throw CryptoError.invalidKeyLength
+        }
+        let nonceData = try nonce.map {
+            try Self.decodeBase64URL($0, field: "nonce")
+        } ?? Data(AES.GCM.Nonce())
+        guard nonceData.count == Self.recoveryNonceLength else {
+            throw CryptoError.invalidNonceLength
+        }
+
+        let associatedData = try buildRecoveryAssociatedData(
+            ownerId: ownerId,
+            chatId: chatId,
+            turnId: turnId,
+            jobId: jobId,
+            assistantMessageId: assistantMessageId,
+            keyVersion: keyVersion
+        )
+        let privateKey = try Curve25519.KeyAgreement.PrivateKey(rawRepresentation: privateKeyData)
+        let publicKeyData = try Self.decodeBase64URL(recoveryPublicKey, field: "recovery_public_key")
+        let envelopeKey = try Self.deriveRecoveryEnvelopeKey(
+            privateKey: privateKey,
+            publicKeyData: publicKeyData,
+            associatedData: associatedData
+        )
+        let sealed = try AES.GCM.seal(
+            payload,
+            using: envelopeKey,
+            nonce: try AES.GCM.Nonce(data: nonceData),
+            authenticating: associatedData
+        )
+
+        return RecoveryEnvelope(
+            v: Self.recoveryProtocolVersion,
+            epk: Self.encodeBase64URL(privateKey.publicKey.rawRepresentation),
+            nonce: Self.encodeBase64URL(nonceData),
+            ciphertext: Self.encodeBase64URL(sealed.ciphertext + sealed.tag)
+        )
+    }
+
+    func openRecoveryEnvelope(
+        _ envelope: RecoveryEnvelope,
+        recoveryPrivateKey: String,
+        ownerId: String,
+        chatId: String,
+        turnId: String,
+        jobId: String,
+        assistantMessageId: String,
+        keyVersion: UInt32
+    ) throws -> Data {
+        guard envelope.v == Self.recoveryProtocolVersion else {
+            throw CryptoError.unsupportedRecoveryEnvelope
+        }
+
+        let privateKeyData = try Self.decodeBase64URL(recoveryPrivateKey, field: "recovery_private_key")
+        guard privateKeyData.count == Self.recoveryKeyLength else {
+            throw CryptoError.invalidKeyLength
+        }
+        let ephemeralPublicKeyData = try Self.decodeBase64URL(envelope.epk, field: "epk")
+        let nonceData = try Self.decodeBase64URL(envelope.nonce, field: "nonce")
+        guard nonceData.count == Self.recoveryNonceLength else {
+            throw CryptoError.invalidNonceLength
+        }
+        let ciphertext = try Self.decodeBase64URL(envelope.ciphertext, field: "ciphertext")
+        guard ciphertext.count >= 16 else {
+            throw CryptoError.dataTooShort
+        }
+        guard ciphertext.count <= Self.recoveryMaximumPayloadBytes + 16 else {
+            throw CryptoError.payloadTooLarge
+        }
+
+        let associatedData = try buildRecoveryAssociatedData(
+            ownerId: ownerId,
+            chatId: chatId,
+            turnId: turnId,
+            jobId: jobId,
+            assistantMessageId: assistantMessageId,
+            keyVersion: keyVersion
+        )
+        let privateKey = try Curve25519.KeyAgreement.PrivateKey(rawRepresentation: privateKeyData)
+        let envelopeKey = try Self.deriveRecoveryEnvelopeKey(
+            privateKey: privateKey,
+            publicKeyData: ephemeralPublicKeyData,
+            associatedData: associatedData
+        )
+        let sealedBox = try AES.GCM.SealedBox(
+            nonce: AES.GCM.Nonce(data: nonceData),
+            ciphertext: ciphertext.dropLast(16),
+            tag: ciphertext.suffix(16)
+        )
+        return try AES.GCM.open(sealedBox, using: envelopeKey, authenticating: associatedData)
     }
 
     // MARK: - Content decryption (messages, titles, embeds)
@@ -248,6 +505,76 @@ actor CryptoManager {
         ])
     }
 
+    private static func deriveRecoveryEnvelopeKey(
+        privateKey: Curve25519.KeyAgreement.PrivateKey,
+        publicKeyData: Data,
+        associatedData: Data
+    ) throws -> SymmetricKey {
+        guard publicKeyData.count == recoveryKeyLength else {
+            throw CryptoError.invalidKeyLength
+        }
+        let publicKey = try Curve25519.KeyAgreement.PublicKey(rawRepresentation: publicKeyData)
+        let sharedSecret = try privateKey.sharedSecretFromKeyAgreement(with: publicKey)
+        let sharedSecretData = sharedSecret.withUnsafeBytes { Data($0) }
+        guard sharedSecretData.contains(where: { $0 != 0 }) else {
+            throw CryptoError.invalidSharedSecret
+        }
+        return sharedSecret.hkdfDerivedSymmetricKey(
+            using: SHA256.self,
+            salt: recoveryEnvelopeKeySalt,
+            sharedInfo: Data(SHA256.hash(data: associatedData)),
+            outputByteCount: recoveryKeyLength
+        )
+    }
+
+    private static func lengthPrefixedCanonicalUUID(_ value: String, field: String) throws -> Data {
+        guard let uuid = UUID(uuidString: value), uuid.uuidString.lowercased() == value else {
+            throw CryptoError.invalidIdentifier(field)
+        }
+        let encoded = Data(value.utf8)
+        var result = Data()
+        appendUInt32(UInt32(encoded.count), to: &result)
+        result.append(encoded)
+        return result
+    }
+
+    private static func appendKeyVersion(_ keyVersion: UInt32, to data: inout Data) throws {
+        guard keyVersion > 0 else {
+            throw CryptoError.invalidKeyVersion
+        }
+        appendUInt32(keyVersion, to: &data)
+    }
+
+    private static func appendUInt32(_ value: UInt32, to data: inout Data) {
+        data.append(contentsOf: [
+            UInt8((value >> 24) & 0xff),
+            UInt8((value >> 16) & 0xff),
+            UInt8((value >> 8) & 0xff),
+            UInt8(value & 0xff),
+        ])
+    }
+
+    private static func encodeBase64URL(_ data: Data) -> String {
+        data.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
+    private static func decodeBase64URL(_ value: String, field: String) throws -> Data {
+        guard !value.isEmpty, !value.contains("=") else {
+            throw CryptoError.invalidBase64URL(field)
+        }
+        var base64 = value
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        base64.append(String(repeating: "=", count: (4 - base64.count % 4) % 4))
+        guard let decoded = Data(base64Encoded: base64), encodeBase64URL(decoded) == value else {
+            throw CryptoError.invalidBase64URL(field)
+        }
+        return decoded
+    }
+
     // MARK: - Keychain storage
 
     func saveMasterKey(_ key: SymmetricKey, for userId: String) throws {
@@ -275,6 +602,15 @@ actor CryptoManager {
         case invalidUTF8
         case dataTooShort
         case decryptionFailed
+        case invalidBase64URL(String)
+        case invalidIdentifier(String)
+        case invalidKeyLength
+        case invalidNonceLength
+        case invalidKeyVersion
+        case invalidSharedSecret
+        case payloadTooLarge
+        case unsupportedRecoveryEnvelope
+        case keyDerivationFailed
 
         var errorDescription: String? {
             switch self {
@@ -282,7 +618,68 @@ actor CryptoManager {
             case .invalidUTF8: return "Decrypted data is not valid UTF-8"
             case .dataTooShort: return "Encrypted data too short"
             case .decryptionFailed: return "AES-GCM decryption failed"
+            case .invalidBase64URL(let field): return "Invalid unpadded base64url for \(field)"
+            case .invalidIdentifier(let field): return "Invalid canonical UUID for \(field)"
+            case .invalidKeyLength: return "Recovery key must contain exactly 32 bytes"
+            case .invalidNonceLength: return "Recovery nonce must contain exactly 12 bytes"
+            case .invalidKeyVersion: return "Recovery key version must be greater than zero"
+            case .invalidSharedSecret: return "Invalid X25519 shared secret"
+            case .payloadTooLarge: return "Recovery payload exceeds 16 MiB"
+            case .unsupportedRecoveryEnvelope: return "Unsupported recovery envelope"
+            case .keyDerivationFailed: return "Password key derivation failed"
             }
         }
+    }
+}
+
+/// Shared embed-field crypto used by foreground and background send paths.
+/// This stays in Core/Crypto so composer views and document models never own keys.
+enum ComposerEmbedCrypto {
+    private static let derivationSalt = Data("openmates-embed-key-v1".utf8)
+
+    static func deriveKey(chatKey: SymmetricKey, embedId: String) -> SymmetricKey {
+        HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: chatKey,
+            salt: derivationSalt,
+            info: Data(embedId.utf8),
+            outputByteCount: 32
+        )
+    }
+
+    static func wrapKey(_ key: SymmetricKey, using wrappingKey: SymmetricKey) throws -> String {
+        let rawKey = key.withUnsafeBytes { Data($0) }
+        return try encrypt(rawKey, using: wrappingKey)
+    }
+
+    static func unwrapKey(_ encryptedKey: String, using wrappingKey: SymmetricKey) throws -> SymmetricKey {
+        SymmetricKey(data: try decrypt(encryptedKey, using: wrappingKey))
+    }
+
+    static func encryptContent(_ plaintext: String, using key: SymmetricKey) throws -> String {
+        try encrypt(Data(plaintext.utf8), using: key)
+    }
+
+    static func decryptContent(_ encryptedContent: String, using key: SymmetricKey) throws -> String {
+        let plaintext = try decrypt(encryptedContent, using: key)
+        guard let value = String(data: plaintext, encoding: .utf8) else {
+            throw CryptoManager.CryptoError.invalidUTF8
+        }
+        return value
+    }
+
+    private static func encrypt(_ plaintext: Data, using key: SymmetricKey) throws -> String {
+        let sealed = try AES.GCM.seal(plaintext, using: key)
+        guard let combined = sealed.combined else {
+            throw CryptoManager.CryptoError.decryptionFailed
+        }
+        return combined.base64EncodedString()
+    }
+
+    private static func decrypt(_ encryptedValue: String, using key: SymmetricKey) throws -> Data {
+        guard let combined = Data(base64Encoded: encryptedValue) else {
+            throw CryptoManager.CryptoError.invalidBase64
+        }
+        let sealed = try AES.GCM.SealedBox(combined: combined)
+        return try AES.GCM.open(sealed, using: key)
     }
 }

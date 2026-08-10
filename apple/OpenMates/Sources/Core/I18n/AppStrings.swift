@@ -26,6 +26,7 @@ enum AppStrings {
     static var skip: String { L("common.skip") }
     static var search: String { L("activity.search") }
     static var quickActionAsk: String { L("activity.quick_action_ask") }
+    static var quickActionRecordRequest: String { L("activity.quick_action_record_request") }
     static var quickActionAskAboutPhoto: String { L("activity.quick_action_ask_about_photo") }
     static var quickActionIncognitoAsk: String { L("activity.quick_action_incognito_ask") }
     static var retry: String { L("common.retry") }
@@ -43,6 +44,9 @@ enum AppStrings {
     static var copied: String { L("common.copied") }
     static var version: String { L("settings.current_version") }
     static var openMatesName: String { L("apps.openmates") }
+    static var socialMedia: String { L("apps.social_media") }
+    static var weatherDay: String { L("apps.weather.day") }
+    static var weatherForecast: String { L("apps.weather.forecast") }
     static var guest: String { L("settings.guest") }
     static var newWindow: String { L("common.new_window") }
     static var chat: String { L("common.chat") }
@@ -50,6 +54,7 @@ enum AppStrings {
     static var plans: String { L("navigation.plans") }
     static var workflows: String { L("navigation.workflows") }
     static var tasks: String { L("navigation.tasks") }
+    static var models3d: String { L("apps.models3d") }
     static var workspacePreviewEyebrow: String { L("navigation.workspace_preview.eyebrow") }
     static var workspacePreviewReturnToChats: String { L("navigation.workspace_preview.return_to_chats") }
 
@@ -153,6 +158,7 @@ enum AppStrings {
     static var settingsMemories: String { L("settings.settings_memories") }
     static var settingsLogout: String { L("settings.logout") }
     static var settingsIncognito: String { L("settings.incognito") }
+    static var learningMode: String { L("settings.learning_mode") }
     static var settingsPricing: String { L("settings.pricing") }
 
     // MARK: - Settings - Account
@@ -174,6 +180,24 @@ enum AppStrings {
     static var storage: String { L("settings.storage") }
     static var importChats: String { L("settings.account.import_title") }
     static var exportData: String { L("settings.export_data") }
+    static var exportDescription: String { L("settings.account.export_description") }
+    static var exportGDPRNotice: String { L("settings.account.export_gdpr_notice") }
+    static var exportButton: String { L("settings.account.export_button") }
+    static var exporting: String { L("settings.account.exporting") }
+    static var exportSuccess: String { L("settings.account.export_success") }
+    static var exportFilename: String { L("settings.account.export") }
+    static var importDescription: String { L("settings.account.import_description") }
+    static var importNativeDeferred: String { L("settings.account.import_native_deferred") }
+    static var importOpenWeb: String { L("settings.account.import_open_web") }
+    static var importChooseFile: String { L("settings.account.import_choose_file") }
+    static var importing: String { L("settings.account.import_importing") }
+    static var importSafetyNotice: String { L("settings.account.import_safety_notice") }
+    static var importSuccess: String { L("settings.account.import_success") }
+    static var importMessagesImported: String { L("settings.account.import_messages_imported") }
+    static var importMessagesBlocked: String { L("settings.account.import_messages_blocked") }
+    static var importCreditsCharged: String { L("settings.account.import_credits_charged") }
+    static var importInvalidFormat: String { L("common.error") }
+    static var importNoChats: String { L("settings.account.import_select_chats") }
     static var deleteAccount: String { L("settings.delete_account") }
     static var deleteAccountWarning: String { L("settings.delete_account.warning") }
     static var deleteAccountConfirmText: String { L("settings.delete_account.confirm_text") }
@@ -198,6 +222,18 @@ enum AppStrings {
     static var encryptionNotice: String { L("settings.app_settings_memories.encrypted_notice") }
     static var confirmDeleteMemory: String { L("settings.app_settings_memories.confirm_delete") }
     static var entries: String { L("settings.app_settings_memories.entries") }
+    static var memoryKeyRequired: String { L("settings.app_settings_memories.item_key_required") }
+    static var memoryValueRequired: String { L("settings.app_settings_memories.item_value_required") }
+    static var memoryAuthenticationRequired: String { L("settings.app_settings_memories.authentication_required") }
+    static var memorySaving: String { L("settings.app_settings_memories.saving") }
+
+    // MARK: - Settings - Mates
+    static var mateInstructions: String { L("settings.mates.system_prompt_heading") }
+    static var mateShowFullPrompt: String { L("settings.mates.show_full_prompt") }
+    static var mateHideFullPrompt: String { L("settings.mates.hide_full_prompt") }
+    static func chatWithMate(_ mateName: String) -> String {
+        LocalizationManager.shared.text("settings.mates.chat_with_mate", replacements: ["mate_name": mateName])
+    }
 
     // MARK: - Settings - Apps
     static var showAllApps: String { L("settings.app_store.show_all_apps") }
@@ -234,6 +270,78 @@ enum AppStrings {
     static var setup2FA: String { L("settings.two_factor_auth.setup") }
     static var disable2FA: String { L("settings.two_factor_auth.disable") }
     static var regenerateRecoveryKey: String { L("settings.recovery_key.regenerate") }
+    static var accountSecurityRequestFailed: String { L("common.error") }
+    static var accountSecurityMissingData: String { L("settings.security.auth_description") }
+    static var passkeyUnknownDevice: String { L("settings.sessions.unknown_device") }
+    static var passkeyAddedSuccessfully: String { L("common.success") }
+    static var passkeyDeletedSuccessfully: String { L("common.success") }
+    static var passkeyDeleteTitle: String { L("common.delete") }
+    static var passkeyDeleteDescription: String { L("settings.security.auth_description") }
+    static var passkeyInvalidChallenge: String { L("common.error") }
+    static var passkeyRegistrationFailed: String { L("common.error") }
+    static var passkeyPRFRequired: String { L("settings.security.passkey_prompt") }
+    static var twoFactorChangeApp: String { L("settings.security.tfa_change_app") }
+    static var twoFactorResetBackupCodes: String { L("settings.security.tfa_reset_backup_codes") }
+    static var twoFactorBackupCodes: String { L("settings.security.tfa_backup_codes") }
+    static var twoFactorCodesStored: String { L("settings.security.tfa_backup_codes_description") }
+    static var sessionRemove: String { L("settings.sessions.remove") }
+    static var sessionLogoutOthers: String { L("settings.sessions.logout_all_others") }
+    static var sessionConfirmRemove: String { L("settings.sessions.confirm_remove") }
+    static var sessionConfirmLogoutOthers: String { L("settings.sessions.confirm_logout_others") }
+    static var sessionConfirmLogoutAll: String { L("settings.sessions.confirm_logout_all") }
+    static var currentEmail: String { L("settings.account.email.current_email") }
+    static var newEmailPlaceholder: String { L("settings.account.email.new_email_placeholder") }
+    static var sendEmailChangeCode: String { L("settings.account.email.send_change_code") }
+    static var verifyEmailChangeCode: String { L("settings.account.email.verify_change_code") }
+    static var confirmEmailChange: String { L("settings.account.email.confirm_change") }
+    static var emailChangeCodeSent: String { L("settings.account.email.change_code_sent") }
+    static var emailChangeCodeVerified: String { L("settings.account.email.change_code_verified") }
+    static var emailChangeSuccess: String { L("settings.account.email.change_success") }
+    static var choosePhoto: String { L("settings.account.profile_picture.upload") }
+    static var photoUploading: String { L("settings.account.profile_picture.uploading") }
+    static var photoUpdated: String { L("settings.account.profile_picture.upload_success") }
+    static var photoUploadError: String { L("settings.account.profile_picture.upload_error") }
+    static var photoFileTooLarge: String { L("settings.account.profile_picture.file_too_large") }
+    static var photoWrongFormat: String { L("settings.account.profile_picture.wrong_format") }
+    static var photoRejected: String { L("settings.profile_image_not_allowed") }
+    static var accountDeleted: String { L("settings.account_deleted") }
+    static var storageLoading: String { L("settings.storage.storage_loading") }
+    static var storageError: String { L("settings.storage.storage_error") }
+    static var storageBreakdown: String { L("settings.storage.storage_breakdown_title") }
+    static var storageNoFiles: String { L("settings.storage.storage_files_empty") }
+    static var storageDeleteFile: String { L("settings.storage.storage_delete_file") }
+    static var storageDeleteConfirm: String { L("settings.storage.storage_delete_confirm_single") }
+    static var chatStatistics: String { L("settings.account.chats.description") }
+    static var chatTotal: String { L("common.chats") }
+    static var chatDeleteOld: String { L("settings.account.chats.delete_section_title") }
+    static var preview: String { L("common.preview") }
+    static var untitled: String { L("common.untitled") }
+    static var chatDeleteConfirm: String { L("settings.account.chats.delete_confirm_desc") }
+    static var chatDeleteSuccess: String { L("settings.account.chats.delete_success") }
+    static var chatOlderThan: String { L("settings.account.chats.delete_older_than") }
+
+    static func passkeyAdded(_ date: String) -> String {
+        "\(L("settings.sessions.logged_in")): \(date)"
+    }
+
+    static func passkeyLastUsed(_ date: String) -> String {
+        "\(L("settings.sessions.logged_in")): \(date)"
+    }
+
+    static func storageFilesCount(_ count: Int) -> String {
+        LocalizationManager.shared.text("settings.storage.storage_files_count", replacements: ["count": "\(count)"])
+    }
+
+    static func storageCategory(_ category: String) -> String {
+        L("settings.storage.storage_category_\(category)")
+    }
+
+    static func chatDays(_ count: Int) -> String {
+        let key = count == 1
+            ? "settings.account.chats.delete_option_1d"
+            : "settings.account.chats.delete_option_\(count)d"
+        return L(key)
+    }
 
     // MARK: - Settings - Privacy
     static var hidePersonalData: String { L("settings.hide_personal_data") }
@@ -283,6 +391,118 @@ enum AppStrings {
     static var autoDeleteChats: String { L("settings.privacy.auto_deletion") }
     static var shareDebugLogs: String { L("settings.privacy.debug_logging_title") }
     static var never: String { L("common.never") }
+    static var none: String { L("settings.privacy.connected_accounts.none") }
+    static var privacyOpenPolicy: String { L("settings.privacy.open_privacy_policy") }
+    static var privacyAnonymization: String { L("settings.privacy.anonymization") }
+    static var privacyConnectedAccounts: String { L("settings.privacy.connected_accounts.title") }
+    static var privacyConnectedAccountsSubtitle: String { L("settings.privacy.connected_accounts.subtitle") }
+    static var privacyConnectedAccountsDescription: String { L("settings.privacy.connected_accounts.description") }
+    static var privacyConnectedAccountsEmpty: String { L("settings.privacy.connected_accounts.empty") }
+    static var privacyConnectedAccountsLoadError: String { L("settings.privacy.connected_accounts.load_error") }
+    static var privacyConnectedAccountsList: String { L("settings.privacy.connected_accounts.accounts") }
+    static var privacyProviderGoogleCalendar: String { L("settings.privacy.connected_accounts.provider_google_calendar") }
+    static var privacyCapabilityRead: String { L("settings.app_store.connected_accounts.capability_read") }
+    static var privacyCapabilityWrite: String { L("settings.app_store.connected_accounts.capability_write") }
+    static var privacyMapsLocation: String { L("settings.privacy.maps_location") }
+    static var privacyNearbyByDefault: String { L("settings.privacy.nearby_by_default") }
+    static var privacyAutoDeletion: String { L("settings.privacy.auto_deletion") }
+    static var privacyAutoDeletionChats: String { L("settings.privacy.auto_deletion.chats") }
+    static var privacyAutoDeletionChatsDescription: String { L("settings.privacy.auto_deletion.chats.description") }
+    static var privacyAutoDeletionFiles: String { L("settings.privacy.auto_deletion.files") }
+    static var privacyAutoDeletionFilesValue: String { L("settings.privacy.auto_deletion.files.value") }
+    static var privacyAutoDeletionUsageData: String { L("settings.privacy.auto_deletion.usage_data") }
+    static var privacyAutoDeletionUsageDataValue: String { L("settings.privacy.auto_deletion.usage_data.value") }
+    static var privacyAutoDeletionComplianceLogs: String { L("settings.privacy.auto_deletion.compliance_logs") }
+    static var privacyAutoDeletionComplianceLogsValue: String { L("settings.privacy.auto_deletion.compliance_logs.value") }
+    static var privacyAutoDeletionInvoices: String { L("settings.privacy.auto_deletion.invoices") }
+    static var privacyAutoDeletionInvoicesValue: String { L("settings.privacy.auto_deletion.invoices.value") }
+    static var privacyAutoDeletionComplianceNote: String { L("settings.privacy.auto_deletion.compliance_note") }
+    static var privacyAutoDeletionSelectPeriod: String { L("settings.privacy.auto_deletion.select_period") }
+    static var privacyPeriod30Days: String { L("settings.privacy.auto_deletion.period.30_days") }
+    static var privacyPeriod60Days: String { L("settings.privacy.auto_deletion.period.60_days") }
+    static var privacyPeriod90Days: String { L("settings.privacy.auto_deletion.period.90_days") }
+    static var privacyPeriod6Months: String { L("settings.privacy.auto_deletion.period.6_months") }
+    static var privacyPeriod1Year: String { L("settings.privacy.auto_deletion.period.1_year") }
+    static var privacyPeriod2Years: String { L("settings.privacy.auto_deletion.period.2_years") }
+    static var privacyPeriod5Years: String { L("settings.privacy.auto_deletion.period.5_years") }
+    static var privacyPeriodNever: String { L("settings.privacy.auto_deletion.period.never") }
+    static var privacyStabilityLogsTitle: String { L("settings.privacy.stability_logs_title") }
+    static var privacyStabilityLogsDescription: String { L("settings.privacy.stability_logs_description") }
+    static var privacyStabilityLogsToggle: String { L("settings.privacy.stability_logs_toggle_label") }
+    static var privacyStabilityLogsNote: String { L("settings.privacy.stability_logs_privacy_note") }
+    static var privacyDebugLoggingTitle: String { L("settings.privacy.debug_logging_title") }
+    static var privacyDebugLoggingDescription: String { L("settings.privacy.debug_logging_description") }
+    static var privacyDebugLoggingToggle: String { L("settings.privacy.debug_logging_toggle_label") }
+    static var privacyDebugLoggingNeverCollected: String { L("settings.privacy.debug_logging_never_collected") }
+    static var privacyShareDebugLogs: String { L("settings.privacy.share_debug_logs_title") }
+    static var privacyShareDebugLogsAdminNotice: String { L("settings.privacy.share_debug_logs_admin_notice") }
+    static var privacySaveError: String { L("settings.privacy.native.save_error") }
+    static var privacyMasterKeyUnavailable: String { L("settings.privacy.native.master_key_unavailable") }
+    static var privacyDebugSessionDescription: String { L("settings.privacy.native.debug_session.description") }
+    static var privacyDebugSessionDuration: String { L("settings.privacy.native.debug_session.duration") }
+    static var privacyDebugSessionStart: String { L("settings.privacy.native.debug_session.start") }
+    static var privacyDebugSessionActivating: String { L("settings.privacy.native.debug_session.activating") }
+    static var privacyDebugSessionActive: String { L("settings.privacy.native.debug_session.active") }
+    static var privacyDebugSessionId: String { L("settings.privacy.native.debug_session.id") }
+    static var privacyDebugSessionShareHint: String { L("settings.privacy.native.debug_session.share_hint") }
+    static var privacyDebugSessionStop: String { L("settings.privacy.native.debug_session.stop") }
+    static var privacyDebugSessionStopping: String { L("settings.privacy.native.debug_session.stopping") }
+    static var privacyDebugSessionNoExpiry: String { L("settings.privacy.native.debug_session.no_expiry") }
+    static var privacyDebugSessionError: String { L("settings.privacy.native.debug_session.error") }
+    static var privacyDebugDuration5Minutes: String { L("settings.privacy.native.debug_session.duration_5m") }
+    static var privacyDebugDuration1Hour: String { L("settings.privacy.native.debug_session.duration_1h") }
+    static var privacyDebugDuration3Days: String { L("settings.privacy.native.debug_session.duration_3d") }
+    static var privacyDebugDuration7Days: String { L("settings.privacy.native.debug_session.duration_7d") }
+    static var privacyDebugDurationNoLimit: String { L("settings.privacy.native.debug_session.duration_none") }
+    static func privacyDebugSessionMinutesRemaining(_ count: Int) -> String {
+        LocalizationManager.shared.text("settings.privacy.native.debug_session.minutes_remaining", replacements: ["count": "\(count)"])
+    }
+    static func privacyDebugSessionHoursRemaining(_ count: Int) -> String {
+        LocalizationManager.shared.text("settings.privacy.native.debug_session.hours_remaining", replacements: ["count": "\(count)"])
+    }
+    static func privacyDebugSessionDaysRemaining(_ count: Int) -> String {
+        LocalizationManager.shared.text("settings.privacy.native.debug_session.days_remaining", replacements: ["count": "\(count)"])
+    }
+
+    // MARK: - Settings - Modes
+    static var learningModeActive: String { L("settings.learning_mode_active") }
+    static var learningModeInactive: String { L("settings.learning_mode_inactive") }
+    static var learningModeLoadError: String { L("settings.learning_mode_load_error") }
+    static var learningModeSaveError: String { L("settings.learning_mode_save_error") }
+    static var learningModeActiveDetail: String { L("settings.learning_mode_active_detail") }
+    static var learningModeInactiveDetail: String { L("settings.learning_mode_inactive_detail") }
+    static var learningModeGuestActiveDetail: String { L("settings.learning_mode_guest_active_detail") }
+    static var learningModeGuestInactiveDetail: String { L("settings.learning_mode_guest_inactive_detail") }
+    static var learningModeAgeGroup: String { L("settings.learning_mode_age_group_label") }
+    static var learningModeAgeUnder10: String { L("settings.learning_mode_age_under_10") }
+    static var learningModeAge10To12: String { L("settings.learning_mode_age_10_12") }
+    static var learningModeAge13To15: String { L("settings.learning_mode_age_13_15") }
+    static var learningModeAge16To18: String { L("settings.learning_mode_age_16_18") }
+    static var learningModeAgeAdult: String { L("settings.learning_mode_age_adult") }
+    static var learningModeEnablePasscodeLabel: String { L("settings.learning_mode_enable_passcode_label") }
+    static var learningModeDisablePasscodeLabel: String { L("settings.learning_mode_disable_passcode_label") }
+    static var learningModeEnablePasscodePlaceholder: String { L("settings.learning_mode_enable_passcode_placeholder") }
+    static var learningModeDisablePasscodePlaceholder: String { L("settings.learning_mode_disable_passcode_placeholder") }
+    static var learningModeEnableButton: String { L("settings.learning_mode_enable_button") }
+    static var learningModeDisableButton: String { L("settings.learning_mode_disable_button") }
+    static var learningModeLocked: String { L("settings.learning_mode_locked") }
+    static var learningModeShortenedNotice: String { L("learning_mode_shortened_notice") }
+    static var incognitoExplainerDescription: String { L("settings.incognito_explainer_description") }
+    static var incognitoExplainerDeviceSpecific: String { L("settings.incognito_explainer_feature_device_specific") }
+    static var incognitoExplainerNotStored: String { L("settings.incognito_explainer_feature_not_stored") }
+    static var incognitoExplainerSessionOnly: String { L("settings.incognito_explainer_feature_session_only") }
+    static var incognitoExplainerNoRecovery: String { L("settings.incognito_explainer_feature_no_recovery") }
+    static var incognitoExplainerWarningTitle: String { L("settings.incognito_explainer_warning_title") }
+    static var incognitoExplainerWarningProviders: String { L("settings.incognito_explainer_warning_providers") }
+    static var incognitoExplainerWarningPersonalInfo: String { L("settings.incognito_explainer_warning_personal_info") }
+    static var incognitoExplainerUnderstood: String { L("settings.incognito_explainer_understood") }
+
+    static func learningModeAttemptsRemaining(_ count: Int) -> String {
+        LocalizationManager.shared.text(
+            "settings.learning_mode_attempts_remaining",
+            replacements: ["count": "\(count)"]
+        )
+    }
 
     // MARK: - Settings - Billing
     static var billingCredits: String { L("settings.billing.credits") }
@@ -313,6 +533,59 @@ enum AppStrings {
     }
 
     static var referralConditions: String { L("settings.billing.referral_conditions") }
+    static var billingSupport: String { L("settings.billing.apple_support") }
+    static var billingUsageDetails: String { L("settings.billing.apple_usage_details") }
+    static var billingCreditPackages: String { L("settings.billing.credit_packages") }
+    static var billingLoadingProducts: String { L("settings.billing.loading_products") }
+    static var billingProcessingPurchase: String { L("settings.billing.processing_purchase") }
+    static var billingVerifyingPurchase: String { L("settings.billing.verifying_with_server") }
+    static var billingPurchaseComplete: String { L("settings.billing.purchase_complete") }
+    static var billingRestorePurchases: String { L("settings.billing.restore_purchases") }
+    static var billingLowBalanceAutoTopUp: String { L("settings.billing.low_balance_auto_topup") }
+    static var billingLowBalanceDescription: String { L("settings.billing.low_balance_description") }
+    static var billingWhenBelow: String { L("settings.billing.when_below") }
+    static var billingTopUpPackage: String { L("settings.billing.topup_package") }
+    static var billingNoInvoices: String { L("settings.billing.no_invoices") }
+    static var billingDownloadInvoice: String { L("settings.billing.invoices_download_invoice") }
+    static var billingDownloadCreditNote: String { L("settings.billing.invoices_download_credit_note") }
+    static var billingExportUsage: String { L("settings.usage.export") }
+    static var billingUsageOverview: String { L("settings.usage.tab_overview") }
+    static var billingUsageChats: String { L("settings.usage.tab_chats") }
+    static var billingUsageApps: String { L("settings.usage.tab_apps") }
+    static var billingUsageAPI: String { L("settings.usage.tab_api") }
+    static var billingRedeemGiftCard: String { L("settings.gift_cards.redeem") }
+    static var billingPurchaseGiftCard: String { L("settings.gift_cards.buy") }
+    static var billingGiftCardCode: String { L("settings.gift_cards.code") }
+    static var billingRedeemedGiftCards: String { L("settings.gift_cards.redeemed") }
+    static var billingPurchasedGiftCards: String { L("settings.billing.apple_purchased_gift_cards") }
+    static var billingNoGiftCards: String { L("settings.billing.apple_no_gift_cards") }
+    static var billingGiftCardPurchaseUnavailable: String { L("settings.billing.apple_gift_card_purchase_unavailable") }
+    static var billingSupportContribution: String { L("settings.support.one_time") }
+    static var billingSupportAmount: String { L("settings.billing.apple_support_amount") }
+    static var billingCreateBankTransfer: String { L("settings.billing.apple_create_bank_transfer") }
+    static var billingBankTransferDetails: String { L("settings.billing.bank_transfer_details") }
+    static var billingTransferAmount: String { L("settings.billing.bank_transfer_amount") }
+    static var billingTransferReference: String { L("settings.billing.bank_transfer_reference") }
+    static var billingTransferIBAN: String { L("settings.billing.bank_transfer_iban") }
+    static var billingTransferBIC: String { L("settings.billing.bank_transfer_bic") }
+    static var billingInvalidSupportAmount: String { L("settings.billing.apple_invalid_support_amount") }
+    static var billingFulfillmentDelayed: String { L("settings.billing.apple_fulfillment_delayed") }
+    static var billingProductNotFound: String { L("settings.billing.apple_product_not_found") }
+    static var billingUnknownUsage: String { L("settings.usage.unknown_activity") }
+
+    static func billingCreditsAdded(_ credits: Int) -> String {
+        LocalizationManager.shared.text(
+            "settings.billing.apple_credits_count",
+            replacements: ["credits": credits.formatted()]
+        )
+    }
+
+    static func billingBankTransferReference(_ reference: String) -> String {
+        LocalizationManager.shared.text(
+            "settings.billing.apple_bank_transfer_reference",
+            replacements: ["reference": reference]
+        )
+    }
 
     // MARK: - Settings - Report issue
     static var reportIssueDescription: String { L("settings.report_issue.description") }
@@ -360,6 +633,9 @@ enum AppStrings {
     static var apiKeys: String { L("settings.api_keys") }
     static var devices: String { L("settings.devices") }
     static var webhooks: String { L("settings.developers_webhooks") }
+    static var developerDeviceAccessTypeRestApi: String { L("settings.developers_devices_access_type_rest_api") }
+    static var developerDeviceAccessTypeCli: String { L("settings.developers_devices_access_type_cli") }
+    static var developerDeviceAccessTypeSdk: String { L("settings.developers_devices_access_type_sdk") }
 
     // MARK: - Settings - About
     static var privacyPolicy: String { L("legal.privacy.title") }
@@ -434,6 +710,19 @@ enum AppStrings {
     }
     static var pairApproveWatchLogin: String { L("settings.sessions.pair_approve_watch_login") }
     static var pairWatchLoginApproved: String { L("settings.sessions.pair_watch_login_approved") }
+    static var pairScanDescription: String { L("settings.sessions.pair_initiate_description") }
+    static var pairingQRCode: String { L("settings.sessions.pair_show_qr_code") }
+    static var devicePaired: String { L("settings.sessions.pair_complete_success") }
+    static var authorizeDevice: String { L("settings.sessions.pair_confirm_title") }
+    static var deviceWantsLogin: String { L("settings.sessions.pair_confirm_requesting_device") }
+    static var device: String { L("settings.devices") }
+    static var location: String { L("settings.sessions.unknown_location") }
+    static var deny: String { L("settings.sessions.pair_confirm_deny") }
+    static var allow: String { L("settings.sessions.pair_confirm_allow") }
+    static var enterThisPin: String { L("settings.sessions.pair_confirm_show_pin") }
+    static var pairPinExpires: String { L("settings.sessions.pair_confirm_pin_hint") }
+    static var confirmPairing: String { L("settings.sessions.pair_confirm_title") }
+    static var pairingCode: String { L("settings.sessions.pair_code_label") }
     // Web currently renders this label as literal copy in SettingsSessionsPairInitiate.svelte.
     static var pairScanCode: String { "Scan code:" }
     static var pairEnterPinTitle: String { L("settings.sessions.pair_enter_pin_title") }
@@ -456,13 +745,17 @@ enum AppStrings {
     static var recordAudio: String { L("enter_message.attachments.record_audio") }
     static var pressAndHoldToRecord: String { L("enter_message.record_audio.press_and_hold_reminder") }
     static var releaseToFinishRecording: String { L("enter_message.record_audio.release_to_finish") }
+    static var pressEnterToFinishRecording: String { L("enter_message.record_audio.press_enter_to_finish") }
     static var slideLeftToCancelRecording: String { L("enter_message.record_audio.slide_left_to_cancel") }
     static var pressEscToCancelRecording: String { L("enter_message.record_audio.press_esc_to_cancel") }
+    static var finishRecording: String { L("enter_message.record_audio.finish") }
+    static var cancelRecording: String { L("enter_message.record_audio.cancel") }
     static var microphoneBlocked: String { L("enter_message.record_audio.microphone_blocked") }
     static var allowMicrophoneAccess: String { L("enter_message.record_audio.allow_microphone_access") }
     static var getLocation: String { L("enter_message.location.get_location") }
     static var selectedLocation: String { L("enter_message.location.selected_location") }
     static var locationSelect: String { L("enter_message.location.select") }
+    static var preciseLocation: String { L("enter_message.location.precise") }
     static var enterMessagePlaceholder: String { L("enter_message.placeholder.touch") }
     static var waitingForUpload: String { L("enter_message.waiting_for_upload") }
     static var uploadProgressProcessing: String { L("enter_message.upload_progress.processing") }
@@ -481,6 +774,9 @@ enum AppStrings {
     // MARK: - Embeds
     static var voiceRecording: String { L("embed.voice_recording") }
     static var transcription: String { L("embed.transcription") }
+    static var play: String { L("audio.play") }
+    static var pause: String { L("audio.pause") }
+    static var locationNearby: String { L("embeds.maps_location.nearby") }
     static var openVideo: String { L("embed.open_video") }
     static var openInBrowser: String { L("embed.open_in_browser") }
     static var loadPDF: String { L("embed.load_pdf") }
@@ -515,9 +811,60 @@ enum AppStrings {
     static var codeRunShowOutput: String { L("app_skills.code.run.show_output") }
     static var codeRunHideOutput: String { L("app_skills.code.run.hide_output") }
     static var codeRunRequiredFile: String { L("app_skills.code.run.required_file") }
+    static var pcbSchematicTitle: String { L("embeds.electronics.pcb_schematic.title") }
+    static var pcbSchematicPrepareFiles: String { L("embeds.electronics.pcb_schematic.prepare_files") }
+    static var pcbSchematicArtifacts: String { L("embeds.electronics.pcb_schematic.artifacts") }
+    static var pcbSchematicLogs: String { L("embeds.electronics.pcb_schematic.logs") }
+    static var pcbSchematicSafetyNote: String { L("embeds.electronics.pcb_schematic.safety_note") }
     static var reportBadAnswer: String { L("chat.report_bad_answer.button_text") }
     static var fitnessSearchLocations: String { L("app_skills.fitness.search_locations") }
     static var fitnessSearchClasses: String { L("app_skills.fitness.search_classes") }
+    static var businessCompanyFinancials: String { L("app_skills.business.company_financials") }
+    static var models3dResultTitle: String { L("embeds.models3d.search.result_title") }
+    static var models3dFree: String { L("embeds.models3d.search.free") }
+    static var models3dNoResults: String { L("embeds.models3d.search.no_results") }
+    static var models3dOpenToView: String { L("embeds.models3d.search.open_to_view") }
+
+    static func models3dResultsCount(_ count: Int) -> String {
+        LocalizationManager.shared.text("embeds.models3d.search.results_count", replacements: ["count": "\(count)"])
+    }
+
+    static func models3dFilesCount(_ count: Int) -> String {
+        LocalizationManager.shared.text("embeds.models3d.search.files_count", replacements: ["count": "\(count)"])
+    }
+
+    static func models3dOpenOnProvider(_ provider: String) -> String {
+        LocalizationManager.shared.text("embeds.models3d.search.open_on_provider", replacements: ["provider": provider])
+    }
+    static var businessFinancialsNoResults: String { L("embeds.business.company_financials.no_results") }
+    static var businessFinancialsOpenToView: String { L("embeds.business.company_financials.open_to_view") }
+    static var businessFinancialResultTitle: String { L("embeds.business.company_financials.result_title") }
+    static var businessFinancialRevenue: String { L("embeds.business.company_financials.revenue") }
+    static var businessFinancialGrossProfit: String { L("embeds.business.company_financials.gross_profit") }
+    static var businessFinancialOperatingIncome: String { L("embeds.business.company_financials.operating_income") }
+    static var businessFinancialNetIncome: String { L("embeds.business.company_financials.net_income") }
+    static var businessFinancialOperatingCashFlow: String { L("embeds.business.company_financials.operating_cash_flow") }
+    static var businessFinancialAssets: String { L("embeds.business.company_financials.assets") }
+    static var businessFinancialLiabilities: String { L("embeds.business.company_financials.liabilities") }
+    static var businessFinancialEquity: String { L("embeds.business.company_financials.equity") }
+    static var businessFinancialFiled: String { L("embeds.business.company_financials.filed") }
+    static var businessFinancialAnnual: String { L("embeds.business.company_financials.annual") }
+    static var businessFinancialQuarterly: String { L("embeds.business.company_financials.quarterly") }
+    static var businessFinancialPeriod: String { L("embeds.business.company_financials.period") }
+    static var businessFinancialMetrics: String { L("embeds.business.company_financials.metrics") }
+    static var businessFinancialNoMetrics: String { L("embeds.business.company_financials.no_metrics") }
+    static var businessFinancialSource: String { L("embeds.business.company_financials.source") }
+    static var businessFinancialSecFiling: String { L("embeds.business.company_financials.sec_filing") }
+    static var businessFinancialOpenFiling: String { L("embeds.business.company_financials.open_filing") }
+    static var businessFinancialNotes: String { L("embeds.business.company_financials.notes") }
+    static var businessFinancialNotAvailable: String { L("embeds.business.company_financials.not_available") }
+
+    static func businessFinancialsResultsCount(_ count: Int) -> String {
+        LocalizationManager.shared.text(
+            "embeds.business.company_financials.results_count",
+            replacements: ["count": "\(count)"]
+        )
+    }
 
     static func openOnProvider(_ provider: String) -> String {
         LocalizationManager.shared.text("embeds.open_on_provider", replacements: ["provider": provider])
@@ -548,6 +895,11 @@ enum AppStrings {
     static var zoomIn: String { L("sketchview.zoom_in") }
     static var zoomOut: String { L("sketchview.zoom_out") }
     static var resetZoom: String { L("sketchview.reset_zoom") }
+    static var sketchPen: String { L("sketchview.pen") }
+    static var sketchEraser: String { L("sketchview.eraser") }
+    static var sketchUndo: String { L("sketchview.undo") }
+    static var sketchClear: String { L("sketchview.clear") }
+    static var sketchDone: String { L("sketchview.done") }
     static var mindMap: String { L("embeds.mindmaps.mindmap") }
     static var mindMapInvalidJSON: String { L("embeds.mindmaps.invalid_json") }
     static var mindMapInvalidContent: String { L("embeds.mindmaps.invalid_content") }
@@ -599,7 +951,32 @@ enum AppStrings {
     static var send: String { L("common.send") }
     static var share: String { L("common.share") }
     static var shareChat: String { L("settings.share.share_chat") }
+    static var shareEmbed: String { L("settings.share.share_embed") }
     static var sharingChatStatus: String { L("settings.share.sharing_chat_status") }
+    static var sharingEmbedStatus: String { L("settings.share.sharing_embed_status") }
+    static var shareDescription: String { L("settings.share.share_description") }
+    static var shareEmbedDescription: String { L("settings.share.share_embed_description") }
+    static var optionalShareSettings: String { L("settings.share.optional_settings") }
+    static var sharePasswordProtection: String { L("settings.share.password_protection") }
+    static var sharePasswordPlaceholder: String { L("settings.share.password_placeholder") }
+    static var shareTimeLimit: String { L("settings.share.time_limit") }
+    static var shareNoExpiration: String { L("settings.share.no_expiration") }
+    static var shareOneMinute: String { L("settings.share.one_minute") }
+    static var shareOneHour: String { L("settings.share.one_hour") }
+    static var shareTwentyFourHours: String { L("settings.share.twenty_four_hours") }
+    static var shareSevenDays: String { L("settings.share.seven_days") }
+    static var shareFourteenDays: String { L("settings.share.fourteen_days") }
+    static var shareThirtyDays: String { L("settings.share.thirty_days") }
+    static var shareNinetyDays: String { L("settings.share.ninety_days") }
+    static var shareCommunity: String { L("settings.share.share_with_community") }
+    static var shareHighlights: String { L("settings.share.include_highlights") }
+    static var shareSensitiveData: String { L("settings.share.include_sensitive_data") }
+    static var shareQRCode: String { L("settings.share.qr_code") }
+    static var shareChangeSettings: String { L("settings.share.change_settings") }
+    static var shareClickToCopy: String { L("settings.share.click_to_copy") }
+    static var shareLinkCopied: String { L("settings.share.link_copied") }
+    static var shareUnshare: String { L("settings.share.unshare") }
+    static var shareExpirationPrefix: String { L("settings.share.link_will_expire_in") }
     static var pin: String { L("common.pin") }
     static var unpin: String { L("common.unpin") }
     static var archive: String { L("common.archive") }
@@ -610,6 +987,7 @@ enum AppStrings {
     // MARK: - Chat banner (ChatHeader.svelte)
     static var creatingNewChat: String { L("chat.creating_new_chat") }
     static var exampleChatBadge: String { L("chat.header.example_chat") }
+    static var draftBadge: String { L("enter_message.draft") }
     static var chatHeaderJustNow: String { L("chat.header.just_now") }
     static var incognitoModeActive: String { L("settings.incognito_mode_active") }
 

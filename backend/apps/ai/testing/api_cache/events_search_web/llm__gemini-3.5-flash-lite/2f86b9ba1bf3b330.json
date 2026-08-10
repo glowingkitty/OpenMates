@@ -1,0 +1,77 @@
+{
+  "fingerprint": "2f86b9ba1bf3b330",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "events_search_web",
+  "recorded_at": "2026-08-02T14:43:33.573270+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 3,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[10]:\n  - id: \"2461466\"\n    provider: resident_advisor\n    title: khisdapaze Open Air\n    description: \"Lineup: Christa K, Cristalyne, Ini Lamborghini, Meta Chrom, Mimimosa\\nGenres: Techno, Hou..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "```embeds_results_view\ntitle: Berlin Tech Events (June 20-21 & June 27-28, 2026)\nembeds: khisdapaze-open-air-agv, oxi-groove-affair-lur, hardsleeper-PJN, else-x-home-Mei, free-entry-dayrave-eWV, salon-x-vollkommen-Ccd, woman-of-house-qXs, vollkommen-the-loft-Cen, kater-x-blurry-F4T, senso-nacht-TzV\n```\n\nI have successfully performed the two separate event searches for Berlin matching your specified date ranges. Above are the search result cards for both weekends.\n\nWhat would you like to explore next?\n1. Filter these events by specific genres or venues?\n2. Look into more detailed information for any of the listed events?",
+    "chunk_count": 11,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "```embed"
+      },
+      {
+        "kind": "text",
+        "value": "s_results_view\ntitle: Berlin Tech Events (June 20-"
+      },
+      {
+        "kind": "text",
+        "value": "21 & June 27-28, 2026)\nembeds: khisdapaze-open-"
+      },
+      {
+        "kind": "text",
+        "value": "air-agv, oxi-groove-affair-lur, hardsleeper-PJN, else-x-home"
+      },
+      {
+        "kind": "text",
+        "value": "-Mei, free-entry-dayrave-eWV, salon-x-vollkommen-Ccd, woman-of-"
+      },
+      {
+        "kind": "text",
+        "value": "house-qXs, vollkommen-the-loft-Cen, kater-x-blurry-F4"
+      },
+      {
+        "kind": "text",
+        "value": "T, senso-nacht-TzV\n```\n\nI have successfully performed the two separate event searches for Berlin matching"
+      },
+      {
+        "kind": "text",
+        "value": " your specified date ranges. Above are the search result cards for both weekends.\n\nWhat would you like to explore next?\n"
+      },
+      {
+        "kind": "text",
+        "value": "1. Filter these events by specific genres or venues?\n2. Look into more detailed information for any of the listed"
+      },
+      {
+        "kind": "text",
+        "value": " events?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 20648,
+          "candidates_token_count": 203,
+          "total_token_count": 20851,
+          "user_input_tokens": 5350,
+          "system_prompt_tokens": 13337
+        }
+      }
+    ]
+  }
+}

@@ -59,26 +59,36 @@ struct EmbedContentView: View {
     }
 
     var body: some View {
-        Group {
+        VStack(alignment: .leading, spacing: .spacing3) {
             if shouldUseCompositeRenderer {
                 AppSkillUseRenderer(embed: embed, allEmbedRecords: allEmbedRecords, mode: mode, onOpenEmbed: onOpenEmbed)
             } else {
             switch embedType {
             // Web
-            case .webSearch, .newsSearch:
+            case .webSearch:
+                WebSearchEmbedRenderer(
+                    model: SearchSkillPreviewModel(embed: embed, allEmbedRecords: allEmbedRecords),
+                    mode: mode,
+                    onOpenEmbed: onOpenEmbed
+                )
+            case .newsSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "results")
             case .webWebsite:
                 WebsiteEmbedRenderer(data: rawData, mode: mode)
             case .webRead:
                 WebReadEmbedRenderer(data: rawData, mode: mode)
+            case .businessCompanyFinancialResult:
+                BusinessCompanyFinancialResultEmbedRenderer(embed: embed, mode: mode)
             case .wiki:
                 WikiRenderer(data: rawData, mode: mode)
 
             // Code
             case .codeRepoSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "repositories")
-            case .codeRepo, .codeApplication:
-                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+            case .codeRepo:
+                CodeRepoEmbedRenderer(data: rawData, mode: mode)
+            case .codeApplication:
+                ProductSummaryEmbedRenderer(data: rawData, mode: mode, type: embedType, appId: "code")
             case .codeCode:
                 CodeEmbedRenderer(
                     data: rawData,
@@ -91,6 +101,12 @@ struct EmbedContentView: View {
                 )
             case .codeGetDocs:
                 CodeGetDocsEmbedRenderer(data: rawData, mode: mode)
+
+            // Design
+            case .designSearchIcons:
+                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "icons")
+            case .designIconResult:
+                ProductSummaryEmbedRenderer(data: rawData, mode: mode, type: embedType, appId: "design")
 
             // Documents
             case .docsDoc:
@@ -106,11 +122,21 @@ struct EmbedContentView: View {
             case .mindmapsMindmap:
                 MindMapEmbedRenderer(data: rawData, mode: mode)
 
+            // 3D Models
+            case .models3dSearch:
+                Models3DSearchParentRenderer(embed: embed, mode: mode, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+            case .models3dGenerate:
+                Models3DGenerateEmbedRenderer(embed: embed, mode: mode)
+            case .models3dModelResult:
+                Models3DResultEmbedRenderer(embed: embed, mode: mode)
+
             // Electronics
             case .electronicsSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "components")
+            case .electronicsPcbSchematic:
+                PcbSchematicEmbedRenderer(data: rawData, mode: mode)
             case .electronicsComponent:
-                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+                ElectronicsComponentEmbedRenderer(data: rawData, mode: mode)
 
             // Videos
             case .videosSearch:
@@ -120,7 +146,7 @@ struct EmbedContentView: View {
             case .videosTranscript:
                 TranscriptRenderer(data: rawData, mode: mode)
             case .videosGenerate:
-                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+                VideoGenerateEmbedRenderer(data: rawData, mode: mode)
             case .videosCreate:
                 RemotionVideoCreateRenderer(embedId: embed.id, data: rawData, mode: mode)
 
@@ -174,6 +200,10 @@ struct EmbedContentView: View {
             case .eventsEvent:
                 EventEmbedRenderer(data: rawData, mode: mode)
 
+            // Fitness
+            case .fitnessLocation, .fitnessClass:
+                FitnessResultEmbedRenderer(data: rawData, mode: mode)
+
             // Health
             case .healthSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "appointments")
@@ -210,21 +240,37 @@ struct EmbedContentView: View {
             case .mathCalculate:
                 MathCalculateRenderer(data: rawData, mode: mode)
 
+            // Finance
+            case .financeCheckAccounts:
+                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "accounts")
+
             // Music
             case .musicGenerate:
-                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+                MusicGenerateEmbedRenderer(data: rawData, mode: mode)
 
             // Social media
             case .socialMediaGetPosts, .socialMediaSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "posts")
             case .socialMediaPost:
-                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+                SocialMediaPostEmbedRenderer(data: rawData, mode: mode)
+
+            // Tasks
+            case .tasksCreate, .tasksSearch:
+                TaskWorkflowParentRenderer(embed: embed, kind: .task, mode: mode, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+            case .tasksTask:
+                TaskWorkflowEmbedRenderer(embed: embed, kind: .task, mode: mode)
 
             // Weather
             case .weatherForecast:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "days")
             case .weatherDay:
-                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+                WeatherDayEmbedRenderer(data: rawData, mode: mode)
+
+            // Workflows
+            case .workflowsCreateOrModify, .workflowsSearch:
+                TaskWorkflowParentRenderer(embed: embed, kind: .workflow, mode: mode, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+            case .workflowsWorkflow:
+                TaskWorkflowEmbedRenderer(embed: embed, kind: .workflow, mode: mode)
 
             // Audio
             case .recording:
@@ -245,6 +291,13 @@ struct EmbedContentView: View {
             default:
                 GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
             }
+            }
+
+            if rawData?["learning_mode_shortened"]?.value as? Bool == true {
+                Text(AppStrings.learningModeShortenedNotice)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .accessibilityIdentifier("learning-mode-shortened-notice")
             }
         }
     }

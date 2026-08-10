@@ -295,7 +295,13 @@ class FlixProvider(BaseTransportProvider):
         max_stops: Optional[int] = None,
         include_airlines: Optional[List[str]] = None,
         exclude_airlines: Optional[List[str]] = None,
+        owned_passes: Optional[List[str]] = None,
+        pass_only: bool = False,
+        rail_products: Optional[List[str]] = None,
+        min_transfer_minutes: Optional[int] = None,
+        cache_service: Any = None,
     ) -> List[ConnectionResult]:
+        del owned_passes, pass_only, rail_products, min_transfer_minutes, cache_service
         train_only = self.supported_methods == {"train"}
         wanted_methods = self.supported_methods
         all_connections: List[ConnectionResult] = []

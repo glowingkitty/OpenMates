@@ -12,6 +12,7 @@
 	import { tooltip } from '../../actions/tooltip';
 	import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
 	import { chatSyncService } from '../../services/chatSyncService';
+	import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
 	import { sortChats } from './utils/chatSortUtils'; // Refactored sorting logic
 	import { groupChats, getLocalizedGroupTitle } from './utils/chatGroupUtils'; // Refactored grouping logic
 	import { locale as svelteLocaleStore } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle and reactivity in visiblePublicChats
@@ -20,7 +21,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getRecentExampleChats, getExampleSubChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
+	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, isExampleChat, getRecentExampleChats, getAllExampleChats, getExampleSubChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts, clearAllSessionStorageDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
@@ -55,6 +56,7 @@ let updateChatListDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 // 300ms debounce prevents redundant DB reads during rapid sync events mid-session.
 // On cold boot (initial mount) the skipDebounce flag bypasses this for instant display.
 const UPDATE_DEBOUNCE_MS = 300;
+let activeChatRecoveryInFlightForId: string | null = null;
 
 // --- Microtask coalescing for chatUpdated fast-path ---
 // When many chats receive their first WS message in a burst (e.g. opening the sidebar
@@ -65,6 +67,23 @@ const UPDATE_DEBOUNCE_MS = 300;
 // microtask checkpoint via Promise.resolve().then(). All events in the same JS task are
 // coalesced into a single Svelte reactive update.
 let _chatUpdatedFlushPending = false;
+let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
+const LAST_ACTIVE_CHAT_FOR_DISPLAY_GLOBAL_KEY = '__openmates_last_active_chat_for_display__';
+
+function getLastActiveChatIdForDisplay(): string | null {
+	const globalScope = globalThis as typeof globalThis & Record<string, string | undefined>;
+	return globalScope[LAST_ACTIVE_CHAT_FOR_DISPLAY_GLOBAL_KEY] ?? null;
+}
+
+function setLastActiveChatIdForDisplay(chatId: string | null): void {
+	const globalScope = globalThis as typeof globalThis & Record<string, string | undefined>;
+	if (chatId) {
+		globalScope[LAST_ACTIVE_CHAT_FOR_DISPLAY_GLOBAL_KEY] = chatId;
+	} else {
+		delete globalScope[LAST_ACTIVE_CHAT_FOR_DISPLAY_GLOBAL_KEY];
+	}
+	lastActiveChatIdForDisplay = chatId;
+}
 
 	// --- Component State ---
 	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
@@ -73,9 +92,70 @@ let _chatUpdatedFlushPending = false;
 	let syncing = $derived($authStore.isAuthenticated && !$phasedSyncState.initialSyncCompleted);
 	let syncComplete = $state(false); // Shows "Sync complete" message briefly
 	let selectedChatId: string | null = $state(null); // ID of the currently selected chat (synced with activeChatStore)
+	let lastActiveChatIdForDisplay: string | null = $state(getLastActiveChatIdForDisplay()); // Keeps the last active chat visible after returning to new-chat mode
 	let _chatIdToSelectAfterUpdate: string | null = $state(null); // Helper to select a chat after list updates
 	let currentServerSortOrder: string[] = $state([]); // Server's preferred sort order for chats
 	let sessionStorageDraftUpdateTrigger = $state(0); // Trigger for reactivity when sessionStorage drafts change
+
+	function upsertLocalChatList(chat: ChatType): void {
+		if (chatListCache.isUpdateInProgress()) {
+			_chatUpsertsDuringDbRead.set(chat.chat_id, chat);
+		}
+		const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === chat.chat_id);
+		if (chatIndex !== -1) {
+			allChatsFromDB[chatIndex] = chat;
+			allChatsFromDB = [...allChatsFromDB];
+			return;
+		}
+		allChatsFromDB = [...allChatsFromDB, chat];
+	}
+
+	function mergeDbSnapshotWithInFlightUpserts(chatsFromDb: ChatType[]): ChatType[] {
+		if (_chatUpsertsDuringDbRead.size === 0) {
+			return chatsFromDb;
+		}
+
+		const mergedById = new Map(chatsFromDb.map(chat => [chat.chat_id, chat]));
+		for (const [chatId, chat] of Array.from(_chatUpsertsDuringDbRead.entries())) {
+			mergedById.set(chatId, chat);
+		}
+		_chatUpsertsDuringDbRead = new Map();
+		return Array.from(mergedById.values());
+	}
+
+	function applyPendingCacheUpsertsToLocalList(): void {
+		const pendingChats = chatListCache.getPendingUpserts();
+		if (pendingChats.length === 0) return;
+
+		for (const chat of pendingChats) {
+			upsertLocalChatList(chat);
+		}
+		console.debug(`[Chats] Applied ${pendingChats.length} pending chat-list upsert(s) to local state`);
+	}
+
+	async function recoverActiveChatForDisplay(chatId: string): Promise<void> {
+		if (activeChatRecoveryInFlightForId === chatId) return;
+		activeChatRecoveryInFlightForId = chatId;
+
+		try {
+			const recoveredChat = await chatDB.getChat(chatId) ?? chatListCache.getPendingOrCachedChat(chatId);
+			if (!recoveredChat) {
+				console.debug('[Chats] Active chat missing from limited list and not found in cache/IDB:', chatId);
+				return;
+			}
+			if (!$authStore.isAuthenticated) return;
+
+			upsertLocalChatList(recoveredChat);
+			chatListCache.upsertChat(recoveredChat);
+			console.debug('[Chats] Recovered active chat for sidebar display:', chatId);
+		} catch (error) {
+			console.warn('[Chats] Failed to recover active chat for sidebar display:', chatId, error);
+		} finally {
+			if (activeChatRecoveryInFlightForId === chatId) {
+				activeChatRecoveryInFlightForId = null;
+			}
+		}
+	}
 
 	// Phased Loading State — progressive display with incremental pagination:
 	// Display starts at 11 user chats, each "Show more" click reveals 20 more.
@@ -167,8 +247,10 @@ let _chatUpdatedFlushPending = false;
 		if (activeChat && activeChat !== selectedChatId) {
 			console.debug('[Chats] Syncing selectedChatId with activeChatStore:', activeChat);
 			selectedChatId = activeChat;
+			setLastActiveChatIdForDisplay(activeChat);
 		} else if (activeChat && activeChat === selectedChatId) {
 			console.debug('[Chats] selectedChatId already matches activeChat:', activeChat);
+			setLastActiveChatIdForDisplay(activeChat);
 		} else if (!activeChat) {
 			console.debug('[Chats] activeChat is null/empty');
 		}
@@ -264,6 +346,29 @@ let _chatUpdatedFlushPending = false;
 
 	function getHiddenPublicChatIds(): string[] {
 		return $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
+	}
+
+	function uniqueChatsById(chats: ChatType[]): ChatType[] {
+		const seenIds = new Set<string>();
+		const uniqueChats: ChatType[] = [];
+		for (const chat of chats) {
+			if (seenIds.has(chat.chat_id)) continue;
+			seenIds.add(chat.chat_id);
+			uniqueChats.push(chat);
+		}
+		return uniqueChats;
+	}
+
+	function getSearchableChats(): ChatType[] {
+		const hiddenIds = getHiddenPublicChatIds();
+		const allExampleChats = getAllExampleChats()
+			.filter(chat => !hiddenIds.includes(chat.chat_id))
+			.map(chat => ({
+				...chat,
+				group_key: 'examples'
+			}));
+
+		return uniqueChatsById([...allChats, ...allExampleChats]);
 	}
 
 	// Get filtered public chats (intro + example chats + legal) - exclude hidden ones for authenticated users
@@ -527,6 +632,17 @@ let _chatUpdatedFlushPending = false;
 		selectedChatId ? (allChats.find(c => c.chat_id === selectedChatId) ?? null) : null
 	);
 
+	$effect(() => {
+		const chatIdToKeepVisible = selectedChatId ?? lastActiveChatIdForDisplay;
+		if (!$authStore.isAuthenticated || !chatIdToKeepVisible || isPublicChat(chatIdToKeepVisible)) return;
+		if (allChatsFromDB.some(chat => chat.chat_id === chatIdToKeepVisible)) return;
+
+		// The cold-boot/sidebar-remount path reads a limited IDB slice for fast first paint.
+		// Draft-only chats can be active but outside that message-timestamp slice, so recover
+		// just the active row instead of expanding the whole list.
+		void recoverActiveChatForDisplay(chatIdToKeepVisible);
+	});
+
 	// Decrypted metadata for the sticky active-chat pin (title, category, icon).
 	// Mirrors what Chat.svelte does via chatMetadataCache — async, so stored in $state.
 	let activePinTitle: string | null = $state(null);
@@ -673,10 +789,11 @@ let _chatUpdatedFlushPending = false;
 		}
 
 		const visibleUserChats = userChats.slice(0, visibleUserChatLimit);
-		if (selectedChatId && !visibleUserChats.some(chat => chat.chat_id === selectedChatId)) {
-			const activeUserChat = userChats.find(chat => chat.chat_id === selectedChatId);
+		const chatIdToKeepVisible = selectedChatId ?? lastActiveChatIdForDisplay;
+		if (chatIdToKeepVisible && !visibleUserChats.some(chat => chat.chat_id === chatIdToKeepVisible)) {
+			const activeUserChat = userChats.find(chat => chat.chat_id === chatIdToKeepVisible);
 			if (activeUserChat) {
-				// Keep the active row mounted even when it is outside the initial recent-chat window.
+				// Keep the active or recently-active row mounted even when it is outside the initial recent-chat window.
 				if (visibleUserChats.length >= visibleUserChatLimit && visibleUserChats.length > 0) {
 					visibleUserChats[visibleUserChats.length - 1] = activeUserChat;
 				} else {
@@ -924,6 +1041,10 @@ let _chatUpdatedFlushPending = false;
 		}
 	} else if (detail.chat) {
 		// If we have the updated chat payload, patch cache and list without full reload.
+		// Always patch the component-local list first. chatListCache may not be ready
+		// during cold-boot or sidebar remount, but the event payload is already the
+		// freshest chat shell written by the sync handler.
+		upsertLocalChatList(detail.chat);
 		// Use microtask coalescing: upsert into cache (cheap, synchronous) but defer the
 		// allChatsFromDB reassignment to the next microtask so that N burst events in the
 		// same JS task only trigger one Svelte reactive update instead of N re-renders.
@@ -975,6 +1096,9 @@ let _chatUpdatedFlushPending = false;
 			
 			dispatch('chatDeselected');
 		}
+		if (lastActiveChatIdForDisplay === event.detail.chat_id) {
+			setLastActiveChatIdForDisplay(null);
+		}
 	};
 	
 	/**
@@ -987,9 +1111,15 @@ let _chatUpdatedFlushPending = false;
 		* resume state. The UI shows "Resume last chat?" above new chat suggestions,
 		* and the user can click to resume or start fresh.
 		*/
-	const handlePhase1LastChatReadyEvent = async (event: CustomEvent<{chat_id: string}>) => {
+	const handlePhase1LastChatReadyEvent = async (event: CustomEvent<{chat_id: string | null}>) => {
 		console.info(`[Chats] Phase 1 complete - Last chat ready: ${event.detail.chat_id}.`);
 		const targetChatId = event.detail.chat_id;
+		if (!targetChatId) {
+			console.info('[Chats] Phase 1 resume UI skipped because no last chat was provided');
+			await updateChatListFromDB();
+			syncInspirationLoginFallback();
+			return;
+		}
 
 		// DEFENSE-IN-DEPTH: If a chat is already active in the store, skip the entire
 		// Phase 1 resume-card population. The user is viewing a chat (loaded via URL hash,
@@ -1120,9 +1250,11 @@ let _chatUpdatedFlushPending = false;
 			console.info(`[Chats] Phase 2: totalServerChatCount=${totalServerChatCount}, hasMoreOnServer=${hasMoreOnServer}`);
 		}
 
-		// PERF: Phase 2 sync handler incrementally upserts each chat into chatListCache.
-		// Non-forced read picks up the in-memory cache (no full IDB re-scan).
-		await updateChatListFromDB(false);
+		// Phase 2 may store chats before the initial sidebar cache is ready, making
+		// incremental cache upserts a no-op. Force an IDB read so draft-only chats
+		// created from another client are visible immediately after sync.
+		chatListCache.markDirty();
+		await updateChatListFromDB(true);
 
 		// Search warm-up moved to on-first-focus (Step 13 of sync perf overhaul)
 	};
@@ -1249,8 +1381,8 @@ let _chatUpdatedFlushPending = false;
 
 			// Re-check: WS may have delivered inspirations during the wait
 			const afterWaitState = svGet(inspirationStore);
-			if (afterWaitState.inspirations.length > 0) {
-				console.debug('[Chats] WS delivered inspirations during wait — skipping API fallback');
+			if (afterWaitState.isPersonalized) {
+				console.debug('[Chats] Personalized inspirations arrived during wait — skipping API fallback');
 				return;
 			}
 
@@ -1458,7 +1590,7 @@ let _chatUpdatedFlushPending = false;
 	 * without waiting for server round-trip
 	 */
 	const handleLocalChatListChanged = async (event: Event) => {
-		const customEvent = event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean; sharedChatAdded?: boolean; autoOpen?: boolean }>;
+		const customEvent = event as CustomEvent<{ chat_id?: string; chat?: ChatType; draftDeleted?: boolean; sharedChatAdded?: boolean; autoOpen?: boolean }>;
 		console.debug('[Chats] Local chat list changed event received:', customEvent.detail);
 		
 		// Invalidate caches for the specific chat if provided, to ensure fresh preview data
@@ -1502,16 +1634,9 @@ let _chatUpdatedFlushPending = false;
 			const chatId = customEvent.detail?.chat_id;
 			if (chatId) {
 				try {
-					const updatedChat = await chatDB.getChat(chatId);
+					const updatedChat = customEvent.detail?.chat ?? await chatDB.getChat(chatId);
 					if (updatedChat) {
-						const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === updatedChat.chat_id);
-						if (chatIndex !== -1) {
-							allChatsFromDB[chatIndex] = updatedChat;
-						} else {
-							allChatsFromDB = [...allChatsFromDB, updatedChat];
-						}
-						// Force reactivity for derived sorting/grouping
-						allChatsFromDB = [...allChatsFromDB];
+						upsertLocalChatList(updatedChat);
 						// Keep global cache in sync so subsequent refreshes don't "miss" the new chat
 						chatListCache.upsertChat(updatedChat);
 						console.debug('[Chats] Updated chat list incrementally from local draft change:', { chatId });
@@ -1599,6 +1724,7 @@ let _chatUpdatedFlushPending = false;
 			console.debug('[Chats] User not authenticated on mount - clearing user chats');
 			allChatsFromDB = []; // Clear user chats immediately
 			selectedChatId = null;
+			setLastActiveChatIdForDisplay(null);
 			_chatIdToSelectAfterUpdate = null;
 			currentServerSortOrder = [];
 			// Note: syncing is now derived from authStore and phasedSyncState
@@ -1647,6 +1773,7 @@ let _chatUpdatedFlushPending = false;
 		const currentActiveChat = $activeChatStore;
 		if (currentActiveChat) {
 			selectedChatId = currentActiveChat;
+			setLastActiveChatIdForDisplay(currentActiveChat);
 			console.debug('[Chats] Restored active chat from store:', currentActiveChat);
 		}
 
@@ -1699,10 +1826,13 @@ let _chatUpdatedFlushPending = false;
 			// valid even when the master key is gone. Clearing them would force the user to re-open
 			// the share link to see the chat again.
 			allChatsFromDB = allChatsFromDB.filter(c => c.is_shared_by_others);
-			// Preserve selection if the active chat is a shared chat that survived the filter above
-			const activeIsShared = selectedChatId && allChatsFromDB.some(c => c.chat_id === selectedChatId);
-			if (!activeIsShared) {
+			// Preserve selection if the active chat is still valid for logged-out users.
+			const activeChatId = selectedChatId ?? activeChatStore.get();
+			const activeIsShared = activeChatId && allChatsFromDB.some(c => c.chat_id === activeChatId);
+			const activeIsExample = activeChatId ? isExampleChat(activeChatId) : false;
+			if (!activeIsShared && !activeIsExample) {
 				selectedChatId = null;
+				setLastActiveChatIdForDisplay(null);
 			}
 			_chatIdToSelectAfterUpdate = null;
 			currentServerSortOrder = [];
@@ -1710,7 +1840,7 @@ let _chatUpdatedFlushPending = false;
 			syncComplete = false;
 			
 			// Clear the persistent store — but only if the active chat isn't a shared chat
-			if (!activeIsShared) {
+			if (!activeIsShared && !activeIsExample) {
 				activeChatStore.clearActiveChat();
 			}
 			
@@ -1770,6 +1900,7 @@ let _chatUpdatedFlushPending = false;
 				console.debug('[Chats] Auth state changed to unauthenticated - clearing user chats immediately');
 				allChatsFromDB = [];
 				selectedChatId = null;
+				setLastActiveChatIdForDisplay(null);
 				_chatIdToSelectAfterUpdate = null;
 				currentServerSortOrder = [];
 				olderChatsFromServer = [];
@@ -1847,6 +1978,7 @@ let _chatUpdatedFlushPending = false;
 				if (selectedChatId !== newChatId) {
 					console.debug(`[Chats] Global chat selected event received, updating selectedChatId to: ${newChatId}`);
 					selectedChatId = newChatId;
+					setLastActiveChatIdForDisplay(newChatId);
 					
 					// Update the persistent store so the selection survives component unmount/remount.
 					// CRITICAL: Skip if activeChatStore is already null — that means the user
@@ -2147,6 +2279,7 @@ let _chatUpdatedFlushPending = false;
 			allChatsFromDB = cached;
 			return;
 		}
+		applyPendingCacheUpsertsToLocalList();
 		
 		try {
 			console.debug("[Chats] Ensuring local database is initialized...");
@@ -2320,6 +2453,7 @@ let _chatUpdatedFlushPending = false;
 	async function handleChatClick(chat: ChatType, userInitiated: boolean = true, closePanelOnMobile: boolean = true) {
 		console.debug('[Chats] Chat clicked:', chat.chat_id, 'userInitiated:', userInitiated);
 		selectedChatId = chat.chat_id;
+		setLastActiveChatIdForDisplay(chat.chat_id);
 		
 		// CRITICAL: Mark that user made an explicit choice when they click on a chat
 		// This ensures sync phases will NEVER override the user's choice
@@ -2330,20 +2464,21 @@ let _chatUpdatedFlushPending = false;
 		// Update last selected for potential range selection (even when not in select mode)
 		lastSelectedChatId = chat.chat_id;
 
-		// CRITICAL: Always save last_opened to IndexedDB when switching chats (before updating UI stores)
-		// This ensures tab reload opens the correct chat even if the component unmounts during the update
+		// Persist last_opened in the background so search/sidebar clicks load the chat immediately.
+		// This still keeps tab reload state current without blocking the UI selection dispatch.
 		// IndexedDB update happens for all users (authenticated and non-authenticated) for tab reload persistence
 		// Server sync (via WebSocket) only happens for authenticated users (handled by sendSetActiveChatImpl)
 		// SECURITY: Don't store hidden chats as last_opened - they require password after page reload
 		if (!chat.is_hidden) {
-			try {
-				const { chatSyncService } = await import('../../services/chatSyncService');
-				await chatSyncService.sendSetActiveChat(chat.chat_id);
-				console.debug('[Chats] ✅ Updated last_opened in IndexedDB for chat:', chat.chat_id);
-			} catch (error) {
-				console.error('[Chats] Error updating last_opened in IndexedDB:', error);
-				// Don't fail the whole operation if IndexedDB update fails, continue to update UI
-			}
+			void (async () => {
+				try {
+					const { chatSyncService } = await import('../../services/chatSyncService');
+					await chatSyncService.sendSetActiveChat(chat.chat_id);
+					console.debug('[Chats] ✅ Updated last_opened in IndexedDB for chat:', chat.chat_id);
+				} catch (error) {
+					console.error('[Chats] Error updating last_opened in IndexedDB:', error);
+				}
+			})();
 		} else {
 			console.debug('[Chats] Skipped storing hidden chat as last_opened:', chat.chat_id);
 		}
@@ -2415,6 +2550,8 @@ let _chatUpdatedFlushPending = false;
 
 	async function handleSearchQuery(query: string): Promise<void> {
 		setSearchQuery(query);
+		applyPendingCacheUpsertsToLocalList();
+		await tick();
 		triggerSearchWarmUpIfNeeded();
 
 		if (!query || query.trim().length === 0) {
@@ -2432,10 +2569,13 @@ let _chatUpdatedFlushPending = false;
 		try {
 		// Include hidden chats in search if they are currently unlocked
 		const unlocked = hiddenChatState.isUnlocked ? hiddenChats : [];
-		// Pass auth context so settings search filters out entries the user cannot access
+		// Pass auth context so settings search filters out entries the user cannot access.
+		// The sidebar intentionally shows only the newest examples, but global search
+		// must cover the complete public example catalog.
+		const searchableChats = getSearchableChats();
 		const results = await performSearch(
 			query,
-			allChats,
+			searchableChats,
 			$text,
 			unlocked,
 			$authStore.isAuthenticated,
@@ -2460,6 +2600,28 @@ let _chatUpdatedFlushPending = false;
 		searchTextHighlightStore.set(null);
 	}
 
+	async function hydrateSearchChatDraftFields(chat: ChatType): Promise<ChatType> {
+		if (!$authStore.isAuthenticated || isPublicChat(chat.chat_id)) return chat;
+		if (chat.encrypted_draft_md || chat.encrypted_draft_preview) return chat;
+
+		try {
+			const rawChat = await chatDB.getRawChat(chat.chat_id);
+			if (!rawChat?.encrypted_draft_md && !rawChat?.encrypted_draft_preview) return chat;
+
+			return {
+				...chat,
+				encrypted_draft_md: rawChat.encrypted_draft_md ?? chat.encrypted_draft_md,
+				encrypted_draft_preview: rawChat.encrypted_draft_preview ?? chat.encrypted_draft_preview,
+				draft_v: rawChat.draft_v ?? chat.draft_v,
+				ideabucket: rawChat.ideabucket ?? chat.ideabucket,
+				ideabucket_processing_window_id: rawChat.ideabucket_processing_window_id ?? chat.ideabucket_processing_window_id,
+			};
+		} catch (error) {
+			console.warn('[Chats] Failed to hydrate draft fields for search result chat:', chat.chat_id, error);
+			return chat;
+		}
+	}
+
 	/**
 	 * Handle clicking a chat TITLE result from search.
 	 * Keeps search OPEN so the user can continue browsing results.
@@ -2467,17 +2629,18 @@ let _chatUpdatedFlushPending = false;
 	 * Search state is preserved (not cleared) so it is still active when the panel reopens.
 	 * @param chat - The matched chat
 	 */
-	function handleSearchChatClick(chat: ChatType): void {
+	async function handleSearchChatClick(chat: ChatType): Promise<void> {
+		const chatToOpen = await hydrateSearchChatDraftFields(chat);
 		// On mobile: close the panel so user can see the chat, but keep search state intact.
 		// On desktop: just open the chat in place — search panel stays visible.
 		const isMobile = window.innerWidth < 730;
 		if (isMobile) {
 			// Open the chat and close the panel, but DON'T clear search state.
 			// We pass closePanelOnMobile=true so handleChatClick closes the panel.
-			handleChatClick(chat, true, true);
+			await handleChatClick(chatToOpen, true, true);
 		} else {
 			// Desktop: open chat without closing search panel
-			handleChatClick(chat, true, false);
+			await handleChatClick(chatToOpen, true, false);
 		}
 	}
 
@@ -2523,18 +2686,13 @@ let _chatUpdatedFlushPending = false;
 		// fresh embed data from the EmbedStore, so we only need to provide the embed ID.
 		if (embedId) {
 			setTimeout(() => {
-				const event = new CustomEvent('embedfullscreen', {
-					bubbles: true,
-					cancelable: true,
-					detail: {
-						embedId,
-						embedType: embedType || '',
-						attrs: {},
-						embedData: null,    // ActiveChat will load fresh data from EmbedStore
-						decodedContent: null,
-					},
+				dispatchEmbedFullscreen({
+					embedId,
+					embedType: embedType || '',
+					attrs: {},
+					embedData: null,    // ActiveChat will load fresh data from EmbedStore
+					decodedContent: null,
 				});
-				document.dispatchEvent(event);
 				console.debug('[Chats] Dispatched embedfullscreen for search result:', { embedId, embedType });
 			}, 400); // 400 ms: enough time for the message scroll to complete before the embed opens
 		}
@@ -2648,8 +2806,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			if (cached) {
 				console.debug("[Chats] Concurrent read completed — populating from cache:", cached.length, "chats");
 				allChatsFromDB = cached;
+				return;
 			}
-			return;
+			console.debug("[Chats] Concurrent read completed without a usable cache — falling through to IDB read");
 		}
 		// Forced: fall through below to re-run the IDB read with fresh data
 		console.debug("[Chats] Concurrent read completed — re-running forced IDB read");
@@ -2723,6 +2882,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 					const activeId = $activeChatStore;
 					if (activeId && loadedChats.some(c => c.chat_id === activeId)) {
 						selectedChatId = activeId;
+						setLastActiveChatIdForDisplay(activeId);
 						console.debug(`[Chats] Auto-selected shared chat from activeChatStore: ${activeId}`);
 					}
 				} else {
@@ -2752,7 +2912,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		// Fetch chats from IDB. On initial cold-boot mount a limit of 20 is passed so we only
 		// read the most-recently-edited chats — Phase 2 sync will load the full set shortly after.
 		// All other callers (sync events, chat updates) pass no limit to get the complete set.
-		const chatsFromDb = await chatDB.getAllChats(undefined, limit ? { limit } : undefined);
+		const chatsFromDb = mergeDbSnapshotWithInFlightUpserts(
+			await chatDB.getAllChats(undefined, limit ? { limit } : undefined)
+		);
 		console.debug(`[Chats] chatDB.getAllChats() returned ${chatsFromDb.length} chats`);
 
 		// CRITICAL: Post-read auth check. If auth flipped to false during the async IDB read
@@ -2769,8 +2931,8 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			return;
 		}
 		
-		allChatsFromDB = chatsFromDb; // This assignment triggers reactive updates for sorted/grouped lists - Corrected variable
-		chatListCache.setCache(chatsFromDb); // Update global cache
+		chatListCache.setCache(chatsFromDb); // Update global cache, including pending upserts queued before cache init
+		allChatsFromDB = chatListCache.getCache(false) ?? chatsFromDb; // Use the merged cache snapshot for reactive updates
 		console.debug(`[Chats] Updated internal chat list. Count: ${allChatsFromDB.length}`); // Corrected variable
 		
 		// Debug: Log first few chat IDs if available
@@ -2797,6 +2959,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			const stillExists = flattenedNavigableChats.some(c => c.chat_id === previouslySelectedChatId); // Corrected variable
 			if (stillExists) {
 				selectedChatId = previouslySelectedChatId; // Reselect if it still exists
+				setLastActiveChatIdForDisplay(previouslySelectedChatId);
 			} else {
 				selectedChatId = null; // Deselect if it no longer exists
 				dispatch('chatDeselected');
@@ -2842,26 +3005,22 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
 	function openEventEmbed(event: OpenMatesEvent): void {
 		phasedSyncState.markUserMadeExplicitChoice();
-		document.dispatchEvent(new CustomEvent('embedfullscreen', {
-			bubbles: true,
-			cancelable: true,
-			detail: {
-				embedId: event.embed_id,
-				embedType: 'events-event',
-				hasChatContext: false,
-				attrs: {
-					type: 'events-event',
-					contentRef: `embed:${event.embed_id}`,
-					status: 'finished',
-				},
-				embedData: {
-					embed_id: event.embed_id,
-					type: 'events-event',
-					status: 'finished',
-				},
-				decodedContent: event,
+		dispatchEmbedFullscreen({
+			embedId: event.embed_id,
+			embedType: 'events-event',
+			hasChatContext: false,
+			attrs: {
+				type: 'events-event',
+				contentRef: `embed:${event.embed_id}`,
+				status: 'finished',
 			},
-		}));
+			embedData: {
+				embed_id: event.embed_id,
+				type: 'events-event',
+				status: 'finished',
+			},
+			decodedContent: event,
+		});
 
 		if (window.innerWidth < 730) {
 			handleClose();
@@ -4519,9 +4678,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         border-left: 3px solid var(--color-grey-50);
     }
 
-    .chat-item.incognito.active {
-        background-color: var(--color-grey-35);
-    }
+	.chat-item.incognito.active {
+		background-color: var(--color-grey-40);
+	}
 
     .events-group {
         gap: var(--spacing-2);
@@ -4557,13 +4716,13 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         height: 42px;
         border-radius: var(--radius-3);
         background: linear-gradient(135deg, var(--color-app-events-start, #a20000), var(--color-app-events-end, #ff6b3d));
-        color: #fff;
+		color: var(--color-white);
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         line-height: 1;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+		box-shadow: var(--shadow-xs);
     }
 
     .event-list-date span {
@@ -4571,14 +4730,14 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        color: #fff;
+		color: var(--color-white);
     }
 
     .event-list-date strong {
         font-size: 1.15rem;
         font-weight: 800;
         margin-top: 2px;
-        color: #fff;
+		color: var(--color-white);
     }
 
     .event-list-body {
@@ -4736,17 +4895,17 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         border-color: var(--color-primary);
     }
 
-    .overscroll-unlock-input.error {
-        border-color: #E80000;
-    }
+	.overscroll-unlock-input.error {
+		border-color: var(--color-error);
+	}
 
     .overscroll-unlock-input:disabled {
         opacity: 0.5;
         cursor: not-allowed;
     }
 
-    .overscroll-unlock-error {
-        color: #E80000;
+	.overscroll-unlock-error {
+		color: var(--color-error);
         font-size: 0.85em;
         margin-top: var(--spacing-2);
     }
@@ -4818,21 +4977,21 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         white-space: nowrap;
     }
 
-    .active-chat-pin:hover {
-        background-color: var(--color-grey-35);
-    }
+	.active-chat-pin:hover {
+		background-color: var(--color-grey-40);
+	}
 
     /* Pin anchored just below the top buttons container */
     .active-chat-pin.pin-top {
         top: 0;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+		box-shadow: var(--shadow-xs);
         border-bottom: 1px solid var(--color-grey-40);
     }
 
     /* Pin anchored at the very bottom of the scroll container */
     .active-chat-pin.pin-bottom {
         bottom: 0;
-        box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.15);
+		box-shadow: var(--shadow-xs);
         border-top: 1px solid var(--color-grey-40);
     }
 

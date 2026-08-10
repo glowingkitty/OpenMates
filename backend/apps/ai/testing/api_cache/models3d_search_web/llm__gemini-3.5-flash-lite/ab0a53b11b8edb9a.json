@@ -1,0 +1,89 @@
+{
+  "fingerprint": "ab0a53b11b8edb9a",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "models3d_search_web",
+  "recorded_at": "2026-07-28T21:16:30.320485+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 6,
+    "tools_count": 3,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[10]{title,provider,provider_kind,provider_item_id,description,creator_name,published_at,created_at,updated_at,license,tags,category,rating,likes_count,download_count,files_count,is_free,type,p..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are a few popular 3D printable [3DBenchy](wiki:3DBenchy) models ranging from the classic benchmark to fun remixes:\n\n* [3D BENCHY](embed:3d-benchy-h56) — The iconic standard [3DBenchy](wiki:3DBenchy) designed specifically as a calibration test for [3D printing](wiki:3D_printing) overhangs, bridging, and dimensional accuracy.\n* [All Terrain Assault Benchy](embed:all-terrain-assault-K6L) — A fully articulated, mech-style robot walker variant of the classic boat.\n* [Blocky Benchy](embed:blocky-benchy-gLJ) — A voxelized, pixel-art style take on the model.\n* [Benchy (Kraken Attack Edition)](embed:benchy-kraken-attack-GQI) — A fun remix featuring tentacles dragging the boat down.\n* [Booenchy : The Spookiest Little Halloween Ghost Benchy Boat](embed:booenchy-the-spookiest-WKG) — A ghost costume version draped in cloth.\n\nWhat kind of test print or modification are you looking for? I can help you with slicing tips, printer calibration settings, or ideas for custom remixes.",
+    "chunk_count": 14,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here are"
+      },
+      {
+        "kind": "text",
+        "value": " a few popular 3D printable [3DBenchy](wiki:3"
+      },
+      {
+        "kind": "text",
+        "value": "DBenchy) models ranging from the classic benchmark to fun remixes:\n\n* [3D BENCHY](embed:3"
+      },
+      {
+        "kind": "text",
+        "value": "d-benchy-h56) — The iconic standard [3DBenchy](wiki:3DBenchy"
+      },
+      {
+        "kind": "text",
+        "value": ") designed specifically as a calibration test for [3D printing](wiki:3D_printing) overhangs, bridging, and dimensional"
+      },
+      {
+        "kind": "text",
+        "value": " accuracy.\n* [All Terrain Assault Benchy](embed:all-terrain-assault-K6L)"
+      },
+      {
+        "kind": "text",
+        "value": " — A fully articulated, mech-style robot walker variant of the classic boat.\n* [Blocky Benchy](embed:"
+      },
+      {
+        "kind": "text",
+        "value": "blocky-benchy-gLJ) — A voxelized, pixel-art style take on the model.\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [Benchy (Kraken Attack Edition)](embed:benchy-kraken-attack-GQI) — A fun remix"
+      },
+      {
+        "kind": "text",
+        "value": " featuring tentacles dragging the boat down.\n*"
+      },
+      {
+        "kind": "text",
+        "value": " [Booenchy : The Spookiest Little Halloween Ghost Benchy Boat](embed:booenchy-the-spookiest-WKG) — A ghost costume version draped in cloth.\n\nWhat kind of"
+      },
+      {
+        "kind": "text",
+        "value": " test print or modification are you looking for? I can help you with slicing tips, printer calibration settings, or ideas for custom remixes"
+      },
+      {
+        "kind": "text",
+        "value": "."
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 15244,
+          "candidates_token_count": 277,
+          "total_token_count": 15521,
+          "user_input_tokens": 1839,
+          "system_prompt_tokens": 11885
+        }
+      }
+    ]
+  }
+}

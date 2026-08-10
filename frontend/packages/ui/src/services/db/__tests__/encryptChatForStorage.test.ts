@@ -11,7 +11,7 @@
 // chat is stored without a key. The correct key arrives later via
 // receiveKeyFromServer().
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { afterEach, describe, it, expect, beforeEach, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Mocks — must be set up before importing the module under test
@@ -85,7 +85,7 @@ vi.mock("svelte/store", () => ({
   }),
 }));
 
-import { encryptChatForStorage } from "../chatCrudOperations";
+import { addChat, encryptChatForStorage } from "../chatCrudOperations";
 import { getEncryptedChatKey } from "../chatKeyManagement";
 import type { Chat } from "../../../types/chat";
 
@@ -148,6 +148,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     });
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
   it("creates a new key for a genuinely new chat (isFromSync=false, default)", async () => {
     const db = makeDbInstance();
     const chat = makeChat();
@@ -163,6 +164,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     expect(result.key_fingerprint).toBe("abcd1234");
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only
   it("NEVER creates a new key when isFromSync=true (sync guard)", async () => {
     const db = makeDbInstance();
     const chat = makeChat();
@@ -177,6 +179,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     expect(result.encrypted_chat_key).toBeNull();
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only
   it("uses existing key from ChatKeyManager even when isFromSync=true", async () => {
     const db = makeDbInstance();
     const chat = makeChat();
@@ -195,6 +198,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     expect(result.key_fingerprint).toBe("abcd1234");
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only
   it("decrypts server-provided encrypted_chat_key during sync (Step 2)", async () => {
     const db = makeDbInstance();
     const chat = makeChat({ encrypted_chat_key: "server-encrypted-key" });
@@ -222,6 +226,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     expect(result.encrypted_chat_key).toBe("server-encrypted-key");
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only
   it("does NOT overwrite IDB key when server key is rejected by injectKey (step 2 regression)", async () => {
     // Regression: aac318eee added injectKey guard for memory but forgot to gate
     // the IDB write. When injectKey returns false (key conflict), the server's
@@ -254,6 +259,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     expect(result.encrypted_chat_key).not.toBe("server-encrypted-key-wrong");
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only
   it("does NOT store a conflicting server key when a different key is already cached", async () => {
     const db = makeDbInstance();
     const chat = makeChat({ encrypted_chat_key: "server-encrypted-key-wrong" });
@@ -276,6 +282,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     expect(result.key_fingerprint).toBe("abcd1234");
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only
   it("accepts an authoritative server key during explicit mismatch recovery", async () => {
     const db = makeDbInstance();
     const serverKey = new Uint8Array(32).fill(99);
@@ -309,6 +316,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only
   it("falls back to IDB key during sync (Step 3)", async () => {
     const db = makeDbInstance();
     const chat = makeChat(); // No encrypted_chat_key from server
@@ -336,6 +344,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only
   it("returns early without key when all steps fail during sync", async () => {
     const db = makeDbInstance();
     const chat = makeChat(); // No server key
@@ -361,6 +370,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     consoleSpy.mockRestore();
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only
   it("skips encryption for public chats regardless of isFromSync", async () => {
     const db = makeDbInstance();
     const demoChat = makeChat({ chat_id: "demo-welcome" });
@@ -375,11 +385,52 @@ describe("encryptChatForStorage — isFromSync guard", () => {
   });
 });
 
+describe("addChat transaction completion", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    mockGetKeySync.mockReturnValue(fakeKey);
+    mockEncryptChatKeyWithMasterKey.mockResolvedValue("encrypted-existing");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // contract-test: infrastructure
+  it("aborts and rejects an internal transaction that never settles", async () => {
+    const request = {} as IDBRequest;
+    const transaction = {
+      abort: vi.fn(),
+      error: null,
+      objectStore: vi.fn(() => ({ put: vi.fn(() => request) })),
+      oncomplete: null,
+      onerror: null,
+      onabort: null,
+    } as unknown as IDBTransaction;
+    const db = {
+      ...makeDbInstance(),
+      db: {} as IDBDatabase,
+      getTransaction: vi.fn().mockResolvedValue(transaction),
+    };
+
+    const savePromise = addChat(db as any, makeChat(), undefined, {
+      isFromSync: true,
+    });
+    const rejection = expect(savePromise).rejects.toThrow("timed out");
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    await rejection;
+    expect(transaction.abort).toHaveBeenCalledOnce();
+  });
+});
+
 describe("getEncryptedChatKey", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,sync.phase2.metadata-only
   it("falls back to the parent encrypted key for sub-chats", async () => {
     const db = makeDbInstance();
     db.getChat

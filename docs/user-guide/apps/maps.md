@@ -3,7 +3,7 @@ status: active
 doc_type: guide
 audience:
   - end-users
-last_verified: 2026-06-11
+last_verified: 2026-07-30
 claims:
   - id: user-guide-apps-maps-source
     type: unit
@@ -32,6 +32,7 @@ The Maps app searches for places around the world and returns detailed informati
 - Website and phone number
 - Price level
 - A description of the place
+- Source-labelled OpenStreetMap/Geoapify amenity details when available, such as air conditioning, internet access, wheelchair access, toilets, smoking, outdoor seating, diet, and payment hints
 - Location on a map
 
 ## How to Use It
@@ -49,6 +50,7 @@ The Maps app searches for places around the world and returns detailed informati
 
 - Results appear as interactive cards with a map view. Click any result to see it in fullscreen with more details.
 - You can filter results by minimum rating, whether the place is currently open, and by place type.
+- When you ask for amenities such as air conditioning, free Wi-Fi, or wheelchair access, OpenMates may use Geoapify's OpenStreetMap-backed data to verify those details. Missing OSM data is shown as unknown, not as proof that a place lacks the amenity.
 - Your mate can search in different languages, so results will match the local language of the area you are searching.
 - Searches can be biased toward a specific area if you provide coordinates or describe a location.
 

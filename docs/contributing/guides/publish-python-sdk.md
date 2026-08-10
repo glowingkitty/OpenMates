@@ -32,22 +32,18 @@ key:
 ```json
 {
   "python": {
-    "stableBase": "0.14.0",
-    "stableFloor": "0.14.5",
+    "stableBase": "0.15.0",
     "prereleaseLabel": "a"
   }
 }
 ```
 
 The checked-in `packages/openmates-python/pyproject.toml` version should match
-`python.stableBase`. `python.stableFloor` is the highest stable patch already
-shipped in the product line by canonical release artifacts; it prevents PyPI from
-backfilling old patch numbers if PyPI publishing lagged behind npm or app
-releases. The publish workflow rewrites that version in CI when publishing:
+`python.stableBase`. The publish workflow rewrites that version in CI when publishing:
 
 - Pull requests validate tests and package builds only. They never publish to PyPI.
-- `dev` publishes the next alpha inside the next stable patch slot. For example, after stable `0.14.5`, dev publishes `0.14.6a0`, then `0.14.6a1`.
-- `main` publishes the stable version for the latest prerelease patch slot if one exists; otherwise it publishes the next stable patch. For example, after `0.14.6a1`, main publishes `0.14.6`.
+- `dev` publishes the next alpha on the configured fixed train. For example, `0.15.0a0`, then `0.15.0a1`.
+- `main` publishes the configured stable base, for example `0.15.0`, and PyPI skips duplicate files if that exact version already exists.
 
 Use prerelease installs only when a prerelease has been published manually or by
 a historical workflow run:

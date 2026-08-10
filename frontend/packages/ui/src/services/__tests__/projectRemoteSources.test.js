@@ -4,11 +4,12 @@
  * Purpose: verify virtual remote previews and source payload normalization
  * without browser state or real network calls.
  * Security: remote previews are virtual message-local data, not persisted embeds.
- * Run: node --test --experimental-strip-types src/services/__tests__/projectRemoteSources.test.js
+ * Run: python3 scripts/tests.py run --suite vitest
  */
 
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { webcrypto } from "node:crypto";
+import { describe, it } from "vitest";
 
 import {
   buildRemoteFileUploadCandidate,
@@ -16,8 +17,77 @@ import {
   buildVirtualRemoteFullscreenDetail,
   normalizeRemoteFilePreview,
 } from "../projectRemoteSources.ts";
+import {
+  ProjectRemoteAccessReplayGuard,
+  createProjectRemoteAccessHandshake,
+  deriveProjectRemoteAccessSessionKey,
+  openProjectRemoteAccessEnvelope,
+} from "../projectRemoteAccessCrypto.ts";
+
+Object.defineProperty(globalThis, "crypto", {
+  value: webcrypto,
+  writable: true,
+  configurable: true,
+});
+
+const cryptoIdentity = {
+  ownerId: "owner-1",
+  projectId: "project-1",
+  sourceId: "source-1",
+  sourceSessionId: "session-1",
+  requestingClientId: "browser-1",
+  keyEpoch: 1,
+};
 
 describe("Project remote source helpers", () => {
+  it("derives the same authenticated browser and CLI peer key", async () => {
+    const projectKey = crypto.getRandomValues(new Uint8Array(32));
+    const requester = await createProjectRemoteAccessHandshake(projectKey, cryptoIdentity, "requester");
+    const source = await createProjectRemoteAccessHandshake(projectKey, cryptoIdentity, "source");
+    const requesterKey = await deriveProjectRemoteAccessSessionKey(
+      projectKey,
+      cryptoIdentity,
+      "requester",
+      requester.privateKey,
+      requester.handshake,
+      source.handshake,
+    );
+    const sourceKey = await deriveProjectRemoteAccessSessionKey(
+      projectKey,
+      cryptoIdentity,
+      "source",
+      source.privateKey,
+      source.handshake,
+      requester.handshake,
+    );
+    assert.deepEqual(requesterKey, sourceKey);
+  });
+
+  it("rejects tampered remote result envelopes", async () => {
+    const projectKey = crypto.getRandomValues(new Uint8Array(32));
+    const requester = await createProjectRemoteAccessHandshake(projectKey, cryptoIdentity, "requester");
+    const source = await createProjectRemoteAccessHandshake(projectKey, cryptoIdentity, "source");
+    const requesterKey = await deriveProjectRemoteAccessSessionKey(
+      projectKey,
+      cryptoIdentity,
+      "requester",
+      requester.privateKey,
+      requester.handshake,
+      source.handshake,
+    );
+    await assert.rejects(
+      () => openProjectRemoteAccessEnvelope(
+        requesterKey,
+        cryptoIdentity,
+        "request-1",
+        "result",
+        { version: 1, nonce: "invalid", ciphertext: "invalid" },
+        new ProjectRemoteAccessReplayGuard(),
+      ),
+      /invalid remote-access key or envelope field|envelope authentication failed/,
+    );
+  });
+
   it("builds non-mutating encrypted source payloads", () => {
     const payload = buildProjectSourceCreatePayload({
       sourceId: "source-1",

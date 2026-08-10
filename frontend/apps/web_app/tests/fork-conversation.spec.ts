@@ -257,7 +257,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	// sidebar closed, so use that product action instead of sidebar assertions.
 	log('Waiting for fork completion notification...');
 	await expect(forkContainer).not.toBeVisible({ timeout: 30000 });
-	const notificationAction = page.getByTestId('notification-action');
+	const notificationAction = page.getByTestId('notification-action').filter({ hasText: /fork/i });
 	await expect(notificationAction).toBeVisible({ timeout: 30000 });
 	await notificationAction.click();
 	log('Clicked fork completion notification action.');

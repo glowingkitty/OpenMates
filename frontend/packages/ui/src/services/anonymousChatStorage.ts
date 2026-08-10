@@ -101,9 +101,20 @@ function assistantMessageIdFromResponse(
   chatId: string,
   userMessageId: string,
 ): string {
-  return response.messageId && response.messageId !== userMessageId
+  if (!response.messageId || response.messageId === userMessageId) {
+    return createMessageId(chatId);
+  }
+  return response.messageId.startsWith(`${chatId}-`)
     ? response.messageId
-    : createMessageId(chatId);
+    : `${chatId}-${response.messageId}`;
+}
+
+function nextAnonymousMessageTimestamp(messages: Message[], fallback: number): number {
+  const latestMessageTimestamp = messages.reduce((latest, message) => {
+    const createdAt = Number(message.created_at ?? 0);
+    return Number.isFinite(createdAt) ? Math.max(latest, createdAt) : latest;
+  }, 0);
+  return latestMessageTimestamp > 0 ? Math.max(fallback, latestMessageTimestamp + 1) : fallback;
 }
 
 function isEventStreamResponse(response: Response): boolean {
@@ -284,14 +295,15 @@ class AnonymousChatStorage {
     if (isNewChat && params.sourceDemoId) {
       previousMessages = await this.getPublicSourceMessages(params.sourceDemoId, chatId);
     }
-    const featureNoticeMessage = isNewChat ? createFeatureNoticeMessage(chatId, now) : null;
+    const userCreatedAt = nextAnonymousMessageTimestamp(previousMessages, now);
+    const featureNoticeMessage = isNewChat ? createFeatureNoticeMessage(chatId, userCreatedAt) : null;
     const userMessage: Message = {
       message_id: createMessageId(chatId),
       chat_id: chatId,
       role: "user",
       content: params.markdown,
       status: "sending",
-      created_at: now,
+      created_at: userCreatedAt,
       sender_name: "user",
     };
 
@@ -350,7 +362,7 @@ class AnonymousChatStorage {
       role: "assistant",
       content: response.assistant ?? "",
       status: "synced",
-      created_at: Math.floor(Date.now() / 1000),
+      created_at: nextAnonymousMessageTimestamp(pendingMessages, Math.floor(Date.now() / 1000)),
       user_message_id: userMessage.message_id,
       category: response.category ?? undefined,
       model_name: response.modelName ?? undefined,
@@ -369,6 +381,7 @@ class AnonymousChatStorage {
 
     await chatDB.saveMessage(syncedUserMessage);
     await chatDB.addChat(stripPlainChatFields(updatedChat));
+    await chatDB.saveMessage(assistantMessage);
     window.dispatchEvent(new CustomEvent("anonymousChatsUpdated"));
 
     const hydratedUpdatedChat = await this.hydrateAnonymousChat(updatedChat);
@@ -384,8 +397,6 @@ class AnonymousChatStorage {
         modelName: response.modelName ?? null,
       });
     }
-
-    await chatDB.saveMessage(assistantMessage);
 
     return {
       chat: hydratedUpdatedChat,

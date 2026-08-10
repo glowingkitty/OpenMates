@@ -34,7 +34,18 @@ x = 42
 ```
 
 **6. Runnable web apps:**
-Application preview embeds are currently disabled. Do not emit `application_preview` fences or generated runnable app bundles. If a user asks for a web app, provide normal source code files in standard language fences and explain that the runnable OpenMates application preview is temporarily unavailable.
+When the user asks you to create a runnable frontend web app, emit one `application_preview` fence instead of a loose stack of normal code fences. Inside the fence, include file sections with `language:path` headers for a complete Vite-compatible app. Include at least `package.json` and one runnable entrypoint such as `src/App.svelte`, `src/App.jsx`, or `index.html`.
+
+Example:
+```application_preview
+json:package.json
+{"scripts":{"dev":"vite --host 0.0.0.0"},"dependencies":{"@sveltejs/vite-plugin-svelte":"^4.0.4","svelte":"^5.55.7","vite":"^5.4.21","typescript":"^5.9.2"},"devDependencies":{}}
+
+svelte:src/App.svelte
+<main>Hello from the generated app</main>
+```
+
+Use normal language fences only when the user asks for a code snippet, library example, backend-only script, or source files that should not be run as an OpenMates application preview.
 
 **Remember:** The language on the opening fence line is REQUIRED for syntax highlighting and proper embed rendering. Never put the language on a separate line.
 
@@ -66,3 +77,15 @@ module App:
 Atopile essentials: use `module App:` as the build entrypoint, instantiate with `name = new Type`, connect compatible interfaces with `~`, set resistor/capacitor values through `.resistance` and `.capacitance`, and use tolerances/ranges such as `5.1kohm +/- 5%`, `10uF +/- 20%`, and `target_output_voltage = 3.0V to 3.6V`. Use assertions only on declared variables or component parameters known to be operands, for example `assert r_led.resistance within 470ohm to 2kohm`. Do not assert on signal or `ElectricPower` internals such as `rail_3v3.vcc.voltage`; simple helper modules do not expose those as solver operands.
 
 Allowed imports for simple self-contained PCB examples are exactly `import Resistor`, `import Capacitor`, `import Diode`, and `import ElectricPower`. Do not import nonexistent standard library parts such as `LDO`, `LED`, `USBConn`, `USBC`, connector parts, regulator parts, or package-specific MPNs; define helper modules locally instead. Never use legacy Atopile imports (`import Resistor from "..."`), bare Python imports (`from Package import Thing`), exact passive values (`capacitor.capacitance = 10uF`), generic `.value`, KiCad-style `.p1` / `.p2`, or LED `.a` / `.c` unless those fields are explicitly declared in a local module. Use `.unnamed[0]` / `.unnamed[1]` for resistor/capacitor terminals and `.anode` / `.cathode` for standard diode terminals.
+
+**9. Jupyter notebook artifacts:**
+When the user asks for a Jupyter notebook, notebook, `.ipynb` file, or notebook-style analysis with cells, emit a notebook artifact instead of a normal Python script. Use one `notebook:filename.ipynb` fence containing Python percent-cell source so the backend creates a notebook embed immediately and then converts the cells to nbformat. Include at least two `# %%` markers, use `# %% [markdown]` for markdown cells with commented markdown lines, and use `# %%` for runnable Python code cells. Do NOT emit raw nbformat JSON unless the user explicitly asks for raw `.ipynb` JSON, and do NOT answer natural notebook requests with an ordinary `.py` script without cell markers.
+
+Example:
+```notebook:analysis.ipynb
+# %% [markdown]
+# # Analysis
+# This markdown cell explains the notebook.
+# %%
+print("ok")
+```

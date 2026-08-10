@@ -24,6 +24,11 @@ APPS_DIR = REPO_ROOT / "backend/apps"
 # do not create user-visible app_skill_use embeds. New entries require a reason.
 SKILL_EMBED_EXCEPTIONS: dict[str, str] = {
     "ai:ask": "Core chat entrypoint invoked implicitly for every request, not a tool-call embed.",
+    "code:image_to_html": "Long-running generator returns a direct code embed and screenshot metadata rather than an app-skill-use result embed.",
+    "plans:create": "Client-encrypted plan write request; a capable client applies the durable change rather than rendering an app-skill embed.",
+    "plans:search": "Client-encrypted plan search request; results are supplied by a capable client rather than an app-skill embed.",
+    "projects:create": "Client-encrypted project write request; a capable client applies the durable change rather than rendering an app-skill embed.",
+    "projects:search": "Client-encrypted project search request; results are supplied by a capable client rather than an app-skill embed.",
     "workflows:cancel-pending": "Internal workflow control-plane skill; it updates pending state and does not create a chat embed.",
     "workflows:keep-temporary": "Internal workflow control-plane skill; it updates workflow lifecycle and does not create a chat embed.",
     "workflows:run": "Internal workflow control-plane skill; it creates a pending countdown/approval gate rather than a rendered embed.",
@@ -51,7 +56,7 @@ def app_paths(paths: list[str]) -> list[Path]:
         if not path.is_absolute():
             path = REPO_ROOT / path
         path = path.resolve()
-        if path.name == "app.yml" and APPS_DIR in path.parents:
+        if path.name == "app.yml" and path.parent.parent.name == "apps" and path.parent.parent.parent.name == "backend":
             resolved.add(path)
     return sorted(resolved)
 
@@ -86,10 +91,17 @@ def audit(paths: list[Path]) -> list[str]:
             if key in SKILL_EMBED_EXCEPTIONS:
                 continue
             issues.append(
-                f"{path.relative_to(REPO_ROOT)}: skill {skill_id!r} is missing an app-skill-use "
+                f"{_display_path(path)}: skill {skill_id!r} is missing an app-skill-use "
                 f"embed_types entry. Add one or document an exception in {Path(__file__).name}."
             )
     return issues
+
+
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
 
 
 def main() -> int:

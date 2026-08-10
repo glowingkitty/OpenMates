@@ -121,6 +121,7 @@ test.describe('App: Home / Skill: search', () => {
 		await resultCards.first().click();
 		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint);
 
+		await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay').last());
 		await closeFullscreen(page, fullscreenOverlay);
 		await verifySavedMemoryEntry(page, 'home', 'saved_listings', savedTitle, logCheckpoint);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'home-search');

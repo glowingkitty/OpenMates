@@ -14,6 +14,185 @@ from backend.core.api.app.utils.encryption import EncryptionService
 
 logger = logging.getLogger(__name__)
 
+MONTHLY_SUMMARY_IDENTIFIER_KEYS = {
+    "chat": "chat_id",
+    "app": "app_id",
+    "api_key": "api_key_hash",
+}
+DUPLICATE_WRITE_MARKERS = (
+    "duplicate key",
+    "unique constraint",
+    "violates unique",
+    "already exists",
+)
+
+
+def _summary_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _summary_order_value(value: Any) -> tuple[int, str]:
+    if isinstance(value, (int, float)):
+        return int(value), str(value)
+    if isinstance(value, str):
+        try:
+            return int(value), value
+        except ValueError:
+            return 0, value
+    return 0, ""
+
+
+def _summary_identifier(value: Any) -> Optional[str]:
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
+def aggregate_usage_rows_by_root(rows: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """Group attributable usage by root while retaining immutable raw row identity."""
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        root_chat_id = _summary_identifier(row.get("root_chat_id"))
+        key = root_chat_id or "unmatched_legacy"
+        entry = dict(row)
+        if root_chat_id:
+            entry["root_chat_id"] = root_chat_id
+            entry["actual_chat_id"] = (
+                _summary_identifier(row.get("actual_chat_id"))
+                or _summary_identifier(row.get("chat_id"))
+            )
+        bucket = grouped.setdefault(key, {
+            "root_chat_id": root_chat_id,
+            "total_credits": 0,
+            "entries": [],
+        })
+        bucket["total_credits"] += _summary_int(row.get("credits"))
+        bucket["entries"].append(entry)
+    return grouped
+
+
+def _coalesce_summary_rows(
+    rows: Optional[List[Dict[str, Any]]],
+    *,
+    user_id_hash: str,
+    identifier_key: str,
+    period_key: str,
+) -> List[Dict[str, Any]]:
+    grouped: Dict[tuple[str, str], Dict[str, Any]] = {}
+
+    for row in rows or []:
+        if row.get("user_id_hash") != user_id_hash:
+            continue
+        identifier = _summary_identifier(row.get(identifier_key))
+        period = _summary_identifier(row.get(period_key))
+        if not identifier or not period:
+            continue
+
+        key = (identifier, period)
+        credits = _summary_int(row.get("total_credits"))
+        entry_count = _summary_int(row.get("entry_count"))
+        if key not in grouped:
+            merged = dict(row)
+            merged[identifier_key] = identifier
+            merged[period_key] = period
+            merged["total_credits"] = credits
+            merged["entry_count"] = entry_count
+            grouped[key] = merged
+            continue
+
+        existing = grouped[key]
+        total_credits = _summary_int(existing.get("total_credits")) + credits
+        total_count = _summary_int(existing.get("entry_count")) + entry_count
+        is_archived = bool(existing.get("is_archived")) or bool(row.get("is_archived"))
+        archive_s3_key = existing.get("archive_s3_key") or row.get("archive_s3_key")
+
+        if _summary_order_value(row.get("updated_at")) >= _summary_order_value(existing.get("updated_at")):
+            existing.update(row)
+            existing[identifier_key] = identifier
+            existing[period_key] = period
+
+        existing["total_credits"] = total_credits
+        existing["entry_count"] = total_count
+        if "is_archived" in existing or "is_archived" in row:
+            existing["is_archived"] = is_archived
+        if archive_s3_key:
+            existing["archive_s3_key"] = archive_s3_key
+
+    return sorted(
+        grouped.values(),
+        key=lambda item: (str(item.get(period_key) or ""), _summary_order_value(item.get("updated_at"))),
+        reverse=True,
+    )
+
+
+def _coalesce_daily_overview_days(days: Any) -> List[Dict[str, Any]]:
+    if not isinstance(days, list):
+        return []
+
+    coalesced_days: List[Dict[str, Any]] = []
+    for day in days:
+        if not isinstance(day, dict):
+            continue
+        date = day.get("date")
+        if not isinstance(date, str) or not date.strip():
+            continue
+
+        items_by_key: Dict[tuple[str, str], Dict[str, Any]] = {}
+        for item in day.get("items") or []:
+            if not isinstance(item, dict):
+                continue
+            item_type = item.get("type")
+            identifier_key = "chat_id" if item_type == "chat" else "api_key_hash" if item_type == "api_key" else None
+            if not identifier_key:
+                continue
+            identifier = _summary_identifier(item.get(identifier_key))
+            if not identifier:
+                continue
+
+            key = (item_type, identifier)
+            credits = _summary_int(item.get("total_credits"))
+            entry_count = _summary_int(item.get("entry_count"))
+            if key not in items_by_key:
+                merged = dict(item)
+                merged[identifier_key] = identifier
+                merged["total_credits"] = credits
+                merged["entry_count"] = entry_count
+                items_by_key[key] = merged
+                continue
+
+            existing = items_by_key[key]
+            total_credits = _summary_int(existing.get("total_credits")) + credits
+            total_count = _summary_int(existing.get("entry_count")) + entry_count
+            if _summary_order_value(item.get("updated_at")) >= _summary_order_value(existing.get("updated_at")):
+                existing.update(item)
+                existing[identifier_key] = identifier
+            existing["total_credits"] = total_credits
+            existing["entry_count"] = total_count
+
+        items = sorted(
+            items_by_key.values(),
+            key=lambda item: _summary_order_value(item.get("updated_at")),
+            reverse=True,
+        )
+        coalesced_day = dict(day)
+        coalesced_day["items"] = items
+        coalesced_day["total_credits"] = sum(_summary_int(item.get("total_credits")) for item in items)
+        coalesced_days.append(coalesced_day)
+
+    return sorted(coalesced_days, key=lambda day: day["date"], reverse=True)
+
+
+def _looks_like_duplicate_write(result: Any) -> bool:
+    try:
+        message = json.dumps(result, default=str).lower()
+    except TypeError:
+        message = str(result).lower()
+    return any(marker in message for marker in DUPLICATE_WRITE_MARKERS)
+
 
 def _api_device_summary_identifier(device_hash: str) -> str:
     if device_hash.startswith("apple-"):
@@ -26,6 +205,40 @@ class UsageMethods:
         self.encryption_service = encryption_service
         self.collection = "usage"
 
+    async def _invalidate_monthly_summary_cache(self, user_id_hash: str, summary_type: Optional[str], log_prefix: str) -> None:
+        if not summary_type:
+            return
+        for months in [1, 2, 3]:
+            cache_key = f"usage_summaries:{user_id_hash}:{summary_type}:{months}"
+            await self.sdk.cache.delete(cache_key)
+            logger.debug(f"{log_prefix} Invalidated cache: {cache_key}")
+
+    async def _increment_existing_summary(
+        self,
+        collection: str,
+        params: Dict[str, Any],
+        credits_charged: int,
+        log_prefix: str,
+    ) -> bool:
+        existing_summaries = await self.sdk.get_items(collection, params=params, no_cache=True)
+        if not existing_summaries:
+            return False
+
+        summary = existing_summaries[0]
+        summary_id = summary.get("id")
+        if not summary_id:
+            return False
+
+        update_data = {
+            "total_credits": _summary_int(summary.get("total_credits")) + credits_charged,
+            "entry_count": _summary_int(summary.get("entry_count")) + 1,
+            "updated_at": int(datetime.now().timestamp())
+        }
+
+        await self.sdk.update_item(collection, summary_id, update_data)
+        logger.debug(f"{log_prefix} Updated {collection} summary {summary_id} (+{credits_charged} credits, +1 entry)")
+        return True
+
     async def create_usage_entry(
         self,
         user_id_hash: str,
@@ -37,6 +250,13 @@ class UsageMethods:
         user_vault_key_id: str,
         model_used: Optional[str] = None,
         chat_id: Optional[str] = None,
+        root_chat_id: Optional[str] = None,
+        actual_chat_id: Optional[str] = None,
+        root_turn_id: Optional[str] = None,
+        orchestration_id: Optional[str] = None,
+        depth: Optional[int] = None,
+        charge_id: Optional[str] = None,
+        operation_id: Optional[str] = None,
         message_id: Optional[str] = None,
         source: str = "chat",  # "chat", "api_key", "direct", or "benchmark"
         cost_system_prompt_credits: Optional[int] = None,
@@ -52,8 +272,10 @@ class UsageMethods:
         server_region: Optional[str] = None,  # Server region (e.g., "EU", "US")
         code_run_filenames: Optional[List[str]] = None,  # Code Run file paths included in the sandbox request
         code_run_duration_seconds: Optional[float] = None,  # Total Code Run billable execution time
+        duration_second: Optional[float] = None,  # Generic billable duration in seconds for non-Code-Run skills
         tool_inference_iterations: Optional[int] = None,  # Extra LLM calls from tool use (cleartext int)
-    ) -> Optional[str]:
+        build_only: bool = False,
+    ) -> Any:
         """
         Creates a new usage entry in Directus.
         Stores app_id, skill_id, chat_id, message_id in cleartext for performance and client-side matching.
@@ -84,6 +306,7 @@ class UsageMethods:
             server_region: Optional server region (e.g., "EU", "US", "APAC"). Only for AI Ask skill.
             code_run_filenames: File paths included in a Code Run sandbox request. Only for Code Run.
             code_run_duration_seconds: Total Code Run billable execution duration in seconds. Only for Code Run.
+            duration_second: Generic billable duration in seconds for skills such as Code image-to-HTML.
             tool_inference_iterations: Number of extra LLM calls triggered by tool use in this turn
                 (0 or None = no tool calls). Stored as a cleartext integer for client-side display.
                 Only populated for AI Ask skill.
@@ -113,6 +336,8 @@ class UsageMethods:
             # Normalize chat_id and message_id (strip if provided)
             normalized_chat_id = chat_id.strip() if chat_id and isinstance(chat_id, str) and chat_id.strip() else None
             normalized_message_id = message_id.strip() if message_id and isinstance(message_id, str) and message_id.strip() else None
+            normalized_root_chat_id = root_chat_id.strip() if root_chat_id and isinstance(root_chat_id, str) and root_chat_id.strip() else None
+            summary_chat_id = normalized_root_chat_id or normalized_chat_id
             
             # Validate: If source is "chat", chat_id should be provided
             if source == "chat" and not normalized_chat_id:
@@ -129,15 +354,14 @@ class UsageMethods:
                 )
                 encrypted_model_used = encrypted_model_used_tuple[0] if encrypted_model_used_tuple else None
 
-            # CRITICAL: Only save tokens for AI Ask skill (app_id='ai', skill_id='ask')
-            # Other skills don't use LLM tokens directly, so storing tokens is incorrect
-            should_save_tokens = (app_id == "ai" and skill_id == "ask")
+            # Save token fields for skills whose billing directly depends on provider token usage.
+            should_save_tokens = (app_id, skill_id) in {("ai", "ask"), ("code", "image_to_html")}
             
             if actual_input_tokens is not None or actual_output_tokens is not None:
                 if not should_save_tokens:
                     logger.warning(
                         f"{log_prefix} Tokens provided for non-AI-Ask skill (app_id='{app_id}', skill_id='{skill_id}'). "
-                        f"Tokens will not be saved. Only AI Ask skill should have tokens."
+                        f"Tokens will not be saved. Only token-billed skills should have tokens."
                     )
                     actual_input_tokens = None
                     actual_output_tokens = None
@@ -202,9 +426,10 @@ class UsageMethods:
                     encrypted_code_run_filenames = res[0] if res else None
 
             encrypted_code_run_duration_seconds = None
-            if code_run_duration_seconds is not None:
+            billable_duration_second = code_run_duration_seconds if code_run_duration_seconds is not None else duration_second
+            if billable_duration_second is not None:
                 res = await self.encryption_service.encrypt_with_user_key(
-                    key_id=encryption_key_id, plaintext=str(round(float(code_run_duration_seconds), 3))
+                    key_id=encryption_key_id, plaintext=str(round(float(billable_duration_second), 3))
                 )
                 encrypted_code_run_duration_seconds = res[0] if res else None
 
@@ -254,6 +479,20 @@ class UsageMethods:
             # Add optional cleartext fields (for client-side matching with IndexedDB)
             if normalized_chat_id:
                 payload["chat_id"] = normalized_chat_id
+            if normalized_root_chat_id:
+                payload["root_chat_id"] = normalized_root_chat_id
+            if actual_chat_id or normalized_chat_id:
+                payload["actual_chat_id"] = actual_chat_id or normalized_chat_id
+            if root_turn_id:
+                payload["root_turn_id"] = root_turn_id
+            if orchestration_id:
+                payload["orchestration_id"] = orchestration_id
+            if depth is not None:
+                payload["depth"] = depth
+            if charge_id:
+                payload["charge_id"] = charge_id
+            if operation_id:
+                payload["operation_id"] = operation_id
             if normalized_message_id:
                 payload["message_id"] = normalized_message_id
             
@@ -296,6 +535,9 @@ class UsageMethods:
             if should_save_tokens and tool_inference_iterations is not None and isinstance(tool_inference_iterations, int):
                 payload["tool_inference_iterations"] = tool_inference_iterations
 
+            if build_only:
+                return payload
+
             success, response_data = await self.sdk.create_item(self.collection, payload)
             
             if success and response_data and response_data.get("id"):
@@ -309,7 +551,7 @@ class UsageMethods:
                         user_id_hash=user_id_hash,
                         timestamp=timestamp,
                         credits_charged=credits_charged,
-                        chat_id=normalized_chat_id,
+                        chat_id=summary_chat_id,
                         app_id=app_id,
                         api_key_hash=api_key_hash,
                         device_hash=device_hash
@@ -325,7 +567,7 @@ class UsageMethods:
                         user_id_hash=user_id_hash,
                         timestamp=timestamp,
                         credits_charged=credits_charged,
-                        chat_id=normalized_chat_id,
+                        chat_id=summary_chat_id,
                         app_id=app_id,
                         api_key_hash=api_key_hash,
                         device_hash=device_hash
@@ -333,6 +575,19 @@ class UsageMethods:
                 except Exception as e_daily:
                     # Log error but don't fail usage entry creation
                     logger.error(f"{log_prefix} Error updating daily summaries: {e_daily}", exc_info=True)
+
+                # Mark private overview rollups stale after the authoritative raw row exists.
+                # Rebuild happens on-demand or through reconciliation so billing writes stay reliable.
+                try:
+                    from backend.core.api.app.services.usage_overview_service import UsageOverviewService
+
+                    overview_service = UsageOverviewService(self.sdk, self.encryption_service)
+                    await overview_service.mark_entry_periods_stale(
+                        user_id_hash=user_id_hash,
+                        timestamp=timestamp,
+                    )
+                except Exception as e_overview:
+                    logger.error(f"{log_prefix} Error marking usage overview rollups stale: {e_overview}", exc_info=True)
                 
                 return entry_id
             else:
@@ -342,7 +597,44 @@ class UsageMethods:
         except Exception as e:
             logger.error(f"{log_prefix} Error creating usage entry: {e}", exc_info=True)
             return None
-    
+
+    async def update_summaries_for_committed_entry(
+        self,
+        *,
+        user_id_hash: str,
+        timestamp: int,
+        credits_charged: int,
+        chat_id: Optional[str],
+        app_id: str,
+        api_key_hash: Optional[str],
+        device_hash: Optional[str],
+    ) -> None:
+        """Update projections after a raw usage row commits with its balance transaction."""
+        try:
+            await self._update_monthly_summaries(
+                user_id_hash=user_id_hash,
+                timestamp=timestamp,
+                credits_charged=credits_charged,
+                chat_id=chat_id,
+                app_id=app_id,
+                api_key_hash=api_key_hash,
+                device_hash=device_hash,
+            )
+        except Exception as exc:
+            logger.error("Error updating monthly summaries after committed usage: %s", exc, exc_info=True)
+        try:
+            await self._update_daily_summaries(
+                user_id_hash=user_id_hash,
+                timestamp=timestamp,
+                credits_charged=credits_charged,
+                chat_id=chat_id,
+                app_id=app_id,
+                api_key_hash=api_key_hash,
+                device_hash=device_hash,
+            )
+        except Exception as exc:
+            logger.error("Error updating daily summaries after committed usage: %s", exc, exc_info=True)
+
     async def _update_monthly_summaries(
         self,
         user_id_hash: str,
@@ -455,10 +747,6 @@ class UsageMethods:
             log_prefix: Logging prefix
         """
         try:
-            # Try to find existing summary
-            # TODO(audit-2026-03-19): No composite index on (user_id_hash, year_month) for usage_monthly_*_summaries tables.
-            # This query runs on every AI message (credit charge). Create migrate_usage_indexes.py with:
-            # CREATE INDEX CONCURRENTLY IF NOT EXISTS <table>_user_month_idx ON public.<table> (user_id_hash, year_month);
             params = {
                 "filter": {
                     "user_id_hash": {"_eq": user_id_hash},
@@ -468,62 +756,42 @@ class UsageMethods:
                 "fields": "id,total_credits,entry_count",
                 "limit": 1
             }
-            
-            existing_summaries = await self.sdk.get_items(collection, params=params, no_cache=True)
-            
-            if existing_summaries and len(existing_summaries) > 0:
-                # Update existing summary
-                summary = existing_summaries[0]
-                summary_id = summary.get("id")
-                current_credits = summary.get("total_credits", 0)
-                current_count = summary.get("entry_count", 0)
-                
-                update_data = {
-                    "total_credits": current_credits + credits_charged,
-                    "entry_count": current_count + 1,
-                    "updated_at": int(datetime.now().timestamp())
-                }
-                
-                await self.sdk.update_item(collection, summary_id, update_data)
-                logger.debug(f"{log_prefix} Updated {collection} summary {summary_id} (+{credits_charged} credits, +1 entry)")
-                
-                # Invalidate cache for this summary type (last 3 months)
-                # This ensures cache is updated when summaries change
-                if summary_type:
-                    for months in [1, 2, 3]:
-                        cache_key = f"usage_summaries:{user_id_hash}:{summary_type}:{months}"
-                        await self.sdk.cache.delete(cache_key)
-                        logger.debug(f"{log_prefix} Invalidated cache: {cache_key}")
-            else:
-                # Create new summary
-                current_timestamp = int(datetime.now().timestamp())
-                
-                create_data = {
-                    "user_id_hash": user_id_hash,
-                    identifier_key: identifier_value,
-                    "year_month": year_month,
-                    "total_credits": credits_charged,
-                    "entry_count": 1,
-                    "is_archived": False,
-                    "archive_s3_key": None,
-                    "created_at": current_timestamp,
-                    "updated_at": current_timestamp
-                }
-                
+
+            if await self._increment_existing_summary(collection, params, credits_charged, log_prefix):
+                await self._invalidate_monthly_summary_cache(user_id_hash, summary_type, log_prefix)
+                return
+
+            current_timestamp = int(datetime.now().timestamp())
+            create_data = {
+                "user_id_hash": user_id_hash,
+                identifier_key: identifier_value,
+                "year_month": year_month,
+                "total_credits": credits_charged,
+                "entry_count": 1,
+                "is_archived": False,
+                "archive_s3_key": None,
+                "created_at": current_timestamp,
+                "updated_at": current_timestamp
+            }
+
+            try:
                 success, result = await self.sdk.create_item(collection, create_data)
-                if success and result:
-                    logger.debug(f"{log_prefix} Created new {collection} summary for {identifier_key}={identifier_value}, month={year_month}")
-                    
-                    # Invalidate cache for this summary type (last 3 months)
-                    # This ensures cache is updated when new summaries are created
-                    if summary_type:
-                        for months in [1, 2, 3]:
-                            cache_key = f"usage_summaries:{user_id_hash}:{summary_type}:{months}"
-                            await self.sdk.cache.delete(cache_key)
-                            logger.debug(f"{log_prefix} Invalidated cache: {cache_key}")
-                else:
-                    logger.warning(f"{log_prefix} Failed to create {collection} summary: {result}")
-                    
+            except Exception as create_error:
+                if _looks_like_duplicate_write(create_error) and await self._increment_existing_summary(collection, params, credits_charged, log_prefix):
+                    await self._invalidate_monthly_summary_cache(user_id_hash, summary_type, log_prefix)
+                    return
+                raise
+            if success and result:
+                logger.debug(f"{log_prefix} Created new {collection} summary for {identifier_key}={identifier_value}, month={year_month}")
+                await self._invalidate_monthly_summary_cache(user_id_hash, summary_type, log_prefix)
+                return
+
+            if _looks_like_duplicate_write(result) and await self._increment_existing_summary(collection, params, credits_charged, log_prefix):
+                await self._invalidate_monthly_summary_cache(user_id_hash, summary_type, log_prefix)
+                return
+
+            logger.warning(f"{log_prefix} Failed to create {collection} summary: {result}")
+
         except Exception as e:
             logger.error(f"{log_prefix} Error updating {collection} summary: {e}", exc_info=True)
             # Don't raise - this is a non-critical operation
@@ -642,7 +910,6 @@ class UsageMethods:
             log_prefix: Logging prefix
         """
         try:
-            # Try to find existing daily summary
             params = {
                 "filter": {
                     "user_id_hash": {"_eq": user_id_hash},
@@ -652,44 +919,36 @@ class UsageMethods:
                 "fields": "id,total_credits,entry_count",
                 "limit": 1
             }
-            
-            existing = await self.sdk.get_items(collection, params=params, no_cache=True)
-            
-            if existing and len(existing) > 0:
-                # Update existing daily summary
-                summary = existing[0]
-                summary_id = summary.get("id")
-                current_credits = summary.get("total_credits", 0)
-                current_count = summary.get("entry_count", 0)
-                
-                update_data = {
-                    "total_credits": current_credits + credits_charged,
-                    "entry_count": current_count + 1,
-                    "updated_at": int(datetime.now().timestamp())
-                }
-                
-                await self.sdk.update_item(collection, summary_id, update_data)
-                logger.debug(f"{log_prefix} Updated {collection} {summary_id} (+{credits_charged} credits, +1 entry)")
-            else:
-                # Create new daily summary
-                current_timestamp = int(datetime.now().timestamp())
-                
-                create_data = {
-                    "user_id_hash": user_id_hash,
-                    identifier_key: identifier_value,
-                    "date": date_str,
-                    "total_credits": credits_charged,
-                    "entry_count": 1,
-                    "created_at": current_timestamp,
-                    "updated_at": current_timestamp
-                }
-                
+
+            if await self._increment_existing_summary(collection, params, credits_charged, log_prefix):
+                return
+
+            current_timestamp = int(datetime.now().timestamp())
+            create_data = {
+                "user_id_hash": user_id_hash,
+                identifier_key: identifier_value,
+                "date": date_str,
+                "total_credits": credits_charged,
+                "entry_count": 1,
+                "created_at": current_timestamp,
+                "updated_at": current_timestamp
+            }
+
+            try:
                 success, result = await self.sdk.create_item(collection, create_data)
-                if success and result:
-                    logger.debug(f"{log_prefix} Created new {collection} for {identifier_key}={identifier_value}, date={date_str}")
-                else:
-                    logger.warning(f"{log_prefix} Failed to create {collection}: {result}")
-                    
+            except Exception as create_error:
+                if _looks_like_duplicate_write(create_error) and await self._increment_existing_summary(collection, params, credits_charged, log_prefix):
+                    return
+                raise
+            if success and result:
+                logger.debug(f"{log_prefix} Created new {collection} for {identifier_key}={identifier_value}, date={date_str}")
+                return
+
+            if _looks_like_duplicate_write(result) and await self._increment_existing_summary(collection, params, credits_charged, log_prefix):
+                return
+
+            logger.warning(f"{log_prefix} Failed to create {collection}: {result}")
+
         except Exception as e:
             logger.error(f"{log_prefix} Error updating {collection}: {e}", exc_info=True)
             # Don't raise - this is a non-critical operation
@@ -723,7 +982,7 @@ class UsageMethods:
             cached = await self.sdk.cache.get(cache_key)
             if cached:
                 logger.debug(f"{log_prefix} Cache HIT for daily overview")
-                return cached
+                return _coalesce_daily_overview_days(cached)
             
             # Calculate list of date strings for the requested days
             from datetime import timedelta
@@ -742,13 +1001,13 @@ class UsageMethods:
             
             chat_params = {
                 "filter": common_filter,
-                "fields": "chat_id,date,total_credits,entry_count,updated_at",
+                "fields": "id,user_id_hash,chat_id,date,total_credits,entry_count,updated_at",
                 "sort": ["-date"],
                 "limit": -1
             }
             api_key_params = {
                 "filter": common_filter,
-                "fields": "api_key_hash,date,total_credits,entry_count,updated_at",
+                "fields": "id,user_id_hash,api_key_hash,date,total_credits,entry_count,updated_at",
                 "sort": ["-date"],
                 "limit": -1
             }
@@ -759,7 +1018,20 @@ class UsageMethods:
                 self.sdk.get_items("usage_daily_chat_summaries", params=chat_params, no_cache=True),
                 self.sdk.get_items("usage_daily_api_key_summaries", params=api_key_params, no_cache=True),
             )
-            
+
+            chat_summaries = _coalesce_summary_rows(
+                chat_summaries,
+                user_id_hash=user_id_hash,
+                identifier_key="chat_id",
+                period_key="date",
+            )
+            api_key_summaries = _coalesce_summary_rows(
+                api_key_summaries,
+                user_id_hash=user_id_hash,
+                identifier_key="api_key_hash",
+                period_key="date",
+            )
+
             # Combine all items grouped by date
             # Structure: {date: {items: [...], total_credits: N}}
             days_map: Dict[str, Dict[str, Any]] = {}
@@ -883,7 +1155,7 @@ class UsageMethods:
             
             # Sort items within each day by updated_at descending (most recently updated first)
             for day_data in days_map.values():
-                day_data["items"].sort(key=lambda x: x.get("updated_at") or "", reverse=True)
+                day_data["items"].sort(key=lambda x: _summary_order_value(x.get("updated_at")), reverse=True)
             
             # Convert to sorted list (most recent date first)
             result = sorted(days_map.values(), key=lambda x: x["date"], reverse=True)
@@ -1204,7 +1476,12 @@ class UsageMethods:
                 cached_summaries = await self.sdk.cache.get(cache_key)
                 if cached_summaries:
                     logger.debug(f"{log_prefix} Cache HIT for {summary_type} summaries")
-                    return cached_summaries
+                    return _coalesce_summary_rows(
+                        cached_summaries,
+                        user_id_hash=user_id_hash,
+                        identifier_key=MONTHLY_SUMMARY_IDENTIFIER_KEYS[summary_type],
+                        period_key="year_month",
+                    )
             
             # Query summaries using _in operator with list of year_month strings
             params = {
@@ -1218,6 +1495,12 @@ class UsageMethods:
             }
             
             summaries = await self.sdk.get_items(collection_name, params=params, no_cache=True)
+            summaries = _coalesce_summary_rows(
+                summaries,
+                user_id_hash=user_id_hash,
+                identifier_key=MONTHLY_SUMMARY_IDENTIFIER_KEYS[summary_type],
+                period_key="year_month",
+            )
             
             # Cache the last 3 months for future requests
             if months <= 3 and summaries:
@@ -1273,11 +1556,17 @@ class UsageMethods:
                     identifier_key: {"_eq": identifier},
                     "year_month": {"_eq": year_month}
                 },
-                "fields": "id,is_archived,archive_s3_key",
-                "limit": 1
+                "fields": f"id,user_id_hash,{identifier_key},year_month,total_credits,entry_count,is_archived,archive_s3_key,updated_at",
+                "limit": -1
             }
             
             summaries = await self.sdk.get_items(collection_name, params=params, no_cache=True)
+            summaries = _coalesce_summary_rows(
+                summaries,
+                user_id_hash=user_id_hash,
+                identifier_key=identifier_key,
+                period_key="year_month",
+            )
             
             if not summaries:
                 logger.warning(f"{log_prefix} No summary found for {summary_type} '{identifier}', month '{year_month}'")
@@ -1313,7 +1602,15 @@ class UsageMethods:
                 }
                 
                 if summary_type == "chat":
-                    filter_dict["chat_id"] = {"_eq": identifier}
+                    filter_dict["_or"] = [
+                        {"root_chat_id": {"_eq": identifier}},
+                        {
+                            "_and": [
+                                {"root_chat_id": {"_null": True}},
+                                {"chat_id": {"_eq": identifier}},
+                            ]
+                        },
+                    ]
                     # Only include entries where source is 'chat' (web app usage)
                     # This excludes API requests that might be associated with this chat
                     filter_dict["source"] = {"_eq": "chat"}
@@ -1376,7 +1673,15 @@ class UsageMethods:
             # Query usage collection for all entries matching this chat
             filter_dict = {
                 "user_id_hash": {"_eq": user_id_hash},
-                "chat_id": {"_eq": chat_id},
+                "_or": [
+                    {"root_chat_id": {"_eq": chat_id}},
+                    {
+                        "_and": [
+                            {"root_chat_id": {"_null": True}},
+                            {"chat_id": {"_eq": chat_id}},
+                        ]
+                    },
+                ],
                 "source": {"_eq": "chat"}
             }
             
@@ -1428,12 +1733,18 @@ class UsageMethods:
                     "user_id_hash": {"_eq": user_id_hash},
                     "chat_id": {"_eq": chat_id}
                 },
-                "fields": "total_credits",
+                "fields": "id,user_id_hash,chat_id,year_month,total_credits,entry_count,updated_at,is_archived,archive_s3_key",
                 "limit": -1
             }
             
             summaries = await self.sdk.get_items(
                 "usage_monthly_chat_summaries", params=params, no_cache=True
+            )
+            summaries = _coalesce_summary_rows(
+                summaries,
+                user_id_hash=user_id_hash,
+                identifier_key="chat_id",
+                period_key="year_month",
             )
             
             total = sum(s.get("total_credits", 0) for s in summaries)

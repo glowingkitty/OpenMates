@@ -44,6 +44,7 @@ def sessions_module(tmp_path, monkeypatch):
     fake_sessions_file = tmp_path / "sessions.json"
     fake_sessions_file.write_text(json.dumps({"sessions": {}, "locks": {}}))
     monkeypatch.setattr(mod, "SESSIONS_FILE", fake_sessions_file)
+    monkeypatch.delenv("OPENCODE_SESSION_ID", raising=False)
 
     yield mod
 
@@ -108,6 +109,27 @@ def test_resolver_ignores_sessions_with_null_zellij(sessions_module, monkeypatch
         "bbbb": {"zellij_session": "claude3", "task": "post-fix"},
     }
     assert sessions_module._resolve_session_from_zellij(sessions) == "bbbb"
+
+
+def test_identity_resolver_prefers_exact_opencode_chat(sessions_module, monkeypatch):
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "ses_exact")
+    monkeypatch.setenv("ZELLIJ_SESSION_NAME", "opencode")
+    sessions = {
+        "aaaa": {"opencode_session_id": "ses_other", "zellij_session": "opencode"},
+        "bbbb": {"opencode_session_id": "ses_exact", "zellij_session": "opencode"},
+    }
+
+    assert sessions_module._resolve_session_identity(sessions) == "bbbb"
+
+
+def test_unknown_opencode_chat_never_falls_back_to_zellij(sessions_module, monkeypatch):
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "ses_unknown")
+    monkeypatch.setenv("ZELLIJ_SESSION_NAME", "opencode")
+    sessions = {
+        "aaaa": {"opencode_session_id": "ses_other", "zellij_session": "opencode"},
+    }
+
+    assert sessions_module._resolve_session_identity(sessions) is None
 
 
 # ---------------------------------------------------------------------------

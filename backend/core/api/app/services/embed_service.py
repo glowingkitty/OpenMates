@@ -51,15 +51,31 @@ APPLICATION_ARTIFACT_SOURCE_EXTENSIONS = (
     ".css",
     ".html",
 )
+NOTEBOOK_PYTHON_LANGUAGES = {"py", "python", "python3"}
+NOTEBOOK_FENCE_LANGUAGES = {"ipynb", "notebook", "jupyter", "jupyter-notebook"}
 
 EMBED_REQUEST_METADATA_EXCLUDE_FIELDS = {
+    "_api_key_hash",
+    "_api_key_name",
+    "_connected_account_access_tokens",
+    "_device_hash",
+    "_external_request",
+    "_placeholder_embed_ids",
+    "_user_id",
+    "_user_vault_key_id",
     "app_id",
+    "embed_id",
     "skill_id",
     "type",
     "status",
     "task_id",
     "skill_task_id",
     "request_id",
+    "user_id",
+    "user_vault_key_id",
+    "vault_key_id",
+    "external_request",
+    "placeholder_embed_ids",
     "embed_ids",
     "parent_embed_id",
     "embed_ref",
@@ -68,6 +84,10 @@ EMBED_REQUEST_METADATA_EXCLUDE_FIELDS = {
     "preview_results",
     "preview_thumbnails",
     "encrypted_content",
+    "csv_statements",
+    "connected_account_requests",
+    "connected_account_access_tokens",
+    "revolut_client_factory",
     "text_length_chars",
     "created_at",
     "updated_at",
@@ -82,6 +102,48 @@ EMBED_REQUEST_METADATA_EXCLUDE_FIELDS = {
     "is_shared",
     "encryption_mode",
 }
+
+EMBED_REQUEST_METADATA_EXCLUDE_PREFIXES = (
+    "csv_statements",
+    "connected_account_access_tokens",
+    "_connected_account_access_tokens",
+)
+
+FINANCE_CHECK_ACCOUNTS_CONTENT_EXCLUDE_FIELDS = {
+    "_api_key_hash",
+    "_api_key_name",
+    "_connected_account_access_tokens",
+    "_device_hash",
+    "_external_request",
+    "_placeholder_embed_ids",
+    "_user_id",
+    "_user_vault_key_id",
+    "chat_id",
+    "connected_account_access_tokens",
+    "connected_account_requests",
+    "embed_id",
+    "encrypted_content",
+    "external_request",
+    "hashed_chat_id",
+    "hashed_message_id",
+    "hashed_skill_task_id",
+    "hashed_task_id",
+    "hashed_user_id",
+    "message_id",
+    "owner_pii_mappings",
+    "placeholder_embed_ids",
+    "revolut_client_factory",
+    "user_id",
+    "user_vault_key_id",
+    "vault_key_id",
+}
+
+FINANCE_CHECK_ACCOUNTS_CONTENT_EXCLUDE_PREFIXES = (
+    "_owner_pii_mappings",
+    "csv_statements",
+    "connected_account_access_tokens",
+    "_connected_account_access_tokens",
+)
 
 
 def _flatten_for_toon_tabular(obj: Any, prefix: str = "") -> Any:
@@ -146,6 +208,38 @@ class EmbedService:
         self.encryption_service = encryption_service
 
     @staticmethod
+    def _sanitize_request_metadata(metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Strip raw request payloads before embedding metadata is cached, sent, or shared."""
+        if not metadata:
+            return {}
+        sanitized: Dict[str, Any] = {}
+        for key, value in metadata.items():
+            if (
+                key in EMBED_REQUEST_METADATA_EXCLUDE_FIELDS
+                or any(key.startswith(prefix) for prefix in EMBED_REQUEST_METADATA_EXCLUDE_PREFIXES)
+                or value is None
+            ):
+                continue
+            if isinstance(value, dict):
+                nested = EmbedService._sanitize_request_metadata(value)
+                if nested:
+                    sanitized[key] = nested
+            elif isinstance(value, list):
+                nested_items = []
+                for item in value:
+                    if isinstance(item, dict):
+                        nested_item = EmbedService._sanitize_request_metadata(item)
+                        if nested_item:
+                            nested_items.append(nested_item)
+                    elif item is not None:
+                        nested_items.append(item)
+                if nested_items:
+                    sanitized[key] = nested_items
+            else:
+                sanitized[key] = value
+        return sanitized
+
+    @staticmethod
     def _merge_request_metadata(
         original_content: Optional[Dict[str, Any]],
         request_metadata: Optional[Dict[str, Any]],
@@ -154,14 +248,136 @@ class EmbedService:
         merged: Dict[str, Any] = {}
 
         for source in (original_content, request_metadata):
-            if not source:
-                continue
-            for key, value in source.items():
-                if key in EMBED_REQUEST_METADATA_EXCLUDE_FIELDS or value is None:
-                    continue
+            for key, value in EmbedService._sanitize_request_metadata(source).items():
                 merged[key] = value
 
         return merged
+
+    @staticmethod
+    def _sanitize_final_app_skill_content(
+        app_id: str,
+        skill_id: str,
+        content: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Strip private execution fields from final app-skill embed content."""
+        if app_id != "finance" or skill_id != "check_accounts":
+            return content
+        return EmbedService._strip_fields_recursive(
+            content,
+            FINANCE_CHECK_ACCOUNTS_CONTENT_EXCLUDE_FIELDS,
+            FINANCE_CHECK_ACCOUNTS_CONTENT_EXCLUDE_PREFIXES,
+        )
+
+    @staticmethod
+    def _extract_finance_owner_pii_mappings(
+        app_id: str,
+        skill_id: str,
+        content: Dict[str, Any],
+    ) -> List[Dict[str, str]]:
+        """Return owner-only Finance mappings before embed-content sanitization."""
+        if app_id != "finance" or skill_id != "check_accounts":
+            return []
+
+        mappings: List[Dict[str, str]] = []
+
+        def collect(value: Any) -> None:
+            if isinstance(value, dict):
+                owner_mappings = value.get("owner_pii_mappings") or value.get(
+                    "_owner_pii_mappings"
+                )
+                if isinstance(owner_mappings, list):
+                    for item in owner_mappings:
+                        if not isinstance(item, dict):
+                            continue
+                        placeholder = item.get("placeholder")
+                        original = item.get("original")
+                        if not isinstance(placeholder, str) or not isinstance(
+                            original,
+                            str,
+                        ):
+                            continue
+                        mappings.append(
+                            {
+                                "placeholder": placeholder,
+                                "original": original,
+                                "type": str(item.get("type") or "COUNTERPARTY"),
+                            }
+                        )
+                for child in value.values():
+                    collect(child)
+            elif isinstance(value, list):
+                for child in value:
+                    collect(child)
+
+        collect(content)
+        return mappings
+
+    @staticmethod
+    def _strip_fields_recursive(
+        value: Any,
+        excluded_fields: set[str],
+        excluded_prefixes: Tuple[str, ...],
+    ) -> Any:
+        if isinstance(value, dict):
+            stripped: Dict[str, Any] = {}
+            for key, child in value.items():
+                if key in excluded_fields or any(key.startswith(prefix) for prefix in excluded_prefixes):
+                    continue
+                stripped[key] = EmbedService._strip_fields_recursive(
+                    child,
+                    excluded_fields,
+                    excluded_prefixes,
+                )
+            return stripped
+        if isinstance(value, list):
+            return [
+                EmbedService._strip_fields_recursive(item, excluded_fields, excluded_prefixes)
+                for item in value
+            ]
+        return value
+
+    @staticmethod
+    def _sanitize_finance_check_accounts_toon(content_toon: str) -> str:
+        """Remove private top-level Finance request metadata from outbound TOON."""
+        if "app_id: finance" not in content_toon or "skill_id: check_accounts" not in content_toon:
+            return content_toon
+
+        private_prefixes = (
+            "_connected_account_access_tokens",
+            "_external_request",
+            "_placeholder_embed_ids",
+            "_owner_pii_mappings",
+            "_user_id",
+            "_user_vault_key_id",
+            "chat_id",
+            "connected_account_access_tokens",
+            "connected_account_requests",
+            "csv_statements",
+            "embed_id",
+            "external_request",
+            "message_id",
+            "owner_pii_mappings",
+            "placeholder_embed_ids",
+            "revolut_client_factory",
+            "user_id",
+            "user_vault_key_id",
+            "vault_key_id",
+        )
+        lines = content_toon.splitlines()
+        kept: List[str] = []
+        skipping_block = False
+        for line in lines:
+            is_indented = line.startswith((" ", "\t"))
+            if skipping_block and is_indented:
+                continue
+            skipping_block = False
+
+            stripped = line.lstrip()
+            if not is_indented and any(stripped.startswith(prefix) for prefix in private_prefixes):
+                skipping_block = line.rstrip().endswith(":")
+                continue
+            kept.append(line)
+        return "\n".join(kept)
 
     @staticmethod
     def _build_parent_preview_metadata(
@@ -265,6 +481,8 @@ class EmbedService:
         )
         if app_id == "web" and skill_id == "search":
             return (*common_fields, "snippet", "description")
+        if app_id == "mail" and skill_id == "search":
+            return (*common_fields, "subject", "from", "to", "receiver", "snippet")
         if app_id == "weather" and skill_id == "forecast":
             return (
                 *common_fields,
@@ -395,6 +613,8 @@ class EmbedService:
             # Generate embed_id for placeholder
             embed_id = str(uuid.uuid4())
 
+            sanitized_metadata = EmbedService._sanitize_request_metadata(metadata)
+
             # Create minimal placeholder content with metadata
             # CRITICAL: Include all metadata (query, provider, etc.) in placeholder
             # This ensures the frontend can display the query immediately while skill executes
@@ -407,18 +627,18 @@ class EmbedService:
                 "status": "processing",
                 **({"task_id": task_id} if task_id else {}),
                 "skill_task_id": skill_task_id,  # For individual skill cancellation
-                **(metadata or {})
+                **sanitized_metadata
             }
             
             # Log metadata for debugging (especially query for web search)
-            if metadata:
+            if sanitized_metadata:
                 logger.debug(
                     f"{log_prefix} Creating placeholder with metadata: "
-                    f"keys={list(metadata.keys())}, "
-                    f"key_count={len(metadata.keys())}, "
-                    f"query_present={'query' in metadata}, "
-                    f"provider_present={'provider' in metadata}, "
-                    f"providers_present={'providers' in metadata}"
+                    f"keys={list(sanitized_metadata.keys())}, "
+                    f"key_count={len(sanitized_metadata.keys())}, "
+                    f"query_present={'query' in sanitized_metadata}, "
+                    f"provider_present={'provider' in sanitized_metadata}, "
+                    f"providers_present={'providers' in sanitized_metadata}"
                 )
 
             # Convert to TOON format
@@ -491,10 +711,10 @@ class EmbedService:
             }
             # Include user-visible request metadata so previews can render useful
             # context immediately, before the embed data arrives via WebSocket.
-            if metadata:
-                for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
-                    if metadata.get(key):
-                        embed_reference_payload[key] = metadata[key]
+            if sanitized_metadata:
+                for key in ["query", "provider", "providers", "start_date", "end_date", "time_range", "location"]:
+                    if sanitized_metadata.get(key):
+                        embed_reference_payload[key] = sanitized_metadata[key]
             embed_reference = json.dumps(embed_reference_payload)
 
             return {
@@ -635,6 +855,345 @@ class EmbedService:
             logger.error(f"{log_prefix} Error creating focus mode activation embed: {e}", exc_info=True)
             return None
 
+    @staticmethod
+    def _safe_notebook_filename(filename: Optional[str]) -> str:
+        safe_filename = (filename or "notebook.ipynb").replace("\\", "/").split("/")[-1] or "notebook.ipynb"
+        lower_filename = safe_filename.lower()
+        if lower_filename.endswith(".ipynb"):
+            return safe_filename
+        if lower_filename.endswith(".py"):
+            return f"{safe_filename[:-3]}.ipynb"
+        return f"{safe_filename}.ipynb"
+
+    @staticmethod
+    def _is_python_language(language: Optional[str]) -> bool:
+        return (language or "").strip().lower() in NOTEBOOK_PYTHON_LANGUAGES
+
+    @staticmethod
+    def _is_python_percent_cell_notebook_source(language: Optional[str], raw_content: Optional[str]) -> bool:
+        if not EmbedService._is_python_language(language) or not raw_content:
+            return False
+        cell_markers = [
+            line for line in raw_content.splitlines()
+            if re.match(r"^#\s*%%(?:\s|\[|$)", line.strip())
+        ]
+        return len(cell_markers) >= 2
+
+    @staticmethod
+    def _python_percent_cell_source_to_notebook(raw_content: str) -> Dict[str, Any]:
+        def append_cell(cells: List[Dict[str, Any]], cell_type: str, source_lines: List[str]) -> None:
+            if not any(line.strip() for line in source_lines):
+                return
+            if cell_type == "markdown":
+                normalized_lines = []
+                for line in source_lines:
+                    stripped = line.lstrip()
+                    if stripped.startswith("# "):
+                        normalized_lines.append(stripped[2:])
+                    elif stripped == "#":
+                        normalized_lines.append("")
+                    elif stripped.startswith("#"):
+                        normalized_lines.append(stripped[1:].lstrip())
+                    else:
+                        normalized_lines.append(line)
+                cells.append({
+                    "cell_type": "markdown",
+                    "metadata": {},
+                    "source": "\n".join(normalized_lines).strip("\n"),
+                })
+                return
+
+            cells.append({
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": "\n".join(source_lines).strip("\n"),
+            })
+
+        cells: List[Dict[str, Any]] = []
+        current_cell_type = "code"
+        current_lines: List[str] = []
+        seen_marker = False
+        for line in raw_content.splitlines():
+            if re.match(r"^#\s*%%(?:\s|\[|$)", line.strip()):
+                append_cell(cells, current_cell_type, current_lines)
+                seen_marker = True
+                current_cell_type = "markdown" if "markdown" in line.lower() else "code"
+                current_lines = []
+                continue
+            current_lines.append(line)
+
+        append_cell(cells, current_cell_type, current_lines)
+        if not seen_marker:
+            cells = []
+
+        return {
+            "nbformat": 4,
+            "nbformat_minor": 5,
+            "metadata": {
+                "kernelspec": {
+                    "display_name": "Python 3",
+                    "language": "python",
+                    "name": "python3",
+                },
+                "language_info": {"name": "python"},
+            },
+            "cells": cells,
+        }
+
+    @staticmethod
+    def _strip_notebook_fence_wrappers(raw_content: str) -> str:
+        payload = raw_content.strip()
+        if payload.startswith("```"):
+            first_newline = payload.find("\n")
+            if first_newline >= 0:
+                payload = payload[first_newline + 1:].lstrip()
+        if payload.endswith("```"):
+            payload = payload[:-3].rstrip()
+        return payload
+
+    @staticmethod
+    def _is_notebook_artifact(
+        language: Optional[str],
+        filename: Optional[str],
+        raw_content: Optional[str] = None,
+    ) -> bool:
+        language_value = (language or "").strip().lower()
+        filename_value = (filename or "").strip().lower()
+        return (
+            filename_value.endswith(".ipynb")
+            or language_value in NOTEBOOK_FENCE_LANGUAGES
+            or EmbedService._is_python_percent_cell_notebook_source(language, raw_content)
+        )
+
+    @staticmethod
+    def _normalize_notebook_payload(raw_content: str, filename: Optional[str]) -> Dict[str, Any]:
+        safe_filename = EmbedService._safe_notebook_filename(filename)
+        payload = EmbedService._strip_notebook_fence_wrappers(raw_content)
+
+        notebook: Optional[Dict[str, Any]] = None
+        parsed: Any = None
+        try:
+            parsed = json.loads(payload) if payload.strip() else None
+        except json.JSONDecodeError:
+            try:
+                # Streaming models can append prose after a complete nbformat object.
+                # raw_decode recovers that leading object without accepting broken JSON.
+                parsed, _ = json.JSONDecoder().raw_decode(payload.lstrip())
+            except Exception:
+                parsed = None
+        except Exception:
+            parsed = None
+
+        if isinstance(parsed, dict) and isinstance(parsed.get("cells"), list):
+            notebook = parsed
+
+        if notebook is None and EmbedService._is_python_percent_cell_notebook_source("python", payload):
+            notebook = EmbedService._python_percent_cell_source_to_notebook(payload)
+
+        metadata = notebook.get("metadata") if isinstance(notebook, dict) and isinstance(notebook.get("metadata"), dict) else {}
+        kernelspec = metadata.get("kernelspec") if isinstance(metadata.get("kernelspec"), dict) else {}
+        language_info = metadata.get("language_info") if isinstance(metadata.get("language_info"), dict) else {}
+        language = "unknown"
+        for value in (kernelspec.get("language"), language_info.get("name"), kernelspec.get("name")):
+            if isinstance(value, str) and value.strip():
+                normalized = value.strip().lower()
+                language = "python" if normalized in {"python", "python3", "py"} else normalized
+                break
+
+        cells = notebook.get("cells") if notebook else []
+        return {
+            "notebook": notebook,
+            "filename": safe_filename,
+            "language": language,
+            "cell_count": len(cells) if isinstance(cells, list) else 0,
+        }
+
+    async def create_notebook_embed_placeholder(
+        self,
+        language: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        filename: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+            embed_id = str(uuid.uuid4())
+            safe_filename = self._safe_notebook_filename(filename)
+            embed_ref = self._generate_direct_embed_ref(
+                "notebook",
+                embed_id,
+                {"filename": safe_filename, "language": language or "python"},
+            )
+            placeholder_content = {
+                "type": "notebook",
+                "app_id": "code",
+                "skill_id": "notebook",
+                "language": language or "python",
+                "filename": safe_filename,
+                "content": "",
+                "cell_count": 0,
+                "embed_ref": embed_ref,
+                "status": "processing",
+            }
+            placeholder_toon = encode(placeholder_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id
+            )
+            now = int(datetime.now().timestamp())
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "notebook",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": now,
+                "updated_at": now,
+            }
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="notebook",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=now,
+                updated_at=now,
+                log_prefix=log_prefix
+            )
+            logger.info(f"{log_prefix} Created processing notebook embed placeholder {embed_id} (filename: {safe_filename})")
+            return {
+                "embed_id": embed_id,
+                "embed_reference": json.dumps({"type": "notebook", "embed_id": embed_id}),
+            }
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating notebook embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_notebook_embed_content(
+        self,
+        embed_id: str,
+        notebook_content: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "processing",
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        log_prefix: str = ""
+    ) -> bool:
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Notebook embed {embed_id} not found in cache, cannot update")
+                return False
+
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            filename = "notebook.ipynb"
+            embed_ref = None
+            if existing_toon:
+                try:
+                    existing_content = decode(existing_toon)
+                    if isinstance(existing_content, dict):
+                        filename = existing_content.get("filename") or filename
+                        embed_ref = existing_content.get("embed_ref")
+                except Exception as e:
+                    logger.warning(f"{log_prefix} Failed to decode existing notebook embed content: {e}")
+
+            normalized = self._normalize_notebook_payload(notebook_content, filename)
+            updated_content = {
+                "type": "notebook",
+                "app_id": "code",
+                "skill_id": "notebook",
+                "language": normalized["language"],
+                "filename": normalized["filename"],
+                "cell_count": normalized["cell_count"],
+                "embed_ref": embed_ref or self._generate_direct_embed_ref(
+                    "notebook",
+                    embed_id,
+                    {"filename": normalized["filename"], "language": normalized["language"]},
+                ),
+                "status": status,
+                "source_version": content_hash,
+            }
+            if normalized["notebook"] is not None:
+                updated_content["notebook"] = normalized["notebook"]
+            else:
+                updated_content["content"] = notebook_content
+
+            updated_toon = encode(updated_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id
+            )
+            updated_embed_data = {
+                **cached_embed,
+                "type": "notebook",
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": int(datetime.now().timestamp()),
+            }
+            if version_number is not None:
+                updated_embed_data["version_number"] = version_number
+            if content_hash is not None:
+                updated_embed_data["content_hash"] = content_hash
+
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = not (status == "finished" and current_status == "finished" and version_number is None)
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if should_send_event:
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="notebook",
+                    content_toon=updated_toon,
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
+                    version_number=version_number,
+                    content_hash=content_hash,
+                    version_history_rows=version_history_rows,
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix,
+                    check_cache_status=False,
+                )
+            logger.info(f"{log_prefix} Updated notebook embed {embed_id} with status {status}")
+            return True
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating notebook embed content: {e}", exc_info=True)
+            return False
+
     async def create_code_embed_placeholder(
         self,
         language: str,
@@ -645,6 +1204,7 @@ class EmbedService:
         user_vault_key_id: str,
         task_id: Optional[str] = None,
         filename: Optional[str] = None,
+        code_content: Optional[str] = None,
         log_prefix: str = ""
     ) -> Optional[Dict[str, Any]]:
         """
@@ -663,6 +1223,7 @@ class EmbedService:
             user_vault_key_id: User's vault key ID for encryption
             task_id: Optional task ID for tracking
             filename: Optional filename (extracted from language:filename format)
+            code_content: Optional source text for content-aware notebook detection
             log_prefix: Logging prefix for this operation
             
         Returns:
@@ -672,6 +1233,19 @@ class EmbedService:
             None if creation fails
         """
         try:
+            if self._is_notebook_artifact(language, filename, code_content):
+                return await self.create_notebook_embed_placeholder(
+                    language=language,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    filename=filename,
+                    log_prefix=log_prefix,
+                )
+
             from backend.apps.ai.utils.pcb_schematic_fences import (
                 _extract_pcb_schematic_metadata,
                 _is_pcb_schematic_fence,
@@ -835,6 +1409,20 @@ class EmbedService:
             if existing_toon:
                 try:
                     existing_content = decode(existing_toon)
+                    if isinstance(existing_content, dict) and existing_content.get("type") == "notebook":
+                        return await self.update_notebook_embed_content(
+                            embed_id=embed_id,
+                            notebook_content=code_content,
+                            chat_id=chat_id,
+                            user_id=user_id,
+                            user_id_hash=user_id_hash,
+                            user_vault_key_id=user_vault_key_id,
+                            status=status,
+                            version_number=version_number,
+                            content_hash=content_hash,
+                            version_history_rows=version_history_rows,
+                            log_prefix=log_prefix,
+                        )
                     language = existing_content.get("language", "")
                     filename = existing_content.get("filename")
                     embed_ref = existing_content.get("embed_ref")
@@ -866,6 +1454,21 @@ class EmbedService:
                     title=metadata["title"],
                     module_name=metadata["module_name"],
                     filename=metadata["filename"],
+                    version_number=version_number,
+                    content_hash=content_hash,
+                    version_history_rows=version_history_rows,
+                    log_prefix=log_prefix,
+                )
+
+            if self._is_notebook_artifact(language, filename, code_content):
+                return await self.update_notebook_embed_content(
+                    embed_id=embed_id,
+                    notebook_content=code_content,
+                    chat_id=chat_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    status=status,
                     version_number=version_number,
                     content_hash=content_hash,
                     version_history_rows=version_history_rows,
@@ -3469,6 +4072,9 @@ class EmbedService:
                 #           vault_wrapped_aes_key — all crypto/infra, resolved server-side.
                 #           app_id, skill_id — internal routing metadata, not useful to LLM.
                 #           embed_id (UUID) — not shown to LLM; use embed_ref instead.
+                if decoded.get("use_corrected") is False and isinstance(decoded.get("transcript_original"), str):
+                    decoded["transcript"] = decoded["transcript_original"]
+
                 _AUDIO_KEEP = frozenset({
                     "type", "transcript", "duration", "mime_type", "filename", "status"
                 })
@@ -3685,11 +4291,17 @@ class EmbedService:
         ("shopping", "search_products"): "product",
         ("news", "search"): "website",
         ("web", "search"): "website",
+        ("models3d", "search"): "model_result",
+        ("mail", "search"): "email",
         ("fitness", "search_locations"): "location",
         ("fitness", "search_classes"): "class",
         ("nutrition", "search_recipes"): "recipe",
         ("code", "search_repos"): "repo",
         ("weather", "forecast"): "weather_day",
+        ("tasks", "create"): "task",
+        ("tasks", "search"): "task",
+        ("workflows", "create-or-modify"): "workflow",
+        ("workflows", "search"): "workflow",
     }
 
     @staticmethod
@@ -4458,6 +5070,7 @@ class EmbedService:
                     **original_metadata,  # Preserve query, provider, url, etc. from placeholder
                     **EmbedService._build_parent_preview_metadata(app_id, skill_id, results),
                 }
+                parent_content = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, parent_content)
                 
                 # Log final parent content to verify query is included
                 logger.info(
@@ -4470,7 +5083,7 @@ class EmbedService:
 
                 # Convert to TOON (PLAINTEXT)
                 flattened_parent = _flatten_for_toon_tabular(parent_content)
-                parent_content_toon = encode(flattened_parent)
+                parent_content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(flattened_parent))
 
                 # Calculate text length for parent embed
                 parent_text_length_chars = len(parent_content_toon)
@@ -4581,6 +5194,12 @@ class EmbedService:
                     "embed_ref": single_embed_ref,
                     **original_metadata  # Preserve query, url, provider, languages, etc. from placeholder
                 }
+                owner_pii_mappings = EmbedService._extract_finance_owner_pii_mappings(
+                    app_id,
+                    skill_id,
+                    content_with_metadata,
+                )
+                content_with_metadata = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, content_with_metadata)
                 
                 # Log final content to verify metadata is included
                 logger.info(
@@ -4591,7 +5210,7 @@ class EmbedService:
                     f"result_count={content_with_metadata.get('result_count')}"
                 )
                 
-                content_toon = encode(_flatten_for_toon_tabular(content_with_metadata))
+                content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(_flatten_for_toon_tabular(content_with_metadata)))
 
                 # Calculate text length
                 single_text_length_chars = len(content_toon)
@@ -4638,6 +5257,7 @@ class EmbedService:
                     text_length_chars=single_text_length_chars,
                     created_at=updated_at,
                     updated_at=updated_at,
+                    owner_pii_mappings=owner_pii_mappings,
                     log_prefix=log_prefix
                 )
                 if not send_ok:
@@ -4908,7 +5528,8 @@ class EmbedService:
         log_prefix: str = "",
         check_cache_status: bool = True,  # New parameter to optionally skip cache check
         app_id: Optional[str] = None,  # App ID for renderer routing (child embeds)
-        skill_id: Optional[str] = None  # Skill ID for renderer routing (child embeds)
+        skill_id: Optional[str] = None,  # Skill ID for renderer routing (child embeds)
+        owner_pii_mappings: Optional[List[Dict[str, str]]] = None,
     ) -> bool:
         """
         Send PLAINTEXT TOON embed content to client via WebSocket for client-side encryption and storage.
@@ -4946,6 +5567,9 @@ class EmbedService:
             True if event was published successfully, False otherwise
         """
         try:
+            if embed_type == "app_skill_use":
+                content_toon = EmbedService._sanitize_finance_check_accounts_toon(content_toon)
+
             # STATE MACHINE: Validate transition before sending to client.
             # Uses the embed state machine (backend/shared/python_schemas/embed_status.py)
             # to enforce valid transitions and prevent duplicate finalization events.
@@ -5026,6 +5650,8 @@ class EmbedService:
                 payload["payload"]["app_id"] = app_id
             if skill_id is not None:
                 payload["payload"]["skill_id"] = skill_id
+            if owner_pii_mappings:
+                payload["payload"]["owner_pii_mappings"] = owner_pii_mappings
 
             # Publish to Redis for WebSocket delivery
             client = await self.cache_service.client
@@ -5039,7 +5665,7 @@ class EmbedService:
                 )
 
                 # Track finished embeds as pending client encryption
-                if status == "finished":
+                if status == "finished" and chat_id and message_id:
                     await self._track_pending_embed(user_id, embed_id, log_prefix)
 
                 return True
@@ -5128,7 +5754,9 @@ class EmbedService:
         if not results or len(results) == 0:
             logger.warning(f"{log_prefix} No results to create embeds from")
             return None
-        
+
+        safe_request_metadata = EmbedService._sanitize_request_metadata(request_metadata)
+
         try:
             # Hash sensitive IDs for privacy protection
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
@@ -5257,7 +5885,7 @@ class EmbedService:
                 # whole result set (e.g. "web-search-k8D") as well as individual items.
                 parent_embed_ref = self._generate_embed_ref_slug(
                     f"{app_id}-{skill_id}",
-                    request_metadata or {},
+                    safe_request_metadata,
                 )
 
                 # Parent embed content: metadata about the skill execution
@@ -5273,21 +5901,22 @@ class EmbedService:
                 }
                 
                 # Add request metadata (query, provider, etc.) if available
-                if request_metadata:
-                    if "query" in request_metadata:
-                        parent_content["query"] = request_metadata["query"]
-                    if "provider" in request_metadata:
-                        parent_content["provider"] = request_metadata["provider"]
-                    if "providers" in request_metadata:
-                        parent_content["providers"] = request_metadata["providers"]
+                if safe_request_metadata:
+                    if "query" in safe_request_metadata:
+                        parent_content["query"] = safe_request_metadata["query"]
+                    if "provider" in safe_request_metadata:
+                        parent_content["provider"] = safe_request_metadata["provider"]
+                    if "providers" in safe_request_metadata:
+                        parent_content["providers"] = safe_request_metadata["providers"]
                     # Add other user-visible request metadata needed to distinguish searches.
-                    for key in ["country", "search_lang", "safesearch", "start_date", "end_date", "location"]:
-                        if key in request_metadata:
-                            parent_content[key] = request_metadata[key]
+                    for key in ["country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
+                        if key in safe_request_metadata:
+                            parent_content[key] = safe_request_metadata[key]
+                parent_content = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, parent_content)
                 
                 # Convert to TOON
                 flattened_parent = _flatten_for_toon_tabular(parent_content)
-                parent_content_toon = encode(flattened_parent)
+                parent_content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(flattened_parent))
                 
                 # Calculate text length for parent embed
                 parent_text_length_chars = len(parent_content_toon)
@@ -5362,10 +5991,10 @@ class EmbedService:
                 }
                 # Include query and provider from request_metadata if available
                 # This enables the frontend to display the query text immediately in grouped embeds
-                if request_metadata:
-                    for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
-                        if request_metadata.get(key):
-                            embed_reference_payload[key] = request_metadata[key]
+                if safe_request_metadata:
+                    for key in ["query", "provider", "providers", "start_date", "end_date", "time_range", "location"]:
+                        if safe_request_metadata.get(key):
+                            embed_reference_payload[key] = safe_request_metadata[key]
                 embed_reference = json.dumps(embed_reference_payload)
                 
                 return {
@@ -5402,12 +6031,18 @@ class EmbedService:
                 }
                 
                 # Add request metadata if available
-                if request_metadata:
-                    for key in ["query", "expression", "provider", "providers", "url", "languages", "country", "search_lang", "safesearch", "start_date", "end_date", "location"]:
-                        if key in request_metadata:
-                            content_with_metadata[key] = request_metadata[key]
+                if safe_request_metadata:
+                    for key in ["query", "expression", "provider", "providers", "url", "languages", "country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
+                        if key in safe_request_metadata:
+                            content_with_metadata[key] = safe_request_metadata[key]
+                owner_pii_mappings = EmbedService._extract_finance_owner_pii_mappings(
+                    app_id,
+                    skill_id,
+                    content_with_metadata,
+                )
+                content_with_metadata = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, content_with_metadata)
                 
-                content_toon = encode(_flatten_for_toon_tabular(content_with_metadata))
+                content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(_flatten_for_toon_tabular(content_with_metadata)))
                 
                 # Calculate text length for embed
                 single_text_length_chars = len(content_toon)
@@ -5454,6 +6089,7 @@ class EmbedService:
                     text_length_chars=single_text_length_chars,
                     created_at=single_created_at,
                     updated_at=single_created_at,
+                    owner_pii_mappings=owner_pii_mappings,
                     log_prefix=log_prefix
                 )
                 
@@ -5475,10 +6111,10 @@ class EmbedService:
                     "app_id": app_id,
                     "skill_id": skill_id
                 }
-                if request_metadata:
-                    for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
-                        if request_metadata.get(key):
-                            embed_reference_payload[key] = request_metadata[key]
+                if safe_request_metadata:
+                    for key in ["query", "provider", "providers", "start_date", "end_date", "time_range", "location"]:
+                        if safe_request_metadata.get(key):
+                            embed_reference_payload[key] = safe_request_metadata[key]
                 embed_reference = json.dumps(embed_reference_payload)
                 
                 return {
@@ -5532,10 +6168,11 @@ class EmbedService:
             "status": "finished",
             **original_metadata,
         }
+        finished_content = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, finished_content)
 
         # Convert to TOON and encrypt
         flattened = _flatten_for_toon_tabular(finished_content)
-        content_toon = encode(flattened)
+        content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(flattened))
         text_length_chars = len(content_toon)
 
         encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(

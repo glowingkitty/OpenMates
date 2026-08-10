@@ -11,6 +11,7 @@ import { getApiUrl } from '../config/api';
 export interface ConnectedAccountDirectoryEntry {
 	connected_account_id: string;
 	app_id: string;
+	provider_id?: string;
 	account_ref: string;
 	label: string;
 	capabilities: string[];
@@ -20,6 +21,7 @@ export interface ConnectedAccountDirectoryEntry {
 export interface ConnectedAccountTurnTokenRefInput {
 	connected_account_id: string;
 	app_id: string;
+	provider_id?: string;
 	allowed_actions: string[];
 	refresh_token_envelope: Record<string, unknown>;
 	action_scope?: Record<string, unknown>;
@@ -28,6 +30,7 @@ export interface ConnectedAccountTurnTokenRefInput {
 export interface ConnectedAccountTurnTokenRef {
 	connected_account_id: string;
 	app_id: string;
+	provider_id?: string;
 	turn_token_ref: string;
 	allowed_actions: string[];
 	action_scope?: Record<string, unknown>;
@@ -53,6 +56,8 @@ const CONNECTED_ACCOUNT_FORBIDDEN_FIELDS = [
 	'account_email',
 	'provider_account_id',
 	'provider_account_email',
+	'client_id',
+	'private_key',
 	'oauth_scopes',
 	'scopes'
 ];
@@ -89,6 +94,7 @@ export async function createConnectedAccountTurnTokenRefs(params: {
 		refs?: Array<{
 			connected_account_id: string;
 			app_id: string;
+			provider_id?: string;
 			turn_token_ref: string;
 			expires_at: number;
 		}>;
@@ -103,6 +109,7 @@ export async function createConnectedAccountTurnTokenRefs(params: {
 		return {
 			connected_account_id: ref.connected_account_id,
 			app_id: ref.app_id,
+			provider_id: ref.provider_id ?? input?.provider_id,
 			turn_token_ref: ref.turn_token_ref,
 			expires_at: ref.expires_at,
 			allowed_actions: input?.allowed_actions ?? [],

@@ -22,6 +22,7 @@
   import { getModelDisplayName, getModelByNameOrId } from '../../../utils/modelDisplayName';
   import { getProviderIconUrl } from '../../../data/providerIcons';
   import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
+  import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   
   /**
    * Image embed content structure from the backend
@@ -37,9 +38,9 @@
     generated_at?: string;
     s3_base_url?: string;
     files?: {
-      preview?: { s3_key: string; width: number; height: number; format: string };
-      full?: { s3_key: string; width: number; height: number; format: string };
-      original?: { s3_key: string; width: number; height: number; format: string };
+      preview?: { s3_key: string; width: number; height: number; format: string; aes_nonce?: string; encryption?: string };
+      full?: { s3_key: string; width: number; height: number; format: string; aes_nonce?: string; encryption?: string };
+      original?: { s3_key: string; width: number; height: number; format: string; aes_nonce?: string; encryption?: string };
     };
     aes_key?: string;
     aes_nonce?: string;
@@ -227,12 +228,13 @@
         if (!content) continue;
 
         const inputS3BaseUrl = content.s3_base_url as string | undefined;
-        const inputFiles = content.files as Record<string, { s3_key: string }> | undefined;
+        const inputFiles = content.files as Record<string, { s3_key: string; aes_nonce?: string; encryption?: string }> | undefined;
         const inputAesKey = content.aes_key as string | undefined;
         const inputAesNonce = content.aes_nonce as string | undefined;
 
-        const previewKey = inputFiles?.preview?.s3_key;
-        if (!previewKey || !inputS3BaseUrl || !inputAesKey || !inputAesNonce) continue;
+        const previewFile = inputFiles?.preview;
+        const previewKey = previewFile?.s3_key;
+        if (!previewKey || !inputS3BaseUrl || !inputAesKey || !hasMediaEncryptionMetadata(previewFile, inputAesNonce)) continue;
 
         // Check shared cache first
         const cached = getCachedImageUrl(previewKey);
@@ -243,7 +245,7 @@
           continue;
         }
 
-        const blob = await fetchAndDecryptImage(inputS3BaseUrl, previewKey, inputAesKey, inputAesNonce);
+        const blob = await fetchAndDecryptImage(inputS3BaseUrl, previewKey, inputAesKey, inputAesNonce ?? '', previewFile);
         const url = URL.createObjectURL(blob);
         retainCachedImage(previewKey);
         retainedInputKeys.push(previewKey);
@@ -266,8 +268,9 @@
    * Uses the shared in-memory cache to avoid redundant fetch+decrypt cycles.
    */
   async function loadPreviewImage() {
-    const s3Key = files?.preview?.s3_key;
-    if (!s3Key || !s3BaseUrl || !aesKey || !aesNonce) {
+    const previewFile = files?.preview;
+    const s3Key = previewFile?.s3_key;
+    if (!s3Key || !s3BaseUrl || !aesKey || !hasMediaEncryptionMetadata(previewFile, aesNonce)) {
       console.debug('[ImageGenerateEmbedPreview] Missing data for image load:', {
         hasFiles: !!s3Key,
         hasS3BaseUrl: !!s3BaseUrl,
@@ -296,7 +299,7 @@
     
     try {
       console.debug('[ImageGenerateEmbedPreview] Loading preview image from S3:', s3Key);
-      const blob = await fetchAndDecryptImage(s3BaseUrl, s3Key, aesKey, aesNonce);
+      const blob = await fetchAndDecryptImage(s3BaseUrl, s3Key, aesKey, aesNonce ?? '', previewFile);
       imageUrl = URL.createObjectURL(blob);
       // Retain reference in shared cache so blob URL isn't revoked while we're using it
       if (retainedS3Key && retainedS3Key !== s3Key) releaseCachedImage(retainedS3Key);
@@ -323,7 +326,7 @@
   // The IntersectionObserver sets isInView=true when the embed is within 200px of the viewport,
   // preventing all images in a long chat from loading simultaneously.
   $effect(() => {
-    if (isInView && status === 'finished' && files?.preview?.s3_key && s3BaseUrl && aesKey && aesNonce && !imageUrl && !isLoadingImage) {
+    if (isInView && status === 'finished' && files?.preview?.s3_key && s3BaseUrl && aesKey && hasMediaEncryptionMetadata(files.preview, aesNonce) && !imageUrl && !isLoadingImage) {
       loadPreviewImage();
     }
   });
@@ -465,7 +468,7 @@
     overflow-x: auto;
     overflow-y: hidden;
     flex-shrink: 0;
-    background: var(--color-grey-5, #f8f8f8);
+    background: var(--color-grey-10, #f8f8f8);
     scrollbar-width: none;
   }
 
@@ -492,7 +495,7 @@
   .input-thumb-placeholder {
     width: 100%;
     height: 100%;
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-20, #f0f0f0);
     animation: pulse 1.5s ease-in-out infinite;
   }
   
@@ -553,7 +556,7 @@
   
   .skeleton-line {
     height: 12px;
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-20, #f0f0f0);
     border-radius: var(--radius-1);
     animation: pulse 1.5s ease-in-out infinite;
   }
@@ -702,7 +705,7 @@
   }
 
   :global(.dark) .input-images-strip {
-    background: var(--color-grey-85, #222);
+    background: var(--color-grey-80, #222);
   }
 
   :global(.dark) .input-thumb {

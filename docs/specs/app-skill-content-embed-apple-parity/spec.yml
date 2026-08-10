@@ -1,0 +1,481 @@
+schema_version: 2
+id: app-skill-content-embed-apple-parity
+title: App Skill And Content Embed Apple Parity
+status: verified
+
+goal: >
+  Bring Apple preview and fullscreen coverage back into parity with the current
+  web source of truth for every registered app-skill and durable content embed,
+  starting with deterministic registry, fixture, and renderer coverage so silent
+  generic fallback drift cannot ship.
+
+scope:
+  in:
+    - Current generated web embed registry with 82 preview and fullscreen entries.
+    - "Web `/dev/preview/embeds/[app]` app-skill/content showcase sections."
+    - "Apple `EmbedType` classification, debug fixtures, renderer dispatch, and parity UI test app coverage."
+    - Explicit native unsupported states only when Apple cannot run a web-owned runtime.
+    - Linux-safe deterministic audit and remote Mac build/test attempt for Apple-backed embed surfaces.
+  out:
+    - New provider integrations, backend app skills, or backend embed schema changes.
+    - Exact pixel-diff gates for all embed types in this slice.
+    - Real provider API calls or private account screenshots in committed fixtures.
+    - Rewriting the existing web embed registry generator.
+
+context_discovery:
+  github_issues:
+    - Not searched because this task directly resumes repository-local parity specs and the user explicitly requested immediate spec plus implementation without questions.
+  docs:
+    - docs/specs/apple-embed-rendering-parity/spec.yml
+    - docs/specs/apple-skill-application-parity/spec.yml
+    - docs/specs/unified-embed-fullscreen-routing/spec.yml
+    - docs/architecture/apple/parity-matrix.md
+    - docs/contributing/guides/spec-driven-development.md
+    - apple/AGENTS.md
+    - .claude/rules/apple-ui.md
+    - .claude/rules/testing.md
+  code_patterns:
+    - frontend/packages/ui/src/data/embedRegistry.generated.ts
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    - scripts/apple_ui_contracts.py
+    - backend/tests/test_apple_ui_contracts.py
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+  tests:
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    - backend/tests/test_apple_ui_contracts.py
+    - scripts/apple_ui_contracts.py audit --surface embeds
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+  parity_expectations:
+    - Every web registry key is known to Apple or has an explicit documented native exception.
+    - Every known Apple registry key used by web preview/fullscreen components has debug fixture coverage.
+    - "Known product embed types must not route to `GenericEmbedRenderer` unless an exception is explicitly added to the audit."
+    - Apple debug gallery app slugs must include every web showcase app that participates in app-skill/content embed preview and fullscreen parity.
+  verification:
+    - python3 scripts/apple_ui_contracts.py audit --surface embeds
+    - python3 -m pytest backend/tests/test_apple_ui_contracts.py
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+  intentional_native_differences:
+    - Apple may render web-only application/runtime execution as an explicit unsupported native state until an approved native runtime bridge exists.
+    - Visual/style drift remains warning-only until a specific surface is promoted to a blocking visual contract in the broader apple-embed-rendering-parity program.
+
+clarification:
+  rounds:
+    - question: Clarification skipped?
+      answer: The user explicitly instructed OpenCode to skip questions and infer answers from code.
+  vision_summary: >
+    The repository source of truth is the generated web registry and rendered web
+    preview/fullscreen showcase. Apple must classify, fixture, and render every
+    app-skill/content embed surface without silent fallback before visual parity
+    claims are meaningful.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: working-tree-9d5573165
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-20"
+    reason: User explicitly requested creating the spec and implementing without a clarification gate.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-20"
+    reason: Plan follows existing parity scripts and the current deterministic audit findings.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Extend the existing deterministic embed parity audit instead of creating a second parity pipeline.
+    reason: "`scripts/apple_ui_contracts.py` already enforces registry, fixture, renderer, and forbidden-control drift for embeds."
+    decided_at: "2026-07-20"
+  - id: D-2
+    status: active
+    decision: Use generic search-style Apple product renderers for newly classified search parent app skills until type-specific visual drift is promoted.
+    reason: The current Apple parent renderer already provides product chrome, child rows, and fullscreen navigation without leaking raw JSON.
+    decided_at: "2026-07-20"
+  - id: D-3
+    status: active
+    decision: "Treat `code-application` as an explicit native unsupported application runtime state, not a silent generic fallback."
+    reason: Apple does not yet have a web application runtime bridge, but the user should see a deterministic product card/fullscreen state.
+    decided_at: "2026-07-20"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Run specialized audits to identify deterministic parity gaps before editing source.
+    outcome: succeeded
+    recorded_at: "2026-07-20"
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Implement the missing static registry/fixture/renderer coverage as the first safe parity slice.
+    outcome: succeeded
+    recorded_at: "2026-07-20"
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Patch audit lists, Apple enum cases, debug fixtures, and non-generic renderer dispatch, then rerun deterministic checks.
+  command: python3 scripts/apple_ui_contracts.py audit --surface embeds
+  expected_outcome: Audit passed; follow-up visual parity review remains in the broader apple-embed-rendering-parity program.
+  blocker: null
+  last_verified_commit: working-tree-9d5573165
+
+scenarios:
+  - id: S-1
+    title: Registry drift is deterministically blocked
+    given:
+      - The web generated embed registry contains app-skill and content embed preview/fullscreen keys.
+      - The web showcase contains app pages for app-skill/content preview and fullscreen states.
+    when:
+      - The embed Apple UI contract audit runs.
+    then:
+      - The audit fails for any registry key missing Apple type classification, fixture coverage, or a documented renderer-only exception.
+      - The audit fails for any web showcase app missing Apple debug gallery coverage.
+      - The audit fails for known Apple product embed types routed to generic fallback.
+  - id: S-2
+    title: Apple classifies current missing app-skill and content surfaces
+    given:
+      - The current web registry includes Design, Models3D, Tasks, and Workflows app-skill/result embeds.
+    when:
+      - Apple decodes synthetic preview/fullscreen fixtures for those keys.
+    then:
+      - "`EmbedType` recognizes each key."
+      - Parent app-skill embeds expose correct child type mappings where applicable.
+      - Direct child content embeds resolve to the correct app id and display name.
+  - id: S-3
+    title: Apple debug gallery renders the current web showcase app set
+    given:
+      - "Web `/dev/preview/embeds/[app]` includes Tasks and Workflows pages."
+    when:
+      - The Apple embed rendering parity UI test iterates debug app slugs.
+    then:
+      - Apple tests include the same showcase app slugs.
+      - Each app slug has at least one synthetic skill section.
+      - Product chrome uses OpenMates SwiftUI primitives, not default List or Form product UI.
+  - id: S-4
+    title: Application runtime fallback is explicit
+    given:
+      - "Web has `code-application` preview/fullscreen components."
+      - Apple does not yet run the browser application runtime.
+    when:
+      - Apple renders a code application embed.
+    then:
+      - The preview and fullscreen show a deterministic application card or unsupported-runtime state.
+      - "The renderer does not fall through to `GenericEmbedRenderer` for a known product type."
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The deterministic embed audit covers the current web registry and showcase app set, including Tasks and Workflows, and blocks unclassified drift.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-AUDIT-001
+      - T-PYTEST-001
+  - id: AC-2
+    scenario: S-2
+    text: "Apple `EmbedType` recognizes Design, Models3D, Tasks, and Workflows parent/result keys with child mappings and display metadata."
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-AUDIT-001
+  - id: AC-3
+    scenario: S-3
+    text: Apple debug fixtures and UI test app slugs cover every current web showcase app in the app-skill/content embed parity set.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-AUDIT-001
+      - T-APPLE-001
+  - id: AC-4
+    scenario: S-4
+    text: "`code-application` uses a deliberate non-generic Apple renderer path for preview and fullscreen states."
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-AUDIT-001
+
+assumptions:
+  - id: A-1
+    text: The generated web registry is the canonical list of current embed preview/fullscreen keys.
+    category: frontend
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/data/embedRegistry.generated.ts
+        summary: Generated file reports 82 total embed types and contains both preview and fullscreen component maps.
+  - id: A-2
+    text: Apple can use existing search-style and app-skill renderer infrastructure for parent search embeds while type-specific visual review remains warning-only.
+    category: apple
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+        summary: Existing renderer displays parent app-skill previews/fullscreens, child strips, and child fullscreen rows using product primitives.
+  - id: A-3
+    text: Runtime visual proof needs a Mac/Xcode runner and may be blocked independently of Linux static parity checks.
+    category: apple
+    required_before: completion
+    status: confirmed
+    evidence:
+      - source: apple/AGENTS.md
+        summary: "Linux sessions must attempt `scripts/apple_remote.py status` and build/test when Apple-backed surfaces change."
+
+contracts:
+  api:
+    - No backend or public API contract changes.
+  data:
+    - Synthetic Apple fixtures use public placeholder content only.
+    - Existing persisted chat and embed payloads remain unchanged.
+    - Apple enum/raw-value classification mirrors web registry keys where those keys are product embed types.
+  ui_states:
+    - App-skill preview card.
+    - App-skill fullscreen with child rows where children exist.
+    - Direct child content preview card.
+    - Direct child content fullscreen.
+    - Explicit application-runtime unsupported state for Apple where runtime execution is unavailable.
+  privacy_security:
+    - Do not commit private URLs, private screenshots, hostnames, IPs, credentials, or raw user chat content.
+    - Do not log decrypted embed content while adding Apple diagnostics or fixtures.
+
+tests:
+  - id: T-AUDIT-001
+    type: lint
+    file: scripts/apple_ui_contracts.py
+    command: python3 scripts/apple_ui_contracts.py audit --surface embeds
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+    assertions:
+      - Current web registry keys are classified by Apple type, fixture, renderer-only exception, or documented native exception.
+      - Current web showcase apps are present in Apple debug gallery and fixture switch coverage.
+      - "Known Apple product embed types do not route to `GenericEmbedRenderer`."
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/apple_ui_contracts.py audit --surface embeds
+        run_id: local-audit-before-implementation
+        subject_commit: 9d5573165
+        timestamp: "2026-07-20"
+        summary: Audits reported missing Design, Models3D, Tasks, Workflows keys/fixtures and generic code-application renderer.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/apple_ui_contracts.py audit --surface embeds
+        run_id: local-2026-07-20-embed-audit
+        subject_commit: working-tree-9d5573165
+        timestamp: "2026-07-20T03:08:00Z"
+        summary: Audit passed with only the expected visual/style warning.
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_apple_ui_contracts.py
+    command: python3 -m pytest backend/tests/test_apple_ui_contracts.py
+    covers:
+      - AC-1
+    assertions:
+      - Audit unit coverage permits explicit aliases and renderer-only keys.
+      - Audit unit coverage fails new unclassified registry keys.
+      - Audit unit coverage fails known product types routed to generic fallback.
+    red_phase:
+      required: false
+      expected: not_required
+      evidence:
+        status: not_applicable
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_apple_ui_contracts.py
+        run_id: local-2026-07-20-pytest-apple-ui-contracts
+        subject_commit: working-tree-9d5573165
+        timestamp: "2026-07-20T03:08:00Z"
+        summary: 4 tests passed.
+  - id: T-APPLE-001
+    type: build
+    file: apple/OpenMates.xcodeproj/project.pbxproj
+    command: python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    covers:
+      - AC-3
+    assertions:
+      - Apple project compiles after enum, fixture, and renderer updates.
+      - Build evidence is sanitized and does not require committed private local paths.
+      - Remote Mac compile proof becomes required after the patch is present in the remote checkout.
+    red_phase:
+      required: false
+      expected: not_required
+      evidence:
+        status: not_applicable
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: false
+      expected: attempted
+      evidence:
+        status: attempted_with_limitation
+        command: python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+        run_id: remote-macos-peer-exit-0
+        subject_commit: remote-checkout-not-authoritative-for-uncommitted-local-patch
+        timestamp: "2026-07-20T03:10:46Z"
+        summary: Remote iOS build succeeded, but local tree had substantial unrelated uncommitted changes so this is evidence of Apple build availability, not definitive compilation proof of this uncommitted patch.
+
+verifications:
+  - id: V-SPEC-001
+    kind: deterministic_check
+    phase: green
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/spec_validate.py docs/specs/app-skill-content-embed-apple-parity/spec.yml
+      run_id: local-2026-07-20-spec-validate
+      subject_commit: working-tree-9d5573165
+      timestamp: "2026-07-20T03:08:00Z"
+
+implementation_plan:
+  spec_path: docs/specs/app-skill-content-embed-apple-parity/spec.yml
+  existing_patterns:
+    - docs/specs/apple-embed-rendering-parity/spec.yml
+    - scripts/apple_ui_contracts.py
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+  architecture: >
+    Keep the current web registry and Svelte preview/fullscreen components as the
+    source of truth. Extend the deterministic Apple embed audit and native debug
+    fixture surface so new web app-skill/content keys must be intentionally
+    represented in Apple before visual review can claim parity.
+  data_flow:
+    - The generated web registry exposes preview and fullscreen keys.
+    - The deterministic audit compares registry keys with Apple enum raw values, fixture IDs, and renderer dispatch.
+    - "Apple debug fixtures construct synthetic `EmbedRecord` graphs for parent and child embeds."
+    - Apple UI tests open each debug gallery app slug and capture product-chrome screenshots.
+  affected_files:
+    - path: docs/specs/app-skill-content-embed-apple-parity/spec.yml
+      reason: Durable executable contract for this parity slice.
+    - path: scripts/apple_ui_contracts.py
+      reason: Include current web showcase apps and aliases in deterministic embed audit.
+    - path: backend/tests/test_apple_ui_contracts.py
+      reason: Keep audit behavior covered as required keys evolve.
+    - path: frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+      reason: Align web contract capture with current showcase app set.
+    - path: apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      reason: Add missing Apple classifications and child mappings.
+    - path: apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+      reason: Add synthetic fixtures for missing app-skill/content keys.
+    - path: apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+      reason: "Route newly classified keys and `code-application` away from generic fallback."
+    - path: apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+      reason: Include current web showcase app slugs in Apple smoke coverage.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/app-skill-content-embed-apple-parity/spec.yml
+    - python3 scripts/apple_ui_contracts.py audit --surface embeds
+    - python3 -m pytest backend/tests/test_apple_ui_contracts.py
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+  verification_order:
+    - Spec validation first.
+    - Linux deterministic embed audit second.
+    - Backend pytest coverage for the audit third.
+    - Apple remote status/build attempt last because Apple runtime verification requires Mac/Xcode access.
+
+tasks:
+  - id: TASK-1
+    title: Add deterministic registry and Apple fixture parity for current app-skill/content embeds
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+    expected_files:
+      - docs/specs/app-skill-content-embed-apple-parity/spec.yml
+      - scripts/apple_ui_contracts.py
+      - backend/tests/test_apple_ui_contracts.py
+      - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+      - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+      - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    verification:
+      - T-AUDIT-001
+      - T-PYTEST-001
+      - T-APPLE-001
+      - V-SPEC-001
+    verification_ids:
+      - T-AUDIT-001
+      - T-PYTEST-001
+      - T-APPLE-001
+      - V-SPEC-001
+    dependencies: []
+    ownership:
+      files:
+        - docs/specs/app-skill-content-embed-apple-parity/spec.yml
+        - scripts/apple_ui_contracts.py
+        - backend/tests/test_apple_ui_contracts.py
+        - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+        - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+        - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+        - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+        - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - id: R-1
+    text: Passing static registry coverage does not prove visual equivalence for every embed state.
+    mitigation: Keep the broader apple-embed-rendering-parity screenshot/artifact review program as the visual completion gate.
+  - id: R-2
+    text: Generic search-style product renderers may be visually incomplete for Design, Models3D, Tasks, or Workflows.
+    mitigation: This slice blocks silent fallback; later artifact review promotes specific visual gaps to blocking fixes.
+  - id: R-3
+    text: Remote Mac verification can fail for environment reasons unrelated to this patch.
+    mitigation: Record the sanitized failure class and keep Linux deterministic checks green.
+
+open_questions:
+  - id: OQ-1
+    text: None. User explicitly instructed OpenCode to skip questions and infer the implementation slice from code.
+    status: closed

@@ -27,6 +27,8 @@ class FakeDirectusService:
             return self._invoices
         if collection == "pending_bank_transfers":
             return self._transfers
+        if collection == "invoice_ciphertext_versions":
+            return []
         raise AssertionError(f"Unexpected collection: {collection}")
 
 

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" role="img" aria-label="Pricing card screenshot input">
+  <defs>
+    <radialGradient id="warm" cx="100%" cy="100%" r="80%">
+      <stop offset="0" stop-color="#fff1e8"/>
+      <stop offset="0.65" stop-color="#fff1e8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cool" cx="0" cy="0" r="80%">
+      <stop offset="0" stop-color="#e6edff"/>
+      <stop offset="0.65" stop-color="#e6edff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="34" stdDeviation="28" flood-color="#6e78af" flood-opacity="0.18"/>
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.04"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="900" fill="#f4f6fc"/>
+  <rect width="1200" height="900" fill="url(#warm)"/>
+  <rect width="1200" height="900" fill="url(#cool)"/>
+  <g filter="url(#shadow)">
+    <rect x="395" y="150" width="410" height="600" rx="30" fill="#ffffff"/>
+  </g>
+  <g font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <g transform="translate(435 195)">
+      <rect width="116" height="30" rx="15" fill="#e8effd"/>
+      <circle cx="21" cy="15" r="4" fill="#3b5bfd"/>
+      <text x="35" y="20" fill="#3b5bfd" font-size="13" font-weight="700">POPULAR</text>
+    </g>
+    <text x="435" y="280" fill="#151828" font-size="36" font-weight="800" letter-spacing="-1.1">Pro Plan</text>
+    <text x="435" y="314" fill="#7d8499" font-size="16">For growing teams and serious projects.</text>
+    <text x="435" y="390" fill="#151828" font-size="64" font-weight="800" letter-spacing="-2.5">$29</text>
+    <text x="560" y="386" fill="#7d8499" font-size="17" font-weight="600">/month</text>
+    <line x1="435" y1="430" x2="765" y2="430" stroke="#eef0f7" stroke-width="2"/>
+    <g fill="#1c2340" font-size="17" font-weight="600">
+      <g transform="translate(435 480)">
+        <circle cx="12" cy="-5" r="11" fill="#eaf7ef"/>
+        <path d="M7 -5.5l3.5 3.5L17 -10" fill="none" stroke="#2eb875" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="36" y="0">Unlimited projects</text>
+      </g>
+      <g transform="translate(435 532)">
+        <circle cx="12" cy="-5" r="11" fill="#eaf7ef"/>
+        <path d="M7 -5.5l3.5 3.5L17 -10" fill="none" stroke="#2eb875" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="36" y="0">Team collaboration</text>
+      </g>
+      <g transform="translate(435 584)">
+        <circle cx="12" cy="-5" r="11" fill="#eaf7ef"/>
+        <path d="M7 -5.5l3.5 3.5L17 -10" fill="none" stroke="#2eb875" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="36" y="0">Priority support</text>
+      </g>
+    </g>
+    <rect x="435" y="640" width="330" height="64" rx="18" fill="#3153ff"/>
+    <text x="600" y="680" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="800">Get Started</text>
+  </g>
+</svg>

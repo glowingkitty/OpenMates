@@ -101,6 +101,7 @@ Supports both saved payment methods and new payment form
     let showPaymentForm = $state(false);
     let showAuthModal = $state(false);
     let authMethods: { has_passkey: boolean; has_2fa: boolean } | null = $state(null);
+    let authMethodsError = $state<string | null>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let stripe: any = $state(null);
     let isProcessingPayment = $state(false);
@@ -265,21 +266,25 @@ Supports both saved payment methods and new payment form
         pendingManagedPayment = !!(cardCountry && !isEuCard(cardCountry));
 
         // Auth check applies to both EU and non-EU flows
+        authMethodsError = null;
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.getUserAuthMethods), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.methods), {
                 credentials: 'include'
             });
 
             if (response.ok) {
                 authMethods = await response.json();
-                showAuthModal = true;
+                if (authMethods?.has_passkey || authMethods?.has_2fa) {
+                    showAuthModal = true;
+                } else {
+                    await handleAuthSuccess();
+                }
             } else {
-                console.error('Failed to get auth methods');
-                await handleAuthSuccess();
+                throw new Error('Failed to load authentication methods');
             }
         } catch (error) {
             console.error('Error getting auth methods:', error);
-            await handleAuthSuccess();
+            authMethodsError = error instanceof Error ? error.message : 'Failed to load authentication methods';
         }
     }
 
@@ -474,6 +479,13 @@ Supports both saved payment methods and new payment form
             {isProcessingPayment ? $text('common.processing') : $text('settings.billing.buy_now')}
         </button>
 
+        {#if authMethodsError}
+            <div data-testid="billing-auth-methods-error" role="alert">{authMethodsError}</div>
+            <button data-testid="billing-auth-methods-retry" onclick={handleBuyNow}>
+                {$text('common.retry')}
+            </button>
+        {/if}
+
         <div class="provider-switch-container">
             <button class="provider-switch-btn" data-testid="switch-to-non-eu"
                 onclick={() => { savedMethodProviderOverride = 'managed'; showPaymentForm = true; }}>
@@ -516,13 +528,6 @@ Supports both saved payment methods and new payment form
                 updateProfile({ has_accepted_refund_policy: true });
             }}
         />
-        {#if bankTransferAvailable}
-            <div class="provider-switch-container">
-                <button class="provider-switch-btn" onclick={() => { showBankTransfer = true; }} data-testid="switch-to-bank-transfer">
-                    {$text('settings.billing.bank_transfer')}
-                </button>
-            </div>
-        {/if}
     </div>
 {/if}
 

@@ -31,6 +31,7 @@ struct ChatStreamingLifecycleState: Equatable {
     var isThinkingStreaming = false
     var queuedMessageText: String?
     var errorMessage: String?
+    private var lastSequenceByMessageId: [String: Int] = [:]
 
     var isActive: Bool {
         switch phase {
@@ -49,9 +50,11 @@ struct ChatStreamingLifecycleState: Equatable {
         isThinkingStreaming || !thinkingContent.isEmpty
     }
 
-    mutating func apply(_ event: StreamingClient.StreamEvent) {
+    @discardableResult
+    mutating func apply(_ event: StreamingClient.StreamEvent) -> Bool {
         switch event {
         case .taskInitiated(let chatId, let taskId, let userMessageId):
+            reset()
             self.chatId = chatId
             self.taskId = taskId
             self.userMessageId = userMessageId.isEmpty ? nil : userMessageId
@@ -73,8 +76,11 @@ struct ChatStreamingLifecycleState: Equatable {
 
         case .thinkingChunk(let chatId, let messageId, let content):
             self.chatId = chatId
+            if self.messageId != messageId {
+                thinkingContent = ""
+            }
             self.messageId = messageId
-            thinkingContent = content
+            thinkingContent += content
             isThinkingStreaming = true
             phase = .thinking
 
@@ -86,7 +92,11 @@ struct ChatStreamingLifecycleState: Equatable {
                 phase = .typing
             }
 
-        case .chunk(let chatId, let messageId, _, _, let isFinal, let userMessageId, _, _, _):
+        case .chunk(let chatId, let messageId, let sequence, _, let isFinal, let userMessageId, _, _, _):
+            if let lastSequence = lastSequenceByMessageId[messageId], sequence <= lastSequence {
+                return false
+            }
+            lastSequenceByMessageId[messageId] = sequence
             self.chatId = chatId
             self.messageId = messageId
             if let userMessageId, !userMessageId.isEmpty {
@@ -139,6 +149,7 @@ struct ChatStreamingLifecycleState: Equatable {
             isThinkingStreaming = false
             queuedMessageText = nil
         }
+        return true
     }
 
     mutating func reset() {
@@ -154,10 +165,17 @@ struct ChatStreamingLifecycleState: Equatable {
     }
 }
 
+enum ChatOpeningFallbackPolicy {
+    static func shouldFetchMissingSyncedMessages(messagesV: Int?, lastMessageAt: String?) -> Bool {
+        if let messagesV, messagesV > 0 {
+            return true
+        }
+        return lastMessageAt != nil
+    }
+}
+
 @MainActor
 final class ChatViewModel: ObservableObject {
-    private static let encryptedUserStorageRetryLimit = 3
-    private static let encryptedUserStorageRetryDelayMilliseconds = 200
 
     struct ChatOpeningMetrics: Equatable {
         var initialMessagesReceived = 0
@@ -204,7 +222,6 @@ final class ChatViewModel: ObservableObject {
     private var streamTask: Task<Void, Never>?
     private var embedHydrationTask: Task<Void, Never>?
     private var loadGeneration = 0
-    private var pendingUserMessagesById: [String: Message] = [:]
     private var userMessageIdByAssistantMessageId: [String: String] = [:]
     private var assistantMessageCreatedAtById: [String: String] = [:]
     private var assistantCategoryByMessageId: [String: String] = [:]
@@ -327,7 +344,24 @@ final class ChatViewModel: ObservableObject {
         }
 
         chat = loadedChat
-        let rawMessages = syncedMessages.sorted { $0.createdAt < $1.createdAt }
+        var rawMessages = syncedMessages.sorted { $0.createdAt < $1.createdAt }
+        if rawMessages.isEmpty && shouldFetchMissingSyncedMessages(for: loadedChat) {
+            do {
+                rawMessages = try await api.request(.get, path: "/v1/chats/\(loadedChat.id)/messages")
+                rawMessages.sort { $0.createdAt < $1.createdAt }
+                NativeSyncPerfLog.info(
+                    "phase=loadSyncedChatMessageFallback chat=\(loadedChat.id.prefix(8)) messages=\(rawMessages.count)"
+                )
+            } catch {
+                self.error = error.localizedDescription
+                isLoading = false
+                NativeSyncPerfLog.warning(
+                    "phase=loadSyncedChatMessageFallbackFailed chat=\(loadedChat.id.prefix(8)) error=\(error.localizedDescription)"
+                )
+                return
+            }
+            guard generation == loadGeneration else { return }
+        }
         openingMetrics.initialMessagesReceived = rawMessages.count
         openingMetrics.initialEmbedsReceived = syncedEmbeds.count
         allMessages = rawMessages
@@ -361,6 +395,13 @@ final class ChatViewModel: ObservableObject {
             generation: generation,
             existingRecords: embedRecords,
             source: "loadSynced"
+        )
+    }
+
+    private func shouldFetchMissingSyncedMessages(for chat: Chat) -> Bool {
+        ChatOpeningFallbackPolicy.shouldFetchMissingSyncedMessages(
+            messagesV: chat.messagesV,
+            lastMessageAt: chat.lastMessageAt
         )
     }
 
@@ -522,8 +563,8 @@ final class ChatViewModel: ObservableObject {
         )
     }
 
-    /// Decrypt encrypted_content for a batch of messages using the per-chat key.
-    private func decryptMessages(_ messages: [Message], chatId: String) async -> [Message] {
+    /// Decrypt encrypted message content and identity using the per-chat key.
+    static func decryptMessagesForDisplay(_ messages: [Message], chatId: String) async -> [Message] {
         let encryptedCount = messages.filter { $0.encryptedContent != nil }.count
         if encryptedCount > 0, !ChatKeyManager.shared.hasKey(for: chatId) {
             print("[ChatViewModel][decrypt] messages skipped chat=\(chatId.prefix(8)) encrypted=\(encryptedCount) reason=missingChatKey")
@@ -548,9 +589,41 @@ final class ChatViewModel: ObservableObject {
                let mappings = try? JSONDecoder().decode([PIIMapping].self, from: mappingsData) {
                 msg.piiMappings = mappings
             }
+            if msg.thinkingContent == nil,
+               let encryptedThinkingContent = msg.encryptedThinkingContent {
+                msg.thinkingContent = await ChatKeyManager.shared.decryptMessageContent(
+                    chatId: chatId,
+                    encryptedContent: encryptedThinkingContent
+                )
+            }
+            if msg.senderName == nil,
+               let encryptedSenderName = msg.encryptedSenderName {
+                msg.senderName = await ChatKeyManager.shared.decryptMessageContent(
+                    chatId: chatId,
+                    encryptedContent: encryptedSenderName
+                )
+            }
+            if msg.category == nil,
+               let encryptedCategory = msg.encryptedCategory {
+                msg.category = await ChatKeyManager.shared.decryptMessageContent(
+                    chatId: chatId,
+                    encryptedContent: encryptedCategory
+                )
+            }
+            if msg.modelName == nil,
+               let encryptedModelName = msg.encryptedModelName {
+                msg.modelName = await ChatKeyManager.shared.decryptMessageContent(
+                    chatId: chatId,
+                    encryptedContent: encryptedModelName
+                )
+            }
             result.append(msg)
         }
         return result
+    }
+
+    private func decryptMessages(_ messages: [Message], chatId: String) async -> [Message] {
+        await Self.decryptMessagesForDisplay(messages, chatId: chatId)
     }
 
     private func decryptEmbeds(
@@ -681,7 +754,10 @@ final class ChatViewModel: ObservableObject {
     func sendMessage(
         _ content: String,
         piiMappings: [PIIMapping] = [],
-        broadcastToSiblings: Bool = false
+        excludedPIIOriginals: Set<String> = [],
+        excludedPIIPlaceholders: Set<String> = [],
+        broadcastToSiblings: Bool = false,
+        composerEmbeds explicitComposerEmbeds: [ComposerPendingEmbed]? = nil
     ) async {
         guard let currentChat = chat else { return }
         if IncognitoChatSession.isIncognitoChatId(currentChat.id) {
@@ -693,28 +769,37 @@ final class ChatViewModel: ObservableObject {
             return
         }
         do {
-            let composerEmbeds = pendingComposerEmbeds
+            let composerEmbeds = explicitComposerEmbeds ?? pendingComposerEmbeds
             let mergedPIIMappings = sendPipeline.combinedPIIMappings(
                 textMappings: piiMappings,
                 composerEmbeds: composerEmbeds
             )
             let result = try await sendPipeline.sendUserMessage(
-                content: contentWithComposerEmbedReferences(content, embeds: composerEmbeds),
+                content: content,
                 in: currentChat,
                 existingMessages: allMessages,
                 wsManager: wsManager,
                 chatStore: chatStore,
                 composerEmbeds: composerEmbeds,
                 piiMappings: mergedPIIMappings,
+                excludedPIIOriginals: excludedPIIOriginals,
+                excludedPIIPlaceholders: excludedPIIPlaceholders,
                 broadcastToSiblings: broadcastToSiblings
             )
             chat = result.chat
-            pendingUserMessagesById[result.message.id] = result.message
             appendOrReplaceLocalMessage(result.message)
             if broadcastToSiblings {
-                await broadcastMessageToSiblingSubChats(content, piiMappings: mergedPIIMappings)
+                await broadcastMessageToSiblingSubChats(
+                    result.message.content ?? content,
+                    piiMappings: result.message.piiMappings ?? mergedPIIMappings
+                )
             }
-            pendingComposerEmbeds.removeAll()
+            if let explicitComposerEmbeds {
+                let sentIDs = Set(explicitComposerEmbeds.map(\.id))
+                pendingComposerEmbeds.removeAll { sentIDs.contains($0.id) }
+            } else {
+                pendingComposerEmbeds.removeAll()
+            }
             isStreaming = true
             streamingContent = ""
         } catch {
@@ -735,7 +820,6 @@ final class ChatViewModel: ObservableObject {
                 existingMessages: allMessages
             )
             chat = result.chat
-            pendingUserMessagesById[result.message.id] = result.message
             appendOrReplaceTransientMessage(result.message)
             isStreaming = true
             streamingContent = ""
@@ -938,6 +1022,9 @@ final class ChatViewModel: ObservableObject {
         streamingContent = ""
         streamingMessageId = nil
         streamingLifecycle.reset()
+        if let chatId {
+            subscribeToStream(chatId: chatId)
+        }
     }
 
     // MARK: - Streaming subscription
@@ -954,7 +1041,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func handleStreamEvent(_ event: StreamingClient.StreamEvent) {
-        streamingLifecycle.apply(event)
+        guard streamingLifecycle.apply(event) else { return }
         switch event {
         case .taskInitiated(_, _, _):
             isStreaming = true
@@ -971,17 +1058,7 @@ final class ChatViewModel: ObservableObject {
             if let modelName = metadata?.modelName {
                 assistantModelNameByMessageId[messageId] = modelName
             }
-            if let metadata {
-                Task { @MainActor in
-                    if !IncognitoChatSession.isIncognitoChatId(chatId) {
-                        await sendEncryptedUserStorageIfPossible(
-                            chatId: chatId,
-                            assistantMessageId: messageId,
-                            metadata: metadata
-                        )
-                    }
-                }
-            }
+            ensureStreamingAssistantMessage(chatId: chatId, messageId: messageId, metadata: metadata)
 
         case .chunk(let chatId, let messageId, _, let content, let isFinal, let userMessageId, let category, let modelName, let rejectionReason):
             streamingMessageId = messageId
@@ -1006,7 +1083,8 @@ final class ChatViewModel: ObservableObject {
                     content: content, encryptedContent: nil,
                     createdAt: createdAtForAssistantMessage(messageId),
                     updatedAt: nil, appId: resolvedCategory, isStreaming: false, embedRefs: nil,
-                    modelName: resolvedModelName
+                    modelName: resolvedModelName,
+                    thinkingContent: streamingLifecycle.thinkingContent.isEmpty ? nil : streamingLifecycle.thinkingContent
                 )
                 let embedded = PublicChatContent.attachEmbeds(to: [rawAssistantMessage])
                 for (id, record) in embedded.records {
@@ -1026,7 +1104,8 @@ final class ChatViewModel: ObservableObject {
                 assistantCategoryByMessageId.removeValue(forKey: messageId)
                 assistantModelNameByMessageId.removeValue(forKey: messageId)
                 Task { @MainActor in
-                    if !IncognitoChatSession.isIncognitoChatId(chatId) {
+                    if !IncognitoChatSession.isIncognitoChatId(chatId),
+                       !(wsManager?.ownsRecoveryPersistence(messageId: messageId) ?? false) {
                         await persistCompletedAssistantMessage(
                             assistantMessage,
                             userMessageId: userMessageIdByAssistantMessageId[messageId],
@@ -1040,27 +1119,33 @@ final class ChatViewModel: ObservableObject {
                     content: displayContent, encryptedContent: nil,
                     createdAt: createdAtForAssistantMessage(messageId),
                     updatedAt: nil, appId: resolvedCategory, isStreaming: true, embedRefs: nil,
-                    modelName: resolvedModelName
+                    modelName: resolvedModelName,
+                    thinkingContent: streamingLifecycle.thinkingContent.isEmpty ? nil : streamingLifecycle.thinkingContent
                 )
                 appendOrReplaceTransientMessage(partialAssistantMessage)
                 isStreaming = true
             }
 
-        case .thinkingChunk(_, let messageId, _):
+        case .thinkingChunk(let chatId, let messageId, _):
             streamingMessageId = messageId
             isStreaming = true
+            ensureStreamingAssistantMessage(chatId: chatId, messageId: messageId, metadata: nil)
 
         case .thinkingComplete(_, _):
             isStreaming = true
 
-        case .messageReady(_, _):
+        case .messageReady(let chatId, let messageId):
+            completePartialAssistantIfNeeded(chatId: chatId, messageId: messageId)
             isStreaming = false
             streamingLifecycle.queuedMessageText = nil
 
         case .preprocessingStep(_, _, _):
             isStreaming = true
 
-        case .typingEnded(_, _):
+        case .typingEnded(let chatId, let messageId):
+            if let messageId {
+                completePartialAssistantIfNeeded(chatId: chatId, messageId: messageId)
+            }
             isStreaming = false
             streamingLifecycle.queuedMessageText = nil
 
@@ -1108,78 +1193,61 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    private func sendEncryptedUserStorageIfPossible(
+    private func ensureStreamingAssistantMessage(
         chatId: String,
-        assistantMessageId: String,
-        metadata: StreamingClient.ChatMetadata,
-        retryAttempt: Int = 0
-    ) async {
-        guard !IncognitoChatSession.isIncognitoChatId(chatId) else { return }
-        guard chat?.id == chatId else {
-            await retryEncryptedUserStorageIfNeeded(
-                chatId: chatId,
-                assistantMessageId: assistantMessageId,
-                metadata: metadata,
-                retryAttempt: retryAttempt
-            )
-            return
-        }
-        let userMessageId = metadata.userMessageId ?? userMessageIdByAssistantMessageId[assistantMessageId]
-        guard let userMessageId,
-              let currentChat = chat else {
-            await retryEncryptedUserStorageIfNeeded(
-                chatId: chatId,
-                assistantMessageId: assistantMessageId,
-                metadata: metadata,
-                retryAttempt: retryAttempt
-            )
-            return
-        }
-        guard let userMessage = pendingUserMessagesById[userMessageId] ?? allMessages.first(where: { $0.id == userMessageId }) else {
-            await retryEncryptedUserStorageIfNeeded(
-                chatId: chatId,
-                assistantMessageId: assistantMessageId,
-                metadata: metadata,
-                retryAttempt: retryAttempt
-            )
-            return
-        }
-        do {
-            let updatedChat = try await sendPipeline.sendEncryptedUserStoragePackage(
-                chat: currentChat,
-                userMessage: userMessage,
-                assistantTaskId: assistantMessageId,
-                metadata: metadata,
-                wsManager: wsManager,
-                chatStore: chatStore
-            )
-            chat = updatedChat
-        } catch {
-            self.error = error.localizedDescription
-        }
+        messageId: String,
+        metadata: StreamingClient.ChatMetadata?
+    ) {
+        guard !messages.contains(where: { $0.id == messageId }) else { return }
+        appendOrReplaceTransientMessage(Message(
+            id: messageId,
+            chatId: chatId,
+            role: .assistant,
+            content: "",
+            encryptedContent: nil,
+            createdAt: createdAtForAssistantMessage(messageId),
+            updatedAt: nil,
+            appId: metadata?.category,
+            isStreaming: true,
+            embedRefs: nil,
+            modelName: metadata?.modelName
+        ))
     }
 
-    private func retryEncryptedUserStorageIfNeeded(
-        chatId: String,
-        assistantMessageId: String,
-        metadata: StreamingClient.ChatMetadata,
-        retryAttempt: Int
-    ) async {
-        guard retryAttempt < Self.encryptedUserStorageRetryLimit else {
-            NativeDiagnostics.warning(
-                "Encrypted user storage retry exhausted for chat/message prefix",
-                category: "chat_sync"
-            )
-            return
-        }
-        try? await Task.sleep(for: .milliseconds(Self.encryptedUserStorageRetryDelayMilliseconds))
-        guard !Task.isCancelled else { return }
-        await sendEncryptedUserStorageIfPossible(
-            chatId: chatId,
-            assistantMessageId: assistantMessageId,
-            metadata: metadata,
-            retryAttempt: retryAttempt + 1
+    private func completePartialAssistantIfNeeded(chatId: String, messageId: String) {
+        guard let partial = messages.first(where: {
+            $0.id == messageId && $0.isStreaming == true && ($0.content?.isEmpty == false)
+        }) else { return }
+        let completed = Message(
+            id: partial.id,
+            chatId: partial.chatId,
+            role: partial.role,
+            content: partial.content,
+            encryptedContent: partial.encryptedContent,
+            createdAt: partial.createdAt,
+            updatedAt: partial.updatedAt,
+            appId: partial.appId,
+            isStreaming: false,
+            embedRefs: partial.embedRefs,
+            modelName: partial.modelName,
+            piiMappings: partial.piiMappings,
+            encryptedPIIMappings: partial.encryptedPIIMappings,
+            thinkingContent: streamingLifecycle.thinkingContent.isEmpty
+                ? partial.thinkingContent
+                : streamingLifecycle.thinkingContent,
+            encryptedThinkingContent: partial.encryptedThinkingContent,
+            encryptedThinkingSignature: partial.encryptedThinkingSignature,
+            thinkingTokenCount: partial.thinkingTokenCount
         )
+        appendOrReplaceTransientMessage(completed)
+        guard !IncognitoChatSession.isIncognitoChatId(chatId),
+              !(wsManager?.ownsRecoveryPersistence(messageId: messageId) ?? false) else { return }
+        Task { @MainActor in
+            await persistCompletedAssistantMessage(
+                completed,
+                userMessageId: userMessageIdByAssistantMessageId[messageId]
+            )
+        }
     }
 
     private func persistCompletedAssistantMessage(
@@ -1708,7 +1776,7 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Attachment upload
 
     @discardableResult
-    func uploadAttachment(data: Data, filename: String) async -> UploadFileResponse? {
+    func uploadAttachment(data: Data, filename: String) async -> ComposerPendingEmbed? {
         guard let chatId = chat?.id else { return nil }
         guard !AnonymousFreeUsageService.shared.isAnonymousChat(chatId) else {
             ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
@@ -1716,10 +1784,9 @@ final class ChatViewModel: ObservableObject {
         }
         let safeUpload = redactedUploadContentIfNeeded(data, filename: filename)
         if let textContent = safeUpload.redactedText ?? String(data: data, encoding: .utf8), isSupportedPIIRedactableTextFile(filename) {
-            registerPendingComposerEmbed(
+            return registerPendingComposerEmbed(
                 .document(filename: filename, textContent: textContent, piiMappings: safeUpload.piiMappings)
             )
-            return nil
         }
         let uploadId = UUID().uuidString
         PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
@@ -1731,7 +1798,7 @@ final class ChatViewModel: ObservableObject {
             contentType: Self.contentType(for: filename, fallback: "application/octet-stream"),
             markFinishedOnSuccess: false
         ) else { return nil }
-        registerPendingComposerEmbed(
+        let embed = registerPendingComposerEmbed(
             upload,
             localData: safeUpload.data,
             transcription: nil,
@@ -1740,7 +1807,7 @@ final class ChatViewModel: ObservableObject {
             textContent: safeUpload.redactedText
         )
         PendingUploadStore.shared.markFinished(id: uploadId)
-        return upload
+        return embed
     }
 
     private struct RedactedUploadContent {
@@ -1782,7 +1849,7 @@ final class ChatViewModel: ObservableObject {
         return supportedExtensions.contains(ext)
     }
 
-    func uploadRecording(url: URL, duration: TimeInterval) async -> String? {
+    func uploadRecording(url: URL, duration: TimeInterval) async -> ComposerPendingEmbed? {
         guard let chatId = chat?.id else { return nil }
         guard !AnonymousFreeUsageService.shared.isAnonymousChat(chatId) else {
             ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
@@ -1833,7 +1900,7 @@ final class ChatViewModel: ObservableObject {
                 body: request
             )
             let transcription = response.data.results.first?.results.first
-            registerPendingComposerEmbed(
+            let embed = registerPendingComposerEmbed(
                 upload,
                 localData: data,
                 transcription: transcription,
@@ -1842,9 +1909,12 @@ final class ChatViewModel: ObservableObject {
                 textContent: nil
             )
             PendingUploadStore.shared.markFinished(id: uploadId)
-            return transcription?.displayTranscript
+            return embed
         } catch {
-            print("[Chat] Recording transcription error: \(error)")
+            NativeDiagnostics.error(
+                "Composer recording transcription failed: \(type(of: error))",
+                category: "apple_composer"
+            )
             PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
             return nil
         }
@@ -1875,27 +1945,30 @@ final class ChatViewModel: ObservableObject {
             }
             return upload
         } catch {
-            print("[Chat] Upload error: \(error)")
+            NativeDiagnostics.error(
+                "Composer attachment upload failed: \(type(of: error))",
+                category: "apple_composer"
+            )
             PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.error)
             return nil
         }
     }
 
-    func uploadFile(url: URL) async {
+    func uploadFile(url: URL) async -> ComposerPendingEmbed? {
         if let chatId = chat?.id, AnonymousFreeUsageService.shared.isAnonymousChat(chatId) {
             ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
-            return
+            return nil
         }
-        guard let data = try? Data(contentsOf: url) else { return }
-        await uploadAttachment(data: data, filename: url.lastPathComponent)
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return await uploadAttachment(data: data, filename: url.lastPathComponent)
     }
 
-    func uploadFile(data: Data, filename: String) async {
+    func uploadFile(data: Data, filename: String) async -> ComposerPendingEmbed? {
         if let chatId = chat?.id, AnonymousFreeUsageService.shared.isAnonymousChat(chatId) {
             ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
-            return
+            return nil
         }
-        await uploadAttachment(data: data, filename: filename)
+        return await uploadAttachment(data: data, filename: filename)
     }
 
     func removePendingComposerEmbed(id: String) {
@@ -1903,8 +1976,8 @@ final class ChatViewModel: ObservableObject {
     }
 
     #if DEBUG
-    func seedUITestPendingComposerEmbed() {
-        guard pendingComposerEmbeds.isEmpty else { return }
+    func seedUITestPendingComposerEmbed() -> ComposerPendingEmbed? {
+        guard pendingComposerEmbeds.isEmpty else { return pendingComposerEmbeds.first }
         let upload = UploadFileResponse(
             embedId: "ui-test-pending-image",
             filename: "ui-test-image.png",
@@ -1926,9 +1999,9 @@ final class ChatViewModel: ObservableObject {
             pageCount: nil,
             deduplicated: true
         )
-        registerPendingComposerEmbed(
+        return registerPendingComposerEmbed(
             upload,
-            localData: Data(repeating: 0, count: 128),
+            localData: Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="),
             transcription: nil,
             duration: nil,
             piiMappings: [],
@@ -1944,7 +2017,7 @@ final class ChatViewModel: ObservableObject {
         duration: TimeInterval?,
         piiMappings: [PIIMapping],
         textContent: String?
-    ) {
+    ) -> ComposerPendingEmbed {
         let embed = ComposerPendingEmbed.from(
             upload: upload,
             localData: localData,
@@ -1953,28 +2026,18 @@ final class ChatViewModel: ObservableObject {
             piiMappings: piiMappings,
             textContent: textContent
         )
-        registerPendingComposerEmbed(embed)
+        return registerPendingComposerEmbed(embed)
     }
 
-    private func registerPendingComposerEmbed(_ embed: ComposerPendingEmbed) {
+    @discardableResult
+    private func registerPendingComposerEmbed(_ embed: ComposerPendingEmbed) -> ComposerPendingEmbed {
         pendingComposerEmbeds.removeAll { $0.id == embed.id }
         pendingComposerEmbeds.append(embed)
         embedRecords[embed.record.id] = embed.record
         if let chatId = chat?.id {
             chatStore?.upsertEmbeds([embed.record], for: chatId)
         }
-    }
-
-    private func contentWithComposerEmbedReferences(_ content: String, embeds: [ComposerPendingEmbed]) -> String {
-        let missingEmbeds = embeds.filter { !containsExistingComposerEmbedReferences(content, embedId: $0.id) }
-        guard !missingEmbeds.isEmpty else { return content }
-        let references = missingEmbeds.map(\.markdownReference).joined(separator: "\n")
-        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? references : "\(trimmed)\n\n\(references)"
-    }
-
-    private func containsExistingComposerEmbedReferences(_ content: String, embedId: String) -> Bool {
-        content.contains("\"embed_id\": \"\(embedId)\"") || content.contains("\"embed_id\":\"\(embedId)\"")
+        return embed
     }
 
     private static func contentType(for filename: String, fallback: String) -> String {
@@ -2069,15 +2132,6 @@ struct ComposerPendingEmbed: Identifiable {
         "```json\n{\"type\": \"\(referenceType)\", \"embed_id\": \"\(id)\"}\n```"
     }
 
-    var editorMarkdownReference: String {
-        "```json\n{\"type\": \"\(referenceType)\", \"embed_id\": \"\(id)\", \"filename\": \(Self.jsonString(filename))}\n```"
-    }
-
-    private static func jsonString(_ value: String) -> String {
-        let data = try! JSONEncoder().encode(value)
-        return String(data: data, encoding: .utf8)!
-    }
-
     var serverPayload: [String: Any]? {
         guard let content else { return nil }
         var payload: [String: Any] = [
@@ -2120,7 +2174,7 @@ struct ComposerPendingEmbed: Identifiable {
                 pageCount: nil,
                 deduplicated: true
             ),
-            localData: Data(repeating: 0, count: 128),
+            localData: Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="),
             transcription: nil,
             duration: nil
         )
@@ -2681,8 +2735,13 @@ enum PublicChatContent {
 
     private static func extractEmbeds(from content: String, fallbackAppId: String?) -> (content: String, refs: [EmbedRef], records: [EmbedRecord]) {
         var cleaned = content
-        var refs: [EmbedRef] = []
         var records: [EmbedRecord] = []
+        var refsById: [String: (location: Int, ref: EmbedRef)] = [:]
+
+        func recordRef(_ ref: EmbedRef, location: Int) {
+            guard refsById[ref.id] == nil else { return }
+            refsById[ref.id] = (location, ref)
+        }
 
         let jsonPattern = #"```(json_embed|json)\s*([\s\S]*?)\s*```"#
         for match in regexMatches(jsonPattern, in: content).reversed() {
@@ -2758,7 +2817,7 @@ enum PublicChatContent {
             }
 
             records.insert(record, at: 0)
-            refs.insert(embedRef(for: record), at: 0)
+            recordRef(embedRef(for: record), location: match.range.location)
             cleaned.replaceSubrange(fullRange, with: "\n[[embed:\(record.id)]]\n")
         }
 
@@ -2768,10 +2827,18 @@ enum PublicChatContent {
                   let fullRange = Range(match.range(at: 0), in: cleaned) else { continue }
 
             let ref = String(cleaned[refRange])
+            recordRef(EmbedRef(id: ref, type: "web-website", status: "finished", data: nil), location: match.range.location)
             cleaned.replaceSubrange(fullRange, with: "\n[[embedref:\(ref)]]\n")
         }
 
-        return (sanitize(cleaned), refs, records)
+        let inlineEmbedPattern = #"\[\[embed(?:ref)?:([^\]]+)\]\]"#
+        for match in regexMatches(inlineEmbedPattern, in: cleaned).reversed() {
+            guard let idRange = Range(match.range(at: 1), in: cleaned) else { continue }
+            recordRef(EmbedRef(id: String(cleaned[idRange]), type: "web-website", status: "finished", data: nil), location: match.range.location)
+        }
+
+        let orderedRefs = refsById.values.sorted { lhs, rhs in lhs.location < rhs.location }.map { $0.ref }
+        return (sanitize(cleaned), orderedRefs, records)
     }
 
     private static func embedRef(for record: EmbedRecord) -> EmbedRef {
@@ -3092,7 +3159,7 @@ enum PublicChatContent {
 @MainActor
 final class ChatSendPipeline {
     private let crypto = CryptoManager.shared
-    private var encryptedUserStorageSent = Set<String>()
+    private static var encryptedUserStorageClaimed = Set<String>()
     private var completedAssistantStorageSent = Set<String>()
 
     struct SendResult {
@@ -3193,7 +3260,34 @@ final class ChatSendPipeline {
         textMappings: [PIIMapping],
         composerEmbeds: [ComposerPendingEmbed]
     ) -> [PIIMapping] {
-        textMappings + composerEmbeds.flatMap(\.piiMappings)
+        PIIDetector.mergePIIMappings(textMappings + composerEmbeds.flatMap(\.piiMappings))
+    }
+
+    func contentAndMappingsForSend(
+        content: String,
+        existingMessages: [Message],
+        piiMappings: [PIIMapping] = [],
+        excludedPIIOriginals: Set<String> = [],
+        excludedPIIPlaceholders: Set<String> = []
+    ) -> (content: String, piiMappings: [PIIMapping]) {
+        let rewrite = PIIDetector.rewriteKnownPIIPlaceholders(
+            in: content,
+            mappings: knownPIIMappings(in: existingMessages),
+            excludedOriginals: excludedPIIOriginals,
+            excludedPlaceholders: excludedPIIPlaceholders
+        )
+        return (
+            rewrite.text,
+            PIIDetector.mergePIIMappings(rewrite.appliedMappings + piiMappings)
+        )
+    }
+
+    private func knownPIIMappings(in messages: [Message]) -> [PIIMapping] {
+        PIIDetector.mergePIIMappings(
+            messages
+                .filter { $0.role == .user }
+                .flatMap { $0.piiMappings ?? [] }
+        )
     }
 
     private func incognitoMessageHistoryPayload(_ messages: [Message], fallbackChatId: String) -> [[String: Any]] {
@@ -3221,6 +3315,8 @@ final class ChatSendPipeline {
         waitForRemoteSend: Bool = true,
         composerEmbeds: [ComposerPendingEmbed] = [],
         piiMappings: [PIIMapping] = [],
+        excludedPIIOriginals: Set<String> = [],
+        excludedPIIPlaceholders: Set<String> = [],
         broadcastToSiblings: Bool = false
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
@@ -3229,8 +3325,17 @@ final class ChatSendPipeline {
         let createdAtUnix = Int(now.timeIntervalSince1970)
         let messageId = "\(chat.id.suffix(10))-\(UUID().uuidString)"
         let keyMaterial = try await ensureChatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey)
-        let encryptedContent = try await crypto.encryptContent(content, key: keyMaterial.key)
-        let encryptedPIIMappings = try await encryptPIIMappings(piiMappings, key: keyMaterial.key)
+        let sendPreparation = contentAndMappingsForSend(
+            content: content,
+            existingMessages: existingMessages,
+            piiMappings: piiMappings,
+            excludedPIIOriginals: excludedPIIOriginals,
+            excludedPIIPlaceholders: excludedPIIPlaceholders
+        )
+        let contentForSend = sendPreparation.content
+        let mappingsForSend = sendPreparation.piiMappings
+        let encryptedContent = try await crypto.encryptContent(contentForSend, key: keyMaterial.key)
+        let encryptedPIIMappings = try await encryptPIIMappings(mappingsForSend, key: keyMaterial.key)
         let encryptedEmbedPayloads = try await encryptedEmbeds(
             composerEmbeds,
             chatId: chat.id,
@@ -3249,7 +3354,7 @@ final class ChatSendPipeline {
             id: messageId,
             chatId: chat.id,
             role: .user,
-            content: content,
+            content: contentForSend,
             encryptedContent: encryptedContent,
             createdAt: createdAt,
             updatedAt: nil,
@@ -3258,7 +3363,7 @@ final class ChatSendPipeline {
             embedRefs: composerEmbeds.isEmpty ? nil : composerEmbeds.map { embed in
                 EmbedRef(id: embed.id, type: embed.type, status: embed.status, data: nil)
             },
-            piiMappings: piiMappings.isEmpty ? nil : piiMappings,
+            piiMappings: mappingsForSend.isEmpty ? nil : mappingsForSend,
             encryptedPIIMappings: encryptedPIIMappings
         )
 
@@ -3268,7 +3373,7 @@ final class ChatSendPipeline {
         var messagePayload: [String: Any] = [
             "message_id": messageId,
             "role": "user",
-            "content": content,
+            "content": contentForSend,
             "created_at": createdAtUnix,
             "sender_name": "user",
             "chat_has_title": (updatedChat.titleV ?? 0) > 0
@@ -3322,11 +3427,58 @@ final class ChatSendPipeline {
             outboundPayload["encrypted_pii_mappings"] = encryptedPIIMappings
         }
 
+        let turnId = UUID().uuidString.lowercased()
+        let recoveryKeyPair = try await crypto.deriveRecoveryKeyPair(
+            chatKey: keyMaterial.key,
+            chatId: chat.id,
+            keyVersion: 1
+        )
+        // This exact object is committed by the server before inference starts.
+        // Only the transport wrapper gains preflight fields after acknowledgement.
+        outboundPayload["turn_id"] = turnId
+        outboundPayload["recovery_public_key"] = recoveryKeyPair.publicKey
+        outboundPayload["chat_key_version"] = ChatCompletionRecoveryCoordinator.protocolVersion
+        var encryptedUserMessage: [String: Any] = [
+            "client_message_id": messageId,
+            "chat_id": chat.id,
+            "encrypted_content": encryptedContent,
+            "role": "user",
+            "created_at": createdAtUnix,
+            "updated_at": createdAtUnix,
+        ]
+        if let encryptedPIIMappings {
+            encryptedUserMessage["encrypted_pii_mappings"] = encryptedPIIMappings
+        }
+        let encryptedTitle: String?
+        if (chat.titleV ?? 0) == 0 {
+            if let existingEncryptedTitle = chat.encryptedTitle {
+                encryptedTitle = existingEncryptedTitle
+            } else {
+                encryptedTitle = try await crypto.encryptContent("", key: keyMaterial.key)
+            }
+        } else {
+            encryptedTitle = nil
+        }
+        let preflightPayload = savedChatPreflightPayload(
+            chatId: chat.id,
+            turnId: turnId,
+            messageId: messageId,
+            encryptedChatKey: keyMaterial.encryptedChatKey,
+            recoveryPublicKey: recoveryKeyPair.publicKey,
+            expectedMessagesVersion: max(chat.messagesV ?? existingMessages.count, existingMessages.count),
+            encryptedUserMessage: encryptedUserMessage,
+            inferenceRequest: outboundPayload,
+            encryptedTitle: encryptedTitle,
+            createdAt: createdAtUnix
+        )
+
         if waitForRemoteSend {
             try await sendRemoteUserMessage(
                 chatId: chat.id,
                 activateChat: activateChat,
                 wsManager: wsManager,
+                turnId: turnId,
+                preflightPayload: preflightPayload,
                 outboundPayload: outboundPayload
             )
         } else {
@@ -3336,6 +3488,8 @@ final class ChatSendPipeline {
                         chatId: chat.id,
                         activateChat: activateChat,
                         wsManager: wsManager,
+                        turnId: turnId,
+                        preflightPayload: preflightPayload,
                         outboundPayload: outboundPayload
                     )
                 } catch {
@@ -3436,16 +3590,87 @@ final class ChatSendPipeline {
     private func sendRemoteUserMessage(
         chatId: String,
         activateChat: Bool,
-        wsManager: WebSocketManager,
+        wsManager: ChatWebSocketTransport,
+        turnId: String,
+        preflightPayload: [String: Any],
         outboundPayload: [String: Any]
     ) async throws {
         if activateChat {
-            try await sendSetActiveChat(chatId, wsManager: wsManager)
+            try await wsManager.send(WSOutboundMessage(type: "set_active_chat", payload: ["chat_id": chatId]))
         }
-        try await wsManager.send(WSOutboundMessage(
+        try await sendSavedChatTurn(
+            turnId: turnId,
+            preflightPayload: preflightPayload,
+            outboundPayload: outboundPayload,
+            transport: wsManager
+        )
+    }
+
+    func sendSavedChatTurn(
+        turnId: String,
+        preflightPayload: [String: Any],
+        outboundPayload: [String: Any],
+        transport: ChatWebSocketTransport
+    ) async throws {
+        let acknowledgement = (try await transport.sendAndWait(
+            WSOutboundMessage(type: "chat_turn_preflight", payload: preflightPayload),
+            responseType: "chat_turn_preflight_ack"
+        ) {
+                $0["turn_id"] as? String == turnId
+        }).fields
+        guard let preflightId = acknowledgement["preflight_id"] as? String, !preflightId.isEmpty,
+              let state = acknowledgement["state"] as? String,
+              state == "PREPARED" || state == "LEGACY" else {
+            throw ChatSendError.webSocketUnavailable
+        }
+        guard let committedTurnId = outboundPayload["turn_id"] as? String,
+              committedTurnId == turnId,
+              let preflightInference = preflightPayload["inference_request"] as? [String: Any],
+              NSDictionary(dictionary: preflightInference).isEqual(to: outboundPayload) else {
+            throw ChatSendError.webSocketUnavailable
+        }
+        var committedPayload = outboundPayload
+        committedPayload["protocol_version"] = ChatCompletionRecoveryCoordinator.protocolVersion
+        committedPayload["preflight_id"] = preflightId
+        try await transport.send(WSOutboundMessage(
             type: "chat_message_added",
-            payload: outboundPayload
+            payload: committedPayload
         ))
+    }
+
+    func savedChatPreflightPayload(
+        chatId: String,
+        turnId: String,
+        messageId: String,
+        encryptedChatKey: String,
+        recoveryPublicKey: String,
+        expectedMessagesVersion: Int,
+        encryptedUserMessage: [String: Any],
+        inferenceRequest: [String: Any],
+        encryptedTitle: String?,
+        createdAt: Int
+    ) -> [String: Any] {
+        var payload: [String: Any] = [
+            "protocol_version": ChatCompletionRecoveryCoordinator.protocolVersion,
+            "chat_id": chatId,
+            "turn_id": turnId,
+            "message_id": messageId,
+            "chat_key_version": ChatCompletionRecoveryCoordinator.protocolVersion,
+            "encrypted_chat_key": encryptedChatKey,
+            "recovery_public_key": recoveryPublicKey,
+            "expected_messages_v": expectedMessagesVersion,
+            "encrypted_user_message": encryptedUserMessage,
+            "inference_request": inferenceRequest,
+        ]
+        if let encryptedTitle {
+            payload["encrypted_chat_metadata"] = [
+                "encrypted_title": encryptedTitle,
+                "encrypted_chat_key": encryptedChatKey,
+                "created_at": createdAt,
+                "updated_at": createdAt,
+            ]
+        }
+        return payload
     }
 
     func sendEncryptedUserStoragePackage(
@@ -3457,7 +3682,13 @@ final class ChatSendPipeline {
         chatStore: ChatStore?
     ) async throws -> Chat {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
-        guard encryptedUserStorageSent.insert(userMessage.id).inserted else { return chat }
+        guard claimEncryptedUserStorage(messageId: userMessage.id) else { return chat }
+        var storageCompleted = false
+        defer {
+            if !storageCompleted {
+                releaseEncryptedUserStorage(messageId: userMessage.id)
+            }
+        }
 
         let keyMaterial = try await ensureChatKey(
             chatId: chat.id,
@@ -3497,8 +3728,6 @@ final class ChatSendPipeline {
             encryptedChatKey: keyMaterial.encryptedChatKey,
             titleV: nextTitleV
         )
-        chatStore?.upsertChat(updatedChat)
-
         var payload: [String: Any] = [
             "chat_id": chat.id,
             "message_id": userMessage.id,
@@ -3520,7 +3749,17 @@ final class ChatSendPipeline {
         if let encryptedUserCategory { payload["encrypted_category"] = encryptedUserCategory }
 
         try await wsManager.send(WSOutboundMessage(type: "encrypted_chat_metadata", payload: payload))
+        chatStore?.upsertChat(updatedChat)
+        storageCompleted = true
         return updatedChat
+    }
+
+    func claimEncryptedUserStorage(messageId: String) -> Bool {
+        Self.encryptedUserStorageClaimed.insert(messageId).inserted
+    }
+
+    func releaseEncryptedUserStorage(messageId: String) {
+        Self.encryptedUserStorageClaimed.remove(messageId)
     }
 
     func persistCompletedAssistantMessage(
@@ -3546,6 +3785,7 @@ final class ChatSendPipeline {
         }
         let encryptedCategory = try await encryptOptional(message.appId, key: keyMaterial.key)
         let encryptedModelName = try await encryptOptional(message.modelName, key: keyMaterial.key)
+        let encryptedThinkingContent = try await encryptOptional(message.thinkingContent, key: keyMaterial.key)
         let createdAtUnix = Self.unixSeconds(from: message.createdAt)
         let persisted = Message(
             id: message.id,
@@ -3560,7 +3800,11 @@ final class ChatSendPipeline {
             embedRefs: message.embedRefs,
             modelName: message.modelName,
             piiMappings: message.piiMappings,
-            encryptedPIIMappings: message.encryptedPIIMappings
+            encryptedPIIMappings: message.encryptedPIIMappings,
+            thinkingContent: message.thinkingContent,
+            encryptedThinkingContent: encryptedThinkingContent,
+            encryptedThinkingSignature: message.encryptedThinkingSignature,
+            thinkingTokenCount: message.thinkingTokenCount
         )
 
         chatStore?.appendMessage(persisted, to: message.chatId)
@@ -3594,6 +3838,7 @@ final class ChatSendPipeline {
                 encryptedContent: encryptedContent,
                 encryptedCategory: encryptedCategory,
                 encryptedModelName: encryptedModelName,
+                encryptedThinkingContent: encryptedThinkingContent,
                 createdAtUnix: createdAtUnix,
                 currentMessagesV: chat.messagesV,
                 localMessageCountAfterAppendingAssistant: localMessageCountAfterAppend
@@ -3659,6 +3904,7 @@ final class ChatSendPipeline {
         encryptedContent: String,
         encryptedCategory: String?,
         encryptedModelName: String?,
+        encryptedThinkingContent: String? = nil,
         createdAtUnix: Int,
         currentMessagesV: Int?,
         localMessageCountAfterAppendingAssistant: Int
@@ -3674,6 +3920,7 @@ final class ChatSendPipeline {
         if let userMessageId { messagePayload["user_message_id"] = userMessageId }
         if let encryptedCategory { messagePayload["encrypted_category"] = encryptedCategory }
         if let encryptedModelName { messagePayload["encrypted_model_name"] = encryptedModelName }
+        if let encryptedThinkingContent { messagePayload["encrypted_thinking_content"] = encryptedThinkingContent }
         return [
             "chat_id": message.chatId,
             "message": messagePayload,
@@ -3828,14 +4075,14 @@ final class ChatSendPipeline {
         var encryptedPayloads: [[String: Any]] = []
         for embed in persistableEmbeds {
             guard let content = embed.content else { continue }
-            let embedKey = deriveEmbedKey(from: chatKey, embedId: embed.id)
+            let embedKey = ComposerEmbedCrypto.deriveKey(chatKey: chatKey, embedId: embed.id)
             let hashedEmbedId = sha256Hex(embed.id)
-            let wrappedWithMaster = try await encryptRawKey(embedKey, wrappingKey: masterKey)
-            let wrappedWithChat = try await encryptRawKey(embedKey, wrappingKey: chatKey)
+            let wrappedWithMaster = try ComposerEmbedCrypto.wrapKey(embedKey, using: masterKey)
+            let wrappedWithChat = try ComposerEmbedCrypto.wrapKey(embedKey, using: chatKey)
             var payload: [String: Any] = [
                 "embed_id": embed.id,
-                "encrypted_type": try await encryptEmbedField(embed.type, key: embedKey),
-                "encrypted_content": try await encryptEmbedField(content, key: embedKey),
+                "encrypted_type": try ComposerEmbedCrypto.encryptContent(embed.type, using: embedKey),
+                "encrypted_content": try ComposerEmbedCrypto.encryptContent(content, using: embedKey),
                 "status": embed.status,
                 "hashed_chat_id": hashedChatId,
                 "hashed_message_id": hashedMessageId,
@@ -3862,37 +4109,11 @@ final class ChatSendPipeline {
                 ]
             ]
             if let textPreview = embed.textPreview {
-                payload["encrypted_text_preview"] = try await encryptEmbedField(textPreview, key: embedKey)
+                payload["encrypted_text_preview"] = try ComposerEmbedCrypto.encryptContent(textPreview, using: embedKey)
             }
             encryptedPayloads.append(payload)
         }
         return encryptedPayloads
-    }
-
-    private func deriveEmbedKey(from chatKey: SymmetricKey, embedId: String) -> SymmetricKey {
-        HKDF<SHA256>.deriveKey(
-            inputKeyMaterial: chatKey,
-            salt: Data("openmates-embed-key-v1".utf8),
-            info: Data(embedId.utf8),
-            outputByteCount: 32
-        )
-    }
-
-    private func encryptEmbedField(_ value: String, key: SymmetricKey) async throws -> String {
-        try await encryptRawData(Data(value.utf8), key: key)
-    }
-
-    private func encryptRawKey(_ key: SymmetricKey, wrappingKey: SymmetricKey) async throws -> String {
-        let raw = key.withUnsafeBytes { Data($0) }
-        return try await encryptRawData(raw, key: wrappingKey)
-    }
-
-    private func encryptRawData(_ data: Data, key: SymmetricKey) async throws -> String {
-        let encrypted = try await crypto.encrypt(data, using: key)
-        var combined = Data()
-        combined.append(encrypted.nonce)
-        combined.append(encrypted.ciphertext)
-        return combined.base64EncodedString()
     }
 
     private func sha256Hex(_ value: String) -> String {

@@ -21,6 +21,8 @@
 #
 #   5. Health check probe — _check_sightengine_health() must send a multipart POST
 #      (not a GET with ?url=), and the inline JPEG constant must be a valid image.
+#   6. Provider probe policy — duplicate Google AI Studio checks are omitted while
+#      the canonical Google health key remains available to status consumers.
 #
 # Architecture reference: docs/architecture/file-upload-pipeline.md
 #
@@ -168,7 +170,11 @@ class TestApiCallShape:
             mock_client.post = AsyncMock(return_value=mock_resp)
             mock_client_cls.return_value = mock_client
 
-            await enabled_service.check_all(DUMMY_IMAGE, filename="photo.jpg")
+            await enabled_service.check_all(
+                DUMMY_IMAGE,
+                filename="photo.jpg",
+                content_type="image/jpeg",
+            )
 
         mock_client_cls.assert_called_once_with("sightengine", timeout=20)
         mock_client.post.assert_called_once()
@@ -182,6 +188,7 @@ class TestApiCallShape:
         # Tuple is (filename, bytes, content_type)
         assert isinstance(media_tuple, tuple) and len(media_tuple) == 3
         assert isinstance(media_tuple[1], bytes), "Payload must be raw bytes"
+        assert media_tuple[2] == "image/jpeg"
 
         # Confirm no url= in form data
         data = kwargs.get("data", {})
@@ -202,11 +209,15 @@ class TestApiCallShape:
             mock_client.post = AsyncMock(return_value=mock_resp)
             mock_client_cls.return_value = mock_client
 
-            await enabled_service.check_content_safety(DUMMY_IMAGE)
+            await enabled_service.check_content_safety(
+                DUMMY_IMAGE,
+                content_type="image/jpeg",
+            )
 
         _, kwargs = mock_client.post.call_args
         assert "files" in kwargs
         assert "url" not in kwargs.get("data", {})
+        assert kwargs["files"]["media"][2] == "image/jpeg"
 
     @pytest.mark.asyncio
     async def test_check_image_posts_bytes(self, enabled_service):
@@ -294,12 +305,7 @@ class TestFailOpen:
 
     @pytest.mark.asyncio
     async def test_http_500_fails_open(self, enabled_service):
-        """HTTP 500 from Sightengine → is_safe=True (allow upload).
-
-        Uses check_content_safety (not check_all) because fail-open is the
-        documented contract for the safety-only endpoint. check_all uses a
-        combined endpoint that intentionally fails closed.
-        """
+        """HTTP 500 from Sightengine → is_safe=True (allow upload)."""
         mock_resp = _make_mock_response({}, status_code=500)
 
         with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
@@ -309,10 +315,32 @@ class TestFailOpen:
             mock_client.post = AsyncMock(return_value=mock_resp)
             mock_client_cls.return_value = mock_client
 
-            safety_result = await enabled_service.check_content_safety(DUMMY_IMAGE)
+            safety_result, ai_result = await enabled_service.check_all(DUMMY_IMAGE)
 
         assert safety_result.is_safe
         assert safety_result.error is not None
+        assert ai_result is None
+
+    @pytest.mark.asyncio
+    async def test_media_error_400_fails_open(self, enabled_service):
+        """Sightengine media_error 400 must not block legitimate uploads."""
+        mock_resp = _make_mock_response(
+            {"status": "failure", "error": {"type": "media_error", "message": "bad media"}},
+            status_code=400,
+        )
+
+        with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client.post = AsyncMock(return_value=mock_resp)
+            mock_client_cls.return_value = mock_client
+
+            safety_result, ai_result = await enabled_service.check_all(DUMMY_IMAGE)
+
+        assert safety_result.is_safe
+        assert safety_result.error == "API error 400"
+        assert ai_result is None
 
     @pytest.mark.asyncio
     async def test_timeout_fails_open(self, enabled_service):
@@ -326,10 +354,11 @@ class TestFailOpen:
             mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
             mock_client_cls.return_value = mock_client
 
-            safety_result = await enabled_service.check_content_safety(DUMMY_IMAGE)
+            safety_result, ai_result = await enabled_service.check_all(DUMMY_IMAGE)
 
         assert safety_result.is_safe
         assert safety_result.error == "timeout"
+        assert ai_result is None
 
     @pytest.mark.asyncio
     async def test_non_success_status_in_json_fails_open(self, enabled_service):
@@ -346,9 +375,11 @@ class TestFailOpen:
             mock_client.post = AsyncMock(return_value=mock_resp)
             mock_client_cls.return_value = mock_client
 
-            safety_result = await enabled_service.check_content_safety(DUMMY_IMAGE)
+            safety_result, ai_result = await enabled_service.check_all(DUMMY_IMAGE)
 
         assert safety_result.is_safe
+        assert safety_result.error == "image unavailable"
+        assert ai_result is None
 
 
 # ===========================================================================
@@ -439,6 +470,32 @@ class TestHealthCheckProbe:
         monkeypatch.delenv("CEREBRAS_HEALTH_CHECK_MODEL_ID", raising=False)
 
         assert _hct._get_cheapest_model_for_server("cerebras") == "cerebras/gpt-oss-120b"
+
+    def test_provider_health_checks_omit_duplicate_google_ai_studio_probe(self):
+        provider_ids = ["anthropic", "google", "google_ai_studio", "openai"]
+
+        assert _hct._get_active_provider_health_ids(provider_ids) == [
+            "anthropic",
+            "google",
+            "openai",
+        ]
+
+    def test_provider_health_checks_keep_ai_studio_without_canonical_google(self):
+        provider_ids = ["anthropic", "google_ai_studio", "openai"]
+
+        assert _hct._get_active_provider_health_ids(provider_ids) == provider_ids
+
+    def test_provider_health_cache_outlives_probe_interval(self):
+        assert (
+            _hct.PROVIDER_HEALTH_CHECK_CACHE_TTL
+            > _hct.HEALTH_CHECK_INTERVAL_WITHOUT_ENDPOINT
+        )
+        assert _hct.HEALTH_CHECK_CACHE_TTL == 10 * 60
+
+    def test_provider_health_checks_run_every_thirty_minutes(self):
+        schedule = _hct.app.conf.beat_schedule["health-check-all-providers"]["schedule"]
+
+        assert schedule.total_seconds() == 30 * 60
 
     @pytest.mark.anyio
     async def test_cerebras_health_check_calls_client_directly(self):

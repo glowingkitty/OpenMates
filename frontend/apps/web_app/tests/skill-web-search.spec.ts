@@ -37,6 +37,12 @@ const {
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
 
+const WEB_SEARCH_FIXTURE_QUERY = 'openmates_e2e_web_fixture_ai';
+
+function isBraveQuotaFailure(result: { stderr: string }): boolean {
+	return /Brave Search API error: 429/.test(result.stderr) && /QUOTA_LIMITED/.test(result.stderr);
+}
+
 test.describe('App: Web / Skill: search', () => {
 	test.setTimeout(120_000);
 
@@ -47,19 +53,33 @@ test.describe('App: Web / Skill: search', () => {
 	});
 
 	// ── Phase 1: Embed preview renders ─────────────────────────────────────
+	// contract-test: supporting surface=gui.web assertions=web-search.surface-parity
 	test('Phase 1: embed preview renders at /dev/preview/embeds/web', async ({ page }) => {
 		const log = (msg: string) => console.log(`[P1] ${msg}`);
 		await verifyEmbedPreviewPage(page, 'web', log);
 	});
 
 	// ── Phase 2: CLI direct skill command ──────────────────────────────────
+	// contract-test: direct surface=cli assertions=web-search.request.validated,web-search.surface-parity
 	test('Phase 2: CLI apps web search returns results', async () => {
 		test.skip(
 			!process.env.OPENMATES_TEST_ACCOUNT_API_KEY,
 			'OPENMATES_TEST_ACCOUNT_API_KEY required.'
 		);
 
-		const result = await runCli(apiUrl, ['apps', 'web', 'search', 'OpenMates AI assistant']);
+		const result = await runCli(
+			apiUrl,
+			[
+				'apps', 'web', 'search',
+				'--input', JSON.stringify({ requests: [{ query: WEB_SEARCH_FIXTURE_QUERY }] }),
+				'--json'
+			],
+			30_000
+		);
+		test.skip(
+			isBraveQuotaFailure(result),
+			'Brave Search provider quota exhausted; direct provider contract cannot run in this environment.'
+		);
 		expectCliSuccess(result);
 		expect(result.stdout.length).toBeGreaterThan(10);
 		expect(result.stderr).not.toMatch(/error|failed|exception/i);
@@ -67,13 +87,14 @@ test.describe('App: Web / Skill: search', () => {
 	});
 
 	// ── Phase 3: CLI chat send triggers skill ──────────────────────────────
+	// contract-test: supporting surface=cli assertions=web-search.surface-parity
 	test('Phase 3: CLI chats new triggers web search', async () => {
 		test.skip(
 			!process.env.OPENMATES_TEST_ACCOUNT_API_KEY,
 			'OPENMATES_TEST_ACCOUNT_API_KEY required.'
 		);
 
-		const message = withLiveMockMarker('Search the web for OpenMates AI assistant', 'web_search_cli');
+		const message = withLiveMockMarker(`Search the web for ${WEB_SEARCH_FIXTURE_QUERY}`, 'web_search_cli');
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 60_000);
 		expectCliSuccess(result);
 
@@ -93,6 +114,7 @@ test.describe('App: Web / Skill: search', () => {
 	// results, the assistant answer must still render cleanly without the red
 	// embed-error banner, and the zero-hit embed must finalize to status=finished
 	// (not status=error). Fix is in backend/apps/ai/processing/main_processor.py.
+	// contract-test: direct surface=gui.web assertions=web-search.no-results.explicit,web-search.surface-parity
 	test('Phase 5: Zero-result query does not show error banner', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);
@@ -129,7 +151,6 @@ test.describe('App: Web / Skill: search', () => {
 
 		const finalStatus = await anyEmbed.getAttribute('data-status');
 		logCheckpoint(`Zero-result embed final status: ${finalStatus}`);
-		await takeStepScreenshot(page, 'zero-results-embed-final');
 
 		// PRIMARY ASSERTIONS (the bug)
 		expect(
@@ -147,15 +168,9 @@ test.describe('App: Web / Skill: search', () => {
 			'failure is a legitimate zero-hit search.'
 		).not.toBeVisible();
 
-		// Assistant response text must be non-empty — the LLM answer should render
-		// regardless of the zero-hit sub-query.
-		const assistantMessage = page.getByTestId('message-assistant').last();
-		await expect(assistantMessage).toBeVisible({ timeout: 30_000 });
-
-		// Zero-result embed must render a clear "No results found for '<query>'"
-		// message (not a generic empty state). This is the UX follow-up to the
-		// OPE-405 backend fix. The testid is added by WebSearchEmbedPreview and
-		// SearchResultsTemplate components.
+		// Zero-result embed must render a clear generic "No results found" message.
+		// The query is already shown above this line in the card, so repeating it
+		// creates redundant wrapping pressure in narrow assistant messages.
 		const noResultsPreviewMessage = anyEmbed.getByTestId('search-no-results-message');
 		await expect(
 			noResultsPreviewMessage,
@@ -166,12 +181,14 @@ test.describe('App: Web / Skill: search', () => {
 			previewText.toLowerCase(),
 			`No-results preview text must mention "no results" (got: "${previewText}")`
 		).toContain('no results');
-		// If the query was wired through, the message should contain part of it.
 		expect(
 			previewText,
-			`No-results preview should include the query string "xyznonexistentproduct123456" ` +
-			`to prove the query placeholder substitution works (got: "${previewText}")`
-		).toContain('xyznonexistentproduct123456');
+			`No-results preview must not repeat the query string (got: "${previewText}")`
+		).not.toContain('xyznonexistentproduct123456');
+		expect(
+			previewText,
+			`No-results preview should be generic (got: "${previewText}")`
+		).toMatch(/^\s*No results found\s*$/i);
 		logCheckpoint(`Preview no-results message: "${previewText}"`);
 
 		// Open the fullscreen and verify the same message renders there too.
@@ -183,16 +200,24 @@ test.describe('App: Web / Skill: search', () => {
 			'Fullscreen must also render the no-results message when the search returned 0 hits.'
 		).toBeVisible({ timeout: 10_000 });
 		const fullscreenText = (await fullscreenNoResults.textContent()) || '';
-		expect(fullscreenText).toContain('xyznonexistentproduct123456');
+		expect(fullscreenText).not.toContain('xyznonexistentproduct123456');
+		expect(fullscreenText).toMatch(/^\s*No results found\s*$/i);
 		await takeStepScreenshot(page, 'zero-results-fullscreen');
 		await closeFullscreen(page, fullscreenOverlay);
 		logCheckpoint('Fullscreen closed.');
+
+		// Assistant response text must be non-empty — the LLM answer should render
+		// regardless of the zero-hit sub-query.
+		const assistantMessage = page.getByTestId('message-assistant').last();
+		await expect(assistantMessage).toBeVisible({ timeout: 30_000 });
+		await takeStepScreenshot(page, 'zero-results-embed-final');
 
 		logCheckpoint('Phase 5 passed: zero-hit query rendered without error banner.');
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'web-search-zero');
 	});
 
 	// ── Phase 4: Web UI chat triggers skill ────────────────────────────────
+	// contract-test: direct surface=gui.web assertions=web-search.surface-parity
 	test('Phase 4: Web chat triggers web search with embed', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);
@@ -206,7 +231,7 @@ test.describe('App: Web / Skill: search', () => {
 		await startNewChat(page, logCheckpoint);
 
 		const message = withLiveMockMarker(
-			'Search the web for OpenMates AI assistant',
+			`Search the web for ${WEB_SEARCH_FIXTURE_QUERY}`,
 			'web_search_web'
 		);
 		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'web-search');

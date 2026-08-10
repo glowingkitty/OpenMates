@@ -8,3 +8,4 @@ description: "Public posts and profiles from Mastodon-compatible federated socia
 logo_svg: "logos/mastodon.svg"
 region: "EU"
 privacy_policy: "https://joinmastodon.org/privacy-policy"
+no_api_key: true

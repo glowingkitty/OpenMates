@@ -9,10 +9,12 @@ export {};
 const { test, expect, assertNoThirdPartyCookies } = require('./helpers/cookie-audit');
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
+let signupEmailForCleanup: string | null = null;
 
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 	networkActivities.length = 0;
+	signupEmailForCleanup = null;
 });
 
 // eslint-disable-next-line no-empty-pattern
@@ -25,6 +27,9 @@ test.afterEach(async ({}, testInfo: any) => {
 		console.log('\n[RECENT NETWORK ACTIVITIES]');
 		networkActivities.slice(-20).forEach((activity) => console.log(activity));
 		console.log('\n--- END DEBUG INFO ---\n');
+		await cleanupFailedSignupAccount(signupEmailForCleanup, console.log, {
+			testFile: testInfo.file || 'signup-flow-stripe-managed.spec.ts'
+		});
 	}
 });
 
@@ -33,6 +38,8 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
+	validateSignupInviteIfRequired,
+	cleanupFailedSignupAccount,
 	getSignupTestDomain,
 	buildSignupEmail,
 	createEmailClient,
@@ -126,6 +133,7 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
 	const signupEmail = buildSignupEmail(signupDomain);
+	signupEmailForCleanup = signupEmail;
 	const emailLocal = signupEmail.split('@')[0];
 	const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 	const signupPassword = 'SignupTest!234';
@@ -166,6 +174,7 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	// Verify no missing translations on the basics step (back button, form labels, etc.).
 	await assertNoMissingTranslations(page);
 	logSignupCheckpoint('Reached basics step.');
+	await validateSignupInviteIfRequired(page, logSignupCheckpoint);
 
 	// Basics step: fill email/username and exercise key toggles.
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]');
@@ -266,7 +275,31 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	logSignupCheckpoint('Payment consent accepted.');
 
 	// GHA runners are in the US → Stripe Managed Payments (Embedded Checkout) is auto-selected.
-	// This test stays on Managed Payments — do NOT click 'switch-to-stripe'.
+	// The payment component can briefly initialize the EU branch before geo/provider
+	// configuration resolves. Wait for managed mode or use the explicit non-EU switch.
+	const switchToNonEuBtn = page.getByTestId('switch-to-non-eu');
+	const switchToEuBtn = page.getByTestId('switch-to-stripe');
+	const checkoutIframe = page.locator('#checkout iframe');
+	const detectManagedProviderState = async () => {
+		if ((await checkoutIframe.count()) > 0) return 'managed';
+		if (await switchToEuBtn.isVisible().catch(() => false)) return 'managed';
+		if (await switchToNonEuBtn.isVisible().catch(() => false)) {
+			return (await switchToNonEuBtn.isEnabled().catch(() => false)) ? 'switch' : 'initializing';
+		}
+		return 'initializing';
+	};
+
+	await expect
+		.poll(detectManagedProviderState, {
+			timeout: 30000,
+			intervals: [250, 500, 1000]
+		})
+		.toMatch(/^(managed|switch)$/);
+
+	if ((await detectManagedProviderState()) === 'switch') {
+		await switchToNonEuBtn.click({ timeout: 10000 });
+		logSignupCheckpoint('Selected Managed Payments through the non-EU card switch.');
+	}
 
 	// Wait for Stripe Embedded Checkout iframe inside #checkout.
 	await page.waitForSelector('#checkout iframe', { state: 'attached', timeout: 30000 });
@@ -323,11 +356,21 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 		await page.keyboard.press('Escape');
 		await page.waitForTimeout(500);
 	}
+	const postalInput = checkoutFrame
+		.locator('input[autocomplete="postal-code"], input[name="postalCode"], input[name="postal_code"]')
+		.first();
+	if (await postalInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await postalInput.click();
+		await postalInput.pressSequentially('10001', { delay: 30 });
+	}
 	logSignupCheckpoint('Filled card in Stripe Embedded Checkout.');
 	await takeStepScreenshot(page, 'payment-form-filled');
 
 	// Submit payment
-	const payBtn = checkoutFrame.locator('button[type="submit"], button:has-text("Pay"), button:has-text("Subscribe")').first();
+	const payBtn = checkoutFrame
+		.getByRole('button', { name: /pay|subscribe|buy|continue/i })
+		.or(checkoutFrame.locator('button[type="submit"]'))
+		.first();
 	await expect(payBtn).toBeVisible({ timeout: 10000 });
 	await expect(payBtn).toBeEnabled({ timeout: 10000 });
 	const paymentSubmittedAt = new Date().toISOString();

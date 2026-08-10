@@ -20,28 +20,43 @@ Do not maintain separate Markdown spec, plan, or task files for new full specs.
 If a readable document is needed, generate it from `spec.yml` instead of
 duplicating content by hand.
 
-## When Specs Are Required
+New full specs declare `schema_version: 2`. Existing specs without that field
+remain Schema V1 and are validated under the legacy contract until they are
+actively resumed for material implementation work. Do not bulk-migrate old
+specs solely to satisfy this guide.
 
-Automatically use the spec workflow before implementation when work is complex,
-risky, user-facing, or likely to be misunderstood:
+## Risk Tiers
 
-- New user-facing features with multiple states or paths.
-- Multi-file changes across frontend, backend, data, docs, or tests.
+Choose the lightest contract that safely protects the work:
+
+### Tier 2: Full Executable Spec
+
+Use `docs/specs/<slug>/spec.yml` for high-risk or durable multi-session work:
+
 - Auth, encryption, billing, privacy, teams, sharing, permissions, sync, AI
-  pipeline, provider integrations, or migrations.
-- New API routes, app skills, embed types, background jobs, cron jobs, or
-  Directus schema changes.
-- Features where the test plan is not obvious within two minutes.
-- Bugs where expected behavior is disputed or needs product clarification.
-- Tasks likely to span more than one OpenCode session.
+  pipeline, provider integrations, migrations, and Directus schema changes.
+- New API routes, app skills, embed types, background jobs, or cron jobs when
+  their contract crosses trust, persistence, or deployment boundaries.
+- Work with material architecture/rollout decisions, disputed behavior, or
+  multiple independent implementation sessions.
 
-Use an inline spec for smaller behavior changes:
+Tier 2 keeps the full approval, decision, task, handoff, and evidence ledger.
 
-- Small UI behavior changes with one happy path and one obvious assertion.
-- Simple backend fixes with clear input and output.
-- Refactors where behavior must stay unchanged and the spec is mostly invariants
-  plus regression tests.
-- Existing issues that already include clear examples and acceptance criteria.
+### Tier 1: Inline Contract
+
+Use a concise issue or session task for ordinary non-trivial work, including
+most multi-file and user-facing changes with clear behavior. Record only:
+
+- Goal and explicit non-goals.
+- Verifiable acceptance criteria.
+- Ordered implementation slices or affected areas.
+- Exact relevant checks and any genuine user decision still required.
+
+Do not create a YAML full spec merely because a change touches several files or
+has UI states. Escalate to Tier 2 only when the risk or durable coordination
+needs above are present.
+
+### Tier 0: No Spec
 
 Skip specs for trivial or mechanical work:
 
@@ -59,7 +74,8 @@ Skip specs for trivial or mechanical work:
 For full specs:
 
 1. Detect the user's implementation intent and auto-select `specify`.
-2. Discover existing context before asking questions: GitHub Issues, relevant
+2. Perform bounded discovery before stating an understanding or asking questions:
+   GitHub Issues, relevant
    Linear tasks only when appropriate, `docs/specs/`, `docs/architecture/`, user
    guides, source code, and existing tests. If the work touches a shared product
    surface with an Apple counterpart, discover the mapped Swift files and Apple
@@ -67,31 +83,95 @@ For full specs:
 3. Ask up to five rounds of clarifying questions, one question per message. Wait
    for the user's response before asking the next question. The questions must
    be based on discovered context and focus on blocking product decisions.
-4. Summarize the understood vision, scope, non-goals, and unresolved decisions.
-   Wait for user confirmation before writing the final full spec.
+4. Summarize the understood vision, scope, non-goals, verified facts, and
+   unresolved decisions. Do not present an inference as a repository fact. Wait
+   for user confirmation before writing the final full spec.
 5. Create or update `docs/specs/<slug>/spec.yml`.
 6. Run `python3 scripts/spec_validate.py docs/specs/<slug>/spec.yml`.
-7. Present the spec to the user and wait for approval.
+7. Present the product contract to the user and record product-contract approval.
 8. Use `plan-from-spec` and `tasks-from-spec` to fill `implementation_plan` and
-   `tasks` inside the same `spec.yml`.
+   `tasks` inside the same `spec.yml`. Record a separate technical-plan approval
+   only when the plan introduces a material architecture, security, privacy,
+   migration, rollout, or external-dependency decision not already covered by
+   the approved product contract.
 9. Write or update the tests listed in `spec.yml` before feature code. For new
-   functionality, list CLI evidence first, web Playwright evidence second, and
-   Apple remote evidence third when the Apple app has a counterpart.
+   shared functionality, list REST/API evidence first, CLI evidence second,
+   npm SDK and pip SDK evidence third, web Playwright evidence fourth, reviewed
+   UI visual-smoke evidence fifth for larger web UI, user confirmation sixth when
+   web UI is involved, and Apple remote evidence last when the Apple app has a counterpart.
+   REST/API, CLI, and SDK tests first run against the dev server; only after they
+   pass should the same coverage move or wire into GitHub Actions for daily tests.
 10. Run the listed red-phase tests in the same order and record evidence in
     `spec.yml`.
 11. Before implementation starts, confirm required assumptions and normalize
     vague acceptance criteria such as "all tests pass" into concrete scoped
     checks. Required criteria must have `coverage_status`, `verification_scope`,
     and `verification_ids`, or an explicit user confirmation, waiver, or blocker.
-12. Implement one small requirement slice at a time.
+12. Implement one small requirement slice at a time. Update `handoff` before a
+    non-trivial action and after a verified result, failed attempt, scope change,
+    or blocker so a fresh session can continue without chat context.
 13. Deploy before Playwright green-phase verification because Playwright specs
     run against `app.dev.openmates.org`.
-14. Run green-phase tests in CLI → web → Apple order, record evidence in
-    `spec.yml`, and run `python3 scripts/spec_verify.py
+14. Run green-phase tests in REST/API → CLI → SDK → web → reviewed UI visual-smoke evidence → user confirmation → Apple order,
+    record evidence in `spec.yml`, and run `python3 scripts/spec_verify.py
     docs/specs/<slug>/spec.yml`.
+15. For eligible Tier 2 specs, and for user-visible Tier 1 plans, run the
+    implementation demonstration gate after all applicable normal green gates.
+    Write tutorial-style captions that explain the feature, the action, and what
+    the viewer should verify on screen from the verified behavior; render real Playwright or
+    PTY evidence, scan all text entering the rendered artifact, and perform a
+    demonstration review from captions plus bounded frames. Never place the full
+    video in agent/model context. Default to frames every three seconds plus
+    action, scene, state-change, and caption boundaries; extract individual exact
+    timestamps when the reviewer needs more evidence.
+16. A required demonstration review must pass for the current subject commit
+    before completion. One initial review plus three classified repair retries
+    are allowed. Discord publication is attempted after review and records
+    delivered or `publication_pending`; delivery failure does not invalidate
+    implementation or review evidence.
+
+An active implementation spec is non-interruptible. Continue from its current
+handoff until verification completes; task size, context pressure, test failure,
+concurrent work, and a later-phase gate are not stop conditions. A pause requires
+a structured `handoff.blocker` for the **current** task with `task_id`,
+`requires_user_input: true`, `reason`, `question`, and `next_action`. Do not use
+an unstructured or future-task blocker to suppress current-task implementation.
+
+Material changes to an acceptance criterion, test assertion, contract,
+assumption, or linked implementation invalidate its green evidence. Preserve the
+old evidence as history, mark the affected task `needs_fix` or `in_progress`,
+and record replacement evidence for the new subject revision. Never retain a
+passing status merely because it was true for an earlier revision.
 
 Implementation must not begin before the user approves the full spec unless the
 user explicitly instructs OpenCode to skip the spec gate.
+
+## Implementation Demonstration Gate
+
+New or materially resumed Tier 2 specs declare `demonstration.eligibility`.
+Required demonstrations include a `narration_outline` before implementation;
+each bullet names its purpose, expected visual or terminal proof, scenarios, and
+acceptance criteria. A concretely justified `surface: non_visual` record may use
+`status: not_applicable`. Browser, CLI, and native behavior cannot use that
+classification.
+
+    The exact narration text and actual captioned video are generated after
+    applicable tests, deployed Playwright, and visual smoke, but before requesting
+    user confirmation. Screenshots and reports are source evidence, not a substitute
+    for the reviewable video. User confirmation follows the reviewed video, and
+    Apple verification follows user confirmation. The narration should work as a
+    short tutorial: explain the feature, describe the action being shown, and tell
+    the viewer what visible result confirms success so review can detect obvious
+    mismatches. Caption text is canonical in v1; audio is optional follow-up work. Raw evidence
+and edited demonstration media remain distinct, and reconstructed terminal
+segments must match a real sanitized transcript hash and show a reconstruction
+label.
+
+The active OpenCode agent receives a frame-only review bundle, never the full
+video. Deterministic text privacy scanning runs before selected frames enter agent
+context. Review failures are classified as implementation, test coverage,
+recording, narration, composition, or environment defects and return only to the
+responsible stage. Discord publication is a separately retryable delivery state.
 
 ## Apple Impact And Parity
 
@@ -109,29 +189,80 @@ At minimum, record `python3 scripts/apple_remote.py status` plus `build-ios` or
 `test-ios` evidence, or a sanitized failure class such as `ssh_failed`,
 `project_not_found`, or `xcode_build_failed`.
 
-## New Functionality Verification Order
+## New Functionality Phase Gates
 
-Every new functionality spec must define the verification ladder before
-implementation starts:
+Every new functionality spec must define the implementation and verification
+ladder before implementation starts. For app skills, focus modes, embed types,
+memory types, provider-backed behavior, settings-backed chat behavior, and other
+shared product surfaces, this order is mandatory:
 
-1. **OpenMates CLI first:** a CLI command or CLI contract test that exercises the
-   shared backend/API/WebSocket behavior without browser or native UI state.
-2. **npm SDK second:** a Node SDK contract test for the same shared behavior when
-   it is exposed programmatically.
-3. **pip SDK third:** a Python SDK contract test for the same shared behavior when
-   it is exposed programmatically.
-4. **Web app fourth:** a Playwright `*.spec.ts` run through
-   `python3 scripts/tests.py run --spec <name>.spec.ts` after the CLI proof is
-   green.
-5. **Apple app fifth:** `python3 scripts/apple_remote.py test-ios` when a
-   targeted native test exists, otherwise `python3 scripts/apple_remote.py
-   build-ios`, after CLI, SDK, and web evidence are green. Use `Apple not affected`
-   only when the spec confirms there is no native counterpart.
+1. **REST API/WebSocket contract first:** implement the backend contract and prove
+   it with a direct REST request, WebSocket probe, or focused API smoke script
+   against the dev server. The spec must classify every changed endpoint as
+   unauthenticated public REST API, developer API-key REST API, first-party client
+   surface only, or internal-only. It must also state auth, owner/team scoping,
+   rate limits, credit/budget limits, and whether client-side encrypted data or
+   decrypted plaintext is handled. For endpoints that accept or return
+   client-side encrypted chat, memory, file, key, sync, or share material, default
+   to first-party or internal-only access unless the approved spec explains how a
+   public/developer contract preserves encryption boundaries. The dev-server
+   REST/API proof must pass before CLI, SDK, web, or Apple work starts.
 
-Skip the CLI-first requirement only for clearly browser-only changes, such as
+   REST/API phase-gate evidence must hit the real dev API and WebSocket services
+   with real auth/test-account state. It must verify the happy path and relevant
+   unauthorized, forbidden, rate-limited, or budget-limited behavior for the
+   endpoint classification. Mocked `fetch`,
+   mocked SDK clients, stubbed local servers, fixture replay, direct function
+   calls, and unit tests that bypass the OpenMates API/WebSocket path are
+   supplemental only and do not satisfy the REST/API-first gate. If a third-party API
+   call is expensive, run a low-cost real request or record a user-approved waiver
+   before provider replay can stand in for that external call.
+2. **OpenMates CLI second:** implement the CLI path and prove it with a CLI
+   command, CLI contract test, or real CLI chat against the dev server. The
+   dev-server CLI proof must pass before SDK, web, or Apple work starts. The CLI
+   proof exercises shared backend/API/WebSocket behavior without browser or
+   native UI state.
+3. **SDK parity third:** implement and test npm SDK and pip SDK parity locally
+   against the dev server for the same shared behavior when it is exposed
+   programmatically. Run `python3 scripts/audit_sdk_cli_parity.py` when the CLI
+   or SDK surface changes.
+   Only after local REST/API, CLI, and SDK evidence is green should the same
+   coverage be reproduced or wired into GitHub Actions so it runs in the daily
+   test suite.
+4. **Web app fourth:** implement the web app only after REST/API, CLI, and SDK parity are
+   green. Run the relevant Playwright `*.spec.ts` through
+   `python3 scripts/tests.py run --spec <name>.spec.ts` after deploy.
+5. **UI visual smoke fifth:** for larger user-visible web/UI changes, inspect the
+   deployed `app.dev.openmates.org` route with Playwright after Playwright specs
+   and before asking the user. Use laptop and mobile viewports, review the
+   screenshots, and record a pass only with `Defects:` and `Accepted differences:`
+   in the evidence summary. If the smoke finds objective clipping, overlap,
+   overflow, hidden controls, broken media, console-visible errors, stuck loading,
+   or unresponsive primary controls, fix, redeploy, and rerun before completion.
+   Use Firecrawl only as a recorded fallback when Playwright is impractical or
+   blocked. Full specs use `V-UI-VISUAL-SMOKE` with `viewports: [laptop, mobile]`.
+6. **User confirmation sixth:** for user-visible web UI or behavior, get the
+   user's confirmation that the deployed dev web app works and looks correct.
+   Automated `*.spec.ts` and reviewed visual-smoke evidence are necessary but not
+   sufficient for this gate.
+7. **Apple app last:** start Apple parity only after REST/API, CLI, SDK, web,
+   required UI visual-smoke evidence, and required user-confirmation evidence are
+   complete. Use `python3 scripts/apple_remote.py
+   test-ios` when a targeted native test exists, otherwise `build-ios`. Use
+   `Apple not affected` only when the spec confirms there is no native counterpart.
+
+Do not start a later client while an earlier phase is unimplemented, untested,
+or blocked unless the spec records an explicit user-approved waiver or accepted
+external blocker for that phase.
+
+Skip the REST/API-first and CLI phases only for clearly browser-only changes, such as
 selectors, layout/screenshot diffs, pointer-event overlays, or Svelte-only
-rendering. Skip Apple verification only when there is no Apple counterpart or
-when `scripts/apple_remote.py` records a sanitized access/build failure.
+rendering. Skip UI visual smoke only for Tier 0/non-visual work, tiny changes
+where deployed browser review adds no signal, or an explicit waiver; record the
+skip reason. Skip user confirmation only for non-visual, non-user-facing work or
+with an explicit user waiver. Skip Apple verification only when there is no Apple
+counterpart or when `scripts/apple_remote.py` records a sanitized access/build
+failure.
 
 ## Feature Availability Metadata
 
@@ -156,9 +287,40 @@ Playwright specs always test the live dev app, not undeployed local code.
 Backend and unit tests can usually complete both red and green phases before
 deploy. Playwright green evidence is always after deploy.
 
+## Schema V2 Contract
+
+Schema V2 makes the durable full spec a complete work ledger. New full specs
+must include the existing scenarios, acceptance criteria, tests,
+`implementation_plan`, and `tasks`, plus:
+
+- `implementation_state.subject_commit`: the revision whose evidence is current.
+- `approvals.product_contract` and `approvals.implementation_plan`: separate
+  approval states, timestamps, and reasons for non-required, waived, or blocked
+  approvals.
+- `decisions`: durable decision, reason, status, and timestamp records.
+- `attempts`: failed, rejected, blocked, planned, or successful approaches linked
+  to the task they informed.
+- `handoff`: current task, exact next command, expected outcome, blocker, and
+  last verified revision. A blocker pauses continuation only when it is a
+  structured user-input blocker for that current task.
+- task `ownership`, `dependencies`, `expected_files`, verification IDs, blockers,
+  and follow-up links.
+
+For full specs, `spec.yml` is the only durable plan and task ledger. Do not
+create a session task file that duplicates its scenarios, acceptance criteria,
+tasks, status, or handoff. Session task files remain appropriate for inline-spec
+and non-spec work.
+
+Evidence is a claim of action and must support that claim. Recorded automated
+evidence requires `command`, `run_id`, `timestamp`, and `subject_commit`.
+Playwright evidence also records its live target and deployment reference.
+Manual checks, skips, waivers, and blockers require a reason, actor when known,
+timestamp, and next action or recheck condition where applicable.
+
 ## Spec YAML Template
 
 ```yaml
+schema_version: 2
 id: teams-v1
 title: Teams V1
 status: draft # draft | clarifying | approved | implementing | verified
@@ -205,6 +367,39 @@ clarification:
     content or personal chat metadata beyond usage totals explicitly approved in
     the spec.
   approved_by_user: false
+
+implementation_state:
+  subject_commit: <COMMIT_SHA>
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: ""
+  implementation_plan:
+    status: not_required
+    reason: Existing architecture satisfies the approved contract.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Reuse the existing authenticated-route dependency.
+    reason: It provides the required user identity and authorization boundary.
+    decided_at: ""
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Add the API contract test before route implementation.
+    outcome: planned
+    recorded_at: ""
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Write and run the red backend contract test.
+  command: python3 -m pytest backend/tests/test_teams.py
+  expected_outcome: The test fails because the route does not exist yet.
+  blocker: null
+  last_verified_commit: <COMMIT_SHA>
 
 scenarios:
   - id: S-1
@@ -275,7 +470,9 @@ tests:
       expected: pass
       evidence:
         status: ""
+        command: ""
         run_id: ""
+        subject_commit: ""
         timestamp: ""
 
   - id: T-E2E-001
@@ -317,6 +514,7 @@ verifications:
       timestamp: ""
 
 implementation_plan:
+  spec_path: docs/specs/teams-v1/spec.yml
   existing_patterns:
     - backend/core/api/app/routes/example.py
   architecture: >
@@ -333,9 +531,14 @@ implementation_plan:
     - python3 scripts/spec_validate.py docs/specs/teams-v1/spec.yml
     - python3 scripts/spec_verify.py docs/specs/teams-v1/spec.yml
   verification_order:
-    - CLI or backend contract first
-    - Web Playwright second when applicable
-    - Apple remote test/build third when applicable
+    - Direct REST API/WebSocket backend contract against the dev server first, with access model, auth, rate-limit, credit/budget, and encryption-boundary classification
+    - Real CLI command against the dev server second, with no mocked OpenMates API/WebSocket calls
+    - npm SDK and pip SDK parity locally against the dev server third when applicable
+    - GitHub Actions CI/daily-test reproduction only after local REST/API, CLI, and SDK success
+    - Web Playwright fourth when applicable
+    - UI visual smoke fifth for larger deployed web UI, with reviewed laptop/mobile screenshots, defects, and accepted differences
+    - User confirmation sixth for user-visible deployed web behavior
+    - Apple remote test/build last when applicable
 
 tasks:
   - id: TASK-1
@@ -354,6 +557,12 @@ tasks:
       - T-PYTEST-001
     verification_ids:
       - T-PYTEST-001
+    dependencies: []
+    ownership:
+      files:
+        - backend/core/api/app/routes/teams.py
+        - backend/tests/test_teams.py
+      shared_files: []
     blockers: []
     follow_up_tasks: []
     independently_deployable: true

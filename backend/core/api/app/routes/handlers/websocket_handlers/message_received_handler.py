@@ -22,6 +22,12 @@ from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.schemas.chat import MessageInCache, AIHistoryMessage
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema
 from backend.shared.python_utils.learning_mode import build_learning_mode_context
+from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import enqueue_chat_turn
+from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import server_client_capabilities
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError, ChatRecoveryService
+from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
+from backend.core.api.app.services.team_chat_ai_service import extract_team_ai_context, should_trigger_team_ai
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -55,6 +61,17 @@ CONNECTED_ACCOUNT_FORBIDDEN_FIELDS = {
     "scopes",
 }
 
+TEAM_CHAT_WRITE_ROLES = {"owner", "admin", "member"}
+
+
+def _optional_int(value: Any) -> Optional[int]:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
 BENCHMARK_METADATA_STRING_FIELDS = {
     "benchmark_run_id",
     "benchmark_suite",
@@ -62,6 +79,32 @@ BENCHMARK_METADATA_STRING_FIELDS = {
     "benchmark_target_model",
     "benchmark_judge_model",
 }
+
+
+def _decode_embed_toon(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if not isinstance(value, str) or not value.strip():
+        return {}
+    try:
+        from toon_format import decode as toon_decode  # type: ignore[import]
+
+        decoded = toon_decode(value)
+        return decoded if isinstance(decoded, dict) else {}
+    except Exception:
+        try:
+            decoded = json.loads(value)
+            return decoded if isinstance(decoded, dict) else {}
+        except Exception:
+            return {}
+
+
+def _extract_uploaded_pdf_original_s3_key(content: dict[str, Any]) -> str | None:
+    files = _decode_embed_toon(content.get("files"))
+    original = files.get("original") if isinstance(files, dict) else None
+    if isinstance(original, dict) and isinstance(original.get("s3_key"), str):
+        return original["s3_key"]
+    return None
 
 
 def _sanitize_benchmark_metadata(value: Any) -> dict[str, str] | None:
@@ -74,6 +117,13 @@ def _sanitize_benchmark_metadata(value: Any) -> dict[str, str] | None:
         if isinstance(raw_value, str) and raw_value.strip():
             sanitized[field] = raw_value.strip()[:128]
     return sanitized
+
+
+def _sanitize_client_capabilities(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    allowed = {"task_update_jobs"}
+    return sorted({item for item in value if isinstance(item, str) and item in allowed})
 
 
 def _sanitize_connected_account_directory(value: Any) -> list[dict[str, Any]] | None:
@@ -104,6 +154,36 @@ def _sanitize_connected_account_token_refs(value: Any) -> list[dict[str, Any]] |
             raise ValueError("connected_account_token_refs entries require turn_token_ref")
         sanitized.append(dict(item))
     return sanitized
+
+
+async def _send_origin_chat_message_confirmed(
+    websocket: WebSocket,
+    manager: ConnectionManager,
+    user_id: str,
+    device_fingerprint_hash: str,
+    payload: dict[str, Any],
+) -> None:
+    """Acknowledge the sender on the same socket before any registry broadcast can race."""
+    message = {"type": "chat_message_confirmed", "payload": payload}
+    send_json = getattr(websocket, "send_json", None)
+    if callable(send_json):
+        try:
+            await send_json(message)
+            logger.debug(
+                "Sent direct chat_message_confirmed for message %s to user %s/%s",
+                payload.get("message_id"),
+                user_id,
+                device_fingerprint_hash,
+            )
+            return
+        except Exception as exc:
+            logger.warning(
+                "Direct chat_message_confirmed send failed for message %s; falling back to manager: %s",
+                payload.get("message_id"),
+                exc,
+            )
+
+    await manager.send_personal_message(message, user_id, device_fingerprint_hash)
 
 
 def _reject_connected_account_secret_fields(item: dict[str, Any]) -> None:
@@ -181,6 +261,118 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             return
 
+        team_ai_context = extract_team_ai_context(payload, message_payload_from_client)
+        team_id = team_ai_context.get("team_id")
+        is_team_chat = bool(team_id)
+        raw_team_message_content = message_payload_from_client.get("content")
+        team_should_trigger_ai = should_trigger_team_ai(
+            raw_team_message_content if isinstance(raw_team_message_content, str) else "",
+            is_team_chat=is_team_chat,
+        )
+        if is_team_chat:
+            try:
+                await directus_service.team.require_team_role(str(team_id), user_id, TEAM_CHAT_WRITE_ROLES)
+            except TeamPermissionError:
+                logger.warning("User %s attempted to send team chat message without write role", user_id)
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": "team_permission_denied",
+                            "message": "You do not have permission to send messages in this team.",
+                            "chat_id": chat_id,
+                            "message_id": message_payload_from_client.get("message_id"),
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+
+        recovery_enqueue_result: dict[str, Any] | None = None
+        protocol_epoch = 0
+        if not is_incognito:
+            cutover_controller = ChatRecoveryCutoverController(cache_service, directus_service)
+            try:
+                # Admission cannot trust Redis because a stale epoch zero would bypass cutover.
+                protocol_epoch = await cutover_controller.get_epoch(authoritative=True)
+            except Exception as exc:
+                logger.error("Authoritative chat recovery cutover read failed", exc_info=exc)
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": "inference_temporarily_unavailable",
+                            "message": "Saved-chat sending is temporarily unavailable. Please retry shortly.",
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+        if protocol_epoch >= 1:
+            if payload.get("protocol_version") != 1 or not payload.get("preflight_id"):
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": "client_update_required",
+                            "message": "Please update OpenMates before sending another saved chat message.",
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+            active_recovery_task_id = await cache_service.get_active_ai_task(chat_id)
+            if active_recovery_task_id:
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": "active_task_in_progress",
+                            "message": "Wait for the current response to finish, then retry this message.",
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+            inference_request = {
+                key: value
+                for key, value in payload.items()
+                if key not in {"protocol_version", "preflight_id"}
+            }
+            inference_request["client_capabilities"] = server_client_capabilities(
+                manager,
+                user_id,
+                device_fingerprint_hash,
+            )
+            if team_should_trigger_ai:
+                try:
+                    recovery_enqueue_result = await enqueue_chat_turn(
+                        directus_service=directus_service,
+                        user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+                        device_fingerprint_hash=device_fingerprint_hash,
+                        preflight_id=payload["preflight_id"],
+                        inference_request=inference_request,
+                    )
+                except ChatRecoveryProtocolError as exc:
+                    await manager.send_personal_message(
+                        {
+                            "type": "error",
+                            "payload": {
+                                "code": exc.code,
+                                "message": "Durable encrypted preflight did not authorize this request.",
+                            },
+                        },
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
+            else:
+                logger.info("Team chat message %s stored without AI dispatch because @openmates was not mentioned", message_payload_from_client.get("message_id"))
+
         # CRITICAL: For incognito chats, skip Directus operations (no persistence, no ownership checks)
         # Incognito chats are not stored in Directus and should not be synced to other devices
         # Store chat_metadata for later use in determining if chat is existing (for history requests)
@@ -191,7 +383,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             # For now, shared chats are read-only for non-owners (group chat support will be added later)
             try:
                 chat_metadata_from_db = await directus_service.chat.get_chat_metadata(chat_id)
-                if chat_metadata_from_db:
+                if chat_metadata_from_db and not is_team_chat:
                     # Check if user owns this chat
                     is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
                     if not is_owner:
@@ -212,9 +404,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             device_fingerprint_hash
                         )
                         return
-                else:
+                elif not chat_metadata_from_db:
                     # Chat doesn't exist - this might be a new chat creation, which is allowed
                     logger.debug(f"Chat {chat_id} not found in database - treating as new chat creation")
+                else:
+                    logger.debug("Team chat %s write authorized by team role for team %s", chat_id, team_id)
             except Exception as e_ownership:
                 logger.error(f"Error checking chat ownership for chat {chat_id}, user {user_id}: {e_ownership}", exc_info=True)
                 # On error, reject the message for security (fail closed)
@@ -385,10 +579,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 return
 
             # Confirm to client (client waits for this before marking the message as synced)
-            await manager.broadcast_to_user_specific_event(
-                user_id=user_id,
-                event_name="chat_message_confirmed",
-                payload={
+            await _send_origin_chat_message_confirmed(
+                websocket,
+                manager,
+                user_id,
+                device_fingerprint_hash,
+                {
                     "chat_id": chat_id,
                     "message_id": message_id,
                     "temp_id": message_payload_from_client.get("temp_id"),
@@ -608,7 +804,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             version_update_result = await cache_service.save_chat_message_and_update_versions(
                 user_id=user_id,
                 chat_id=chat_id,
-                message_data=message_for_cache
+                message_data=message_for_cache,
+                explicit_messages_v=(
+                    recovery_enqueue_result.get("committed_messages_v")
+                    if recovery_enqueue_result
+                    else None
+                ),
             )
             cache_save_time = time.time() - cache_save_start
             logger.info(f"[PERF] Cache save took {cache_save_time:.3f}s for message {message_id}, user_id={user_id}")
@@ -696,6 +897,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         
         # Process embeds if provided by client
         # Embeds are sent as cleartext (TOON-encoded) and will be encrypted server-side for cache
+        _client_embed_file_path_index: Dict[str, str] = {}
+        _has_image_upload_embed = False
         embeds_from_client = payload.get("embeds", [])
         if embeds_from_client:
             logger.info(f"Processing {len(embeds_from_client)} embeds from client for message {message_id}")
@@ -726,6 +929,15 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     if not embed_id or not embed_type or not embed_content:
                         logger.warning("Invalid embed data from client: missing required fields")
                         continue
+
+                    decoded_embed_content = _decode_embed_toon(embed_content)
+                    embed_ref = decoded_embed_content.get("embed_ref")
+                    if isinstance(embed_ref, str) and embed_ref:
+                        _client_embed_file_path_index[embed_ref] = embed_id
+
+                    decoded_embed_type = decoded_embed_content.get("type")
+                    if embed_type == "image" or decoded_embed_type == "image":
+                        _has_image_upload_embed = True
                     
                     # Encrypt embed content with vault key for server cache
                     # Server can decrypt for AI context building
@@ -776,7 +988,49 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     await cache_service.add_embed_id_to_chat_index(chat_id, embed_id)
 
                     logger.debug(f"Cached embed {embed_id} (type: {embed_type}) for message {message_id}")
-                    
+
+                    if embed_type == "pdf" and embed_status == "processing":
+                        content = decoded_embed_content
+                        original_s3_key = _extract_uploaded_pdf_original_s3_key(content)
+                        if original_s3_key and content.get("vault_wrapped_aes_key") and content.get("aes_nonce"):
+                            try:
+                                from backend.core.api.app.tasks.celery_config import send_task_validated
+
+                                page_count = content.get("page_count")
+                                send_task_validated(
+                                    task_name="apps.pdf.tasks.process_pdf",
+                                    kwargs={
+                                        "arguments": {
+                                            "embed_id": embed_id,
+                                            "user_id": user_id,
+                                            "vault_key_id": user_vault_key_id,
+                                            "s3_key": original_s3_key,
+                                            "s3_base_url": content.get("s3_base_url") or "",
+                                            "vault_wrapped_aes_key": content["vault_wrapped_aes_key"],
+                                            "aes_nonce": content["aes_nonce"],
+                                            "filename": content.get("filename") or embed_text_preview or "document.pdf",
+                                            "embed_ref": content.get("embed_ref") or "",
+                                            "page_count": page_count if isinstance(page_count, int) else 0,
+                                            "credits_charged": 0,
+                                            "user_id_hash": hashed_user_id,
+                                            "chat_id": chat_id,
+                                            "message_id": message_id,
+                                        }
+                                    },
+                                    queue="app_pdf",
+                                )
+                                logger.info(
+                                    "Triggered contextual PDF processing for embed %s in chat %s",
+                                    embed_id,
+                                    chat_id,
+                                )
+                            except Exception as pdf_trigger_err:
+                                logger.warning(
+                                    "Failed to trigger contextual PDF processing for embed %s: %s",
+                                    embed_id,
+                                    pdf_trigger_err,
+                                )
+                     
                 except Exception as e_embed:
                     logger.error(f"Error processing embed from client: {e_embed}", exc_info=True)
                     # Non-critical error - continue processing other embeds
@@ -844,21 +1098,20 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Send confirmation to the originating client device only after the
         # message plus optional connected-account directory/token refs are accepted.
         confirmation_payload = {
-            "type": "chat_message_confirmed", # Client expects this for their sent message
-            "payload": {
-                "chat_id": chat_id,
-                "message_id": message_id,
-                "temp_id": message_payload_from_client.get("temp_id"), # Echo back temp_id if client sent one
-                "new_messages_v": new_messages_v,
-                "new_last_edited_overall_timestamp": new_last_edited_overall_timestamp
-            }
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "temp_id": message_payload_from_client.get("temp_id"), # Echo back temp_id if client sent one
+            "new_messages_v": new_messages_v,
+            "new_last_edited_overall_timestamp": new_last_edited_overall_timestamp
         }
-        await manager.broadcast_to_user_specific_event(
-            user_id=user_id,
-            event_name=confirmation_payload["type"],
-            payload=confirmation_payload["payload"]
+        await _send_origin_chat_message_confirmed(
+            websocket,
+            manager,
+            user_id,
+            device_fingerprint_hash,
+            confirmation_payload,
         )
-        logger.debug(f"Broadcasted chat_message_confirmed event for message {message_id} to user {user_id}")
+        logger.debug(f"Sent chat_message_confirmed event for message {message_id} to user {user_id}")
 
         # SEND EXTRACTED CODE EMBEDS TO CLIENT
         # These embeds were extracted from code blocks in the user message
@@ -986,6 +1239,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         else:
             logger.debug(f"Skipping broadcast for incognito chat {chat_id} - incognito chats are not synced to other devices")
 
+        if is_team_chat and not team_should_trigger_ai:
+            logger.info("Team chat message %s completed storage path without AI dispatch", message_id)
+            handler_total_time = time.time() - handler_start_time
+            logger.info(f"[PERF] Message handler completed in {handler_total_time:.3f}s for team chat storage-only message")
+            return
+
         # --- BEGIN AI SKILL INVOCATION ---
         logger.debug(f"Preparing to invoke AI for chat {chat_id} after user message {message_id}")
         
@@ -998,7 +1257,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # (b) all embed_ref → embed_id mappings are collected in one place and
         #     forwarded to the AI task via AskSkillRequest.embed_file_path_index.
         _seen_embed_refs: Dict[str, int] = {}
-        _embed_file_path_index: Dict[str, str] = {}
+        _embed_file_path_index: Dict[str, str] = dict(_client_embed_file_path_index)
 
         # When the current user message is saved to cache before history is loaded (the
         # normal fast-path), it appears in the history loop AND would be resolved again
@@ -1273,10 +1532,43 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     # NOT include the current message. No need to subtract 1.
                     expected_previous_messages = expected_total_messages
 
+                    previous_history_for_validation = message_history_for_ai
+                    if current_msg_in_cache and message_history_for_ai:
+                        previous_history_for_validation = message_history_for_ai[:-1]
+                    previous_history_roles = [msg.role for msg in previous_history_for_validation]
+
                     logger.debug(f"History validation for chat {chat_id}: expected_total={expected_total_messages}, expected_previous={expected_previous_messages}, actual_previous={actual_previous_messages}, current_msg_in_cache={current_msg_in_cache}, decryption_failures={decryption_failures}")
 
-                    # For existing chats with expected history, validate we have sufficient context
-                    if is_existing_chat and expected_previous_messages > 0:
+                    # For existing personal chats, validate we have sufficient context.
+                    # Team chat AI cache is per sender, so it will not contain messages
+                    # authored by other members; rejecting it here prevents explicit
+                    # @openmates team turns from ever dispatching.
+                    if not is_team_chat and is_existing_chat and expected_previous_messages > 0:
+                        # Count-only validation missed HRFER: Redis had enough entries to
+                        # pass tolerance, but the prior assistant turn was absent, so the
+                        # LLM received user,user and repeated the first answer.
+                        if expected_previous_messages >= 2 and "assistant" not in previous_history_roles:
+                            logger.warning(
+                                f"Implausible AI cache role sequence for existing chat {chat_id}: "
+                                f"expected {expected_previous_messages} previous messages but cached previous roles are "
+                                f"{previous_history_roles}. Requesting full history from client."
+                            )
+                            await manager.send_personal_message(
+                                {
+                                    "type": "request_chat_history",
+                                    "payload": {
+                                        "chat_id": chat_id,
+                                        "reason": "invalid_cache_role_sequence",
+                                        "message": "Server cache missing assistant history. Please resend your message with full chat history included",
+                                        "expected_messages": expected_total_messages,
+                                        "cached_messages": actual_previous_messages,
+                                    }
+                                },
+                                user_id,
+                                device_fingerprint_hash
+                            )
+                            return
+
                         # Check if we have significantly fewer messages than expected
                         # Allow some tolerance for edge cases, but require at least 50% of expected messages
                         minimum_required = max(1, expected_previous_messages // 2)
@@ -1302,7 +1594,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
                     # Legacy validation for complete cache failures
                     if len(message_history_for_ai) < 1:
-                        if is_existing_chat:
+                        if not is_team_chat and is_existing_chat:
                             # Existing chat with no history at all - request it
                             logger.warning(f"No messages successfully decrypted from cache for chat {chat_id} ({decryption_failures} decryption failures out of {len(cached_messages_str_list)} cached). Requesting full history from client.")
                             await manager.send_personal_message(
@@ -1323,14 +1615,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             logger.info(f"New chat {chat_id} has no cached history (expected). Proceeding with empty history.")
 
                     # Log final validation result
-                    if is_existing_chat:
+                    if is_existing_chat and not is_team_chat:
                         logger.info(f"History validation passed for existing chat {chat_id}: using {actual_previous_messages} cached messages (expected {expected_previous_messages})")
+                    elif is_team_chat:
+                        logger.info(f"Team chat {chat_id} proceeding with {actual_previous_messages} sender-local cached messages")
                     else:
                         logger.info(f"New chat {chat_id} proceeding with {actual_previous_messages} cached messages")
                 else:
                     # Cache is completely empty - request full history from client
                     # BUT: Only request history for existing chats (messages_v > 1), not new chats
-                    if is_existing_chat:
+                    if not is_team_chat and is_existing_chat:
                         # Existing chat with empty cache - request history
                         logger.info(f"AI cache is empty for existing chat {chat_id} (messages_v > 1). Requesting full chat history from client.")
                         await manager.send_personal_message(
@@ -1354,7 +1648,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         # never processed by the AI pipeline — so it was never added to the cache.
                         # We must request history from the client so the AI has proper context.
                         db_messages_v = chat_metadata_from_db.get("messages_v", 0) if chat_metadata_from_db else 0
-                        if db_messages_v >= 1:
+                        if not is_team_chat and db_messages_v >= 1:
                             logger.info(
                                 f"Chat {chat_id} has empty AI cache but DB shows messages_v={db_messages_v}. "
                                 f"Pre-existing messages (e.g. inspiration intro) exist that were never AI-cached. "
@@ -1575,12 +1869,15 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         if mentioned_settings_memories_cleartext is not None and not isinstance(mentioned_settings_memories_cleartext, dict):
             mentioned_settings_memories_cleartext = None
             logger.warning("mentioned_settings_memories_cleartext is not a dict, ignoring")
+        client_capabilities = server_client_capabilities(manager, user_id, device_fingerprint_hash)
 
         # OPE-265: Pass the current chat title (decrypted by client) to post-processing
         # so the LLM can decide if the title needs updating when the conversation drifts.
         current_chat_title_from_client = message_payload_from_client.get("current_chat_title")
         if current_chat_title_from_client and not isinstance(current_chat_title_from_client, str):
             current_chat_title_from_client = None
+        current_chat_title_v_from_client = _optional_int(message_payload_from_client.get("current_chat_title_v"))
+        current_chat_metadata_v_from_client = _optional_int(message_payload_from_client.get("current_chat_metadata_v"))
 
         db_parent_id = chat_metadata_from_db.get("parent_id") if chat_metadata_from_db else None
         db_is_sub_chat = chat_metadata_from_db.get("is_sub_chat", False) if chat_metadata_from_db else False
@@ -1601,6 +1898,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             current_user_content=content_plain,
             chat_has_title=chat_has_title_from_client, # Pass the flag to preprocessing
             current_chat_title=current_chat_title_from_client,  # OPE-265: For post-processing title update evaluation
+            current_chat_title_v=current_chat_title_v_from_client,
+            current_chat_metadata_v=current_chat_metadata_v_from_client,
             is_incognito=is_incognito, # Pass the incognito flag
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
@@ -1611,11 +1910,23 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             connected_account_token_refs=connected_account_token_refs,
             mentioned_settings_memories_cleartext=mentioned_settings_memories_cleartext,  # Cleartext for @memory mentions so backend does not re-request
             benchmark_metadata=benchmark_metadata,
+            client_type="cli" if payload.get("client_type") == "cli" else None,
+            client_capabilities=client_capabilities,
+            team_id=team_ai_context.get("team_id"),
+            team_id_hash=team_ai_context.get("team_id_hash"),
+            team_workspace_type=team_ai_context.get("team_workspace_type"),
+            team_object_id_hash=team_ai_context.get("team_object_id_hash"),
             embed_file_path_index=_embed_file_path_index if _embed_file_path_index else None,  # Maps embed_ref (filename) → embed_id UUID for skill resolution
+            has_image_upload_embed=_has_image_upload_embed,
             parent_id=db_parent_id,
             is_sub_chat=db_is_sub_chat,
             budget_limit=db_budget_limit,
             budget_spent=db_budget_spent,
+            recovery_task_id=(recovery_enqueue_result or {}).get("inference_task_id"),
+            recovery_preflight_id=(payload.get("preflight_id") if recovery_enqueue_result else None),
+            recovery_turn_id=(payload.get("turn_id") if recovery_enqueue_result else None),
+            recovery_public_key=(payload.get("recovery_public_key") if recovery_enqueue_result else None),
+            chat_key_version=(payload.get("chat_key_version") if recovery_enqueue_result else None),
         )
         logger.debug(f"Constructed AskSkillRequest with {len(message_history_for_ai)} messages in history")
 
@@ -1658,6 +1969,55 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             return  # Exit early - message is queued, don't start new task
         
         # No active task - proceed with normal processing
+        legacy_admitted = False
+        if not is_incognito and protocol_epoch == 0:
+            legacy_task_identity = hashlib.sha256(
+                f"{user_id}:{chat_id}:{message_id}".encode()
+            ).hexdigest()
+            try:
+                admission = await cutover_controller.admit_legacy_inference(
+                    legacy_task_identity
+                )
+                legacy_admitted = bool(admission.get("admitted"))
+                if admission.get("idempotent"):
+                    await manager.send_personal_message(
+                        {
+                            "type": "ai_task_initiated",
+                            "payload": {
+                                "chat_id": chat_id,
+                                "user_message_id": message_id,
+                                "ai_task_id": legacy_task_identity,
+                                "status": "processing_started",
+                            },
+                        },
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
+                ai_request_payload.legacy_cutover_task_id = legacy_task_identity
+            except ChatRecoveryProtocolError as exc:
+                error_code = (
+                    "client_update_required"
+                    if exc.code == "client_update_required"
+                    else "inference_temporarily_paused"
+                )
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": error_code,
+                            "message": (
+                                ChatRecoveryCutoverController.UPDATE_REQUIRED_MESSAGE
+                                if error_code == "client_update_required"
+                                else "Saved-chat sending is temporarily paused. Please retry shortly."
+                            ),
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+
         # 5. Dispatch the AI ask skill in-process via the SkillRegistry (OPE-342).
         # AskSkill validates the AskSkillRequest, enqueues a Celery task on the
         # app_ai queue, and returns {task_id, ...} immediately. The api process
@@ -1679,6 +2039,18 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
 
             if ai_task_id:
+                if recovery_enqueue_result:
+                    expected_task_id = recovery_enqueue_result["inference_task_id"]
+                    if ai_task_id != expected_task_id:
+                        raise RuntimeError("AI dispatcher returned a task ID that differs from durable preflight")
+                    await ChatRecoveryService(directus_service).execute(
+                        "mark_outbox_dispatched",
+                        {
+                            "protocol_version": 1,
+                            "outbox_id": recovery_enqueue_result["outbox_id"],
+                            "inference_task_id": expected_task_id,
+                        },
+                    )
                 await cache_service.set_active_ai_task(chat_id, ai_task_id)
                 await manager.send_personal_message(
                     message={
@@ -1695,17 +2067,57 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
                 logger.debug(f"Sent 'ai_task_initiated' ack to client for task {ai_task_id}")
             else:
-                logger.warning(f"ai.ask returned but no task_id found. Response: {response_data}")
+                raise RuntimeError(f"AI dispatcher returned no task_id. Response: {response_data}")
 
         except Exception as e_ai_task:
             logger.error(f"Failed to dispatch ai.ask for chat {chat_id}: {e_ai_task}", exc_info=True)
+            expected_recovery_task_id = (recovery_enqueue_result or {}).get("inference_task_id")
+            if recovery_enqueue_result and ai_task_id != expected_recovery_task_id:
+                try:
+                    await ChatRecoveryService(directus_service).execute(
+                        "mark_inference_failed",
+                        {
+                            "protocol_version": 1,
+                            "inference_task_id": expected_recovery_task_id,
+                            "failure_category": "dispatch_failed",
+                        },
+                    )
+                except Exception as recovery_failure_error:
+                    logger.error(
+                        "Failed to mark undispatched recovery inference failed for chat %s, message %s",
+                        chat_id,
+                        message_id,
+                        exc_info=recovery_failure_error,
+                    )
             try:
                 await manager.send_personal_message(
-                    {"type": "error", "payload": {"message": "Could not initiate AI response. Please try again."}},
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": "ai_dispatch_failed",
+                            "message": "Message saved, but AI did not start. Please retry.",
+                            "chat_id": chat_id,
+                            "message_id": message_id,
+                            "user_message_id": message_id,
+                            "turn_id": payload.get("turn_id"),
+                            "retryable": True,
+                        },
+                    },
                     user_id, device_fingerprint_hash
                 )
             except Exception as e_send_err:
                 logger.error(f"Failed to send error to client after AI task dispatch failure: {e_send_err}")
+        finally:
+            if legacy_admitted and not ai_task_id:
+                try:
+                    await cutover_controller.release_legacy_inference(
+                        legacy_task_identity
+                    )
+                except Exception as release_error:
+                    logger.error(
+                        "Failed to release undispatched legacy cutover admission",
+                        exc_info=release_error,
+                    )
         # --- END AI SKILL INVOCATION ---
         
         handler_total_time = time.time() - handler_start_time

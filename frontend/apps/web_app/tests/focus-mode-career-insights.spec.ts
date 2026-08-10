@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -36,14 +35,18 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const {
+	loginToTestAccount,
+	startNewChat,
+	waitForChatReady,
+	sendMessage,
+	deleteActiveChat
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
@@ -117,35 +120,6 @@ const SELECTORS = {
 // ---------------------------------------------------------------------------
 
 /**
- * Open the sidebar (activity history panel) if it's not already visible.
- * The toggle button is `button.icon_menu` inside `.menu-button-container`.
- * It's hidden when the sidebar is already open (class:hidden applied).
- */
-async function ensureSidebarOpen(
-	page: any,
-	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
-): Promise<void> {
-	// Check if sidebar is already open by looking for the activity history wrapper
-	const sidebar = page.getByTestId('activity-history-wrapper');
-	if (await sidebar.isVisible({ timeout: 1000 }).catch(() => false)) {
-		logCheckpoint('Sidebar already open.');
-		return;
-	}
-
-	// Try clicking the hamburger menu button to open the sidebar
-	const menuButton = page.locator('[data-testid="sidebar-toggle"]');
-	if (await menuButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await menuButton.click();
-		logCheckpoint('Clicked hamburger menu to open sidebar.');
-		await page.waitForTimeout(500);
-	} else {
-		logCheckpoint(
-			'Hamburger menu button not visible (sidebar may already be open or layout is wide).'
-		);
-	}
-}
-
-/**
  * Wait for the focus mode activation embed to appear and return the locator.
  */
 async function waitForFocusModeEmbed(
@@ -217,6 +191,7 @@ test('career frustration message triggers Career insights focus mode', async ({
 	// ======================================================================
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 	await startNewChat(page, logCheckpoint);
+	await waitForChatReady(page, logCheckpoint, 90_000);
 
 	// ======================================================================
 	// STEP 2: Send a message expressing career frustration

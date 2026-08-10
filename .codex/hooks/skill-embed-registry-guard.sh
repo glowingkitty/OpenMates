@@ -17,7 +17,7 @@ FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null || tru
 PROJECT_DIR="/home/superdev/projects/OpenMates"
 
 case "$FILE" in
-  "$PROJECT_DIR"/backend/apps/*/app.yml|backend/apps/*/app.yml) ;;
+  "$PROJECT_DIR"/backend/apps/*/app.yml|backend/apps/*/app.yml|"$PROJECT_DIR"/.openmates-agent-worktrees/*/backend/apps/*/app.yml|.openmates-agent-worktrees/*/backend/apps/*/app.yml|*/.openmates-agent-worktrees/*/backend/apps/*/app.yml) ;;
   *) exit 0 ;;
 esac
 

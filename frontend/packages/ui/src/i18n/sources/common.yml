@@ -1398,6 +1398,181 @@ save:
   he: שמור
   verified_by_human: []
 
+detail_title_hint:
+  context: Keyboard hint shown while editing a workspace detail title
+  en: Enter to save · Escape to cancel
+  de: Eingabetaste zum Speichern · Escape zum Abbrechen
+  zh: 按 Enter 保存 · 按 Escape 取消
+  es: Enter para guardar · Escape para cancelar
+  fr: Entrée pour enregistrer · Échap pour annuler
+  pt: Enter para guardar · Escape para cancelar
+  ru: Enter — сохранить · Escape — отменить
+  ja: Enter で保存 · Escape でキャンセル
+  ko: Enter로 저장 · Escape로 취소
+  it: Invio per salvare · Escape per annullare
+  tr: Kaydetmek için Enter · İptal için Escape
+  vi: Enter để lưu · Escape để hủy
+  id: Enter untuk menyimpan · Escape untuk membatalkan
+  pl: Enter, aby zapisać · Escape, aby anulować
+  nl: Enter om op te slaan · Escape om te annuleren
+  ar: Enter للحفظ · Escape للإلغاء
+  hi: सहेजने के लिए Enter · रद्द करने के लिए Escape
+  th: Enter เพื่อบันทึก · Escape เพื่อยกเลิก
+  cs: Enter pro uložení · Escape pro zrušení
+  sv: Enter för att spara · Escape för att avbryta
+  he: Enter לשמירה · Escape לביטול
+  verified_by_human: []
+
+detail_description_hint:
+  context: Keyboard hint shown while editing a workspace detail description
+  en: Ctrl/Command+Enter to save · Escape to cancel
+  de: Strg/Befehl+Eingabe zum Speichern · Escape zum Abbrechen
+  zh: 按 Ctrl/Command+Enter 保存 · 按 Escape 取消
+  es: Ctrl/Comando+Enter para guardar · Escape para cancelar
+  fr: Ctrl/Commande+Entrée pour enregistrer · Échap pour annuler
+  pt: Ctrl/Command+Enter para guardar · Escape para cancelar
+  ru: Ctrl/Command+Enter — сохранить · Escape — отменить
+  ja: Ctrl/Command+Enter で保存 · Escape でキャンセル
+  ko: Ctrl/Command+Enter로 저장 · Escape로 취소
+  it: Ctrl/Comando+Invio per salvare · Escape per annullare
+  tr: Kaydetmek için Ctrl/Command+Enter · İptal için Escape
+  vi: Ctrl/Command+Enter để lưu · Escape để hủy
+  id: Ctrl/Command+Enter untuk menyimpan · Escape untuk membatalkan
+  pl: Ctrl/Command+Enter, aby zapisać · Escape, aby anulować
+  nl: Ctrl/Command+Enter om op te slaan · Escape om te annuleren
+  ar: Ctrl/Command+Enter للحفظ · Escape للإلغاء
+  hi: सहेजने के लिए Ctrl/Command+Enter · रद्द करने के लिए Escape
+  th: Ctrl/Command+Enter เพื่อบันทึก · Escape เพื่อยกเลิก
+  cs: Ctrl/Command+Enter pro uložení · Escape pro zrušení
+  sv: Ctrl/Command+Enter för att spara · Escape för att avbryta
+  he: Ctrl/Command+Enter לשמירה · Escape לביטול
+  verified_by_human: []
+
+detail_save_error:
+  context: Visible error shown when saving workspace detail metadata fails
+  en: Your changes were not saved.
+  de: Deine Änderungen wurden nicht gespeichert.
+  zh: 你的更改未保存。
+  es: Tus cambios no se guardaron.
+  fr: Tes modifications n’ont pas été enregistrées.
+  pt: As tuas alterações não foram guardadas.
+  ru: Изменения не сохранены.
+  ja: 変更は保存されませんでした。
+  ko: 변경사항이 저장되지 않았습니다.
+  it: Le modifiche non sono state salvate.
+  tr: Değişikliklerin kaydedilmedi.
+  vi: Thay đổi của bạn chưa được lưu.
+  id: Perubahan Anda belum disimpan.
+  pl: Twoje zmiany nie zostały zapisane.
+  nl: Je wijzigingen zijn niet opgeslagen.
+  ar: لم يتم حفظ تغييراتك.
+  hi: आपके बदलाव सहेजे नहीं गए।
+  th: ยังไม่ได้บันทึกการเปลี่ยนแปลงของคุณ
+  cs: Změny nebyly uloženy.
+  sv: Dina ändringar sparades inte.
+  he: השינויים שלך לא נשמרו.
+  verified_by_human: []
+
+detail_loading:
+  context: Loading state for a workspace detail page; item is the localized workspace name
+  en: Loading {item}…
+  de: "{item} wird geladen…"
+  zh: 正在加载{item}…
+  es: Cargando {item}…
+  fr: Chargement de {item}…
+  pt: A carregar {item}…
+  ru: "Загрузка: {item}…"
+  ja: "{item}を読み込み中…"
+  ko: "{item} 불러오는 중…"
+  it: Caricamento di {item}…
+  tr: "{item} yükleniyor…"
+  vi: Đang tải {item}…
+  id: Memuat {item}…
+  pl: "Wczytywanie: {item}…"
+  nl: "{item} laden…"
+  ar: جارٍ تحميل {item}…
+  hi: "{item} लोड हो रहा है…"
+  th: กำลังโหลด {item}…
+  cs: "Načítání: {item}…"
+  sv: Läser in {item}…
+  he: "{item} בטעינה…"
+  verified_by_human: []
+
+detail_load_error:
+  context: Error state when a workspace detail page cannot load; item is the localized workspace name
+  en: "{item} could not be loaded."
+  de: "{item} konnte nicht geladen werden."
+  zh: 无法加载{item}。
+  es: No se pudo cargar {item}.
+  fr: Impossible de charger {item}.
+  pt: Não foi possível carregar {item}.
+  ru: "Не удалось загрузить: {item}."
+  ja: "{item}を読み込めませんでした。"
+  ko: "{item}을 불러오지 못했습니다."
+  it: Impossibile caricare {item}.
+  tr: "{item} yüklenemedi."
+  vi: Không thể tải {item}.
+  id: "{item} tidak dapat dimuat."
+  pl: "Nie udało się wczytać: {item}."
+  nl: "{item} kon niet worden geladen."
+  ar: تعذر تحميل {item}.
+  hi: "{item} लोड नहीं हो सका।"
+  th: ไม่สามารถโหลด {item} ได้
+  cs: "{item} se nepodařilo načíst."
+  sv: Det gick inte att läsa in {item}.
+  he: לא ניתן לטעון את {item}.
+  verified_by_human: []
+
+detail_untitled:
+  context: Fallback title for an unnamed workspace item; item is the localized workspace name
+  en: Untitled {item}
+  de: "{item} ohne Titel"
+  zh: 未命名{item}
+  es: "{item} sin título"
+  fr: "{item} sans titre"
+  pt: "{item} sem título"
+  ru: "{item} без названия"
+  ja: 無題の{item}
+  ko: 제목 없는 {item}
+  it: "{item} senza titolo"
+  tr: Adsız {item}
+  vi: "{item} chưa có tiêu đề"
+  id: "{item} tanpa judul"
+  pl: "{item} bez tytułu"
+  nl: "{item} zonder titel"
+  ar: "{item} بلا عنوان"
+  hi: बिना शीर्षक का {item}
+  th: "{item} ไม่มีชื่อ"
+  cs: "{item} bez názvu"
+  sv: Namnlös {item}
+  he: "{item} ללא כותרת"
+  verified_by_human: []
+
+detail_items_count:
+  context: Number of items in a Project detail header
+  en: "{count} items"
+  de: "{count} Elemente"
+  zh: "{count} 个项目"
+  es: "{count} elementos"
+  fr: "{count} éléments"
+  pt: "{count} itens"
+  ru: "Элементов: {count}"
+  ja: "{count}件の項目"
+  ko: 항목 {count}개
+  it: "{count} elementi"
+  tr: "{count} öğe"
+  vi: "{count} mục"
+  id: "{count} item"
+  pl: "Elementy: {count}"
+  nl: "{count} items"
+  ar: "{count} عناصر"
+  hi: "{count} आइटम"
+  th: "{count} รายการ"
+  cs: "Položky: {count}"
+  sv: "{count} objekt"
+  he: "{count} פריטים"
+  verified_by_human: []
+
 settings:
   context: "Generic UI text: Settings"
   en: Settings

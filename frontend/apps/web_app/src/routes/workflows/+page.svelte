@@ -3,34 +3,20 @@
   Provides the V1 server-backed workflow list, Shortcuts-style detail/editor
   shell, example workflow creation, manual runs, and run history.
 
-  Native Swift counterparts: none yet; Apple V1 parity currently covers the
-  shared workflow API models and request contract.
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
+  - apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
 -->
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { page } from '$app/state';
-  import { Header, Settings, Notification, WorkspaceHomeShell, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, workflowWorkspaceStore, workflowApiRequest } from '@repo/ui';
+  import { replaceState } from '$app/navigation';
+  import { Header, Settings, Notification, WorkspaceHomeShell, WorkflowDetailPage, WorkflowTemplateShare, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, upsertWorkflowTemplateProjection, workflowWorkspaceStore } from '@repo/ui';
+  import WorkspacePromptComposer from '@repo/ui/components/workspace/WorkspacePromptComposer.svelte';
+  import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
+  import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
   import { userProfile } from '@repo/ui/stores/userProfile';
-  import type { DailyInspiration, WorkflowDetail, WorkflowGraph, WorkflowNode, WorkflowNodeType, WorkflowRun, WorkflowSummary } from '@repo/ui';
-
-  type WorkflowInputEvent = {
-    event_id: number;
-    type: string;
-    status: string;
-    redacted_summary?: string;
-  };
-
-  type WorkflowInputSession = {
-    session_id: string;
-    status: string;
-    event_cursor: number;
-    message?: string | null;
-    error?: string | null;
-    workflow?: WorkflowDetail | null;
-    undo_available: boolean;
-  };
+  import type { DailyInspiration, ImportedWorkflowTemplate, WorkflowDetail, WorkflowGraph, WorkflowNode, WorkflowNodeType, WorkflowRun, WorkflowSummary, WorkflowTemplateBindingRequirement } from '@repo/ui';
 
   type WorkflowContinueItem = {
     id: string;
@@ -40,6 +26,7 @@
     category?: string | null;
     appId?: string | null;
     icon?: string | null;
+    source?: 'recent' | 'example';
   };
 
   type WorkflowFlowItem =
@@ -48,28 +35,39 @@
     | { kind: 'placeholder'; id: string; label: string }
     | { kind: 'node'; id: string; node: WorkflowNode; index: number; branch?: boolean };
 
+  type WorkflowTab = 'details' | 'runs';
+
+  type WorkflowHashState = {
+    workflowId: string | null;
+    tab: WorkflowTab;
+    runId: string | null;
+  };
+
+  const WORKFLOWS_ROUTE = '/workflows';
+  const WORKFLOW_ID_HASH_PARAM = 'workflow-id';
+  const WORKFLOW_TAB_HASH_PARAM = 'workflow-tab';
+  const WORKFLOW_RUN_ID_HASH_PARAM = 'run-id';
+
   let workflows = $derived<WorkflowSummary[]>($workflowWorkspaceStore.workflows);
   let selectedWorkflow = $derived<WorkflowDetail | null>($workflowWorkspaceStore.selectedWorkflow);
   let runs = $derived<WorkflowRun[]>($workflowWorkspaceStore.runs);
   let saving = $state(false);
-  let running = $state(false);
   let routeError = $state<string | null>(null);
   let error = $derived(routeError ?? $workflowWorkspaceStore.error);
   let runContentRetention = $state<'last_5' | 'none'>('last_5');
   let selectedRunContentRetention = $state<'last_5' | 'none'>('last_5');
   let editorTitle = $state('');
+  let editorDescription = $state('');
   let editorGraph = $state<WorkflowGraph | null>(null);
   let editorDirty = $state(false);
   let hydratedEditorWorkflowId = $state<string | null>(null);
   let expandedNodeId = $state<string | null>(null);
   let showAllWorkflows = $state(false);
   let workflowInputText = $state('');
-  let workflowInputBusy = $state(false);
-  let workflowInputSession = $state<WorkflowInputSession | null>(null);
-  let workflowInputEvents = $state<WorkflowInputEvent[]>([]);
   let observedWorkflowGeneration = $state(workflowWorkspaceStore.getGeneration());
+  let workflowHashState = $state<WorkflowHashState>({ workflowId: null, tab: 'details', runId: null });
 
-  let recentWorkflows = $derived(workflows.slice(0, 6));
+  let recentWorkflows = $derived([...workflows].sort((left, right) => (right.updated_at ?? 0) - (left.updated_at ?? 0)).slice(0, 6));
   let workflowStarterItems: WorkflowContinueItem[] = [
     {
       id: 'starter-rain',
@@ -79,6 +77,7 @@
       category: 'weather',
       appId: 'weather',
       icon: 'cloud-rain',
+      source: 'example',
     },
     {
       id: 'starter-news',
@@ -88,6 +87,7 @@
       category: 'technology',
       appId: 'news',
       icon: 'newspaper',
+      source: 'example',
     },
     {
       id: 'starter-blank',
@@ -97,23 +97,22 @@
       category: 'productivity',
       appId: 'workflows',
       icon: 'workflow',
+      source: 'example',
     },
   ];
-  let recentWorkflowContinueItems = $derived<WorkflowContinueItem[]>(recentWorkflows.map((workflow) => ({
-    id: workflow.id,
-    title: workflow.title,
-    summary: `${workflow.trigger_summary ?? 'Manual'} - ${retentionLabel(workflow.run_content_retention)}`,
-    badge: workflow.enabled ? 'Enabled' : 'Paused',
-    category: 'productivity',
-    appId: 'workflows',
-    icon: 'workflow',
-  })));
-  let workflowHomeItems = $derived<WorkflowContinueItem[]>([...workflowStarterItems, ...recentWorkflowContinueItems]);
-  let listedWorkflows = $derived(showAllWorkflows ? workflows : workflows.slice(0, 5));
+  let recentWorkflowContinueItems = $derived<WorkflowContinueItem[]>(recentWorkflows.map(workflowSummaryToContinueItem));
+  let allWorkflowContinueItems = $derived<WorkflowContinueItem[]>([...workflows]
+    .sort((left, right) => (right.updated_at ?? 0) - (left.updated_at ?? 0))
+    .map(workflowSummaryToContinueItem));
+  let workflowLandingItems = $derived<WorkflowContinueItem[]>([
+    ...recentWorkflowContinueItems,
+    ...workflowStarterItems,
+  ]);
   let workflowGreetingName = $derived($userProfile.username?.trim() || 'there');
-  let workflowCountLabel = $derived(workflows.length === 1 ? '1 workflow ready' : `${workflows.length} workflows ready`);
-  let isManageView = $derived(page.url.searchParams.get('view') === 'manage');
-  let requestedWorkflowId = $derived(page.url.searchParams.get('workflow'));
+  let isManageView = $derived(!!workflowHashState.workflowId);
+  let isRunsView = $derived(workflowHashState.tab === 'runs');
+  let selectedRunId = $derived(workflowHashState.runId);
+  let requestedWorkflowId = $derived(workflowHashState.workflowId);
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
   let routeReady = $derived($authStore.isInitialized && featureAvailabilityLoaded);
@@ -122,12 +121,92 @@
   let canRenderWorkflowData = $derived(routeReady && $authStore.isAuthenticated);
   let showManageView = $derived(canRenderWorkflowData && isManageView);
   let visibleWorkflowGreetingName = $derived(canRenderWorkflowData ? workflowGreetingName : 'there');
-  let visibleWorkflowHomeItems = $derived(canRenderWorkflowData ? workflowHomeItems : []);
-  let workflowsLoading = $derived($workflowWorkspaceStore.listStatus === 'loading' && workflows.length === 0);
+  let visibleWorkflowLandingItems = $derived(canRenderWorkflowData ? workflowLandingItems : []);
 
   onMount(() => {
+    syncWorkflowHashFromLocation();
+    window.addEventListener('hashchange', syncWorkflowHashFromLocation);
     void initializeWorkflowsRoute();
+
+    return () => {
+      window.removeEventListener('hashchange', syncWorkflowHashFromLocation);
+    };
   });
+
+  function stripHashPrefix(hash: string): string {
+    if (!hash) return '';
+    return hash.startsWith('#/') ? hash.slice(2) : hash.replace(/^#/, '');
+  }
+
+  function parseHashParams(hash: string): URLSearchParams {
+    const fragment = stripHashPrefix(hash);
+    if (!fragment || fragment === 'settings' || fragment.startsWith('settings/')) {
+      return new URLSearchParams();
+    }
+    return new URLSearchParams(fragment);
+  }
+
+  function serializeHashParams(params: URLSearchParams): string {
+    const pairs: string[] = [];
+    params.forEach((value, key) => {
+      pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(value).replace(/%2F/g, '/').replace(/%3A/g, ':')}`);
+    });
+    return pairs.length > 0 ? `#${pairs.join('&')}` : '';
+  }
+
+  function readWorkflowHashState(hash: string): WorkflowHashState {
+    const params = parseHashParams(hash);
+    const workflowId = params.get(WORKFLOW_ID_HASH_PARAM)?.trim() || null;
+    const tab = params.get(WORKFLOW_TAB_HASH_PARAM) === 'runs' ? 'runs' : 'details';
+    return {
+      workflowId,
+      tab: workflowId ? tab : 'details',
+      runId: workflowId && tab === 'runs' ? params.get(WORKFLOW_RUN_ID_HASH_PARAM)?.trim() || null : null,
+    };
+  }
+
+  function syncWorkflowHashFromLocation(): void {
+    workflowHashState = readWorkflowHashState(window.location.hash);
+  }
+
+  function workflowStateHash(workflowId: string | null, tab: WorkflowTab = 'details', runId: string | null = null, baseHash = ''): string {
+    const params = parseHashParams(baseHash);
+    params.delete(WORKFLOW_ID_HASH_PARAM);
+    params.delete(WORKFLOW_TAB_HASH_PARAM);
+    params.delete(WORKFLOW_RUN_ID_HASH_PARAM);
+
+    if (workflowId) {
+      params.set(WORKFLOW_ID_HASH_PARAM, workflowId);
+      params.set(WORKFLOW_TAB_HASH_PARAM, tab);
+      if (tab === 'runs' && runId) {
+        params.set(WORKFLOW_RUN_ID_HASH_PARAM, runId);
+      }
+    }
+
+    return serializeHashParams(params);
+  }
+
+  function workflowStateHref(workflowId: string, tab: WorkflowTab = 'details', runId: string | null = null): string {
+    return `${WORKFLOWS_ROUTE}${workflowStateHash(workflowId, tab, runId)}`;
+  }
+
+  function setWorkflowUrlState(workflowId: string | null, tab: WorkflowTab = 'details', runId: string | null = null): void {
+    const nextHash = workflowStateHash(workflowId, tab, runId, window.location.hash);
+    workflowHashState = readWorkflowHashState(nextHash);
+    replaceState(`${WORKFLOWS_ROUTE}${nextHash}`, {});
+  }
+
+  function openWorkflowDetails(workflowId: string): void {
+    setWorkflowUrlState(workflowId, 'details');
+  }
+
+  function openWorkflowRuns(workflowId: string, runId: string | null = null): void {
+    setWorkflowUrlState(workflowId, 'runs', runId);
+  }
+
+  function openWorkflowHome(): void {
+    setWorkflowUrlState(null);
+  }
 
   async function initializeWorkflowsRoute() {
     try {
@@ -137,11 +216,6 @@
       console.error('[WorkflowsRoute] Failed to initialize:', initError);
       routeError = initError instanceof Error ? initError.message : 'Failed to load workflows.';
     }
-  }
-
-  async function loadWorkflows() {
-    routeError = null;
-    return workflowWorkspaceStore.loadWorkflows({ force: true });
   }
 
   async function selectWorkflow(workflowId: string) {
@@ -165,15 +239,12 @@
     const requestedWorkflow = requestedWorkflowId
       ? workflows.find((workflow) => workflow.id === requestedWorkflowId)
       : null;
-    const workflowId = requestedWorkflow?.id ?? (isManageView ? workflows[0]?.id : null);
+    const workflowId = requestedWorkflow?.id ?? null;
     if (requestedWorkflowId && !workflowId && $workflowWorkspaceStore.listStatus === 'ready') {
-      void goto('/workflows?view=manage', { replaceState: true });
+      openWorkflowHome();
       return;
     }
     if (!workflowId || workflowId === $workflowWorkspaceStore.selectedWorkflowId) return;
-    if (requestedWorkflowId && requestedWorkflowId !== workflowId) {
-      void goto(`/workflows?view=manage&workflow=${encodeURIComponent(workflowId)}`, { replaceState: true });
-    }
     void selectWorkflow(workflowId).catch((selectError) => {
       console.error('[WorkflowsRoute] Failed to select workflow:', selectError);
     });
@@ -192,7 +263,6 @@
     if (!canRenderWorkflowData || generation !== observedWorkflowGeneration) {
       observedWorkflowGeneration = generation;
       routeError = null;
-      clearWorkflowInputState();
     }
     void storeSelectedWorkflowId;
   });
@@ -214,10 +284,10 @@
     workflowInputText = inspiration.phrase || inspiration.title || '';
   }
 
-  async function continueWorkflowFromCard(item: WorkflowContinueItem) {
+  async function continueWorkflowFromCard(item: { id: string }) {
     if (!canLoadWorkflows) return;
     await selectWorkflow(item.id);
-    await goto(`/workflows?view=manage&workflow=${encodeURIComponent(item.id)}`);
+    openWorkflowDetails(item.id);
   }
 
   async function startWorkflowFromCard(item: WorkflowContinueItem) {
@@ -234,88 +304,39 @@
   }
 
   async function submitWorkflowInput() {
-    const text = workflowInputText.trim();
-    if (!text || workflowInputBusy || !canLoadWorkflows) return;
-    const requestGeneration = workflowWorkspaceStore.getGeneration();
-    workflowInputBusy = true;
-    routeError = null;
-    try {
-      const path = workflowInputSession?.session_id && workflowInputSession.status !== 'undone'
-        ? `/v1/workflows/input/${encodeURIComponent(workflowInputSession.session_id)}/follow-up`
-        : '/v1/workflows/input';
-      const data = await workflowApiRequest<{ session: WorkflowInputSession }>(path, {
-        method: 'POST',
-        body: JSON.stringify(path.endsWith('/input')
-          ? { text, selected_workflow_id: selectedWorkflow?.id ?? null }
-          : { text })
-      });
-      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-      workflowInputText = '';
-      await applyWorkflowInputSession(data.session, requestGeneration);
-    } catch (inputError) {
-      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-      routeError = inputError instanceof Error ? inputError.message : 'Failed to process workflow input.';
-    } finally {
-      workflowInputBusy = false;
-    }
-  }
-
-  function clearWorkflowInputState() {
+    const title = workflowInputText.trim();
+    if (!title || saving || !canLoadWorkflows) return;
     workflowInputText = '';
-    workflowInputBusy = false;
-    workflowInputSession = null;
-    workflowInputEvents = [];
+    await createWorkflow(title, blankWorkflowGraph(), false);
   }
 
-  async function stopWorkflowInput() {
-    if (!workflowInputSession || workflowInputBusy) return;
-    const requestGeneration = workflowWorkspaceStore.getGeneration();
-    workflowInputBusy = true;
-    try {
-      const data = await workflowApiRequest<{ session: WorkflowInputSession }>(`/v1/workflows/input/${encodeURIComponent(workflowInputSession.session_id)}/stop`, {
-        method: 'POST',
-        body: JSON.stringify({})
-      });
-      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-      await applyWorkflowInputSession(data.session, requestGeneration);
-    } finally {
-      workflowInputBusy = false;
-    }
+  function showWorkflowVoiceInputUnavailable(): void {
+    notificationStore.info('Voice input for workflows is coming soon.', 4000, true, 'workflows-voice-input');
   }
 
-  async function undoWorkflowInput() {
-    if (!workflowInputSession || !workflowInputSession.undo_available || workflowInputBusy) return;
-    const requestGeneration = workflowWorkspaceStore.getGeneration();
-    workflowInputBusy = true;
-    try {
-      const data = await workflowApiRequest<{ session: WorkflowInputSession }>(`/v1/workflows/input/${encodeURIComponent(workflowInputSession.session_id)}/undo`, {
-        method: 'POST',
-        body: JSON.stringify({})
-      });
-      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-      await applyWorkflowInputSession(data.session, requestGeneration);
-      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-      await loadWorkflows();
-    } finally {
-      workflowInputBusy = false;
-    }
+  function showWorkflowSearchUnavailable(): void {
+    notificationStore.info('Workflow search is coming soon.', 4000, true, 'workflows-search');
   }
 
-  async function applyWorkflowInputSession(session: WorkflowInputSession, requestGeneration = workflowWorkspaceStore.getGeneration()) {
-    if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-    workflowInputSession = session;
-    await refreshWorkflowInputEvents(session.session_id, Math.max(0, session.event_cursor - 20), requestGeneration);
-    if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-    if (session.workflow) {
-      workflowWorkspaceStore.upsertWorkflow(session.workflow);
-      await selectWorkflow(session.workflow.id);
-    }
+  function showAllWorkflowCards(): void {
+    showAllWorkflows = true;
   }
 
-  async function refreshWorkflowInputEvents(sessionId: string, afterEventId = 0, requestGeneration = workflowWorkspaceStore.getGeneration()) {
-    const data = await workflowApiRequest<{ events: WorkflowInputEvent[] }>(`/v1/workflows/input/${encodeURIComponent(sessionId)}/events?after_event_id=${afterEventId}`);
-    if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-    workflowInputEvents = data.events;
+  function showRecentWorkflowCards(): void {
+    showAllWorkflows = false;
+  }
+
+  function workflowSummaryToContinueItem(workflow: WorkflowSummary): WorkflowContinueItem {
+    return {
+      id: workflow.id,
+      title: workflow.title,
+      summary: `${workflow.trigger_summary ?? 'Manual'} - ${retentionLabel(workflow.run_content_retention)}`,
+      badge: workflow.enabled ? 'Enabled' : 'Paused',
+      category: 'productivity',
+      appId: 'workflows',
+      icon: 'workflow',
+      source: 'recent',
+    };
   }
 
   async function createWorkflow(title: string, graph: WorkflowGraph, enabled: boolean) {
@@ -329,8 +350,9 @@
         enabled,
         runContentRetention,
       });
+      await maintainTemplateProjection(workflow);
       await selectWorkflow(workflow.id);
-      await goto(`/workflows?view=manage&workflow=${encodeURIComponent(workflow.id)}`);
+      openWorkflowDetails(workflow.id);
     } catch (createError) {
       routeError = createError instanceof Error ? createError.message : 'Failed to create workflow.';
     } finally {
@@ -352,17 +374,30 @@
     }
   }
 
-  async function updateSelectedWorkflowRetention() {
+  async function runSelectedWorkflow() {
     if (!selectedWorkflow) return;
+    const workflowId = selectedWorkflow.id;
     saving = true;
     routeError = null;
     try {
-      const workflow = await workflowWorkspaceStore.patchWorkflow(selectedWorkflow.id, {
-        run_content_retention: selectedRunContentRetention
-      });
-      resetEditor(workflow);
-    } catch (saveError) {
-      routeError = saveError instanceof Error ? saveError.message : 'Failed to update workflow retention.';
+      const run = await workflowWorkspaceStore.runWorkflow(workflowId);
+      openWorkflowRuns(workflowId, run.id);
+    } catch (runError) {
+      routeError = runError instanceof Error ? runError.message : 'Failed to run workflow.';
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function deleteSelectedWorkflow() {
+    if (!selectedWorkflow || !window.confirm(`Delete “${selectedWorkflow.title}”? This cannot be undone.`)) return;
+    saving = true;
+    routeError = null;
+    try {
+      await workflowWorkspaceStore.deleteWorkflow(selectedWorkflow.id);
+      openWorkflowHome();
+    } catch (deleteError) {
+      routeError = deleteError instanceof Error ? deleteError.message : 'Failed to delete workflow.';
     } finally {
       saving = false;
     }
@@ -375,10 +410,12 @@
     try {
       const workflow = await workflowWorkspaceStore.patchWorkflow(selectedWorkflow.id, {
         title: editorTitle.trim() || selectedWorkflow.title,
+        description: editorDescription.trim(),
         graph: editorGraph,
         run_content_retention: selectedRunContentRetention
       });
       resetEditor(workflow);
+      await maintainTemplateProjection(workflow);
     } catch (saveError) {
       routeError = saveError instanceof Error ? saveError.message : 'Failed to save workflow.';
     } finally {
@@ -386,33 +423,30 @@
     }
   }
 
-  async function deleteSelectedWorkflow() {
-    if (!selectedWorkflow) return;
-    saving = true;
-    routeError = null;
+  async function maintainTemplateProjection(workflow: WorkflowDetail): Promise<void> {
     try {
-      const workflowId = selectedWorkflow.id;
-      const nextWorkflow = workflows.find((workflow) => workflow.id !== workflowId) ?? null;
-      await workflowWorkspaceStore.deleteWorkflow(workflowId);
-      if (nextWorkflow) await selectWorkflow(nextWorkflow.id);
-    } catch (deleteError) {
-      routeError = deleteError instanceof Error ? deleteError.message : 'Failed to delete workflow.';
-    } finally {
-      saving = false;
+      await upsertWorkflowTemplateProjection(workflow);
+    } catch (projectionError) {
+      const message = projectionError instanceof Error ? projectionError.message : 'Could not update the encrypted workflow template projection.';
+      routeError = `Workflow saved, but its shareable template was not updated: ${message}`;
     }
   }
 
-  async function runSelectedWorkflow() {
-    if (!selectedWorkflow) return;
-    running = true;
-    routeError = null;
-    try {
-      await workflowWorkspaceStore.runWorkflow(selectedWorkflow.id);
-    } catch (runError) {
-      routeError = runError instanceof Error ? runError.message : 'Failed to run workflow.';
-    } finally {
-      running = false;
-    }
+  async function handleWorkflowVersionRestored(workflow: WorkflowDetail): Promise<void> {
+    resetEditor(workflow);
+    await maintainTemplateProjection(workflow);
+  }
+
+  async function unavailableTemplateImport(): Promise<ImportedWorkflowTemplate | null> {
+    return null;
+  }
+
+  async function unavailableTemplateBinding(_requirement: WorkflowTemplateBindingRequirement): Promise<void> {
+    return;
+  }
+
+  async function unavailableTemplateEnable(): Promise<void> {
+    return;
   }
 
   function rainAlertGraph(): WorkflowGraph {
@@ -440,12 +474,11 @@
   function blankWorkflowGraph(): WorkflowGraph {
     return {
       version: 1,
-      trigger_node_id: 'trigger',
+      trigger_node_id: 'manual',
       nodes: [
-        { id: 'trigger', type: 'schedule_trigger', title: 'New schedule', config: { schedule: { type: 'daily', time: '09:00', timezone: 'Europe/Berlin' } } },
-        { id: 'end', type: 'end', title: 'Done', config: {} }
+        { id: 'manual', type: 'manual_trigger', title: 'Manual start', config: {} }
       ],
-      edges: [{ from: 'trigger', to: 'end' }]
+      edges: []
     };
   }
 
@@ -473,10 +506,15 @@
 
   function resetEditor(workflow: WorkflowDetail) {
     editorTitle = workflow.title;
+    editorDescription = workflow.description ?? '';
     editorGraph = cloneGraph(workflow.graph);
     editorDirty = false;
     hydratedEditorWorkflowId = workflow.id;
     expandedNodeId = null;
+  }
+
+  function undoEditorChanges() {
+    if (selectedWorkflow) resetEditor(selectedWorkflow);
   }
 
   function cloneGraph(graph: WorkflowGraph): WorkflowGraph {
@@ -665,11 +703,6 @@
     return typeof value === 'number' ? value : fallback;
   }
 
-  function setEditorTitle(value: string) {
-    editorTitle = value;
-    editorDirty = true;
-  }
-
   function updateEditorNode(nodeId: string, updater: (node: WorkflowNode) => WorkflowNode) {
     if (!editorGraph) return;
     editorGraph = {
@@ -765,6 +798,12 @@
   <div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="chat-container workflows-container" class:menu-open={$panelState.isSettingsOpen}>
+      <div class="workflow-sidebar-shell" class:drawer-open={$panelState.isActivityHistoryOpen}>
+        <WorkflowSidebar onSelect={(workflow) => {
+          void continueWorkflowFromCard(workflow);
+          panelState.closeChats();
+        }} />
+      </div>
       <main class="active-chat-container workflows-start" class:management-view={showManageView} data-testid="workflows-page">
         {#if error}
           <div class="error-banner" data-testid="workflows-error">{error}</div>
@@ -776,143 +815,95 @@
             testId="workflows-start-screen"
             heading={`Hey ${visibleWorkflowGreetingName}!`}
             subtitle="What do you want to automate next?"
-            actionItems={visibleWorkflowHomeItems}
-            actionItemsTestId="workflow-recommendations"
-            continueSectionTestId="recent-workflows"
+            actionItems={visibleWorkflowLandingItems}
+            actionItemsTestId="workflow-mixed-row"
+            itemTestId="workflow-landing-card"
+            showReportIssue
+            showAllMode={showAllWorkflows}
+            showAllLabel={workflows.length > 0 ? `Show all ${workflows.length}` : ''}
+            showAllTestId="workflows-show-all"
+            allItems={allWorkflowContinueItems}
+            allItemsViewTestId="all-workflows-view"
+            allItemsGridTestId="all-workflows-grid"
+            allItemsToolbarTestId="workflows-all-toolbar"
+            allItemTestId="workflow-landing-card"
+            backTestId="workflows-back-to-recent"
+            searchTestId="workflows-search"
+            onShowAll={workflows.length > 0 ? showAllWorkflowCards : undefined}
+            onBackToRecent={showRecentWorkflowCards}
+            onSearchAll={showWorkflowSearchUnavailable}
             onContinueItem={continueWorkflowFromCard}
             onActionItem={startWorkflowFromCard}
+            onAllItem={continueWorkflowFromCard}
             onStartInspiration={startWorkflowFromInspiration}
           >
             <svelte:fragment slot="composer">
-              <form class="workflow-input-composer" data-testid="workflow-input-composer" onsubmit={(event) => { event.preventDefault(); void submitWorkflowInput(); }}>
-                <textarea
-                  data-testid="workflow-input-textarea"
-                  bind:value={workflowInputText}
-                  rows="1"
-                  placeholder="Ask OpenMates to create or update a workflow..."
-                  disabled={workflowInputBusy || !canRenderWorkflowData}
-                ></textarea>
-                <div class="workflow-input-actions">
-                  {#if canRenderWorkflowData && workflowInputSession && workflowInputSession.status === 'running'}
-                    <button type="button" data-testid="workflow-input-stop" onclick={stopWorkflowInput} disabled={workflowInputBusy}>Stop</button>
-                  {/if}
-                  {#if canRenderWorkflowData && workflowInputSession?.undo_available}
-                    <button type="button" data-testid="workflow-input-undo" onclick={undoWorkflowInput} disabled={workflowInputBusy}>Undo</button>
-                  {/if}
-                  <button type="submit" data-testid="workflow-input-submit" disabled={workflowInputBusy || !canRenderWorkflowData || !workflowInputText.trim()}>{workflowInputBusy ? 'Working...' : 'Send'}</button>
-                </div>
-              </form>
-              {#if canRenderWorkflowData && workflowInputSession}
-                <div class="workflow-input-status" data-testid="workflow-input-status" data-status={workflowInputSession.status}>
-                  <strong>{workflowInputSession.status}</strong>
-                  {#if workflowInputSession.message}<span>{workflowInputSession.message}</span>{/if}
-                  {#if workflowInputSession.error}<span>{workflowInputSession.error}</span>{/if}
-                  {#if workflowInputEvents.length > 0}<span>{workflowInputEvents.at(-1)?.type}</span>{/if}
-                </div>
-              {/if}
+              <WorkspacePromptComposer
+                surface="workflows"
+                bind:value={workflowInputText}
+                placeholder="Name a new workflow"
+                submitLabel="Create workflow"
+                submittingLabel="Creating..."
+                disabled={saving || !canRenderWorkflowData}
+                submitting={saving}
+                testId="workflow-input-composer"
+                inputTestId="workflow-input-textarea"
+                submitTestId="workflow-input-submit"
+                micTestId="workflow-input-mic"
+                onSubmit={submitWorkflowInput}
+                onMicClick={showWorkflowVoiceInputUnavailable}
+              />
             </svelte:fragment>
           </WorkspaceHomeShell>
         {/if}
 
         {#if showManageView}
         <section class="workflow-management" data-testid="workflow-management">
-          <div class="management-header">
-            <div>
-              <p>Manage automations</p>
-              <h2>{workflowCountLabel}</h2>
-              {#if workflows.length > 0}
-                <button type="button" class="show-all-button" data-testid="workflows-show-all" onclick={() => showAllWorkflows = !showAllWorkflows}>
-                  {showAllWorkflows ? 'Show recent' : `Show all ${workflows.length}`}
-                </button>
-              {/if}
-            </div>
-            <div class="create-actions">
-              <label class="retention-picker" for="workflow-retention">
-                <span>Run content retention</span>
-                <select id="workflow-retention" data-testid="workflow-retention-select" bind:value={runContentRetention}>
-                  <option value="last_5">Keep latest 5 encrypted runs</option>
-                  <option value="none">No durable run content</option>
-                </select>
-              </label>
-              <button type="button" data-testid="create-blank-workflow" onclick={createBlankWorkflow} disabled={saving}>Blank workflow</button>
-              <button type="button" data-testid="create-rain-workflow" onclick={createRainWorkflow} disabled={saving}>Daily rain alert</button>
-              <button type="button" data-testid="create-news-workflow" onclick={createNewsWorkflow} disabled={saving}>AI news brief</button>
-            </div>
-          </div>
-
-          {#if showAllWorkflows}
-            <div class="all-workflows-grid" data-testid="all-workflows-grid">
-              {#each workflows as workflow (workflow.id)}
-                <button type="button" class="workflow-mini-card" onclick={() => selectWorkflow(workflow.id)}>
-                  <strong>{workflow.title}</strong>
-                  <span>{workflow.enabled ? 'Enabled' : 'Disabled'} - {workflow.trigger_summary ?? 'Manual'}</span>
-                </button>
-              {/each}
-            </div>
-          {/if}
-
           <div class="management-grid">
-            <aside class="workflow-list" data-testid="workflows-list">
-              <div class="section-heading">
-                <p>Library</p>
-                <h3>Recent workflows</h3>
-              </div>
-              {#if workflowsLoading}
-                <p class="empty-copy">Loading saved workflows...</p>
-              {:else if workflows.length === 0}
-                <p class="empty-copy">Create one of the starter workflows to test the server-side runner.</p>
-              {:else}
-                {#each listedWorkflows as workflow (workflow.id)}
-                  <button
-                    type="button"
-                    class="workflow-row"
-                    class:active={selectedWorkflow?.id === workflow.id}
-                    data-testid="workflow-row"
-                    onclick={() => selectWorkflow(workflow.id)}
-                  >
-                    <strong>{workflow.title}</strong>
-                    <span>{workflow.enabled ? 'Enabled' : 'Disabled'} - {workflow.trigger_summary ?? 'Manual'} - {retentionLabel(workflow.run_content_retention)}</span>
-                  </button>
-                {/each}
-              {/if}
-            </aside>
-
             <section class="workflow-detail" data-testid="workflow-detail">
 
           {#if selectedWorkflow}
-            <div class="detail-header">
-              <div>
-                <p>{selectedWorkflow.status}</p>
-                <label class="title-editor" for="workflow-title-input">
-                  <span>Workflow name</span>
-                  <input
-                    id="workflow-title-input"
-                    data-testid="workflow-title-input"
-                    value={editorTitle}
-                    oninput={(event) => setEditorTitle(event.currentTarget.value)}
-                  />
-                </label>
-                <span class="retention-chip" data-testid="selected-workflow-retention">Run content: {retentionLabel(selectedWorkflow.run_content_retention)}</span>
-              </div>
-              <div class="detail-actions">
-                <label class="inline-retention" for="selected-workflow-retention-select">
-                  <span>Edit retention</span>
-                  <select id="selected-workflow-retention-select" data-testid="selected-workflow-retention-select" bind:value={selectedRunContentRetention}>
-                    <option value="last_5">Keep latest 5</option>
-                    <option value="none">No durable content</option>
-                  </select>
-                </label>
-                <button type="button" data-testid="save-workflow" onclick={saveSelectedWorkflow} disabled={saving || !editorDirty}>{saving ? 'Saving...' : 'Save workflow'}</button>
-                <button type="button" data-testid="save-workflow-retention" onclick={updateSelectedWorkflowRetention} disabled={saving}>Save</button>
-                <button type="button" data-testid="toggle-workflow" onclick={() => setSelectedWorkflowEnabled(!selectedWorkflow?.enabled)} disabled={saving}>
-                  {selectedWorkflow.enabled ? 'Disable' : 'Enable'}
-                </button>
-                <button type="button" data-testid="run-workflow" onclick={runSelectedWorkflow} disabled={running}>{running ? 'Running...' : 'Run test'}</button>
-                <button type="button" data-testid="delete-workflow" onclick={deleteSelectedWorkflow} disabled={saving}>Delete</button>
-              </div>
-            </div>
+            <WorkflowDetailPage
+              title={editorTitle || selectedWorkflow.title}
+              description={editorDescription || selectedWorkflow.description || selectedWorkflow.trigger_summary || 'Manual workflow'}
+              createdAt={selectedWorkflow.created_at}
+              nextRunAt={selectedWorkflow.next_run_at}
+              enabled={selectedWorkflow.enabled}
+              dirty={editorDirty}
+              {saving}
+              onToggleEnabled={() => setSelectedWorkflowEnabled(!selectedWorkflow?.enabled)}
+              onSaveWorkflow={saveSelectedWorkflow}
+              onUndoWorkflow={undoEditorChanges}
+              onCreateWorkflow={createBlankWorkflow}
+              onRunWorkflow={runSelectedWorkflow}
+              onDeleteWorkflow={deleteSelectedWorkflow}
+              onOpenHome={openWorkflowHome}
+              onOpenRuns={() => openWorkflowRuns(selectedWorkflow.id)}
+              runsHref={workflowStateHref(selectedWorkflow.id, 'runs')}
+            />
 
-            <div class="workflow-editor" data-testid="workflow-editor">
+            {#if isRunsView}
+              <WorkflowRunHistory
+                {runs}
+                editorHref={workflowStateHref(selectedWorkflow.id, 'details')}
+                onOpenEditor={() => openWorkflowDetails(selectedWorkflow.id)}
+                {selectedRunId}
+              />
+            {:else}
+              <WorkflowTemplateShare
+                ownerWorkflow={selectedWorkflow}
+                disabled={saving || editorDirty}
+                onImport={unavailableTemplateImport}
+                onCompleteBinding={unavailableTemplateBinding}
+                onEnable={unavailableTemplateEnable}
+              />
+              <WorkflowVersionHistory
+                workflow={selectedWorkflow}
+                disabled={saving || editorDirty}
+                onRestored={handleWorkflowVersionRestored}
+              />
+
+              <div class="workflow-editor" data-testid="workflow-editor">
               <div class="node-stack shortcut-flow" data-testid="workflow-node-stack">
                 {#each flowItems(editorGraph) as item (item.id)}
                   {#if item.kind === 'connector'}
@@ -1086,21 +1077,8 @@
                 <button type="button" data-testid="add-push-node" onclick={() => appendNode('send_notification')}>Add push</button>
                 <button type="button" data-testid="add-email-node" onclick={() => appendNode('send_email_notification')}>Add email</button>
               </div>
-            </div>
-
-            <div class="runs-panel" data-testid="workflow-runs">
-              <h3>Run history</h3>
-              {#if runs.length === 0}
-                <p class="empty-copy">No runs yet. Use "Run test" to execute this workflow on the server.</p>
-              {:else}
-                {#each runs as run (run.id)}
-                  <div class="run-row" data-testid="workflow-run-row">
-                    <strong>{run.status}</strong>
-                    <span>{run.trigger_type} - {run.node_runs?.length ?? 0} nodes - {run.content_available === false ? 'content unavailable' : `${run.content_storage ?? 'unknown'} ${run.content_retention_mode ?? 'last_5'}`}</span>
-                  </div>
-                {/each}
-              {/if}
-            </div>
+              </div>
+            {/if}
           {:else}
             <div class="empty-detail">
               <h2>Build your first workflow</h2>
@@ -1155,6 +1133,18 @@
     padding: 10px 20px 10px 10px;
   }
 
+  .workflow-sidebar-shell {
+    width: 0;
+    flex: 0 0 0;
+    overflow: hidden;
+    transition: width var(--duration-normal) var(--easing-default), flex-basis var(--duration-normal) var(--easing-default);
+  }
+
+  .workflow-sidebar-shell.drawer-open {
+    width: min(325px, 28vw);
+    flex-basis: min(325px, 28vw);
+  }
+
   @media (min-width: 1100px) {
     .workflows-container.menu-open {
       gap: 20px;
@@ -1177,19 +1167,9 @@
   }
 
   .workflows-start:not(.management-view) {
+    display: block;
     gap: 0;
     overflow: hidden;
-  }
-
-  .management-header p,
-  .section-heading p,
-  .detail-header p {
-    margin: 0;
-    color: var(--color-font-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 0.75rem;
-    font-weight: 900;
   }
 
   .workflow-management {
@@ -1198,27 +1178,16 @@
     padding-block-end: 36px;
   }
 
-  .management-header {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 0 4px;
-  }
-
-  .management-header h2,
-  .section-heading h3,
   .empty-detail h2 {
     margin: 0;
   }
 
   .management-grid {
     display: grid;
-    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
 
-  .workflow-list,
   .workflow-detail {
     min-width: 0;
     overflow: auto;
@@ -1228,27 +1197,6 @@
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
   }
 
-  .workflow-list {
-    padding: 18px;
-  }
-
-  .create-actions {
-    display: flex;
-    align-items: flex-end;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 0;
-  }
-
-  .retention-picker {
-    display: grid;
-    gap: 6px;
-    color: var(--color-font-secondary);
-    font-size: 0.9rem;
-  }
-
-  .retention-picker select,
-  .title-editor input,
   .node-field input,
   .node-field select {
     width: 100%;
@@ -1258,38 +1206,6 @@
     color: var(--color-font-primary);
     background: var(--color-grey-0);
     font: inherit;
-  }
-
-  .title-editor {
-    display: grid;
-    gap: 6px;
-  }
-
-  .title-editor span {
-    color: var(--color-font-secondary);
-    font-size: 0.85rem;
-    font-weight: 700;
-  }
-
-  .title-editor input {
-    max-width: 420px;
-    border-color: transparent;
-    padding-inline: 0;
-    border-radius: 0;
-    background: transparent;
-    font-size: clamp(1.8rem, 4vw, 2.4rem);
-    font-weight: 800;
-    line-height: 1.05;
-  }
-
-  .retention-chip {
-    display: inline-flex;
-    margin-block-start: 8px;
-    padding: 5px 9px;
-    border-radius: var(--radius-full, 999px);
-    color: var(--color-font-primary);
-    background: var(--color-grey-10);
-    font-size: 0.85rem;
   }
 
   button {
@@ -1305,118 +1221,15 @@
     cursor: wait;
   }
 
-  .create-actions button,
-  .detail-actions button[data-testid="run-workflow"] {
-    color: var(--color-font-button);
-    background: var(--color-button-primary);
-  }
-
-  .workflow-row {
-    width: 100%;
-    display: grid;
-    gap: 4px;
-    margin-block-end: 8px;
-    text-align: start;
-    color: var(--color-font-primary);
-    background: var(--color-grey-10);
-  }
-
-  .workflow-row.active {
-    outline: 2px solid var(--color-button-primary);
-    background: var(--color-grey-blue);
-  }
-
-  .show-all-button {
-    color: var(--color-font-primary);
-    background: var(--color-grey-20);
-  }
-
-  .workflow-row span,
-  .empty-copy,
-  .run-row span {
-    margin: 0;
-    color: var(--color-font-secondary);
-    font-size: 0.9rem;
-  }
-
   .workflow-detail {
-    padding: 22px;
-  }
-
-  .workflow-mini-card {
-    display: grid;
-    gap: 6px;
-    text-align: start;
-    color: var(--color-font-primary);
-    background: color-mix(in srgb, var(--color-grey-0) 86%, transparent);
-    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
-  }
-
-  .all-workflows-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-    gap: 12px;
-  }
-
-  .workflow-mini-card {
-    display: grid;
-    gap: 6px;
-    min-height: 116px;
-    align-content: center;
-    text-align: start;
-  }
-
-  .workflow-mini-card span {
-    color: var(--color-font-secondary);
-    font-size: 0.86rem;
-  }
-
-  .detail-header {
-    display: flex;
-    gap: 16px;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-block-end: 18px;
-  }
-
-  .detail-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    align-items: flex-end;
-  }
-
-  .inline-retention {
-    display: grid;
-    gap: 4px;
-    color: var(--color-font-secondary);
-    font-size: 0.85rem;
-  }
-
-  .inline-retention select {
-    border: 1px solid var(--color-grey-30);
-    border-radius: var(--radius-8, 20px);
-    padding: 9px 10px;
-    color: var(--color-font-primary);
-    background: var(--color-grey-0);
-    font: inherit;
-  }
-
-  .detail-actions button:not([data-testid="run-workflow"]) {
-    color: var(--color-font-primary);
-    background: var(--color-grey-20);
-  }
-
-  .detail-actions button[data-testid="save-workflow"] {
-    color: var(--color-font-button);
-    background: var(--color-button-primary);
+    padding: 0;
   }
 
   .workflow-editor {
     display: grid;
     justify-items: center;
     gap: 38px;
-    padding-block: 10px 24px;
+    padding: 10px 22px 24px;
   }
 
   .editor-toolbar {
@@ -1638,20 +1451,6 @@
     color: var(--color-font-secondary);
   }
 
-  .runs-panel {
-    margin-block-start: 22px;
-    padding-block-start: 18px;
-    border-block-start: 1px solid var(--color-grey-20);
-  }
-
-  .run-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 0;
-    border-block-end: 1px solid var(--color-grey-10);
-  }
-
   .error-banner {
     margin-block-end: 14px;
     padding: 10px 12px;
@@ -1666,79 +1465,6 @@
     place-content: center;
     text-align: center;
     gap: 8px;
-  }
-
-  .workflow-input-composer {
-    width: min(629px, 100%);
-    min-height: 60px;
-    z-index: 3;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    margin: 0 auto;
-    padding: 0 var(--spacing-5);
-    border: 0;
-    border-radius: 24px;
-    background: var(--color-grey-blue);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    box-sizing: border-box;
-  }
-
-  .workflow-input-composer textarea {
-    width: 100%;
-    min-height: 40px;
-    max-height: 160px;
-    resize: none;
-    flex: 1;
-    min-width: 0;
-    border: 0;
-    outline: none;
-    padding: 10px 0;
-    border-radius: 0;
-    color: var(--color-font-primary);
-    background: transparent;
-    font: inherit;
-    font-size: var(--font-size-p);
-  }
-
-  .workflow-input-composer textarea::placeholder {
-    color: var(--color-grey-60);
-    font-weight: 600;
-  }
-
-  .workflow-input-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-3);
-    flex-shrink: 0;
-  }
-
-  .workflow-input-actions button {
-    color: var(--color-font-primary);
-    background: var(--color-grey-20);
-    min-height: 40px;
-    padding: var(--spacing-4) var(--spacing-8);
-    border-radius: var(--radius-8);
-    font-weight: 500;
-  }
-
-  .workflow-input-actions button[type="submit"] {
-    color: var(--color-font-button);
-    background: var(--color-button-primary);
-  }
-
-  .workflow-input-status {
-    width: min(920px, 100%);
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    color: var(--color-font-secondary);
-    font-size: 0.9rem;
-  }
-
-  .workflow-input-status strong {
-    color: var(--color-font-primary);
   }
 
   .settings-wrapper {
@@ -1772,34 +1498,27 @@
       padding: 8px 10px;
     }
 
-    .management-header,
-    .create-actions {
-      display: grid;
+    .workflow-sidebar-shell {
+      position: fixed;
+      z-index: 30;
+      inset: 82px auto 0 0;
+      width: min(325px, calc(100vw - 32px));
+      transform: translateX(-110%);
+      transition: transform var(--duration-normal) var(--easing-default);
+      box-shadow: 12px 0 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .workflow-sidebar-shell.drawer-open {
+      transform: translateX(0);
     }
 
     .management-grid {
       grid-template-columns: 1fr;
     }
 
-    .workflow-list,
     .workflow-detail {
       border-radius: var(--radius-10, 24px);
     }
 
-    .detail-header {
-      display: grid;
-    }
-
-    .workflow-input-composer {
-      flex-wrap: wrap;
-      align-items: flex-end;
-      padding-block: var(--spacing-4);
-      border-radius: 24px;
-    }
-
-    .workflow-input-actions {
-      justify-content: flex-end;
-      flex-wrap: wrap;
-    }
   }
 </style>

@@ -8,12 +8,13 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
   import CodeEmbedFullscreen from '../embeds/code/CodeEmbedFullscreen.svelte';
   import ProjectBrowserItem from './ProjectBrowserItem.svelte';
   import ProjectRemotePreviewCard from './ProjectRemotePreviewCard.svelte';
   import TasksPage from '../tasks/TasksPage.svelte';
-  import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
+  import WorkspaceDetailHeader from '../workspace/WorkspaceDetailHeader.svelte';
+  import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
+  import WorkspacePromptComposer from '../workspace/WorkspacePromptComposer.svelte';
   import { notificationStore } from '../../stores/notificationStore';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
@@ -23,14 +24,22 @@
     createFolder,
     createProject,
     deleteProject,
+    getProject,
     getProjectContents,
     listProjectSources,
     listProjects,
+    requestProjectRemoteAccess,
+    updateProjectMetadata,
     uploadFileToProject,
     type ProjectFolderViewModel,
     type ProjectItemViewModel,
     type ProjectSourceViewModel,
     type ProjectViewModel,
+    type ProjectRemoteDirectoryEntry,
+    type ProjectRemoteDirectoryResult,
+    type ProjectRemoteSearchMatch,
+    type ProjectRemoteSearchResult,
+    type ProjectRemoteTextResult,
   } from '../../services/projectService';
   import {
     buildRemoteFileUploadCandidate,
@@ -45,6 +54,25 @@
     uploadContent: string | Blob | null;
     sourceLabel: string;
   }
+
+  interface ProjectContinueItem {
+    id: string;
+    title: string;
+    summary?: string | null;
+    badge?: string | null;
+    category?: string | null;
+    appId?: string | null;
+    icon?: string | null;
+    source?: 'recent' | 'example';
+  }
+
+  interface ProjectInspiration {
+    phrase: string;
+    title?: string;
+  }
+
+  const PROJECTS_ROUTE = '/projects';
+  const PROJECT_ID_HASH_PARAM = 'project-id';
 
   let { variant = 'main' }: { variant?: 'main' | 'sidebar' } = $props();
 
@@ -64,15 +92,80 @@
   let currentFolderHash = $state<string | null>(null);
   let folderHashes = $state(new Map<string, string>());
   let activeRemoteFullscreen = $state<VirtualRemoteFullscreenDetail | null>(null);
+  let projectHashId = $state<string | null>(null);
+  let activeRemoteSourceId = $state<string | null>(null);
+  let remotePath = $state('.');
+  let remoteEntries = $state<ProjectRemoteDirectoryEntry[]>([]);
+  let remoteSearchQuery = $state('');
+  let remoteSearchMatches = $state<ProjectRemoteSearchMatch[]>([]);
+  let remotePreviewEntries = $state<RemotePreviewEntry[]>([]);
+  let remoteError = $state('');
+  let isRemoteLoading = $state(false);
 
   let sortedProjects = $derived([...projects].sort((a, b) => (b.encrypted.created_at || 0) - (a.encrypted.created_at || 0)));
   let recentProjects = $derived(sortedProjects.slice(0, 8));
   let greetingName = $derived($userProfile.username || 'there');
   let browserFolders = $derived(folders.filter((folder) => (folder.parentHash ?? null) === currentFolderHash));
   let browserItems = $derived(items.filter((item) => (item.encrypted.hashed_folder_id ?? null) === currentFolderHash));
+  let projectLandingItems = $derived<ProjectContinueItem[]>(recentProjects.map((project) => ({
+    id: project.project_id,
+    title: project.name || 'Untitled project',
+    summary: `${project.encrypted.item_count ?? 0} items`,
+    badge: 'Project',
+    category: 'productivity',
+    appId: 'projects',
+    icon: 'folder',
+    source: 'recent',
+  })));
 
   const PROJECT_SELECTED_EVENT = 'openmates-project-selected';
   const PROJECTS_CHANGED_EVENT = 'openmates-projects-changed';
+
+  function stripHashPrefix(hash: string): string {
+    if (!hash) return '';
+    return hash.startsWith('#/') ? hash.slice(2) : hash.replace(/^#/, '');
+  }
+
+  function parseHashParams(hash: string): URLSearchParams {
+    const fragment = stripHashPrefix(hash);
+    if (!fragment || fragment === 'settings' || fragment.startsWith('settings/')) {
+      return new URLSearchParams();
+    }
+    return new URLSearchParams(fragment);
+  }
+
+  function serializeHashParams(params: URLSearchParams): string {
+    const pairs: string[] = [];
+    params.forEach((value, key) => {
+      pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(value).replace(/%2F/g, '/').replace(/%3A/g, ':')}`);
+    });
+    return pairs.length > 0 ? `#${pairs.join('&')}` : '';
+  }
+
+  function readProjectHashId(hash: string): string | null {
+    return parseHashParams(hash).get(PROJECT_ID_HASH_PARAM)?.trim() || null;
+  }
+
+  function syncProjectHashFromLocation(): void {
+    projectHashId = readProjectHashId(window.location.hash);
+  }
+
+  function projectStateHash(projectId: string | null, baseHash = ''): string {
+    const params = parseHashParams(baseHash);
+    params.delete(PROJECT_ID_HASH_PARAM);
+    if (projectId) params.set(PROJECT_ID_HASH_PARAM, projectId);
+    return serializeHashParams(params);
+  }
+
+  function projectStateHref(projectId: string): string {
+    return `${PROJECTS_ROUTE}${projectStateHash(projectId)}`;
+  }
+
+  function setProjectUrlState(projectId: string | null): void {
+    const nextHash = projectStateHash(projectId, window.location.hash);
+    projectHashId = readProjectHashId(nextHash);
+    window.history.replaceState(window.history.state, '', `${PROJECTS_ROUTE}${nextHash}`);
+  }
 
   function broadcastProjectSelected(project: ProjectViewModel): void {
     window.dispatchEvent(new CustomEvent<ProjectViewModel>(PROJECT_SELECTED_EVENT, { detail: project }));
@@ -87,9 +180,8 @@
     try {
       hasLoadError = false;
       projects = await listProjects();
-      if (!selectedProject && projects.length > 0) {
-        selectedProject = sortedProjects[0] ?? projects[0];
-        await refreshSelectedProject();
+      if (selectedProject) {
+        selectedProject = projects.find((project) => project.project_id === selectedProject?.project_id) ?? selectedProject;
       }
     } catch (error) {
       hasLoadError = true;
@@ -105,9 +197,11 @@
       folders = [];
       items = [];
       sources = [];
+      resetRemoteBrowser();
       currentFolder = null;
       currentFolderHash = null;
       folderHashes = new Map();
+      resetRemoteBrowser();
       return;
     }
     const [contents, projectSources] = await Promise.all([
@@ -124,6 +218,58 @@
     }
   }
 
+  function clearSelectedProject(): void {
+    selectedProject = null;
+    folders = [];
+    items = [];
+    sources = [];
+    currentFolder = null;
+    currentFolderHash = null;
+    folderHashes = new Map();
+    resetRemoteBrowser();
+  }
+
+  async function selectProject(project: ProjectViewModel, updateHash = true): Promise<void> {
+    selectedProject = project;
+    currentFolder = null;
+    currentFolderHash = null;
+    resetRemoteBrowser();
+    broadcastProjectSelected(project);
+    if (updateHash) setProjectUrlState(project.project_id);
+    if (variant === 'sidebar') panelState.closeChats();
+    await refreshSelectedProject();
+  }
+
+  async function selectProjectById(projectId: string, updateHash = true): Promise<void> {
+    const project = projects.find((candidate) => candidate.project_id === projectId);
+    if (project) {
+      await selectProject(project, updateHash);
+      return;
+    }
+
+    try {
+      const loadedProject = await getProject(projectId);
+      projects = [loadedProject, ...projects.filter((candidate) => candidate.project_id !== projectId)];
+      await selectProject(loadedProject, updateHash);
+    } catch (error) {
+      console.error('[ProjectsPage] Failed to open project from hash:', error);
+      notificationStore.error('Failed to open project');
+      if (!updateHash) {
+        clearSelectedProject();
+        setProjectUrlState(null);
+      }
+    }
+  }
+
+  function openProjectsHome(): void {
+    clearSelectedProject();
+    setProjectUrlState(null);
+  }
+
+  async function openProjectFromCard(item: ProjectContinueItem): Promise<void> {
+    await selectProjectById(item.id);
+  }
+
   async function handleCreateProject(): Promise<void> {
     const name = newProjectName.trim();
     if (!name || isSaving) return;
@@ -136,7 +282,9 @@
       currentFolderHash = null;
       folders = [];
       items = [];
+      sources = [];
       newProjectName = '';
+      setProjectUrlState(project.project_id);
       broadcastProjectsChanged();
       broadcastProjectSelected(project);
       notificationStore.success('Project created');
@@ -154,8 +302,8 @@
       await deleteProject(project.project_id);
       projects = projects.filter((candidate) => candidate.project_id !== project.project_id);
       if (selectedProject?.project_id === project.project_id) {
-        selectedProject = projects[0] ?? null;
-        await refreshSelectedProject();
+        clearSelectedProject();
+        setProjectUrlState(null);
       }
       broadcastProjectsChanged();
       notificationStore.success('Project deleted');
@@ -163,6 +311,26 @@
       console.error('[ProjectsPage] Failed to delete project:', error);
       notificationStore.error('Failed to delete project');
     }
+  }
+
+  function updateProjectInList(project: ProjectViewModel): void {
+    projects = projects.map((candidate) => candidate.project_id === project.project_id ? project : candidate);
+  }
+
+  async function saveSelectedProjectTitle(title: string): Promise<void> {
+    if (!selectedProject) return;
+    const updatedProject = await updateProjectMetadata(selectedProject, { name: title });
+    selectedProject = updatedProject;
+    updateProjectInList(updatedProject);
+    broadcastProjectsChanged();
+  }
+
+  async function saveSelectedProjectDescription(description: string): Promise<void> {
+    if (!selectedProject) return;
+    const updatedProject = await updateProjectMetadata(selectedProject, { description });
+    selectedProject = updatedProject;
+    updateProjectInList(updatedProject);
+    broadcastProjectsChanged();
   }
 
   async function handleCreateFolder(): Promise<void> {
@@ -242,88 +410,139 @@
     closeRemotePreview();
   }
 
-  function getRemotePreviewEntries(source: ProjectSourceViewModel): RemotePreviewEntry[] {
-    const candidates = getRemotePreviewCandidates(source.metadata);
-    return candidates.flatMap((candidate) => {
-      try {
-        const preview = normalizeRemoteFilePreview({
-          sourceId: source.source_id,
-          path: getString(candidate, 'path') || getString(candidate, 'remote_path'),
-          displayName: getString(candidate, 'displayName') || getString(candidate, 'display_name') || getString(candidate, 'path') || source.displayName || source.source_id,
-          remoteItemId: getString(candidate, 'remoteItemId') || getString(candidate, 'remote_item_id'),
-          kind: getPreviewKind(candidate),
-          language: getString(candidate, 'language') || 'text',
-          snippet: getString(candidate, 'snippet'),
-          baseHash: getString(candidate, 'baseHash') || getString(candidate, 'base_hash'),
-          sizeBytes: getNumber(candidate, 'sizeBytes') ?? getNumber(candidate, 'size_bytes'),
-          lineCount: getNumber(candidate, 'lineCount') ?? getNumber(candidate, 'line_count'),
-          mtime: getString(candidate, 'mtime'),
-          contentHash: getString(candidate, 'contentHash') || getString(candidate, 'content_hash'),
-          gitStatus: getString(candidate, 'gitStatus') || getString(candidate, 'git_status'),
-          previewPolicy: getString(candidate, 'previewPolicy') || getString(candidate, 'preview_policy'),
-          safetyFlags: getStringArray(candidate, 'safetyFlags') ?? getStringArray(candidate, 'safety_flags') ?? [],
-        });
-        return [{
-          preview,
-          uploadContent: getUploadContent(candidate),
-          sourceLabel: source.displayName || source.source_id,
-        }];
-      } catch (error) {
-        console.warn('[ProjectsPage] Ignoring invalid remote preview metadata:', error);
-        return [];
+  function resetRemoteBrowser(): void {
+    activeRemoteSourceId = null;
+    remotePath = '.';
+    remoteEntries = [];
+    remoteSearchQuery = '';
+    remoteSearchMatches = [];
+    remotePreviewEntries = [];
+    remoteError = '';
+    isRemoteLoading = false;
+  }
+
+  async function refreshRemoteSourceStatus(): Promise<void> {
+    const project = selectedProject;
+    if (!project) return;
+    try {
+      const refreshed = await listProjectSources(project);
+      if (selectedProject?.project_id !== project.project_id) return;
+      sources = refreshed;
+      const active = refreshed.find((source) => source.source_id === activeRemoteSourceId);
+      if (active && active.status !== 'connected') {
+        remoteEntries = [];
+        remoteSearchMatches = [];
+        remoteError = 'This Project source is offline';
       }
-    });
-  }
-
-  function getRemotePreviewCandidates(metadata: Record<string, unknown>): Record<string, unknown>[] {
-    const previewFiles = metadata.preview_files ?? metadata.previewFiles ?? metadata.remote_previews;
-    if (Array.isArray(previewFiles)) return previewFiles.filter(isRecord);
-    const preview = metadata.preview ?? metadata.remote_preview;
-    return isRecord(preview) ? [preview] : [];
-  }
-
-  function getPreviewKind(candidate: Record<string, unknown>): 'file' | 'folder' {
-    return getString(candidate, 'kind') === 'folder' ? 'folder' : 'file';
-  }
-
-  function getUploadContent(candidate: Record<string, unknown>): string | Blob | null {
-    const content = candidate.full_content ?? candidate.fullContent ?? candidate.content;
-    if (typeof content === 'string') return content;
-    if (typeof Blob !== 'undefined' && content instanceof Blob) return content;
-    return null;
-  }
-
-  function isRecord(value: unknown): value is Record<string, unknown> {
-    return !!value && typeof value === 'object' && !Array.isArray(value);
-  }
-
-  function getString(candidate: Record<string, unknown>, key: string): string {
-    const value = candidate[key];
-    return typeof value === 'string' ? value : '';
-  }
-
-  function getNumber(candidate: Record<string, unknown>, key: string): number | undefined {
-    const value = candidate[key];
-    return Number.isInteger(value) && Number(value) >= 0 ? Number(value) : undefined;
-  }
-
-  function getStringArray(candidate: Record<string, unknown>, key: string): string[] | undefined {
-    const value = candidate[key];
-    return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : undefined;
-  }
-
-  function selectProject(project: ProjectViewModel): void {
-    selectedProject = project;
-    currentFolder = null;
-    currentFolderHash = null;
-    broadcastProjectSelected(project);
-    if (variant === 'sidebar') {
-      panelState.closeChats();
+    } catch (error) {
+      console.error('[ProjectsPage] Failed to refresh remote source status:', error);
     }
-    refreshSelectedProject().catch((error) => {
-      console.error('[ProjectsPage] Failed to refresh selected project:', error);
-      notificationStore.error('Failed to open project');
-    });
+  }
+
+  async function browseRemoteSource(source: ProjectSourceViewModel, path = '.'): Promise<void> {
+    if (!selectedProject || !$userProfile.user_id || isRemoteLoading) return;
+    activeRemoteSourceId = source.source_id;
+    isRemoteLoading = true;
+    remoteError = '';
+    try {
+      const result = await requestProjectRemoteAccess<ProjectRemoteDirectoryResult>(
+        selectedProject,
+        source,
+        $userProfile.user_id,
+        'list',
+        { path },
+      );
+      remotePath = path;
+      remoteEntries = result.entries;
+      remoteSearchMatches = [];
+    } catch (error) {
+      remoteError = error instanceof Error ? error.message : 'Could not browse this source';
+      console.error('[ProjectsPage] Failed to browse remote source:', error);
+    } finally {
+      isRemoteLoading = false;
+    }
+  }
+
+  function remoteParentPath(path: string): string {
+    if (!path || path === '.') return '.';
+    const parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
+    parts.pop();
+    return parts.join('/') || '.';
+  }
+
+  async function openRemoteEntry(source: ProjectSourceViewModel, entry: ProjectRemoteDirectoryEntry): Promise<void> {
+    if (entry.kind === 'directory') {
+      await browseRemoteSource(source, entry.path);
+      return;
+    }
+    await openRemoteFile(source, entry.path);
+  }
+
+  async function searchRemoteSource(source: ProjectSourceViewModel): Promise<void> {
+    const query = remoteSearchQuery.trim();
+    if (!selectedProject || !$userProfile.user_id || !query || isRemoteLoading) return;
+    activeRemoteSourceId = source.source_id;
+    isRemoteLoading = true;
+    remoteError = '';
+    try {
+      const result = await requestProjectRemoteAccess<ProjectRemoteSearchResult>(
+        selectedProject,
+        source,
+        $userProfile.user_id,
+        'search',
+        { query },
+      );
+      remoteSearchMatches = result.matches;
+    } catch (error) {
+      remoteError = error instanceof Error ? error.message : 'Could not search this source';
+      console.error('[ProjectsPage] Failed to search remote source:', error);
+    } finally {
+      isRemoteLoading = false;
+    }
+  }
+
+  async function openRemoteFile(source: ProjectSourceViewModel, path: string): Promise<void> {
+    if (!selectedProject || !$userProfile.user_id || isRemoteLoading) return;
+    isRemoteLoading = true;
+    remoteError = '';
+    try {
+      const result = await requestProjectRemoteAccess<ProjectRemoteTextResult>(
+        selectedProject,
+        source,
+        $userProfile.user_id,
+        'read_text',
+        { path },
+      );
+      const preview = normalizeRemoteFilePreview({
+        sourceId: source.source_id,
+        path,
+        displayName: path.split('/').filter(Boolean).pop() || path,
+        language: remoteFileLanguage(path),
+        snippet: result.content,
+        sizeBytes: result.sizeBytes,
+        lineCount: result.lineCount,
+        previewPolicy: result.truncated ? 'bounded_truncated_text' : 'bounded_full_text',
+        safetyFlags: result.truncated ? ['truncated'] : [],
+      });
+      const entry = { preview, uploadContent: result.content, sourceLabel: source.displayName || source.source_id };
+      remotePreviewEntries = [entry, ...remotePreviewEntries.filter((candidate) => candidate.preview.embed.embed_id !== preview.embed.embed_id)];
+      openRemotePreview(preview);
+    } catch (error) {
+      remoteError = error instanceof Error ? error.message : 'Could not read this file';
+      console.error('[ProjectsPage] Failed to read remote file:', error);
+    } finally {
+      isRemoteLoading = false;
+    }
+  }
+
+  function remoteFileLanguage(path: string): string {
+    const extension = path.split('.').pop()?.toLowerCase() ?? '';
+    const languages: Record<string, string> = {
+      css: 'css', go: 'go', html: 'html', java: 'java', js: 'javascript', json: 'json', jsx: 'javascript',
+      md: 'markdown', py: 'python', rs: 'rust', svelte: 'svelte', swift: 'swift', ts: 'typescript',
+      tsx: 'typescript', txt: 'text', yaml: 'yaml', yml: 'yaml',
+    };
+    return languages[extension] ?? 'text';
   }
 
   async function openFolder(folder: ProjectFolderViewModel): Promise<void> {
@@ -336,8 +555,12 @@
     currentFolderHash = null;
   }
 
-  function handleStartProjectInspiration(): void {
-    panelState.openChats();
+  function handleStartProjectInspiration(inspiration: ProjectInspiration): void {
+    newProjectName = inspiration.phrase || inspiration.title || '';
+  }
+
+  function showProjectVoiceInputUnavailable(): void {
+    notificationStore.info('Voice input for projects is coming soon.', 4000, true, 'projects-voice-input');
   }
 
   function openSelectedProjectSettings(): void {
@@ -347,25 +570,40 @@
   }
 
   onMount(() => {
+    syncProjectHashFromLocation();
     void refreshProjects();
-    void loadDefaultInspirations({ surface: 'projects', allowIndexedDB: false });
     const handleProjectSelected = (event: Event) => {
       const project = (event as CustomEvent<ProjectViewModel>).detail;
       if (!project || selectedProject?.project_id === project.project_id) return;
       selectedProject = project;
       currentFolder = null;
       currentFolderHash = null;
+      if (variant === 'main') setProjectUrlState(project.project_id);
       void refreshSelectedProject();
     };
     const handleProjectsChanged = () => {
       void refreshProjects();
     };
+    const sourceStatusTimer = window.setInterval(() => void refreshRemoteSourceStatus(), 15_000);
+    window.addEventListener('hashchange', syncProjectHashFromLocation);
     window.addEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
     window.addEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
     return () => {
+      window.removeEventListener('hashchange', syncProjectHashFromLocation);
       window.removeEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
       window.removeEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
+      window.clearInterval(sourceStatusTimer);
     };
+  });
+
+  $effect(() => {
+    if (variant !== 'main' || isLoading) return;
+    if (!projectHashId) {
+      if (selectedProject) clearSelectedProject();
+      return;
+    }
+    if (selectedProject?.project_id === projectHashId) return;
+    void selectProjectById(projectHashId, false);
   });
 </script>
 
@@ -396,16 +634,17 @@
   {:else}
     <div class="project-list" data-testid="project-list">
       {#each sortedProjects as project (project.project_id)}
-        <button
+        <article
           class:active={selectedProject?.project_id === project.project_id}
           class="project-card"
           data-testid="project-card"
-          onclick={() => selectProject(project)}
-          type="button"
         >
-          <span>{project.name || 'Untitled project'}</span>
-          <small>{project.encrypted.item_count ?? 0} items</small>
-        </button>
+          <button type="button" onclick={() => void selectProject(project)}>
+            <span>{project.name || 'Untitled project'}</span>
+            <small>{project.encrypted.item_count ?? 0} items</small>
+          </button>
+          <a href={projectStateHref(project.project_id)} data-testid="project-detail-link" onclick={(event) => { event.preventDefault(); void selectProject(project); }}>Open</a>
+        </article>
       {/each}
     </div>
   {/if}
@@ -413,22 +652,34 @@
 
 {#snippet selectedProjectDetails()}
   {#if selectedProject}
-      <header class="project-header">
-        <div>
-          <p class="eyebrow">Project</p>
-          <h2>{selectedProject.name || 'Untitled project'}</h2>
-          <p>{selectedProject.description || 'Add chats, embeds, PDFs, sheets, images, audio, video, code, mail, and files.'}</p>
-        </div>
+      <header class="project-detail-topbar">
+        <button type="button" class="back-action" data-testid="project-detail-back" onclick={openProjectsHome} aria-label="Back to projects">
+          &larr;
+        </button>
         <div class="header-actions">
           <button type="button" onclick={() => uploadInput?.click()} disabled={isSaving} data-testid="project-upload-button">
             Upload file
           </button>
-          <button type="button" onclick={() => void handleDeleteProject(selectedProject as ProjectViewModel)} data-testid="project-delete-button">
+          <button class="settings-gear-button" type="button" data-testid="project-settings-button" aria-label="Open project settings" onclick={openSelectedProjectSettings}>
+            Settings
+          </button>
+          <button type="button" class="destructive-action" onclick={() => void handleDeleteProject(selectedProject as ProjectViewModel)} data-testid="project-delete-button">
             Delete
           </button>
           <input bind:this={uploadInput} type="file" onchange={handleUploadSelected} hidden />
         </div>
       </header>
+
+      <WorkspaceDetailHeader
+        title={selectedProject.name || 'Untitled project'}
+        description={selectedProject.description || 'Add chats, embeds, PDFs, sheets, images, audio, video, code, mail, and files.'}
+        category="productivity"
+        icon="folder"
+        writable={true}
+        onSaveTitle={saveSelectedProjectTitle}
+        onSaveDescription={saveSelectedProjectDescription}
+        metadata={`${selectedProject.encrypted.item_count ?? 0} items`}
+      />
 
       <section class="project-section">
         <div class="section-title">
@@ -481,9 +732,6 @@
             <h3>Remote sources</h3>
             <p class="muted">Connected folders and repositories stay on your machine unless you upload selected files.</p>
           </div>
-          <button class="settings-gear-button" type="button" data-testid="project-settings-button" aria-label="Open project settings" onclick={openSelectedProjectSettings}>
-            Settings
-          </button>
         </div>
         {#if sources.length === 0}
           <div class="empty-state compact" data-testid="project-remote-sources-empty">
@@ -504,8 +752,74 @@
                   </div>
                   <span class="source-status">{source.status.replaceAll('_', ' ')}</span>
                 </div>
+                <button
+                  class="source-browse-button"
+                  type="button"
+                  data-testid="project-remote-source-browse"
+                  disabled={source.status !== 'connected' || isRemoteLoading}
+                  onclick={() => void browseRemoteSource(source)}
+                >
+                  {source.status === 'connected' ? 'Browse source' : 'Source offline'}
+                </button>
+                {#if activeRemoteSourceId === source.source_id}
+                  <div class="remote-browser" data-testid="project-remote-browser">
+                    <div class="remote-path-row">
+                      <button
+                        type="button"
+                        data-testid="project-remote-parent"
+                        disabled={remotePath === '.' || isRemoteLoading}
+                        onclick={() => void browseRemoteSource(source, remoteParentPath(remotePath))}
+                      >Up</button>
+                      <code>{remotePath}</code>
+                      <button type="button" disabled={isRemoteLoading} onclick={() => void browseRemoteSource(source, remotePath)}>Refresh</button>
+                    </div>
+                    <form class="remote-search" onsubmit={(event) => { event.preventDefault(); void searchRemoteSource(source); }}>
+                      <input
+                        bind:value={remoteSearchQuery}
+                        data-testid="project-remote-search-input"
+                        placeholder="Search this source"
+                        aria-label="Search this remote source"
+                      />
+                      <button data-testid="project-remote-search-submit" type="submit" disabled={!remoteSearchQuery.trim() || isRemoteLoading}>Search</button>
+                    </form>
+                    {#if remoteError}
+                      <p class="remote-error" data-testid="project-remote-error">{remoteError}</p>
+                    {/if}
+                    {#if isRemoteLoading}
+                      <p class="muted" data-testid="project-remote-loading">Loading from your device...</p>
+                    {:else if remoteSearchMatches.length > 0}
+                      <div class="remote-results" data-testid="project-remote-search-results">
+                        {#each remoteSearchMatches as match (`${match.path}:${match.line}`)}
+                          <button class="remote-result" type="button" onclick={() => void openRemoteFile(source, match.path)}>
+                            <strong>{match.path}</strong>
+                            <small>Line {match.line}</small>
+                            <span>{match.snippet}</span>
+                          </button>
+                        {/each}
+                      </div>
+                    {:else}
+                      <div class="remote-results" data-testid="project-remote-directory-results">
+                        {#each remoteEntries as entry (entry.path)}
+                          <button
+                            class="remote-entry"
+                            type="button"
+                            data-testid="project-remote-entry"
+                            data-kind={entry.kind}
+                            onclick={() => void openRemoteEntry(source, entry)}
+                          >
+                            <span>{entry.kind === 'directory' ? 'Folder' : 'File'}</span>
+                            <strong>{entry.path.split('/').filter(Boolean).pop() || entry.path}</strong>
+                          </button>
+                        {/each}
+                        {#if remoteEntries.length === 0}
+                          <p class="muted">No readable entries in this folder.</p>
+                        {/if}
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
                 <div class="source-previews">
-                  {#each getRemotePreviewEntries(source) as previewEntry (previewEntry.preview.embed.embed_id)}
+                  {#each remotePreviewEntries.filter((entry) => entry.preview.embed.content.source_id === source.source_id) as previewEntry (previewEntry.preview.embed.embed_id)}
                     <ProjectRemotePreviewCard
                       preview={previewEntry.preview}
                       sourceLabel={previewEntry.sourceLabel}
@@ -561,55 +875,43 @@
   </aside>
 {:else}
   <section class="projects-page" data-testid="projects-page">
-    <main class="project-main">
-      <div class="daily-inspiration-area">
-        <DailyInspirationBanner
-          surface="projects"
-          onStartChat={handleStartProjectInspiration}
-          containerWidth={900}
-        />
-      </div>
-
-      <section class="projects-hero">
-        <div>
-          <p class="eyebrow">Projects</p>
-          <h1>Hey {greetingName}! Continue where you left off:</h1>
-          <p>Pick up recent project work or create a new workspace for chats, embeds, uploads, and saved AI outputs.</p>
-        </div>
-        <button class="hero-create-button" data-testid="project-create-main-button" type="button" onclick={() => panelState.openChats()}>
-          Create project
-        </button>
-      </section>
-
-      {#if recentProjects.length > 0}
-        <section class="project-section" data-testid="recent-projects-section">
-          <div class="section-title">
-            <h2>Continue where you left off</h2>
-          </div>
-          <div class="recent-projects-row">
-            {#each recentProjects as project (project.project_id)}
-              <button class="recent-project-card" data-testid="recent-project-card" type="button" onclick={() => selectProject(project)}>
-                <span class="tile-icon">Project</span>
-                <strong>{project.name || 'Untitled project'}</strong>
-                <small>{project.encrypted.item_count ?? 0} items</small>
-              </button>
-            {/each}
-          </div>
-        </section>
-      {/if}
-
-      <section class="project-section" data-testid="all-projects-section">
-        <div class="section-title">
-          <h2>All projects</h2>
-          <span class="muted">{sortedProjects.length} total</span>
-        </div>
-        {@render projectList(false)}
-      </section>
-
-      <section class="project-section">
+    {#if selectedProject}
+      <main class="project-main" data-testid="project-management">
         {@render selectedProjectDetails()}
-      </section>
-    </main>
+      </main>
+    {:else}
+      <WorkspaceHomeShell
+        surface="projects"
+        testId="projects-start-screen"
+        heading={`Hey ${greetingName}!`}
+        subtitle="What do you want to organize next?"
+        actionItems={projectLandingItems}
+        actionItemsTestId="project-mixed-row"
+        itemTestId="project-landing-card"
+        showReportIssue
+        onActionItem={openProjectFromCard}
+        onContinueItem={openProjectFromCard}
+        onStartInspiration={handleStartProjectInspiration}
+      >
+        <svelte:fragment slot="composer">
+          <WorkspacePromptComposer
+            surface="projects"
+            bind:value={newProjectName}
+            placeholder="Name a new project"
+            submitLabel="Create project"
+            submittingLabel="Creating..."
+            disabled={isSaving}
+            submitting={isSaving}
+            testId="project-input-composer"
+            inputTestId="project-input-textarea"
+            submitTestId="project-input-submit"
+            micTestId="project-input-mic"
+            onSubmit={handleCreateProject}
+            onMicClick={showProjectVoiceInputUnavailable}
+          />
+        </svelte:fragment>
+      </WorkspaceHomeShell>
+    {/if}
   </section>
 {/if}
 
@@ -635,11 +937,14 @@
 
 <style>
   .projects-page {
+    position: relative;
     flex: 1;
     min-width: 0;
     height: 100%;
     overflow: hidden;
-    background: var(--color-grey-0);
+    border-radius: 17px;
+    background: var(--color-grey-20);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     color: var(--color-font-primary);
   }
 
@@ -688,33 +993,11 @@
     letter-spacing: 0.5px;
   }
 
-  .projects-hero {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: var(--spacing-10);
-    border-radius: var(--radius-6);
-    background: linear-gradient(135deg, var(--color-grey-10), var(--color-grey-0));
-    padding: clamp(22px, 4vw, 46px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  }
-
-  .projects-hero h1 {
-    max-width: 980px;
-    font-size: clamp(2.6rem, 5.8vw, 5rem);
-    line-height: 1.05;
-    letter-spacing: -0.05em;
-  }
-
-  .projects-hero h1,
-  .project-header h2,
   .project-section h2,
   .project-section h3 {
     margin: 0;
   }
 
-  .projects-hero p,
-  .project-header p,
   .muted {
     color: var(--color-font-secondary);
   }
@@ -770,7 +1053,24 @@
     border: 0;
     border-radius: var(--radius-3);
     text-align: left;
-    padding: 12px 15px;
+    padding: 0;
+  }
+
+  .project-card > button {
+    display: flex;
+    flex: 1;
+    justify-content: space-between;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+  }
+
+  .project-card > a {
+    min-width: 44px;
+    min-height: 44px;
+    display: grid;
+    place-items: center;
+    color: var(--color-font-primary);
   }
 
   .project-card.active {
@@ -778,18 +1078,15 @@
   }
 
   .project-main {
+    width: 100%;
     height: 100%;
     overflow: auto;
     padding: clamp(14px, 3vw, 32px);
     max-width: 1500px;
     margin: 0 auto;
+    box-sizing: border-box;
   }
 
-  .daily-inspiration-area {
-    margin-bottom: 24px;
-  }
-
-  .project-header,
   .section-title {
     display: flex;
     justify-content: space-between;
@@ -798,46 +1095,41 @@
     margin-bottom: 24px;
   }
 
-  .header-actions {
+  .project-detail-topbar {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-index-raised-3);
     display: flex;
-    gap: 8px;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-6);
+    margin-bottom: var(--spacing-5);
+    padding: var(--spacing-3) 0;
+    background: color-mix(in srgb, var(--color-grey-20) 92%, transparent);
+    backdrop-filter: blur(16px);
   }
 
-  .eyebrow,
-  .tile-icon {
-    margin: 0 0 6px;
-    color: var(--color-font-secondary);
-    font-size: 0.82rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+  .back-action {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: var(--radius-full);
+    color: var(--color-font-primary);
+    background: var(--color-grey-0);
+    font-size: 1.4rem;
+    font-weight: 900;
+  }
+
+  .header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
   }
 
   .project-section {
     margin-top: 32px;
-  }
-
-  .recent-projects-row {
-    display: flex;
-    gap: 16px;
-    overflow-x: auto;
-    padding: 6px 2px 18px;
-    scroll-snap-type: x proximity;
-  }
-
-  .recent-project-card {
-    flex: 0 0 300px;
-    width: 300px;
-    height: 200px;
-    display: grid;
-    align-content: end;
-    gap: 8px;
-    color: var(--color-font-primary);
-    text-align: left;
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-5);
-    background: linear-gradient(135deg, var(--color-grey-0), var(--color-grey-10));
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-    scroll-snap-align: start;
   }
 
   .grid {
@@ -969,6 +1261,10 @@
     color: var(--color-font-primary);
   }
 
+  .destructive-action {
+    background: var(--color-danger, #b42318);
+  }
+
   .source-list {
     display: grid;
     gap: 10px;
@@ -1001,6 +1297,78 @@
     gap: 14px;
   }
 
+  .source-browse-button {
+    justify-self: start;
+  }
+
+  .remote-browser {
+    display: grid;
+    gap: var(--spacing-8);
+    padding: var(--spacing-8);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
+  }
+
+  .remote-path-row,
+  .remote-search {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+  }
+
+  .remote-path-row code {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--color-font-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .remote-search input {
+    background: var(--color-grey-0);
+  }
+
+  .remote-results {
+    display: grid;
+    gap: var(--spacing-4);
+  }
+
+  .remote-entry,
+  .remote-result {
+    display: grid;
+    gap: var(--spacing-2);
+    width: 100%;
+    color: var(--color-font-primary);
+    text-align: start;
+    background: var(--color-grey-0);
+    border: 1px solid var(--color-grey-25);
+  }
+
+  .remote-entry {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+  }
+
+  .remote-entry span,
+  .remote-result small {
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-xs);
+  }
+
+  .remote-result span {
+    overflow: hidden;
+    color: var(--color-font-secondary);
+    font-family: monospace;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .remote-error {
+    margin: 0;
+    color: var(--color-error);
+  }
+
   .source-kind,
   .source-status {
     color: var(--color-font-secondary);
@@ -1028,24 +1396,29 @@
   }
 
   @media (max-width: 800px) {
-    .projects-hero,
-    .project-header,
-    .section-title {
+    .section-title,
+    .project-detail-topbar {
       flex-direction: column;
+      align-items: stretch;
     }
 
-    .projects-hero h1 {
-      font-size: clamp(2.2rem, 12vw, 4rem);
-    }
-
-    .recent-project-card {
-      flex-basis: 260px;
-      width: 260px;
-      height: 170px;
+    .project-detail-topbar {
+      position: static;
     }
 
     .browser-grid {
       grid-template-columns: 1fr;
+    }
+
+    .remote-path-row,
+    .remote-search {
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
+
+    .remote-path-row code,
+    .remote-search input {
+      flex-basis: 100%;
     }
   }
 </style>

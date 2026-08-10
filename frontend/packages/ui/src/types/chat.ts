@@ -130,6 +130,32 @@ export interface Message {
   highlights?: MessageHighlight[];
 }
 
+export interface ChatUsageEntry {
+  id: string;
+  type?: string | null;
+  source?: string | null;
+  app_id?: string | null;
+  skill_id?: string | null;
+  model_used?: string | null;
+  credits?: number | null;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  user_input_tokens?: number | null;
+  system_prompt_tokens?: number | null;
+  credits_system_prompt?: number | null;
+  credits_history?: number | null;
+  credits_response?: number | null;
+  server_provider?: string | null;
+  server_region?: string | null;
+  chat_id?: string | null;
+  message_id?: string | null;
+  created_at: number | string;
+  updated_at?: number | string | null;
+  tool_inference_iterations?: number | null;
+  code_run_filenames?: string[] | null;
+  code_run_duration_seconds?: number | null;
+}
+
 export interface ChatCompressionCheckpoint {
   id: string;
   chat_id: string;
@@ -287,6 +313,67 @@ export interface CodeRunOutputSyncedPayload {
   updated_at: number;
 }
 
+export interface NotebookCellRunOutput {
+  cell_index: number;
+  execution_count?: number | null;
+  outputs: unknown[];
+}
+
+export interface NotebookRunOutput {
+  id: string;
+  chat_id: string;
+  notebook_embed_id: string;
+  author_user_id?: string;
+  source_version?: string | null;
+  status?: string;
+  selected_cell_indices?: number[];
+  cell_outputs: NotebookCellRunOutput[];
+  error?: string;
+  saved_at: number;
+  created_at: number;
+  updated_at?: number;
+  key_version?: number | null;
+}
+
+export interface NotebookRunOutputPayload {
+  source_version?: string | null;
+  status?: string;
+  selected_cell_indices?: number[];
+  cell_outputs: NotebookCellRunOutput[];
+  error?: string;
+  saved_at: number;
+  created_at: number;
+  updated_at?: number;
+}
+
+export interface UpsertNotebookRunOutputPayload {
+  chat_id: string;
+  notebook_embed_id: string;
+  id?: string;
+  source_version?: string | null;
+  key_version?: number | null;
+  encrypted_payload: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface RequestNotebookRunOutputPayload {
+  chat_id: string;
+  notebook_embed_id: string;
+}
+
+export interface NotebookRunOutputSyncedPayload {
+  chat_id: string;
+  notebook_embed_id: string;
+  id: string;
+  author_user_id: string;
+  source_version?: string | null;
+  key_version?: number | null;
+  encrypted_payload: string;
+  created_at: number;
+  updated_at: number;
+}
+
 /**
  * A single PII mapping entry for restoration
  */
@@ -309,9 +396,13 @@ export interface Chat {
   encrypted_draft_md?: string | null; // User's encrypted draft content (markdown) for this chat
   encrypted_draft_preview?: string | null; // User's encrypted draft preview (truncated text for chat list display)
   draft_v?: number; // Version of the user's draft for this chat
+  ideabucket?: boolean | null; // Sparse marker for IdeaBucket-origin drafts/chats.
+  ideabucket_processing_window_id?: string | null; // Non-private IdeaBucket bucket/window id for UI provenance.
+  ideabucket_triggered_at?: number | null; // Unix timestamp when IdeaBucket sent this chat, if already processed.
 
   messages_v: number; // Client's current version for messages for this chat
   title_v: number; // Client's current version for title for this chat
+  metadata_v?: number; // Server-authoritative version for encrypted title + summary; legacy chats fall back to title_v
 
   last_edited_overall_timestamp: number; // Unix timestamp of the most recent message sent to this chat (for sorting). Only messages update this timestamp, not drafts.
   unread_count: number; // Number of unread messages in this chat for the current user
@@ -407,6 +498,7 @@ export interface ResumeCardImageBubble {
 export interface ChatComponentVersions {
   messages_v: number;
   title_v: number;
+  metadata_v?: number;
   draft_v?: number;
 }
 
@@ -467,6 +559,7 @@ export interface UpdateDraftPayload {
   chat_id: string;
   encrypted_draft_md: string | null;
   encrypted_draft_preview?: string | null;
+  draft_v?: number;
 }
 
 export interface SyncOfflineChangesPayload {
@@ -549,6 +642,7 @@ export interface AIMessageUpdatePayload {
   chat_id: string;
   message_id: string;
   user_message_id: string;
+  created_at?: number;
   full_content_so_far: string;
   sequence: number;
   is_final_chunk: boolean;
@@ -556,6 +650,8 @@ export interface AIMessageUpdatePayload {
   interrupted_by_soft_limit?: boolean;
   interrupted_by_revocation?: boolean;
   rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates this is a system error, not an AI response
+  recovery_job_id?: string | null;
+  recovery_protocol_version?: number | null;
 }
 
 export interface AITypingStartedPayload {
@@ -568,6 +664,7 @@ export interface AITypingStartedPayload {
   server_region?: string | null; // Server region for UI display (e.g., "EU", "US", "APAC")
   title?: string | null; // Added to include the chat title
   icon_names?: string[]; // Added to include the icon names from AI preprocessing
+  encrypted_chat_key?: string; // Server-provided canonical chat key wrapper for secondary devices
   // DUAL-PHASE: task_id for tracking
   task_id?: string;
   // CRITICAL: When true, this is a continuation task after app settings/memories confirmation
@@ -591,6 +688,7 @@ export interface AIBackgroundResponseCompletedPayload {
   chat_id: string;
   message_id: string; // AI's message ID
   user_message_id: string;
+  created_at?: number;
   task_id: string;
   full_content: string;
   model_name?: string | null;
@@ -598,6 +696,8 @@ export interface AIBackgroundResponseCompletedPayload {
   interrupted_by_soft_limit?: boolean;
   interrupted_by_revocation?: boolean;
   rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates this is a system error, not an AI response
+  recovery_job_id?: string | null;
+  recovery_protocol_version?: number | null;
 }
 
 // --- Thinking/Reasoning Payloads (Server to Client) ---
@@ -665,6 +765,7 @@ export interface SendEmbedDataPayload {
     // need to decode TOON to determine which renderer to use.
     app_id?: string; // Parent app ID (e.g. "images")
     skill_id?: string; // Child type as skill_id (e.g. "image_result") — NOT the parent's skill
+    owner_pii_mappings?: PIIMapping[]; // Owner-only sidecar mappings; stored as encrypted embed_pii:{embed_id}, never synced in embed content
     version_history_rows?: Array<{
       embed_id: string;
       version_number: number;
@@ -690,7 +791,7 @@ export interface ChatTitleUpdatedPayload {
   event: string;
   chat_id: string;
   data: { encrypted_title: string };
-  versions: { title_v: number };
+  versions: { title_v: number; metadata_v?: number };
 }
 
 export interface ChatDraftUpdatedPayload {
@@ -699,6 +800,8 @@ export interface ChatDraftUpdatedPayload {
   data: {
     encrypted_draft_md: string | null;
     encrypted_draft_preview?: string | null;
+    ideabucket?: boolean;
+    ideabucket_processing_window_id?: string | null;
   };
   versions: { draft_v: number };
   last_edited_overall_timestamp: number;
@@ -809,11 +912,13 @@ export interface InitialSyncResponsePayload {
     created_at: number;
     updated_at: number;
     encrypted_title?: string;
+    encrypted_chat_summary?: string | null;
     encrypted_draft_md?: string | null;
     encrypted_draft_preview?: string | null;
     encrypted_chat_key?: string | null; // Encrypted chat-specific key for decryption
     encrypted_icon?: string | null; // Encrypted icon name from Lucide library
     encrypted_category?: string | null; // Encrypted category name
+    encrypted_quick_tip_slugs?: string | null; // Encrypted quick-tip slugs selected during post-processing
     encrypted_shared_short_url?: string | null;
     unread_count?: number;
     messages?: Message[];
@@ -821,6 +926,9 @@ export interface InitialSyncResponsePayload {
     is_private?: boolean; // Whether this chat is private (not shared)
     share_pii?: boolean;
     share_highlights?: boolean;
+    ideabucket?: boolean | null;
+    ideabucket_processing_window_id?: string | null;
+    ideabucket_triggered_at?: number | null;
     user_id?: string; // Owner/creator of the chat
   }>;
   server_chat_order: string[];
@@ -865,6 +973,18 @@ export interface SyncCodeRunOutput {
   updated_at: number;
 }
 
+export interface SyncNotebookRunOutput {
+  chat_id: string;
+  notebook_embed_id: string;
+  id: string;
+  author_user_id: string;
+  source_version?: string | null;
+  key_version?: number | null;
+  encrypted_payload: string;
+  created_at: number;
+  updated_at: number;
+}
+
 export interface Phase1LastChatPayload {
   chat_id: string;
   chat_details: Partial<Chat>; // Partial Chat object from server (may not have all fields)
@@ -893,6 +1013,7 @@ export interface Phase1bChatContentPayload {
   embeds?: SyncEmbed[];
   embed_keys?: EmbedKeyEntry[];
   code_run_outputs?: SyncCodeRunOutput[];
+  notebook_run_outputs?: SyncNotebookRunOutput[];
 }
 
 /**
@@ -916,6 +1037,8 @@ export interface BackgroundMessageSyncPayload {
   embed_keys?: EmbedKeyEntry[];
   /** Encrypted Code Run terminal-output sidecars for this batch's code embeds */
   code_run_outputs?: SyncCodeRunOutput[];
+  /** Encrypted notebook cell-output sidecars for this batch's notebook embeds */
+  notebook_run_outputs?: SyncNotebookRunOutput[];
 }
 
 export interface CachePrimedPayload {
@@ -965,6 +1088,7 @@ export interface ChatContentBatchResponsePayload {
   embeds?: SyncEmbed[]; // On-demand embeds for requested chats
   embed_keys?: EmbedKeyEntry[]; // Embed keys for decryption
   code_run_outputs?: SyncCodeRunOutput[];
+  notebook_run_outputs?: SyncNotebookRunOutput[];
 }
 
 export interface OfflineSyncCompletePayload {
@@ -1016,6 +1140,9 @@ export interface Phase2RecentChatsPayload {
   chat_count: number;
   total_chat_count?: number; // Total chats on server (moved from Phase 3)
   phase?: "phase2";
+  authoritative?: boolean;
+  authoritative_chat_ids?: string[];
+  deleted_chat_ids?: string[];
 }
 
 /**

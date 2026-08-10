@@ -28,6 +28,43 @@ from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
 
+MAX_RETURNED_VIDEO_RESULTS = 20
+MIN_VIDEO_CANDIDATES = 8
+VIDEO_CANDIDATE_BUFFER = 4
+E2E_VIDEO_FIXTURE_QUERY_TOKEN = "openmates_e2e_video_fixture_python"
+E2E_VIDEO_FIXTURE_RESULTS = [
+    {
+        "title": "Python Programming Tutorial for Beginners",
+        "url": "https://www.youtube.com/watch?v=kqtD5dpn9C8",
+        "description": "A beginner-friendly Python programming tutorial used by the OpenMates E2E videos search flow.",
+        "age": "2024-01-01T00:00:00Z",
+        "meta_url": {"profile_image": "https://i.ytimg.com/vi/kqtD5dpn9C8/default.jpg"},
+        "thumbnail": {"original": "https://i.ytimg.com/vi/kqtD5dpn9C8/hqdefault.jpg"},
+        "viewCount": 1200000,
+        "likeCount": 42000,
+        "commentCount": 1800,
+        "tags": ["python", "programming", "tutorial"],
+        "channelTitle": "OpenMates E2E Videos",
+        "publishedAt": "2024-01-01T00:00:00Z",
+        "duration": "PT1H"
+    },
+    {
+        "title": "Learn Python by Building Small Projects",
+        "url": "https://www.youtube.com/watch?v=rfscVS0vtbw",
+        "description": "A project-based Python learning video used by the OpenMates E2E videos search flow.",
+        "age": "2024-02-01T00:00:00Z",
+        "meta_url": {"profile_image": "https://i.ytimg.com/vi/rfscVS0vtbw/default.jpg"},
+        "thumbnail": {"original": "https://i.ytimg.com/vi/rfscVS0vtbw/hqdefault.jpg"},
+        "viewCount": 980000,
+        "likeCount": 35000,
+        "commentCount": 1500,
+        "tags": ["python", "projects", "tutorial"],
+        "channelTitle": "OpenMates E2E Videos",
+        "publishedAt": "2024-02-01T00:00:00Z",
+        "duration": "PT45M"
+    },
+]
+
 
 class VideoSearchRequestItem(BaseModel):
     """A single video search request."""
@@ -318,10 +355,10 @@ class SearchSkill(BaseSkill):
         # and empty-string the same as "not provided", preventing httpx from sending
         # None/empty values to the Brave API (which rejects them with 422).
         req_count = req.get("count") or 10
-        # Enforce maximum of 20 results to limit sanitization costs
-        if req_count and req_count > 20:
-            logger.warning(f"Requested count {req_count} exceeds maximum of 20 for video search '{search_query}' (id: {request_id}). Capping to 20.")
-            req_count = 20
+        # Enforce maximum result count to limit metadata and sanitization costs.
+        if req_count and req_count > MAX_RETURNED_VIDEO_RESULTS:
+            logger.warning(f"Requested count {req_count} exceeds maximum of {MAX_RETURNED_VIDEO_RESULTS} for video search '{search_query}' (id: {request_id}). Capping to {MAX_RETURNED_VIDEO_RESULTS}.")
+            req_count = MAX_RETURNED_VIDEO_RESULTS
         req_country_raw = req.get("country") or "us"
         req_lang = req.get("search_lang") or "en"
         req_freshness = req.get("freshness") or None
@@ -355,6 +392,14 @@ class SearchSkill(BaseSkill):
             req_country = req_country_upper
         
         logger.debug(f"Executing video search (id: {request_id}): query='{search_query}', country='{req_country}'")
+        if _is_e2e_video_fixture_query(search_query):
+            fixture_results = _build_e2e_video_fixture_results(req_count)
+            logger.info(
+                "Video search (id: %s) using dev/test fixture results for query '%s'",
+                request_id,
+                search_query,
+            )
+            return (request_id, fixture_results, None)
         
         try:
             # Check and enforce rate limits before calling external API
@@ -405,9 +450,9 @@ class SearchSkill(BaseSkill):
                     # These should bubble up to the route handler
                     raise
             
-            # Call Brave Videos Search API - always search for 50 videos to get best selection
-            # We'll filter and sort by view count, then return top 10
-            brave_search_count = 50
+            # Search a small buffer above the requested count so direct CLI/API calls stay fast
+            # while still giving YouTube metadata sorting a few extra candidates.
+            brave_search_count = _candidate_count_for_requested_count(req_count)
             search_result = await search_videos(
                 query=search_query,
                 secrets_manager=secrets_manager,
@@ -428,27 +473,36 @@ class SearchSkill(BaseSkill):
             # Get Brave Search results
             brave_results = search_result.get("results", [])
             
-            # Extract YouTube video IDs from Brave Search results
-            youtube_videos = []  # List of (video_id, brave_result) tuples
-            for result in brave_results:
-                url = result.get("url", "")
-                video_id = extract_youtube_id_from_url(url)
-                if video_id:
-                    youtube_videos.append((video_id, result))
-            
-            if not youtube_videos:
-                logger.warning(f"No YouTube videos found in Brave Search results for query '{search_query}' (id: {request_id})")
-                return (request_id, [], f"Query '{search_query}': No YouTube videos found in search results")
-            
-            logger.debug(f"Found {len(youtube_videos)} YouTube videos out of {len(brave_results)} total results")
+            # Prefer YouTube URLs for metadata enrichment, but Brave's videos index can
+            # return other valid video pages. Keep those as a bounded fallback instead
+            # of turning a successful provider response into an empty result set.
+            video_candidates, has_youtube_candidates = _video_candidates_for_brave_results(
+                brave_results,
+                brave_search_count,
+            )
+            if not video_candidates:
+                logger.warning(f"No video results found in Brave Search results for query '{search_query}' (id: {request_id})")
+                return (request_id, [], f"Query '{search_query}': No video results found in search results")
+
+            if has_youtube_candidates:
+                logger.debug(f"Found {len(video_candidates)} YouTube videos out of {len(brave_results)} total results")
+            else:
+                logger.warning(
+                    "No YouTube videos found in Brave Search results for query '%s' (id: %s); using Brave video results without YouTube enrichment",
+                    search_query,
+                    request_id,
+                )
             
             # Get YouTube metadata for all videos (batched)
-            video_ids = [vid for vid, _ in youtube_videos]
+            video_ids = [vid for vid, _ in video_candidates if vid]
             try:
-                youtube_metadata = await get_video_metadata_batched(
-                    video_ids=video_ids,
-                    secrets_manager=secrets_manager,
-                    batch_size=50
+                youtube_metadata = (
+                    await get_video_metadata_batched(
+                        video_ids=video_ids,
+                        secrets_manager=secrets_manager,
+                        batch_size=50
+                    )
+                    if video_ids else {}
                 )
             except ValueError as e:
                 # YouTube API key not available - fall back to Brave Search results only
@@ -461,7 +515,7 @@ class SearchSkill(BaseSkill):
             
             # Extract channel IDs and fetch channel thumbnails (profile images)
             channel_ids = []
-            for video_id, _ in youtube_videos:
+            for video_id, _ in video_candidates:
                 yt_metadata = youtube_metadata.get(video_id, {})
                 snippet = yt_metadata.get('snippet', {})
                 channel_id = snippet.get('channelId')
@@ -493,7 +547,7 @@ class SearchSkill(BaseSkill):
             
             # Extract view counts and create enriched results
             enriched_videos = []
-            for video_id, brave_result in youtube_videos:
+            for video_id, brave_result in video_candidates:
                 yt_metadata = youtube_metadata.get(video_id, {})
                 
                 # Get view count for sorting (default to 0 if not available)
@@ -915,3 +969,39 @@ class SearchSkill(BaseSkill):
         return response
     
     # _generate_result_hash is now provided by BaseSkill
+
+
+def _candidate_count_for_requested_count(requested_count: int | None) -> int:
+    result_count = max(1, min(int(requested_count or 10), MAX_RETURNED_VIDEO_RESULTS))
+    return min(MAX_RETURNED_VIDEO_RESULTS, max(MIN_VIDEO_CANDIDATES, result_count + VIDEO_CANDIDATE_BUFFER))
+
+
+def _is_e2e_video_fixture_query(query: str) -> bool:
+    """Return True for the explicit non-production E2E videos search fixture token."""
+    return (
+        os.getenv("SERVER_ENVIRONMENT", "production") != "production"
+        and E2E_VIDEO_FIXTURE_QUERY_TOKEN in query.lower()
+    )
+
+
+def _build_e2e_video_fixture_results(requested_count: int | None) -> List[Dict[str, Any]]:
+    result_count = max(1, min(int(requested_count or 10), len(E2E_VIDEO_FIXTURE_RESULTS)))
+    return [dict(result) for result in E2E_VIDEO_FIXTURE_RESULTS[:result_count]]
+
+
+def _video_candidates_for_brave_results(
+    brave_results: List[Dict[str, Any]],
+    limit: int,
+) -> Tuple[List[Tuple[str, Dict[str, Any]]], bool]:
+    youtube_candidates: List[Tuple[str, Dict[str, Any]]] = []
+    for result in brave_results:
+        video_id = extract_youtube_id_from_url(result.get("url", ""))
+        if video_id:
+            youtube_candidates.append((video_id, result))
+        if len(youtube_candidates) >= limit:
+            break
+
+    if youtube_candidates:
+        return youtube_candidates, True
+
+    return [("", result) for result in brave_results[:limit]], False

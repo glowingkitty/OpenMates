@@ -184,13 +184,18 @@ final class AnonymousFreeUsageService: ObservableObject {
         return key
     }
 
-    func loadAnonymousChats(into chatStore: ChatStore) async {
+    func loadAnonymousChats(
+        into chatStore: ChatStore,
+        shouldLoad: () -> Bool = { true }
+    ) async {
         let ids = anonymousChatIds
-        guard !ids.isEmpty else { return }
+        guard !ids.isEmpty, shouldLoad() else { return }
         for chatId in ids {
             _ = try? await ensureAnonymousChatKey(chatId: chatId)
         }
+        guard shouldLoad() else { return }
         let chats = OfflineStore.shared.loadChats().filter { ids.contains($0.id) }
+        guard shouldLoad() else { return }
         chatStore.performWithoutPersistence {
             chatStore.upsertChats(chats)
             for chat in chats {
@@ -216,10 +221,17 @@ final class AnonymousFreeUsageService: ObservableObject {
                 clientChatId: chatId,
                 clientMessageId: assistantMessageId,
                 plaintextMessage: plaintext,
-                messageHistory: history
+                messageHistory: history,
+                learningMode: Self.activeGuestLearningModeContext()
             )
         )
         return response
+    }
+
+    private static func activeGuestLearningModeContext() -> AnonymousLearningModeContext? {
+        let status = LearningModeGuestSession.shared.status
+        guard status.enabled, let ageGroup = status.ageGroup else { return nil }
+        return AnonymousLearningModeContext(enabled: true, ageGroup: ageGroup)
     }
 
     func promoteAnonymousChats(chatStore: ChatStore, wsManager: WebSocketManager?, userId: String?) async -> [String] {
@@ -499,6 +511,7 @@ struct AnonymousChatRequest: Encodable {
     let clientMessageId: String
     let plaintextMessage: String
     let messageHistory: [AnonymousHistoryMessage]
+    let learningMode: AnonymousLearningModeContext?
 }
 
 struct AnonymousHistoryMessage: Encodable {

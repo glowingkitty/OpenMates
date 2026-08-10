@@ -1,0 +1,2259 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-20'
+generated_at: '2026-07-09T15:21:41+00:00'
+range:
+  since: '2026-05-20T00:00:00+00:00'
+  until: '2026-05-20T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 48
+  section_counts:
+    features: 10
+    bug_fixes: 27
+    improvements: 0
+    docs: 0
+    tests: 6
+    infrastructure: 1
+    internal: 1
+    other: 3
+  newsletter_ready_items: 30
+  user_facing_items: 30
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add math calculation titles'
+    section: features
+    commits:
+    - b944df3f1
+    authored_at: '2026-05-20T22:48:10+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/math/app.yml
+    - backend/apps/math/skills/calculate_skill.py
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/math/MathCalculateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/math/MathCalculateEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/math/MathCalculateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/math/mathEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/data/__tests__/embedTextRenderers.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: update chat header image background'
+    section: features
+    commits:
+    - 6d95c3bf3
+    authored_at: '2026-05-20T17:41:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-images-search.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add chat open in new tab menu action'
+    section: features
+    commits:
+    - abe99ea35
+    authored_at: '2026-05-20T16:59:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: revise daily development metric blocks'
+    section: features
+    commits:
+    - 20d5030a0
+    authored_at: '2026-05-20T16:31:51+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - scripts/update_obsidian_daily_note.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add daily development metrics graphic'
+    section: features
+    commits:
+    - 577d32c83
+    authored_at: '2026-05-20T16:12:04+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - scripts/update_obsidian_daily_note.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add shared chat PII policy'
+    section: features
+    commits:
+    - c35bf8973
+    authored_at: '2026-05-20T15:24:08+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/directus/schemas/chats.yml
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/share.yml
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/shareMetadataQueue.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add daily metrics SVG graphics'
+    section: features
+    commits:
+    - c1fb2b082
+    authored_at: '2026-05-20T12:28:43+00:00'
+    changed_paths:
+    - scripts/update_obsidian_daily_note.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: show image bubbles on resume cards'
+    section: features
+    commits:
+    - ba2641cc1
+    authored_at: '2026-05-20T12:07:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add generic chat replay demo mode'
+    section: features
+    commits:
+    - d2f071bcc
+    authored_at: '2026-05-20T10:53:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/chat-replay-demo-mode.spec.ts
+    - frontend/apps/web_app/tests/privacy-video-recording.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/demoMode.ts
+    - frontend/packages/ui/src/stores/personalDataStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: include code run output in inference context'
+    section: features
+    commits:
+    - 38a09a9d7
+    authored_at: '2026-05-20T00:17:48+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/code_run_output_handlers.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/shared/python_schemas/code_run_outputs.py
+    - backend/tests/test_code_execution.py
+    - frontend/packages/ui/src/services/sendersCodeRunOutputs.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: stop stale embed decryption retry loops'
+    section: bug_fixes
+    commits:
+    - 5395b5720
+    authored_at: '2026-05-20T22:56:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/embedResolver.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: dedupe shared chat embeds before hydration'
+    section: bug_fixes
+    commits:
+    - 04ee208cc
+    authored_at: '2026-05-20T22:47:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.test.ts
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: fallback when optional chat share fields are unavailable'
+    section: bug_fixes
+    commits:
+    - cf1d4608b
+    authored_at: '2026-05-20T22:36:51+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/chat_methods.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: restore public shared chat metadata reads'
+    section: bug_fixes
+    commits:
+    - 211f3111d
+    authored_at: '2026-05-20T22:30:17+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render grouped math calculation embeds'
+    section: bug_fixes
+    commits:
+    - 37fea23e4
+    authored_at: '2026-05-20T22:23:10+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: accept numeric billing pricing shorthands'
+    section: bug_fixes
+    commits:
+    - b7ebd6538
+    authored_at: '2026-05-20T22:21:25+00:00'
+    changed_paths:
+    - backend/shared/python_utils/billing_utils.py
+    - backend/tests/test_billing_utils.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: harden shared chat embed ref hydration'
+    section: bug_fixes
+    commits:
+    - f3011e9e4
+    authored_at: '2026-05-20T22:16:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.test.ts
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.ts
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stop unresolved embed preview spinners'
+    section: bug_fixes
+    commits:
+    - 09101665c
+    authored_at: '2026-05-20T21:43:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore shared chat embed previews'
+    section: bug_fixes
+    commits:
+    - 26d5ff9ce
+    authored_at: '2026-05-20T21:31:05+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render math calculation details'
+    section: bug_fixes
+    commits:
+    - 477999e3a
+    authored_at: '2026-05-20T21:09:16+00:00'
+    changed_paths:
+    - backend/apps/math/skills/calculate_skill.py
+    - backend/core/api/app/services/embed_service.py
+    - frontend/packages/ui/src/components/embeds/math/MathCalculateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/math/MathCalculateEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show full math calculations in embeds'
+    section: bug_fixes
+    commits:
+    - 9678b1d98
+    authored_at: '2026-05-20T21:07:27+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render wiki links in embed content'
+    section: bug_fixes
+    commits:
+    - 51b627b76
+    authored_at: '2026-05-20T18:24:57+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/docs/docsEmbedContent.ts
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/utils/embedLinkUtils.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore chat header image bubbles'
+    section: bug_fixes
+    commits:
+    - 9db7d51a6
+    authored_at: '2026-05-20T17:57:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-images-search.spec.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide unauthoritative purchase metrics'
+    section: bug_fixes
+    commits:
+    - 426d015ee
+    authored_at: '2026-05-20T17:45:22+00:00'
+    changed_paths:
+    - scripts/update_obsidian_daily_note.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: refresh stale daily metric cache'
+    section: bug_fixes
+    commits:
+    - a2e37de9d
+    authored_at: '2026-05-20T17:30:02+00:00'
+    changed_paths:
+    - scripts/update_obsidian_daily_note.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: stop daily metric card showing false data'
+    section: bug_fixes
+    commits:
+    - 991cec7f5
+    authored_at: '2026-05-20T17:24:37+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/api/app/services/payment/stripe_service.py
+    - backend/core/api/app/tasks/server_stats_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/schemas/server_stats_global_daily.yml
+    - backend/core/directus/schemas/server_stats_global_monthly.yml
+    - scripts/update_obsidian_daily_note.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: include chat title in browser tab'
+    section: bug_fixes
+    commits:
+    - 2ede94245
+    authored_at: '2026-05-20T17:15:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render backticked embed refs'
+    section: bug_fixes
+    commits:
+    - 6dfaf2ce7
+    authored_at: '2026-05-20T13:00:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_large_promotion.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: hide resume icons behind image bubbles'
+    section: bug_fixes
+    commits:
+    - 2f9d05bd8
+    authored_at: '2026-05-20T12:57:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: store resume images on chat metadata'
+    section: bug_fixes
+    commits:
+    - bd2a8c5b8
+    authored_at: '2026-05-20T12:50:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render resume card image bubbles from markdown'
+    section: bug_fixes
+    commits:
+    - 25411b9e2
+    authored_at: '2026-05-20T12:40:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: unwrap backticked embed links'
+    section: bug_fixes
+    commits:
+    - 4691fb8a0
+    authored_at: '2026-05-20T12:39:49+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_link_fixes.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore Gemini 3 Flash default'
+    section: bug_fixes
+    commits:
+    - 409a83e8c
+    authored_at: '2026-05-20T11:28:25+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/apps/pdf/services/ocr_service.py
+    - backend/data/models_leaderboard.yml
+    - backend/providers/google.yml
+    - backend/scripts/translate_text.py
+    - backend/shared/providers/google/vision_safety.py
+    - backend/shared/providers/openai/vision_safety_fallback.py
+    - docs/architecture/image-safety-pipeline.md
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: refresh header navigation for new chats'
+    section: bug_fixes
+    commits:
+    - 7766e9527
+    authored_at: '2026-05-20T11:26:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stop persisting test videos to obsidian'
+    section: bug_fixes
+    commits:
+    - 718681c8e
+    authored_at: '2026-05-20T10:22:53+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/sync_obsidian_test_results.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: restore obsidian task sync cron'
+    section: bug_fixes
+    commits:
+    - b00993168
+    authored_at: '2026-05-20T09:57:29+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/generate_obsidian_task_boards.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: prevent sync from force-replacing chat keys'
+    section: bug_fixes
+    commits:
+    - 19dc59561
+    authored_at: '2026-05-20T00:18:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncMerge.test.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: avoid clicking uploaded code embed'
+    section: tests
+    commits:
+    - 651996ed8
+    authored_at: '2026-05-20T11:15:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: update Code Run E2B copy assertion'
+    section: tests
+    commits:
+    - b975eda38
+    authored_at: '2026-05-20T10:33:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: switch recreated accounts to stripe card form'
+    section: tests
+    commits:
+    - f89f9f21b
+    authored_at: '2026-05-20T08:18:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/create-test-account.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: make persistent account recreation unique'
+    section: tests
+    commits:
+    - 4b3184f78
+    authored_at: '2026-05-20T08:07:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/create-test-account.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: harden signup toggle helper'
+    section: tests
+    commits:
+    - ebb54ff85
+    authored_at: '2026-05-20T08:03:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: route persistent gmail accounts to test inbox'
+    section: tests
+    commits:
+    - f2fa6e7a2
+    authored_at: '2026-05-20T07:57:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: remove obsidian task board automation'
+    section: infrastructure
+    commits:
+    - d1f537f3f
+    authored_at: '2026-05-20T10:14:08+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/architecture/obsidian-vault-restructure.md
+    - scripts/generate_obsidian_task_boards.py
+    - scripts/normalize_obsidian_task_notes.py
+    - scripts/sync_obsidian_tasks.py
+    - scripts/update_obsidian_daily_note.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - 'matches feature availability gates: platform:tasks'
+    - commit is reachable from main
+  internal:
+  - title: 'security: harden E2B code run'
+    section: internal
+    commits:
+    - 9eda58faf
+    authored_at: '2026-05-20T10:17:15+00:00'
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/code_run_output_handlers.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_e2b_code_runner.py
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/codeRunService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  other:
+  - title: 'Merge pull request #404 from glowingkitty/dev'
+    section: other
+    commits:
+    - a938c76c6
+    authored_at: '2026-05-20T16:00:45+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'style: smooth image bubble hover transition'
+    section: other
+    commits:
+    - 2b6cb8512
+    authored_at: '2026-05-20T09:50:57+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'style: enlarge chat header image bubbles on hover'
+    section: other
+    commits:
+    - b95a05e16
+    authored_at: '2026-05-20T09:27:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add math calculation titles'
+    commits:
+    - b944df3f1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add shared chat PII policy'
+    commits:
+    - c35bf8973
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore Gemini 3 Flash default'
+    commits:
+    - 409a83e8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'security: harden E2B code run'
+    commits:
+    - 9eda58faf
+    section: internal
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: add math calculation titles'
+    commits:
+    - b944df3f1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: dedupe shared chat embeds before hydration'
+    commits:
+    - 04ee208cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore public shared chat metadata reads'
+    commits:
+    - 211f3111d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render grouped math calculation embeds'
+    commits:
+    - 37fea23e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: harden shared chat embed ref hydration'
+    commits:
+    - f3011e9e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stop unresolved embed preview spinners'
+    commits:
+    - 09101665c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore shared chat embed previews'
+    commits:
+    - 26d5ff9ce
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render math calculation details'
+    commits:
+    - 477999e3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show full math calculations in embeds'
+    commits:
+    - 9678b1d98
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render wiki links in embed content'
+    commits:
+    - 51b627b76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore chat header image bubbles'
+    commits:
+    - 9db7d51a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: update chat header image background'
+    commits:
+    - 6d95c3bf3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stop daily metric card showing false data'
+    commits:
+    - 991cec7f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: include chat title in browser tab'
+    commits:
+    - 2ede94245
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add chat open in new tab menu action'
+    commits:
+    - abe99ea35
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: revise daily development metric blocks'
+    commits:
+    - 20d5030a0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add daily development metrics graphic'
+    commits:
+    - 577d32c83
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add shared chat PII policy'
+    commits:
+    - c35bf8973
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide resume icons behind image bubbles'
+    commits:
+    - 2f9d05bd8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: store resume images on chat metadata'
+    commits:
+    - bd2a8c5b8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render resume card image bubbles from markdown'
+    commits:
+    - 25411b9e2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: unwrap backticked embed links'
+    commits:
+    - 4691fb8a0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: show image bubbles on resume cards'
+    commits:
+    - ba2641cc1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore Gemini 3 Flash default'
+    commits:
+    - 409a83e8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: refresh header navigation for new chats'
+    commits:
+    - 7766e9527
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add generic chat replay demo mode'
+    commits:
+    - d2f071bcc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'style: smooth image bubble hover transition'
+    commits:
+    - 2b6cb8512
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'style: enlarge chat header image bubbles on hover'
+    commits:
+    - b95a05e16
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent sync from force-replacing chat keys'
+    commits:
+    - 19dc59561
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: include code run output in inference context'
+    commits:
+    - 38a09a9d7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: add math calculation titles'
+    commits:
+    - b944df3f1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: dedupe shared chat embeds before hydration'
+    commits:
+    - 04ee208cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore public shared chat metadata reads'
+    commits:
+    - 211f3111d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render grouped math calculation embeds'
+    commits:
+    - 37fea23e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: harden shared chat embed ref hydration'
+    commits:
+    - f3011e9e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stop unresolved embed preview spinners'
+    commits:
+    - 09101665c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore shared chat embed previews'
+    commits:
+    - 26d5ff9ce
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render math calculation details'
+    commits:
+    - 477999e3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show full math calculations in embeds'
+    commits:
+    - 9678b1d98
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render wiki links in embed content'
+    commits:
+    - 51b627b76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore chat header image bubbles'
+    commits:
+    - 9db7d51a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: update chat header image background'
+    commits:
+    - 6d95c3bf3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stop daily metric card showing false data'
+    commits:
+    - 991cec7f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: include chat title in browser tab'
+    commits:
+    - 2ede94245
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add chat open in new tab menu action'
+    commits:
+    - abe99ea35
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: revise daily development metric blocks'
+    commits:
+    - 20d5030a0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add daily development metrics graphic'
+    commits:
+    - 577d32c83
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add shared chat PII policy'
+    commits:
+    - c35bf8973
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide resume icons behind image bubbles'
+    commits:
+    - 2f9d05bd8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: store resume images on chat metadata'
+    commits:
+    - bd2a8c5b8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render resume card image bubbles from markdown'
+    commits:
+    - 25411b9e2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: unwrap backticked embed links'
+    commits:
+    - 4691fb8a0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: show image bubbles on resume cards'
+    commits:
+    - ba2641cc1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore Gemini 3 Flash default'
+    commits:
+    - 409a83e8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: refresh header navigation for new chats'
+    commits:
+    - 7766e9527
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add generic chat replay demo mode'
+    commits:
+    - d2f071bcc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'style: smooth image bubble hover transition'
+    commits:
+    - 2b6cb8512
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'style: enlarge chat header image bubbles on hover'
+    commits:
+    - b95a05e16
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent sync from force-replacing chat keys'
+    commits:
+    - 19dc59561
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: include code run output in inference context'
+    commits:
+    - 38a09a9d7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 5395b5720389879943dc7076512e18bf12e5fc28
+    short_sha: 5395b5720
+    authored_at: '2026-05-20T22:56:05+00:00'
+    subject: 'fix: stop stale embed decryption retry loops'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/embedResolver.ts
+    related_feature_ids: []
+  - sha: b944df3f1ceccb2e88c9d8a3d868a62504ec7513
+    short_sha: b944df3f1
+    authored_at: '2026-05-20T22:48:10+00:00'
+    subject: 'feat: add math calculation titles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/math/app.yml
+    - backend/apps/math/skills/calculate_skill.py
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/math/MathCalculateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/math/MathCalculateEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/math/MathCalculateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/math/mathEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/data/__tests__/embedTextRenderers.test.ts
+    related_feature_ids: []
+  - sha: 04ee208cc11b97a32d49a1b42d2253d777c6cdcc
+    short_sha: 04ee208cc
+    authored_at: '2026-05-20T22:47:01+00:00'
+    subject: 'fix: dedupe shared chat embeds before hydration'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.test.ts
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.ts
+    related_feature_ids: []
+  - sha: cf1d4608ba81f0bbf44e6c1b0463b8afde85005d
+    short_sha: cf1d4608b
+    authored_at: '2026-05-20T22:36:51+00:00'
+    subject: 'fix: fallback when optional chat share fields are unavailable'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/chat_methods.py
+    related_feature_ids: []
+  - sha: 211f3111d0aa4a199909f834c24cd25e2e50b6c0
+    short_sha: 211f3111d
+    authored_at: '2026-05-20T22:30:17+00:00'
+    subject: 'fix: restore public shared chat metadata reads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    related_feature_ids: []
+  - sha: 37fea23e4e37acc5a999654e61c2fa979b89fc5e
+    short_sha: 37fea23e4
+    authored_at: '2026-05-20T22:23:10+00:00'
+    subject: 'fix: render grouped math calculation embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: b7ebd65384e54bb410424f55ad31b1a8e8a41d74
+    short_sha: b7ebd6538
+    authored_at: '2026-05-20T22:21:25+00:00'
+    subject: 'fix: accept numeric billing pricing shorthands'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/python_utils/billing_utils.py
+    - backend/tests/test_billing_utils.py
+    related_feature_ids: []
+  - sha: f3011e9e4198ddbba987faefe89997f3d7423972
+    short_sha: f3011e9e4
+    authored_at: '2026-05-20T22:16:20+00:00'
+    subject: 'fix: harden shared chat embed ref hydration'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.test.ts
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.ts
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 09101665c94e9788115e41595ce3d72aa5895dae
+    short_sha: 09101665c
+    authored_at: '2026-05-20T21:43:13+00:00'
+    subject: 'fix: stop unresolved embed preview spinners'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    related_feature_ids: []
+  - sha: 26d5ff9ce730c3c8834a200902da5a015ab138f7
+    short_sha: 26d5ff9ce
+    authored_at: '2026-05-20T21:31:05+00:00'
+    subject: 'fix: restore shared chat embed previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    related_feature_ids: []
+  - sha: 477999e3a27e841013f89410029dca464ae0ccb0
+    short_sha: 477999e3a
+    authored_at: '2026-05-20T21:09:16+00:00'
+    subject: 'fix: render math calculation details'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/math/skills/calculate_skill.py
+    - backend/core/api/app/services/embed_service.py
+    - frontend/packages/ui/src/components/embeds/math/MathCalculateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/math/MathCalculateEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 9678b1d9857c90ebc839e3abae6da52ed9756ad8
+    short_sha: 9678b1d98
+    authored_at: '2026-05-20T21:07:27+00:00'
+    subject: 'fix: show full math calculations in embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    related_feature_ids: []
+  - sha: 51b627b769966af3526df27bd6c979a5ba26387c
+    short_sha: 51b627b76
+    authored_at: '2026-05-20T18:24:57+00:00'
+    subject: 'fix: render wiki links in embed content'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/docs/docsEmbedContent.ts
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/utils/embedLinkUtils.ts
+    related_feature_ids: []
+  - sha: 9db7d51a6be752cbfbb7cc34219cce2c4cc69d6d
+    short_sha: 9db7d51a6
+    authored_at: '2026-05-20T17:57:27+00:00'
+    subject: 'fix: restore chat header image bubbles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-images-search.spec.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 426d015ee03b4dbe7ddfa256b0b3ea150c3a350c
+    short_sha: 426d015ee
+    authored_at: '2026-05-20T17:45:22+00:00'
+    subject: 'fix: hide unauthoritative purchase metrics'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/update_obsidian_daily_note.py
+    related_feature_ids: []
+  - sha: 6d95c3bf3976d91e5b3d3d45f4bed041128c0a86
+    short_sha: 6d95c3bf3
+    authored_at: '2026-05-20T17:41:29+00:00'
+    subject: 'feat: update chat header image background'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-images-search.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    related_feature_ids: []
+  - sha: a2e37de9dca743f7c98d103ec0851511f38248ea
+    short_sha: a2e37de9d
+    authored_at: '2026-05-20T17:30:02+00:00'
+    subject: 'fix: refresh stale daily metric cache'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/update_obsidian_daily_note.py
+    related_feature_ids: []
+  - sha: 991cec7f562eacb8146f415a5dd5e64bdad461fd
+    short_sha: 991cec7f5
+    authored_at: '2026-05-20T17:24:37+00:00'
+    subject: 'fix: stop daily metric card showing false data'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/api/app/services/payment/stripe_service.py
+    - backend/core/api/app/tasks/server_stats_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/schemas/server_stats_global_daily.yml
+    - backend/core/directus/schemas/server_stats_global_monthly.yml
+    - scripts/update_obsidian_daily_note.py
+    related_feature_ids: []
+  - sha: 2ede9424584958e87129328a79b1a5eea4a00c67
+    short_sha: 2ede94245
+    authored_at: '2026-05-20T17:15:28+00:00'
+    subject: 'fix: include chat title in browser tab'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: abe99ea35d29559087db189ca3a5373a01c324cc
+    short_sha: abe99ea35
+    authored_at: '2026-05-20T16:59:13+00:00'
+    subject: 'feat: add chat open in new tab menu action'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    related_feature_ids: []
+  - sha: 20d5030a036151a9c7d07fcbf835eca716da0c2f
+    short_sha: 20d5030a0
+    authored_at: '2026-05-20T16:31:51+00:00'
+    subject: 'feat: revise daily development metric blocks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - scripts/update_obsidian_daily_note.py
+    related_feature_ids: []
+  - sha: 577d32c838a14f2c9b4dd47aeef0634bb6c17baa
+    short_sha: 577d32c83
+    authored_at: '2026-05-20T16:12:04+00:00'
+    subject: 'feat: add daily development metrics graphic'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - scripts/update_obsidian_daily_note.py
+    related_feature_ids: []
+  - sha: c35bf897319bde09a0f885fdfd44acfc461f9ad2
+    short_sha: c35bf8973
+    authored_at: '2026-05-20T15:24:08+00:00'
+    subject: 'feat: add shared chat PII policy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/directus/schemas/chats.yml
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/share.yml
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/shareMetadataQueue.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: a938c76c6dc1f3bbd9cc202c756ec118fc554f64
+    short_sha: a938c76c6
+    authored_at: '2026-05-20T16:00:45+02:00'
+    subject: 'Merge pull request #404 from glowingkitty/dev'
+    in_main: true
+    in_dev: false
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 6dfaf2ce7c02b91ba953321b836c3d07febef267
+    short_sha: 6dfaf2ce7
+    authored_at: '2026-05-20T13:00:11+00:00'
+    subject: 'fix: render backticked embed refs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_large_promotion.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    related_feature_ids: []
+  - sha: 2f9d05bd89402d3d8012cd75aacfb144cc400409
+    short_sha: 2f9d05bd8
+    authored_at: '2026-05-20T12:57:11+00:00'
+    subject: 'fix: hide resume icons behind image bubbles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: bd2a8c5b85a46c5d3b1db9af28fb93e4624c895b
+    short_sha: bd2a8c5b8
+    authored_at: '2026-05-20T12:50:05+00:00'
+    subject: 'fix: store resume images on chat metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 25411b9e2a9ff29e4f511322eeb5c95aa0092abf
+    short_sha: 25411b9e2
+    authored_at: '2026-05-20T12:40:31+00:00'
+    subject: 'fix: render resume card image bubbles from markdown'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 4691fb8a0a2c7f2d9a413f58274ade0a1110f3c1
+    short_sha: 4691fb8a0
+    authored_at: '2026-05-20T12:39:49+00:00'
+    subject: 'fix: unwrap backticked embed links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_link_fixes.py
+    related_feature_ids: []
+  - sha: c1fb2b0824d5491756057d9c2cb2321f910eb5df
+    short_sha: c1fb2b082
+    authored_at: '2026-05-20T12:28:43+00:00'
+    subject: 'feat: add daily metrics SVG graphics'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/update_obsidian_daily_note.py
+    related_feature_ids: []
+  - sha: ba2641cc10fc09f7595b7089ab4af1a013bfe783
+    short_sha: ba2641cc1
+    authored_at: '2026-05-20T12:07:44+00:00'
+    subject: 'feat: show image bubbles on resume cards'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 409a83e8c1a2e9de92f3315807fb3abab6ca8314
+    short_sha: 409a83e8c
+    authored_at: '2026-05-20T11:28:25+00:00'
+    subject: 'fix: restore Gemini 3 Flash default'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/apps/pdf/services/ocr_service.py
+    - backend/data/models_leaderboard.yml
+    - backend/providers/google.yml
+    - backend/scripts/translate_text.py
+    - backend/shared/providers/google/vision_safety.py
+    - backend/shared/providers/openai/vision_safety_fallback.py
+    - docs/architecture/image-safety-pipeline.md
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    related_feature_ids: []
+  - sha: 7766e9527a109aa1c28e17000294d3edb5b8f7a8
+    short_sha: 7766e9527
+    authored_at: '2026-05-20T11:26:31+00:00'
+    subject: 'fix: refresh header navigation for new chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 651996ed857e85cd53e50fcf63beea963ad54361
+    short_sha: 651996ed8
+    authored_at: '2026-05-20T11:15:17+00:00'
+    subject: 'test: avoid clicking uploaded code embed'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    related_feature_ids: []
+  - sha: d2f071bccc373db9c1f946bfaff1fc5d459a1901
+    short_sha: d2f071bcc
+    authored_at: '2026-05-20T10:53:22+00:00'
+    subject: 'feat: add generic chat replay demo mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/chat-replay-demo-mode.spec.ts
+    - frontend/apps/web_app/tests/privacy-video-recording.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/demoMode.ts
+    - frontend/packages/ui/src/stores/personalDataStore.ts
+    related_feature_ids: []
+  - sha: b975eda3886625bcb7a4359f1f63db4fd10f3ece
+    short_sha: b975eda38
+    authored_at: '2026-05-20T10:33:30+00:00'
+    subject: 'test: update Code Run E2B copy assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    related_feature_ids: []
+  - sha: 718681c8e521af0d6d71c71c94cbd0783ed0161a
+    short_sha: 718681c8e
+    authored_at: '2026-05-20T10:22:53+00:00'
+    subject: 'fix: stop persisting test videos to obsidian'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/sync_obsidian_test_results.py
+    related_feature_ids: []
+  - sha: 9eda58faf16dd904940400aaa8b7c93d29c0cbe4
+    short_sha: 9eda58faf
+    authored_at: '2026-05-20T10:17:15+00:00'
+    subject: 'security: harden E2B code run'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/code_run_output_handlers.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_e2b_code_runner.py
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/codeRunService.ts
+    related_feature_ids: []
+  - sha: d1f537f3f269e4778b352ca3ead5724e29cc156a
+    short_sha: d1f537f3f
+    authored_at: '2026-05-20T10:14:08+00:00'
+    subject: 'chore: remove obsidian task board automation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/architecture/obsidian-vault-restructure.md
+    - scripts/generate_obsidian_task_boards.py
+    - scripts/normalize_obsidian_task_notes.py
+    - scripts/sync_obsidian_tasks.py
+    - scripts/update_obsidian_daily_note.py
+    related_feature_ids:
+    - platform:tasks
+  - sha: b009931684a704d00d84c35cc19d0550004f1b4c
+    short_sha: b00993168
+    authored_at: '2026-05-20T09:57:29+00:00'
+    subject: 'fix: restore obsidian task sync cron'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/generate_obsidian_task_boards.py
+    related_feature_ids: []
+  - sha: 2b6cb85124d88a441e73a8032db8bac0554db616
+    short_sha: 2b6cb8512
+    authored_at: '2026-05-20T09:50:57+00:00'
+    subject: 'style: smooth image bubble hover transition'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: b95a05e1629cf1a54a0ad30dcf86344b198dc575
+    short_sha: b95a05e16
+    authored_at: '2026-05-20T09:27:17+00:00'
+    subject: 'style: enlarge chat header image bubbles on hover'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: f89f9f21b7f808d7c8da5e65decbe1162260f433
+    short_sha: f89f9f21b
+    authored_at: '2026-05-20T08:18:21+00:00'
+    subject: 'test: switch recreated accounts to stripe card form'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/create-test-account.spec.ts
+    related_feature_ids: []
+  - sha: 4b3184f785c869e416e231417aef2855b09216d1
+    short_sha: 4b3184f78
+    authored_at: '2026-05-20T08:07:13+00:00'
+    subject: 'test: make persistent account recreation unique'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/create-test-account.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    related_feature_ids: []
+  - sha: ebb54ff8542c4059c2e61b089cd5cf41933545f2
+    short_sha: ebb54ff85
+    authored_at: '2026-05-20T08:03:36+00:00'
+    subject: 'test: harden signup toggle helper'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    related_feature_ids: []
+  - sha: f2fa6e7a2b114c07061c1ab506f0a7b392d4132b
+    short_sha: f2fa6e7a2
+    authored_at: '2026-05-20T07:57:42+00:00'
+    subject: 'test: route persistent gmail accounts to test inbox'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    related_feature_ids: []
+  - sha: 19dc59561f172c0332f424d583728a1207415687
+    short_sha: 19dc59561
+    authored_at: '2026-05-20T00:18:19+00:00'
+    subject: 'fix: prevent sync from force-replacing chat keys'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncMerge.test.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: 38a09a9d7a1c6b98bd70325847f9cde63ea850b0
+    short_sha: 38a09a9d7
+    authored_at: '2026-05-20T00:17:48+00:00'
+    subject: 'feat: include code run output in inference context'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/code_run_output_handlers.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/shared/python_schemas/code_run_outputs.py
+    - backend/tests/test_code_execution.py
+    - frontend/packages/ui/src/services/sendersCodeRunOutputs.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on enhancing the shared chat experience, refining math calculation displays, and polishing the
+    chat interface. Key updates include new privacy policies for shared content, improved context for AI code execution, and
+    several UI refinements to headers and resume cards.
+  released_changes:
+  - text: OpenMates added descriptive titles to math calculation embeds to provide clearer context for automated results.
+    evidence:
+      commits:
+      - b944df3f1
+    release_status: released_main
+  - text: A PII policy for shared chats was introduced, allowing for better control over sensitive information when sharing
+      conversations.
+    evidence:
+      commits:
+      - c35bf8973
+    release_status: released_main
+  - text: The project now includes code run output directly in the inference context, allowing the AI to better understand
+      and react to execution results.
+    evidence:
+      commits:
+      - 38a09a9d7
+    release_status: released_main
+  - text: The chat interface received visual updates, including new header backgrounds, image bubbles on resume cards, and
+      smoother hover transitions.
+    evidence:
+      commits:
+      - 6d95c3bf3
+      - ba2641cc1
+      - b95a05e16
+      - 2b6cb8512
+    release_status: released_main
+  - text: A new menu action allows users to open specific chats in a new browser tab.
+    evidence:
+      commits:
+      - abe99ea35
+    release_status: released_main
+  - text: A generic chat replay demo mode was added to support product demonstrations and testing.
+    evidence:
+      commits:
+      - d2f071bcc
+    release_status: released_main
+  - text: Daily development metrics and graphics were revised to provide more accurate project statistics.
+    evidence:
+      commits:
+      - 20d5030a0
+      - 577d32c83
+      - 991cec7f5
+    release_status: released_main
+  bug_fixes:
+  - text: Stability for shared chats has been improved by deduping embeds, restoring metadata reads, and hardening the hydration
+      of embed references.
+    evidence:
+      commits:
+      - 04ee208cc
+      - 211f3111d
+      - f3011e9e4
+      - 26d5ff9ce
+    release_status: released_main
+  - text: Math calculation embeds now correctly render grouped results, full calculation details, and expanded views.
+    evidence:
+      commits:
+      - 37fea23e4
+      - 477999e3a
+      - 9678b1d98
+    release_status: released_main
+  - text: Embed rendering was refined to resolve wiki links, unwrap backticked links, and eliminate unnecessary loading spinners
+      on unresolved previews.
+    evidence:
+      commits:
+      - 09101665c
+      - 51b627b76
+      - 4691fb8a0
+    release_status: released_main
+  - text: Visual regressions in the chat header and resume cards were addressed, ensuring image bubbles display correctly
+      and persist in chat metadata.
+    evidence:
+      commits:
+      - 9db7d51a6
+      - 2f9d05bd8
+      - bd2a8c5b8
+      - 25411b9e2
+    release_status: released_main
+  - text: Gemini 3 Flash has been restored as the default model for various AI processing tasks.
+    evidence:
+      commits:
+      - 409a83e8c
+    release_status: released_main
+  - text: Navigation and synchronization fixes ensure chat titles appear in browser tabs, header navigation refreshes for
+      new chats, and sync operations do not force-replace encryption keys.
+    evidence:
+      commits:
+      - 2ede94245
+      - 7766e9527
+      - 19dc59561
+    release_status: released_main
+  unreleased_progress:
+  - text: Automation for Obsidian task boards was removed as part of a restructuring of the currently disabled tasks platform.
+    evidence:
+      commits:
+      - d1f537f3f
+    release_status: released_main
+  - text: Internal security hardening was applied to the E2B code execution environment.
+    evidence:
+      commits:
+      - 9eda58faf
+    release_status: released_main
+  - text: Internal maintenance included updates to SVG metric generation and Obsidian sync crons.
+    evidence:
+      commits:
+      - c1fb2b082
+      - 718681c8e
+      - b00993168
+    release_status: released_main
+  internal_progress:
+  - text: The billing system now accepts numeric pricing shorthands.
+    evidence:
+      commits:
+      - b7ebd6538
+    release_status: released_main
+  - text: Test infrastructure was hardened with unique account recreation logic and improved signup flow helpers.
+    evidence:
+      commits:
+      - f89f9f21b
+      - 4b3184f78
+      - ebb54ff85
+      - f2fa6e7a2
+    release_status: released_main
+  - text: End-to-end tests for code generation and file attachments were updated to match current UI behavior.
+    evidence:
+      commits:
+      - 651996ed8
+      - b975eda38
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New descriptive titles for math calculation embeds.
+      evidence:
+        commits:
+        - b944df3f1
+      reason: Provides better context for math-related AI responses.
+    - text: Introduction of PII (Personally Identifiable Information) policies for shared chats.
+      evidence:
+        commits:
+        - c35bf8973
+      reason: Important privacy update for users sharing chats publicly.
+    - text: New context menu option to open chats in a new browser tab.
+      evidence:
+        commits:
+        - abe99ea35
+      reason: Useful productivity enhancement for power users.
+    - text: Inclusion of code execution output in subsequent AI inference context.
+      evidence:
+        commits:
+        - 38a09a9d7
+      reason: Improves the AI's ability to reason about the results of code it has just executed.
+    exclude:
+    - text: Removal of Obsidian task board automation.
+      evidence:
+        commits:
+        - d1f537f3f
+      reason: Relates to the tasks platform which is currently a disabled feature.
+    - text: E2B code runner security hardening.
+      evidence:
+        commits:
+        - 9eda58faf
+      reason: Internal security hardening for code execution environments.
+    rationale: The selected items represent significant user-facing improvements to privacy, utility, and AI reasoning capabilities.
+  social_video_recommendations:
+  - idea: A short clip showing the AI solving a complex math problem, highlighting the new titles and the ability to expand
+      the calculation details.
+    priority: medium
+    reason: Visually demonstrates a concrete improvement to a specific AI skill.
+    evidence:
+      commits:
+      - b944df3f1
+      - 477999e3a
+  - idea: A walkthrough of the new 'Demo Mode' showing how chats can be replayed for presentations.
+    priority: low
+    reason: Useful for the developer community and power users interested in how OpenMates is showcased.
+    evidence:
+      commits:
+      - d2f071bcc
+  quality_notes:
+  - Significant effort was directed at fixing regressions in shared chat metadata and embed rendering.
+  - UI polish focused on hover states and transition smoothness in the chat header.
+  validation_warnings: []

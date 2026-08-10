@@ -1,0 +1,45 @@
+# Durable batch completion and parent-continuation claim state.
+# The transaction endpoint increments terminal children and grants exactly one
+# parent continuation without storing child summaries or other private content.
+sub_chat_orchestration_batches:
+  type: collection
+  note: "Internal sub-chat batch completion and continuation claim state"
+  fields:
+    id:
+      type: uuid
+      primary: true
+    orchestration_id:
+      type: uuid
+      required: true
+    parent_chat_id:
+      type: uuid
+      required: true
+    parent_depth:
+      type: integer
+      required: true
+    child_count:
+      type: integer
+      required: true
+    terminal_count:
+      type: integer
+      required: true
+      default: 0
+    continuation_claimed:
+      type: boolean
+      required: true
+      default: false
+    created_at:
+      type: datetime
+      required: true
+    updated_at:
+      type: datetime
+      required: true
+    continuation_claimed_at:
+      type: datetime
+      nullable: true
+    continuation_task_id:
+      type: uuid
+      nullable: true
+    continuation_dispatched_at:
+      type: datetime
+      nullable: true

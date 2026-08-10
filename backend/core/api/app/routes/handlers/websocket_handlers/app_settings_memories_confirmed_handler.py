@@ -364,6 +364,7 @@ async def _trigger_continuation(
     is_incognito = pending_context.get("is_incognito", False)
     user_preferences = pending_context.get("user_preferences") or {}
     embed_file_path_index = pending_context.get("embed_file_path_index")
+    has_image_upload_embed = pending_context.get("has_image_upload_embed", False)
     # Get the requested keys from the pending context
     # These will be passed as app_settings_memories_metadata so preprocessing knows what's available
     requested_keys = pending_context.get("requested_keys", [])
@@ -491,6 +492,7 @@ async def _trigger_continuation(
             "active_focus_id": active_focus_id,
             "user_preferences": user_preferences,
             "embed_file_path_index": embed_file_path_index,
+            "has_image_upload_embed": has_image_upload_embed,
             # Pass the app_settings_memories_metadata so preprocessing knows what's available
             # This is CRITICAL: without this, preprocessing won't know to load the cached data
             "app_settings_memories_metadata": app_settings_memories_metadata if app_settings_memories_metadata else None,

@@ -158,8 +158,8 @@ settings_and_memories:
 # Plan: later add tokens_per_second field to provider YAMLs for auto-selection.
 model_aliases:
   - id: best
-    # Hardcoded: Claude Opus 4.6 — the most capable model available
-    model_id: claude-opus-4-6
+    # Hardcoded: Claude Fable 5 — the most capable generally available Claude model
+    model_id: claude-fable-5
     icon: crown
   - id: fast
     # Hardcoded: Qwen 3 256b via Cerebras — the fastest inference available
@@ -179,6 +179,34 @@ skills:
     # where it needs to appear so users can configure their AI models.
     class_path: |
       ai.skills.ask_skill.AskSkill
+    tool_schema:
+      type: object
+      properties:
+        prompt:
+          type: string
+          description: The question or task for the Workflow AI step.
+        conversation:
+          type: string
+          description: Optional run-local conversation name for retaining previous Workflow AI context in the same run.
+      required:
+        - prompt
+    workflow:
+      available: true
+      execution_mode: workflow_ai
+      effect: read
+      unattended: true
+      approval: never
+      binding_requirements: [none]
+      test_allowed: true
+      test_example_input:
+        prompt: Summarize this Workflow run in one sentence.
+      output_schema:
+        type: object
+        properties:
+          answer:
+            type: string
+          conversation:
+            type: string
     # Providers are auto-discovered from backend/providers/*.yml files
     # based on models with for_app_skill: "ai.ask"
     skill_config:
@@ -188,12 +216,12 @@ skills:
       enable_auto_model_selection: true
       default_llms:
         preprocessing_model: mistral/mistral-small-2506
-        # main_processing_simple: google/gemini-3-flash-preview
-        # main_processing_simple_name: Gemini 3 Flash
+        # main_processing_simple: google/gemini-3.5-flash-lite
+        # main_processing_simple_name: Gemini 3.5 Flash-Lite
         main_processing_simple: alibaba/qwen3-235b-a22b-2507
         main_processing_simple_name: Qwen3
-        # main_processing_complex: google/gemini-3.1-pro-preview
-        # main_processing_complex_name: Gemini 3.1 Pro
+        # main_processing_complex: google/gemini-3.6-flash
+        # main_processing_complex_name: Gemini 3.6 Flash
         main_processing_complex: alibaba/qwen3-235b-a22b-2507
         main_processing_complex_name: Qwen3
         content_sanitization_model: openai/gpt-oss-safeguard-20b

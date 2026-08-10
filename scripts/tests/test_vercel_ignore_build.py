@@ -150,11 +150,47 @@ def test_cli_returns_continue_exit_code_for_dev_build(tmp_path, monkeypatch):
     assert guard.main() == guard.BUILD_CONTINUE
 
 
+def test_dev_branch_builds_after_apple_only_change(tmp_path, monkeypatch):
+    guard = load_vercel_ignore_module()
+    lockfile = tmp_path / "pnpm-lock.yaml"
+    lockfile.write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+    monkeypatch.setattr(
+        guard,
+        "_vercel_changed_paths",
+        lambda _previous_sha, _commit_sha: ("apple/OpenMates/Sources/App/OpenMatesApp.swift",),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "vercel_ignore_build.py",
+            "--branch",
+            "dev",
+            "--previous-sha",
+            "previous",
+            "--commit-sha",
+            "current",
+            "--lockfile",
+            str(lockfile),
+        ],
+    )
+
+    assert guard.main() == guard.BUILD_CONTINUE
+
+
 def test_web_app_vercel_config_runs_ignore_command_from_repo_root():
     vercel_config = json.loads((PROJECT_ROOT / "frontend" / "apps" / "web_app" / "vercel.json").read_text())
 
     assert vercel_config["ignoreCommand"] == "cd ../../.. && python3 scripts/vercel_ignore_build.py"
     assert vercel_config["installCommand"] == "cd ../../.. && corepack enable && pnpm install --no-frozen-lockfile"
+
+
+def test_web_app_vercel_rewrites_allow_legal_routes():
+    vercel_config = json.loads((PROJECT_ROOT / "frontend" / "apps" / "web_app" / "vercel.json").read_text())
+    fallback_rewrite = vercel_config["rewrites"][-1]["source"]
+
+    assert "legal/" in fallback_rewrite
+    assert "privacy" in fallback_rewrite
 
 
 def test_default_vercel_node_major_matches_repo_runtime():
@@ -163,3 +199,10 @@ def test_default_vercel_node_major_matches_repo_runtime():
 
     assert package_json["engines"]["node"] == "24.x"
     assert guard.DEFAULT_VERCEL_NODE_MAJOR == 24
+
+
+def test_changed_paths_without_web_impact_are_ignored():
+    guard = load_vercel_ignore_module()
+
+    assert guard.should_ignore_for_changed_paths(["apple/OpenMates/Sources/App/OpenMatesApp.swift"]) is True
+    assert guard.should_ignore_for_changed_paths(["frontend/packages/ui/src/components/Header.svelte"]) is False

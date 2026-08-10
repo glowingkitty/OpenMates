@@ -1,6 +1,7 @@
-// Chat sharing — generate encrypted shareable links with optional password and expiration.
-// Mirrors SettingsShare.svelte: link generation, QR code, copy, password protection.
-
+// Chat sharing entry point backed by the shared custom Apple share panel.
+// Generates web-compatible encrypted links locally and syncs only permitted
+// share metadata through the established share routes.
+//
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
 // CSS:     frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
@@ -8,219 +9,97 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+import CryptoKit
 import SwiftUI
-import CoreImage.CIFilterBuiltins
 
 struct ChatShareView: View {
     let chatId: String
+    var chat: Chat?
 
-    @State private var shareLink: String?
-    @State private var password = ""
-    @State private var usePassword = false
-    @State private var expirationHours = 24
-    @State private var isGenerating = false
-    @State private var error: String?
-    @State private var copied = false
-
-    private let expirationOptions = [
-        (1, "1 hour"), (6, "6 hours"), (24, "24 hours"),
-        (72, "3 days"), (168, "1 week"), (720, "30 days")
-    ]
+    @State private var chatKey: SymmetricKey?
+    @State private var loadError = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: .spacing8) {
-                if let shareLink {
-                    OMSettingsSection("Share Link") {
-                        VStack(alignment: .leading, spacing: .spacing5) {
-                            HStack(spacing: .spacing3) {
-                                Text(shareLink)
-                                    .font(.omXs.monospaced())
-                                    .foregroundStyle(Color.fontPrimary)
-                                    .lineLimit(2)
-                                    .accessibilityIdentifier("share-short-link-url")
-                                Spacer()
-                                Button {
-                                    copyToClipboard(shareLink)
-                                    copied = true
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
-                                } label: {
-                                    Icon(copied ? "check" : "copy", size: 18)
-                                        .foregroundStyle(copied ? Color.buttonPrimary : Color.buttonPrimary)
-                                        .frame(width: 34, height: 34)
-                                        .background(Color.grey10)
-                                        .clipShape(RoundedRectangle(cornerRadius: .radius5))
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityIdentifier("share-copy-link")
-                            }
-
-                            if let qrImage = generateQRCode(from: shareLink) {
-                                HStack {
-                                    Spacer()
-                                    Image(decorative: qrImage, scale: 1.0)
-                                        .interpolation(.none)
-                                        .resizable()
-                                        .frame(width: 200, height: 200)
-                                        .accessibilityElement(children: .ignore)
-                                        .accessibilityLabel(LocalizationManager.shared.text("settings.share.qr_code"))
-                                        .accessibilityIdentifier("share-qr-code")
-                                    Spacer()
-                                }
-                                .padding(.vertical, .spacing4)
-                            }
-                        }
-                        .padding(.spacing6)
-                    }
-
-                    Button {
-                        shareViaSystem(shareLink)
-                    } label: {
-                        HStack {
-                            Icon("share", size: 16)
-                            Text("Share via...")
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(OMSecondaryButtonStyle())
-                    .accessibilityIdentifier("share-native-sheet-button")
-                } else {
-                    OMSettingsSection("Options") {
-                        VStack(alignment: .leading, spacing: .spacing5) {
-                            Text("Expires after")
-                                .font(.omSmall)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(Color.fontSecondary)
-
-                            OMSegmentedControl(
-                                items: expirationOptions.map { .init(id: $0.0, title: $0.1) },
-                                selection: $expirationHours
-                            )
-
-                            Button {
-                                usePassword.toggle()
-                            } label: {
-                                HStack(spacing: .spacing3) {
-                                    Icon(usePassword ? "check" : "close", size: 16)
-                                        .foregroundStyle(usePassword ? Color.buttonPrimary : Color.fontTertiary)
-                                    Text("Password protect")
-                                        .font(.omSmall)
-                                        .foregroundStyle(Color.fontPrimary)
-                                    Spacer()
-                                }
-                            }
-                            .buttonStyle(.plain)
-
-                            if usePassword {
-                                SecureField("Share password", text: $password)
-                                    .textFieldStyle(OMTextFieldStyle())
-                            }
-                        }
-                        .padding(.spacing6)
-                    }
-
-                    Button(action: generateLink) {
-                        Text(isGenerating ? AppStrings.sharingChatStatus : AppStrings.shareChat)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(OMPrimaryButtonStyle())
-                    .disabled(isGenerating || (usePassword && password.isEmpty))
-                    .accessibilityIdentifier("share-generate-link")
-
-                    if isGenerating {
-                        Text(AppStrings.sharingChatStatus)
-                            .font(.omSmall)
-                            .foregroundStyle(Color.fontSecondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .accessibilityIdentifier("share-generation-status")
-                    }
-
-                    if let error {
-                        Text(error).font(.omXs).foregroundStyle(Color.error)
-                    }
-                }
-            }
-            .padding(.spacing8)
-        }
-        .background(Color.grey0)
-    }
-
-    private func generateLink() {
-        isGenerating = true
-        error = nil
-
-        Task {
-            do {
-                if let fixtureURL = ProcessInfo.processInfo.environment["UI_TEST_CHAT_SHARE_URL"], !fixtureURL.isEmpty {
-                    try? await Task.sleep(nanoseconds: 300_000_000)
-                    shareLink = fixtureURL
-                    isGenerating = false
-                    return
-                }
-
-                var body: [String: Any] = [
-                    "chat_id": chatId,
-                    "expiration_hours": expirationHours
-                ]
-                if usePassword && !password.isEmpty {
-                    body["password"] = password
-                }
-
-                let response: [String: AnyCodable] = try await APIClient.shared.request(
-                    .post, path: "/v1/chats/share", body: body
+        Group {
+            if let chatKey {
+                AppleSharePanel(
+                    context: AppleShareContext(
+                        contentType: .chat,
+                        id: chatId,
+                        title: chat?.title ?? AppStrings.chat,
+                        summary: chat?.chatSummary,
+                        key: chatKey,
+                        chatId: chatId
+                    ),
+                    onClose: {},
+                    onGenerated: persistShare,
+                    onStopSharing: stopSharing
                 )
-                shareLink = response["share_url"]?.value as? String
-            } catch {
-                self.error = error.localizedDescription
+            } else if loadError {
+                Text(AppStrings.error)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.error)
+                    .padding(.spacing8)
+                    .accessibilityIdentifier("share-error")
+            } else {
+                ProgressView()
+                    .tint(Color.buttonPrimary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            isGenerating = false
         }
+        .task { await loadKey() }
     }
 
-    private func generateQRCode(from string: String) -> CGImage? {
-        let context = CIContext()
-        let filter = CIFilter.qrCodeGenerator()
-        filter.message = Data(string.utf8)
-        filter.correctionLevel = "M"
-
-        guard let output = filter.outputImage else { return nil }
-        let scaled = output.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
-        return context.createCGImage(scaled, from: scaled.extent)
-    }
-
-    private func copyToClipboard(_ text: String) {
-        #if os(iOS)
-        UIPasteboard.general.string = text
-        #elseif os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+    private func loadKey() async {
+        if let key = ChatKeyManager.shared.key(for: chatId) {
+            chatKey = key
+            return
+        }
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["UI_TEST_CHAT_SHARE_URL"] != nil {
+            chatKey = SymmetricKey(data: Data(repeating: 0, count: 32))
+            return
+        }
         #endif
+        loadError = true
     }
 
-    private func shareViaSystem(_ shareLink: String) {
-        guard let url = URL(string: shareLink) else { return }
-        #if os(iOS)
-        let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        guard let presenter = topMostViewController() else { return }
-        if let popover = activityVC.popoverPresentationController {
-            popover.sourceView = presenter.view
-            popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.midY, width: 1, height: 1)
+    private func persistShare(_ url: URL, _ usedLongFallback: Bool, _ duration: ShareDuration) async {
+        guard let chatKey else { return }
+        do {
+            let encryptedURL = try await CryptoManager.shared.encryptContent(url.absoluteString, key: chatKey)
+            UserDefaults.standard.set(encryptedURL, forKey: storedShareURLKey)
+            let body: [String: Any] = [
+                "chat_id": chatId,
+                "title": chat?.title ?? NSNull(),
+                "summary": chat?.chatSummary ?? NSNull(),
+                "category": chat?.category ?? NSNull(),
+                "icon": chat?.icon ?? NSNull(),
+                "is_shared": true,
+                "share_pii": false,
+                "share_highlights": false,
+                "encrypted_shared_short_url": encryptedURL
+            ]
+            let _: Data = try await APIClient.shared.request(.post, path: "/v1/share/chat/metadata", body: body)
+            NativeDiagnostics.info(
+                "Chat share metadata synced kind=\(usedLongFallback ? "long" : "short") duration=\(duration.rawValue)",
+                category: "sharing"
+            )
+        } catch {
+            NativeDiagnostics.warning("Chat share metadata sync failed", category: "sharing")
         }
-        presenter.present(activityVC, animated: true)
-        #endif
     }
 
-    #if os(iOS)
-    private func topMostViewController() -> UIViewController? {
-        let keyWindow = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows)
-            .first { $0.isKeyWindow }
-        var controller = keyWindow?.rootViewController
-        while let presented = controller?.presentedViewController {
-            controller = presented
+    private func stopSharing() async {
+        do {
+            let _: Data = try await APIClient.shared.request(.post, path: "/v1/share/chat/unshare", body: ["chat_id": chatId])
+            UserDefaults.standard.removeObject(forKey: storedShareURLKey)
+        } catch {
+            NativeDiagnostics.error("Chat unshare failed", category: "sharing")
         }
-        return controller
     }
-    #endif
+
+    private var storedShareURLKey: String {
+        "share.url.\(chatId)"
+    }
 }

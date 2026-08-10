@@ -59,6 +59,7 @@ def test_cached_chat_versions_from_details_normalizes_null_versions(monkeypatch)
 
     assert versions.messages_v == 0
     assert versions.title_v == 0
+    assert versions.metadata_v == 0
     assert any("[CACHE_WARMING_DATA_REPAIR]" in warning for warning in warnings)
     assert any("chat-1" in warning for warning in warnings)
 

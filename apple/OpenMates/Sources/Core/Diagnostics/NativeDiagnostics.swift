@@ -13,7 +13,7 @@ import UIKit
 import MetricKit
 #endif
 
-enum NativeClientLogLevel: String {
+enum NativeClientLogLevel: String, Equatable {
     case debug
     case info
     case warning
@@ -68,6 +68,7 @@ enum NativeDiagnostics {
     }
 
     static func record(level: NativeClientLogLevel, category: String, message: String) {
+        guard level != .debug || NativeDiagnosticsPreferences.detailedDebugLoggingEnabled else { return }
         let safeCategory = NativeClientLogCollector.sanitize(category)
         let sanitized = NativeClientLogCollector.sanitize(message)
         switch level {
@@ -963,13 +964,30 @@ private enum NativeInstallPseudonym {
 
 enum NativeDiagnosticsPreferences {
     private static let defaultTelemetryOptOutKey = "openmates.defaultTelemetryOptedOut"
+    private static let detailedDebugLoggingKey = "openmates.detailedDebugLoggingEnabled"
 
     static var defaultTelemetryOptedOut: Bool {
-        UserDefaults.standard.bool(forKey: defaultTelemetryOptOutKey)
+        defaultTelemetryOptedOut(defaults: .standard)
     }
 
-    static func setDefaultTelemetryOptedOut(_ optedOut: Bool) {
-        UserDefaults.standard.set(optedOut, forKey: defaultTelemetryOptOutKey)
+    static func defaultTelemetryOptedOut(defaults: UserDefaults) -> Bool {
+        defaults.bool(forKey: defaultTelemetryOptOutKey)
+    }
+
+    static func setDefaultTelemetryOptedOut(_ optedOut: Bool, defaults: UserDefaults = .standard) {
+        defaults.set(optedOut, forKey: defaultTelemetryOptOutKey)
+    }
+
+    static var detailedDebugLoggingEnabled: Bool {
+        detailedDebugLoggingEnabled(defaults: .standard)
+    }
+
+    static func detailedDebugLoggingEnabled(defaults: UserDefaults) -> Bool {
+        defaults.bool(forKey: detailedDebugLoggingKey)
+    }
+
+    static func setDetailedDebugLoggingEnabled(_ enabled: Bool, defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: detailedDebugLoggingKey)
     }
 }
 

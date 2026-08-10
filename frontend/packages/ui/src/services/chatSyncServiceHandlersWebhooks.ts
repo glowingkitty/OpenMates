@@ -30,6 +30,8 @@ import { pendingWebhookChatsStore } from "../stores/pendingWebhookChatsStore";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { encryptWithChatKey } from "./encryption/MessageEncryptor";
+import { userDB } from "./userDB";
+import { isChatVisiblyActive } from "./chatNotificationVisibility";
 
 /**
  * Payload structure for the webhook_chat WebSocket event.
@@ -164,8 +166,11 @@ export async function handleWebhookChatImpl(
         return;
       }
 
+      const userProfile = await userDB.getUserProfile();
+
       const newChat = {
         chat_id,
+        user_id: userProfile?.user_id,
         title: titleText,
         encrypted_title: encryptedTitle,
         created_at: firedAt,
@@ -266,13 +271,15 @@ export async function handleWebhookChatImpl(
         status === "pending_confirmation"
           ? "Webhook chat awaiting approval"
           : "Webhook started a new chat";
-      notificationStore.chatMessage(
-        chat_id,
-        toastTitle,
-        previewText,
-        undefined,
-        undefined,
-      );
+      if (!isChatVisiblyActive(chat_id)) {
+        notificationStore.chatMessage(
+          chat_id,
+          toastTitle,
+          previewText,
+          undefined,
+          undefined,
+        );
+      }
 
       console.info(
         `[ChatSyncService:Webhook] Processed webhook chat ${chat_id} (status=${status})`,

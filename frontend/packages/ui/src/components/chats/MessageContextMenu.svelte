@@ -23,6 +23,7 @@
         onHighlight?: () => void;   // Callback to add a yellow highlight to the current selection
         onHighlightAndComment?: () => void; // Highlight AND open the comment popover immediately
         onExplainInNewChat?: () => void; // Start a background explanation chat from the current selection
+        onRemember?: () => void; // Insert a forgotten message quote into the draft
         disableDelete?: boolean; // When true, shows delete button greyed out (e.g., first message in chat)
         disableFork?: boolean;   // When true, fork is disabled (e.g., incognito chat)
         /** Hide the Highlight / Highlight & comment items. True when there is no
@@ -48,6 +49,7 @@
         onHighlight,
         onHighlightAndComment,
         onExplainInNewChat,
+        onRemember,
         disableDelete = false,
         disableFork = false,
         hideHighlight = false,
@@ -199,7 +201,7 @@
     }
 
     // Unified handler for menu actions
-    function handleAction(action: 'copy' | 'copy_link' | 'select' | 'delete' | 'fork' | 'edit' | 'highlight' | 'highlight_and_comment' | 'explain_in_new_chat', event: Event) {
+    function handleAction(action: 'copy' | 'copy_link' | 'select' | 'delete' | 'fork' | 'edit' | 'highlight' | 'highlight_and_comment' | 'explain_in_new_chat' | 'remember', event: Event) {
         event.stopPropagation();
         event.preventDefault();
 
@@ -223,6 +225,7 @@
         if (action === 'highlight') onHighlight?.();
         if (action === 'highlight_and_comment') onHighlightAndComment?.();
         if (action === 'explain_in_new_chat') onExplainInNewChat?.();
+        if (action === 'remember') onRemember?.();
         if (action === 'fork') {
             if (!disableFork) onFork?.();
         }
@@ -374,6 +377,16 @@
             >
                 <div class="clickable-icon icon_planning"></div>
                 {$text('chats.context_menu.explain_in_new_chat')}
+            </button>
+        {/if}
+        {#if onRemember}
+            <button
+                class="menu-item remember"
+                data-testid="chat-context-remember-message"
+                onclick={(event) => handleAction('remember', event)}
+            >
+                <div class="clickable-icon remember-menu-icon"></div>
+                {$text('chats.context_menu.remember')}
             </button>
         {/if}
 
@@ -604,5 +617,10 @@
         mask-repeat: no-repeat;
         mask-position: center;
         background-color: white;
+    }
+
+    .remember-menu-icon {
+        -webkit-mask-image: var(--icon-url-reasoning);
+        mask-image: var(--icon-url-reasoning);
     }
 </style>

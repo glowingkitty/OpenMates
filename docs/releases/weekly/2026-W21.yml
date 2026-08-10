@@ -1,0 +1,4414 @@
+schema_version: 1
+cadence: weekly
+week_start: '2026-05-18'
+week_end: '2026-05-24'
+generated_at: '2026-07-09T15:59:17+00:00'
+summary:
+  daily_files: 7
+  total_items: 180
+  newsletter_ready_items: 104
+  user_facing_items: 106
+  dev_only_items: 0
+  unknown_release_items: 0
+  themes: 10
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+daily_summaries:
+- date: '2026-05-18'
+  total_commits: 2
+  newsletter_ready_items: 1
+  dev_only_items: 0
+- date: '2026-05-19'
+  total_commits: 47
+  newsletter_ready_items: 27
+  dev_only_items: 0
+- date: '2026-05-20'
+  total_commits: 48
+  newsletter_ready_items: 30
+  dev_only_items: 0
+- date: '2026-05-21'
+  total_commits: 37
+  newsletter_ready_items: 15
+  dev_only_items: 0
+- date: '2026-05-22'
+  total_commits: 22
+  newsletter_ready_items: 12
+  dev_only_items: 0
+- date: '2026-05-23'
+  total_commits: 8
+  newsletter_ready_items: 4
+  dev_only_items: 0
+- date: '2026-05-24'
+  total_commits: 16
+  newsletter_ready_items: 15
+  dev_only_items: 0
+themes:
+- theme: chat
+  item_count: 62
+  newsletter_ready_count: 51
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-18'
+    title: 'fix: search shared uploaded embeds'
+    commits:
+    - 9219a3838
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: add code run file selection'
+    commits:
+    - bfca9239b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: use Gemini 3.5 Flash'
+    commits:
+    - 8956fce2a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: heal chat indexeddb schema before sync'
+    commits:
+    - 4d19860bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: hide fake travel provider attribution'
+    commits:
+    - 7811a35fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: keep chat cache warming alive with null versions'
+    commits:
+    - effaf49f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: refresh image search header bubbles'
+    commits:
+    - 63e6ac0e6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: show code run charges in chat billing'
+    commits:
+    - cc4653c22
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: stabilize code run output persistence'
+    commits:
+    - 723e8bd68
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: sync code run outputs'
+    commits:
+    - d2142ee25
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'test: fix indexeddb recovery prep url'
+    commits:
+    - f8255b53c
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'test: stabilize indexeddb recovery setup'
+    commits:
+    - d60a98246
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add chat open in new tab menu action'
+    commits:
+    - abe99ea35
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add generic chat replay demo mode'
+    commits:
+    - d2f071bcc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add math calculation titles'
+    commits:
+    - b944df3f1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add shared chat PII policy'
+    commits:
+    - c35bf8973
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: include code run output in inference context'
+    commits:
+    - 38a09a9d7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: show image bubbles on resume cards'
+    commits:
+    - ba2641cc1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: update chat header image background'
+    commits:
+    - 6d95c3bf3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: dedupe shared chat embeds before hydration'
+    commits:
+    - 04ee208cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: fallback when optional chat share fields are unavailable'
+    commits:
+    - cf1d4608b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: harden shared chat embed ref hydration'
+    commits:
+    - f3011e9e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: hide resume icons behind image bubbles'
+    commits:
+    - 2f9d05bd8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: include chat title in browser tab'
+    commits:
+    - 2ede94245
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: prevent sync from force-replacing chat keys'
+    commits:
+    - 19dc59561
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: refresh header navigation for new chats'
+    commits:
+    - 7766e9527
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: render backticked embed refs'
+    commits:
+    - 6dfaf2ce7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: render grouped math calculation embeds'
+    commits:
+    - 37fea23e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: render resume card image bubbles from markdown'
+    commits:
+    - 25411b9e2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: restore Gemini 3 Flash default'
+    commits:
+    - 409a83e8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: restore chat header image bubbles'
+    commits:
+    - 9db7d51a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: restore public shared chat metadata reads'
+    commits:
+    - 211f3111d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: restore shared chat embed previews'
+    commits:
+    - 26d5ff9ce
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: show full math calculations in embeds'
+    commits:
+    - 9678b1d98
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: store resume images on chat metadata'
+    commits:
+    - bd2a8c5b8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'style: enlarge chat header image bubbles on hover'
+    commits:
+    - b95a05e16
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'style: smooth image bubble hover transition'
+    commits:
+    - 2b6cb8512
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'feat: add code output follow-up action'
+    commits:
+    - 413b7e3ec
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: keep focus activation above skill previews'
+    commits:
+    - 117d73e02
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: normalize provider display names'
+    commits:
+    - f22152dc8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: persist focus activation from embed countdown'
+    commits:
+    - 27fcbb620
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: persist shared chat PII flags with admin access'
+    commits:
+    - 449cab0ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: reject assistant responses encrypted with stale chat keys'
+    commits:
+    - 238244c29
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: remove incomplete music embed routing'
+    commits:
+    - 123abbf19
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: skip focus countdown on reopened chats'
+    commits:
+    - 865b70bcc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: stabilize focus mode reload errors'
+    commits:
+    - 97c2fac80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: expose focus context indicator ids'
+    commits:
+    - c4cfd243b
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: expose focus pill test ids'
+    commits:
+    - 42b011c2e
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: expose focus sidebar badge id'
+    commits:
+    - c0428f616
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: read focus video chat id from hash'
+    commits:
+    - 38551b2c4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: refocus composer before focus followup'
+    commits:
+    - 67a4aaa95
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-22'
+    title: 'feat: add generated media asset pipeline'
+    commits:
+    - 7fb483602
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: render music embed icons correctly'
+    commits:
+    - 54cdc9375
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: route music generation embeds'
+    commits:
+    - 2eb9ca4bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: stabilize top failing playwright specs'
+    commits:
+    - e88519da5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'test: wait for CLI chat sync'
+    commits:
+    - 16fd7424b
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-23'
+    title: 'feat: add electronics component search'
+    commits:
+    - 181e5d10f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-23'
+    title: 'feat: add furry mode'
+    commits:
+    - b779facad
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-23'
+    title: 'refactor: disable furry mode'
+    commits:
+    - 9e069ebe6
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: open shopping product embed fullscreen'
+    commits:
+    - e8164d823
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: restore electronics embed icon and count'
+    commits:
+    - 082471f86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: show selected providers while embeds process'
+    commits:
+    - 1172d5fa6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: other
+  item_count: 45
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-18'
+    title: 'fix: recover multiline code embeds'
+    commits:
+    - 6635075a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: allow code run API routes'
+    commits:
+    - b4f91502d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: clone code run output before storage'
+    commits:
+    - 20906cee3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: preserve top-level websocket payloads'
+    commits:
+    - e99e4de74
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: prevent Directus admin login stampedes'
+    commits:
+    - 7595c1265
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: reload code run dev edge routes'
+    commits:
+    - 39b8f2b88
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: write code run binary attachments'
+    commits:
+    - d4a57829b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'test: accept code run billing text'
+    commits:
+    - 459cdde3b
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'test: add code run mock fixture'
+    commits:
+    - 7489d00e6
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'test: allow account preflight otp retries'
+    commits:
+    - 8a0aad3d9
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'test: assert code run billing output'
+    commits:
+    - 12f9043ff
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'test: cover code run cancellation'
+    commits:
+    - a704d5e5f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'test: cover code run file selection'
+    commits:
+    - a6a143974
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'test: cover code run sandbox execution'
+    commits:
+    - aaf1936aa
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'test: detect stale e2e account otp secrets'
+    commits:
+    - 0344d1499
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'test: guard code run source immutability'
+    commits:
+    - 86f0a3ab6
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-19'
+    title: 'test: use fixture code files for code run selection'
+    commits:
+    - 26ac1b26b
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'Merge pull request #404 from glowingkitty/dev'
+    commits:
+    - a938c76c6
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add daily metrics SVG graphics'
+    commits:
+    - c1fb2b082
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: hide unauthoritative purchase metrics'
+    commits:
+    - 426d015ee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: refresh stale daily metric cache'
+    commits:
+    - a2e37de9d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: stop persisting test videos to obsidian'
+    commits:
+    - 718681c8e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: stop stale embed decryption retry loops'
+    commits:
+    - 5395b5720
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'test: harden signup toggle helper'
+    commits:
+    - ebb54ff85
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'test: make persistent account recreation unique'
+    commits:
+    - 4b3184f78
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'test: route persistent gmail accounts to test inbox'
+    commits:
+    - f2fa6e7a2
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'test: switch recreated accounts to stripe card form'
+    commits:
+    - f89f9f21b
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'test: update Code Run E2B copy assertion'
+    commits:
+    - b975eda38
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: enable music app registration'
+    commits:
+    - 72c114791
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: add real video focus mode e2e'
+    commits:
+    - 6533b8849
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: allow known code embed sync noise'
+    commits:
+    - fa7df450a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: assert focus pill label and state'
+    commits:
+    - 3086e2d7a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: avoid empty-editor send button wait'
+    commits:
+    - '601502036'
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: bound focus followup sidebar cleanup'
+    commits:
+    - 7e6986c32
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: cover code run follow-up embed'
+    commits:
+    - ec16eba2f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: emit mocked focus activation event'
+    commits:
+    - 4ebe6be74
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: expose focus embed menu actions'
+    commits:
+    - 6fe19f63c
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: serialize code generation e2e'
+    commits:
+    - a3ac18060
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: use valid focus mode fixtures'
+    commits:
+    - 3dd165666
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: verify focus activation persists after relogin'
+    commits:
+    - 73a6049ab
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: omit unsupported Veo count'
+    commits:
+    - 0de33919b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: send numeric Veo duration'
+    commits:
+    - da4d2ac34
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-22'
+    title: 'test: cover Code Run CTA support'
+    commits:
+    - 7f561ce9c
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-22'
+    title: 'test: verify music app store and playback'
+    commits:
+    - c1e0e51ec
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-23'
+    title: 'test: add electronics embed preview coverage'
+    commits:
+    - 3a4c5ca91
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: product
+  item_count: 35
+  newsletter_ready_count: 35
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-19'
+    title: 'feat: add Stoffe.de shopping provider'
+    commits:
+    - 991eb90f3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: cancel active code runs'
+    commits:
+    - b953c5798
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: move code actions to header cta'
+    commits:
+    - 88564acbd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: show Stoffe shopping result details'
+    commits:
+    - 594b055a4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: align code run e2b provider limits'
+    commits:
+    - bfbcf2d05
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: align code run output pane'
+    commits:
+    - e0383f6de
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: clarify empty travel searches'
+    commits:
+    - bd36dee68
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: highlight normalized source quotes'
+    commits:
+    - 44effae26
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: improve code run output toggle'
+    commits:
+    - d15a67dc0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: infer code run installs from selected snippets'
+    commits:
+    - af47b3ce2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: keep code run output out of code embeds'
+    commits:
+    - d9bd0565a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: prevent embed highlight scroll loop'
+    commits:
+    - 4c8d8c2e6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: record code run billing metadata'
+    commits:
+    - 9370f758c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: route shopping providers by category and country'
+    commits:
+    - e4fd4e7aa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'style: darken code run terminal'
+    commits:
+    - 729ba389c
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add daily development metrics graphic'
+    commits:
+    - 577d32c83
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: revise daily development metric blocks'
+    commits:
+    - 20d5030a0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: render math calculation details'
+    commits:
+    - 477999e3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: stop daily metric card showing false data'
+    commits:
+    - 991cec7f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: unwrap backticked embed links'
+    commits:
+    - 4691fb8a0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: filter focus activation continuation history'
+    commits:
+    - 50057a7f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: keep focus continuation history user-ended'
+    commits:
+    - 4e74b8004
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: suppress focus same-turn placeholders'
+    commits:
+    - 875eace40
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'feat: expand Code Run language support'
+    commits:
+    - 2200f7e1f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: add music embed preview showcase'
+    commits:
+    - f1b620a0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: expose music app metadata with Vertex credentials'
+    commits:
+    - 7127d70ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: prevent daily inspiration media mismatches'
+    commits:
+    - 2bed73247
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: avoid favicon observer mutation loop'
+    commits:
+    - cfceaa70a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: derive mate category from topic area'
+    commits:
+    - fe1de461b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: guard app favicon links'
+    commits:
+    - 0e59cff94
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: match web search placeholders by normalized ids'
+    commits:
+    - afed6dc83
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: prevent shopping product fullscreen crash'
+    commits:
+    - f18d008d8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: rename video generate skill'
+    commits:
+    - e697766c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: show Texas Instruments provider logo'
+    commits:
+    - a2db1b089
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: stabilize mate topic routing'
+    commits:
+    - bb257c922
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: cli_sdk
+  item_count: 12
+  newsletter_ready_count: 5
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-19'
+    title: 'fix: run code from cached embeds or client fallback'
+    commits:
+    - 7a39e8f07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'test: avoid clicking uploaded code embed'
+    commits:
+    - 651996ed8
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'ci: align cli prerelease version with product version'
+    commits:
+    - e6eb03133
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'feat: return async skill results in CLI'
+    commits:
+    - 466dc3895
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-22'
+    title: 'fix: align CLI upload endpoint'
+    commits:
+    - f485d2f8d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: mock Sightengine HTTP calls in tests'
+    commits:
+    - 9325f2dfd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: preserve CLI file embed payloads'
+    commits:
+    - 5b70239bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: preserve CLI file embed references'
+    commits:
+    - 5274a21d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: retry CLI file uploads'
+    commits:
+    - 499e2db18
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'test: align CLI file upload pair auth flow'
+    commits:
+    - b16941252
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-22'
+    title: 'test: harden CLI upload timing'
+    commits:
+    - 1e07ae425
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-22'
+    title: 'test: parse CLI pair token URL format'
+    commits:
+    - caadf7a33
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: infrastructure
+  item_count: 9
+  newsletter_ready_count: 4
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-19'
+    title: 'docs: add E2B privacy provider'
+    commits:
+    - bb032f260
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: accept numeric billing pricing shorthands'
+    commits:
+    - b7ebd6538
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: stop unresolved embed preview spinners'
+    commits:
+    - 09101665c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'feat: use Reddit JSON for social media posts'
+    commits:
+    - 490da3dbd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: improve social post embeds'
+    commits:
+    - 1dac7397c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: make E2B secure mode explicit'
+    commits:
+    - 63a7c8ae8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-21'
+    title: 'test: make video focus request explicit'
+    commits:
+    - a0ba9f8bb
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: correct electronics component pricing'
+    commits:
+    - ca8587606
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: use official provider icons'
+    commits:
+    - 96124fc50
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: settings
+  item_count: 8
+  newsletter_ready_count: 5
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-19'
+    title: 'fix: secure email change reauth'
+    commits:
+    - 08a91814f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-23'
+    title: 'feat: show furry mate prompts in settings'
+    commits:
+    - 0a047a57f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-23'
+    title: 'test: fix furry mode mates navigation'
+    commits:
+    - e2f101e83
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-23'
+    title: 'test: fix furry mode spec API origin'
+    commits:
+    - ff6894095
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-23'
+    title: 'test: harden furry mode CSS assertion'
+    commits:
+    - 921a7d3ba
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-24'
+    title: 'feat: add app store embed examples'
+    commits:
+    - 9759a632d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: add provider privacy links'
+    commits:
+    - c8a5da9fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: show real svelte code repo example'
+    commits:
+    - 85cd84cf4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: docs
+  item_count: 3
+  newsletter_ready_count: 1
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-20'
+    title: 'chore: remove obsidian task board automation'
+    commits:
+    - d1f537f3f
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-20'
+    title: 'fix: render wiki links in embed content'
+    commits:
+    - 51b627b76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: restore obsidian task sync cron'
+    commits:
+    - b00993168
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: self_hosting
+  item_count: 3
+  newsletter_ready_count: 2
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-19'
+    title: 'feat: add code run sandbox execution'
+    commits:
+    - cb584b78d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'feat: add music generation skill'
+    commits:
+    - f5e9f99ac
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'infra: add generated video worker'
+    commits:
+    - 4c7e1e470
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: security
+  item_count: 2
+  newsletter_ready_count: 1
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-19'
+    title: 'feat: select code run dependency installs'
+    commits:
+    - d679a87bc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'security: harden E2B code run'
+    commits:
+    - 9eda58faf
+    section: internal
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: apple
+  item_count: 1
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-21'
+    title: 'fix: remove stale dev web domain references'
+    commits:
+    - c610a080c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+marketing_candidates:
+  newsletter:
+  - date: '2026-05-18'
+    title: 'fix: search shared uploaded embeds'
+    commits:
+    - 9219a3838
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: add Stoffe.de shopping provider'
+    commits:
+    - 991eb90f3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: add code run file selection'
+    commits:
+    - bfca9239b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: add code run sandbox execution'
+    commits:
+    - cb584b78d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: cancel active code runs'
+    commits:
+    - b953c5798
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: move code actions to header cta'
+    commits:
+    - 88564acbd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: select code run dependency installs'
+    commits:
+    - d679a87bc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: show Stoffe shopping result details'
+    commits:
+    - 594b055a4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: use Gemini 3.5 Flash'
+    commits:
+    - 8956fce2a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: align code run e2b provider limits'
+    commits:
+    - bfbcf2d05
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: align code run output pane'
+    commits:
+    - e0383f6de
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: clarify empty travel searches'
+    commits:
+    - bd36dee68
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: heal chat indexeddb schema before sync'
+    commits:
+    - 4d19860bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: hide fake travel provider attribution'
+    commits:
+    - 7811a35fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: highlight normalized source quotes'
+    commits:
+    - 44effae26
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: improve code run output toggle'
+    commits:
+    - d15a67dc0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: infer code run installs from selected snippets'
+    commits:
+    - af47b3ce2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: keep code run output out of code embeds'
+    commits:
+    - d9bd0565a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: prevent embed highlight scroll loop'
+    commits:
+    - 4c8d8c2e6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: record code run billing metadata'
+    commits:
+    - 9370f758c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: refresh image search header bubbles'
+    commits:
+    - 63e6ac0e6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: route shopping providers by category and country'
+    commits:
+    - e4fd4e7aa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: run code from cached embeds or client fallback'
+    commits:
+    - 7a39e8f07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: secure email change reauth'
+    commits:
+    - 08a91814f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: show code run charges in chat billing'
+    commits:
+    - cc4653c22
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: stabilize code run output persistence'
+    commits:
+    - 723e8bd68
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: sync code run outputs'
+    commits:
+    - d2142ee25
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'style: darken code run terminal'
+    commits:
+    - 729ba389c
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add chat open in new tab menu action'
+    commits:
+    - abe99ea35
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add daily development metrics graphic'
+    commits:
+    - 577d32c83
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add generic chat replay demo mode'
+    commits:
+    - d2f071bcc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add math calculation titles'
+    commits:
+    - b944df3f1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add shared chat PII policy'
+    commits:
+    - c35bf8973
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: include code run output in inference context'
+    commits:
+    - 38a09a9d7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: revise daily development metric blocks'
+    commits:
+    - 20d5030a0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: show image bubbles on resume cards'
+    commits:
+    - ba2641cc1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: update chat header image background'
+    commits:
+    - 6d95c3bf3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: dedupe shared chat embeds before hydration'
+    commits:
+    - 04ee208cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: harden shared chat embed ref hydration'
+    commits:
+    - f3011e9e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: hide resume icons behind image bubbles'
+    commits:
+    - 2f9d05bd8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: include chat title in browser tab'
+    commits:
+    - 2ede94245
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: prevent sync from force-replacing chat keys'
+    commits:
+    - 19dc59561
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: refresh header navigation for new chats'
+    commits:
+    - 7766e9527
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: render grouped math calculation embeds'
+    commits:
+    - 37fea23e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: render math calculation details'
+    commits:
+    - 477999e3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: render resume card image bubbles from markdown'
+    commits:
+    - 25411b9e2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: render wiki links in embed content'
+    commits:
+    - 51b627b76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: restore Gemini 3 Flash default'
+    commits:
+    - 409a83e8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: restore chat header image bubbles'
+    commits:
+    - 9db7d51a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: restore public shared chat metadata reads'
+    commits:
+    - 211f3111d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: restore shared chat embed previews'
+    commits:
+    - 26d5ff9ce
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: show full math calculations in embeds'
+    commits:
+    - 9678b1d98
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: stop daily metric card showing false data'
+    commits:
+    - 991cec7f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: stop unresolved embed preview spinners'
+    commits:
+    - 09101665c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: store resume images on chat metadata'
+    commits:
+    - bd2a8c5b8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: unwrap backticked embed links'
+    commits:
+    - 4691fb8a0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'style: enlarge chat header image bubbles on hover'
+    commits:
+    - b95a05e16
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'style: smooth image bubble hover transition'
+    commits:
+    - 2b6cb8512
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'feat: add code output follow-up action'
+    commits:
+    - 413b7e3ec
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'feat: add music generation skill'
+    commits:
+    - f5e9f99ac
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'feat: use Reddit JSON for social media posts'
+    commits:
+    - 490da3dbd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: filter focus activation continuation history'
+    commits:
+    - 50057a7f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: improve social post embeds'
+    commits:
+    - 1dac7397c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: keep focus activation above skill previews'
+    commits:
+    - 117d73e02
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: keep focus continuation history user-ended'
+    commits:
+    - 4e74b8004
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: normalize provider display names'
+    commits:
+    - f22152dc8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: persist focus activation from embed countdown'
+    commits:
+    - 27fcbb620
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: persist shared chat PII flags with admin access'
+    commits:
+    - 449cab0ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: reject assistant responses encrypted with stale chat keys'
+    commits:
+    - 238244c29
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: remove incomplete music embed routing'
+    commits:
+    - 123abbf19
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: skip focus countdown on reopened chats'
+    commits:
+    - 865b70bcc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: stabilize focus mode reload errors'
+    commits:
+    - 97c2fac80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: suppress focus same-turn placeholders'
+    commits:
+    - 875eace40
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'feat: add generated media asset pipeline'
+    commits:
+    - 7fb483602
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'feat: expand Code Run language support'
+    commits:
+    - 2200f7e1f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: add music embed preview showcase'
+    commits:
+    - f1b620a0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: align CLI upload endpoint'
+    commits:
+    - f485d2f8d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: expose music app metadata with Vertex credentials'
+    commits:
+    - 7127d70ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: preserve CLI file embed payloads'
+    commits:
+    - 5b70239bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: preserve CLI file embed references'
+    commits:
+    - 5274a21d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: prevent daily inspiration media mismatches'
+    commits:
+    - 2bed73247
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: render music embed icons correctly'
+    commits:
+    - 54cdc9375
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: retry CLI file uploads'
+    commits:
+    - 499e2db18
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: route music generation embeds'
+    commits:
+    - 2eb9ca4bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: stabilize top failing playwright specs'
+    commits:
+    - e88519da5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-23'
+    title: 'feat: add electronics component search'
+    commits:
+    - 181e5d10f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-23'
+    title: 'feat: add furry mode'
+    commits:
+    - b779facad
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-23'
+    title: 'feat: show furry mate prompts in settings'
+    commits:
+    - 0a047a57f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-23'
+    title: 'refactor: disable furry mode'
+    commits:
+    - 9e069ebe6
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'feat: add app store embed examples'
+    commits:
+    - 9759a632d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: add provider privacy links'
+    commits:
+    - c8a5da9fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: avoid favicon observer mutation loop'
+    commits:
+    - cfceaa70a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: correct electronics component pricing'
+    commits:
+    - ca8587606
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: derive mate category from topic area'
+    commits:
+    - fe1de461b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: guard app favicon links'
+    commits:
+    - 0e59cff94
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: match web search placeholders by normalized ids'
+    commits:
+    - afed6dc83
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: open shopping product embed fullscreen'
+    commits:
+    - e8164d823
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: prevent shopping product fullscreen crash'
+    commits:
+    - f18d008d8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: rename video generate skill'
+    commits:
+    - e697766c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: restore electronics embed icon and count'
+    commits:
+    - 082471f86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: show Texas Instruments provider logo'
+    commits:
+    - a2db1b089
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: show real svelte code repo example'
+    commits:
+    - 85cd84cf4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: show selected providers while embeds process'
+    commits:
+    - 1172d5fa6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: stabilize mate topic routing'
+    commits:
+    - bb257c922
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  social_or_video:
+  - date: '2026-05-18'
+    title: 'fix: search shared uploaded embeds'
+    commits:
+    - 9219a3838
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: add Stoffe.de shopping provider'
+    commits:
+    - 991eb90f3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: add code run file selection'
+    commits:
+    - bfca9239b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: add code run sandbox execution'
+    commits:
+    - cb584b78d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: cancel active code runs'
+    commits:
+    - b953c5798
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: move code actions to header cta'
+    commits:
+    - 88564acbd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: select code run dependency installs'
+    commits:
+    - d679a87bc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: show Stoffe shopping result details'
+    commits:
+    - 594b055a4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'feat: use Gemini 3.5 Flash'
+    commits:
+    - 8956fce2a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: align code run e2b provider limits'
+    commits:
+    - bfbcf2d05
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: align code run output pane'
+    commits:
+    - e0383f6de
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: clarify empty travel searches'
+    commits:
+    - bd36dee68
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: heal chat indexeddb schema before sync'
+    commits:
+    - 4d19860bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: hide fake travel provider attribution'
+    commits:
+    - 7811a35fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: highlight normalized source quotes'
+    commits:
+    - 44effae26
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: improve code run output toggle'
+    commits:
+    - d15a67dc0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: infer code run installs from selected snippets'
+    commits:
+    - af47b3ce2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: keep code run output out of code embeds'
+    commits:
+    - d9bd0565a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: prevent embed highlight scroll loop'
+    commits:
+    - 4c8d8c2e6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: record code run billing metadata'
+    commits:
+    - 9370f758c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: refresh image search header bubbles'
+    commits:
+    - 63e6ac0e6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: route shopping providers by category and country'
+    commits:
+    - e4fd4e7aa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: run code from cached embeds or client fallback'
+    commits:
+    - 7a39e8f07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: secure email change reauth'
+    commits:
+    - 08a91814f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: show code run charges in chat billing'
+    commits:
+    - cc4653c22
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: stabilize code run output persistence'
+    commits:
+    - 723e8bd68
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'fix: sync code run outputs'
+    commits:
+    - d2142ee25
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-19'
+    title: 'style: darken code run terminal'
+    commits:
+    - 729ba389c
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add chat open in new tab menu action'
+    commits:
+    - abe99ea35
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add daily development metrics graphic'
+    commits:
+    - 577d32c83
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add generic chat replay demo mode'
+    commits:
+    - d2f071bcc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add math calculation titles'
+    commits:
+    - b944df3f1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: add shared chat PII policy'
+    commits:
+    - c35bf8973
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: include code run output in inference context'
+    commits:
+    - 38a09a9d7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: revise daily development metric blocks'
+    commits:
+    - 20d5030a0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: show image bubbles on resume cards'
+    commits:
+    - ba2641cc1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'feat: update chat header image background'
+    commits:
+    - 6d95c3bf3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: dedupe shared chat embeds before hydration'
+    commits:
+    - 04ee208cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: harden shared chat embed ref hydration'
+    commits:
+    - f3011e9e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: hide resume icons behind image bubbles'
+    commits:
+    - 2f9d05bd8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: include chat title in browser tab'
+    commits:
+    - 2ede94245
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: prevent sync from force-replacing chat keys'
+    commits:
+    - 19dc59561
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: refresh header navigation for new chats'
+    commits:
+    - 7766e9527
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: render grouped math calculation embeds'
+    commits:
+    - 37fea23e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: render math calculation details'
+    commits:
+    - 477999e3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: render resume card image bubbles from markdown'
+    commits:
+    - 25411b9e2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: render wiki links in embed content'
+    commits:
+    - 51b627b76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: restore Gemini 3 Flash default'
+    commits:
+    - 409a83e8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: restore chat header image bubbles'
+    commits:
+    - 9db7d51a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: restore public shared chat metadata reads'
+    commits:
+    - 211f3111d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: restore shared chat embed previews'
+    commits:
+    - 26d5ff9ce
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: show full math calculations in embeds'
+    commits:
+    - 9678b1d98
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: stop daily metric card showing false data'
+    commits:
+    - 991cec7f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: stop unresolved embed preview spinners'
+    commits:
+    - 09101665c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: store resume images on chat metadata'
+    commits:
+    - bd2a8c5b8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'fix: unwrap backticked embed links'
+    commits:
+    - 4691fb8a0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'style: enlarge chat header image bubbles on hover'
+    commits:
+    - b95a05e16
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-20'
+    title: 'style: smooth image bubble hover transition'
+    commits:
+    - 2b6cb8512
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'feat: add code output follow-up action'
+    commits:
+    - 413b7e3ec
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'feat: add music generation skill'
+    commits:
+    - f5e9f99ac
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'feat: return async skill results in CLI'
+    commits:
+    - 466dc3895
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-21'
+    title: 'feat: use Reddit JSON for social media posts'
+    commits:
+    - 490da3dbd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: filter focus activation continuation history'
+    commits:
+    - 50057a7f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: improve social post embeds'
+    commits:
+    - 1dac7397c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: keep focus activation above skill previews'
+    commits:
+    - 117d73e02
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: keep focus continuation history user-ended'
+    commits:
+    - 4e74b8004
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: normalize provider display names'
+    commits:
+    - f22152dc8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: persist focus activation from embed countdown'
+    commits:
+    - 27fcbb620
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: persist shared chat PII flags with admin access'
+    commits:
+    - 449cab0ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: reject assistant responses encrypted with stale chat keys'
+    commits:
+    - 238244c29
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: remove incomplete music embed routing'
+    commits:
+    - 123abbf19
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: remove stale dev web domain references'
+    commits:
+    - c610a080c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-21'
+    title: 'fix: skip focus countdown on reopened chats'
+    commits:
+    - 865b70bcc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: stabilize focus mode reload errors'
+    commits:
+    - 97c2fac80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-21'
+    title: 'fix: suppress focus same-turn placeholders'
+    commits:
+    - 875eace40
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'feat: add generated media asset pipeline'
+    commits:
+    - 7fb483602
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'feat: expand Code Run language support'
+    commits:
+    - 2200f7e1f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: add music embed preview showcase'
+    commits:
+    - f1b620a0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: align CLI upload endpoint'
+    commits:
+    - f485d2f8d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: expose music app metadata with Vertex credentials'
+    commits:
+    - 7127d70ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: preserve CLI file embed payloads'
+    commits:
+    - 5b70239bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: preserve CLI file embed references'
+    commits:
+    - 5274a21d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: prevent daily inspiration media mismatches'
+    commits:
+    - 2bed73247
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: render music embed icons correctly'
+    commits:
+    - 54cdc9375
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: retry CLI file uploads'
+    commits:
+    - 499e2db18
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: route music generation embeds'
+    commits:
+    - 2eb9ca4bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-22'
+    title: 'fix: stabilize top failing playwright specs'
+    commits:
+    - e88519da5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-23'
+    title: 'feat: add electronics component search'
+    commits:
+    - 181e5d10f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-23'
+    title: 'feat: add furry mode'
+    commits:
+    - b779facad
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-23'
+    title: 'feat: show furry mate prompts in settings'
+    commits:
+    - 0a047a57f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-23'
+    title: 'refactor: disable furry mode'
+    commits:
+    - 9e069ebe6
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'feat: add app store embed examples'
+    commits:
+    - 9759a632d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: add provider privacy links'
+    commits:
+    - c8a5da9fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: avoid favicon observer mutation loop'
+    commits:
+    - cfceaa70a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: correct electronics component pricing'
+    commits:
+    - ca8587606
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: derive mate category from topic area'
+    commits:
+    - fe1de461b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: guard app favicon links'
+    commits:
+    - 0e59cff94
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: match web search placeholders by normalized ids'
+    commits:
+    - afed6dc83
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: open shopping product embed fullscreen'
+    commits:
+    - e8164d823
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: prevent shopping product fullscreen crash'
+    commits:
+    - f18d008d8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: rename video generate skill'
+    commits:
+    - e697766c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: restore electronics embed icon and count'
+    commits:
+    - 082471f86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: show Texas Instruments provider logo'
+    commits:
+    - a2db1b089
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: show real svelte code repo example'
+    commits:
+    - 85cd84cf4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: show selected providers while embeds process'
+    commits:
+    - 1172d5fa6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-24'
+    title: 'fix: stabilize mate topic routing'
+    commits:
+    - bb257c922
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+risks:
+  communication:
+  - Use weekly themes for PR/release/newsletter drafting; do not list every daily item one-by-one.
+  - Keep dev_only and unknown_release_status items out of public newsletters until released on main.
+sources:
+  daily_files:
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-18.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-19.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-20.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-21.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-22.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-23.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-24.yml
+llm_summary:
+  overview: OpenMates significantly expanded its technical and creative capabilities this week, introducing a secure code
+    execution sandbox, a new music generation skill, and specialized electronics component search. The platform also upgraded
+    its core AI engine to Gemini 3.5 Flash and implemented a comprehensive PII policy for shared chats to enhance user privacy.
+    Discoverability was improved through new visual examples in the App Store, while the developer CLI received critical reliability
+    updates for file transfers.
+  released_changes:
+  - text: OpenMates added a secure sandbox for code execution, allowing users to run code, select specific files or dependencies,
+      and cancel active executions via a new header CTA.
+    evidence:
+      commits:
+      - cb584b78d
+      - bfca9239b
+      - 88564acbd
+      - d679a87bc
+      - b953c5798
+    release_status: released_main
+  - text: The AI engine was upgraded to Gemini 3.5 Flash for processing, daily inspiration generation, and OCR tasks.
+    evidence:
+      commits:
+      - 8956fce2a
+    release_status: released_main
+  - text: A music generation skill was introduced, enabling users to create audio content directly within the app with new
+      preview and fullscreen embeds.
+    evidence:
+      commits:
+      - f5e9f99ac
+    release_status: released_main
+  - text: A unified generated media asset pipeline was added, integrating image, music, and video generation tasks across
+      the platform.
+    evidence:
+      commits:
+      - 7fb483602
+    release_status: released_main
+  - text: An electronics component search feature was added, integrating TI Webench data into new search and component embeds.
+    evidence:
+      commits:
+      - 181e5d10f
+    release_status: released_main
+  - text: The shopping assistant now supports Stoffe.de as a provider, including detailed fullscreen result views.
+    evidence:
+      commits:
+      - 991eb90f3
+      - 594b055a4
+    release_status: released_main
+  - text: A PII policy for shared chats was introduced, providing better control over sensitive information when sharing conversations
+      publicly.
+    evidence:
+      commits:
+      - c35bf8973
+    release_status: released_main
+  - text: The App Store now includes visual examples for music, video, code, electronics, and social media embeds to demonstrate
+      functionality.
+    evidence:
+      commits:
+      - 9759a632d
+      - 85cd84cf4
+    release_status: released_main
+  - text: Descriptive titles were added to math calculation embeds to provide clearer context for automated results.
+    evidence:
+      commits:
+      - b944df3f1
+    release_status: released_main
+  - text: The OpenMates CLI was updated with improved upload endpoint alignment, retry logic for file transfers, and better
+      preservation of embed payloads.
+    evidence:
+      commits:
+      - f485d2f8d
+      - 499e2db18
+      - 5b70239bf
+      - 5274a21d6
+    release_status: released_main
+  bug_fixes:
+  - text: Focus Mode received extensive stability updates, including persisting activation from countdowns, suppressing same-turn
+      placeholders, and resolving reload errors.
+    evidence:
+      commits:
+      - 865b70bcc
+      - 117d73e02
+      - 875eace40
+      - 50057a7f0
+      - 27fcbb620
+      - 4e74b8004
+      - 97c2fac80
+    release_status: released_main
+  - text: Shared chat reliability was improved by deduping embeds, restoring metadata reads, and hardening the hydration of
+      embed references.
+    evidence:
+      commits:
+      - 04ee208cc
+      - 211f3111d
+      - f3011e9e4
+      - 26d5ff9ce
+    release_status: released_main
+  - text: Math calculation embeds now correctly render grouped results, full calculation details, and expanded views.
+    evidence:
+      commits:
+      - 37fea23e4
+      - 477999e3a
+      - 9678b1d98
+    release_status: released_main
+  - text: Visual regressions in the chat header and resume cards were addressed, ensuring image bubbles display correctly
+      and persist in chat metadata.
+    evidence:
+      commits:
+      - 9db7d51a6
+      - 2f9d05bd8
+      - bd2a8c5b8
+      - 25411b9e2
+    release_status: released_main
+  - text: The project now rejects assistant responses encrypted with stale chat keys to ensure session security.
+    evidence:
+      commits:
+      - 238244c29
+    release_status: released_main
+  - text: A mutation loop in the favicon observer was resolved, and new guards were added for app favicon links to improve
+      browser performance.
+    evidence:
+      commits:
+      - cfceaa70a
+      - 0e59cff94
+    release_status: released_main
+  - text: A crash occurring when attempting to view shopping product results in fullscreen mode was prevented.
+    evidence:
+      commits:
+      - f18d008d8
+    release_status: released_main
+  - text: UI and data issues in the electronics app were fixed, including the restoration of icons and component counts.
+    evidence:
+      commits:
+      - 082471f86
+    release_status: released_main
+  unreleased_progress:
+  - text: A furry mode customization suite was implemented and subsequently disabled shortly after release.
+    evidence:
+      commits:
+      - b779facad
+      - 0a047a57f
+      - 9e069ebe6
+    release_status: released_main
+  - text: Automation for Obsidian task boards and sync crons was removed or restructured as part of the currently disabled
+      tasks platform.
+    evidence:
+      commits:
+      - d1f537f3f
+      - b00993168
+    release_status: released_main
+  - text: Domain references for the unreleased iOS and macOS platforms were updated to remove stale development URLs.
+    evidence:
+      commits:
+      - c610a080c
+    release_status: released_main
+  - text: Work on returning asynchronous skill results in the CLI is underway, currently gated by the Tasks platform status.
+    evidence:
+      commits:
+      - 466dc3895
+    release_status: released_main
+  - text: Infrastructure for a generated video worker was added to the core configuration.
+    evidence:
+      commits:
+      - 4c7e1e470
+    release_status: released_main
+  - text: Internal security hardening was applied to the E2B code execution environment.
+    evidence:
+      commits:
+      - 9eda58faf
+    release_status: released_main
+  - text: Daily development metrics and SVG graphics were revised to provide more accurate internal project statistics.
+    evidence:
+      commits:
+      - c1fb2b082
+      - 20d5030a0
+      - 577d32c83
+    release_status: released_main
+  internal_progress:
+  - text: Test infrastructure was hardened with unique account recreation logic and normalized provider display names across
+      mail and social skills.
+    evidence:
+      commits:
+      - f89f9f21b
+      - 4b3184f78
+      - ebb54ff85
+      - f22152dc8
+    release_status: released_main
+  - text: Several provider icons were updated to their official versions to maintain branding accuracy.
+    evidence:
+      commits:
+      - 96124fc50
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Secure code execution sandbox with file and dependency selection.
+      evidence:
+        commits:
+        - cb584b78d
+        - bfca9239b
+        - 88564acbd
+        - d679a87bc
+        - b953c5798
+      reason: Major new capability allowing users to run, manage, and cancel code within a secure sandbox.
+    - text: Integration of Gemini 3.5 Flash for faster AI responses.
+      evidence:
+        commits:
+        - 8956fce2a
+      reason: Significant model upgrade for AI processing and daily inspiration.
+    - text: New music generation skill powered by Gemini.
+      evidence:
+        commits:
+        - f5e9f99ac
+      reason: A major new creative capability for the platform.
+    - text: Electronics component search integration with TI Webench.
+      evidence:
+        commits:
+        - 181e5d10f
+      reason: Adds a significant new functional capability for electronics engineering workflows.
+    - text: Introduction of PII (Personally Identifiable Information) policies for shared chats.
+      evidence:
+        commits:
+        - c35bf8973
+      reason: Important privacy update for users sharing chats publicly.
+    - text: New visual examples for the App Store.
+      evidence:
+        commits:
+        - 9759a632d
+      reason: Visual examples help users understand the capabilities of different apps before enabling them.
+    exclude:
+    - text: Furry mode customization and avatars.
+      evidence:
+        commits:
+        - b779facad
+        - 0a047a57f
+        - 9e069ebe6
+      reason: The furry mode customization feature was disabled shortly after its initial introduction.
+    - text: Obsidian task board automation and sync crons.
+      evidence:
+        commits:
+        - d1f537f3f
+        - b00993168
+      reason: Relates to the tasks platform which is currently a disabled feature.
+    - text: Cleanup of stale dev domain references for Apple platforms.
+      evidence:
+        commits:
+        - c610a080c
+      reason: This update affects iOS and macOS platforms which are currently disabled.
+    - text: Asynchronous skill results in the CLI.
+      evidence:
+        commits:
+        - 466dc3895
+      reason: This feature depends on the Tasks platform, which is currently disabled.
+    rationale: The week's updates represent major functional milestones, including a secure code sandbox, music generation,
+      and specialized electronics search, alongside critical privacy enhancements for shared content.
+  social_video_recommendations:
+  - idea: Showcase the new music generation skill by prompting for a specific genre and showing the resulting audio embed.
+    priority: high
+    reason: Music generation is a highly visual and auditory feature perfect for social media demonstrations.
+    evidence:
+      commits:
+      - f5e9f99ac
+  - idea: A demonstration of the new code sandbox showing a user selecting files and running a Python script directly in the
+      chat.
+    priority: high
+    reason: The code sandbox is a powerful feature that differentiates the assistant's technical capabilities.
+    evidence:
+      commits:
+      - cb584b78d
+      - bfca9239b
+  - idea: A demo showing a user searching for electronics components and viewing the detailed TI Webench embeds.
+    priority: medium
+    reason: Demonstrates the platform's utility for specialized engineering tasks.
+    evidence:
+      commits:
+      - 181e5d10f
+  quality_notes:
+  - The project prioritized the reliability of developer tools (CLI) alongside new feature rollouts.
+  - Extensive updates to provider metadata ensure that legal, privacy, and branding information is current across the platform.
+  - Foundational work for video generation is progressing with the addition of dedicated worker infrastructure.
+  validation_warnings: []

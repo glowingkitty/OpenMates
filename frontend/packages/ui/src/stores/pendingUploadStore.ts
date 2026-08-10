@@ -26,6 +26,8 @@
  */
 
 import { writable, get } from "svelte/store";
+import type { PIIMapping } from "../types/chat";
+import type { TipTapDoc, TipTapNode } from "../message_parsing/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -123,6 +125,8 @@ export interface PendingSendContext {
   createdAt: number;
   /** PII exclusions captured at send time (passed through to the actual send) */
   piiExclusions: Set<string>;
+  /** Owner-local mappings captured at send time for deferred placeholder rewrite */
+  piiRewriteMappings: PIIMapping[];
   /** Original PII-anonymized markdown text (partial — may be updated when embeds finish) */
   partialMarkdown: string;
 }
@@ -189,7 +193,7 @@ export function removePendingSend(chatId: string, pendingId: string): void {
  * Get the head (first/oldest) pending send for a chat, or undefined if none.
  * The head is the first to be dispatched.
  */
-function getHeadPendingSend(
+function _getHeadPendingSend(
   chatId: string,
 ): PendingSendContext | undefined {
   const state = get(_store);
@@ -200,7 +204,7 @@ function getHeadPendingSend(
 /**
  * Get ALL pending sends for a chat (in send order).
  */
-function getAllPendingSends(chatId: string): PendingSendContext[] {
+function _getAllPendingSends(chatId: string): PendingSendContext[] {
   const state = get(_store);
   return state.get(chatId) ?? [];
 }
@@ -325,7 +329,7 @@ export function getReadyPendingSend(
  * send so the message won't be dispatched. The upload may still complete in
  * the background (the embed node attrs will be updated regardless).
  */
-function cancelAllPendingSends(chatId: string): void {
+function _cancelAllPendingSends(chatId: string): void {
   _store.update((state) => {
     if (state.has(chatId)) {
       state.delete(chatId);
@@ -350,7 +354,7 @@ export function hasPendingSends(chatId: string): boolean {
  * Get a flat list of all embed IDs that are currently blocking any pending send
  * across ALL chats. Used by embed update handlers to know which embeds to watch.
  */
-function getAllBlockingEmbedIds(): Set<string> {
+function _getAllBlockingEmbedIds(): Set<string> {
   const state = get(_store);
   const result = new Set<string>();
   Array.from(state.values()).forEach((queue) => {
@@ -384,6 +388,55 @@ export function findPendingSendByEmbedId(
     });
   });
   return found;
+}
+
+/**
+ * Build the read-only preview document for a message queued on uploads.
+ *
+ * The persisted optimistic message intentionally has empty markdown because the
+ * final markdown cannot be serialized until uploads finish. The UI can still
+ * render the user's original text/embed layout from the editor snapshot stored
+ * in PendingSendContext.
+ */
+export function buildPendingSendPreviewContent(
+  context: PendingSendContext,
+): TipTapDoc | null {
+  if (!context.editorSnapshot || typeof context.editorSnapshot !== "object") {
+    return null;
+  }
+
+  const snapshot = JSON.parse(
+    JSON.stringify(context.editorSnapshot),
+  ) as TipTapDoc;
+
+  function patchEmbedNodes(nodes: TipTapNode[] | undefined): void {
+    if (!nodes) return;
+
+    for (const node of nodes) {
+      if (node.type === "embed" && node.attrs) {
+        const embedId = typeof node.attrs.id === "string" ? node.attrs.id : "";
+        const embedSnapshot = embedId
+          ? context.embedSnapshots.get(embedId)
+          : undefined;
+        const progress = embedId ? context.embedProgress.get(embedId) : undefined;
+
+        node.attrs = {
+          ...node.attrs,
+          type: embedSnapshot?.embedType ?? node.attrs.type,
+          filename: embedSnapshot?.filename ?? node.attrs.filename,
+          uploadEmbedId:
+            embedSnapshot?.uploadEmbedId ?? node.attrs.uploadEmbedId,
+          contentRef: embedSnapshot?.contentRef ?? node.attrs.contentRef,
+          status: progress?.status ?? node.attrs.status ?? "uploading",
+        };
+      }
+
+      patchEmbedNodes(node.content);
+    }
+  }
+
+  patchEmbedNodes(snapshot.content);
+  return snapshot;
 }
 
 // Export the raw store for components that need to subscribe reactively

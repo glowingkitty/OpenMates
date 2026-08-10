@@ -36,14 +36,13 @@ _SCRIPTS_DIR = str(Path(__file__).parent)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
-from _linear_client import (
+from _linear_client import (  # noqa: E402
     get_issue,
     get_issue_updated_at,
     post_comment,
     remove_label,
 )
-from _zellij_utils import (
-    cleanup_exited_sessions,
+from _zellij_utils import (  # noqa: E402
     enforce_session_limit,
     kill_session,
     list_sessions,
@@ -157,7 +156,7 @@ def cleanup_stale_sessions(
             resume_body = (
                 f"**Session `{sid}` auto-cleaned** "
                 f"(no Linear activity for {hours_stale:.1f}h)\n\n"
-                f"**Resume:** `claude --resume {sid}`\n"
+                f"**Resume:** reopen the OpenCode web chat or attached Zellij session.\n"
             )
             if zellij_name:
                 resume_body += f"**Attach:** `zellij attach {zellij_name}`\n"
@@ -283,10 +282,10 @@ def cleanup_dead_poller_sessions(dry_run: bool = False) -> int:
         if issue_id:
             # Post completion comment
             mode = info.get("mode", "unknown")
-            claude_sid = info.get("claude_session_id")
+            opencode_sid = info.get("opencode_session_id")
             resume_hint = ""
-            if claude_sid:
-                resume_hint = f"**Resume:** `claude --resume {claude_sid}`\n"
+            if opencode_sid:
+                resume_hint = f"**Resume:** reopen OpenCode Web chat `{opencode_sid}`\n"
 
             post_comment(
                 issue_id,

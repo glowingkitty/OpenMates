@@ -24,6 +24,8 @@
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { chatSyncService } from '../../../services/chatSyncService';
+  import { getTravelFareAmount, getTravelFareFallbackLabel, type TravelFare } from './fareDisplay';
+  import { normalizeEmbedIdList } from '../embedPreviewHydration';
   
   /**
    * Connection result interface for preview display
@@ -33,7 +35,9 @@
     type?: string;
     transport_method?: string;
     trip_type?: string;
-    total_price?: string;
+    total_price?: string | number;
+    fare?: TravelFare | null;
+    fare_is_partial?: boolean;
     currency?: string;
     origin?: string;
     destination?: string;
@@ -82,6 +86,14 @@
     providers?: ProviderInfo[];
     /** Original requested trip legs, available before results exist */
     legs?: SearchLeg[];
+    /** Top-level route metadata used by no-result or metadata-only parent embeds */
+    origin?: string;
+    destination?: string;
+    date?: string;
+    /** Parent-level result count for metadata-only parent embeds */
+    resultCount?: number;
+    /** Child result IDs prove results exist even when preview results are not hydrated */
+    childEmbedIds?: string[] | string;
     /** Processing status - must match SkillExecutionStatus */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Connection results (for finished state) */
@@ -102,6 +114,11 @@
     provider: providerProp,
     providers: providersProp,
     legs: legsProp,
+    origin: originProp,
+    destination: destinationProp,
+    date: dateProp,
+    resultCount: resultCountProp,
+    childEmbedIds: childEmbedIdsProp,
     status: statusProp,
     results: resultsProp,
     taskId: taskIdProp,
@@ -115,6 +132,11 @@
   let localProvider = $state<string>('');
   let localProviders = $state<ProviderInfo[]>([]);
   let localLegs = $state<SearchLeg[]>([]);
+  let localOrigin = $state<string>('');
+  let localDestination = $state<string>('');
+  let localDate = $state<string>('');
+  let localResultCount = $state<number | undefined>(undefined);
+  let localChildEmbedIds = $state<string[] | string | undefined>(undefined);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
   let localResults = $state<Array<ConnectionResult | SearchResultGroup>>([]);
@@ -129,6 +151,11 @@
       localProvider = providerProp || '';
       localProviders = providersProp || [];
       localLegs = legsProp || [];
+      localOrigin = originProp || '';
+      localDestination = destinationProp || '';
+      localDate = dateProp || '';
+      localResultCount = resultCountProp;
+      localChildEmbedIds = childEmbedIdsProp;
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
       localTaskId = taskIdProp;
@@ -169,6 +196,11 @@
       if (typeof content.provider === 'string') localProvider = content.provider;
       if (Array.isArray(content.providers)) localProviders = content.providers as ProviderInfo[];
       if (Array.isArray(content.legs)) localLegs = content.legs as SearchLeg[];
+      if (typeof content.origin === 'string') localOrigin = content.origin;
+      if (typeof content.destination === 'string') localDestination = content.destination;
+      if (typeof content.date === 'string') localDate = content.date;
+      if (typeof content.result_count === 'number') localResultCount = content.result_count;
+      if (content.embed_ids) localChildEmbedIds = content.embed_ids as string[] | string;
       if (typeof content.error === 'string') localErrorMessage = content.error;
       if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
 
@@ -228,6 +260,7 @@
   let flatResults = $derived(flattenResults(results));
   let searchGroups = $derived(extractGroups(results));
   let providers = $derived(localProviders.length > 0 ? localProviders : groupProviders(searchGroups));
+  let childEmbedIds = $derived(normalizeEmbedIdList(localChildEmbedIds));
 
   // Provider display: prefer providers list (with icons), fall back to legacy text
   let hasProviderIcons = $derived(providers.length > 0);
@@ -254,6 +287,7 @@
       return `${firstLeg.origin} → ${lastLeg.destination}`;
     }
     if (firstGroup?.query) return firstGroup.query;
+    if (localOrigin && localDestination) return `${localOrigin} → ${localDestination}`;
     return query || '';
   });
   
@@ -262,7 +296,7 @@
     const firstDeparture = flatResults[0]?.departure;
     const firstGroupDate = searchGroups[0]?.legs?.[0]?.date;
     const firstMetadataDate = localLegs[0]?.date;
-    const rawDate = firstDeparture || firstGroupDate || firstMetadataDate;
+    const rawDate = firstDeparture || firstGroupDate || firstMetadataDate || localDate;
     if (!rawDate) return '';
     try {
       const date = new Date(rawDate);
@@ -276,16 +310,16 @@
   let priceInfo = $derived.by(() => {
     if (flatResults.length === 0) return '';
     
-    const prices = flatResults
-      .filter(r => r.total_price)
-      .map(r => parseFloat(r.total_price!));
+    const pricedResults = flatResults
+      .map(r => ({ amount: getTravelFareAmount(r), currency: r.fare?.currency || r.currency }))
+      .filter((r): r is { amount: number; currency?: string | null } => r.amount !== null);
     
-    if (prices.length === 0) return '';
+    if (pricedResults.length === 0) return getTravelFareFallbackLabel(flatResults);
     
-    const currency = flatResults[0]?.currency || 'EUR';
-    const minPrice = Math.min(...prices);
+    const currency = pricedResults[0]?.currency || 'EUR';
+    const minPrice = Math.min(...pricedResults.map(r => r.amount));
     
-    if (prices.length === 1) {
+    if (pricedResults.length === 1) {
       return `${currency} ${Math.round(minPrice)}`;
     }
     
@@ -295,7 +329,11 @@
   // Connection count display
   let connectionCount = $derived.by(() => {
     if (flatResults.length > 0) return flatResults.length;
-    return searchGroups.reduce((total, group) => total + (group.result_count || 0), 0);
+    const groupedCount = searchGroups.reduce((total, group) => total + (group.result_count || 0), 0);
+    if (groupedCount > 0) return groupedCount;
+    if (typeof localResultCount === 'number') return localResultCount;
+    if (childEmbedIds.length > 0) return childEmbedIds.length;
+    return 0;
   });
   
   // Handle stop button click

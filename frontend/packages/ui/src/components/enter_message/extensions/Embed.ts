@@ -529,6 +529,57 @@ export const Embed = Node.create<EmbedOptions>({
           return { "data-group-count": attributes.groupCount.toString() };
         },
       },
+      mapEmbedRefs: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-map-embed-refs");
+          try {
+            return value ? JSON.parse(value) : null;
+          } catch {
+            return null;
+          }
+        },
+        renderHTML: (attributes) => {
+          if (!attributes.mapEmbedRefs) return {};
+          return { "data-map-embed-refs": JSON.stringify(attributes.mapEmbedRefs) };
+        },
+      },
+      mapSourceRefs: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-map-source-refs");
+          try {
+            return value ? JSON.parse(value) : null;
+          } catch {
+            return null;
+          }
+        },
+        renderHTML: (attributes) => {
+          if (!attributes.mapSourceRefs) return {};
+          return { "data-map-source-refs": JSON.stringify(attributes.mapSourceRefs) };
+        },
+      },
+      mapHighlightRefs: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-map-highlight-refs");
+          try {
+            return value ? JSON.parse(value) : null;
+          } catch {
+            return null;
+          }
+        },
+        renderHTML: (attributes) => {
+          if (!attributes.mapHighlightRefs) return {};
+          return { "data-map-highlight-refs": JSON.stringify(attributes.mapHighlightRefs) };
+        },
+      },
+      batchId: { default: null, rendered: false },
+      parentChatId: { default: null, rendered: false },
+      parentMessageId: { default: null, rendered: false },
+      taskId: { default: null, rendered: false },
+      subChatIds: { default: null, rendered: false },
+      executionMode: { default: null, rendered: false },
       // -----------------------------------------------------------------------
       // Image upload ephemeral attributes — in-memory only, NOT persisted to DOM.
       // These are set by insertImage() and _performUpload() in embedHandlers.ts.
@@ -561,6 +612,8 @@ export const Embed = Node.create<EmbedOptions>({
       originalFile: { default: null, rendered: false },
       /** Number of pages in an uploaded PDF (set by insertPDF after upload completes) */
       pageCount: { default: null, rendered: false },
+      /** Local-only unauthenticated file preview that should show the signup CTA. */
+      needsSignup: { default: false, rendered: false },
       /** True for existing embeds inserted from search; removal must not delete storage. */
       referenceOnly: {
         default: false,
@@ -593,6 +646,8 @@ export const Embed = Node.create<EmbedOptions>({
       correctionModel: { default: null, rendered: false },
       /** Formatted duration string (e.g. "0:42") */
       duration: { default: null, rendered: false },
+      /** Compact full-track RMS envelope used for preview rendering without audio fetch */
+      waveform: { default: null, rendered: false },
       /** MIME type of the original recording (e.g. 'audio/webm') */
       mimeType: { default: null, rendered: false },
     };
@@ -656,6 +711,8 @@ export const Embed = Node.create<EmbedOptions>({
         "videos-video", // VideoEmbedPreview uses UnifiedEmbedPreview
         "image", // ImageEmbedPreview uses UnifiedEmbedPreview (uploaded images)
         "maps", // MapLocationEmbedPreview renders Leaflet map inline
+        "embeds-map-view", // Virtual message-level results view over existing embeds
+        "sub-chat-batch", // Virtual inline sub-chat card batch anchored in message content
         "pdf", // PDFEmbedPreview renders the PDF upload status card
         "recording", // RecordingEmbedPreview uses UnifiedEmbedPreview — must be here so
         // renderer.update() is called on status transitions (uploading→transcribing→finished).

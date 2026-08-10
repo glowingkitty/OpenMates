@@ -1,0 +1,709 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-01'
+generated_at: '2026-07-09T15:51:14+00:00'
+range:
+  since: '2026-07-01T00:00:00+00:00'
+  until: '2026-07-01T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 14
+  section_counts:
+    features: 2
+    bug_fixes: 5
+    improvements: 0
+    docs: 2
+    tests: 5
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 4
+  user_facing_items: 6
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: render Project remote previews'
+    section: features
+    commits:
+    - 21a6f41b9
+    authored_at: '2026-07-01T12:11:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
+  - title: 'feat: show Projects in default mentions'
+    section: features
+    commits:
+    - 715904a5c
+    authored_at: '2026-07-01T11:42:08+00:00'
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: restore anonymous chat deep links'
+    section: bug_fixes
+    commits:
+    - 21b35f4d0
+    authored_at: '2026-07-01T13:15:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/index.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: ignore stale managed checkout mount'
+    section: bug_fixes
+    commits:
+    - 471e47aff
+    authored_at: '2026-07-01T12:43:52+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: open Project remote preview fullscreen'
+    section: bug_fixes
+    commits:
+    - 76bea1794
+    authored_at: '2026-07-01T12:33:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
+  - title: 'fix: stabilize password signup auth check'
+    section: bug_fixes
+    commits:
+    - 4436ece5a
+    authored_at: '2026-07-01T11:17:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/packages/ui/src/components/signup/steps/password/PasswordBottomContent.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: defer keyless synced chat messages'
+    section: bug_fixes
+    commits:
+    - 5c5cffbf4
+    authored_at: '2026-07-01T08:16:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncMessageKeyGuard.test.ts
+    - frontend/packages/ui/src/services/chatSyncMessageKeyGuard.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: record Project remote preview state'
+    section: docs
+    commits:
+    - 7c721bb3f
+    authored_at: '2026-07-01T12:42:51+00:00'
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Project mention chip evidence'
+    section: docs
+    commits:
+    - 83bc42390
+    authored_at: '2026-07-01T11:52:18+00:00'
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: avoid conditional anonymous scroll button'
+    section: tests
+    commits:
+    - 732d55219
+    authored_at: '2026-07-01T13:35:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: allow hcaptcha load balancer cookie'
+    section: tests
+    commits:
+    - b9c1f6842
+    authored_at: '2026-07-01T11:36:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/cookie-audit.ts
+    - shared/docs/privacy_promises.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: accept Project-related mention chips'
+    section: tests
+    commits:
+    - c31c999e4
+    authored_at: '2026-07-01T11:29:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align passkey signup deletion assertion'
+    section: tests
+    commits:
+    - 3ca4c0238
+    authored_at: '2026-07-01T08:57:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for passkey signup app state'
+    section: tests
+    commits:
+    - 228b4408d
+    authored_at: '2026-07-01T08:46:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: restore anonymous chat deep links'
+    commits:
+    - 21b35f4d0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: ignore stale managed checkout mount'
+    commits:
+    - 471e47aff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: show Projects in default mentions'
+    commits:
+    - 715904a5c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize password signup auth check'
+    commits:
+    - 4436ece5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: restore anonymous chat deep links'
+    commits:
+    - 21b35f4d0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: ignore stale managed checkout mount'
+    commits:
+    - 471e47aff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open Project remote preview fullscreen'
+    commits:
+    - 76bea1794
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: render Project remote previews'
+    commits:
+    - 21a6f41b9
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: show Projects in default mentions'
+    commits:
+    - 715904a5c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize password signup auth check'
+    commits:
+    - 4436ece5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 732d55219bdc85b5f65f7fc46245935add4c4fd2
+    short_sha: 732d55219
+    authored_at: '2026-07-01T13:35:35+00:00'
+    subject: 'test: avoid conditional anonymous scroll button'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: 21b35f4d0f1b84a495d2d17fd68be0d65fcb8395
+    short_sha: 21b35f4d0
+    authored_at: '2026-07-01T13:15:03+00:00'
+    subject: 'fix: restore anonymous chat deep links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/index.ts
+    related_feature_ids: []
+  - sha: 471e47affb88a46134809ff8e7e1b5f697692e84
+    short_sha: 471e47aff
+    authored_at: '2026-07-01T12:43:52+00:00'
+    subject: 'fix: ignore stale managed checkout mount'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    related_feature_ids: []
+  - sha: 7c721bb3f0b45bca916f25910895dd7f1a18256e
+    short_sha: 7c721bb3f
+    authored_at: '2026-07-01T12:42:51+00:00'
+    subject: 'docs: record Project remote preview state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    related_feature_ids: []
+  - sha: 76bea179406cdb897320667e9da6c93a23ccd19a
+    short_sha: 76bea1794
+    authored_at: '2026-07-01T12:33:09+00:00'
+    subject: 'fix: open Project remote preview fullscreen'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    related_feature_ids:
+    - platform:projects
+  - sha: 21a6f41b98b1de703a93e259607133fd27eb77cf
+    short_sha: 21a6f41b9
+    authored_at: '2026-07-01T12:11:49+00:00'
+    subject: 'feat: render Project remote previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    related_feature_ids:
+    - platform:projects
+  - sha: 83bc42390884f8bd46f38ad3da169b769a70b3d1
+    short_sha: 83bc42390
+    authored_at: '2026-07-01T11:52:18+00:00'
+    subject: 'docs: record Project mention chip evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    related_feature_ids: []
+  - sha: 715904a5c26805084f1dfa2032a5808d02f2c16d
+    short_sha: 715904a5c
+    authored_at: '2026-07-01T11:42:08+00:00'
+    subject: 'feat: show Projects in default mentions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    related_feature_ids: []
+  - sha: b9c1f6842e4e94e3361595b86346076493dae287
+    short_sha: b9c1f6842
+    authored_at: '2026-07-01T11:36:09+00:00'
+    subject: 'test: allow hcaptcha load balancer cookie'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/cookie-audit.ts
+    - shared/docs/privacy_promises.yml
+    related_feature_ids: []
+  - sha: c31c999e489f2aafed9dc471021a028615c7eb23
+    short_sha: c31c999e4
+    authored_at: '2026-07-01T11:29:14+00:00'
+    subject: 'test: accept Project-related mention chips'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: 4436ece5afcf8924ac99642b35b1fe78aadd347d
+    short_sha: 4436ece5a
+    authored_at: '2026-07-01T11:17:11+00:00'
+    subject: 'fix: stabilize password signup auth check'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/packages/ui/src/components/signup/steps/password/PasswordBottomContent.svelte
+    related_feature_ids: []
+  - sha: 3ca4c0238e9c8b04fe1b131419c1f4c31b370a72
+    short_sha: 3ca4c0238
+    authored_at: '2026-07-01T08:57:20+00:00'
+    subject: 'test: align passkey signup deletion assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    related_feature_ids: []
+  - sha: 228b4408d2bff3d08485e0c21474ac109c89380a
+    short_sha: 228b4408d
+    authored_at: '2026-07-01T08:46:53+00:00'
+    subject: 'test: wait for passkey signup app state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    related_feature_ids: []
+  - sha: 5c5cffbf494787a85676843026b4542f5fc58a52
+    short_sha: 5c5cffbf4
+    authored_at: '2026-07-01T08:16:47+00:00'
+    subject: 'fix: defer keyless synced chat messages'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncMessageKeyGuard.test.ts
+    - frontend/packages/ui/src/services/chatSyncMessageKeyGuard.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced project mentions in the message editor and resolved several issues affecting anonymous chat,
+    payment checkouts, and signup stability.
+  released_changes:
+  - text: Projects are now available in the default mentions dropdown within the message entry component.
+    evidence:
+      commits:
+      - 715904a5c
+    release_status: released_main
+  bug_fixes:
+  - text: Restored functionality for anonymous chat deep links.
+    evidence:
+      commits:
+      - 21b35f4d0
+    release_status: released_main
+  - text: Resolved an issue where stale managed checkout mounts could interfere with the payment process.
+    evidence:
+      commits:
+      - 471e47aff
+    release_status: released_main
+  - text: Improved the stability of authentication checks during the password-based signup flow.
+    evidence:
+      commits:
+      - 4436ece5a
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continues on the Projects platform, including remote preview rendering and fullscreen support.
+    evidence:
+      commits:
+      - 21a6f41b9
+      - 76bea1794
+    release_status: released_main
+  - text: Documentation was updated to record state and evidence for project remote sources.
+    evidence:
+      commits:
+      - 7c721bb3f
+      - 83bc42390
+    release_status: released_main
+  internal_progress:
+  - text: Refined chat synchronization to defer messages that arrive without necessary keys.
+    evidence:
+      commits:
+      - 5c5cffbf4
+    release_status: released_main
+  - text: Updated test suites for passkey signup, hcaptcha cookie auditing, and anonymous chat scrolling to improve CI reliability.
+    evidence:
+      commits:
+      - 732d55219
+      - b9c1f6842
+      - c31c999e4
+      - 3ca4c0238
+      - 228b4408d
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Projects are now included in the default mentions dropdown when entering messages.
+      evidence:
+        commits:
+        - 715904a5c
+      reason: This adds a new user-facing interaction for mentioning projects in messages.
+    - text: Restored anonymous chat deep links.
+      evidence:
+        commits:
+        - 21b35f4d0
+      reason: Fixes a regression in deep linking for anonymous users.
+    - text: Resolved payment checkout mounting issues.
+      evidence:
+        commits:
+        - 471e47aff
+      reason: Fixes a potential blocker in the checkout flow.
+    - text: Stabilized password signup authentication checks.
+      evidence:
+        commits:
+        - 4436ece5a
+      reason: Improves the reliability of the signup process.
+    exclude:
+    - text: Project remote previews and fullscreen viewing.
+      evidence:
+        commits:
+        - 21a6f41b9
+        - 76bea1794
+      reason: These items relate to the Projects platform which is currently a disabled feature.
+    rationale: The update introduces project mentions and critical fixes for anonymous chat and payments, while internal work
+      continues on the broader Projects platform.
+  social_video_recommendations:
+  - idea: Demonstrate the new project mention feature in the chat interface.
+    priority: medium
+    reason: It is a visible UI improvement that enhances the messaging experience.
+    evidence:
+      commits:
+      - 715904a5c
+  quality_notes:
+  - Test coverage was expanded for passkey flows and hcaptcha cookie auditing.
+  - Chat synchronization logic was hardened against keyless message delivery.
+  validation_warnings: []

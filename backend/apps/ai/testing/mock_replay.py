@@ -22,8 +22,15 @@ from typing import Any, Dict, List, Optional, Tuple
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_job_data
 
 logger = logging.getLogger(__name__)
+
+
+def _assistant_message_id(task_id: str, request_data: AskSkillRequest) -> str:
+    return getattr(request_data, "continuation_message_id", None) or task_id
+
 
 # Directory where fixture JSON files are stored
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -75,6 +82,10 @@ SPEED_PROFILES = {
 
 DEFAULT_SPEED_PROFILE = "instant"
 DEFAULT_INITIAL_CHUNK_DELAY_MS = 250
+
+
+def _contains_focus_mode_activation_embed(content: str) -> bool:
+    return '"type":"focus_mode_activation"' in content or '"type": "focus_mode_activation"' in content
 
 
 def detect_marker(content: str) -> Optional[Tuple[str, str, Optional[str]]]:
@@ -297,6 +308,26 @@ async def replay_fixture(
     # Update fixture data so downstream code uses the rewritten response
     fixture_data["response"] = full_response
 
+    if fixture_data.get("normalize_embed_links"):
+        from backend.apps.ai.tasks.stream_consumer import _fix_bad_embed_display_text
+
+        normalized_response = await _fix_bad_embed_display_text(
+            aggregated_response=full_response,
+            tool_calls_info=fixture_data.get("tool_calls_info", []),
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id,
+            log_prefix=f"[MOCK fixture={fixture_id}]",
+        )
+        if normalized_response != full_response:
+            logger.info(
+                f"[MOCK] Embed link normalization updated fixture response "
+                f"({len(full_response)} → {len(normalized_response)} chars)"
+            )
+            full_response = normalized_response
+            fixture_data["response"] = full_response
+
     if fixture_data.get("verify_source_quotes"):
         from backend.apps.ai.tasks.stream_consumer import _verify_and_strip_bad_quotes
 
@@ -329,8 +360,8 @@ async def replay_fixture(
     is_application_preview = "application_preview" in fixture_id
     if is_application_preview:
         logger.info(
-            f"[MOCK] Application preview fixture detected — waiting 30s for "
-            f"frontend to process send_embed_data before streaming begins"
+            "[MOCK] Application preview fixture detected — waiting 30s for "
+            "frontend to process send_embed_data before streaming begins"
         )
         await asyncio.sleep(30)
 
@@ -371,6 +402,16 @@ async def replay_fixture(
 
     usage = fixture_data.get("usage", {})
     total_chunks = len(cumulative_chunks)
+    model_name = usage.get("model_name") or preprocessing_result.selected_main_llm_model_name
+    category = preprocessing_result.category
+    recovery_job = await _persist_mock_replay_recovery_job(
+        directus_service=directus_service,
+        request_data=request_data,
+        task_id=task_id,
+        content=full_response,
+        category=category or "general_knowledge",
+        model_name=model_name,
+    )
 
     for i, content_so_far in enumerate(cumulative_chunks):
         sequence = i + 1
@@ -385,13 +426,14 @@ async def replay_fixture(
                         skill_event, task_id, request_data, cache_service
                     )
 
+        assistant_message_id = _assistant_message_id(task_id, request_data)
         payload: Dict[str, Any] = {
             "type": "ai_message_chunk",
             "task_id": task_id,
             "chat_id": request_data.chat_id,
             "user_id_uuid": request_data.user_id,
             "user_id_hash": request_data.user_id_hash,
-            "message_id": task_id,
+            "message_id": assistant_message_id,
             "user_message_id": request_data.message_id,
             "full_content_so_far": content_so_far if not is_final else full_response,
             "sequence": sequence,
@@ -400,18 +442,24 @@ async def replay_fixture(
         }
 
         # Add model info
-        model_name = usage.get("model_name") or preprocessing_result.selected_main_llm_model_name
         if model_name:
             payload["model_name"] = model_name
 
-        category = preprocessing_result.category
         if category:
             payload["category"] = category
+
+        if request_data.resolved_recovery_inference_task_id():
+            payload["recovery_provisional"] = not is_final
+            payload["recovery_turn_id"] = request_data.recovery_turn_id
+            payload["chat_key_version"] = request_data.chat_key_version
 
         # Add usage data on final chunk
         if is_final:
             payload["interrupted_by_soft_limit"] = False
             payload["interrupted_by_revocation"] = False
+            if recovery_job:
+                payload["recovery_job_id"] = recovery_job["job_id"]
+                payload["recovery_protocol_version"] = 1
             if usage.get("prompt_tokens") is not None:
                 payload["prompt_tokens"] = usage["prompt_tokens"]
             if usage.get("completion_tokens") is not None:
@@ -451,6 +499,14 @@ async def replay_fixture(
         thinking_channel = f"chat_stream_thinking::{request_data.chat_id}"
         await cache_service.publish_event(thinking_channel, thinking_payload)
 
+    await _publish_fixture_postprocessing_metadata(
+        fixture_data=fixture_data,
+        task_id=task_id,
+        request_data=request_data,
+        cache_service=cache_service,
+        preprocessing_result=preprocessing_result,
+    )
+
     logger.info(
         f"[MOCK] Fixture '{fixture_id}' replay complete. "
         f"Response length: {len(full_response)} chars, "
@@ -467,6 +523,97 @@ async def replay_fixture(
     }
 
 
+async def _persist_mock_replay_recovery_job(
+    *,
+    directus_service: Optional[Any],
+    request_data: AskSkillRequest,
+    task_id: str,
+    content: str,
+    category: Optional[str],
+    model_name: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    inference_task_id = request_data.resolved_recovery_inference_task_id()
+    if not inference_task_id:
+        return None
+    if directus_service is None:
+        raise RuntimeError("Epoch-1 mock replay requires Directus service")
+    required = {
+        "recovery_preflight_id": request_data.recovery_preflight_id,
+        "recovery_turn_id": request_data.recovery_turn_id,
+        "recovery_public_key": request_data.recovery_public_key,
+        "chat_key_version": request_data.chat_key_version,
+    }
+    if any(value is None for value in required.values()):
+        raise RuntimeError("Epoch-1 task is missing sealed recovery context")
+    data = build_sealed_recovery_job_data(
+        owner_id=request_data.user_id,
+        owner_hash=request_data.user_id_hash,
+        chat_id=request_data.chat_id,
+        turn_id=request_data.recovery_turn_id,
+        preflight_id=request_data.recovery_preflight_id,
+        task_id=task_id,
+        inference_task_id=inference_task_id,
+        assistant_message_id=_assistant_message_id(task_id, request_data),
+        recovery_public_key=request_data.recovery_public_key,
+        chat_key_version=request_data.chat_key_version,
+        content=content,
+        category=category,
+        model_name=model_name,
+    )
+    return await ChatRecoveryService(directus_service).execute("create_sealed_job", data)
+
+
+async def _publish_fixture_postprocessing_metadata(
+    *,
+    fixture_data: Dict[str, Any],
+    task_id: str,
+    request_data: AskSkillRequest,
+    cache_service: CacheService,
+    preprocessing_result: PreprocessingResult,
+) -> None:
+    """Publish deterministic post-processing metadata for TEST_MOCK fixtures."""
+    if request_data.is_external:
+        return
+
+    preprocessing = fixture_data.get("preprocessing", {})
+    postprocessing = fixture_data.get("postprocessing", {})
+    chat_summary = (
+        postprocessing.get("chat_summary")
+        or preprocessing.get("chat_summary")
+        or preprocessing_result.chat_summary
+    )
+    if not chat_summary:
+        return
+
+    payload = {
+        "type": "post_processing_completed",
+        "event_for_client": "post_processing_completed",
+        "task_id": task_id,
+        "chat_id": request_data.chat_id,
+        "user_id_uuid": request_data.user_id,
+        "user_id_hash": request_data.user_id_hash,
+        "follow_up_request_suggestions": postprocessing.get(
+            "follow_up_request_suggestions", []
+        ),
+        "new_chat_request_suggestions": postprocessing.get(
+            "new_chat_request_suggestions", []
+        ),
+        "chat_summary": chat_summary,
+        "share_cta_text": postprocessing.get("share_cta_text") or chat_summary,
+        "chat_tags": preprocessing.get("chat_tags", []),
+        "harmful_response": postprocessing.get("harmful_response", 1),
+        "top_recommended_apps_for_user": postprocessing.get(
+            "top_recommended_apps_for_user", []
+        ),
+        "quick_tip_slugs": postprocessing.get("quick_tip_slugs", []),
+        "task_proposals": postprocessing.get("task_proposals", []),
+        "task_update_proposals": postprocessing.get("task_update_proposals", []),
+    }
+    channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
+    await cache_service.publish_event(channel, payload)
+    logger.debug(f"[MOCK] Published fixture post-processing metadata for task {task_id}")
+
+
 # --- Embed recreation for fixtures ---
 
 # Regex to find embed reference JSON blocks in fixture responses.
@@ -478,6 +625,33 @@ _EMBED_REF_PATTERN = re.compile(
     r'```json\s*\n\s*(\{[^}]*"embed_id"\s*:\s*"[a-f0-9-]+"[^}]*\})\s*\n\s*```',
     re.DOTALL,
 )
+
+
+def _build_mock_pending_focus_activation_context(
+    request_data: "AskSkillRequest",
+    *,
+    focus_id: str,
+    embed_id: str,
+    task_id: str,
+) -> Dict[str, Any]:
+    return {
+        "focus_id": focus_id,
+        "focus_prompt": "",
+        "embed_id": embed_id,
+        "chat_id": request_data.chat_id,
+        "message_id": request_data.message_id,
+        "user_id": request_data.user_id,
+        "user_id_hash": request_data.user_id_hash,
+        "mate_id": request_data.mate_id,
+        "chat_has_title": request_data.chat_has_title,
+        "is_incognito": getattr(request_data, "is_incognito", False),
+        "task_id": task_id,
+        "recovery_inference_task_id": request_data.resolved_recovery_inference_task_id(),
+        "recovery_preflight_id": request_data.recovery_preflight_id,
+        "recovery_turn_id": request_data.recovery_turn_id,
+        "recovery_public_key": request_data.recovery_public_key,
+        "chat_key_version": request_data.chat_key_version,
+    }
 
 
 async def _recreate_fixture_embeds(
@@ -570,9 +744,9 @@ async def _recreate_fixture_embeds(
             elif embed_type == "focus_mode_activation":
                 # Focus mode activation embeds are recreated from the fields
                 # inlined in the fixture JSON block (focus_id, app_id,
-                # focus_mode_name). Mock replay emits the activation event so
-                # frontend active-focus UI can be tested without starting a
-                # real continuation task.
+                # focus_mode_name). Replay follows the production pending and
+                # auto-confirm path so rejection remains possible during the
+                # client countdown.
                 focus_id = embed_meta.get("focus_id") or ref_fields.get("focus_id")
                 app_id = embed_meta.get("app_id") or ref_fields.get("app_id")
                 focus_mode_name = (
@@ -603,18 +777,28 @@ async def _recreate_fixture_embeds(
                     new_ref = fm_embed_data["embed_reference"]
                     new_block = f"```json\n{new_ref}\n```"
                     response = response[:match.start()] + new_block + response[match.end():]
-                    await cache_service.publish_event(
-                        f"user_cache_events:{request_data.user_id}",
-                        {
-                            "event_type": "focus_mode_activated",
-                            "payload": {
-                                "chat_id": request_data.chat_id,
-                                "focus_id": focus_id,
-                            },
-                        },
+                    await cache_service.store_pending_focus_activation(
+                        chat_id=request_data.chat_id,
+                        context=_build_mock_pending_focus_activation_context(
+                            request_data,
+                            focus_id=focus_id,
+                            embed_id=fm_embed_data["embed_id"],
+                            task_id=task_id,
+                        ),
+                    )
+                    from backend.apps.ai.tasks.focus_mode_auto_confirm_task import (
+                        FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
+                    )
+                    from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+
+                    celery_app_instance.send_task(
+                        "apps.ai.tasks.focus_mode_auto_confirm",
+                        kwargs={"chat_id": request_data.chat_id},
+                        queue="app_ai",
+                        countdown=FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
                     )
                     logger.info(
-                        f"[MOCK] Recreated focus_mode_activation embed: "
+                        f"[MOCK] Recreated pending focus_mode_activation embed: "
                         f"{old_embed_id} → {fm_embed_data['embed_id']}"
                     )
             elif embed_type == "app_skill_use":

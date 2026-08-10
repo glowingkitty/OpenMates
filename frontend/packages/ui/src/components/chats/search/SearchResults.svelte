@@ -822,12 +822,15 @@
             {#each chatResult.metadataSnippets as metaSnippet}
               <button
                 class="message-snippet metadata-snippet"
+                data-testid="search-metadata-snippet"
                 onclick={() => onChatClick(chatResult.chat)}
               >
                 {#if metaSnippet.matchSource === 'tags'}
                   <span class="metadata-source-label">{$text('chats.search.tag_match')}</span>
+                {:else if metaSnippet.matchSource === 'draft'}
+                  <span class="metadata-source-label">{$text('enter_message.draft')}</span>
                 {:else}
-                  <span class="metadata-source-label">{$text('common.summary')}</span>
+                  <span class="metadata-source-label">{$text('chats.search.summary_match')}</span>
                 {/if}
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 {@html highlightText(metaSnippet.snippet, query)}

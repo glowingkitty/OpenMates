@@ -1,30 +1,287 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+from __future__ import annotations
+
+import asyncio
 import logging
+import hashlib
 import time
-from typing import Dict, Any, List, Optional
+from typing import TYPE_CHECKING, Dict, Any, List, Optional
 from datetime import datetime, timezone
 
 from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_compression_checkpoint_handler import (
     get_latest_chat_compression_checkpoint,
 )
+from backend.core.api.app.routes.handlers.websocket_handlers.notebook_run_output_handlers import (
+    fetch_notebook_run_outputs_for_chats,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.sync_message_hydration import (
+    load_sync_messages_with_directus_fallback,
+)
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.directus import DirectusService
 
 STARTUP_FULL_PARENT_CHAT_LIMIT = 10
 STARTUP_METADATA_PARENT_CHAT_LIMIT = 100
 STARTUP_SUB_CHAT_METADATA_LIMIT = 50
+# Keep Phase 2 below the Directus connection budget while avoiding serial N+1 latency.
+PHASE2_DRAFT_LOOKUP_CONCURRENCY = 10
 
 PHASE1_REQUIRED_ENCRYPTED_FIELDS = (
     "encrypted_chat_key",
     "encrypted_icon",
     "encrypted_category",
 )
+
+PHASE1_VERSIONED_METADATA_FIELDS = (
+    "encrypted_title",
+    "encrypted_icon",
+    "encrypted_category",
+    "encrypted_chat_summary",
+    "encrypted_share_cta_text",
+    "encrypted_chat_tags",
+    "encrypted_follow_up_request_suggestions",
+    "encrypted_top_recommended_apps_for_chat",
+    "encrypted_quick_tip_slugs",
+    "encrypted_shared_short_url",
+    "encrypted_active_focus_id",
+)
+
+
+def _version_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _effective_metadata_v(chat_details: Dict[str, Any]) -> int:
+    title_v = _version_int(chat_details.get("title_v"))
+    metadata_v = _version_int(chat_details.get("metadata_v"))
+    if not metadata_v and title_v > 0:
+        return title_v
+    return metadata_v
+
+
+def _phase2_metadata_is_current(
+    client_versions: Dict[str, int],
+    server_versions: Any,
+    chat_details: Dict[str, Any],
+) -> bool:
+    client_title_v = client_versions.get("title_v", 0)
+    server_messages_v = server_versions.messages_v
+    if server_messages_v is None:
+        server_messages_v = chat_details.get("messages_v", 0)
+    server_metadata_v = server_versions.metadata_v
+    if server_metadata_v is None:
+        server_metadata_v = server_versions.title_v
+
+    return (
+        client_versions.get("messages_v", 0)
+        >= max(server_messages_v, chat_details.get("messages_v", 0))
+        and client_title_v >= server_versions.title_v
+        and client_versions.get("metadata_v", client_title_v) >= server_metadata_v
+        and client_versions.get("draft_v", 0)
+        == chat_details.get("draft_v", 0)
+    )
+
+
+def _apply_authoritative_draft_metadata(
+    chat_details: Dict[str, Any],
+    draft: Optional[tuple],
+) -> None:
+    if draft:
+        encrypted_md, draft_v, encrypted_preview = draft
+        chat_details["encrypted_draft_md"] = encrypted_md
+        chat_details["encrypted_draft_preview"] = encrypted_preview
+        chat_details["draft_v"] = draft_v
+        return
+
+    chat_details["encrypted_draft_md"] = None
+    chat_details["encrypted_draft_preview"] = None
+    chat_details["draft_v"] = 0
+
+
+def _apply_batched_draft_metadata(
+    chat_wrapper: Dict[str, Any],
+) -> bool:
+    if (
+        "user_encrypted_draft_content" not in chat_wrapper
+        and "user_draft_version_db" not in chat_wrapper
+    ):
+        return False
+
+    chat_details = chat_wrapper.get("chat_details", {})
+    draft_v = _version_int(chat_wrapper.get("user_draft_version_db"))
+    encrypted_md = chat_wrapper.get("user_encrypted_draft_content")
+    if encrypted_md and encrypted_md != "null" and draft_v > 0:
+        _apply_authoritative_draft_metadata(chat_details, (encrypted_md, draft_v, None))
+    else:
+        _apply_authoritative_draft_metadata(chat_details, None)
+    return True
+
+
+async def _apply_cached_draft_override(
+    chat_details: Dict[str, Any],
+    cache_service: CacheService,
+    user_id: str,
+    chat_id: str,
+) -> None:
+    cached = await cache_service.get_user_draft_from_cache(user_id=user_id, chat_id=chat_id)
+    if cached is None:
+        return
+
+    cached_md, cached_version, cached_preview = cached
+    cached_version_int = _version_int(cached_version)
+    current_version_int = _version_int(chat_details.get("draft_v"))
+    is_tombstoned = getattr(cache_service, "is_user_draft_tombstoned", None)
+    if is_tombstoned and await is_tombstoned(user_id, chat_id):
+        if cached_version_int >= current_version_int:
+            _apply_authoritative_draft_metadata(chat_details, None)
+        return
+
+    if cached_md is not None and cached_md != "null" and cached_version_int >= current_version_int:
+        _apply_authoritative_draft_metadata(
+            chat_details,
+            (cached_md, cached_version_int, cached_preview),
+        )
+
+
+async def _apply_phase2_authoritative_drafts(
+    chat_wrappers: List[Dict[str, Any]],
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    user_id: str,
+    draft_loader=None,
+    cache_draft_chat_ids: Optional[set[str]] = None,
+) -> None:
+    if draft_loader is None:
+        from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import (
+            get_authoritative_user_draft,
+        )
+
+        draft_loader = get_authoritative_user_draft
+
+    wrapper_iterator = iter(chat_wrappers)
+    iterator_lock = asyncio.Lock()
+
+    async def apply_drafts() -> None:
+        while True:
+            async with iterator_lock:
+                try:
+                    chat_wrapper = next(wrapper_iterator)
+                except StopIteration:
+                    return
+            chat_details = chat_wrapper.get("chat_details", {})
+            chat_id = chat_details.get("id")
+            if not chat_id:
+                continue
+            has_batched_draft = _apply_batched_draft_metadata(chat_wrapper)
+            try:
+                if cache_draft_chat_ids is not None:
+                    if chat_id in cache_draft_chat_ids:
+                        await _apply_cached_draft_override(
+                            chat_details,
+                            cache_service,
+                            user_id,
+                            chat_id,
+                        )
+                    continue
+                if has_batched_draft:
+                    continue
+                draft = await draft_loader(cache_service, directus_service, user_id, chat_id)
+            except Exception as draft_error:
+                logger.warning(
+                    "Phase 2: Draft metadata unavailable for chat %s: %s",
+                    chat_id,
+                    draft_error,
+                    exc_info=True,
+                )
+                continue
+            _apply_authoritative_draft_metadata(chat_details, draft)
+
+    worker_count = min(PHASE2_DRAFT_LOOKUP_CONCURRENCY, len(chat_wrappers))
+    await asyncio.gather(*(apply_drafts() for _ in range(worker_count)))
+
+
+async def _build_draft_only_phase2_wrapper(
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    user_id: str,
+    chat_id: str,
+) -> Optional[Dict[str, Any]]:
+    from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import (
+        get_authoritative_user_draft,
+    )
+
+    draft = await get_authoritative_user_draft(
+        cache_service,
+        directus_service,
+        user_id,
+        chat_id,
+    )
+    if not draft:
+        return None
+    encrypted_md, draft_v, encrypted_preview = draft
+    if not encrypted_md or encrypted_md == "null":
+        return None
+    draft_metadata = await cache_service.get_user_draft_metadata_from_cache(user_id, chat_id)
+
+    timestamp = int(time.time())
+    return {
+        "chat_details": {
+            "id": chat_id,
+            "type": "new_chat",
+            "messages_v": 0,
+            "title_v": 0,
+            "metadata_v": 0,
+            "draft_v": draft_v,
+            "last_edited_overall_timestamp": timestamp,
+            "created_at": timestamp,
+            "updated_at": timestamp,
+            "encrypted_title": None,
+            "encrypted_draft_md": encrypted_md,
+            "encrypted_draft_preview": encrypted_preview,
+            **draft_metadata,
+            "unread_count": 0,
+            "user_id": user_id,
+        }
+    }
+
+
+async def _build_phase2_draft_only_wrappers(
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    user_id: str,
+    chat_ids: List[str],
+    wrapper_builder=None,
+) -> List[Dict[str, Any]]:
+    wrapper_builder = wrapper_builder or _build_draft_only_phase2_wrapper
+    wrappers: List[Dict[str, Any]] = []
+    for offset in range(0, len(chat_ids), PHASE2_DRAFT_LOOKUP_CONCURRENCY):
+        batch_ids = chat_ids[offset:offset + PHASE2_DRAFT_LOOKUP_CONCURRENCY]
+        batch_results = await asyncio.gather(*(
+            wrapper_builder(
+                cache_service,
+                directus_service,
+                user_id,
+                chat_id,
+            )
+            for chat_id in batch_ids
+        ), return_exceptions=True)
+        for result in batch_results:
+            if isinstance(result, BaseException):
+                raise result
+        batch_wrappers = batch_results
+        wrappers.extend(wrapper for wrapper in batch_wrappers if wrapper)
+    return wrappers
 
 
 async def _fetch_new_chat_suggestions(
@@ -150,6 +407,26 @@ async def _fetch_code_run_outputs_for_chats(
         return []
 
 
+async def _fetch_chat_key_wrappers_for_chats(
+    directus_service: DirectusService,
+    chat_ids: List[str],
+    user_id: str,
+) -> List[Dict[str, Any]]:
+    """Fetch chat key wrappers for chat IDs already authorized by sync selection."""
+    if not chat_ids:
+        return []
+    try:
+        hashed_chat_ids = [hashlib.sha256(chat_id.encode()).hexdigest() for chat_id in chat_ids]
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        return await directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
+            hashed_chat_ids,
+            hashed_user_id=hashed_user_id,
+        )
+    except Exception as exc:
+        logger.warning("Failed to fetch chat key wrappers for sync: %s", exc, exc_info=True)
+        return []
+
+
 async def _fetch_direct_sub_chat_ids_for_phase1_parents(
     directus_service: DirectusService,
     parent_chat_ids: List[str],
@@ -183,6 +460,75 @@ async def _fetch_direct_sub_chat_ids_for_phase1_parents(
 def _is_parent_chat_details(chat_details: Dict[str, Any]) -> bool:
     """Return true when the chat is a top-level parent chat, not a sub-chat."""
     return not chat_details.get("is_sub_chat") and not chat_details.get("parent_id")
+
+
+def _authoritative_chat_reconciliation(
+    client_chat_ids: List[str],
+    server_chat_ids: List[str],
+    total_chat_count: int,
+) -> Dict[str, Any]:
+    """Return deletion evidence only when the supplied server ID set is complete."""
+    unique_server_ids = list(dict.fromkeys(server_chat_ids))
+    if total_chat_count != len(unique_server_ids):
+        return {"authoritative": False}
+    server_id_set = set(unique_server_ids)
+    return {
+        "authoritative": True,
+        "authoritative_chat_ids": unique_server_ids,
+        "deleted_chat_ids": [chat_id for chat_id in client_chat_ids if chat_id not in server_id_set],
+    }
+
+
+def _cache_index_covers_startup_window(cached_chat_count: int, db_chat_count: int) -> bool:
+    """Return true when Redis has enough IDs to start Directus-backed startup sync."""
+    required_cache_count = min(max(db_chat_count, 0), STARTUP_METADATA_PARENT_CHAT_LIMIT)
+    return cached_chat_count >= required_cache_count
+
+
+def _is_deleted_chat_tombstone(metadata: Any) -> bool:
+    if not isinstance(metadata, dict):
+        return False
+    deleted = metadata.get("deleted")
+    return deleted is True or str(deleted).lower() in {"1", "true", "yes"}
+
+
+async def _get_tombstoned_chat_ids(
+    cache_service: CacheService,
+    chat_ids: List[str],
+) -> set[str]:
+    cache_get = getattr(cache_service, "get", None)
+    if not cache_get:
+        return set()
+
+    tombstoned_chat_ids: set[str] = set()
+    for chat_id in dict.fromkeys(chat_ids):
+        try:
+            metadata = await cache_get(f"chat:{chat_id}:metadata")
+        except Exception as exc:
+            logger.warning("Phase 2: Failed to read chat tombstone for %s: %s", chat_id, exc, exc_info=True)
+            continue
+        if _is_deleted_chat_tombstone(metadata):
+            tombstoned_chat_ids.add(chat_id)
+    return tombstoned_chat_ids
+
+
+async def _filter_tombstoned_chat_wrappers(
+    cache_service: CacheService,
+    chat_wrappers: List[Dict[str, Any]],
+) -> tuple[List[Dict[str, Any]], set[str]]:
+    chat_ids = [
+        str(wrapper.get("chat_details", {}).get("id"))
+        for wrapper in chat_wrappers
+        if wrapper.get("chat_details", {}).get("id")
+    ]
+    tombstoned_chat_ids = await _get_tombstoned_chat_ids(cache_service, chat_ids)
+    if not tombstoned_chat_ids:
+        return chat_wrappers, set()
+    return [
+        wrapper
+        for wrapper in chat_wrappers
+        if str(wrapper.get("chat_details", {}).get("id")) not in tombstoned_chat_ids
+    ], tombstoned_chat_ids
 
 
 async def handle_phased_sync_request(
@@ -221,13 +567,27 @@ async def handle_phased_sync_request(
             # Extract client version data for delta checking
             client_chat_versions = payload.get("client_chat_versions", {})
             client_chat_ids = payload.get("client_chat_ids", [])
+            refresh_chat_ids = [
+                chat_id
+                for chat_id in payload.get("refresh_chat_ids", [])
+                if isinstance(chat_id, str) and chat_id
+            ][:50]
             client_suggestions_count = payload.get("client_suggestions_count", 0)
             # Client sends the embed IDs it already has stored in IndexedDB so the server
             # can skip re-sending those embeds (cross-session deduplication).
             client_embed_ids: set = set(payload.get("client_embed_ids", []))
+            raw_team_id = payload.get("team_id")
+            team_id = raw_team_id if isinstance(raw_team_id, str) and raw_team_id else None
+            if team_id:
+                await directus_service.team.require_team_role(
+                    team_id,
+                    user_id,
+                    {"owner", "admin", "member", "viewer"},
+                )
         
             logger.info(
                 f"Handling phased sync request for user {user_id}, phase: {sync_phase}, "
+                f"team_scope={'team' if team_id else 'personal'}, "
                 f"client has {len(client_chat_ids)} chats, {client_suggestions_count} suggestions, "
                 f"{len(client_embed_ids)} embed(s) already on device"
             )
@@ -242,7 +602,7 @@ async def handle_phased_sync_request(
             if sync_phase == "phase1" or sync_phase == "all":
                 phase1_chat_ids = await _handle_phase1_sync(
                     manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                    client_chat_versions, client_chat_ids, sent_embed_ids
+                    client_chat_versions, client_chat_ids, sent_embed_ids, team_id
                 )
 
             # Phase 1b: Messages + embeds for the Phase 1a chats (separate WS message)
@@ -250,14 +610,16 @@ async def handle_phased_sync_request(
             if (sync_phase == "phase1" or sync_phase == "all") and phase1_chat_ids:
                 await _handle_phase1b_sync(
                     manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                    phase1_chat_ids, client_chat_versions, sent_embed_ids, client_embed_ids
+                    phase1_chat_ids, client_chat_versions, sent_embed_ids, client_embed_ids,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             # Phase 2: Metadata-only for 100 chats (no messages, no embeds)
             if sync_phase == "phase2" or sync_phase == "all":
                 await _handle_phase2_sync(
                     manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                    client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids
+                    client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids, team_id,
+                    refresh_chat_ids
                 )
 
             # Phase 3: explicit/offline prefetch only. Do not run it during the
@@ -267,7 +629,9 @@ async def handle_phased_sync_request(
                 await _handle_phase3_sync(
                     manager, cache_service, directus_service, user_id, device_fingerprint_hash,
                     client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids,
-                    phase1_chat_ids
+                    phase1_chat_ids,
+                    team_id,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             if sync_phase == "all":
@@ -344,6 +708,11 @@ async def _build_chat_details_from_cache(
         "last_edited_overall_timestamp": cached_list_item.last_message_timestamp,
         "messages_v": cached_versions.messages_v if cached_versions else 0,
         "title_v": cached_versions.title_v if cached_versions else 0,
+        "metadata_v": (
+            cached_versions.metadata_v
+            if cached_versions and (cached_versions.metadata_v or cached_versions.title_v == 0)
+            else cached_versions.title_v if cached_versions else 0
+        ),
         "pinned": cached_list_item.pinned,
         "is_shared": cached_list_item.is_shared,
         "is_private": cached_list_item.is_private,
@@ -381,6 +750,7 @@ def _build_chat_details_from_directus_metadata(
         "last_edited_overall_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
         "messages_v": chat_metadata.get("messages_v", 0),
         "title_v": chat_metadata.get("title_v", 0),
+        "metadata_v": chat_metadata.get("metadata_v") or chat_metadata.get("title_v", 0),
         "pinned": chat_metadata.get("pinned"),
         "is_shared": chat_metadata.get("is_shared"),
         "is_private": chat_metadata.get("is_private"),
@@ -403,7 +773,9 @@ def _merge_partial_cache_chat_details(
     Redis can hold list-item data while the versions key has expired. In that
     partial-cache state Phase 1a still needs complete encrypted header metadata;
     otherwise the client stores null title/icon/category and the chat header has
-    nothing to decrypt.
+    nothing to decrypt. When both sources report the same metadata version, keep
+    cache values because WebSocket metadata updates refresh Redis before the
+    asynchronous Directus persistence task finishes.
     """
     if not directus_details:
         return cached_details
@@ -413,8 +785,27 @@ def _merge_partial_cache_chat_details(
         if merged.get(field) is None and directus_value is not None:
             merged[field] = directus_value
 
+    cached_metadata_v = _effective_metadata_v(cached_details)
+    directus_metadata_v = _effective_metadata_v(directus_details)
+    if directus_metadata_v > 0 and directus_metadata_v > cached_metadata_v:
+        for field in PHASE1_VERSIONED_METADATA_FIELDS:
+            directus_value = directus_details.get(field)
+            if directus_value is not None:
+                merged[field] = directus_value
+
+        for field in ("title_v", "metadata_v"):
+            merged[field] = max(
+                _version_int(merged.get(field)),
+                _version_int(directus_details.get(field)),
+            )
+
+        for field in ("updated_at", "last_edited_overall_timestamp", "last_message_timestamp"):
+            directus_value = directus_details.get(field)
+            if directus_value is not None:
+                merged[field] = directus_value
+
     if prefer_directus_versions:
-        for field in ("messages_v", "title_v"):
+        for field in ("messages_v", "title_v", "metadata_v"):
             directus_value = directus_details.get(field)
             if directus_value is not None:
                 merged[field] = directus_value
@@ -457,7 +848,8 @@ async def _handle_phase1_sync(
     device_fingerprint_hash: str,
     client_chat_versions: Dict[str, Dict[str, int]],
     client_chat_ids: List[str],
-    sent_embed_ids: set
+    sent_embed_ids: set,
+    team_id: Optional[str] = None,
 ) -> List[str]:
     """
     Phase 1a: Metadata-only for last-opened + 10 most recent chats.
@@ -473,21 +865,28 @@ async def _handle_phase1_sync(
     try:
         import asyncio as _asyncio
 
-        # Run all independent fetches concurrently for minimal latency
-        suggestions_task = _fetch_new_chat_suggestions(cache_service, directus_service, user_id)
-        inspirations_task = _fetch_daily_inspirations(cache_service, directus_service, user_id)
-        # Fetch enough recent IDs to find 10 parent chats even when sub-chats are
-        # interleaved in the recent-chat sorted set.
-        recent_ids_task = cache_service.get_chat_ids_versions(
+        recent_metadata_task = directus_service.chat.get_user_chats_metadata(
             user_id,
-            start=0,
-            end=STARTUP_METADATA_PARENT_CHAT_LIMIT - 1,
-            with_scores=False,
+            limit=STARTUP_METADATA_PARENT_CHAT_LIMIT,
+            sort="-pinned,-last_edited_overall_timestamp",
+            admin_required=True,
+            team_id=team_id,
         )
-
-        new_chat_suggestions, daily_inspirations, recent_chat_ids = await _asyncio.gather(
-            suggestions_task, inspirations_task, recent_ids_task
-        )
+        if team_id:
+            new_chat_suggestions, daily_inspirations = [], []
+            recent_chat_metadata_rows = await recent_metadata_task
+        else:
+            suggestions_task = _fetch_new_chat_suggestions(cache_service, directus_service, user_id)
+            inspirations_task = _fetch_daily_inspirations(cache_service, directus_service, user_id)
+            new_chat_suggestions, daily_inspirations, recent_chat_metadata_rows = await _asyncio.gather(
+                suggestions_task, inspirations_task, recent_metadata_task
+            )
+        recent_chat_ids = [
+            str(row.get("id"))
+            for row in (recent_chat_metadata_rows or [])
+            if isinstance(row, dict) and row.get("id")
+        ]
+        scoped_recent_id_set = set(recent_chat_ids)
         logger.info(
             f"Phase 1a: Retrieved {len(new_chat_suggestions)} suggestions, "
             f"{len(daily_inspirations)} inspirations, {len(recent_chat_ids) if recent_chat_ids else 0} recent chat IDs"
@@ -508,7 +907,7 @@ async def _handle_phase1_sync(
         if last_opened_path:
             raw_id = last_opened_path.split("/")[-1] if "/" in last_opened_path else last_opened_path
             # Skip demo/legal chats and "new" sentinel
-            if raw_id and raw_id != "new" and not raw_id.startswith("demo-") and not raw_id.startswith("legal-"):
+            if raw_id and raw_id in scoped_recent_id_set and raw_id != "new" and not raw_id.startswith("demo-") and not raw_id.startswith("legal-"):
                 last_opened_id = raw_id
 
         # --- Build ordered candidates. Phase 1b later narrows these to 10 parent chats. ---
@@ -527,7 +926,7 @@ async def _handle_phase1_sync(
         if not recent_chat_ids and not phase1_chat_ids:
             try:
                 fallback_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
-                    user_id, limit=STARTUP_METADATA_PARENT_CHAT_LIMIT
+                    user_id, limit=STARTUP_METADATA_PARENT_CHAT_LIMIT, team_id=team_id
                 )
                 for cw in (fallback_chats or []):
                     cid = cw.get("chat_details", {}).get("id") if isinstance(cw, dict) else None
@@ -581,10 +980,16 @@ async def _handle_phase1_sync(
             ):
                 directus_needed.append(cid)
 
-        directus_metadata_map: Dict[str, Dict[str, Any]] = {}
+        directus_metadata_map: Dict[str, Dict[str, Any]] = {
+            str(row.get("id")): row
+            for row in (recent_chat_metadata_rows or [])
+            if isinstance(row, dict) and row.get("id")
+        }
         if directus_needed:
             try:
-                directus_metadata_map = await directus_service.chat.get_chats_metadata_batch(directus_needed)
+                directus_metadata_map.update(
+                    await directus_service.chat.get_chats_metadata_batch(directus_needed)
+                )
             except Exception as e:
                 logger.warning(f"Phase 1a: Directus batch metadata fetch failed: {e}")
 
@@ -651,7 +1056,6 @@ async def _handle_phase1_sync(
                     bool(cached_ver),
                     bool(directus_details),
                 )
-
             valid_phase1_ids.append(cid)
             if cid == last_opened_id:
                 last_chat_details = chat_details
@@ -674,11 +1078,19 @@ async def _handle_phase1_sync(
 
             for child_id in direct_sub_chat_ids:
                 if child_id in sub_chat_metadata_map:
-                    candidate_metadata.append(
-                        _build_chat_details_from_directus_metadata(
-                            sub_chat_metadata_map[child_id], child_id
-                        )
+                    sub_chat_details = _build_chat_details_from_directus_metadata(
+                        sub_chat_metadata_map[child_id], child_id
                     )
+                    missing_fields = _phase1_metadata_invariant_violations(sub_chat_details)
+                    if missing_fields:
+                        invariant_violation_count += 1
+                        logger.warning(
+                            "[PHASE1_METADATA_INVARIANT] Sub-chat %s missing %s "
+                            "after directus fetch",
+                            child_id,
+                            ",".join(missing_fields),
+                        )
+                    candidate_metadata.append(sub_chat_details)
             logger.info(
                 "Phase 1a: Included %d direct sub-chat metadata row(s) for parent preview reloads",
                 len(sub_chat_metadata_map),
@@ -744,7 +1156,8 @@ async def _handle_phase1b_sync(
     phase1_chat_ids: List[str],
     client_chat_versions: Dict[str, Dict[str, int]],
     sent_embed_ids: set,
-    client_embed_ids: Optional[set] = None
+    client_embed_ids: Optional[set] = None,
+    user_otel_attrs: dict | None = None,
 ):
     """
     Phase 1b: Messages + embeds for the 11 Phase 1a chats (separate WS message).
@@ -793,25 +1206,14 @@ async def _handle_phase1b_sync(
                     should_fetch_messages = False
 
             if should_fetch_messages:
-                # Try sync cache first
-                try:
-                    cached = await cache_service.get_sync_messages_history(user_id, chat_id)
-                    if cached:
-                        messages_data = cached
-                except Exception:
-                    pass
-
-                # Fallback to Directus
-                if not messages_data:
-                    try:
-                        messages_data = await directus_service.chat.get_all_messages_for_chat(
-                            chat_id=chat_id, decrypt_content=False
-                        ) or []
-                    except Exception as e:
-                        logger.warning(f"[PHASE1b] Failed to fetch messages for {chat_id}: {e}")
-
-                if server_message_count is None:
-                    server_message_count = len(messages_data)
+                messages_data, server_message_count = await load_sync_messages_with_directus_fallback(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    log_prefix="[PHASE1b]",
+                    user_otel_attrs=user_otel_attrs,
+                )
 
             checkpoint = await get_latest_chat_compression_checkpoint(
                 directus_service,
@@ -830,6 +1232,7 @@ async def _handle_phase1b_sync(
         all_embeds: List[Dict[str, Any]] = []
         all_embed_keys: List[Dict[str, Any]] = []
         all_code_run_outputs: List[Dict[str, Any]] = []
+        all_notebook_run_outputs: List[Dict[str, Any]] = []
         seen_embed_ids: set = set()
         seen_key_ids: set = set()
         hashed_chat_ids: List[str] = []
@@ -875,6 +1278,16 @@ async def _handle_phase1b_sync(
             phase1_chat_ids,
             user_id,
         )
+        all_notebook_run_outputs = await fetch_notebook_run_outputs_for_chats(
+            directus_service,
+            phase1_chat_ids,
+            user_id,
+        )
+        all_chat_key_wrappers = await _fetch_chat_key_wrappers_for_chats(
+            directus_service,
+            phase1_chat_ids,
+            user_id,
+        )
 
         # Send Phase 1b as separate WS message
         await manager.send_personal_message(
@@ -884,7 +1297,9 @@ async def _handle_phase1b_sync(
                     "chats": chats_data,
                     "embeds": all_embeds,
                     "embed_keys": all_embed_keys,
+                    "chat_key_wrappers": all_chat_key_wrappers,
                     "code_run_outputs": all_code_run_outputs,
+                    "notebook_run_outputs": all_notebook_run_outputs,
                 }
             },
             user_id,
@@ -897,7 +1312,9 @@ async def _handle_phase1b_sync(
             f"[PHASE1b_COMPLETE] ✅ Phase 1b sync for user {user_id[:8]}... in {phase1b_elapsed:.3f}s: "
             f"{len(chats_data)} chats, {messages_total} messages, "
             f"{len(all_embeds)} embeds, {len(all_embed_keys)} embed_keys, "
-            f"{len(all_code_run_outputs)} code_run_outputs"
+            f"{len(all_chat_key_wrappers)} chat_key_wrappers, "
+            f"{len(all_code_run_outputs)} code_run_outputs, "
+            f"{len(all_notebook_run_outputs)} notebook_run_outputs"
         )
 
     except Exception as e:
@@ -913,7 +1330,9 @@ async def _handle_phase2_sync(
     client_chat_versions: Dict[str, Dict[str, int]],
     client_chat_ids: List[str],
     sent_embed_ids: set,
-    client_embed_ids: Optional[List[str]] = None
+    client_embed_ids: Optional[List[str]] = None,
+    team_id: Optional[str] = None,
+    refresh_chat_ids: Optional[List[str]] = None,
 ):
     """
     Phase 2: Metadata-only for 100 chats (no messages, no embeds).
@@ -929,77 +1348,132 @@ async def _handle_phase2_sync(
     phase2_start = time.perf_counter()
 
     try:
-        # Expand to 100 chats (was 20)
-        cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=99, with_scores=False)
+        total_chat_count = await directus_service.chat.get_user_chat_count(user_id, team_id=team_id)
+        all_recent_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
+            user_id,
+            limit=100,
+            team_id=team_id,
+        )
+        logger.info(
+            "Phase 2: Retrieved %d scoped Directus chat rows (total: %d, team_scope=%s)",
+            len(all_recent_chats or []),
+            total_chat_count,
+            "team" if team_id else "personal",
+        )
 
-        # Get total chat count — uses Directus as authoritative source since
-        # the Redis sorted set only has ~100 entries from cache warming
-        from .load_more_chats_handler import _get_total_chat_count
-        total_chat_count = await _get_total_chat_count(cache_service, user_id, directus_service)
-
-        logger.info(f"Phase 2: Retrieved {len(cached_chat_ids) if cached_chat_ids else 0} cached chat IDs (total: {total_chat_count})")
-
-        if not cached_chat_ids:
-            logger.info("Phase 2: No cached chat IDs, falling back to Directus")
-            all_recent_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
-                user_id, limit=100
+        draft_only_added = 0
+        draft_chat_ids = []
+        try:
+            existing_chat_ids = {
+                str(wrapper.get("chat_details", {}).get("id"))
+                for wrapper in all_recent_chats
+                if wrapper.get("chat_details", {}).get("id")
+            }
+            draft_chat_ids = [] if team_id else await cache_service.get_all_user_draft_chat_ids(user_id)
+            draft_chat_ids = list(dict.fromkeys([*draft_chat_ids, *(refresh_chat_ids or [])]))
+            draft_only_chat_ids = [
+                chat_id for chat_id in draft_chat_ids if chat_id not in existing_chat_ids
+            ]
+            draft_only_wrappers = await _build_phase2_draft_only_wrappers(
+                cache_service,
+                directus_service,
+                user_id,
+                draft_only_chat_ids,
             )
-        else:
-            all_recent_chats = []
-            chat_ids_needing_directus_fetch = []
-
-            batch_list_items = await cache_service.get_batch_chat_list_item_data(user_id, cached_chat_ids)
-            batch_versions = await cache_service.get_batch_chat_versions(user_id, cached_chat_ids)
-
-            for chat_id in cached_chat_ids:
-                cached_list_item = batch_list_items.get(chat_id)
-                cached_versions = batch_versions.get(chat_id)
-
-                if not cached_list_item or not cached_versions:
-                    chat_ids_needing_directus_fetch.append(chat_id)
-                    continue
-
-                chat_wrapper = {
-                    "chat_details": await _build_chat_details_from_cache(cached_list_item, cached_versions, chat_id)
-                }
-                all_recent_chats.append(chat_wrapper)
-
-            if chat_ids_needing_directus_fetch:
-                logger.info(f"Phase 2: Fetching {len(chat_ids_needing_directus_fetch)} chats from Directus")
-                try:
-                    batch_metadata = await directus_service.chat.get_chats_metadata_batch(chat_ids_needing_directus_fetch)
-                    for chat_id in chat_ids_needing_directus_fetch:
-                        chat_metadata = batch_metadata.get(chat_id)
-                        if chat_metadata:
-                            chat_wrapper = {
-                                "chat_details": _build_chat_details_from_directus_metadata(chat_metadata, chat_id)
-                            }
-                            all_recent_chats.append(chat_wrapper)
-                except Exception as e:
-                    logger.error(f"Phase 2: Failed to fetch chats from Directus: {e}", exc_info=True)
-
-            if not all_recent_chats and total_chat_count > 0:
-                logger.warning(
-                    "Phase 2: Cached chat IDs produced no metadata despite nonzero total; falling back to user chat list"
+            for draft_wrapper in draft_only_wrappers:
+                draft_chat_id = draft_wrapper["chat_details"]["id"]
+                all_recent_chats.append(draft_wrapper)
+                existing_chat_ids.add(draft_chat_id)
+                draft_only_added += 1
+                await cache_service.add_chat_to_ids_versions(
+                    user_id,
+                    draft_chat_id,
+                    draft_wrapper["chat_details"]["last_edited_overall_timestamp"],
                 )
-                all_recent_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
-                    user_id, limit=100
-                )
+        except Exception as draft_only_error:
+            logger.warning(
+                "Phase 2: Draft-only metadata discovery failed for user %s: %s",
+                user_id,
+                draft_only_error,
+                exc_info=True,
+            )
+        logger.info("Phase 2: Added %d draft-only metadata entries", draft_only_added)
+
+        all_recent_chats, tombstoned_chat_ids = await _filter_tombstoned_chat_wrappers(
+            cache_service,
+            all_recent_chats,
+        )
+        client_tombstoned_chat_ids = await _get_tombstoned_chat_ids(cache_service, client_chat_ids)
+        all_tombstoned_chat_ids = tombstoned_chat_ids | client_tombstoned_chat_ids
+        if tombstoned_chat_ids:
+            total_chat_count = max(0, total_chat_count - len(tombstoned_chat_ids))
+            logger.info(
+                "Phase 2: Suppressed %d tombstoned chats from stale Directus metadata",
+                len(tombstoned_chat_ids),
+            )
+        explicit_client_tombstones = client_tombstoned_chat_ids - tombstoned_chat_ids
+        if explicit_client_tombstones:
+            logger.info(
+                "Phase 2: Emitting %d explicit client tombstone deletions",
+                len(explicit_client_tombstones),
+            )
 
         if not all_recent_chats:
             logger.info(f"Phase 2: No chats found for user {user_id}")
+            reconciliation = _authoritative_chat_reconciliation(
+                client_chat_ids,
+                [],
+                total_chat_count,
+            )
+            if all_tombstoned_chat_ids:
+                reconciliation["deleted_chat_ids"] = list(dict.fromkeys([
+                    *reconciliation.get("deleted_chat_ids", []),
+                    *all_tombstoned_chat_ids,
+                ]))
             await manager.send_personal_message(
                 {
                     "type": "phase_2_last_20_chats_ready",
-                    "payload": {"chats": [], "chat_count": 0, "total_chat_count": total_chat_count, "phase": "phase2"}
+                    "payload": {
+                        "chats": [],
+                        "chat_count": 0,
+                        "total_chat_count": total_chat_count,
+                        "phase": "phase2",
+                        **reconciliation,
+                    }
                 },
                 user_id,
                 device_fingerprint_hash
             )
             return
 
+        server_chat_ids = [
+            str(wrapper["chat_details"]["id"])
+            for wrapper in all_recent_chats
+            if wrapper.get("chat_details", {}).get("id")
+        ]
+        reconciliation = _authoritative_chat_reconciliation(
+            client_chat_ids,
+            server_chat_ids,
+            total_chat_count,
+        )
+        if all_tombstoned_chat_ids:
+            reconciliation["deleted_chat_ids"] = list(dict.fromkeys([
+                *reconciliation.get("deleted_chat_ids", []),
+                *all_tombstoned_chat_ids,
+            ]))
+
+        # Draft ciphertext is part of chat metadata but remains opaque to the server.
+        await _apply_phase2_authoritative_drafts(
+            all_recent_chats,
+            cache_service,
+            directus_service,
+            user_id,
+            cache_draft_chat_ids=set(draft_chat_ids),
+        )
+
         # Delta sync: skip chats where client already has up-to-date metadata
         client_chat_ids_set = set(client_chat_ids)
+        refresh_chat_ids_set = set(refresh_chat_ids or [])
         chats_to_send = []
         chats_skipped = 0
 
@@ -1009,26 +1483,43 @@ async def _handle_phase2_sync(
         for chat_wrapper in all_recent_chats:
             chat_id = chat_wrapper["chat_details"]["id"]
 
+            if chat_id in refresh_chat_ids_set:
+                chats_to_send.append(chat_wrapper)
+                continue
+
             if chat_id in client_chat_ids_set:
                 cached_server_versions = batch_server_versions.get(chat_id)
                 client_versions = client_chat_versions.get(chat_id, {})
 
                 if cached_server_versions:
-                    client_messages_v = client_versions.get("messages_v", 0)
-                    client_title_v = client_versions.get("title_v", 0)
-                    chat_details_messages_v = chat_wrapper["chat_details"].get("messages_v", 0)
-                    server_messages_v = max(cached_server_versions.messages_v, chat_details_messages_v)
-                    server_title_v = cached_server_versions.title_v
-
-                    if client_messages_v >= server_messages_v and client_title_v >= server_title_v:
+                    if _phase2_metadata_is_current(
+                        client_versions,
+                        cached_server_versions,
+                        chat_wrapper["chat_details"],
+                    ):
                         chats_skipped += 1
                         continue
 
             chats_to_send.append(chat_wrapper)
 
-        logger.info(f"Phase 2: Sending {len(chats_to_send)}/{len(all_recent_chats)} metadata-only chats (skipped {chats_skipped})")
-
-        # Send metadata-only payload (no messages, no embeds, no embed_keys)
+        newer_drafts_sent = sum(
+            1
+            for wrapper in chats_to_send
+            if wrapper.get("chat_details", {}).get("draft_v", 0)
+            > client_chat_versions.get(
+                str(wrapper.get("chat_details", {}).get("id", "")),
+                {},
+            ).get("draft_v", 0)
+        )
+        logger.info(
+            "Phase 2: Sending %d/%d metadata-only chats (skipped %d, newer drafts %d)",
+            len(chats_to_send),
+            len(all_recent_chats),
+            chats_skipped,
+            newer_drafts_sent,
+        )
+        # Send metadata-only payload (no messages, no embeds, no embed_keys, no key wrappers).
+        # Content-bearing paths fetch chat key wrappers when keys are needed.
         await manager.send_personal_message(
             {
                 "type": "phase_2_last_20_chats_ready",
@@ -1036,7 +1527,8 @@ async def _handle_phase2_sync(
                     "chats": chats_to_send,
                     "chat_count": len(chats_to_send),
                     "total_chat_count": total_chat_count,
-                    "phase": "phase2"
+                    "phase": "phase2",
+                    **reconciliation,
                 }
             },
             user_id,
@@ -1060,7 +1552,9 @@ async def _handle_phase3_sync(
     client_chat_ids: List[str],
     sent_embed_ids: set,
     client_embed_ids: Optional[List[str]] = None,
-    phase1_chat_ids: Optional[List[str]] = None
+    phase1_chat_ids: Optional[List[str]] = None,
+    team_id: Optional[str] = None,
+    user_otel_attrs: dict | None = None,
 ):
     """
     Phase 3: Background message + embed sync — chunked batches of 10 chats.
@@ -1074,27 +1568,35 @@ async def _handle_phase3_sync(
     phase3_start = time.perf_counter()
 
     try:
-        # Get same 100 chat IDs that Phase 2 used
-        cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=99, with_scores=False)
-
-        if not cached_chat_ids:
-            # Fallback to Directus
-            try:
-                fallback = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(user_id, limit=100)
-                cached_chat_ids = [
-                    cw.get("chat_details", {}).get("id") for cw in (fallback or [])
-                    if isinstance(cw, dict) and cw.get("chat_details", {}).get("id")
-                ]
-            except Exception:
-                cached_chat_ids = []
+        scoped_chat_wrappers = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
+            user_id,
+            limit=100,
+            team_id=team_id,
+        )
+        scoped_chat_wrappers, tombstoned_chat_ids = await _filter_tombstoned_chat_wrappers(
+            cache_service,
+            scoped_chat_wrappers,
+        )
+        if tombstoned_chat_ids:
+            logger.info(
+                "Phase 3: Suppressed %d tombstoned chats from stale Directus metadata",
+                len(tombstoned_chat_ids),
+            )
+        scoped_chat_metadata_by_id = {
+            str(cw.get("chat_details", {}).get("id")): cw.get("chat_details", {})
+            for cw in (scoped_chat_wrappers or [])
+            if isinstance(cw, dict) and cw.get("chat_details", {}).get("id")
+        }
+        cached_chat_ids = list(scoped_chat_metadata_by_id.keys())
 
         if not cached_chat_ids:
             logger.info("Phase 3: No chat IDs for background message sync")
-            # Still trigger app settings sync
-            try:
-                await _handle_app_settings_memories_sync(manager, directus_service, user_id, device_fingerprint_hash)
-            except Exception:
-                pass
+            if not team_id:
+                # Personal sync also refreshes per-user app settings and memories.
+                try:
+                    await _handle_app_settings_memories_sync(manager, directus_service, user_id, device_fingerprint_hash)
+                except Exception:
+                    pass
             return
 
         # Skip Phase 1b chats (already have messages)
@@ -1110,7 +1612,8 @@ async def _handle_phase3_sync(
             client_versions = client_chat_versions.get(chat_id, {})
             client_messages_v = client_versions.get("messages_v", 0)
             server_ver = batch_versions.get(chat_id)
-            server_messages_v = server_ver.messages_v if server_ver else 0
+            directus_metadata = scoped_chat_metadata_by_id.get(chat_id, {})
+            server_messages_v = server_ver.messages_v if server_ver else directus_metadata.get("messages_v", 0)
 
             if client_messages_v < server_messages_v or not client_versions:
                 chats_needing_messages.append(chat_id)
@@ -1131,27 +1634,18 @@ async def _handle_phase3_sync(
             batch_data: List[Dict[str, Any]] = []
 
             for chat_id in batch_chat_ids:
-                messages_data: List[str] = []
-
-                # Try sync cache first
-                try:
-                    cached = await cache_service.get_sync_messages_history(user_id, chat_id)
-                    if cached:
-                        messages_data = cached
-                except Exception:
-                    pass
-
-                # Fallback to Directus
-                if not messages_data:
-                    try:
-                        messages_data = await directus_service.chat.get_all_messages_for_chat(
-                            chat_id=chat_id, decrypt_content=False
-                        ) or []
-                    except Exception as e:
-                        logger.warning(f"Phase 3: Failed to fetch messages for {chat_id}: {e}")
+                messages_data, server_message_count = await load_sync_messages_with_directus_fallback(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    log_prefix="Phase 3",
+                    user_otel_attrs=user_otel_attrs,
+                )
 
                 server_ver = batch_versions.get(chat_id)
-                server_messages_v = server_ver.messages_v if server_ver else len(messages_data)
+                directus_metadata = scoped_chat_metadata_by_id.get(chat_id, {})
+                server_messages_v = server_ver.messages_v if server_ver else directus_metadata.get("messages_v", len(messages_data))
                 checkpoint = await get_latest_chat_compression_checkpoint(
                     directus_service,
                     chat_id,
@@ -1162,8 +1656,8 @@ async def _handle_phase3_sync(
                     "chat_id": chat_id,
                     "messages": messages_data,
                     "compression_checkpoints": [checkpoint] if checkpoint else [],
-                    "server_message_count": len(messages_data),
-                    "messages_v": max(server_messages_v, len(messages_data))
+                    "server_message_count": server_message_count,
+                    "messages_v": max(server_messages_v, server_message_count)
                 })
                 total_messages_sent += len(messages_data)
 
@@ -1171,6 +1665,7 @@ async def _handle_phase3_sync(
             batch_embeds: List[Dict[str, Any]] = []
             batch_embed_keys: List[Dict[str, Any]] = []
             batch_code_run_outputs: List[Dict[str, Any]] = []
+            batch_notebook_run_outputs: List[Dict[str, Any]] = []
             batch_seen_embed_ids: set = set()
             batch_seen_key_ids: set = set()
             batch_hashed_ids: List[str] = []
@@ -1230,6 +1725,20 @@ async def _handle_phase3_sync(
             )
             if batch_code_run_outputs:
                 payload_data["code_run_outputs"] = batch_code_run_outputs
+            batch_notebook_run_outputs = await fetch_notebook_run_outputs_for_chats(
+                directus_service,
+                batch_chat_ids,
+                user_id,
+            )
+            if batch_notebook_run_outputs:
+                payload_data["notebook_run_outputs"] = batch_notebook_run_outputs
+            batch_chat_key_wrappers = await _fetch_chat_key_wrappers_for_chats(
+                directus_service,
+                batch_chat_ids,
+                user_id,
+            )
+            if batch_chat_key_wrappers:
+                payload_data["chat_key_wrappers"] = batch_chat_key_wrappers
 
             await manager.send_personal_message(
                 {
@@ -1243,7 +1752,9 @@ async def _handle_phase3_sync(
             logger.debug(
                 f"Phase 3: Sent batch {batch_num} ({len(batch_data)} chats, "
                 f"{len(batch_embeds)} embeds, {len(batch_embed_keys)} embed_keys, "
-                f"{len(batch_code_run_outputs)} code_run_outputs)"
+                f"{len(batch_chat_key_wrappers)} chat_key_wrappers, "
+                f"{len(batch_code_run_outputs)} code_run_outputs, "
+                f"{len(batch_notebook_run_outputs)} notebook_run_outputs)"
             )
 
         # Clear sync cache after successful completion
@@ -1272,6 +1783,26 @@ async def _handle_phase3_sync(
             )
         except Exception as output_sync_error:
             logger.warning(f"Failed to sync Code Run outputs: {output_sync_error}", exc_info=True)
+
+        try:
+            notebook_run_outputs = await fetch_notebook_run_outputs_for_chats(
+                directus_service,
+                cached_chat_ids,
+                user_id,
+            )
+            await manager.send_personal_message(
+                {
+                    "type": "notebook_run_outputs_sync_ready",
+                    "payload": {
+                        "outputs": notebook_run_outputs,
+                        "output_count": len(notebook_run_outputs),
+                    },
+                },
+                user_id,
+                device_fingerprint_hash,
+            )
+        except Exception as output_sync_error:
+            logger.warning(f"Failed to sync notebook outputs: {output_sync_error}", exc_info=True)
 
         # Trigger app memories sync
         try:
@@ -1424,12 +1955,25 @@ async def handle_sync_status_request(
             # never treat an empty local IndexedDB as final while chats still exist.
             if not cache_primed:
                 db_chat_count = await directus_service.chat.get_user_chat_count(user_id)
-                if db_chat_count > chat_count:
+                if _cache_index_covers_startup_window(chat_count, db_chat_count):
+                    logger.warning(
+                        "[SYNC_RECOVERY] Missing primed flag for user %s but cached chat index "
+                        "covers startup window (cache_chat_count=%s, db_chat_count=%s, startup_limit=%s). "
+                        "Restoring primed flag and clearing warming flag.",
+                        user_id[:8],
+                        chat_count,
+                        db_chat_count,
+                        STARTUP_METADATA_PARENT_CHAT_LIMIT,
+                    )
+                    await cache_service.set_user_cache_primed_flag(user_id)
+                    await cache_service.delete(f"cache_warming_in_progress:{user_id}")
+                    cache_primed = True
+                elif db_chat_count > chat_count:
                     logger.warning(
                         f"[SYNC_DEBUG] Cache status DB fallback for user {user_id}: "
                         f"cache_chat_count={chat_count}, db_chat_count={db_chat_count}"
                     )
-                    chat_count = db_chat_count
+                chat_count = db_chat_count
         
             logger.debug(f"[SYNC_DEBUG] Cache status for user {user_id}: primed={cache_primed}, chat_ids_count={chat_count}, chat_ids={chat_ids[:5] if chat_ids else 'NONE'}")
         
@@ -1513,17 +2057,27 @@ async def _trigger_cache_rewarming_if_needed(
                 f"[SYNC_REWARM] Cache not primed for user {user_id[:8]}... "
                 f"Dispatching warm_user_cache task (triggered by sync status request on reconnect)."
             )
-            celery_app.send_task(
-                name='app.tasks.user_cache_tasks.warm_user_cache',
-                kwargs={'user_id': user_id, 'last_opened_path_from_user_model': None},
-                queue='user_init'
-            )
+            try:
+                task_result = celery_app.send_task(
+                    name='app.tasks.user_cache_tasks.warm_user_cache',
+                    kwargs={'user_id': user_id, 'last_opened_path_from_user_model': None},
+                    queue='user_init'
+                )
+                logger.info(
+                    "[SYNC_REWARM] Dispatched warm_user_cache for user %s from sync status request (task_id=%s)",
+                    user_id[:8],
+                    getattr(task_result, "id", "unknown"),
+                )
+            except Exception:
+                await cache_service.delete(warming_flag)
+                raise
         else:
             # Eager mode (tests) - set primed flag directly
             logger.info(
                 f"[SYNC_REWARM] Celery is in eager mode. Setting primed flag directly for user {user_id[:8]}..."
             )
             await cache_service.set_user_cache_primed_flag(user_id)
+            await cache_service.delete(warming_flag)
             
     except Exception as e:
         # Non-blocking: don't let re-warming failure prevent the sync status response

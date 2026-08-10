@@ -22,6 +22,7 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
 
   /**
    * Type for files metadata from embed content
@@ -31,6 +32,8 @@
     width: number;
     height: number;
     format: string;
+    aes_nonce?: string;
+    encryption?: string;
   }
 
   interface ImageFiles {
@@ -163,7 +166,7 @@
    * 3. Swap to full-res when ready
    */
   async function loadFullImage() {
-    if (!s3BaseUrl || !aesKey || !aesNonce) return;
+    if (!s3BaseUrl || !aesKey) return;
     if (fullImageUrl) return;
     
     // Step 1: Show cached preview instantly for progressive loading
@@ -179,7 +182,7 @@
     
     // Step 2: Load the full-res version
     const fullFileData = files?.full || files?.preview;
-    if (!fullFileData?.s3_key) return;
+    if (!fullFileData?.s3_key || !hasMediaEncryptionMetadata(fullFileData, aesNonce)) return;
     
     // Check cache for full-res too
     const cachedFull = getCachedImageUrl(fullFileData.s3_key);
@@ -195,7 +198,7 @@
     
     try {
       console.debug('[ImageGenerateEmbedFullscreen] Loading full image from S3:', fullFileData.s3_key);
-      const blob = await fetchAndDecryptImage(s3BaseUrl, fullFileData.s3_key, aesKey, aesNonce);
+      const blob = await fetchAndDecryptImage(s3BaseUrl, fullFileData.s3_key, aesKey, aesNonce ?? '', fullFileData);
       fullImageUrl = URL.createObjectURL(blob);
       retainedFullKey = fullFileData.s3_key;
       retainCachedImage(fullFileData.s3_key);
@@ -249,12 +252,13 @@
         inputEmbedContents = new Map(inputEmbedContents).set(embedId, content as Record<string, unknown>);
 
         const inputS3BaseUrl = content.s3_base_url as string | undefined;
-        const inputFiles = content.files as Record<string, { s3_key: string }> | undefined;
+        const inputFiles = content.files as Record<string, { s3_key: string; aes_nonce?: string; encryption?: string }> | undefined;
         const inputAesKey = content.aes_key as string | undefined;
         const inputAesNonce = content.aes_nonce as string | undefined;
 
-        const previewKey = inputFiles?.preview?.s3_key;
-        if (!previewKey || !inputS3BaseUrl || !inputAesKey || !inputAesNonce) continue;
+        const previewFile = inputFiles?.preview;
+        const previewKey = previewFile?.s3_key;
+        if (!previewKey || !inputS3BaseUrl || !inputAesKey || !hasMediaEncryptionMetadata(previewFile, inputAesNonce)) continue;
 
         const cached = getCachedImageUrl(previewKey);
         if (cached) {
@@ -264,7 +268,7 @@
           continue;
         }
 
-        const blob = await fetchAndDecryptImage(inputS3BaseUrl, previewKey, inputAesKey, inputAesNonce);
+        const blob = await fetchAndDecryptImage(inputS3BaseUrl, previewKey, inputAesKey, inputAesNonce ?? '', previewFile);
         const url = URL.createObjectURL(blob);
         retainCachedImage(previewKey);
         retainedInputKeys.push(previewKey);
@@ -320,13 +324,13 @@
    * visible in file managers (macOS Finder, Windows Explorer, etc.).
    */
   async function handleDownload() {
-    if (!files?.original?.s3_key || !s3BaseUrl || !aesKey || !aesNonce) return;
+    if (!files?.original?.s3_key || !s3BaseUrl || !aesKey || !hasMediaEncryptionMetadata(files.original, aesNonce)) return;
     if (isDownloading) return;
     
     isDownloading = true;
     
     try {
-      const blob = await fetchAndDecryptImage(s3BaseUrl, files.original.s3_key, aesKey, aesNonce);
+      const blob = await fetchAndDecryptImage(s3BaseUrl, files.original.s3_key, aesKey, aesNonce ?? '', files.original);
       const ext = files.original.format || 'png';
       
       // Embed PNG tEXt metadata (prompt, model, software) into the image bytes.
@@ -395,8 +399,8 @@
    * Returns undefined if original file is not available.
    */
   async function getDownloadBlobAndFilename(): Promise<{ blob: Blob; filename: string } | undefined> {
-    if (!files?.original?.s3_key || !s3BaseUrl || !aesKey || !aesNonce) return undefined;
-    const blob = await fetchAndDecryptImage(s3BaseUrl, files.original.s3_key, aesKey, aesNonce);
+    if (!files?.original?.s3_key || !s3BaseUrl || !aesKey || !hasMediaEncryptionMetadata(files.original, aesNonce)) return undefined;
+    const blob = await fetchAndDecryptImage(s3BaseUrl, files.original.s3_key, aesKey, aesNonce ?? '', files.original);
     const ext = files.original.format || 'png';
     let resultBlob: Blob = blob;
     if (ext === 'png') {
@@ -699,7 +703,7 @@
   .input-thumb-placeholder {
     width: 100%;
     height: 100%;
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-20, #f0f0f0);
     animation: pulse 1.5s ease-in-out infinite;
   }
 
@@ -898,7 +902,7 @@
   }
 
   :global(.dark) .input-thumb-placeholder {
-    background: var(--color-grey-75, #333);
+    background: var(--color-grey-70, #333);
   }
 
   :global(.dark) .quote-card {

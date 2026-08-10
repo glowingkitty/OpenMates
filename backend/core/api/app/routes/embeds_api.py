@@ -21,7 +21,7 @@ from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from fastapi.responses import StreamingResponse
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_optional, get_current_user_or_api_key
 from backend.core.api.app.models.user import User
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.directus import DirectusService
@@ -226,7 +226,7 @@ def _generate_filename_from_prompt(prompt: str | None, extension: str = "png") -
 async def get_presigned_url(
     request: Request,
     s3_key: str = Query(..., description="S3 object key for the encrypted file"),
-    current_user: User = Depends(get_current_user_or_api_key),
+    current_user: User | None = Depends(get_current_user_optional),
     s3_service: S3UploadService = Depends(get_s3_service),
 ):
     """
@@ -238,7 +238,8 @@ async def get_presigned_url(
     then decrypts locally using the Web Crypto API.
 
     Security model:
-    - Authentication required (cookie session or Bearer API key).
+    - Authentication is optional so shared-chat visitors can render encrypted
+      assets after decrypting a shared embed locally.
     - The presigned URL grants anonymous GET access to one S3 object for 15 minutes.
     - Even with the URL, the downloaded content is useless without the AES key
       (which lives only in the client-encrypted embed content in IndexedDB).
@@ -253,10 +254,10 @@ async def get_presigned_url(
 
     Raises:
         400: Invalid or missing s3_key.
-        401: Not authenticated.
         500: Presigned URL generation failed.
     """
-    log_prefix = f"[Presigned URL] [user:{current_user.id[:8]}...]"
+    user_label = current_user.id[:8] if current_user else "anonymous"
+    log_prefix = f"[Presigned URL] [user:{user_label}...]"
 
     if not s3_key or not s3_key.strip():
         raise HTTPException(status_code=400, detail="s3_key is required")

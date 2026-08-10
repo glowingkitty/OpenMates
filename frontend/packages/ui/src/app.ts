@@ -9,40 +9,7 @@ import { userActionTracker } from "./services/userActionTracker";
 import { initDebugUtils } from "./services/debugUtils";
 import { initPermissionDialogListener } from "./stores/appSettingsMemoriesPermissionStore";
 import { initConnectedAccountPermissionListener } from "./stores/connectedAccountPermissionStore";
-
-async function installE2ETestHooks() {
-  if (typeof window === "undefined") return;
-  const isDevHost =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1" ||
-    window.location.hostname.endsWith(".dev.openmates.org");
-  if (!isDevHost) return;
-
-  const testWindow = window as unknown as {
-    __openmatesE2ESeedChat?: (input: {
-      chat: Record<string, unknown>;
-      messages: Record<string, unknown>[];
-    }) => Promise<{ chatId: string; messageCount: number }>;
-  };
-
-  testWindow.__openmatesE2ESeedChat = async ({ chat, messages }) => {
-    const chatId = String(chat.chat_id || "");
-    if (!chatId.startsWith("e2e-")) {
-      throw new Error("E2E seed chat IDs must start with e2e-");
-    }
-
-    const { chatKeyManager } = await import("./services/encryption/ChatKeyManager");
-    chatKeyManager.createKeyForNewChat(chatId);
-    await chatDB.addChat(chat as unknown as Parameters<typeof chatDB.addChat>[0]);
-    for (const message of messages) {
-      await chatDB.saveMessage(
-        message as unknown as Parameters<typeof chatDB.saveMessage>[0],
-      );
-    }
-    window.dispatchEvent(new CustomEvent("localChatListChanged", { detail: { chat_id: chatId } }));
-    return { chatId, messageCount: messages.length };
-  };
-}
+import { installE2ETestHooks } from "./services/e2eTestHooks";
 
 /**
  * Initialize all application services

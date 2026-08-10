@@ -16,8 +16,9 @@ import type { InteractiveQuestionPayload } from "../../interactive_questions/typ
 import { isInteractiveQuestionPayload } from "../../interactive_questions/utils/questionState";
 import { text } from "../../../i18n/translations";
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface InteractiveQuestionNodeOptions {}
+export interface InteractiveQuestionNodeOptions {
+  chatId?: string;
+}
 
 export const InteractiveQuestionNode = Node.create<InteractiveQuestionNodeOptions>({
   name: "interactiveQuestion",
@@ -77,8 +78,11 @@ export const InteractiveQuestionNode = Node.create<InteractiveQuestionNodeOption
       dom.setAttribute("contenteditable", "false");
       dom.classList.add("interactive-question-node");
 
-      // Resolve the parent chat context from global or surrounding DOM references if available
-      const chatIdAttr = nodeViewProps.editor.options.element.closest('[data-chat-id]')?.getAttribute('data-chat-id') || "";
+      const editorElement = nodeViewProps.editor.options.element;
+      const domChatId = editorElement instanceof HTMLElement
+        ? editorElement.closest('[data-chat-id]')?.getAttribute('data-chat-id')
+        : "";
+      const chatIdAttr = this.options.chatId || domChatId || "";
 
       let svelteInstance: Record<string, unknown> | null = null;
       let parsedPayload: InteractiveQuestionPayload | null = null;

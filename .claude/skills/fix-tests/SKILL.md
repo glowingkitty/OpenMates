@@ -1,60 +1,135 @@
 ---
 name: openmates:fix-tests
-description: Read latest test failures and fix them — reads daily run results, categorizes failures by root cause, and fixes each group
+description: Create or resume a durable failed-test campaign, then fix and verify every selected root-cause group
 user-invocable: true
 argument-hint: "[--rerun] [spec-name]"
 ---
 
 ## Instructions
 
-You are fixing test failures from the latest daily test run. Follow this exact sequence:
+You are the orchestrator for a durable failed-test campaign. Continue until every
+selected and newly exposed child group is green, or the current group has a
+structured blocker requiring user or external input.
 
-### Step 1: Use the deterministic failure queue
+Directus is the canonical test state store. Use `scripts/tests.py` commands for
+status, triage, claims, history, and reruns. Do not read `test-results/*.json`
+as the source of truth; those files are import/export artifacts only.
 
-Call the unified test control plane to classify current failures:
-
-```bash
-python3 scripts/tests.py triage
-```
-
-Then lease one group at a time before reading source or debugging:
+### Step 1: Create or resume the campaign
 
 ```bash
-python3 scripts/tests.py next --lease --session <session-id> --json
+python3 scripts/tests.py campaign start --session <session-id> --json
+python3 scripts/tests.py campaign status --campaign <campaign-id> --json
 ```
 
-If the command returns no unleased failed test groups, stop and report to the user.
+The initial selected manifest is durable. If a campaign-bound verification
+exposes a new failure, the control plane adds a child group and records why the
+scope expanded. Never substitute `test-results/*.json` or chat notes for this
+campaign state.
 
-**IMPORTANT RULE:** If any group's root cause is a `console.error`, you MUST fix the console error in application code — do NOT suppress it in the test.
+### Step 2: Lease and prepare one group
 
-### Step 2: Fix each leased group
-
-For each leased root-cause group:
-1. Read the lease JSON's `entry.linked_files`
-2. Confirm the diagnosis against the failure details before editing
-3. Apply the smallest app or test fix that addresses that root cause
-4. Note which related tests are covered by the fix
-
-### Step 3: Run Fixed Tests
-
-After fixing, rerun only the failed specs:
 ```bash
-python3 scripts/tests.py run --only-failed
+python3 scripts/tests.py campaign next --campaign <campaign-id> --lease --session <session-id> --json
 ```
 
-Or run specific specs:
+Read every member test, its failure evidence, and linked source. Before editing,
+derive concrete expected behavior and acceptance criteria from existing
+assertions, then persist them:
+
 ```bash
-python3 scripts/tests.py run --spec <name>.spec.ts
+python3 scripts/tests.py campaign prepare --group <group-id> \
+  --expected-behavior "<observable expected behavior>" \
+  --criterion "<first concrete assertion>" \
+  --criterion "<second concrete assertion>"
 ```
 
-### Step 4: Verify All Green
+If the test and product disagree, or the apparent fix changes auth, encryption,
+billing, privacy, permissions, sync, API, or another high-risk contract, block
+the group and clarify or create a dedicated product spec. Do not infer behavior.
 
-Check that all previously-failed tests now pass. If any still fail, go back to Step 3 for those.
+### Parallel worker dispatch
+
+When the user explicitly requests simultaneous debugging, use the deterministic
+dispatcher instead of manually choosing groups:
+
+```bash
+python3 scripts/tests.py campaign dispatch --campaign <campaign-id> \
+  --session <coordinator-session> --max-workers 3 --json
+```
+
+The dispatcher leases each exact group before launching a visible interactive
+OpenCode chat. It only selects narrow, low-risk groups with non-overlapping
+linked-file boundaries. Worker chats may investigate and edit inside their
+boundary, but they must not deploy or commit independently; the coordinator
+reviews and integrates their changes before verification. Inspect active workers
+with `campaign status`, which includes chat names, leases, groups, and expiry.
+
+### Step 3: Investigate and persist every attempt
+
+Apply the smallest root-cause fix. After each rejected, failed, blocked, or
+successful approach, append an attempt with its run IDs and changed files:
+
+```bash
+python3 scripts/tests.py campaign attempt --group <group-id> \
+  --approach "<what was tried>" --outcome <failed|blocked|green|rejected> \
+  --summary "<result>" --run-key <run-id> --changed-file <path>
+```
+
+Never repeat an approach already recorded as failed or rejected.
+
+### Step 4: Verify the exact group
+
+```bash
+python3 scripts/tests.py run --campaign <campaign-id> --group <group-id>
+```
+
+This selection comes from Directus and includes every durable group member. Do
+not replace it with `--only-failed` or a single first spec. Playwright changes
+still require the normal scoped deploy and expected-commit gate.
+
+If a scoped `sessions.py deploy` integrates the fix before this verification or
+any Docker/proof step, treat that worktree as closed for subject-commit-bound
+evidence. Start a fresh `sessions.py` session/worktree, then rerun the exact
+campaign command against the deployed commit:
+
+```bash
+python3 scripts/sessions.py start --mode testing --task "Verify <campaign/group> after deploy"
+python3 scripts/tests.py run --campaign <campaign-id> --group <group-id>
+```
+
+Do not retry campaign runs, Docker restarts, gate-deploy checks, or proof-video
+commands from a worktree after the routing guard reports it is already merged.
+
+After all members have passing evidence:
+
+```bash
+python3 scripts/tests.py campaign complete-group --group <group-id> --commit <sha>
+python3 scripts/tests.py complete --lease <lease-id> --commit <sha> --require-passing
+```
+
+### Step 5: Continue until campaign completion
+
+Read `campaign status`, then run `campaign next` again. Individual group passes
+are sufficient; the user explicitly chose not to require an additional combined
+campaign-wide run. Do not stop while another selected or child group is pending.
+
+For a genuine user/external blocker:
+
+```bash
+python3 scripts/tests.py campaign block --group <group-id> \
+  --reason "<why work cannot continue>" --question "<required decision>" \
+  --next-action "<exact resume action>"
+```
 
 ### Rules
 
-- **Always lease first** — use `scripts/tests.py next --lease` before debugging so parallel workers do not collide.
+- **Campaign state is canonical** — acceptance, attempts, evidence, blockers, and child groups belong in Directus.
+- **Always lease the durable group** before debugging so parallel workers do not collide.
+- **Visible OpenCode only** — parallel workers use `sessions.py spawn-chat`; never launch Claude or hidden disposable sessions.
+- **Centralize integration** — parallel workers do not deploy independently.
+- **Acceptance before edits** — existing assertions may be derived automatically; ambiguous behavior must be clarified.
 - **Fix console errors in app code** — never suppress them in tests
 - **NEVER run vitest/playwright locally** — always dispatch via `scripts/tests.py run`
 - **Group fixes by root cause** — one commit per root cause group, not per test
-- **Complete or release leases** — call `scripts/tests.py complete --lease <id> --commit <sha>` after deploy or `scripts/tests.py release --lease <id> --reason "<reason>"` when blocked
+- **No partial success** — a blocked required group keeps the campaign blocked and resumable.

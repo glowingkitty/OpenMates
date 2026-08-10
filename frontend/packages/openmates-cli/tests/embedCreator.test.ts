@@ -15,6 +15,7 @@ import {
   generateEmbedId,
   createEmbedRef,
   createEmbedReferenceBlock,
+  createEmbedJsonReferenceBlock,
   encryptEmbed,
 } from "../src/embedCreator.ts";
 const cryptoApi = webcrypto as unknown as Crypto;
@@ -129,6 +130,12 @@ describe("embedCreator", () => {
       assert.match(ref, /^test-id-123-[0-9a-f]{6}$/);
       assert.equal(block, `[!](embed:${ref})`);
       assert.doesNotMatch(block, /```json/);
+    });
+
+    it("creates a canonical JSON embed reference for write-mode drafts", () => {
+      const block = createEmbedJsonReferenceBlock("audio-recording", "embed-123");
+
+      assert.equal(block, '```json\n{"type":"audio-recording","embed_id":"embed-123"}\n```');
     });
   });
 

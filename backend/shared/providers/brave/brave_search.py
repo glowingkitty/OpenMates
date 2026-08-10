@@ -152,43 +152,68 @@ async def _request_with_429_retry(
                                or if retries are exhausted
     """
     fallback_index = 0
+    active_headers = headers
 
-    for attempt in range(1, MAX_429_RETRIES + 1):
-        response = await client.get(url, params=params, headers=headers)
-        
-        if response.status_code != 429:
-            # Not rate-limited — raise on other errors, or return success
-            response.raise_for_status()
-            return response
+    while True:
+        switched_to_fallback = False
+        for attempt in range(1, MAX_429_RETRIES + 1):
+            response = await client.get(url, params=params, headers=active_headers)
+            
+            if response.status_code != 429:
+                # Not rate-limited — raise on other errors, or return success
+                response.raise_for_status()
+                return response
 
-        if _is_monthly_quota_limited(response) and fallback_headers and fallback_index < len(fallback_headers):
-            fallback_label, headers = fallback_headers[fallback_index]
-            fallback_index += 1
-            logger.warning(
-                "Brave %s search monthly quota exhausted for query '%s'. "
-                "Retrying with fallback key '%s'.",
-                search_type,
-                query,
-                fallback_label,
+            quota_limited = _is_monthly_quota_limited(response)
+            retries_exhausted = attempt >= MAX_429_RETRIES
+            if (quota_limited or retries_exhausted) and fallback_headers and fallback_index < len(fallback_headers):
+                fallback_label, active_headers = fallback_headers[fallback_index]
+                fallback_index += 1
+                switched_to_fallback = True
+                if quota_limited:
+                    logger.warning(
+                        "Brave %s search monthly quota exhausted for query '%s'. "
+                        "Retrying with fallback key '%s'.",
+                        search_type,
+                        query,
+                        fallback_label,
+                    )
+                else:
+                    logger.warning(
+                        "Brave %s search rate limit exhausted for query '%s'. "
+                        "Retrying with fallback key '%s'.",
+                        search_type,
+                        query,
+                        fallback_label,
+                    )
+                break
+            if quota_limited:
+                logger.warning(
+                    "Brave %s search monthly quota exhausted for query '%s'. "
+                    "No fallback key is available; failing without retrying the same exhausted key.",
+                    search_type,
+                    query,
+                )
+                response.raise_for_status()
+            
+            # 429 Too Many Requests — wait and retry
+            if retries_exhausted:
+                # Exhausted retries and fallback keys, raise the 429 as an error
+                logger.warning(
+                    f"Brave {search_type} search rate limit: exhausted {MAX_429_RETRIES} retries "
+                    f"for query '{query}'"
+                )
+                response.raise_for_status()
+            
+            wait_seconds = _parse_retry_after_seconds(response)
+            
+            logger.info(
+                f"Brave {search_type} search rate limited (429) for query '{query}' "
+                f"(attempt {attempt}/{MAX_429_RETRIES}). Waiting {wait_seconds:.1f}s before retry..."
             )
-            continue
-        
-        # 429 Too Many Requests — wait and retry
-        if attempt >= MAX_429_RETRIES:
-            # Exhausted retries, raise the 429 as an error
-            logger.warning(
-                f"Brave {search_type} search rate limit: exhausted {MAX_429_RETRIES} retries "
-                f"for query '{query}'"
-            )
-            response.raise_for_status()
-        
-        wait_seconds = _parse_retry_after_seconds(response)
-        
-        logger.info(
-            f"Brave {search_type} search rate limited (429) for query '{query}' "
-            f"(attempt {attempt}/{MAX_429_RETRIES}). Waiting {wait_seconds:.1f}s before retry..."
-        )
-        await asyncio.sleep(wait_seconds)
+            await asyncio.sleep(wait_seconds)
+        if not switched_to_fallback:
+            break
     
     # Unreachable — the loop either returns or raises on every path.
     raise RuntimeError("Rate limit retries exhausted")  # pragma: no cover

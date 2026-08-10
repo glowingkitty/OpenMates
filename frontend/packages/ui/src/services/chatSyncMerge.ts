@@ -6,22 +6,32 @@
 // server-provided encrypted_chat_key.
 
 import type { Chat } from "../types/chat";
+import { chatKeysEqual } from "./chatKeyConsistency";
+import { decryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
 
 const MAX_CANDIDATE_KEYS = 5;
 
-export function hasEncryptedChatKeyMismatch(
+export async function hasEncryptedChatKeyMismatch(
   serverChat: Partial<Chat> & { id: string },
   localChat: Chat | null,
-): boolean {
+): Promise<boolean> {
   if (serverChat.key_fingerprint && localChat?.key_fingerprint) {
     return serverChat.key_fingerprint !== localChat.key_fingerprint;
   }
 
-  return Boolean(
-    serverChat.encrypted_chat_key &&
-      localChat?.encrypted_chat_key &&
-      serverChat.encrypted_chat_key !== localChat.encrypted_chat_key,
+  const serverEncryptedKey = serverChat.encrypted_chat_key;
+  const localEncryptedKey = localChat?.encrypted_chat_key;
+  if (!serverEncryptedKey || !localEncryptedKey) return false;
+  if (serverEncryptedKey === localEncryptedKey) return false;
+
+  const [serverRawKey, localRawKey] = await Promise.all(
+    [serverEncryptedKey, localEncryptedKey].map((encryptedKey) =>
+      decryptChatKeyWithMasterKey(encryptedKey),
+    ),
   );
+  if (!serverRawKey || !localRawKey) return true;
+
+  return !chatKeysEqual(serverRawKey, localRawKey);
 }
 
 function appendCandidateKey(
@@ -65,6 +75,7 @@ export async function mergeServerChatWithLocal(
       encrypted_title: serverChat.encrypted_title ?? null,
       messages_v: serverChat.messages_v ?? 0,
       title_v: serverChat.title_v ?? 0,
+      metadata_v: serverChat.metadata_v,
       draft_v: serverChat.draft_v ?? 0,
       unread_count: serverChat.unread_count ?? 0,
       created_at: serverChat.created_at ?? nowTimestamp,
@@ -75,7 +86,11 @@ export async function mergeServerChatWithLocal(
         nowTimestamp,
       encrypted_draft_md: serverChat.encrypted_draft_md,
       encrypted_draft_preview: serverChat.encrypted_draft_preview,
+      ideabucket: serverChat.ideabucket,
+      ideabucket_processing_window_id: serverChat.ideabucket_processing_window_id,
+      ideabucket_triggered_at: serverChat.ideabucket_triggered_at,
       encrypted_chat_key: serverChat.encrypted_chat_key,
+      anonymous_encrypted_chat_key: serverChat.anonymous_encrypted_chat_key,
       candidate_encrypted_keys: serverChat.candidate_encrypted_keys,
       encrypted_icon: serverChat.encrypted_icon,
       encrypted_category: serverChat.encrypted_category,
@@ -93,6 +108,7 @@ export async function mergeServerChatWithLocal(
       encrypted_active_focus_id: serverChat.encrypted_active_focus_id,
       is_shared: serverChat.is_shared,
       is_private: serverChat.is_private,
+      is_anonymous: serverChat.is_anonymous,
       share_pii: serverChat.share_pii,
       share_highlights: serverChat.share_highlights,
       parent_id: serverChat.parent_id ?? null,
@@ -103,7 +119,31 @@ export async function mergeServerChatWithLocal(
     };
   }
 
-  const keyMismatch = hasEncryptedChatKeyMismatch(serverChat, localChat);
+  const keyMismatch = await hasEncryptedChatKeyMismatch(serverChat, localChat);
+  const serverHasDraftMarkdown = Object.prototype.hasOwnProperty.call(
+    serverChat,
+    "encrypted_draft_md",
+  );
+  const serverHasDraftPreview = Object.prototype.hasOwnProperty.call(
+    serverChat,
+    "encrypted_draft_preview",
+  );
+  const serverHasDraftVersion = Object.prototype.hasOwnProperty.call(
+    serverChat,
+    "draft_v",
+  );
+  const serverExplicitlyDeletesDraft =
+    serverChat.encrypted_draft_md === null ||
+    serverChat.encrypted_draft_preview === null ||
+    (serverHasDraftVersion &&
+      (serverChat.messages_v ?? 0) > 0 &&
+      serverChat.draft_v === 0);
+  const serverHasMessagesForLocalDraftOnlyShell =
+    (serverChat.messages_v ?? 0) > 0 &&
+    (localChat.messages_v ?? 0) === 0 &&
+    !!(localChat.encrypted_draft_md || localChat.encrypted_draft_preview);
+  const serverClearsDraft =
+    serverExplicitlyDeletesDraft || serverHasMessagesForLocalDraftOnlyShell;
   const merged: Chat = {
     chat_id: serverChat.id,
     user_id: localChat.user_id ?? currentUserId,
@@ -112,7 +152,8 @@ export async function mergeServerChatWithLocal(
       : serverChat.encrypted_title ?? localChat.encrypted_title ?? null,
     messages_v: serverChat.messages_v ?? localChat.messages_v ?? 0,
     title_v: serverChat.title_v ?? localChat.title_v ?? 0,
-    draft_v: serverChat.draft_v ?? localChat.draft_v ?? 0,
+    metadata_v: serverChat.metadata_v ?? localChat.metadata_v,
+    draft_v: serverClearsDraft ? 0 : serverChat.draft_v ?? localChat.draft_v ?? 0,
     unread_count: serverChat.unread_count ?? localChat.unread_count ?? 0,
     created_at: serverChat.created_at ?? localChat.created_at ?? nowTimestamp,
     updated_at: serverChat.updated_at ?? localChat.updated_at ?? nowTimestamp,
@@ -124,14 +165,32 @@ export async function mergeServerChatWithLocal(
       serverChat.created_at ??
       localChat.created_at ??
       nowTimestamp,
-    encrypted_draft_md:
-      serverChat.encrypted_draft_md ?? (keyMismatch ? undefined : localChat.encrypted_draft_md),
-    encrypted_draft_preview:
-      serverChat.encrypted_draft_preview ??
-      (keyMismatch ? undefined : localChat.encrypted_draft_preview),
+    encrypted_draft_md: serverClearsDraft
+      ? undefined
+      : serverHasDraftMarkdown
+        ? serverChat.encrypted_draft_md ?? undefined
+        : keyMismatch
+          ? undefined
+          : localChat.encrypted_draft_md,
+    encrypted_draft_preview: serverClearsDraft
+      ? undefined
+      : serverHasDraftPreview
+        ? serverChat.encrypted_draft_preview ?? undefined
+        : keyMismatch
+          ? undefined
+          : localChat.encrypted_draft_preview,
+    ideabucket: serverChat.ideabucket ?? localChat.ideabucket,
+    ideabucket_processing_window_id:
+      serverChat.ideabucket_processing_window_id ??
+      localChat.ideabucket_processing_window_id,
+    ideabucket_triggered_at:
+      serverChat.ideabucket_triggered_at ?? localChat.ideabucket_triggered_at,
     encrypted_chat_key: keyMismatch
       ? localChat.encrypted_chat_key
       : serverChat.encrypted_chat_key ?? localChat.encrypted_chat_key,
+    anonymous_encrypted_chat_key:
+      serverChat.anonymous_encrypted_chat_key ??
+      localChat.anonymous_encrypted_chat_key,
     candidate_encrypted_keys:
       serverChat.candidate_encrypted_keys ?? localChat.candidate_encrypted_keys,
     encrypted_icon: keyMismatch
@@ -180,6 +239,7 @@ export async function mergeServerChatWithLocal(
         : serverChat.encrypted_active_focus_id ?? localChat.encrypted_active_focus_id,
     is_shared: serverChat.is_shared ?? localChat.is_shared,
     is_private: serverChat.is_private ?? localChat.is_private,
+    is_anonymous: serverChat.is_anonymous ?? localChat.is_anonymous,
     share_pii: serverChat.share_pii ?? localChat.share_pii,
     share_highlights: serverChat.share_highlights ?? localChat.share_highlights,
     parent_id: serverChat.parent_id ?? localChat.parent_id ?? null,
@@ -197,19 +257,60 @@ export async function mergeServerChatWithLocal(
       serverChat.encrypted_chat_key,
     );
     merged.messages_v = 0;
+    merged.metadata_v = localChat.metadata_v;
     return merged;
   }
 
   const localTitleV = localChat.title_v || 0;
   const serverTitleV = serverChat.title_v || 0;
-  if (localTitleV >= serverTitleV && localChat.encrypted_title) {
+  const hasMetadataVersion =
+    (localChat.metadata_v ?? 0) > 0 || (serverChat.metadata_v ?? 0) > 0;
+  const localMetadataV = localChat.metadata_v || localTitleV;
+  const serverMetadataV = serverChat.metadata_v || serverTitleV;
+  const serverHasEncryptedTitle = Object.prototype.hasOwnProperty.call(
+    serverChat,
+    "encrypted_title",
+  );
+  const serverHasEncryptedSummary = Object.prototype.hasOwnProperty.call(
+    serverChat,
+    "encrypted_chat_summary",
+  );
+  const serverCarriesMetadataRevision = (serverChat.metadata_v ?? 0) > 0;
+  if (
+    hasMetadataVersion &&
+    serverCarriesMetadataRevision &&
+    serverMetadataV >= localMetadataV &&
+    (serverHasEncryptedTitle || serverHasEncryptedSummary)
+  ) {
+    merged.encrypted_title = serverHasEncryptedTitle
+      ? serverChat.encrypted_title ?? null
+      : localChat.encrypted_title ?? null;
+    merged.encrypted_chat_summary = serverHasEncryptedSummary
+      ? serverChat.encrypted_chat_summary
+      : localChat.encrypted_chat_summary;
+    merged.title_v = serverChat.title_v ?? localChat.title_v;
+    merged.metadata_v = serverChat.metadata_v;
+  } else if (localMetadataV >= serverMetadataV) {
+    merged.encrypted_title = localChat.encrypted_title ?? serverChat.encrypted_title;
+    merged.encrypted_chat_summary =
+      localChat.encrypted_chat_summary ?? serverChat.encrypted_chat_summary;
+    merged.title_v = localChat.title_v;
+    merged.metadata_v = localChat.metadata_v;
+  } else if (hasMetadataVersion) {
+    merged.encrypted_title = serverChat.encrypted_title ?? null;
+    merged.encrypted_chat_summary = serverChat.encrypted_chat_summary;
+    merged.title_v = serverChat.title_v ?? 0;
+    merged.metadata_v = serverChat.metadata_v;
+  } else if (localTitleV >= serverTitleV && localChat.encrypted_title) {
     merged.encrypted_title = localChat.encrypted_title;
+    merged.encrypted_chat_summary =
+      localChat.encrypted_chat_summary ?? serverChat.encrypted_chat_summary;
     merged.title_v = localChat.title_v;
   }
 
   const localDraftV = localChat.draft_v || 0;
   const serverDraftV = serverChat.draft_v || 0;
-  if (localDraftV >= serverDraftV) {
+  if (!serverClearsDraft && localDraftV >= serverDraftV) {
     if (localChat.encrypted_draft_md) {
       merged.encrypted_draft_md = localChat.encrypted_draft_md;
     }

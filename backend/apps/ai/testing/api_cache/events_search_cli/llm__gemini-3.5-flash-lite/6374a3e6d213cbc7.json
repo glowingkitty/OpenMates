@@ -1,0 +1,97 @@
+{
+  "fingerprint": "6374a3e6d213cbc7",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "events_search_cli",
+  "recorded_at": "2026-08-02T14:42:07.141796+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 3,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[8]:\n  - id: \"315227961\"\n    provider: meetup\n    title: \"Autonomer KI-Blog: In 6 Schritten zum vollautomatisierten Content-System\"\n    description: \"In diesem Kurs **zeige ich dir**, wie man m..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are some tech events happening in Berlin this week:\n\n```embeds_results_view\ntitle: Tech Events in Berlin\nembeds: investing-in-civic-6jt, august-meetup-interactive-OVq, business-networking-startups-tEs\n```\n\n* **[Investing in civic infrastructure](embed:investing-in-civic-6jt)** — Tuesday, August 4, 16:00 (at Medulla, Dresdener Str. 113B)  \n  A public evening discussing civic technology, shared spaces, governance, and how digital infrastructure for cities is sustained.\n* **[August Meetup: Interactive Audio](embed:august-meetup-interactive-OVq)** — Tuesday, August 4, 18:00 (at Ableton AG, Schoenhauser Allee 6-7)  \n  Monthly Audio Developer Meetup featuring a talk on screen-free interactive audio worlds by Robyn Pacetti (Protagonists!) and a session on detecting AI-generated content in hybrid music mixtures by Fernando Garcia.\n* **[Business Networking - Startups, Investors & Tech](embed:business-networking-startups-tEs)** — Tuesday, August 4, 19:00 (at Winterfeldtstraße 21)  \n  An international networking format connecting startups, tech professionals, and investors in a relaxed environment.\n\n*(Note: There are also several online sessions this week through Microsoft Reactor and AI application groups if you prefer remote participation.)*\n\n1. Would you like details on any of these specific events?\n2. Are you interested in a particular subfield like AI, software engineering, or hardware?",
+    "chunk_count": 16,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here are"
+      },
+      {
+        "kind": "text",
+        "value": " some tech events happening in Berlin this week:\n\n```embeds_results_view\ntitle: Tech"
+      },
+      {
+        "kind": "text",
+        "value": " Events in Berlin\nembeds: investing-in-civic-6jt, august-meetup-interactive-OVq"
+      },
+      {
+        "kind": "text",
+        "value": ", business-networking-startups-tEs\n```\n\n* **[Investing in civic infrastructure](embed:investing-in-"
+      },
+      {
+        "kind": "text",
+        "value": "civic-6jt)** — Tuesday, August 4, 16:00 (at Medulla,"
+      },
+      {
+        "kind": "text",
+        "value": " Dresdener Str. 113B)  \n  A public evening discussing civic technology, shared spaces, governance"
+      },
+      {
+        "kind": "text",
+        "value": ", and how digital infrastructure for cities is sustained.\n* **[August Meetup: Interactive Audio](embed:august-meetup"
+      },
+      {
+        "kind": "text",
+        "value": "-interactive-OVq)** — Tuesday, August 4, 18:00 (at Ableton AG"
+      },
+      {
+        "kind": "text",
+        "value": ", Schoenhauser Allee 6-7)  \n  Monthly Audio Developer Meetup featuring a talk on screen-free interactive"
+      },
+      {
+        "kind": "text",
+        "value": " audio worlds by Robyn Pacetti (Protagonists!) and a session on detecting AI-generated content in hybrid music mixtures by"
+      },
+      {
+        "kind": "text",
+        "value": " Fernando Garcia.\n* **[Business Networking - Startups, Investors & Tech](embed:business-networking-startups-tEs"
+      },
+      {
+        "kind": "text",
+        "value": ")** — Tuesday, August 4, 19:00 (at Winterfeldtstraße 21)  \n  An international networking"
+      },
+      {
+        "kind": "text",
+        "value": " format connecting startups, tech professionals, and investors in a relaxed environment.\n\n*(Note: There are also several online sessions this"
+      },
+      {
+        "kind": "text",
+        "value": " week through Microsoft Reactor and AI application groups if you prefer remote participation.)*\n\n1. Would you like details on any of these specific"
+      },
+      {
+        "kind": "text",
+        "value": " events?\n2. Are you interested in a particular subfield like AI, software engineering, or hardware?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 20416,
+          "candidates_token_count": 360,
+          "total_token_count": 20776,
+          "user_input_tokens": 4535,
+          "system_prompt_tokens": 14068
+        }
+      }
+    ]
+  }
+}

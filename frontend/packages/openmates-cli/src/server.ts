@@ -23,26 +23,50 @@ import {
   resolveServerPath,
   saveServerConfig,
 } from "./serverConfig.js";
+import { renderOpenMatesAsciiLogo } from "./branding.js";
 import { renderSupportStartReminder } from "./support.js";
+import { ensureSourceInstallTranslations } from "./sourceInstallTranslations.js";
 import {
   type CaddyAction,
   type CoreProfile,
   type ServerRole,
+  type ServerDeploymentMode,
   appendSelectedServices,
+  defaultOpenMatesCloudComposeFile,
+  defaultOpenMatesCloudOverlayPath,
   parseServerRole,
   planBackup,
   planCaddyCommand,
   planContinuousUpdateService,
+  planRuntimeMonitoringServices,
+  planRuntimeVerification,
+  planDockerComposeArgs,
   planRestore,
   planServerRuntime,
   planUpdate as planServerUpdate,
+  parseEnvEntries,
   parseSecretEnvKey,
+  redactEnvValue,
   resolveServiceSelection,
+  resolveRuntimeDeploymentMode,
   shouldCheckWebHealth,
   summarizeSecretPreflight,
   type SecretPreflightSummary,
+  unsetEnvValue,
+  upsertEnvValue,
   type VaultSecretPresence,
 } from "./serverPlanning.js";
+import {
+  applyRuntimeCheckResults,
+  deliverRuntimeNotification,
+  evaluateRuntimeHeartbeat,
+  evaluateRuntimeWatchdog,
+  readRuntimeIncidentState,
+  writeRuntimeIncidentState,
+  type RuntimeCheckResult,
+  type RuntimeNotificationDelivery,
+  type RuntimeNotificationPayload,
+} from "./serverHealth.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -59,6 +83,7 @@ const ROLE_TEMPLATE_FILES: Record<ServerRole, string> = {
   upload: join("upload", "docker-compose.yml"),
   preview: join("preview", "docker-compose.preview.yml"),
 };
+const CORE_PROMTAIL_CONFIG_FILE = join("backend", "core", "monitoring", "promtail", "promtail-config.yaml");
 const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
 const DEFAULT_INSTALL_PATH = join(homedir(), "openmates");
 const REPO_URL = "https://github.com/glowingkitty/OpenMates.git";
@@ -69,11 +94,81 @@ const UPDATE_HEALTH_TIMEOUT_MS = 120_000;
 const UPDATE_HEALTH_INTERVAL_MS = 5_000;
 const HEALTH_REQUEST_TIMEOUT_MS = 5_000;
 const CHECKSUM_BUFFER_BYTES = 1024 * 1024;
+const ENV_BACKUP_PREFIX = ".env.openmates-backup-";
+const ENV_BACKUP_RETENTION_COUNT = 5;
 const IMAGE_CHANNEL_TAGS = {
   stable: MAIN_BRANCH,
   main: MAIN_BRANCH,
   dev: DEV_BRANCH,
 } as const;
+const SELFHOST_PROMTAIL_CONFIG_TEMPLATE = `server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://openobserve:5080/api/default/loki/api/v1/push
+    basic_auth:
+      username: "\${OPENOBSERVE_ROOT_EMAIL}"
+      password: "\${OPENOBSERVE_ROOT_PASSWORD}"
+
+scrape_configs:
+  - job_name: api-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: api-logs
+          service: api
+          container: api
+          compose_project: openmates-core
+          __path__: /var/log/api/api.log
+    pipeline_stages:
+      - drop:
+          expression: '^\\s*$'
+      - json:
+          expressions:
+            level: level
+            message: message
+            name: name
+            event_type: event_type
+            status: status
+          ignore_parse_errors: true
+      - labels:
+          level:
+          name:
+          event_type:
+          status:
+
+  - job_name: container-logs
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 30s
+    relabel_configs:
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(.*)"
+        target_label: "container"
+      - source_labels: ["__meta_docker_container_log_stream"]
+        target_label: "logstream"
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_service"]
+        target_label: "service"
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_project"]
+        target_label: "compose_project"
+    pipeline_stages:
+      - drop:
+          expression: '^\\s*$'
+      - json:
+          expressions:
+            json_level: level
+          ignore_parse_errors: true
+      - template:
+          source: log_level
+          template: "{{ if .json_level }}{{ .json_level }}{{ else }}info{{ end }}"
+      - labels:
+          level: log_level
+`;
 const BACKEND_CONFIG_FILE = join("backend", "config", "backend_config.yml");
 const IMAGE_RUNTIME_CONFIG_FILE = join("config", "backend_config.yml");
 const LOCAL_AI_MODELS_FILE = "local-ai-models.yml";
@@ -156,6 +251,7 @@ PREVIEW_CORS_ORIGINS=https://openmates.org
 PREVIEW_ALLOWED_REFERERS=https://openmates.org/*
 OPENMATES_IMAGE_REGISTRY=${DEFAULT_IMAGE_REGISTRY}
 OPENMATES_IMAGE_TAG=
+OPENMATES_CLOUD_OVERLAY_ENABLED=false
 GIT_WORK_DIR=
 DOCKER_GID=999
 CELERY_AUTOSCALE_MAX=3
@@ -240,6 +336,27 @@ function getCoreProfile(flags: Record<string, string | boolean>, config: ServerC
   const value = typeof flags.profile === "string" ? flags.profile : config?.serverProfile;
   if (value === "minimal" || value === "standard" || value === "production") return value;
   return "production";
+}
+
+function normalizeServerDeploymentMode(value: string | undefined): ServerDeploymentMode {
+  if (!value) return "self_host";
+  if (value === "self_host" || value === "self-host") return "self_host";
+  if (value === "official_cloud" || value === "official-cloud") return "official_cloud";
+  throw new Error("Unsupported deployment mode. Use self-host or official-cloud.");
+}
+
+function getServerDeploymentMode(flags: Record<string, string | boolean>, config: ServerConfig | null): ServerDeploymentMode {
+  if (flags["official-cloud"] === true) return "official_cloud";
+  if (flags["deployment-mode"] === true) throw new Error("Provide a deployment mode value: --deployment-mode self-host|official-cloud.");
+  if (typeof flags["deployment-mode"] === "string") return normalizeServerDeploymentMode(flags["deployment-mode"]);
+  return normalizeServerDeploymentMode(config?.deploymentMode);
+}
+
+function getOpenMatesCloudOverlayPath(flags: Record<string, string | boolean>, config: ServerConfig | null): string | undefined {
+  const explicit = flags["openmatescloud-path"] ?? flags["openmates-cloud-path"];
+  if (explicit === true) throw new Error("Provide an OpenMatesCloud path: --openmatescloud-path <dir>.");
+  if (typeof explicit === "string") return resolve(explicit);
+  return config?.openMatesCloudOverlayPath;
 }
 
 function hasServiceFilter(flags: Record<string, string | boolean>): boolean {
@@ -331,15 +448,30 @@ function featureKind(featureId: string): string {
 export function composeArgs(
   installPath: string,
   withOverrides: boolean,
-  installMode: ServerConfig["installMode"] = getInstallMode(installPath),
+  installMode: NonNullable<ServerConfig["installMode"]> = getInstallMode(installPath),
   role: ServerRole = "core",
 ): string[] {
-  const composeFile = installMode === "image" ? ROLE_IMAGE_COMPOSE_FILES[role] : SOURCE_COMPOSE_FILE;
-  const args = ["compose", "--env-file", ".env", "-f", composeFile];
-  if (withOverrides && existsSync(join(installPath, COMPOSE_OVERRIDE))) {
-    args.push("-f", COMPOSE_OVERRIDE);
-  }
-  return args;
+  const env = readEnvMap(installPath);
+  const config = loadConfigForInstallPath(installPath);
+  const deploymentMode = env.OPENMATES_CLOUD_OVERLAY_ENABLED === "true"
+    ? "official_cloud"
+    : env.OPENMATES_CLOUD_OVERLAY_ENABLED === "false"
+      ? "self_host"
+      : normalizeServerDeploymentMode(config?.deploymentMode);
+  const overlayPath = env.OPENMATES_CLOUD_OVERLAY_PATH || config?.openMatesCloudOverlayPath || undefined;
+  const resolvedOverlayPath = overlayPath ?? defaultOpenMatesCloudOverlayPath(installPath);
+  const overlayComposeFile = defaultOpenMatesCloudComposeFile(resolvedOverlayPath);
+  return planDockerComposeArgs({
+    openMatesPath: installPath,
+    withOverrides,
+    installMode,
+    role,
+    overrideExists: existsSync(join(installPath, COMPOSE_OVERRIDE)),
+    deploymentMode,
+    overlayPath,
+    overlayComposeFile,
+    overlayExists: deploymentMode === "official_cloud" && existsSync(resolvedOverlayPath) && existsSync(overlayComposeFile),
+  });
 }
 
 /** Ensure compose interpolation has an absolute project mount path. */
@@ -533,6 +665,11 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string,
   mkdirSync(vaultConfigDir, { recursive: true });
   mkdirSync(join(installPath, "config", "providers"), { recursive: true });
   writeFileSync(join(installPath, ROLE_IMAGE_COMPOSE_FILES[role]), await loadSelfHostComposeTemplate(templateRefForImageTag(imageTag, getPackageVersion()), role));
+  if (role === "core") {
+    const promtailConfigPath = join(installPath, CORE_PROMTAIL_CONFIG_FILE);
+    mkdirSync(dirname(promtailConfigPath), { recursive: true });
+    writeFileSync(promtailConfigPath, SELFHOST_PROMTAIL_CONFIG_TEMPLATE);
+  }
   writeFileSync(join(vaultConfigDir, "vault.hcl"), VAULT_CONFIG_TEMPLATE);
   ensureImageRuntimeConfig(installPath);
 
@@ -817,6 +954,23 @@ function writeUpdateStatus(installPath: string, role: ServerRole, status: Record
   writeFileSync(filePath, `${JSON.stringify({ role, updated_at: new Date().toISOString(), ...status }, null, 2)}\n`, { mode: 0o600 });
 }
 
+function targetSourceLinks(imageTag: string, templateRef: string): Record<string, string | null> {
+  if (imageTag.startsWith("v")) {
+    return {
+      releaseUrl: `${REPO_URL.replace(/\.git$/, "")}/releases/tag/${imageTag}`,
+      sourceUrl: `${REPO_URL.replace(/\.git$/, "")}/tree/${imageTag}`,
+      commitUrl: null,
+      pullRequestUrl: null,
+    };
+  }
+  return {
+    releaseUrl: null,
+    sourceUrl: `${REPO_URL.replace(/\.git$/, "")}/tree/${templateRef}`,
+    commitUrl: null,
+    pullRequestUrl: null,
+  };
+}
+
 function copyIfExists(source: string, destination: string): void {
   if (!existsSync(source)) return;
   mkdirSync(dirname(destination), { recursive: true });
@@ -835,6 +989,123 @@ function readEnvMap(installPath: string): Record<string, string> {
     values[trimmed.slice(0, eqIdx)] = trimmed.slice(eqIdx + 1).replace(/^"|"$/g, "");
   }
   return values;
+}
+
+function envPathForInstall(installPath: string): string {
+  return join(installPath, ".env");
+}
+
+function readEnvContent(installPath: string): string {
+  const envPath = envPathForInstall(installPath);
+  return existsSync(envPath) ? readFileSync(envPath, "utf-8") : "";
+}
+
+function pruneEnvBackups(installPath: string): void {
+  const backups = readdirSync(installPath, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.startsWith(ENV_BACKUP_PREFIX))
+    .map((entry) => entry.name)
+    .sort();
+  for (const backup of backups.slice(0, Math.max(0, backups.length - ENV_BACKUP_RETENTION_COUNT))) {
+    rmSync(join(installPath, backup), { force: true });
+  }
+}
+
+function backupEnvFile(installPath: string): string | null {
+  const envPath = envPathForInstall(installPath);
+  if (!existsSync(envPath)) return null;
+  const backupPath = join(installPath, `${ENV_BACKUP_PREFIX}${nowStamp()}`);
+  copyFileSync(envPath, backupPath);
+  chmodSync(backupPath, 0o600);
+  pruneEnvBackups(installPath);
+  return backupPath;
+}
+
+function writeEnvContent(installPath: string, content: string): void {
+  const envPath = envPathForInstall(installPath);
+  mkdirSync(dirname(envPath), { recursive: true });
+  writeFileSync(envPath, content, { mode: 0o600 });
+  chmodSync(envPath, 0o600);
+}
+
+function writeDeploymentModeEnv(
+  installPath: string,
+  deploymentMode: ServerDeploymentMode,
+  overlayPath?: string,
+): { overlayPath: string | null } {
+  let content = readEnvContent(installPath);
+  content = setEnvVar(content, "OPENMATES_DEPLOYMENT_MODE", deploymentMode);
+  if (deploymentMode === "self_host") {
+    content = setEnvVar(content, "OPENMATES_CLOUD_OVERLAY_ENABLED", "false");
+    content = setEnvVar(content, "OPENMATES_CLOUD_OVERLAY_PACKAGE", "");
+    content = unsetEnvValue(content, "OPENMATES_CLOUD_OVERLAY_PATH");
+    writeEnvContent(installPath, content);
+    return { overlayPath: null };
+  }
+
+  const resolvedOverlayPath = resolve(overlayPath ?? defaultOpenMatesCloudOverlayPath(installPath));
+  const overlayComposeFile = defaultOpenMatesCloudComposeFile(resolvedOverlayPath);
+  if (!existsSync(resolvedOverlayPath) || !existsSync(overlayComposeFile)) {
+    throw new Error(
+      "OpenMatesCloud official-cloud mode requires an overlay checkout with " +
+      `${overlayComposeFile}. Pass --openmatescloud-path <dir> or create the sibling OpenMatesCloud repository.`,
+    );
+  }
+
+  content = setEnvVar(content, "OPENMATES_CLOUD_OVERLAY_ENABLED", "true");
+  content = setEnvVar(content, "OPENMATES_CLOUD_OVERLAY_PACKAGE", "OpenMatesCloud");
+  content = setEnvVar(content, "OPENMATES_CLOUD_OVERLAY_PATH", resolvedOverlayPath);
+  writeEnvContent(installPath, content);
+  return { overlayPath: resolvedOverlayPath };
+}
+
+function assertEnvKey(key: string | undefined): string {
+  if (!key || !/^[A-Z][A-Z0-9_]*$/.test(key)) {
+    throw new Error("Provide an env key such as SECRET__BRAVE__API_KEY.");
+  }
+  return key;
+}
+
+async function promptHiddenValue(prompt: string): Promise<string> {
+  if (!process.stdin.isTTY || typeof process.stdin.setRawMode !== "function") {
+    const rl = createPromptInterface({ input: process.stdin, output: process.stderr });
+    try {
+      return await rl.question(prompt);
+    } finally {
+      rl.close();
+    }
+  }
+
+  process.stderr.write(prompt);
+  return await new Promise<string>((resolveValue, reject) => {
+    let value = "";
+    const onData = (buffer: Buffer) => {
+      const char = buffer.toString("utf-8");
+      if (char === "\u0003") {
+        cleanup();
+        reject(new Error("Input cancelled."));
+        return;
+      }
+      if (char === "\r" || char === "\n") {
+        cleanup();
+        process.stderr.write("\n");
+        resolveValue(value);
+        return;
+      }
+      if (char === "\u007f" || char === "\b") {
+        value = value.slice(0, -1);
+        return;
+      }
+      value += char;
+    };
+    const cleanup = () => {
+      process.stdin.off("data", onData);
+      process.stdin.setRawMode(false);
+      process.stdin.pause();
+    };
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.on("data", onData);
+  });
 }
 
 function requiredRuntimeEnvKeys(role: ServerRole): string[] {
@@ -866,6 +1137,49 @@ type RuntimeSecretPreflight = SecretPreflightSummary & {
   vaultChecked: boolean;
   vaultUnavailableReason: string | null;
 };
+
+const LONG_RUNNING_SERVER_COMMANDS = new Set([
+  "install",
+  "start",
+  "stop",
+  "restart",
+  "update",
+  "preflight",
+  "caddy",
+  "backup",
+  "restore",
+  "reset",
+  "make-admin",
+  "ai",
+  "uninstall",
+]);
+
+function shouldPrintServerCommandStart(
+  subcommand: string,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): boolean {
+  if (flags.json === true || !LONG_RUNNING_SERVER_COMMANDS.has(subcommand)) return false;
+  if (subcommand === "backup" && rest[0] === "list") return false;
+  if (subcommand === "update" && rest[0] === "status") return false;
+  if (subcommand === "ai" && rest[0] === "models" && (rest[1] === "list" || rest[1] === "remove")) return false;
+  if (subcommand === "caddy" && (rest[0] === "status" || rest[0] === "diff")) return false;
+  return true;
+}
+
+function printServerCommandStart(
+  subcommand: string,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): void {
+  const command = ["server", subcommand, ...rest].join(" ");
+  console.log(renderOpenMatesAsciiLogo());
+  console.log("");
+  console.log(`Running OpenMates ${command}...`);
+  if (typeof flags.path === "string") console.log(`Path: ${resolve(flags.path)}`);
+  if (typeof flags.role === "string") console.log(`Role: ${flags.role}`);
+  console.log("");
+}
 
 function vaultCheckContainerForRole(role: ServerRole): string | null {
   if (role === "core") return "api";
@@ -1405,6 +1719,11 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
   const fromSource = flags["from-source"] === true || sourcePath !== null;
   const role = getServerRole(flags, null);
   const profile = getCoreProfile(flags, null);
+  const deploymentMode = getServerDeploymentMode(flags, null);
+  const requestedOverlayPath = getOpenMatesCloudOverlayPath(flags, null);
+  if (deploymentMode === "official_cloud" && role !== "core") {
+    throw new Error("Official-cloud overlay installs are only supported for the core server role.");
+  }
   const runtimePlan = planServerRuntime({ role, profile, withAlerts: flags["with-alerts"] === true });
 
   // Check if already installed
@@ -1431,6 +1750,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     const imageTag = typeof flags["image-tag"] === "string" ? flags["image-tag"] : getDefaultImageTag();
     console.error(`Preparing OpenMates image-mode install at ${installPath}...`);
     await writeImageModeRuntimeFiles(installPath, imageTag, role);
+    const overlay = writeDeploymentModeEnv(installPath, deploymentMode, requestedOverlayPath);
     const cliUrls = deriveSelfHostCliUrls(readFileSync(join(installPath, ".env"), "utf-8"));
     try {
       exec("docker network create openmates", installPath);
@@ -1447,9 +1767,16 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       defaultServices: runtimePlan.defaultServices,
       composeFiles: runtimePlan.composeFiles,
       installMode: "image",
+      deploymentMode,
+      openMatesCloudOverlayPath: overlay.overlayPath ?? undefined,
       imageTag,
       ...cliUrls,
     });
+    try {
+      installRuntimeMonitoringServices(installPath, role);
+    } catch (error) {
+      throw new Error(`Server files were installed but runtime monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
 
     if (flags.json === true) {
       printJson({ command: "install", status: "success", path: installPath, mode: "image", imageTag });
@@ -1457,6 +1784,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       const firstInvite = getEnvVar(readFileSync(join(installPath, ".env"), "utf-8"), "SELF_HOST_FIRST_INVITE_CODE");
       console.log(`\nOpenMates installed at ${installPath}`);
       console.log(`Mode: image (${DEFAULT_IMAGE_REGISTRY}, tag ${imageTag})`);
+      console.log(`Deployment: ${deploymentMode === "official_cloud" ? "official cloud overlay" : "self-host core"}`);
       console.log("\nNext steps:");
       console.log("  1. Run: openmates server start");
       console.log("  2. Open http://localhost:5173");
@@ -1502,6 +1830,13 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     console.error(`Copied ${envSource} to ${installPath}/.env`);
   }
 
+  const translationResult = ensureSourceInstallTranslations(installPath, sourcePath);
+  if (translationResult.status === "copied") {
+    console.error(`Prepared ${translationResult.copiedFiles} generated locale JSON files for source install.`);
+  } else if (translationResult.status === "built") {
+    console.error("Generated locale JSON files for source install.");
+  }
+
   // Run setup.sh
   console.error("\nRunning setup script...");
   const setupCode = await runInteractive(
@@ -1516,6 +1851,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
 
   // Save config
   const envPath = join(installPath, ".env");
+  const overlay = writeDeploymentModeEnv(installPath, deploymentMode, requestedOverlayPath);
   const cliUrls = deriveSelfHostCliUrls(existsSync(envPath) ? readFileSync(envPath, "utf-8") : "");
   saveServerConfig({
     installPath,
@@ -1526,13 +1862,21 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     defaultServices: runtimePlan.defaultServices,
     composeFiles: runtimePlan.composeFiles,
     installMode: "source",
+    deploymentMode,
+    openMatesCloudOverlayPath: overlay.overlayPath ?? undefined,
     ...cliUrls,
   });
+  try {
+    installRuntimeMonitoringServices(installPath, role);
+  } catch (error) {
+    throw new Error(`Server files were installed but runtime monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 
   if (flags.json === true) {
     printJson({ command: "install", status: "success", path: installPath, mode: "source" });
   } else {
     console.log(`\nOpenMates installed at ${installPath}`);
+    console.log(`Deployment: ${deploymentMode === "official_cloud" ? "official cloud overlay" : "self-host core"}`);
     console.log("\nNext steps:");
     console.log("  1. Run: openmates server start");
     console.log("  2. Open http://localhost:5173");
@@ -1568,6 +1912,136 @@ async function installContinuousUpdateService(flags: Record<string, string | boo
   }
 
   console.log(`Installed ${plan.timerName}.`);
+}
+
+type RuntimeVerifierOutput = {
+  status: "passed" | "failed";
+  role: ServerRole;
+  completed_at: number;
+  checks: Array<RuntimeCheckResult & { required: boolean; duration_ms: number; sanitized_reason?: string; failure_class?: string }>;
+  restoreCommand?: string | null;
+  restoreStatus?: "available" | "restore_unavailable";
+};
+
+function runRuntimeVerification(installPath: string, role: ServerRole, config: ServerConfig | null): RuntimeVerifierOutput {
+  const envText = existsSync(join(installPath, ".env")) ? readFileSync(join(installPath, ".env"), "utf-8") : "";
+  const mode = resolveRuntimeDeploymentMode({
+    envText,
+    overlayExists: existsSync(config?.openMatesCloudOverlayPath ?? defaultOpenMatesCloudOverlayPath(installPath)),
+  });
+  const backupPath = join(roleBackupDir(installPath, role), `latest-pre-update-${role}.tar.gz`);
+  const plan = planRuntimeVerification({ role, deploymentMode: mode.effectiveMode, hasVerifiedBackup: existsSync(backupPath) });
+  const verifierService = { core: "api", upload: "app-uploads", preview: "preview" }[role];
+  const installMode = getInstallMode(installPath, config);
+  const withOverrides = config?.composeProfile === "full";
+
+  console.error("Post-update runtime contract:");
+  for (const check of plan.checks) console.error(`  [ ] ${check.id}`);
+  const result = spawnSync(
+    "docker",
+    [...composeArgs(installPath, withOverrides, installMode, role), "exec", "-T", verifierService, "python", "-m", "backend.scripts.runtime_health_verifier", "--role", role, "--json"],
+    { cwd: installPath, encoding: "utf-8", timeout: (plan.globalDeadlineSeconds + 5) * 1000 },
+  );
+  if (result.error) throw result.error;
+  let output: RuntimeVerifierOutput;
+  try {
+    output = JSON.parse(result.stdout.trim()) as RuntimeVerifierOutput;
+  } catch {
+    throw new Error(`Runtime verifier returned invalid output (${result.status ?? "unknown"}).`);
+  }
+  output.checks = output.checks.map((check) => ({ ...check, failureClass: check.failureClass ?? check.failure_class }));
+  if (mode.effectiveMode === "official_cloud") {
+    const destinations = runtimeNotificationConfig(installPath);
+    const configuredCount = [destinations.email, destinations.discordWebhookUrl, destinations.genericWebhook].filter(Boolean).length;
+    if (configuredCount < 2) {
+      output.status = "failed";
+      output.checks.push({
+        id: "notifications.destination_configured",
+        status: "failed",
+        required: true,
+        duration_ms: 0,
+        failureClass: "configuration",
+        sanitized_reason: "notification_destination_or_fallback_missing",
+      });
+    }
+  }
+  for (const check of output.checks) {
+    const marker = check.status === "passed" ? "x" : "!";
+    console.error(`  [${marker}] ${check.id}${check.sanitized_reason ? ` (${check.sanitized_reason})` : ""}`);
+  }
+  return { ...output, restoreCommand: plan.restoreCommand, restoreStatus: plan.restoreStatus };
+}
+
+function runtimeNotificationConfig(installPath: string) {
+  const env = readEnvMap(installPath);
+  const value = (key: string): string | undefined => process.env[key] || env[key] || undefined;
+  const emailTo = value("OPENMATES_RUNTIME_HEALTH_EMAIL_TO") || value("ADMIN_NOTIFY_EMAIL");
+  const emailFrom = value("OPENMATES_RUNTIME_HEALTH_EMAIL_FROM") || value("EMAIL_SENDER_EMAIL") || "noreply@openmates.org";
+  const emailApiKey = value("OPENMATES_RUNTIME_HEALTH_BREVO_API_KEY") || value("BREVO_API_KEY");
+  const email = emailTo && emailFrom && emailApiKey
+    ? { to: emailTo, from: emailFrom, apiKey: emailApiKey }
+    : undefined;
+  const webhookUrl = value("OPENMATES_RUNTIME_HEALTH_WEBHOOK_URL");
+  const webhookSecret = value("OPENMATES_RUNTIME_HEALTH_WEBHOOK_SECRET");
+  const allowLocalDevelopmentFixture = value("SERVER_ENVIRONMENT") === "development"
+    && value("OPENMATES_RUNTIME_HEALTH_ALLOW_LOCAL_WEBHOOK_FIXTURE") === "true";
+  const genericWebhook = webhookUrl && webhookSecret
+    ? { url: webhookUrl, secret: webhookSecret, allowLocalDevelopmentFixture }
+    : undefined;
+  return {
+    email,
+    discordWebhookUrl: value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL") || value("DISCORD_WEBHOOK_DEV_SMOKE"),
+    genericWebhook,
+  };
+}
+
+async function dispatchRuntimeEvent(
+  installPath: string,
+  role: ServerRole,
+  kind: RuntimeNotificationPayload["kind"],
+  checks: RuntimeVerifierOutput["checks"],
+  occurredAt: string,
+): Promise<RuntimeNotificationDelivery[]> {
+  const failedChecks = checks.filter((check) => check.status === "failed");
+  return deliverRuntimeNotification(runtimeNotificationConfig(installPath), {
+    role,
+    kind,
+    occurredAt,
+    checkIds: (failedChecks.length ? failedChecks : checks).map((check) => check.id),
+    sanitizedReason: failedChecks[0]?.sanitized_reason ?? (kind === "recovery" ? "required_checks_recovered" : "runtime_health_event"),
+  });
+}
+
+async function persistRuntimeResult(installPath: string, role: ServerRole, output: RuntimeVerifierOutput): Promise<RuntimeNotificationDelivery[]> {
+  const previous = await readRuntimeIncidentState(installPath, role);
+  const requiredResults = output.checks.filter((check) => check.required);
+  const applied = applyRuntimeCheckResults(previous, requiredResults, new Date(output.completed_at * 1000).toISOString());
+  await writeRuntimeIncidentState(installPath, role, applied.state);
+  const event = applied.events[0];
+  if (!event) return [];
+  return dispatchRuntimeEvent(
+    installPath,
+    role,
+    event.type === "recovered" ? "recovery" : "incident",
+    output.checks,
+    new Date(output.completed_at * 1000).toISOString(),
+  );
+}
+
+function installRuntimeMonitoringServices(installPath: string, role: ServerRole): void {
+  const executablePath = resolve(process.argv[1] ?? "/usr/local/bin/openmates");
+  const plan = planRuntimeMonitoringServices({ role, installPath, executablePath });
+  const files = [
+    [plan.serviceName, plan.unit],
+    [plan.timerName, plan.timer],
+    [plan.watchdogServiceName, plan.watchdogUnit],
+    [plan.watchdogTimerName, plan.watchdogTimer],
+  ].filter((entry): entry is [string, string] => Boolean(entry[0] && entry[1]));
+  for (const [name, content] of files) writeFileSync(join("/etc", "systemd", "system", name), content, { mode: 0o644 });
+  execSync("systemctl daemon-reload", { stdio: "pipe" });
+  const timers = files.filter(([name]) => name.endsWith(".timer")).map(([name]) => name);
+  execSync(`systemctl enable --now ${timers.map(shellQuote).join(" ")}`, { stdio: "pipe" });
+  for (const timer of timers) execFileSync("systemctl", ["is-active", "--quiet", timer], { stdio: "pipe" });
 }
 
 async function serverUpdate(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
@@ -1634,6 +2108,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     const currentTag = getImageTagFromEnv(installPath, config);
     const target = resolveTargetImageTag(flags, currentTag, getPackageVersion());
     const templateRef = templateRefForImageTag(target.tag, getPackageVersion());
+    const sourceLinks = targetSourceLinks(target.tag, templateRef);
     const safetyPlan = planServerUpdate({ role, selectedServices, dryRun, skipBackup: flags["skip-backup"] === true, continuous: false, missingRequiredSecrets: missingOrUnverifiedSecrets });
     const plan = {
       command: "update",
@@ -1649,6 +2124,8 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
       backupName: safetyPlan.backupName,
       missingRequiredEnvKeys: missingEnvKeys,
       secretPreflight,
+      providerKeyReminders: secretPreflight.emptySecretEnvKeys,
+      sourceLinks,
       blocked: safetyPlan.blocked,
       blockReason: safetyPlan.blockReason,
       dryRun,
@@ -1663,12 +2140,16 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
         console.log(`  Current tag:   ${currentTag || "unknown"}`);
         console.log(`  Target tag:    ${target.tag}`);
         console.log(`  Template ref:  ${templateRef}`);
+        console.log(`  Source:        ${sourceLinks.releaseUrl ?? sourceLinks.sourceUrl}`);
         console.log(`  Role:          ${role}`);
         console.log(`  Services:      ${filterRequested ? selectedServices.join(", ") : "all"}`);
         console.log(`  Backup:        ${safetyPlan.backupName ?? "none"}`);
         console.log(`  Steps:         ${safetyPlan.steps.join(" -> ")}`);
         console.log(`  Env preflight: ${missingEnvKeys.length ? `missing ${missingEnvKeys.join(", ")}` : "ok"}`);
         console.log(`  Vault secrets: ${formatSecretPreflight(secretPreflight)}`);
+        if (secretPreflight.emptySecretEnvKeys.length) {
+          console.log(`  Provider keys: add ${secretPreflight.emptySecretEnvKeys.join(", ")} to activate those providers`);
+        }
         console.log("  Commands:      refresh compose, docker compose pull, docker compose up -d, health checks");
       }
       return;
@@ -1678,14 +2159,18 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     if (missingOrUnverifiedSecrets.length && flags.yes !== true) {
       throw new Error(
         `Required runtime secret checks failed: ${missingOrUnverifiedSecrets.join(", ")}. ` +
-        "Add missing non-SECRET values to .env, ensure IMPORTED_TO_VAULT markers exist in Vault, or rerun with --yes after reviewing.",
+        "Add missing values with 'openmates server env set <KEY>', ensure IMPORTED_TO_VAULT markers exist in Vault, or rerun with --yes after reviewing.",
       );
     }
 
     console.error(`Mode: image`);
     console.error(`Current image tag: ${currentTag || "unknown"}`);
     console.error(`Target image tag: ${target.tag}`);
-    writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "backup" });
+    console.error(`Source: ${sourceLinks.releaseUrl ?? sourceLinks.sourceUrl}`);
+    if (secretPreflight.emptySecretEnvKeys.length) {
+      console.error(`Provider key reminders: add ${secretPreflight.emptySecretEnvKeys.join(", ")} to activate those providers.`);
+    }
+    writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "backup" });
     if (safetyPlan.backupName) {
       console.error(`Creating rotating pre-update backup: ${safetyPlan.backupName}`);
       createServerBackup(installPath, role, { preUpdate: true });
@@ -1702,7 +2187,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     );
     let code = 0;
     if (shouldPullImages()) {
-      writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "pull" });
+      writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "pull" });
       console.error("Pulling prebuilt images...");
       code = await runInteractive("docker", pullArgs, installPath);
       if (code !== 0) process.exit(code);
@@ -1710,7 +2195,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
       console.error("Skipping image pull because OPENMATES_SKIP_IMAGE_PULL=1.");
     }
 
-    writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "up" });
+    writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "up" });
     const upArgs = appendSelectedServices(
       [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"],
       selectedServices,
@@ -1720,11 +2205,36 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     if (code !== 0) process.exit(code);
 
     console.error("Waiting for role health checks...");
+    let successfulRuntimeOutput: RuntimeVerifierOutput | null = null;
     try {
-      writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "health-check" });
+      writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "health-check" });
       await waitForServerHealth(installPath, role, {
         checkWebApp: shouldCheckWebHealth({ role, selectedServices, filterRequested }),
       });
+      const runtimeOutput = runRuntimeVerification(installPath, role, config);
+      await persistRuntimeResult(installPath, role, runtimeOutput);
+      if (runtimeOutput.status !== "passed") {
+        const notificationDelivery = await dispatchRuntimeEvent(installPath, role, "post_update_failed", runtimeOutput.checks, new Date().toISOString());
+        let monitoringProvision = "installed";
+        try {
+          installRuntimeMonitoringServices(installPath, role);
+        } catch {
+          monitoringProvision = "failed";
+        }
+        writeUpdateStatus(installPath, role, {
+          status: "degraded",
+          targetImageTag: target.tag,
+          step: "runtime-verification",
+          checks: runtimeOutput.checks,
+          restoreStatus: runtimeOutput.restoreStatus,
+          restoreCommand: runtimeOutput.restoreCommand,
+          notificationDelivery,
+          monitoringProvision,
+        });
+        const restore = runtimeOutput.restoreCommand ? ` Restore with: ${runtimeOutput.restoreCommand}` : " restore_unavailable";
+        throw new Error(`Post-update runtime verification failed; updated containers remain running.${restore}`);
+      }
+      successfulRuntimeOutput = runtimeOutput;
     } catch (error) {
       await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode, role), "ps"], installPath);
       throw error;
@@ -1733,10 +2243,33 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     if (config) {
       saveServerConfig({ ...config, imageTag: target.tag, imageChannel: target.channel });
     }
-    writeUpdateStatus(installPath, role, { status: "success", targetImageTag: target.tag, step: "complete" });
+    try {
+      installRuntimeMonitoringServices(installPath, role);
+    } catch (error) {
+      const restoreCommand = safetyPlan.backupName
+        ? `openmates server restore --role ${role} --file ${join(roleBackupDir(installPath, role), safetyPlan.backupName)}`
+        : null;
+      writeUpdateStatus(installPath, role, {
+        status: "degraded",
+        targetImageTag: target.tag,
+        step: "monitoring-service",
+        restoreStatus: restoreCommand ? "available" : "restore_unavailable",
+        restoreCommand,
+      });
+      throw new Error(`Runtime checks passed but monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    writeUpdateStatus(installPath, role, {
+      status: "success",
+      targetImageTag: target.tag,
+      sourceLinks,
+      providerKeyReminders: secretPreflight.emptySecretEnvKeys,
+      step: "complete",
+      checks: successfulRuntimeOutput?.checks ?? [],
+      runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
+    });
 
     if (flags.json === true) {
-      printJson({ ...plan, status: "success", dryRun: false });
+      printJson({ ...plan, status: "success", dryRun: false, runtimeVerification: successfulRuntimeOutput });
     } else {
       console.log("Server images updated, containers restarted, and health checks passed.");
     }
@@ -1810,18 +2343,147 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
 
   const checkWebApp = shouldCheckWebHealth({ role, selectedServices, filterRequested });
   console.error(checkWebApp ? "Waiting for API and web health checks..." : "Waiting for API health checks...");
+  let successfulRuntimeOutput: RuntimeVerifierOutput | null = null;
   try {
     await waitForServerHealth(installPath, role, { checkWebApp });
+    const runtimeOutput = runRuntimeVerification(installPath, role, config);
+    await persistRuntimeResult(installPath, role, runtimeOutput);
+    if (runtimeOutput.status !== "passed") {
+      const notificationDelivery = await dispatchRuntimeEvent(installPath, role, "post_update_failed", runtimeOutput.checks, new Date().toISOString());
+      let monitoringProvision = "installed";
+      try {
+        installRuntimeMonitoringServices(installPath, role);
+      } catch {
+        monitoringProvision = "failed";
+      }
+      writeUpdateStatus(installPath, role, {
+        status: "degraded",
+        step: "runtime-verification",
+        checks: runtimeOutput.checks,
+        restoreStatus: runtimeOutput.restoreStatus,
+        restoreCommand: runtimeOutput.restoreCommand,
+        notificationDelivery,
+        monitoringProvision,
+      });
+      const restore = runtimeOutput.restoreCommand ? ` Restore with: ${runtimeOutput.restoreCommand}` : " restore_unavailable";
+      throw new Error(`Post-update runtime verification failed; updated containers remain running.${restore}`);
+    }
+    successfulRuntimeOutput = runtimeOutput;
   } catch (error) {
     await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode, role), "ps"], installPath);
     throw error;
   }
 
+  try {
+    installRuntimeMonitoringServices(installPath, role);
+  } catch (error) {
+    writeUpdateStatus(installPath, role, { status: "degraded", step: "monitoring-service", restoreStatus: "restore_unavailable", restoreCommand: null });
+    throw new Error(`Runtime checks passed but monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  writeUpdateStatus(installPath, role, {
+    status: "success",
+    step: "complete",
+    checks: successfulRuntimeOutput?.checks ?? [],
+    runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
+  });
   if (flags.json === true) {
-    printJson({ command: "update", status: "success", path: installPath, mode: "source" });
+    printJson({ command: "update", status: "success", path: installPath, mode: "source", runtimeVerification: successfulRuntimeOutput });
   } else {
     console.log("Server updated, restarted, and health checks passed.");
   }
+}
+
+async function serverVerify(flags: Record<string, string | boolean>): Promise<void> {
+  requireDocker();
+  const installPath = resolveServerPath(flags);
+  const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
+  const output = runRuntimeVerification(installPath, role, config);
+  await persistRuntimeResult(installPath, role, output);
+  if (flags.json === true) printJson(output);
+  else console.log(`Runtime verification ${output.status} for ${role}.`);
+  if (output.status !== "passed") throw new Error("One or more required runtime checks failed.");
+}
+
+async function serverMonitoring(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const installPath = resolveServerPath(flags);
+  const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
+  if (rest[0] === "install-service") {
+    const plan = planRuntimeMonitoringServices({ role, installPath, executablePath: resolve(process.argv[1] ?? "/usr/local/bin/openmates") });
+    const files = [
+      [plan.serviceName, plan.unit],
+      [plan.timerName, plan.timer],
+      [plan.watchdogServiceName, plan.watchdogUnit],
+      [plan.watchdogTimerName, plan.watchdogTimer],
+    ].filter((entry): entry is [string, string] => Boolean(entry[0] && entry[1]));
+    if (flags["dry-run"] === true || flags.json === true) {
+      printJson({ command: "monitoring install-service", status: "planned", role, files: files.map(([name, content]) => ({ name, content })) });
+      return;
+    }
+    installRuntimeMonitoringServices(installPath, role);
+    console.log(`Installed runtime monitor and independent watchdog for ${role}.`);
+    return;
+  }
+
+  const state = await readRuntimeIncidentState(installPath, role);
+  if (rest[0] === "status") {
+    const watchdog = evaluateRuntimeWatchdog(state, new Date());
+    const output = { role, ...state, stale: watchdog.notification?.kind === "stale" };
+    if (flags.json === true) printJson(output);
+    else console.log(JSON.stringify(output, null, 2));
+    return;
+  }
+  if (rest[0] !== "run") throw new Error("Usage: openmates server monitoring run|status|install-service [--role core|upload|preview]");
+
+  if (flags.watchdog === true) {
+    const evaluated = evaluateRuntimeWatchdog(state, new Date());
+    await writeRuntimeIncidentState(installPath, role, evaluated.state);
+    const delivery = evaluated.notification
+      ? await dispatchRuntimeEvent(installPath, role, "monitor_stale", [], new Date().toISOString())
+      : [];
+    if (flags.json === true) printJson({ role, notification: evaluated.notification, delivery, state: evaluated.state });
+    return;
+  }
+
+  requireDocker();
+  const output = runRuntimeVerification(installPath, role, config);
+  await persistRuntimeResult(installPath, role, output);
+  let nextState = await readRuntimeIncidentState(installPath, role);
+  const heartbeat = evaluateRuntimeHeartbeat(nextState, new Date());
+  nextState = heartbeat.state;
+  await writeRuntimeIncidentState(installPath, role, nextState);
+  const heartbeatDelivery = heartbeat.notification
+    ? await dispatchRuntimeEvent(installPath, role, "daily_heartbeat", output.checks, new Date().toISOString())
+    : [];
+  if (flags.json === true) printJson({ ...output, notification: heartbeat.notification, notificationDelivery: heartbeatDelivery });
+  if (output.status !== "passed") throw new Error("Runtime monitor found required check failures.");
+}
+
+async function serverNotifications(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  if (rest[0] !== "test") throw new Error("Usage: openmates server notifications test --channel email|discord|webhook|all [--json]");
+  const installPath = resolveServerPath(flags);
+  const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
+  const channel = typeof flags.channel === "string" ? flags.channel : "all";
+  if (!new Set(["email", "discord", "webhook", "all"]).has(channel)) throw new Error("--channel must be email, discord, webhook, or all.");
+  const notificationConfig = runtimeNotificationConfig(installPath);
+  if (channel !== "all") {
+    if (channel !== "email") notificationConfig.email = undefined;
+    if (channel !== "discord") notificationConfig.discordWebhookUrl = undefined;
+    if (channel !== "webhook") notificationConfig.genericWebhook = undefined;
+  }
+  const deliveries = await deliverRuntimeNotification(notificationConfig, {
+    role,
+    kind: "delivery_test",
+    occurredAt: new Date().toISOString(),
+    checkIds: ["monitor"],
+    sanitizedReason: "operator_requested_delivery_test",
+  });
+  const output = { command: "notifications test", role, configured: deliveries.length > 0, deliveries };
+  if (flags.json === true) printJson(output);
+  else console.log(JSON.stringify(output, null, 2));
+  if (deliveries.some((delivery) => delivery.status === "exhausted")) throw new Error("One or more notification delivery tests failed.");
 }
 
 async function serverReset(flags: Record<string, string | boolean>): Promise<void> {
@@ -2476,6 +3138,111 @@ async function serverCaddy(rest: string[], flags: Record<string, string | boolea
   console.log(`  Steps:         ${payload.steps.join(" -> ")}`);
 }
 
+async function serverEnv(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const action = rest[0] ?? "list";
+  const installPath = resolveServerPath(flags);
+  const content = readEnvContent(installPath);
+  const entries = parseEnvEntries(content);
+
+  if (action === "list") {
+    const category = typeof flags.category === "string" ? flags.category : rest[1];
+    const filtered = category ? entries.filter((entry) => entry.category === category) : entries;
+    if (flags.json === true) {
+      printJson({ command: "env list", path: envPathForInstall(installPath), entries: filtered });
+      return;
+    }
+    let lastCategory = "";
+    for (const entry of filtered) {
+      if (entry.category !== lastCategory) {
+        lastCategory = entry.category;
+        console.log(`\n${entry.category}:`);
+      }
+      console.log(`  ${entry.key}=${entry.redactedValue}`);
+    }
+    if (!filtered.length) console.log("No env entries found.");
+    return;
+  }
+
+  if (action === "get") {
+    const key = assertEnvKey(rest[1]);
+    const entry = entries.find((item) => item.key === key);
+    if (flags.json === true) {
+      printJson({ command: "env get", key, value: entry ? redactEnvValue(key, entry.value) : null });
+      return;
+    }
+    console.log(`${key}=${entry ? redactEnvValue(key, entry.value) : ""}`);
+    return;
+  }
+
+  if (action === "set") {
+    const key = assertEnvKey(rest[1]);
+    const value = typeof flags.value === "string" ? flags.value : await promptHiddenValue(`Value for ${key}: `);
+    const backupPath = backupEnvFile(installPath);
+    writeEnvContent(installPath, upsertEnvValue(content, key, value));
+    if (flags.json === true) {
+      printJson({ command: "env set", status: "success", key, backupPath });
+      return;
+    }
+    console.log(`Updated ${key} in ${envPathForInstall(installPath)}.${backupPath ? ` Backup: ${backupPath}` : ""}`);
+    return;
+  }
+
+  if (action === "unset") {
+    const key = assertEnvKey(rest[1]);
+    if (flags.yes !== true) {
+      const confirmed = await confirmDestructive(`UNSET ${key}`);
+      if (!confirmed) {
+        console.error("Env unset cancelled.");
+        return;
+      }
+    }
+    const backupPath = backupEnvFile(installPath);
+    writeEnvContent(installPath, unsetEnvValue(content, key));
+    if (flags.json === true) {
+      printJson({ command: "env unset", status: "success", key, backupPath });
+      return;
+    }
+    console.log(`Removed ${key} from ${envPathForInstall(installPath)}.${backupPath ? ` Backup: ${backupPath}` : ""}`);
+    return;
+  }
+
+  if (action === "check" || action === "doctor") {
+    const config = loadConfigForInstallPath(installPath);
+    const role = getServerRole(flags, config);
+    const missingRuntime = missingRequiredEnvKeys(installPath, role);
+    const secretPreflight = runtimeSecretPreflight(installPath, role);
+    const missingSecrets = [...secretPreflight.emptySecretEnvKeys, ...secretPreflight.importedVaultMissing, ...secretPreflight.importedVaultUnavailable];
+    if (flags.json === true) {
+      printJson({ command: `env ${action}`, role, missingRuntime, secretPreflight, ok: missingRuntime.length === 0 && missingSecrets.length === 0 });
+      return;
+    }
+    console.log(`Env file: ${envPathForInstall(installPath)}`);
+    console.log(`Runtime required keys: ${missingRuntime.length ? `missing ${missingRuntime.join(", ")}` : "ok"}`);
+    console.log(`Provider/Vault secrets: ${formatSecretPreflight(secretPreflight)}`);
+    if (action === "doctor" && missingSecrets.length) {
+      console.log("\nAdd missing provider secrets with:");
+      for (const key of missingSecrets) console.log(`  openmates server env set ${key}`);
+    }
+    return;
+  }
+
+  if (action === "edit") {
+    const category = rest[1];
+    if (category) {
+      const keys = entries.filter((entry) => entry.category === category).map((entry) => entry.key);
+      console.error(keys.length ? `Focused ${category} keys: ${keys.join(", ")}` : `No existing ${category} keys found; opening canonical .env.`);
+    }
+    const backupPath = backupEnvFile(installPath);
+    if (backupPath) console.error(`Backup: ${backupPath}`);
+    const editor = process.env.EDITOR || "nano";
+    const code = await runInteractive(editor, [envPathForInstall(installPath)], installPath);
+    if (code !== 0) process.exit(code);
+    return;
+  }
+
+  throw new Error("Usage: openmates server env list|get|set|unset|check|doctor|edit [key|category]");
+}
+
 // ---------------------------------------------------------------------------
 // Help
 // ---------------------------------------------------------------------------
@@ -2494,7 +3261,11 @@ Commands:
   status          Show server status (container health)
   logs            Display server logs
   update          Update to latest version (pull images, or git pull + rebuild for source installs)
+  verify          Run the role-aware provider-free runtime contract without updating
+  monitoring      Install, run, or inspect periodic runtime monitoring and the host watchdog
+  notifications   Send labeled runtime-health notification delivery tests
   preflight       Show role/update/Caddy preflight plan
+  env             Safely list, set, unset, check, doctor, or edit the runtime .env
   caddy           Plan host-level Caddyfile check/status/diff/apply operations
   backup          Create or list backups
   restore         Restore a backup archive
@@ -2518,6 +3289,9 @@ Command Options:
     --image-tag <tag>   Prebuilt image tag (default: CLI version tag)
     --from-source       Clone/build from source instead of using prebuilt GHCR images
     --source-path <dir> Clone from a local checkout instead of GitHub (implies --from-source)
+    --official-cloud    Enable sibling/configured OpenMatesCloud overlay for official servers
+    --deployment-mode <mode>  self-host or official-cloud
+    --openmatescloud-path <dir>  Overlay checkout path (default: sibling OpenMatesCloud)
 
   start:
     --with-overrides    Include admin UIs (Directus CMS, Grafana)
@@ -2546,6 +3320,27 @@ Command Options:
     --interval <min>    Foreground continuous update interval (default: 30)
     install-service --continuous --channel <name> --window <window>
     --force             Source mode: stash local changes before pulling
+
+  verify:
+    openmates server verify [--role core|upload|preview] [--json]
+
+  monitoring:
+    openmates server monitoring install-service [--role core|upload|preview] [--dry-run]
+    openmates server monitoring run [--role core|upload|preview] [--watchdog]
+    openmates server monitoring status [--role core|upload|preview] [--json]
+    System service installation requires root privileges.
+
+  notifications:
+    openmates server notifications test --channel email|discord|webhook|all [--json]
+
+  env:
+    openmates server env list [providers|integrations|observability|advanced|runtime]
+    openmates server env get <KEY>
+    openmates server env set <KEY> [--value <value>]
+    openmates server env unset <KEY> [--yes]
+    openmates server env check
+    openmates server env doctor
+    openmates server env edit [category]
 
   backup:
     openmates server backup [--role core|upload|preview] [--output <file>] [--include-observability]
@@ -2583,6 +3378,7 @@ Command Options:
 
 Examples:
   openmates server install
+  openmates server install --from-source --official-cloud --openmatescloud-path ../OpenMatesCloud
   openmates server start --with-overrides
   openmates server logs --container api --follow
   openmates server make-admin user@example.com
@@ -2591,7 +3387,7 @@ Examples:
   openmates server features enable embed:code:application
   openmates server update
   openmates server update --dry-run
-  openmates server update --image-tag v0.14.0
+  openmates server update --image-tag v0.15.0
   openmates server update --channel dev
   openmates server restart --rebuild
 `.trim());
@@ -2611,6 +3407,10 @@ export async function handleServer(
     return;
   }
 
+  if (shouldPrintServerCommandStart(subcommand, rest, flags)) {
+    printServerCommandStart(subcommand, rest, flags);
+  }
+
   switch (subcommand) {
     case "status":     return serverStatus(flags);
     case "start":      return serverStart(flags);
@@ -2619,7 +3419,11 @@ export async function handleServer(
     case "logs":       return serverLogs(flags);
     case "install":    return serverInstall(flags);
     case "update":     return serverUpdate(rest, flags);
+    case "verify":     return serverVerify(flags);
+    case "monitoring": return serverMonitoring(rest, flags);
+    case "notifications": return serverNotifications(rest, flags);
     case "preflight":  return serverPreflight(flags);
+    case "env":        return serverEnv(rest, flags);
     case "caddy":      return serverCaddy(rest, flags);
     case "backup":     return serverBackup(rest, flags);
     case "restore":    return serverRestore(flags);

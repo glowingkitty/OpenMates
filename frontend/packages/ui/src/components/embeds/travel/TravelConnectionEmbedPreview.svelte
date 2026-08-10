@@ -15,6 +15,7 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO } from '../../../utils/imageProxy';
+  import { formatTravelFare, type TravelFare } from './fareDisplay';
 
   const PROVIDER_FAVICONS = [
     { match: 'deutsche bahn', url: 'https://www.bahn.de/favicon.ico' },
@@ -30,9 +31,13 @@
     /** Unique embed ID */
     id: string;
     /** Total price (e.g., '245.50') */
-    price?: string;
+    price?: string | number;
     /** Currency code (e.g., 'EUR') */
     currency?: string;
+    /** Structured fare state from pass-aware rail providers */
+    fare?: TravelFare | null;
+    /** Legacy partial fare flag */
+    fareIsPartial?: boolean;
     /** Transport method (e.g., 'airplane') */
     transportMethod?: string;
     /** Trip type (e.g., 'one_way', 'round_trip', 'multi_city') */
@@ -63,6 +68,11 @@
     carrierCodes?: string[];
     /** Number of bookable seats remaining */
     bookableSeats?: number;
+    /** OpenMates route optimization metadata */
+    optimization?: {
+      optimized_by?: string;
+      badge?: string;
+    };
     /** Whether this connection is among the cheapest results */
     isCheapest?: boolean;
     /** Processing status */
@@ -77,6 +87,8 @@
     id,
     price,
     currency = 'EUR',
+    fare,
+    fareIsPartial,
     transportMethod = 'airplane',
     tripType = 'one_way',
     origin,
@@ -92,6 +104,7 @@
     airlineLogo,
     carrierCodes: carrierCodesProp = [],
     bookableSeats,
+    optimization,
     // isCheapest not used in redesigned preview — price is always green
     isCheapest: _isCheapest = false,
     status = 'finished',
@@ -113,13 +126,9 @@
   let _carriers = $derived(normalizeStringArray(carriersProp as string[] | string | undefined));
   let carrierCodes = $derived(normalizeStringArray(carrierCodesProp as string[] | string | undefined));
   
-  // Format price for display
+  // Format price/fare state for display.
   let formattedPrice = $derived.by(() => {
-    if (!price) return '';
-    const numPrice = parseFloat(price);
-    if (isNaN(numPrice)) return `${currency} ${price}`;
-    // Format with locale-aware number formatting
-    return `${currency} ${numPrice.toFixed(numPrice % 1 === 0 ? 0 : 2)}`;
+    return formatTravelFare({ fare, total_price: price, currency, fare_is_partial: fareIsPartial });
   });
   
   // BasicInfosBar shows the compact route title; the card itself shows travel times.
@@ -209,6 +218,11 @@
     if (arrivalDelayMinutes == null || arrivalDelayMinutes === 0) return 'ontime';
     return arrivalDelayMinutes > 0 ? 'late' : 'early';
   });
+
+  let optimizationBadge = $derived.by(() => {
+    if (optimization?.optimized_by !== 'openmates') return '';
+    return optimization.badge || 'Optimized by OpenMates';
+  });
   
   // Carriers array is used for props but display is now in the meta line
   
@@ -228,10 +242,10 @@
    * Returns the code if found, otherwise the full string
    */
   function extractCode(location: string): string {
-    const match = location.match(/\(([^)]+)\)/);
+    const match = location.match(/\(([A-Z0-9]{2,5})\)/);
     if (match) return match[1];
-    // If no code in parens, return first word
-    return location.split(' ')[0] || location;
+    // Station qualifiers like "(tief)" are not useful route labels.
+    return location.replace(/\s*\([^)]*\)/g, '').split(' ')[0] || location;
   }
   
   // No-op stop handler (connections don't have cancellable tasks)
@@ -252,6 +266,7 @@
   onStop={handleStop}
   showStatus={false}
   showSkillIcon={false}
+  customHeight={250}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="connection-details" class:mobile={isMobileLayout} data-testid="connection-preview-details">
@@ -300,6 +315,12 @@
         </div>
       {/if}
 
+      {#if optimizationBadge}
+        <div class="optimization-badge" data-testid="connection-optimization-badge">
+          {optimizationBadge}
+        </div>
+      {/if}
+
       <!-- Seats remaining warning -->
       {#if bookableSeats !== undefined && bookableSeats > 0 && bookableSeats <= 4}
         <div class="seats-warning">
@@ -317,9 +338,10 @@
   .connection-details {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-2);
+    gap: var(--spacing-1);
     height: 100%;
-    justify-content: center;
+    min-height: 0;
+    justify-content: flex-start;
     padding: 2px 0;
   }
 
@@ -331,12 +353,13 @@
   .price-row {
     display: flex;
     align-items: baseline;
-    gap: var(--spacing-3);
+    column-gap: var(--spacing-2);
+    row-gap: var(--spacing-1);
     flex-wrap: wrap;
   }
 
   .connection-price {
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--color-success, #00a313);
     line-height: 1.2;
@@ -347,14 +370,14 @@
   }
 
   .trip-type-separator {
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--color-font-primary);
     line-height: 1.2;
   }
 
   .trip-type-label {
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--color-font-primary);
     line-height: 1.2;
@@ -391,9 +414,7 @@
     font-size: 0.875rem;
     color: var(--color-font-primary);
     line-height: 1.3;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
 
   .route-text {
@@ -401,7 +422,7 @@
   }
 
   .connection-time {
-    font-size: 1rem;
+    font-size: 0.95rem;
     color: var(--color-font-primary);
     font-weight: 700;
     line-height: 1.25;
@@ -409,9 +430,10 @@
 
   /* Meta line: "Sat, Mar 28 · 31h 20m · 2 stops" */
   .connection-meta {
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     color: var(--color-grey-60);
     line-height: 1.3;
+    overflow-wrap: anywhere;
   }
 
   .realtime-status {
@@ -433,6 +455,17 @@
   .realtime-status.ontime {
     color: #166534;
     background: #dcfce7;
+  }
+
+  .optimization-badge {
+    width: fit-content;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--color-primary, #4867cd);
+    background: rgba(var(--color-primary-rgb), 0.1);
   }
 
   /* Seats warning */

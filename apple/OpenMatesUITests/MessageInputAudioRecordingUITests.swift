@@ -34,12 +34,32 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(recordButton.waitForExistence(timeout: 5))
         recordButton.press(forDuration: 0.45)
 
-        let editor = waitForMessageEditor(in: app)
-        XCTAssertTrue(waitForEditorOwnedEmbedDiagnostics(in: app, editor: editor, expectedCount: 1), "Expected editor-owned recording embed diagnostics")
-        XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists, "Recording must render as an editor-owned embed, not a native pending strip")
-        XCTAssertTrue(waitForEditorOwnedText("recording", in: app, editor: editor), "Expected editor-owned recording title")
+        XCTAssertTrue(element(in: app, identifier: "native-composer-preview-recording-finished").waitForExistence(timeout: 5))
+        XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
+        XCTAssertTrue(textContaining("recording", in: app).waitForExistence(timeout: 5))
         XCTAssertFalse(textContaining("```json", in: app).exists)
         XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
+    }
+
+    func testRecordRequestLaunchStartsWelcomeRecordingOverlay() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-recording",
+            "--ui-test-welcome-mic-granted",
+            "--ui-test-welcome-simulated-recording"
+        ]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 3) {
+            skipInterests.tap()
+        }
+
+        XCTAssertTrue(element(in: app, identifier: "record-overlay").waitForExistence(timeout: 8))
+        assertReleaseText(in: app, contains: "Press Enter to finish", excludes: "Release to finish")
+        XCTAssertTrue(element(in: app, identifier: "record-finish-button").waitForExistence(timeout: 2))
+        XCTAssertTrue(element(in: app, identifier: "message-field").exists)
     }
 
     func testSignedOutWelcomeRecordingCancelDoesNotInsertPreview() throws {
@@ -50,11 +70,13 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         ])
 
         XCTAssertTrue(element(in: app, identifier: "record-overlay").waitForExistence(timeout: 5))
-        assertCancelHint(in: app, contains: "Press ESC to cancel", excludes: "Slide left to cancel")
+        assertReleaseText(in: app, contains: "Press Enter to finish", excludes: "Release to finish")
+        XCTAssertTrue(element(in: app, identifier: "record-cancel-button").waitForExistence(timeout: 2))
 
-        element(in: app, identifier: "cancel-hint").tap()
+        element(in: app, identifier: "record-cancel-button").tap()
 
         XCTAssertTrue(waitForAbsence(element(in: app, identifier: "record-overlay")))
+        XCTAssertFalse(element(in: app, identifier: "native-composer-preview-recording-finished").exists)
         XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
     }
 
@@ -71,6 +93,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         start.press(forDuration: 0.35, thenDragTo: end)
 
         XCTAssertTrue(waitForAbsence(element(in: app, identifier: "record-overlay")))
+        XCTAssertFalse(element(in: app, identifier: "native-composer-preview-recording-finished").exists)
         XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
     }
 
@@ -86,11 +109,22 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
-        XCTAssertTrue(element(in: app, identifier: "release-text").waitForExistence(timeout: 2))
+        let releaseText = element(in: app, identifier: "release-text")
+        XCTAssertTrue(releaseText.waitForExistence(timeout: 2))
+        XCTAssertTrue(releaseText.label.localizedCaseInsensitiveContains("Release to finish"), "Expected pointer overlay release text; label=\(releaseText.label)")
         XCTAssertTrue(element(in: app, identifier: "timer-pill").waitForExistence(timeout: 2))
-        XCTAssertTrue(element(in: app, identifier: "cancel-hint").waitForExistence(timeout: 2))
-        assertCancelHint(in: app, contains: "Slide left to cancel", excludes: "Press ESC to cancel")
-        XCTAssertTrue(element(in: app, identifier: "mic-button").waitForExistence(timeout: 2))
+        XCTAssertTrue(element(in: app, identifier: "record-cancel-button").waitForExistence(timeout: 2))
+        XCTAssertTrue(element(in: app, identifier: "record-finish-button").waitForExistence(timeout: 2))
+
+        let controls = element(in: app, identifier: "record-controls")
+        XCTAssertTrue(controls.waitForExistence(timeout: 2))
+        XCTAssertGreaterThanOrEqual(controls.frame.height, 44)
+        XCTAssertGreaterThanOrEqual(
+            controls.frame.minY - releaseText.frame.maxY,
+            64,
+            "The decorative 64pt waveform track must remain between the release text and controls"
+        )
+        XCTAssertFalse(element(in: app, identifier: "recording-waveform").exists)
 
         let screenshot = XCUIScreen.main.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)
@@ -106,8 +140,9 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
-        XCTAssertTrue(element(in: app, identifier: "cancel-hint").waitForExistence(timeout: 2))
-        assertCancelHint(in: app, contains: "Press ESC to cancel", excludes: "Slide left to cancel")
+        assertReleaseText(in: app, contains: "Press Enter to finish", excludes: "Release to finish")
+        XCTAssertTrue(element(in: app, identifier: "record-cancel-button").waitForExistence(timeout: 2))
+        XCTAssertTrue(element(in: app, identifier: "record-finish-button").waitForExistence(timeout: 2))
     }
 
     private func element(in app: XCUIApplication, identifier: String) -> XCUIElement {
@@ -122,12 +157,12 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
             .firstMatch
     }
 
-    private func assertCancelHint(in app: XCUIApplication, contains expected: String, excludes unexpected: String) {
-        let hint = element(in: app, identifier: "cancel-hint")
-        XCTAssertTrue(hint.waitForExistence(timeout: 2))
-        let label = hint.label
-        XCTAssertTrue(label.localizedCaseInsensitiveContains(expected), "Expected cancel hint label to contain \(expected); label=\(label)")
-        XCTAssertFalse(label.localizedCaseInsensitiveContains(unexpected), "Expected cancel hint label to exclude \(unexpected); label=\(label)")
+    private func assertReleaseText(in app: XCUIApplication, contains expected: String, excludes unexpected: String) {
+        let releaseText = element(in: app, identifier: "release-text")
+        XCTAssertTrue(releaseText.waitForExistence(timeout: 2))
+        let label = releaseText.label
+        XCTAssertTrue(label.localizedCaseInsensitiveContains(expected), "Expected release text to contain \(expected); label=\(label)")
+        XCTAssertFalse(label.localizedCaseInsensitiveContains(unexpected), "Expected release text to exclude \(unexpected); label=\(label)")
     }
 
     private func waitForAbsence(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
@@ -163,40 +198,5 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
 
         XCTFail("Expected welcome message editor to exist. Visible UI: \(app.debugDescription)")
         return candidates[0]
-    }
-
-    private func waitForEditorOwnedEmbedDiagnostics(in app: XCUIApplication, editor: XCUIElement, expectedCount: Int, timeout: TimeInterval = 8) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        let diagnostics = element(in: app, identifier: "message-editor-diagnostics")
-        while Date() < deadline {
-            if diagnostics.exists,
-               diagnostics.label.contains("embedCount=\(expectedCount)") {
-                return true
-            }
-            if let value = editor.value as? String,
-               value.contains("embedCount=\(expectedCount)") {
-                return true
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-        }
-        return false
-    }
-
-    private func waitForEditorOwnedText(_ text: String, in app: XCUIApplication, editor: XCUIElement, timeout: TimeInterval = 5) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        let diagnostics = element(in: app, identifier: "message-editor-diagnostics")
-        while Date() < deadline {
-            if textContaining(text, in: app).exists { return true }
-            if diagnostics.exists,
-               diagnostics.label.localizedCaseInsensitiveContains(text) {
-                return true
-            }
-            if let value = editor.value as? String,
-               value.localizedCaseInsensitiveContains(text) {
-                return true
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-        }
-        return false
     }
 }

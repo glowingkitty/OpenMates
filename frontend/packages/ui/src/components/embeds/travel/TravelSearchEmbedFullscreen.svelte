@@ -24,6 +24,7 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
   import { extractSearchResultsFromContent } from '../embedPreviewHydration';
+  import { extractTravelFare, getTravelFareAmount, getTravelFareFallbackLabel, type TravelFare } from './fareDisplay';
 
   /**
    * Normalize a raw status value to one of the valid embed status strings.
@@ -34,12 +35,31 @@
   }
 
   /** Layover data between segments */
+  interface TransferAmenityGroup {
+    label?: string;
+    status?: string;
+    count?: number;
+    items?: string[];
+  }
+
+  interface TransferAmenities {
+    provider?: string;
+    data_source?: string;
+    status?: string;
+    cache_hit?: boolean;
+    groups?: Record<string, TransferAmenityGroup>;
+  }
+
   interface LayoverData {
     airport: string;
     airport_code?: string;
     duration?: string;
     duration_minutes?: number;
     overnight?: boolean;
+    latitude?: number;
+    longitude?: number;
+    meets_min_transfer?: boolean;
+    amenities?: TransferAmenities;
   }
 
   /** Segment data within a leg */
@@ -47,6 +67,11 @@
     carrier: string;
     carrier_code?: string;
     number?: string;
+    mode?: string;
+    line?: string;
+    operator?: string;
+    source_provider?: string;
+    fare_coverage?: string;
     departure_station: string;
     departure_time: string;
     scheduled_departure_time?: string;
@@ -107,6 +132,23 @@
     icon_url?: string;
   }
 
+  interface TransferQuality {
+    min_transfer_minutes?: number;
+    has_transfers?: boolean;
+    short_transfer_count?: number;
+    unknown_transfer_count?: number;
+  }
+
+  interface OptimizationData {
+    optimized_by?: string;
+    badge?: string;
+    original_transfer_station?: string;
+    optimized_transfer_station?: string;
+    min_transfer_minutes?: number;
+    transfer_minutes?: number;
+    confidence?: string;
+  }
+
   /**
    * Connection result interface (transformed from child embeds)
    */
@@ -115,7 +157,10 @@
     type?: string;
     transport_method?: string;
     trip_type?: string;
-    total_price?: string;
+    source_provider?: string;
+    total_price?: string | number;
+    fare?: TravelFare | null;
+    fare_is_partial?: boolean;
     currency?: string;
     bookable_seats?: number;
     last_ticketing_date?: string;
@@ -133,10 +178,14 @@
     carrier_codes?: string[];
     hash?: string;
     legs?: LegData[];
+    origin_country_code?: string;
+    destination_country_code?: string;
     airline_logo?: string;
     co2_kg?: number;
     co2_typical_kg?: number;
     co2_difference_percent?: number;
+    transfer_quality?: TransferQuality;
+    optimization?: OptimizationData;
   }
 
   interface Props {
@@ -237,13 +286,12 @@
 
   let headerPriceInfo = $derived.by(() => {
     if (headerResults.length === 0) return '';
-    const prices = headerResults
-      .filter(r => r.total_price)
-      .map(r => parseFloat(r.total_price!))
-      .filter(p => !isNaN(p));
-    if (prices.length === 0) return '';
-    const currency = headerResults[0]?.currency || 'EUR';
-    const minPrice = Math.min(...prices);
+    const pricedResults = headerResults
+      .map(r => ({ amount: getTravelFareAmount(r), currency: r.fare?.currency || r.currency }))
+      .filter((r): r is { amount: number; currency?: string | null } => r.amount !== null);
+    if (pricedResults.length === 0) return getTravelFareFallbackLabel(headerResults);
+    const currency = pricedResults[0]?.currency || 'EUR';
+    const minPrice = Math.min(...pricedResults.map(r => r.amount));
     return `${$text('embeds.from')} ${currency} ${Math.round(minPrice)}`;
   });
 
@@ -285,6 +333,36 @@
     return found ? ctx : undefined;
   }
 
+  function readTransferQuality(content: Record<string, unknown>): TransferQuality | undefined {
+    if (typeof content.transfer_quality === 'object' && content.transfer_quality !== null) {
+      return content.transfer_quality as TransferQuality;
+    }
+
+    const hasFlatQuality = content.transfer_quality_min_transfer_minutes !== undefined || content.transfer_quality_has_transfers !== undefined;
+    if (!hasFlatQuality) return undefined;
+
+    const readNumber = (value: unknown): number | undefined => {
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value !== 'string' || value.trim() === '') return undefined;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+    const readBoolean = (value: unknown): boolean | undefined => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value !== 'string') return undefined;
+      if (value.toLowerCase() === 'true') return true;
+      if (value.toLowerCase() === 'false') return false;
+      return undefined;
+    };
+
+    return {
+      min_transfer_minutes: readNumber(content.transfer_quality_min_transfer_minutes),
+      has_transfers: readBoolean(content.transfer_quality_has_transfers),
+      short_transfer_count: readNumber(content.transfer_quality_short_transfer_count),
+      unknown_transfer_count: readNumber(content.transfer_quality_unknown_transfer_count),
+    };
+  }
+
   function extractStringArray(content: Record<string, unknown>, fieldName: string, maxItems = 20): string[] {
     const direct = content[fieldName];
     if (Array.isArray(direct)) return direct.filter((value): value is string => typeof value === 'string' && value.length > 0);
@@ -319,9 +397,30 @@
         duration: (content[`legs_${i}_duration`] as string) || '',
         stops: (content[`legs_${i}_stops`] as number) || 0,
         segments: reconstructSegments(content, i),
+        layovers: reconstructLayovers(content, i),
       });
     }
     return legs;
+  }
+
+  function reconstructLayovers(content: Record<string, unknown>, legIndex: number): LayoverData[] | undefined {
+    const layovers: LayoverData[] = [];
+    for (let j = 0; j < 10; j++) {
+      const airport = content[`legs_${legIndex}_layovers_${j}_airport`];
+      if (typeof airport !== 'string') break;
+      layovers.push({
+        airport,
+        airport_code: content[`legs_${legIndex}_layovers_${j}_airport_code`] as string | undefined,
+        duration: content[`legs_${legIndex}_layovers_${j}_duration`] as string | undefined,
+        duration_minutes: content[`legs_${legIndex}_layovers_${j}_duration_minutes`] as number | undefined,
+        overnight: content[`legs_${legIndex}_layovers_${j}_overnight`] as boolean | undefined,
+        latitude: content[`legs_${legIndex}_layovers_${j}_latitude`] as number | undefined,
+        longitude: content[`legs_${legIndex}_layovers_${j}_longitude`] as number | undefined,
+        meets_min_transfer: content[`legs_${legIndex}_layovers_${j}_meets_min_transfer`] as boolean | undefined,
+        amenities: content[`legs_${legIndex}_layovers_${j}_amenities`] as TransferAmenities | undefined,
+      });
+    }
+    return layovers.length > 0 ? layovers : undefined;
   }
 
   function reconstructSegments(content: Record<string, unknown>, legIndex: number): SegmentData[] {
@@ -333,6 +432,11 @@
         carrier,
         carrier_code: content[`legs_${legIndex}_segments_${j}_carrier_code`] as string | undefined,
         number: content[`legs_${legIndex}_segments_${j}_number`] as string | undefined,
+        mode: content[`legs_${legIndex}_segments_${j}_mode`] as string | undefined,
+        line: content[`legs_${legIndex}_segments_${j}_line`] as string | undefined,
+        operator: content[`legs_${legIndex}_segments_${j}_operator`] as string | undefined,
+        source_provider: content[`legs_${legIndex}_segments_${j}_source_provider`] as string | undefined,
+        fare_coverage: content[`legs_${legIndex}_segments_${j}_fare_coverage`] as string | undefined,
         departure_station: (content[`legs_${legIndex}_segments_${j}_departure_station`] as string) || '',
         departure_time: (content[`legs_${legIndex}_segments_${j}_departure_time`] as string) || '',
         scheduled_departure_time: content[`legs_${legIndex}_segments_${j}_scheduled_departure_time`] as string | undefined,
@@ -392,6 +496,11 @@
               carrier: (seg.carrier as string) || '',
               carrier_code: seg.carrier_code as string | undefined,
               number: seg.number as string | undefined,
+              mode: seg.mode as string | undefined,
+              line: seg.line as string | undefined,
+              operator: seg.operator as string | undefined,
+              source_provider: seg.source_provider as string | undefined,
+              fare_coverage: seg.fare_coverage as string | undefined,
               departure_station: (seg.departure_station as string) || '',
               departure_time: (seg.departure_time as string) || '',
               scheduled_departure_time: seg.scheduled_departure_time as string | undefined,
@@ -432,6 +541,10 @@
               duration: lay.duration as string | undefined,
               duration_minutes: lay.duration_minutes as number | undefined,
               overnight: lay.overnight as boolean | undefined,
+              latitude: lay.latitude as number | undefined,
+              longitude: lay.longitude as number | undefined,
+              meets_min_transfer: lay.meets_min_transfer as boolean | undefined,
+              amenities: lay.amenities as TransferAmenities | undefined,
             }))
           : undefined,
       }));
@@ -448,13 +561,17 @@
     const departure = (content.departure as string | undefined) || firstLeg?.departure || firstSegment?.departure_time;
     const arrival = (content.arrival as string | undefined) || lastLeg?.arrival || lastSegment?.arrival_time;
     const airlineLogo = (content.airline_logo as string | undefined) || firstSegment?.airline_logo;
+    const fare = extractTravelFare(content);
 
     return {
       embed_id: embedId,
       type: (content.type as string) || 'connection',
       transport_method: (content.transport_method as string) || 'airplane',
       trip_type: (content.trip_type as string) || 'one_way',
-      total_price: content.total_price as string | undefined,
+      source_provider: content.source_provider as string | undefined,
+      total_price: (content.total_price as string | number | undefined) ?? (content.price as string | number | undefined),
+      fare,
+      fare_is_partial: content.fare_is_partial as boolean | undefined,
       currency: (content.currency as string) || 'EUR',
       bookable_seats: content.bookable_seats as number | undefined,
       last_ticketing_date: content.last_ticketing_date as string | undefined,
@@ -487,6 +604,8 @@
       co2_kg: content.co2_kg as number | undefined,
       co2_typical_kg: content.co2_typical_kg as number | undefined,
       co2_difference_percent: content.co2_difference_percent as number | undefined,
+      transfer_quality: readTransferQuality(content),
+      optimization: content.optimization as OptimizationData | undefined,
     };
   }
 
@@ -498,9 +617,8 @@
 
   function getCheapestThreshold(results: ConnectionResult[]): number {
     const prices = results
-      .filter(r => r.total_price)
-      .map(r => parseFloat(r.total_price!))
-      .filter(p => !isNaN(p))
+      .map(r => getTravelFareAmount(r))
+      .filter((p): p is number => p !== null)
       .sort((a, b) => a - b);
     if (prices.length === 0) return 0;
     const idx = Math.max(0, Math.ceil(prices.length * 0.2) - 1);
@@ -516,6 +634,11 @@
 
   function hasCancellation(result: ConnectionResult): boolean {
     return Boolean(result.legs?.some(leg => leg.segments?.some(seg => seg.cancelled)));
+  }
+
+  function isCheapestResult(result: ConnectionResult): boolean {
+    const amount = getTravelFareAmount(result);
+    return cheapestThreshold > 0 && amount !== null && amount <= cheapestThreshold;
   }
 
   let cheapestThreshold = $derived(getCheapestThreshold(headerResults));
@@ -578,6 +701,8 @@
       id={result.embed_id}
       price={result.total_price}
       currency={result.currency}
+      fare={result.fare}
+      fareIsPartial={result.fare_is_partial}
       transportMethod={result.transport_method}
       tripType={result.trip_type}
       origin={result.origin}
@@ -593,7 +718,8 @@
       airlineLogo={result.airline_logo}
       carrierCodes={result.carrier_codes}
       bookableSeats={result.bookable_seats}
-      isCheapest={cheapestThreshold > 0 && result.total_price != null && parseFloat(result.total_price) <= cheapestThreshold}
+      optimization={result.optimization}
+      isCheapest={isCheapestResult(result)}
       status="finished"
       isMobile={false}
       onFullscreen={onSelect}

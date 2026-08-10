@@ -124,6 +124,7 @@ struct DailyInspirationBanner: View {
 struct InspirationCard: View {
     let inspiration: DailyInspirationData
     let containerSize: CGSize
+    var heightOverride: CGFloat? = nil
     let onTap: () -> Void
 
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -136,6 +137,7 @@ struct InspirationCard: View {
     /// Web `.daily-inspiration-banner`: `height: 35vh; min-height: 240px`,
     /// switching to fixed `190px` at the mobile breakpoint.
     private var bannerHeight: CGFloat {
+        if let heightOverride { return heightOverride }
         guard !isCompact else { return 190 }
         let responsiveHeight = containerSize.height * 0.35
         return max(240, responsiveHeight)

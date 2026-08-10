@@ -1,0 +1,73 @@
+schema_version: 1
+contract: feature.chat-navigation@1
+
+sidebar_header_order:
+  - id: selected-chat-navigates-older-and-newer
+    given:
+      sidebar_order: [newer-chat, selected-chat, older-chat]
+      active_chat_id: selected-chat
+    actions:
+      - control: previous
+        expect_chat_id: older-chat
+      - control: next
+        expect_chat_id: selected-chat
+      - control: swipe_previous
+        expect_chat_id: older-chat
+      - control: swipe_next
+        expect_chat_id: selected-chat
+  - id: selected-chat-can-navigate-to-newer-neighbor
+    given:
+      sidebar_order: [newest-chat, selected-chat, older-chat]
+      active_chat_id: selected-chat
+    actions:
+      - control: next
+        expect_chat_id: newest-chat
+
+draft_only_targets:
+  - id: draft-only-chat-addressable-with-sidebar-closed
+    given:
+      draft_chat:
+        chat_id: draft-chat-1
+        messages: []
+        title: null
+        draft_preview: Header navigation draft
+      sidebar_order: [draft-chat-1, regular-chat-1]
+      active_chat_id: regular-chat-1
+      sidebar_visible: false
+    action:
+      control: next
+    expect:
+      active_chat_id: draft-chat-1
+      url_hash_contains: chat-id=draft-chat-1
+      header_badge: draft
+      header_title_contains: Header navigation draft
+  - id: draft-only-chat-survives-resume-and-viewport-change
+    given:
+      draft_chat:
+        chat_id: draft-chat-1
+        draft_preview: Header navigation draft
+      transitions: [new_chat_screen, resume_draft_card_click, mobile_viewport, desktop_viewport]
+    expect:
+      active_chat_id: draft-chat-1
+      draft_badge_visible: true
+      draft_preview_preserved: true
+
+empty_shells:
+  - id: empty-new-chat-shell-not-in-navigation
+    given:
+      url_hash: ''
+      message_editor_text: ''
+      message_count: 0
+    expect:
+      persisted_chat_id: absent
+      sidebar_row: absent
+      header_navigation_target: false
+  - id: typed-unsent-content-creates-draft-target
+    given:
+      url_hash: ''
+      message_editor_text: Header navigation draft
+      message_count: 0
+    expect:
+      persisted_chat_id: present
+      sidebar_row: present
+      header_navigation_target: true

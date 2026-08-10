@@ -102,36 +102,34 @@ For ad-hoc fixes without a formal issue ID, the Symptom/Cause/Fix block is still
 - [ ] Run linter: `./scripts/lint_changed.sh --path <your_changes>`
 - [ ] Fix all linter and type errors
 - [ ] Remove temporary `console.log` or `print` statements (unless permanent)
-- [ ] Only add files changed/created in this chat (no `git add .`)
+- [ ] Preview the scoped deploy with `python3 scripts/sessions.py prepare-deploy --session <ID>`
 
 ---
 
 ## Auto-Commit and Deployment Workflow
 
-**After completing any task**, automatically commit and push to `dev`:
+**After completing any task**, deploy scoped changes to `dev` through `sessions.py`:
 
-1. Run linter and fix errors
-2. `git add <modified_files>` (never `git add .`)
-3. `git commit -m "<type>: <description>"`
-4. `git push origin dev`
+1. Run the smallest relevant verification and fix errors
+2. Preview with `python3 scripts/sessions.py prepare-deploy --session <ID>`
+3. Deploy with `python3 scripts/sessions.py deploy --session <ID> --title "<type>: <description>" --message "<body>"`
+4. Never use raw `git add`, `git commit`, or `git push` for normal agent deploys
 
 **If translation YAML files were modified**, run `cd frontend/packages/ui && npm run build:translations` before restarting backend services. The generated locale JSON files are ignored by git but are required runtime artifacts mounted at `/translations`; production must not fall back to parsing YAML on worker startup.
 
 **If backend files were modified** (`.py`, `Dockerfile`, `docker-compose.yml`, config `.yml`), rebuild affected services.
 
-**Concurrent Session Check (CRITICAL):** Before rebuilding, check the Docker Rebuild Lock via `sessions.py`:
+**Concurrent Session Check (CRITICAL):** Rebuild and restart through `sessions.py`:
 
-1. Run `python3 scripts/sessions.py status` → check for active Docker locks
-2. If another session holds the lock → wait 30s, re-check, repeat
-3. If no lock is held → acquire with `python3 scripts/sessions.py lock --session <ID> --type docker`
-4. Rebuild and restart, then **release the lock immediately** with `unlock`
+1. Run `python3 scripts/sessions.py status` to inspect active tests and Docker operations.
+2. Run `python3 scripts/sessions.py docker restart --session <ID> --build --service <service>`.
+3. Repeat `--service` for each affected service. The command drains dependent tests, manages the lock, and verifies health.
 
 See `docs/contributing/guides/concurrent-sessions.md` for the full lock protocol.
 
 ```bash
-# Rebuild specific services
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build <services> && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d <services>
+# Rebuild and restart specific services
+python3 scripts/sessions.py docker restart --session <ID> --build --service api --service task-worker
 ```
 
 | Files Modified                | Services to Rebuild                         |
@@ -155,38 +153,39 @@ docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/cor
 
 - The **development server** runs the `dev` branch — this is where we work and push changes.
 - The **production server** runs the `main` branch — this is the live server that users interact with.
+- The repository default branch and current working branch must remain `dev`. Never change GitHub's default branch away from `dev`, and never switch the local working tree away from `dev` while operating on this dev server.
 
 ### Debugging Production Issues
 
-When debugging issues that occur on the **production server**, the code running there may differ from the `dev` branch. To inspect the production code without switching branches, use `git show`.
+When debugging issues that occur on the **production server**, the code running there may differ from the `dev` branch. Always inspect the production code on `main` first. Use the current `dev` branch only after that to check whether dev is also susceptible to the same issue, bug, or behavior, or whether dev already contains a fix.
 
-**IMPORTANT: Always update the local `main` ref from remote first** before inspecting production code. The local `main` ref can be stale since we never switch to it — run `git fetch origin main` to ensure you're viewing the actual production code:
+**IMPORTANT: Always update the remote `main` ref first** before inspecting production code. Local refs can be stale since we never switch to them — run `git fetch origin main:refs/remotes/origin/main` and inspect `origin/main` to ensure you're viewing the actual production code:
 
 ```bash
-# ✅ ALWAYS run this first to update local main ref
-git fetch origin main
+# ALWAYS run this first to update the production branch ref
+git fetch origin main:refs/remotes/origin/main
 
 # View a specific file as it exists on the main (production) branch
-git show main:backend/core/api/app/routes/settings.py
+git show origin/main:backend/core/api/app/routes/settings.py
 
 # View a specific file at a specific line range (pipe through head/tail)
-git show main:backend/core/api/app/routes/settings.py | head -200
+git show origin/main:backend/core/api/app/routes/settings.py | head -200
 
 # Compare a file between dev and main
-git diff main..dev -- backend/core/api/app/routes/settings.py
+git diff origin/main..dev -- backend/core/api/app/routes/settings.py
 
 # Check what's different between dev and main overall
-git diff main..dev --stat
+git diff origin/main..dev --stat
 
 # View the last few commits on main
-git log main --oneline -10
+git log origin/main --oneline -10
 ```
 
 **Key rules:**
 
-- Always use `git show main:<path>` to check production code — **do NOT switch branches** on the dev server
+- Always use `git show origin/main:<path>` to check production code — **do NOT switch branches** on the dev server
 - Use the Admin Debug API with the **production base URL** (`https://api.openmates.org`) to inspect production data and logs
-- When a user reports a production issue, first check if the relevant code differs between `dev` and `main`
+- When a user reports a production issue, first inspect the relevant code on `main`; only then compare with `dev` to see if dev is also susceptible or already fixed
 
 ---
 
@@ -264,7 +263,32 @@ Write a human-readable PR description (not just a commit list). Structure it as:
 
 Only include sections that have content. Write for a developer audience — be specific and clear.
 
-**Step 4 — Create the PR**
+**Step 4 — Prepare and run the core journeys release gate**
+
+Prepare the Docker-backed dev services from a clean `dev` checkout that matches
+`origin/dev`. The command acquires the Docker lock, recreates the API and core
+workers, checks health, and publishes a status on the exact commit:
+
+```bash
+sha=$(git rev-parse HEAD)
+python3 scripts/prepare_release_candidate.py --session <SESSION_ID> --expected-commit "$sha"
+```
+
+For the first PR that introduces `.github/workflows/release-core-journeys.yml`
+to `main`, use the existing test control plane because GitHub neither registers
+nor triggers a brand-new workflow from a non-default branch:
+
+```bash
+python3 scripts/tests.py run --core-journeys --gate-deploy --expected-commit "$sha"
+```
+
+Inspect every exact-commit run in the generated release matrix. It includes core
+chat and reachability plus all signup and billing specs matched by
+`RELEASE_GATE_SPEC_PATTERNS` in `scripts/run_tests.py`. Starting with the next
+promotion, require the automatic aggregate `Release Gate / Core Journeys` result
+in the separate main-only ruleset; do not add it to the shared main/dev ruleset.
+
+**Step 5 — Create the PR**
 
 ```bash
 gh pr create --base main --head dev --title "<short descriptive title>" --body "$(cat <<'EOF'
@@ -273,7 +297,7 @@ EOF
 )"
 ```
 
-**Step 5 — Prepare a draft release**
+**Step 6 — Prepare a draft release**
 
 After the PR is created, immediately prepare a draft GitHub release (see "Creating Releases" section below). The draft release will be published after the PR is merged into `main`.
 
@@ -289,9 +313,9 @@ Releases are always created as **drafts** targeting `main` and marked as **pre-r
 
 OpenMates separates the **user-facing product line** from exact artifact versions:
 
-- Product UI and marketing copy show `vMAJOR.MINOR`, for example `v0.14`.
-- npm, PyPI, GHCR images, and GitHub release tags use exact SemVer/PEP 440 patch versions, for example `0.14.0`, `0.14.1`, or `v0.14.1`.
-- `shared/config/product_version.json` is the source of truth: `userFacing` stores the product line, `cli.stableBase` and `python.stableBase` store the first patch in the artifact release line, and `stableFloor` stores the highest stable patch already shipped by canonical release artifacts so lagging registries do not backfill old patch numbers.
+- Product UI and marketing copy show `vMAJOR.MINOR`, for example `v0.15`.
+- npm, PyPI, GHCR images, and GitHub release tags use exact SemVer/PEP 440 versions, for example `0.15.0-alpha.1`, `0.15.0a1`, or `v0.15.0-alpha.1` while in alpha.
+- `shared/config/product_version.json` is the source of truth: `userFacing` stores the product line, and `cli.stableBase` / `python.stableBase` store the fixed artifact base for that line.
 
 Artifact releases use semantic versioning in the format `vMAJOR.MINOR.PATCH-phase`:
 
@@ -301,12 +325,12 @@ Artifact releases use semantic versioning in the format `vMAJOR.MINOR.PATCH-phas
 | Beta   | `v1.0.0-beta`  | Core features complete; usable for a wider audience; known bugs being fixed             |
 | Stable | `v1.0.0`       | Production-ready; all major user flows work reliably                                    |
 
-**Current phase:** Alpha — the app currently shows **v0.14** as the user-facing product line. Stable artifacts in this line publish as `0.14.0`, then `0.14.1`, `0.14.2`, and so on. The next minor product line is `v0.15`.
+**Current phase:** Alpha — the app currently shows **v0.15** as the user-facing product line. Dev artifacts publish on a fixed alpha train such as `0.15.0-alpha.N` for npm/GHCR and `0.15.0aN` for PyPI. The next minor product line is `v0.16`.
 
 **How to bump the version:**
 
-- **Patch artifact** (`v0.14.0` → `v0.14.1`): additional stable publishes inside the same product line
-- **Minor product line** (`v0.14` → `v0.15`): new features added or significant changes
+- **Alpha artifact** (`v0.15.0-alpha.0` → `v0.15.0-alpha.1`): additional dev publishes inside the same product line
+- **Minor product line** (`v0.15` → `v0.16`): new features added or significant changes
 - **Major / phase change** (`v0.x-alpha` → `v1.0.0-beta`): when core user flows are stable and the app is ready for a broader audience — **always confirm with the user before doing this**
 
 **How to determine the next version:**
@@ -321,11 +345,11 @@ git tag --sort=-v:refname | head -5
 
 Inspect the commits going into the PR and decide:
 
-- Mostly `fix:` commits → stay in the current product line; stable package/image workflows publish the next patch artifact automatically
-- Any `feat:` commits → consider a new minor product line (e.g. `v0.14` → `v0.15`)
+- Mostly `fix:` commits → stay in the current product line; dev package/image workflows publish the next alpha artifact automatically
+- Any `feat:` commits → consider a new minor product line (e.g. `v0.15` → `v0.16`)
 - Major milestone reached → consult the user before bumping major or changing phase
 
-**Note:** Also update `shared/config/product_version.json` when bumping the minor product line. Keep `userFacing` aligned with the short product line, e.g. `v0.14`, while `cli.stableBase` / `python.stableBase` define the artifact line start, e.g. `0.14.0`. Dev publishes prereleases for the next stable patch slot (`0.14.6-alpha.0`, then `0.14.6-alpha.1` for npm; `0.14.6a0`, then `0.14.6a1` for PyPI). Main publishes that stable slot (`0.14.6`) and the next dev push moves to `0.14.7-alpha.0` / `0.14.7a0`. Keep `stableFloor` at the highest stable patch already shipped in the line when a registry has lagged behind. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
+**Note:** Run `python3 scripts/bump_alpha_version_line.py --minor <X>` when bumping the minor product line. Keep `userFacing` aligned with the short product line, e.g. `v0.15`, while `cli.stableBase` / `python.stableBase` define the fixed artifact base, e.g. `0.15.0`. Dev publishes prereleases on that fixed train (`0.15.0-alpha.0`, then `0.15.0-alpha.1` for npm/GHCR; `0.15.0a0`, then `0.15.0a1` for PyPI). Main publishes the configured stable base (`0.15.0`) and skips if that exact version is already published. After the stable base exists on PyPI, bump the product minor line before publishing more Python prereleases because PEP 440 alpha versions sort below the stable base. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
 
 ### Release Workflow
 

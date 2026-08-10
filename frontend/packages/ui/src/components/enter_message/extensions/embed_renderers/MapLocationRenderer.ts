@@ -20,6 +20,7 @@ import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import { mount, unmount } from "svelte";
 import MapsLocationEmbedPreview from "../../../embeds/maps/MapsLocationEmbedPreview.svelte";
+import { dispatchEmbedFullscreen } from "../../../../services/embedFullscreenController";
 
 // Track mounted Svelte components for cleanup so we can unmount before re-rendering
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -88,42 +89,37 @@ export class MapLocationRenderer implements EmbedRenderer {
       // Dispatch fullscreen event on document (same pattern as AppSkillUseRenderer).
       // ActiveChat listens on document for 'embedfullscreen' events.
       const handleFullscreen = () => {
-        document.dispatchEvent(
-          new CustomEvent("embedfullscreen", {
-            bubbles: true,
-            detail: {
-              embedType: "maps",
-              // embedId: strip "embed:" prefix so ActiveChat can look up EmbedStore
-              embedId,
-              attrs: {
-                lat,
-                lon,
-                name,
-                address,
-                locationType,
-                placeType,
-                status,
-                preciseLat: lat,
-                preciseLon: lon,
-              },
-              embedData: {
-                type: "maps",
-                status,
-              },
-              // decodedContent is the fallback when EmbedStore lookup fails or embedId is missing.
-              // Include all fields so the fullscreen can render correctly from attrs alone.
-              decodedContent: {
-                lat,
-                lon,
-                name,
-                address,
-                location_type: locationType,
-                place_type: placeType,
-                status,
-              },
-            },
-          }),
-        );
+        dispatchEmbedFullscreen({
+          embedType: "maps",
+          // embedId: strip "embed:" prefix so ActiveChat can look up EmbedStore
+          embedId,
+          attrs: {
+            lat,
+            lon,
+            name,
+            address,
+            locationType,
+            placeType,
+            status,
+            preciseLat: lat,
+            preciseLon: lon,
+          },
+          embedData: {
+            type: "maps",
+            status,
+          },
+          // decodedContent is the fallback when EmbedStore lookup fails or embedId is missing.
+          // Include all fields so the fullscreen can render correctly from attrs alone.
+          decodedContent: {
+            lat,
+            lon,
+            name,
+            address,
+            location_type: locationType,
+            place_type: placeType,
+            status,
+          },
+        });
       };
 
       const component = mount(MapsLocationEmbedPreview, {

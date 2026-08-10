@@ -14,7 +14,11 @@ import re
 import uuid
 from typing import Any
 
-from backend.apps.ai.processing.connected_account_execution import _action_scope_for_request, _request_items
+from backend.apps.ai.processing.connected_account_execution import _request_items
+from backend.shared.python_utils.connected_account_registry import (
+    action_scope_for_request,
+    connected_account_skill_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -113,14 +117,15 @@ def _build_action_requests(
     skill_arguments: dict[str, Any],
 ) -> list[dict[str, Any]]:
     requests: list[dict[str, Any]] = []
-    for index, item in enumerate(_request_items(skill_arguments)):
+    config = connected_account_skill_config(app_id, skill_id)
+    for index, item in enumerate(_request_items(skill_arguments, request_field=config.request_field)):
         requests.append(
             {
                 "action_id": f"{skill_id}:{index}",
                 "app_id": app_id,
                 "skill_id": skill_id,
                 "action": action,
-                "action_scope": _action_scope_for_request(item, action),
+                "action_scope": action_scope_for_request(item, action=action, config=config),
                 "summary": _safe_action_summary(item, action),
             }
         )

@@ -8,6 +8,8 @@
 //          frontend/packages/ui/src/components/settings/SettingsMainHeader.svelte
 //          frontend/packages/ui/src/components/settings/settingsRoutes.ts
 //          frontend/packages/ui/src/components/settings/SettingsFooter.svelte
+//          frontend/packages/ui/src/components/settings/incognito/SettingsIncognitoInfo.svelte
+//          frontend/packages/ui/src/components/settings/learning-mode/SettingsLearningModeSetup.svelte
 // CSS:     frontend/packages/ui/src/components/SettingsItem.svelte (icon styles)
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift, GradientTokens.generated.swift
@@ -20,10 +22,11 @@ enum SettingsRouteInventory {
     static let webBaseRoutes: Set<String> = [
         "pricing",
         "ai",
-        "app_store",
-        "app_store/all",
+        "apps",
+        "apps/all",
         "settings_memories",
         "privacy",
+        "privacy/connected-accounts",
         "privacy/hide-personal-data",
         "privacy/hide-personal-data/add-name",
         "privacy/hide-personal-data/add-address",
@@ -32,6 +35,7 @@ enum SettingsRouteInventory {
         "privacy/auto-deletion/chats",
         "privacy/auto-deletion/files",
         "privacy/share-debug-logs",
+        "projects",
         "mates",
         "billing",
         "billing/buy-credits",
@@ -62,6 +66,7 @@ enum SettingsRouteInventory {
         "interface/font",
         "account",
         "account/timezone",
+        "account/interests",
         "account/username",
         "account/email",
         "account/security",
@@ -89,6 +94,7 @@ enum SettingsRouteInventory {
         "account/delete",
         "developers",
         "developers/api-keys",
+        "developers/api-keys/create",
         "developers/devices",
         "developers/webhooks",
         "newsletter",
@@ -98,11 +104,13 @@ enum SettingsRouteInventory {
         "report_issue",
         "report_issue/confirmation",
         "incognito/info",
+        "learning-mode/setup",
         "server",
         "server/software-update",
         "server/stats",
         "server/gift-cards",
         "server/free-testing-credits",
+        "server/anonymous-free-usage",
         "server/tests",
         "logs",
     ]
@@ -110,25 +118,11 @@ enum SettingsRouteInventory {
     static let nativeRoutes: Set<String> = [
         "pricing",
         "ai",
-        "app_store",
+        "apps",
+        "apps/all",
         "settings_memories",
         "privacy",
-        "mates",
-        "billing",
-        "notifications",
-        "shared",
-        "interface",
-        "account",
-        "developers",
-        "newsletter",
-        "support",
-        "report_issue",
-        "server",
-        "logs",
-    ]
-
-    static let nativeEquivalentOrPlannedRoutes: Set<String> = [
-        "app_store/all",
+        "privacy/connected-accounts",
         "privacy/hide-personal-data",
         "privacy/hide-personal-data/add-name",
         "privacy/hide-personal-data/add-address",
@@ -137,6 +131,9 @@ enum SettingsRouteInventory {
         "privacy/auto-deletion/chats",
         "privacy/auto-deletion/files",
         "privacy/share-debug-logs",
+        "projects",
+        "mates",
+        "billing",
         "billing/buy-credits",
         "billing/buy-credits/payment",
         "billing/buy-credits/confirmation",
@@ -152,15 +149,20 @@ enum SettingsRouteInventory {
         "billing/gift-cards/buy",
         "billing/gift-cards/buy/payment",
         "billing/gift-cards/buy/confirmation",
+        "notifications",
         "notifications/chat",
         "notifications/backup",
+        "shared",
         "shared/share",
         "shared/tip",
         "fork",
+        "interface",
         "interface/language",
         "interface/dark_mode",
         "interface/font",
+        "account",
         "account/timezone",
+        "account/interests",
         "account/username",
         "account/email",
         "account/security",
@@ -186,22 +188,31 @@ enum SettingsRouteInventory {
         "account/storage/other",
         "account/profile-picture",
         "account/delete",
+        "developers",
         "developers/api-keys",
+        "developers/api-keys/create",
         "developers/devices",
         "developers/webhooks",
+        "newsletter",
+        "support",
         "support/one-time",
         "support/monthly",
+        "report_issue",
         "report_issue/confirmation",
         "incognito/info",
+        "learning-mode/setup",
+        "server",
         "server/software-update",
         "server/stats",
         "server/gift-cards",
         "server/free-testing-credits",
+        "server/anonymous-free-usage",
         "server/tests",
+        "logs",
     ]
 
     static var coveredWebBaseRoutes: Set<String> {
-        nativeRoutes.union(nativeEquivalentOrPlannedRoutes)
+        nativeRoutes
     }
 }
 
@@ -214,7 +225,11 @@ struct SettingsView: View {
     var onOpenExampleChat: ((String) -> Void)?
     var reportIssuePrefill: ReportIssuePrefill?
     var referralCodeRequest: Int
+    var shareChatId: String?
     @State private var showIncognitoInfo = false
+    @ObservedObject private var incognitoSession = IncognitoSettingsSession.shared
+    @ObservedObject private var guestLearningMode = LearningModeGuestSession.shared
+    @StateObject private var accountLearningMode = LearningModeController()
     @State private var destination: SettingsDestination?
     @State private var activeReportIssuePrefill: ReportIssuePrefill?
     @State private var activeReferralCodeRequest: Int
@@ -225,20 +240,25 @@ struct SettingsView: View {
     init(
         reportIssuePrefill: ReportIssuePrefill? = nil,
         referralCodeRequest: Int = 0,
+        shareChatId: String? = nil,
         onClose: (() -> Void)? = nil,
         onOpenExampleChat: ((String) -> Void)? = nil
     ) {
         self.reportIssuePrefill = reportIssuePrefill
         self.referralCodeRequest = referralCodeRequest
+        self.shareChatId = shareChatId
         self.onClose = onClose
         self.onOpenExampleChat = onOpenExampleChat
-        _destination = State(initialValue: reportIssuePrefill == nil ? (referralCodeRequest > 0 ? .billing : nil) : .reportIssue)
+        _destination = State(initialValue: reportIssuePrefill == nil ? (shareChatId == nil ? (referralCodeRequest > 0 ? .billing : nil) : .shared) : .reportIssue)
         _activeReportIssuePrefill = State(initialValue: reportIssuePrefill)
         _activeReferralCodeRequest = State(initialValue: referralCodeRequest)
     }
 
     private var isAuthenticated: Bool { authManager.currentUser != nil || AccountSettingsUITestFixture.enabled }
-    private var isAdmin: Bool { authManager.currentUser?.isAdmin == true }
+    private var isAdmin: Bool {
+        authManager.currentUser?.isAdmin == true
+            || ProcessInfo.processInfo.arguments.contains("--ui-test-admin-settings-fixture")
+    }
 
     var body: some View {
         ZStack {
@@ -274,6 +294,18 @@ struct SettingsView: View {
             activeReferralCodeRequest = newValue
             navigateTo(.billing)
         }
+        .onChange(of: shareChatId) { _, newChatId in
+            guard newChatId != nil else { return }
+            navigateTo(.shared)
+        }
+        .onAppear {
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-reset-incognito-explainer") {
+                IncognitoExplainerSeenState().resetForUITestingOnce()
+            }
+            if isAuthenticated {
+                Task { await accountLearningMode.loadAccountStatus() }
+            }
+        }
     }
 
     // MARK: - Main settings menu
@@ -308,15 +340,29 @@ struct SettingsView: View {
 
                     // Incognito toggle — web: SettingsItem type="quickaction" (flat icon, no bg)
                     if isAuthenticated {
-                        OMSettingsRow(
+                        OMSettingsToggleRow(
                             title: AppStrings.settingsIncognito,
+                            subtitle: incognitoSession.isEnabled ? AppStrings.enabled : AppStrings.disabled,
                             icon: "incognito",
-                            showsChevron: false
-                        ) {
-                            showIncognitoInfo = true
-                        }
-                        .accessibilityIdentifier("settings-incognito-row")
+                            isOn: Binding(
+                                get: { incognitoSession.isEnabled },
+                                set: { handleIncognitoToggle($0) }
+                            )
+                        )
+                        .accessibilityIdentifier("incognito-toggle-wrapper")
                     }
+
+                    OMSettingsToggleRow(
+                        title: AppStrings.learningMode,
+                        subtitle: learningModeStatus.enabled ? AppStrings.learningModeActive : AppStrings.learningModeInactive,
+                        icon: "study",
+                        isOn: Binding(
+                            get: { learningModeStatus.enabled },
+                            set: { _ in navigateTo(.learningMode) }
+                        ),
+                        disabled: isAuthenticated && accountLearningMode.isLoading
+                    )
+                    .accessibilityIdentifier("learning-mode-toggle-wrapper")
 
                     row(.ai, AppStrings.settingsAI, icon: "ai")
                     row(.apps, AppStrings.settingsApps, icon: "app_store")
@@ -324,6 +370,7 @@ struct SettingsView: View {
                     if isAuthenticated {
                         row(.memories, AppStrings.settingsMemories, icon: "settings_memories")
                         row(.privacy, AppStrings.settingsPrivacy, icon: "privacy")
+                        row(.projects, AppStrings.projects, icon: "project")
                     }
 
                     row(.mates, AppStrings.settingsMates, icon: "mates")
@@ -475,6 +522,34 @@ struct SettingsView: View {
         }
     }
 
+    private var learningModeStatus: LearningModeStatus {
+        isAuthenticated ? accountLearningMode.status : guestLearningMode.status
+    }
+
+    private func handleIncognitoToggle(_ shouldEnable: Bool) {
+        if !shouldEnable {
+            NotificationCenter.default.post(
+                name: .settingsIncognitoModeRequested,
+                object: SettingsIncognitoAction.deactivate
+            )
+            return
+        }
+
+        if IncognitoExplainerSeenState().hasSeenExplainer {
+            activateIncognitoAndCloseSettings()
+        } else {
+            showIncognitoInfo = true
+        }
+    }
+
+    private func activateIncognitoAndCloseSettings() {
+        closeSettings()
+        NotificationCenter.default.post(
+            name: .settingsIncognitoModeRequested,
+            object: SettingsIncognitoAction.activate
+        )
+    }
+
     // MARK: - Incognito Overlay
 
     private var incognitoOverlay: some View {
@@ -500,8 +575,9 @@ struct SettingsView: View {
 
                 SettingsIncognitoInfoView(
                     onActivate: {
+                        IncognitoExplainerSeenState().markSeen()
                         showIncognitoInfo = false
-                        NotificationCenter.default.post(name: .incognitoActivated, object: nil)
+                        activateIncognitoAndCloseSettings()
                     },
                     onCancel: { showIncognitoInfo = false }
                 )
@@ -527,9 +603,12 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func settingsDestinationContent(_ destination: SettingsDestination) -> some View {
+        let accessibilityIdentifier = destination == .shared && shareChatId != nil
+            ? "settings-shared-share-settings"
+            : destination.pageAccessibilityIdentifier
         destinationContent(for: destination)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .accessibilityIdentifier(destination.pageAccessibilityIdentifier)
+            .accessibilityIdentifier(accessibilityIdentifier)
             .environment(\.omSettingsScrollOffsetHandler, OMSettingsScrollOffsetHandler { offset in
                 destinationScrollTop = offset
             })
@@ -545,6 +624,14 @@ struct SettingsView: View {
             )
         case .apps:
             SettingsAppsFullView(onOpenExampleChat: onOpenExampleChat ?? { _ in })
+        case .learningMode:
+            SettingsLearningModeView(
+                isAuthenticated: isAuthenticated,
+                guestSession: guestLearningMode,
+                controller: accountLearningMode
+            )
+        case .shared:
+            SettingsSharedView(initialChatId: shareChatId)
         default:
             destination.view(
                 reportIssuePrefill: activeReportIssuePrefill,
@@ -656,8 +743,8 @@ struct SettingsView: View {
     @MainActor
     private enum SettingsDestination: Hashable {
         // Top-level menu items (matching web settingsRoutes.ts order)
-        case pricing, ai, memories, apps, privacy, mates
-        case billing, notifications, shared, interface
+        case pricing, ai, memories, apps, privacy, projects, mates
+        case billing, notifications, shared, interface, learningMode
         case account, developers, newsletter, support, reportIssue
         case serverConnection
         case server, logs
@@ -671,11 +758,13 @@ struct SettingsView: View {
             case .memories: return AppStrings.settingsMemories
             case .apps: return AppStrings.settingsApps
             case .privacy: return AppStrings.settingsPrivacy
+            case .projects: return AppStrings.projects
             case .mates: return AppStrings.settingsMates
             case .billing: return AppStrings.settingsBilling
             case .notifications: return AppStrings.settingsNotifications
             case .shared: return AppStrings.settingsShared
             case .interface: return AppStrings.settingsInterface
+            case .learningMode: return AppStrings.learningMode
             case .account: return AppStrings.settingsAccount
             case .developers: return AppStrings.settingsDevelopers
             case .newsletter: return AppStrings.settingsNewsletter
@@ -697,11 +786,13 @@ struct SettingsView: View {
             case .memories: return "settings_memories"
             case .apps: return "app_store"
             case .privacy: return "privacy"
+            case .projects: return "project"
             case .mates: return "mates"
             case .billing: return "billing"
             case .notifications: return "notifications"
             case .shared: return "shared"
             case .interface: return "interface"
+            case .learningMode: return "study"
             case .account: return "account"
             case .developers: return "developers"
             case .newsletter: return "newsletter"
@@ -729,11 +820,13 @@ struct SettingsView: View {
             case .memories: return "memories"
             case .apps: return "apps"
             case .privacy: return "privacy"
+            case .projects: return "projects"
             case .mates: return "mates"
             case .billing: return "billing"
             case .notifications: return "notifications"
             case .shared: return "shared"
             case .interface: return "interface"
+            case .learningMode: return "learning-mode"
             case .account: return "account"
             case .developers: return "developers"
             case .newsletter: return "newsletter"
@@ -755,11 +848,13 @@ struct SettingsView: View {
             case .memories: return LocalizationManager.shared.text("settings.settings_memories.description")
             case .apps: return LocalizationManager.shared.text("settings.app_store.description")
             case .privacy: return LocalizationManager.shared.text("settings.privacy.description")
+            case .projects: return LocalizationManager.shared.text("settings.projects.loading_description")
             case .mates: return LocalizationManager.shared.text("settings.mates.description")
             case .billing: return LocalizationManager.shared.text("settings.billing.description")
             case .notifications: return LocalizationManager.shared.text("settings.notifications.description")
             case .shared: return LocalizationManager.shared.text("settings.shared.description")
             case .interface: return LocalizationManager.shared.text("settings.interface.description")
+            case .learningMode: return AppStrings.learningModeInactiveDetail
             case .account: return LocalizationManager.shared.text("settings.account.description")
             case .developers: return LocalizationManager.shared.text("settings.developers_description")
             case .newsletter: return LocalizationManager.shared.text("settings.newsletter.description")
@@ -781,11 +876,13 @@ struct SettingsView: View {
             case .memories: SettingsMemoriesFullView()
             case .apps: SettingsAppsFullView()
             case .privacy: SettingsPrivacySubPage()
+            case .projects: SettingsProjectsView()
             case .mates: SettingsMatesView()
             case .billing: SettingsBillingView(referralCodeRequest: referralCodeRequest)
             case .notifications: SettingsNotificationsView()
             case .shared: SettingsSharedView()
             case .interface: SettingsInterfaceSubPage()
+            case .learningMode: EmptyView()
             case .account: SettingsAccountSubPage()
             case .developers: SettingsDeveloperView()
             case .newsletter: NewsletterSettingsView()
@@ -959,80 +1056,8 @@ private struct SettingsMainBanner: View {
 // Web source: SettingsPrivacy.svelte — shows hide personal data, auto deletion, debug logging
 
 struct SettingsPrivacySubPage: View {
-    @State private var destination: PrivacyDestination?
-
     var body: some View {
-        if let dest = destination {
-            VStack(spacing: 0) {
-                HStack(spacing: .spacing4) {
-                    OMIconButton(icon: "back", label: AppStrings.back, size: 36) {
-                        destination = nil
-                    }
-                    Text(dest.title)
-                        .font(.omH3)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.fontPrimary)
-                    Spacer()
-                }
-                .padding(.horizontal, .spacing8)
-                .padding(.vertical, .spacing6)
-                .background(Color.grey0)
-
-                dest.view
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-            .background(Color.grey0)
-        } else {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: .spacing8) {
-                    OMSettingsSection {
-                        OMSettingsRow(
-                            title: AppStrings.hidePersonalData,
-                            icon: "anonym",
-                            iconGradient: .appSecrets
-                        ) { destination = .hidePersonalData }
-
-                        OMSettingsRow(
-                            title: AppStrings.autoDeleteChats,
-                            icon: "delete",
-                            iconGradient: .appNews
-                        ) { destination = .autoDelete }
-
-                        OMSettingsRow(
-                            title: AppStrings.shareDebugLogs,
-                            icon: "bug",
-                            iconGradient: .appCode
-                        ) { destination = .debugLogs }
-                    }
-                }
-                .padding(.horizontal, .spacing8)
-                .padding(.bottom, .spacing16)
-            }
-            .scrollContentBackground(.hidden)
-            .background(Color.grey0)
-        }
-    }
-
-    @MainActor
-    enum PrivacyDestination: Hashable {
-        case hidePersonalData, autoDelete, debugLogs
-
-        var title: String {
-            switch self {
-            case .hidePersonalData: return AppStrings.hidePersonalData
-            case .autoDelete: return AppStrings.autoDeleteChats
-            case .debugLogs: return AppStrings.shareDebugLogs
-            }
-        }
-
-        @ViewBuilder
-        var view: some View {
-            switch self {
-            case .hidePersonalData: SettingsHidePersonalDataView()
-            case .autoDelete: SettingsAutoDeleteView()
-            case .debugLogs: SettingsShareDebugLogsView()
-            }
-        }
+        SettingsPrivacyContentView()
     }
 }
 
@@ -1644,7 +1669,7 @@ enum InterestTagId: String, CaseIterable, Codable, Hashable {
         case .privacy: return ["example-pdf-search-encryption", "example-privacy-website-hero-background", "example-private-workspace-demo-video"]
         case .learning: return ["example-rag-explained-videos", "example-ted-talk-transcript-summary", "example-memory-study-learning-goals"]
         case .writing: return ["example-ted-talk-transcript-summary", "example-building-maintenance-email", "example-memory-docs-writing-style"]
-        case .softwareDevelopment: return ["example-svelte-runes-docs", "example-python-squares-code-run", "example-openmates-app-skills-embeds-docs", "example-openmates-add-app-skill-doc", "example-frontend-developer-career-pivot"]
+        case .softwareDevelopment: return ["example-svelte-runes-docs", "example-python-squares-code-run", "example-openmates-add-app-skill-doc", "example-frontend-developer-career-pivot"]
         case .findEvents: return ["example-ai-workshops-meetups-berlin", "example-creativity-drawing-meetups-berlin", "example-memory-events-saved-events"]
         case .findRestaurant: return ["example-quiet-cafes-tempelhofer-feld", "example-organic-groceries-berlin"]
         case .findDoctorAppointments: return ["example-berlin-dermatology-appointments", "example-memory-health-appointments"]
@@ -2070,5 +2095,5 @@ struct SettingsDeleteAccountView: View {
 // MARK: - Notifications
 
 extension Notification.Name {
-    static let incognitoActivated = Notification.Name("openmates.incognitoActivated")
+    static let settingsIncognitoModeRequested = Notification.Name("openmates.settingsIncognitoModeRequested")
 }

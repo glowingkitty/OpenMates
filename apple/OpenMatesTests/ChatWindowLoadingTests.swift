@@ -37,6 +37,46 @@ final class ChatWindowLoadingTests: XCTestCase {
         XCTAssertFalse(store.hasOlderMessages(for: "unit-large-chat", before: nil))
     }
 
+    func testOpeningFallbackFetchesWhenSyncedChatHasMessagesButEmptyInitialWindow() {
+        XCTAssertTrue(
+            ChatOpeningFallbackPolicy.shouldFetchMissingSyncedMessages(
+                messagesV: 2,
+                lastMessageAt: nil
+            )
+        )
+        XCTAssertTrue(
+            ChatOpeningFallbackPolicy.shouldFetchMissingSyncedMessages(
+                messagesV: nil,
+                lastMessageAt: "2026-01-01T00:00:00Z"
+            )
+        )
+        XCTAssertFalse(
+            ChatOpeningFallbackPolicy.shouldFetchMissingSyncedMessages(
+                messagesV: 0,
+                lastMessageAt: nil
+            )
+        )
+    }
+
+    func testBatchUpsertMergesChatsWithoutRepeatedLookupSideEffects() {
+        let store = ChatStore()
+        store.performWithoutPersistence {
+            store.upsertChats([
+                makeChat(id: "chat-a", title: "A", updatedAt: "2026-01-01T00:00:00Z", messagesV: 1),
+                makeChat(id: "chat-b", title: "B", updatedAt: "2026-01-02T00:00:00Z", messagesV: 1)
+            ])
+            store.upsertChats([
+                makeChat(id: "chat-a", title: "A updated", updatedAt: "2026-01-03T00:00:00Z", messagesV: 2),
+                makeChat(id: "chat-c", title: "C", updatedAt: "2026-01-04T00:00:00Z", messagesV: 1)
+            ], serverSortOrder: ["chat-c", "chat-a", "chat-b"])
+        }
+
+        XCTAssertEqual(store.chats.map(\.id), ["chat-c", "chat-a", "chat-b"])
+        XCTAssertEqual(store.chat(for: "chat-a")?.title, "A updated")
+        XCTAssertEqual(store.chat(for: "chat-a")?.messagesV, 2)
+        XCTAssertEqual(store.chats.count, 3)
+    }
+
     private func seededStore(messageCount: Int) -> ChatStore {
         let store = ChatStore()
         store.performWithoutPersistence {
@@ -61,5 +101,22 @@ final class ChatWindowLoadingTests: XCTestCase {
                 embedRefs: nil
             )
         }
+    }
+
+    private func makeChat(id: String, title: String, updatedAt: String, messagesV: Int) -> Chat {
+        Chat(
+            id: id,
+            title: title,
+            lastMessageAt: updatedAt,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: updatedAt,
+            isArchived: false,
+            isPinned: false,
+            appId: "ai",
+            encryptedTitle: nil,
+            encryptedChatKey: nil,
+            messagesV: messagesV,
+            titleV: messagesV
+        )
     }
 }

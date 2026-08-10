@@ -1,0 +1,94 @@
+# backend/providers/elevenlabs.yml
+#
+# ElevenLabs provider metadata for OpenMates audio generation skills.
+
+provider_id: "elevenlabs"
+name: "ElevenLabs"
+description: "AI audio generation and text-to-speech provider used for short OpenMates audio app skills."
+logo_svg: "logos/elevenlabs.svg"
+privacy_policy: "https://elevenlabs.io/privacy-policy"
+
+required_keys:
+  - env_key: "SECRET__ELEVENLABS__API_KEY"
+    vault_path: "kv/data/providers/elevenlabs"
+    vault_key: "api_key"
+    description: "ElevenLabs API key for sound-effect and text-to-speech generation."
+    setup_url: "https://elevenlabs.io/app/settings/api-keys"
+    docs_url: "https://elevenlabs.io/docs/api-reference/introduction"
+
+models:
+  - id: "eleven_text_to_sound_v2"
+    name: "ElevenLabs Text to Sound v2"
+    description: "Short sound-effect generation model used by audio.generate."
+    country_origin: "US"
+    for_app_skill: "audio.generate"
+    input_types:
+      - text
+    output_types:
+      - audio
+    default_server: "elevenlabs"
+    servers:
+      - id: "elevenlabs"
+        name: "ElevenLabs"
+        model_id: "eleven_text_to_sound_v2"
+        region: "US"
+    pricing:
+      per_second: 2
+    costs:
+      output_per_minute:
+        price: 0.12
+        currency: USD
+        source: "ElevenLabs API pricing: Sound Effects $0.12/minute, verified 2026-08-10 at https://elevenlabs.io/pricing/api."
+    features:
+      min_duration_seconds: 0.5
+      max_duration_seconds: 30
+
+  - id: "eleven_flash_v2_5"
+    name: "ElevenLabs Flash v2.5"
+    description: "Low-latency, low-cost text-to-speech model used as the default by audio.speak."
+    country_origin: "US"
+    for_app_skill: "audio.speak"
+    input_types:
+      - text
+    output_types:
+      - audio
+    default_server: "elevenlabs"
+    servers:
+      - id: "elevenlabs"
+        name: "ElevenLabs"
+        model_id: "eleven_flash_v2_5"
+        region: "US"
+    pricing:
+      per_minute: 50
+    costs:
+      output_per_minute:
+        price: 0.05
+        currency: USD
+        source: "ElevenLabs API pricing: Flash/Turbo TTS $0.05 per 1K characters and approximately $0.05/minute, verified 2026-08-10 at https://elevenlabs.io/pricing/api."
+    features:
+      max_input_characters: 2000
+
+  - id: "eleven_multilingual_v2"
+    name: "ElevenLabs Multilingual v2"
+    description: "Premium high-quality text-to-speech model available through audio.speak."
+    country_origin: "US"
+    for_app_skill: "audio.speak"
+    input_types:
+      - text
+    output_types:
+      - audio
+    default_server: "elevenlabs"
+    servers:
+      - id: "elevenlabs"
+        name: "ElevenLabs"
+        model_id: "eleven_multilingual_v2"
+        region: "US"
+    pricing:
+      per_minute: 100
+    costs:
+      output_per_minute:
+        price: 0.10
+        currency: USD
+        source: "ElevenLabs API pricing: Multilingual v2/v3 TTS $0.10 per 1K characters and approximately $0.10/minute, verified 2026-08-10 at https://elevenlabs.io/pricing/api."
+    features:
+      max_input_characters: 2000

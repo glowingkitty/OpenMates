@@ -7,6 +7,7 @@
         x?: number;
         y?: number;
         show?: boolean;
+        openedAt?: number;
         type?: 'default' | 'pdf' | 'web' | 'video-transcript' | 'video';
         isYouTube?: boolean;
         originalUrl?: string | undefined;
@@ -22,6 +23,7 @@
         x = 0,
         y = 0,
         show = false,
+        openedAt = 0,
         type = 'default',
         isYouTube = false,
         originalUrl = undefined,
@@ -32,6 +34,7 @@
     const dispatch: {
         (e: 'close' | 'delete' | 'download' | 'view' | 'copy' | 'share' | 'pasteastext'): void;
     } = createEventDispatcher();
+    const MENU_OPEN_SCROLL_GRACE_MS = 200;
     let menuElement = $state<HTMLDivElement>();
 
     // Handle clicking outside the menu
@@ -50,7 +53,7 @@
 
     // Add scroll handler
     function handleScroll() {
-        if (show) {
+        if (show && Date.now() - openedAt >= MENU_OPEN_SCROLL_GRACE_MS) {
             dispatch('close');
         }
     }
@@ -99,6 +102,11 @@
         {#if !hideDelete}
             <button 
                 class="menu-item delete"
+                data-testid="embed-context-menu-delete"
+                onmousedown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }}
                 onclick={(event) => handleMenuItemClick('delete', event)}
             >
                 <div class="clickable-icon icon_delete"></div>

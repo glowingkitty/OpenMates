@@ -429,7 +429,7 @@ def test_app_store_builds_command_can_audit_testflight_changelogs() -> None:
     )
     script = apple_remote.APP_STORE_BUILDS_SCRIPT
 
-    assert command.endswith(" org.openmates.app 3 1 en-US")
+    assert command.endswith(" org.openmates.app 3 1 en-US 0")
     assert "betaBuildLocalizations" in script
     assert "MIN_TESTFLIGHT_WHATS_NEW_LINES = 5" in script
     assert "changelog_status=failed" in script

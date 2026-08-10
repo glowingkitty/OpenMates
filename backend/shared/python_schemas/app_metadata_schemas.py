@@ -33,6 +33,30 @@ class AppSkillApiConfig(BaseModel):
     expose_post: bool = Field(default=True, description="Whether to expose a POST endpoint for skill execution. Set to false for skills that require client-side encryption flows (e.g., image generation) and cannot be executed via a stateless REST API call. The GET metadata endpoint remains visible so developers know the skill exists.")
 
 
+class AppSkillWorkflowConfig(BaseModel):
+    """Workflow automation contract for a skill declared in app.yml."""
+
+    available: bool
+    execution_mode: Optional[Literal["sync", "workflow_ai", "async_job", "sandbox"]] = None
+    effect: Optional[Literal["read", "notify", "chat_write", "generate", "compute", "code_execution"]] = None
+    unattended: Optional[bool] = None
+    approval: Optional[Literal["never", "side_effect_confirmation", "always"]] = None
+    binding_requirements: List[Literal["none", "location", "provider_account", "connected_account_or_csv", "notification_preferences", "chat_owner"]] = Field(default_factory=list)
+    output_schema: Optional[Dict[str, Any]] = None
+    test_allowed: Optional[bool] = None
+    test_example_input: Optional[Dict[str, Any]] = None
+    unavailable_reason: Optional[str] = None
+
+
+class AppSkillOutputSafetyConfig(BaseModel):
+    """Output safety policy for model-visible app skill results."""
+
+    external_data: Optional[bool] = Field(default=None, description="Whether the skill can return untrusted external text.")
+    prompt_injection: Optional[Literal["default_on", "required", "not_applicable"]] = Field(default=None, description="Semantic prompt-injection scanning policy for external output text.")
+    prompt_injection_fields: Optional[List[str]] = Field(default=None, description="Field names or paths that should be prioritized for semantic scanning.")
+    skip_fields: Optional[List[str]] = Field(default=None, description="Field names or paths that must be preserved as binary, encrypted, hash, or media data.")
+
+
 class ProviderRef(BaseModel):
     """
     A provider reference in a skill definition.
@@ -72,6 +96,7 @@ class AppSkillDefinition(BaseModel):
     default_enabled: Optional[Literal[False]] = Field(default=None, description="Set to false only when this implemented skill ships off by default.")
     pricing: Optional[AppPricing] = None
     providers: Optional[List[ProviderRef]] = None  # Optional list of provider references — used for provider-level pricing lookup and availability checks
+    icon_image: Optional[str] = Field(default=None, description="Filename of the skill icon shown in Apps settings.")
 
     @field_validator('providers', mode='before')
     @classmethod
@@ -103,6 +128,9 @@ class AppSkillDefinition(BaseModel):
     preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this skill (1-3 sentences).")
     # REST API configuration — controls how the skill is exposed in the public API docs
     api_config: Optional[AppSkillApiConfig] = Field(default=None, description="REST API configuration for this skill. Controls GET/POST endpoint exposure in /docs.")
+    workflow: Optional[AppSkillWorkflowConfig] = Field(default=None, description="Workflow automation contract for this skill.")
+    external_data: Optional[bool] = Field(default=None, description="Whether this skill can return untrusted external text that requires default-on semantic prompt-injection scanning.")
+    output_safety: Optional[AppSkillOutputSafetyConfig] = Field(default=None, description="Optional output safety policy for app-skill result sanitization.")
     # Internal skills are used by the AI backend only and must NOT be shown to users
     # in Apps or settings UI. Set internal: true for skills that are invoked
     # automatically (e.g., images.view for uploaded images, audio.transcribe for
@@ -182,6 +210,8 @@ class AppMemoryFieldDefinition(BaseModel):
     # Enum values, booleans, and numbers are stored as raw values.
     # Replaces the older example_translation_keys (title-only strings).
     example_entries: Optional[List[Dict[str, Any]]] = Field(default=None, description="Full example entries with all field values for UI display.")
+    example_translation_keys: Optional[List[str]] = Field(default=None, description="Legacy translated example labels retained for settings clients.")
+    icon_image: Optional[str] = Field(default=None, description="Filename of the memory category icon shown in Apps settings.")
 
     @model_validator(mode='after')
     def inject_added_date(self):
@@ -312,9 +342,12 @@ class AppYAML(BaseModel):
             "so they are invisible in OpenAPI docs but still reachable at runtime."
         ),
     )
+    internal: bool = Field(default=False, description="Hide this implementation detail from user-facing Apps/settings catalogs.")
     icon_image: Optional[str] = Field(default=None, pattern=r'.+\.svg$') # Filename ending with .svg
     icon_colorgradient: Optional[IconColorGradient] = None
     category: Optional[str] = None
+    last_updated: Optional[str] = Field(default=None, description="ISO date used for Apps discovery sorting.")
+    provider_display_order: Optional[List[str]] = Field(default=None, description="Preferred provider badge order in Apps settings.")
     skills: List[AppSkillDefinition] = []
     focuses: List[AppFocusDefinition] = Field(default=[], alias="focus_modes") # Allow 'focus_modes' as alias
     memory_fields: List[AppMemoryFieldDefinition] = Field(default=[], alias="memory") # Allow 'memory' as alias

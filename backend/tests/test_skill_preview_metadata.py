@@ -143,6 +143,154 @@ def test_embed_metadata_merge_preserves_preview_providers_and_final_filters() ->
     assert "request_id" not in metadata
 
 
+def test_embed_metadata_merge_strips_raw_finance_request_payloads() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    metadata = EmbedService._merge_request_metadata(
+        {
+            "app_id": "finance",
+            "skill_id": "check_accounts",
+            "status": "processing",
+            "csv_statements": [
+                {"filename": "cash.csv", "content": "2026-01-01,Grocery Mart,-50.00"}
+            ],
+            "csv_count": 1,
+        },
+        {
+            "csv_statements": [
+                {"filename": "cash.csv", "content": "2026-01-01,Acme Payroll,1000.00"}
+            ],
+            "csv_statements[1]{content,filename}": "2026-01-01,Coffee Shop,-4.50,cash.csv",
+            "connected_account_requests": [{"access_token_handle": "ath_1"}],
+            "connected_account_access_tokens": {"ath_1": "secret-token"},
+            "user_id": "user-secret",
+            "user_vault_key_id": "vault-secret",
+            "vault_key_id": "vault-secret",
+            "external_request": True,
+            "placeholder_embed_ids": ["embed-secret"],
+            "embed_id": "embed-secret",
+            "period": "monthly",
+            "csv_count": 1,
+        },
+    )
+
+    serialized = json.dumps(metadata)
+    assert metadata == {"csv_count": 1, "period": "monthly"}
+    assert "csv_statements" not in metadata
+    assert "csv_statements[1]{content,filename}" not in metadata
+    assert "connected_account_requests" not in metadata
+    assert "connected_account_access_tokens" not in metadata
+    assert "user_id" not in metadata
+    assert "user_vault_key_id" not in metadata
+    assert "vault_key_id" not in metadata
+    assert "external_request" not in metadata
+    assert "placeholder_embed_ids" not in metadata
+    assert "embed_id" not in metadata
+    assert "Grocery Mart" not in serialized
+    assert "Acme Payroll" not in serialized
+    assert "Coffee Shop" not in serialized
+    assert "secret-token" not in serialized
+
+
+def test_embed_metadata_sanitizer_strips_nested_raw_finance_request_payloads() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    metadata = EmbedService._sanitize_request_metadata({
+        "requests": [
+            {
+                "period": "monthly",
+                "csv_statements": [
+                    {"filename": "cash.csv", "content": "2026-01-01,Coffee Shop,-4.50"}
+                ],
+                "connected_account_requests": [{"access_token_handle": "ath_1"}],
+                "_connected_account_access_tokens": {"ath_1": "secret-token"},
+                "user_id": "user-secret",
+            }
+        ],
+        "projection_horizon": "monthly",
+    })
+
+    serialized = json.dumps(metadata)
+    assert metadata == {
+        "requests": [{"period": "monthly"}],
+        "projection_horizon": "monthly",
+    }
+    assert "csv_statements" not in serialized
+    assert "Coffee Shop" not in serialized
+    assert "connected_account_requests" not in serialized
+    assert "secret-token" not in serialized
+    assert "user-secret" not in serialized
+
+
+def test_finance_final_embed_content_sanitizer_strips_raw_request_and_internal_fields() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    content = EmbedService._sanitize_final_app_skill_content(
+        "finance",
+        "check_accounts",
+        {
+            "app_id": "finance",
+            "skill_id": "check_accounts",
+            "status": "finished",
+            "result_count": 1,
+            "embed_ref": "check_accounts-abc",
+            "embed_id": "embed-secret",
+            "vault_key_id": "vault-secret",
+            "user_id": "user-secret",
+            "csv_statements[1]{filename,content}": "cash.csv,2026-01-01,Coffee Shop,-4.50",
+            "results": [
+                {
+                    "success": True,
+                    "overview": {"summaries": {"net_total": 42}},
+                    "connected_account_requests": [{"access_token_handle": "ath_1"}],
+                }
+            ],
+        },
+    )
+
+    serialized = json.dumps(content)
+    assert content["app_id"] == "finance"
+    assert content["skill_id"] == "check_accounts"
+    assert content["results"] == [{"success": True, "overview": {"summaries": {"net_total": 42}}}]
+    assert "embed-secret" not in serialized
+    assert "vault-secret" not in serialized
+    assert "user-secret" not in serialized
+    assert "csv_statements" not in serialized
+    assert "Coffee Shop" not in serialized
+    assert "connected_account_requests" not in serialized
+
+
+def test_finance_outbound_toon_sanitizer_strips_raw_request_and_internal_fields() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    toon = "\n".join([
+        "app_id: finance",
+        "skill_id: check_accounts",
+        "results[1]:",
+        "  - success: true",
+        "result_count: 1",
+        "embed_ref: check_accounts-abc",
+        "embed_id: embed-secret",
+        "vault_key_id: vault-secret",
+        "user_id: user-secret",
+        "csv_statements[1]{filename,content}:",
+        "  cash.csv,2026-01-01,Coffee Shop,-4.50",
+        "period: monthly",
+    ])
+
+    sanitized = EmbedService._sanitize_finance_check_accounts_toon(toon)
+
+    assert "app_id: finance" in sanitized
+    assert "skill_id: check_accounts" in sanitized
+    assert "results[1]:" in sanitized
+    assert "period: monthly" in sanitized
+    assert "embed-secret" not in sanitized
+    assert "vault-secret" not in sanitized
+    assert "user-secret" not in sanitized
+    assert "csv_statements" not in sanitized
+    assert "Coffee Shop" not in sanitized
+
+
 def test_images_search_parent_preview_metadata_contains_lightweight_results() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 

@@ -19,6 +19,7 @@ from typing import Any, Dict, Optional
 # Import the Celery app and Base Task
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
+from backend.core.api.app.utils.issue_report_text import normalize_issue_report_trace_ids
 
 # Import necessary services and utilities
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
@@ -116,6 +117,7 @@ def send_issue_report_email(
                 picked_element_html=picked_element_html,
                 screenshot_presigned_url=screenshot_presigned_url,
                 reported_by_user_id=reported_by_user_id,
+                trace_ids=trace_ids,
             )
         )
         if result:
@@ -457,7 +459,8 @@ async def _async_send_issue_report_email(
     action_history: Optional[str] = None,
     picked_element_html: Optional[str] = None,
     screenshot_presigned_url: Optional[str] = None,
-    reported_by_user_id: Optional[str] = None
+    reported_by_user_id: Optional[str] = None,
+    trace_ids: Optional[list] = None
 ) -> bool:
     """
     Async implementation for sending issue report email.
@@ -565,6 +568,8 @@ async def _async_send_issue_report_email(
             else:
                 trimmed_console_logs = _trimmed
 
+        normalized_trace_ids = normalize_issue_report_trace_ids(trace_ids)
+
         issue_report_data = {
             'issue_report': {
                 'metadata': {
@@ -580,7 +585,8 @@ async def _async_send_issue_report_email(
                 },
                 'technical_details': {
                     'chat_or_embed_url': chat_or_embed_url,
-                    'device_info': device_info if device_info else None
+                    'device_info': device_info if device_info else None,
+                    'trace_ids': normalized_trace_ids,
                 },
                 # Client-side console log buffer captured at report-submission
                 # time. Embedded as a failsafe so we still have logs even when

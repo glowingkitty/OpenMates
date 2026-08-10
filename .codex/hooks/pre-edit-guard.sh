@@ -17,21 +17,45 @@ fi
 PROJECT_DIR="/home/superdev/projects/OpenMates"
 SESSIONS_FILE="$PROJECT_DIR/.claude/sessions.json"
 
-if [ -f "$SESSIONS_FILE" ]; then
-  # Get relative path for matching against session tracked files
-  REL_FILE="${FILE#$PROJECT_DIR/}"
+normalize_repo_relative() {
+  local file="$1"
+  case "$file" in
+    "$PROJECT_DIR"/*)
+      printf '%s\n' "${file#$PROJECT_DIR/}"
+      return
+      ;;
+  esac
 
-  # Check if any OTHER session is tracking this file.
-  # Identity: match this Claude Code instance's $ZELLIJ_SESSION_NAME against
-  # the session record's `zellij_session` field. The previous heuristic
-  # (last JSON key) gave wrong answers in multi-session setups and caused
-  # permanent ghost-ownership warnings (OPE-338 follow-up). If the env var
-  # is unset or no session matches, CURRENT_SESSION is empty and the
-  # conflict check below treats every other session as "other" (worst case:
-  # an extra warning, never a missing one).
-  CURRENT_SESSION=$(jq -r --arg z "$ZELLIJ_SESSION_NAME" \
-    '[.sessions | to_entries[] | select(.value.zellij_session == $z) | .key] | first // empty' \
-    "$SESSIONS_FILE" 2>/dev/null)
+  jq -r --arg file "$file" '
+    [.sessions[]?.worktree?.path? | select($file | startswith(. + "/"))] |
+    sort_by(length) |
+    reverse |
+    .[0] // empty
+  ' "$SESSIONS_FILE" 2>/dev/null | {
+    read -r worktree_path
+    if [ -n "$worktree_path" ]; then
+      printf '%s\n' "${file#$worktree_path/}"
+    else
+      printf '%s\n' "$file"
+    fi
+  }
+}
+
+if [ -f "$SESSIONS_FILE" ]; then
+  # Get relative path for matching against session tracked files.
+  REL_FILE=$(normalize_repo_relative "$FILE")
+
+  # OpenCode chats share one Zellij process, so their exact `ses_*` identity
+  # must win. Claude sessions retain the legacy unique-Zellij fallback.
+  if [ -n "$OPENCODE_SESSION_ID" ]; then
+    CURRENT_SESSION=$(jq -r --arg id "$OPENCODE_SESSION_ID" \
+      '[.sessions | to_entries[] | select(.value.opencode_session_id == $id) | .key] | if length == 1 then .[0] else empty end' \
+      "$SESSIONS_FILE" 2>/dev/null)
+  else
+    CURRENT_SESSION=$(jq -r --arg z "$ZELLIJ_SESSION_NAME" \
+      '[.sessions | to_entries[] | select(.value.zellij_session == $z) | .key] | if length == 1 then .[0] else empty end' \
+      "$SESSIONS_FILE" 2>/dev/null)
+  fi
   CONFLICTS=$(jq -r --arg file "$REL_FILE" --arg current "$CURRENT_SESSION" '
     [.sessions | to_entries[] |
      select(.key != $current) |

@@ -59,6 +59,8 @@ const DIRECT_TYPES = new Set([
   "shopping-product",
   "images-image-result",
   "news-article",
+  "tasks-task",
+  "workflows-workflow",
 ]);
 
 /** Human-readable labels for direct types */
@@ -90,6 +92,8 @@ const DIRECT_TYPE_LABELS: Record<string, string> = {
   "shopping-product": "product",
   "images-image-result": "image",
   "news-article": "article",
+  "tasks-task": "task",
+  "workflows-workflow": "workflow",
 };
 
 const STATUS_ICONS: Record<string, string> = {
@@ -126,6 +130,30 @@ function formatPrice(amount: unknown, currency: unknown): string {
   if (amount === null || amount === undefined) return "";
   const cur = str(currency)?.toUpperCase() ?? "";
   return cur ? `${cur} ${amount}` : String(amount);
+}
+
+function fareNumberValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string" || !value.trim()) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function fareRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function formatFare(value: Record<string, unknown>): string {
+  const fare = fareRecord(value.fare);
+  const confidence = str(fare?.confidence);
+  if (confidence === "timetable_only") return "Timetable only";
+  if (fare?.is_pass_only === true) return str(fare.summary) ?? "Covered by pass";
+  const amount = fare?.amount ?? value.total_price ?? value.price;
+  const currency = fare?.currency ?? value.currency;
+  const price = formatPrice(amount, currency);
+  if (!price) return confidence === "unknown" ? "Fare unknown" : "";
+  if (fare?.is_partial === true || value.fare_is_partial === true) return `${price} (partial fare)`;
+  return price;
 }
 
 /** Truncate string */
@@ -170,6 +198,8 @@ export function formatEmbedPreviewLines(embed: DecryptedEmbed, maxContentLines =
   const shortId = embed.embedId.slice(0, 8);
   const c = (embed.content ?? {}) as Record<string, unknown>;
   const resolvedType = embed.type ?? str(c.type) ?? "embed";
+  if (resolvedType === "tasks-task") return formatTaskEmbedPreviewLines(c, shortId);
+  if (resolvedType === "workflows-workflow") return formatWorkflowEmbedPreviewLines(c, shortId);
   const app = embed.appId ?? str(c.app_id) ?? "";
   const skill = embed.skillId ?? str(c.skill_id) ?? "";
   const label = skill ? `${app}/${skill}` : (app || DIRECT_TYPE_LABELS[resolvedType] || resolvedType);
@@ -195,6 +225,31 @@ export function formatEmbedPreviewLines(embed: DecryptedEmbed, maxContentLines =
 
   lines.push(`└─ openmates embeds show ${shortId}`);
   return lines;
+}
+
+function formatTaskEmbedPreviewLines(c: Record<string, unknown>, fallbackShortId: string): string[] {
+  const taskId = str(c.short_id) ?? str(c.task_id) ?? fallbackShortId;
+  const title = str(c.title) ?? str(c.name) ?? "Untitled task";
+  const status = str(c.status) ?? "todo";
+  const assignee = str(c.assignee) ?? (str(c.assignee_type) === "ai" ? "openmates" : str(c.assignee_type) ?? "user");
+  return [
+    `┌─ ✓ task · ${taskId} · ${trunc(title, 56)}`,
+    `│  Status: ${status}`,
+    `│  Assignee: ${assignee}`,
+    `└─ openmates tasks show ${taskId}`,
+  ];
+}
+
+function formatWorkflowEmbedPreviewLines(c: Record<string, unknown>, fallbackShortId: string): string[] {
+  const workflowId = str(c.workflow_id) ?? str(c.id) ?? fallbackShortId;
+  const title = str(c.title) ?? str(c.name) ?? "Untitled workflow";
+  const status = str(c.status) ?? "draft";
+  return [
+    `┌─ ✓ workflow · ${trunc(title, 56)}`,
+    `│  Status: ${status}`,
+    `│  ID: ${workflowId}`,
+    `└─ openmates workflows show ${workflowId}`,
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -804,7 +859,12 @@ async function renderTravelConnectionsPreview(
   // Price range
   if (Array.isArray(results) && results.length > 0) {
     const prices = results
-      .map((r) => (typeof r.total_price === "number" ? r.total_price : null))
+      .map((r) => {
+        const fare = fareRecord(r.fare);
+        const confidence = str(fare?.confidence);
+        if (confidence && !["confirmed", "partial"].includes(confidence)) return null;
+        return fareNumberValue(fare?.amount ?? r.total_price);
+      })
       .filter((p): p is number => p !== null);
     if (prices.length > 0) {
       const min = Math.min(...prices);
@@ -830,7 +890,7 @@ async function renderTravelConnectionsFullscreen(
     const dep = str(r.departure)?.slice(11, 16) ?? "";
     const arr = str(r.arrival)?.slice(11, 16) ?? "";
     const duration = str(r.duration) ?? "";
-    const price = formatPrice(r.total_price ?? r.price, r.currency);
+    const price = formatFare(r);
     const stops =
       typeof r.stops === "number"
         ? r.stops === 0
@@ -1305,7 +1365,7 @@ function renderByDirectType(
     case "travel-connection": {
       const origin = str(c.origin) ?? "";
       const dest = str(c.destination) ?? "";
-      const price = formatPrice(c.total_price ?? c.price, c.currency);
+      const price = formatFare(c);
       const dep = str(c.departure)?.slice(11, 16) ?? "";
       const arr = str(c.arrival)?.slice(11, 16) ?? "";
       if (origin && dest) ln(`${origin} → ${dest}`);
@@ -1372,6 +1432,20 @@ function renderByDirectType(
       const source = str(c.source) ?? str(c.url) ?? "";
       if (title) ln(trunc(title, 60));
       if (source) ln(`\x1b[2m${trunc(source, 60)}\x1b[0m`);
+      break;
+    }
+
+    case "tasks-task": {
+      for (const line of formatTaskEmbedPreviewLines(c, embed.embedId.slice(0, 8)).slice(1, -1)) {
+        ln(line.replace(/^│\s\s/, ""));
+      }
+      break;
+    }
+
+    case "workflows-workflow": {
+      for (const line of formatWorkflowEmbedPreviewLines(c, embed.embedId.slice(0, 8)).slice(1, -1)) {
+        ln(line.replace(/^│\s\s/, ""));
+      }
       break;
     }
 

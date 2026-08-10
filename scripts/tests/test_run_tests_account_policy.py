@@ -9,9 +9,12 @@ without dispatching GitHub Actions or touching real credentials.
 Architecture: docs/specs/e2e-credential-isolation/spec.yml
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -31,6 +34,27 @@ def load_run_tests_module():
     return module
 
 
+def test_git_info_uses_exact_deployed_session_subject(monkeypatch):
+    run_tests = load_run_tests_module()
+    monkeypatch.setenv("OPENMATES_TEST_SUBJECT_COMMIT", "abcdef1234567890")
+
+    assert run_tests._git_info() == ("abcdef123", "dev")
+
+
+def test_worktree_vercel_gate_reads_shared_control_plane_config(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    control_plane_root = tmp_path / "OpenMates"
+    project_dir = control_plane_root / "frontend" / "apps" / "web_app" / ".vercel"
+    project_dir.mkdir(parents=True)
+    (control_plane_root / ".env").write_text("VERCEL_TOKEN=<TOKEN>\n")
+    (project_dir / "project.json").write_text(json.dumps({"orgId": "team", "projectId": "project"}))
+
+    monkeypatch.setattr(run_tests, "CONTROL_PLANE_ROOT", control_plane_root)
+
+    assert run_tests._read_env_file() == {"VERCEL_TOKEN": "<TOKEN>"}
+    assert run_tests._vercel_project_config() == ("team", "project")
+
+
 def test_reserved_specs_use_reserved_accounts_for_single_spec_dispatch():
     run_tests = load_run_tests_module()
 
@@ -41,23 +65,25 @@ def test_reserved_specs_use_reserved_accounts_for_single_spec_dispatch():
 
 def test_regular_specs_use_normal_accounts_and_skip_reserved_slots():
     run_tests = load_run_tests_module()
-    regular_specs = [f"regular-{index}.spec.ts" for index in range(13)]
+    regular_specs = [f"regular-{index}.spec.ts" for index in range(20)]
 
     plan = run_tests.build_playwright_dispatch_plan(regular_specs, batch_size=20)
     assigned_accounts = [account for _batch, _spec, account in plan]
 
+    assert run_tests.MAX_ACCOUNTS == 27
+    assert assigned_accounts == [*range(1, 14), *range(21, 28)]
     assert assigned_accounts == list(run_tests.NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS)
     assert not set(assigned_accounts) & set(run_tests.RESERVED_PLAYWRIGHT_ACCOUNT_SLOTS)
 
 
 def test_batch_size_is_capped_to_normal_account_pool():
     run_tests = load_run_tests_module()
-    regular_specs = [f"regular-{index}.spec.ts" for index in range(14)]
+    regular_specs = [f"regular-{index}.spec.ts" for index in range(21)]
 
     plan = run_tests.build_playwright_dispatch_plan(regular_specs, batch_size=20)
 
-    assert plan[12] == (0, "regular-12.spec.ts", 13)
-    assert plan[13] == (1, "regular-13.spec.ts", 1)
+    assert plan[19] == (0, "regular-19.spec.ts", 27)
+    assert plan[20] == (1, "regular-20.spec.ts", 1)
 
 
 def test_dispatch_plan_can_use_preflight_available_normal_slots():
@@ -109,6 +135,377 @@ def test_preflight_availability_reduces_normal_pool_and_blocks_reserved_specs():
     assert "account-recovery-flow.spec.ts (slot 14)" in reason
 
 
+def test_single_regular_spec_falls_back_to_healthy_normal_account(monkeypatch):
+    run_tests = load_run_tests_module()
+    captured: dict[str, object] = {}
+    preflight_calls: list[list[int] | None] = []
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.max_concurrent = 20
+    orchestrator.dry_run = False
+    orchestrator.environment = "production"
+    orchestrator.git_sha = "abc123"
+    orchestrator.dot_env = {}
+    orchestrator.spec = "regular.spec.ts"
+    orchestrator.account = None
+    orchestrator.create_account_slot = None
+    orchestrator.only_failed = False
+    orchestrator.fail_fast = True
+    orchestrator.use_mocks = True
+    orchestrator.record_live_fixtures = False
+    orchestrator._discover_specs = lambda: ["regular.spec.ts"]
+
+    def fake_preflight(_client, accounts=None):
+        preflight_calls.append(accounts)
+        if accounts == [1]:
+            return run_tests.SuiteResult(
+                status="failed",
+                tests=[{
+                    "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "status": "failed",
+                    "account": 1,
+                }],
+                reason="slot 1 failed",
+            )
+        return run_tests.SuiteResult(
+            status="passed",
+            tests=[{
+                "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                "status": "passed",
+                "account": 2,
+            }],
+        )
+
+    class FakeBatchRunner:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def run_all_batches(self):
+            return run_tests.SuiteResult(
+                status="passed",
+                tests=[{"name": "regular.spec.ts", "file": "regular.spec.ts", "status": "passed"}],
+            )
+
+    monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
+    monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
+
+    result = orchestrator._run_playwright()
+
+    assert result.status == "passed"
+    assert preflight_calls == [[1], [*range(2, 14), *range(21, 28)]]
+    assert captured["normal_account_slots"] == (2,)
+    assert result.reason == "Selected normal account slot 1 failed preflight; using fallback slot 2 for regular.spec.ts"
+
+
+def test_only_failed_batch_preflights_and_skips_unhealthy_normal_account(monkeypatch):
+    run_tests = load_run_tests_module()
+    captured: dict[str, object] = {}
+    preflight_calls: list[list[int] | None] = []
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.max_concurrent = 20
+    orchestrator.dry_run = False
+    orchestrator.environment = "production"
+    orchestrator.git_sha = "abc123"
+    orchestrator.dot_env = {}
+    orchestrator.spec = None
+    orchestrator.account = None
+    orchestrator.create_account_slot = None
+    orchestrator.only_failed = True
+    orchestrator.fail_fast = False
+    orchestrator.use_mocks = True
+    orchestrator.record_live_fixtures = False
+    orchestrator._discover_specs = lambda: ["regular-a.spec.ts", "regular-b.spec.ts"]
+    orchestrator._merge_cookie_audits = lambda: None
+
+    def fake_preflight(_client, accounts=None):
+        preflight_calls.append(accounts)
+        return run_tests.SuiteResult(
+            status="failed",
+            tests=[
+                {
+                    "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "status": "failed",
+                    "account": 1,
+                },
+                {
+                    "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "status": "passed",
+                    "account": 2,
+                },
+            ],
+            reason="slot 1 failed",
+        )
+
+    class FakeBatchRunner:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def run_all_batches(self):
+            return run_tests.SuiteResult(
+                status="passed",
+                tests=[
+                    {"name": "regular-a.spec.ts", "file": "regular-a.spec.ts", "status": "passed"},
+                    {"name": "regular-b.spec.ts", "file": "regular-b.spec.ts", "status": "passed"},
+                ],
+            )
+
+    monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
+    monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
+
+    result = orchestrator._run_playwright()
+
+    assert result.status == "passed"
+    assert preflight_calls == [None]
+    assert captured["normal_account_slots"] == (2,)
+    assert result.reason is not None
+    assert "Unavailable normal account slot(s)" in result.reason
+
+
+def test_cli_integration_falls_back_to_healthy_normal_account(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    preflight_calls: list[list[int] | None] = []
+    dispatch_accounts: list[int] = []
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.dry_run = False
+    orchestrator.environment = "development"
+    orchestrator.git_sha = "abc123"
+    orchestrator.use_mocks = True
+    orchestrator.record_live_fixtures = False
+    captured_git_sha = {}
+
+    def fake_preflight(_client, accounts=None):
+        preflight_calls.append(accounts)
+        if accounts == [1]:
+            return run_tests.SuiteResult(
+                status="failed",
+                tests=[{
+                    "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "status": "failed",
+                    "account": 1,
+                }],
+                duration_seconds=1.0,
+                reason="slot 1 failed",
+            )
+        return run_tests.SuiteResult(
+            status="passed",
+            tests=[{
+                "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                "status": "passed",
+                "account": 2,
+            }],
+            duration_seconds=2.0,
+        )
+
+    class FakeClient:
+        last_dispatch_error = ""
+
+        def __init__(self, **kwargs):
+            captured_git_sha.update(kwargs)
+
+        def dispatch_spec(self, _spec, account, **_kwargs):
+            dispatch_accounts.append(account)
+            return 456
+
+        def wait_for_runs(self, run_ids, **_kwargs):
+            return {run_ids[0]: {"status": "completed", "conclusion": "success"}}
+
+        def download_artifact(self, _run_id, _artifact_name, artifact_dir):
+            results_dir = artifact_dir / "test-results"
+            results_dir.mkdir(parents=True)
+            (results_dir / "cli-integration.json").write_text(
+                json.dumps({
+                    "tests": [{
+                        "nodeid": "cli-integration/code-docs/preflight",
+                        "outcome": "passed",
+                        "duration": 0.1,
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            return artifact_dir
+
+        def get_failed_job_error(self, _run_id):
+            return None
+
+    monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "_full_git_sha", lambda sha: f"full-{sha}")
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", FakeClient)
+    monkeypatch.setattr(run_tests.tempfile, "mkdtemp", lambda prefix: str(tmp_path / prefix))
+
+    result = orchestrator._run_cli_integration()
+
+    assert result.status == "passed"
+    assert preflight_calls == [[1], [*range(2, 14), *range(21, 28)]]
+    assert dispatch_accounts == [2]
+    assert captured_git_sha == {"git_sha": "full-abc123"}
+    assert result.tests[0] == {
+        "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+        "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+        "status": "passed",
+        "duration_seconds": 3.0,
+    }
+    assert result.reason == "Selected normal account slot 1 failed preflight; using fallback slot 2 for CLI integration"
+
+
+def test_discover_single_spec_blocks_missing_file(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    monkeypatch.setattr(run_tests, "SPEC_DIR", tmp_path / "tests")
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.spec = "missing.spec.ts"
+
+    try:
+        orchestrator._discover_specs()
+    except RuntimeError as exc:
+        assert "Spec file not found" in str(exc)
+    else:
+        raise AssertionError("missing spec should block dispatch")
+
+
+def test_discover_single_spec_blocks_untracked_file(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    spec_dir = tmp_path / "frontend" / "apps" / "web_app" / "tests"
+    spec_dir.mkdir(parents=True)
+    spec_path = spec_dir / "local-only.spec.ts"
+    spec_path.write_text("import { test } from '@playwright/test';\n", encoding="utf-8")
+    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(run_tests, "SPEC_DIR", spec_dir)
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.spec = "local-only.spec.ts"
+
+    try:
+        orchestrator._discover_specs()
+    except RuntimeError as exc:
+        assert "Spec file is untracked" in str(exc)
+    else:
+        raise AssertionError("untracked spec should block dispatch")
+
+
+def test_deployed_single_spec_can_run_from_session_worktree(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    spec_dir = tmp_path / "frontend" / "apps" / "web_app" / "tests"
+    spec_dir.mkdir(parents=True)
+    spec_path = spec_dir / "deployed.spec.ts"
+    spec_path.write_text("import { test } from '@playwright/test';\n", encoding="utf-8")
+    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(run_tests, "SPEC_DIR", spec_dir)
+
+    calls: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        return type("Result", (), {"returncode": 0 if command[1] == "cat-file" else 1})()
+
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+
+    assert run_tests._validate_requested_playwright_spec("deployed.spec.ts", "abc123") == ""
+    assert calls[-1] == [
+        "git",
+        "cat-file",
+        "-e",
+        "abc123:frontend/apps/web_app/tests/deployed.spec.ts",
+    ]
+
+
+def test_single_reserved_spec_does_not_fall_back_when_reserved_account_fails(monkeypatch):
+    run_tests = load_run_tests_module()
+    preflight_calls: list[list[int] | None] = []
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.max_concurrent = 20
+    orchestrator.dry_run = False
+    orchestrator.environment = "production"
+    orchestrator.git_sha = "abc123"
+    orchestrator.dot_env = {}
+    orchestrator.spec = "account-recovery-flow.spec.ts"
+    orchestrator.account = None
+    orchestrator.create_account_slot = None
+    orchestrator.only_failed = False
+    orchestrator.fail_fast = True
+    orchestrator.use_mocks = True
+    orchestrator._discover_specs = lambda: ["account-recovery-flow.spec.ts"]
+
+    expected = run_tests.SuiteResult(
+        status="failed",
+        tests=[{
+            "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+            "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+            "status": "failed",
+            "account": 14,
+        }],
+        reason="slot 14 failed",
+    )
+
+    def fake_preflight(_client, accounts=None):
+        preflight_calls.append(accounts)
+        return expected
+
+    monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
+
+    result = orchestrator._run_playwright()
+
+    assert result is expected
+    assert preflight_calls == [[14]]
+
+
+def test_single_account_preflight_honors_explicit_account(monkeypatch):
+    run_tests = load_run_tests_module()
+    preflight_calls: list[list[int] | None] = []
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.max_concurrent = 20
+    orchestrator.dry_run = False
+    orchestrator.environment = "production"
+    orchestrator.git_sha = "abc123"
+    orchestrator.dot_env = {}
+    orchestrator.spec = run_tests.ACCOUNT_PREFLIGHT_SPEC
+    orchestrator.account = 19
+    orchestrator.create_account_slot = None
+    orchestrator.only_failed = False
+    orchestrator.fail_fast = True
+    orchestrator.use_mocks = True
+    orchestrator._discover_specs = lambda: [run_tests.ACCOUNT_PREFLIGHT_SPEC]
+
+    expected = run_tests.SuiteResult(
+        status="passed",
+        tests=[{
+            "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+            "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+            "status": "passed",
+            "account": 19,
+        }],
+    )
+
+    def fake_preflight(_client, accounts=None):
+        preflight_calls.append(accounts)
+        return expected
+
+    class UnexpectedBatchRunner:
+        def __init__(self, **_kwargs):
+            raise AssertionError("explicit account preflight should not dispatch through BatchRunner")
+
+    monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
+    monkeypatch.setattr(run_tests, "BatchRunner", UnexpectedBatchRunner)
+
+    result = orchestrator._run_playwright()
+
+    assert result is expected
+    assert preflight_calls == [[19]]
+
+
 def test_hourly_dev_specs_exist():
     run_tests = load_run_tests_module()
     tests_dir = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
@@ -132,6 +529,330 @@ def test_dispatch_run_matching_uses_unique_token():
 
     assert run_tests._matching_dispatched_run_id(runs, "rt-target") == 222
     assert run_tests._matching_dispatched_run_id(runs, "rt-missing") is None
+
+
+def test_full_git_sha_expands_short_display_ref(monkeypatch):
+    run_tests = load_run_tests_module()
+    full_sha = "a" * 40
+    commands: list[list[str]] = []
+
+    def fake_check_output(command, **_kwargs):
+        commands.append(command)
+        return full_sha
+
+    monkeypatch.setattr(run_tests.subprocess, "check_output", fake_check_output)
+
+    assert run_tests._full_git_sha("abc123") == full_sha
+    assert commands == [["git", "-C", str(PROJECT_ROOT), "rev-parse", "abc123"]]
+
+
+def test_canceled_vercel_deployment_retries_once_before_ready(monkeypatch):
+    run_tests = load_run_tests_module()
+    deployments = iter([
+        {"id": "dpl-canceled", "state": "CANCELED", "errorMessage": "transient cancellation"},
+        {"id": "dpl-canceled", "state": "CANCELED", "errorMessage": "transient cancellation"},
+        {"id": "dpl-ready", "state": "READY"},
+    ])
+    redeployed: list[str] = []
+
+    monkeypatch.setattr(run_tests, "_vercel_project_config", lambda: ("team", "project"))
+    monkeypatch.setattr(run_tests, "_latest_vercel_deployment_for_sha", lambda *_args: next(deployments))
+    monkeypatch.setattr(
+        run_tests,
+        "_redeploy_vercel_deployment",
+        lambda _token, _team, deployment_id: redeployed.append(deployment_id),
+        raising=False,
+    )
+    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
+
+    ready, reason = run_tests._wait_for_vercel_deployment("abc123", {"VERCEL_TOKEN": "test-token"})
+
+    assert ready is True
+    assert reason == ""
+    assert redeployed == ["dpl-canceled"]
+
+
+def test_undispatched_specs_are_recorded_as_not_started():
+    run_tests = load_run_tests_module()
+
+    tests = run_tests._not_started_playwright_specs(
+        ["signup-flow-passkey.spec.ts", "settings-buy-credits-stripe-eu.spec.ts", "chat-flow.spec.ts"],
+        "Vercel deployment dpl-canceled was canceled",
+    )
+
+    assert [test["name"] for test in tests] == [
+        "signup-flow-passkey.spec.ts",
+        "settings-buy-credits-stripe-eu.spec.ts",
+        "chat-flow.spec.ts",
+    ]
+    assert {test["status"] for test in tests} == {"not_started"}
+    assert {test["error"] for test in tests} == {"Vercel deployment dpl-canceled was canceled"}
+
+
+def test_playwright_gate_reports_every_undispatched_spec(monkeypatch):
+    run_tests = load_run_tests_module()
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.max_concurrent = 1
+    orchestrator.dry_run = False
+    orchestrator.environment = "development"
+    orchestrator.use_mocks = True
+    orchestrator.record_live_fixtures = False
+    orchestrator.git_sha = "abc123"
+    orchestrator.dot_env = {}
+    orchestrator._discover_specs = lambda: ["signup-flow-passkey.spec.ts", "chat-flow.spec.ts"]
+    monkeypatch.setattr(
+        run_tests,
+        "_wait_for_vercel_deployment",
+        lambda _git_sha, _dot_env: (False, "Vercel deployment dpl-canceled was canceled"),
+    )
+    monkeypatch.setattr(run_tests, "_development_backend_live_mock_preflight_error", lambda: None)
+
+    result = orchestrator._run_playwright()
+
+    assert result.status == "failed"
+    assert result.tests[0]["name"] == "vercel-deployment-gate"
+    assert [test["status"] for test in result.tests[1:]] == ["not_started", "not_started"]
+    assert [test["name"] for test in result.tests[1:]] == [
+        "signup-flow-passkey.spec.ts",
+        "chat-flow.spec.ts",
+    ]
+
+
+def test_dispatch_passes_full_checkout_ref_to_workflow(monkeypatch):
+    run_tests = load_run_tests_module()
+    commands: list[list[str]] = []
+
+    monkeypatch.setattr(run_tests.GitHubActionsClient, "_check_gh", lambda _self: None)
+    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
+
+    def fake_run(command, **_kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    client = run_tests.GitHubActionsClient(
+        git_sha="abc123",
+    )
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        client,
+        "_recent_runs",
+        lambda limit=50: [{
+            "databaseId": 123,
+            "displayTitle": next(
+                item.removeprefix("dispatch_token=")
+                for item in commands[0]
+                if item.startswith("dispatch_token=")
+            ),
+        }],
+    )
+
+    assert client.dispatch_spec("chat-flow.spec.ts", account=1) == 123
+    assert "checkout_ref=abc123" in commands[0]
+    assert "allow_credential_updates=true" in commands[0]
+
+
+def test_dispatch_can_disable_credential_updates_for_release_bootstrap(monkeypatch):
+    run_tests = load_run_tests_module()
+    commands: list[list[str]] = []
+
+    monkeypatch.setattr(run_tests.GitHubActionsClient, "_check_gh", lambda _self: None)
+    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(
+        run_tests.subprocess,
+        "run",
+        lambda command, **_kwargs: commands.append(command)
+        or SimpleNamespace(returncode=0, stdout="", stderr=""),
+    )
+    client = run_tests.GitHubActionsClient(git_sha="abc123")
+    monkeypatch.setattr(
+        client,
+        "_recent_runs",
+        lambda limit=50: [{
+            "databaseId": 123,
+            "displayTitle": next(
+                item.removeprefix("dispatch_token=")
+                for item in commands[0]
+                if item.startswith("dispatch_token=")
+            ),
+        }],
+    )
+
+    assert client.dispatch_spec(
+        "signup-flow-stripe-managed.spec.ts",
+        account=2,
+        allow_credential_updates=False,
+    ) == 123
+    assert "allow_credential_updates=false" in commands[0]
+
+
+def test_dispatch_can_pass_create_account_slot_to_workflow(monkeypatch):
+    run_tests = load_run_tests_module()
+    commands: list[list[str]] = []
+
+    monkeypatch.setattr(run_tests.GitHubActionsClient, "_check_gh", lambda _self: None)
+    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
+
+    def fake_run(command, **_kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    client = run_tests.GitHubActionsClient()
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        client,
+        "_recent_runs",
+        lambda limit=50: [{
+            "databaseId": 123,
+            "displayTitle": next(
+                item.removeprefix("dispatch_token=")
+                for item in commands[0]
+                if item.startswith("dispatch_token=")
+            ),
+        }],
+    )
+
+    assert client.dispatch_spec(
+        run_tests.PROVISION_AUTH_ACCOUNTS_SPEC,
+        account=19,
+        create_account_slot=19,
+    ) == 123
+    assert "create_account_slot=19" in commands[0]
+
+
+def test_dispatch_can_record_live_fixtures(monkeypatch):
+    run_tests = load_run_tests_module()
+    commands: list[list[str]] = []
+
+    monkeypatch.setattr(run_tests.GitHubActionsClient, "_check_gh", lambda _self: None)
+    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
+
+    def fake_run(command, **_kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    client = run_tests.GitHubActionsClient()
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        client,
+        "_recent_runs",
+        lambda limit=50: [{
+            "databaseId": 123,
+            "displayTitle": next(
+                item.removeprefix("dispatch_token=")
+                for item in commands[0]
+                if item.startswith("dispatch_token=")
+            ),
+        }],
+    )
+
+    assert client.dispatch_spec(
+        "models3d-search.spec.ts",
+        account=1,
+        record_live_fixtures=True,
+    ) == 123
+    assert "record_live_fixtures=true" in commands[0]
+
+
+def test_prod_smoke_dispatch_matches_unique_token(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    commands: list[list[str]] = []
+    waited_run_ids: list[list[int]] = []
+
+    monkeypatch.setattr(run_tests, "_docker_restarted_recently", lambda: False)
+    monkeypatch.setattr(run_tests, "_git_info", lambda: ("abc123", "dev"))
+    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
+
+    def fake_run(command, **_kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+
+    class FakeClient:
+        def __init__(self):
+            self.recent_run_calls = 0
+
+        def _recent_run_ids(self, limit=5, workflow=run_tests.WORKFLOW_NAME):
+            return [111]
+
+        def _recent_runs(self, limit=5, workflow=run_tests.WORKFLOW_NAME):
+            token = next(
+                item.removeprefix("dispatch_token=")
+                for item in commands[0]
+                if item.startswith("dispatch_token=")
+            )
+            return [
+                {"databaseId": 222, "displayTitle": "Prod smoke paid-chat prod-other"},
+                {"databaseId": 333, "displayTitle": f"Prod smoke paid-chat {token}"},
+            ]
+
+        def wait_for_runs(self, run_ids, **_kwargs):
+            waited_run_ids.append(run_ids)
+            return {run_ids[0]: {"status": "completed", "conclusion": "success"}}
+
+        def download_artifact(self, _run_id, _artifact_name, artifact_dir):
+            results_dir = artifact_dir / "test-results"
+            results_dir.mkdir(parents=True)
+            (results_dir / "paid-chat.json").write_text(
+                '{"status":"passed","scenarios":{"paid_chat":{"status":"passed"}}}',
+                encoding="utf-8",
+            )
+            return artifact_dir
+
+        def get_failed_job_error(self, _run_id):
+            return ""
+
+    class FakeNotification:
+        discord_webhook_prod_smoke = None
+
+        def _send_summary_to_discord(self, *_args, **_kwargs):
+            return None
+
+        def send_prod_failure_email(self, *_args, **_kwargs):
+            return None
+
+        def send_per_test_md_messages(self, *_args, **_kwargs):
+            return None
+
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", FakeClient)
+
+    result = run_tests._run_prod_smoke_suite(
+        FakeNotification(),
+        force=True,
+        suite=run_tests.PROD_SMOKE_SUITE_PAID_CHAT,
+        archive_dir=tmp_path,
+        mode_flag="prod-paid-chat",
+        mode_label="prod paid chat",
+        display_title="Prod paid chat",
+    )
+
+    assert result == 0
+    assert "suite=paid-chat" in commands[0]
+    assert any(item.startswith("dispatch_token=prod-paid-chat-") for item in commands[0])
+    assert waited_run_ids == [[333]]
+
+
+def test_prod_smoke_parser_accepts_flattened_cli_artifact(tmp_path):
+    run_tests = load_run_tests_module()
+    (tmp_path / "paid-chat.json").write_text(
+        '{"status":"failed","scenarios":{"paid_chat":{"status":"failed","error":"HTTP 401"}}}',
+        encoding="utf-8",
+    )
+
+    results = run_tests._parse_prod_smoke_artifact(
+        tmp_path,
+        run_tests.PROD_SMOKE_SPECS_BY_SUITE[run_tests.PROD_SMOKE_SUITE_PAID_CHAT],
+    )
+
+    assert results == [{
+        "key": "paid-chat",
+        "filename": "verify_prod_cli_smoke.py",
+        "name": "CLI paid chat smoke",
+        "status": "failed",
+        "error": "HTTP 401",
+        "passed": 0,
+        "failed": 1,
+    }]
 
 
 def test_preflight_account_payload_deduplicates_emails():
@@ -182,6 +903,153 @@ def test_playwright_json_passed_with_skipped_phases_is_not_an_error(tmp_path):
     assert set(result_statuses) == {"passed", "skipped"}
 
 
+def test_playwright_retry_pass_is_a_passing_flake(tmp_path):
+    run_tests = load_run_tests_module()
+    report = tmp_path / "playwright.json"
+    report.write_text(
+        '{"suites":[{"specs":[{"tests":[{"results":['
+        '{"retry":0,"status":"failed","error":{"message":"first attempt"}},'
+        '{"retry":1,"status":"passed"}'
+        ']}]}]}]}',
+        encoding="utf-8",
+    )
+
+    summary = run_tests.BatchRunner._playwright_attempt_summary(report)
+
+    assert summary["terminal_statuses"] == ["passed"]
+    assert summary["attempt_statuses"] == ["failed", "passed"]
+    assert summary["retries"] == 1
+    assert summary["flaky"] is True
+
+
+def test_playwright_debug_outputs_are_persisted(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    monkeypatch.setattr(run_tests, "RESULTS_DIR", tmp_path / "test-results")
+    report = tmp_path / "playwright.json"
+    report.write_text(
+        json.dumps({
+            "suites": [{
+                "specs": [{
+                    "tests": [{
+                        "results": [{
+                            "retry": 0,
+                            "status": "failed",
+                            "stdout": [{"text": "[debug] full stdout\n"}],
+                            "stderr": [{"text": "[debug] full stderr\n"}],
+                        }]
+                    }]
+                }]
+            }]
+        }),
+        encoding="utf-8",
+    )
+
+    summary = run_tests.BatchRunner._persist_playwright_debug_outputs("cli-skills-pdf.spec.ts", report)
+
+    artifacts = summary["artifact_paths"]
+    assert "debug/current/cli-skills-pdf/attempt-1-0-stdout.txt" in artifacts
+    assert "debug/current/cli-skills-pdf/attempt-1-0-stderr.txt" in artifacts
+    assert "[debug] full stdout" in summary["summary"]
+    assert (run_tests.RESULTS_DIR / "debug" / "current" / "cli-skills-pdf" / "attempt-1-0-result.json").is_file()
+
+
+def test_api_key_device_approval_blocker_is_detected():
+    run_tests = load_run_tests_module()
+
+    assert run_tests.BatchRunner._environment_blocker_from_text(
+        "A new device attempted to use your API key. Please review and approve it in Developer Settings."
+    ) == "api_key_device_approval_required"
+    assert run_tests.BatchRunner._environment_blocker_from_text("ordinary locator failure") is None
+
+
+def test_passing_flake_is_not_counted_as_a_final_failure():
+    run_tests = load_run_tests_module()
+    suite = run_tests.SuiteResult(
+        status="passed",
+        tests=[{"name": "example.spec.ts", "status": "passed", "flaky": True, "retries": 1}],
+    )
+
+    result = run_tests.ResultAggregator.build_run_result(
+        {"playwright": suite}, "run-1", "sha", "dev", "development", 1.0, {}
+    )
+
+    assert result.summary["passed"] == 1
+    assert result.summary["failed"] == 0
+
+
+def test_apple_remote_default_nightly_commands_are_serialized(monkeypatch):
+    run_tests = load_run_tests_module()
+    monkeypatch.delenv("OPENMATES_APPLE_REMOTE_NIGHTLY_COMMANDS", raising=False)
+
+    commands = run_tests._apple_remote_commands_for_nightly()
+
+    assert [name for name, _command in commands] == [
+        "sync-repo",
+        "test-ios",
+        "test-macos",
+        "verify-watch-startup",
+    ]
+    assert commands[1][1] == ("test-ios", "--simulator", "iPhone 17")
+
+
+def test_apple_remote_nightly_commands_accept_json_override(monkeypatch):
+    run_tests = load_run_tests_module()
+    monkeypatch.setenv(
+        "OPENMATES_APPLE_REMOTE_NIGHTLY_COMMANDS",
+        json.dumps([
+            {"name": "ios-focused", "command": ["test-ios", "--only-testing", "OpenMatesTests/ExampleTests"]},
+            ["verify-macos-startup", "--duration", "30"],
+        ]),
+    )
+
+    commands = run_tests._apple_remote_commands_for_nightly()
+
+    assert commands == [
+        ("ios-focused", ("test-ios", "--only-testing", "OpenMatesTests/ExampleTests")),
+        ("apple-remote-2", ("verify-macos-startup", "--duration", "30")),
+    ]
+
+
+def test_apple_remote_suite_counts_like_regular_failures():
+    run_tests = load_run_tests_module()
+    suite = run_tests.SuiteResult(
+        status="failed",
+        tests=[
+            {"name": "test-ios", "status": "passed"},
+            {"name": "test-macos", "status": "failed", "error": "xcodebuild failed"},
+        ],
+    )
+
+    result = run_tests.ResultAggregator.build_run_result(
+        {"apple_remote": suite}, "run-1", "sha", "dev", "development", 1.0, {}
+    )
+
+    assert result.summary["total"] == 2
+    assert result.summary["passed"] == 1
+    assert result.summary["failed"] == 1
+
+
+def test_flake_history_is_idempotent_by_run_id(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    monkeypatch.setattr(run_tests, "RESULTS_DIR", tmp_path)
+    data = {
+        "run_id": "run-1",
+        "suites": {"playwright": {"tests": [{
+            "name": "example.spec.ts", "file": "example.spec.ts", "status": "passed",
+            "flaky": True, "retries": 1, "attempt_statuses": ["failed", "passed"],
+        }]}},
+    }
+
+    run_tests.record_flake_history(data)
+    run_tests.record_flake_history(data)
+
+    history = __import__("json").loads((tmp_path / "flaky-history.json").read_text(encoding="utf-8"))
+    entry = history["tests"]["playwright::example.spec.ts"]
+    assert entry["total_runs"] == 1
+    assert entry["flaky_count"] == 1
+    assert entry["last_attempt_statuses"] == ["failed", "passed"]
+
+
 def test_credit_guard_pipes_local_script_into_api_container(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     guard_script = tmp_path / "backend" / "scripts" / "top_up_test_account_credits.py"
@@ -218,6 +1086,66 @@ def test_credit_guard_pipes_local_script_into_api_container(tmp_path, monkeypatc
     assert captured["capture_output"] is True
     assert captured["text"] is True
     assert captured["timeout"] == 180
+
+
+def test_account_id_repair_pipes_local_script_for_missing_account_id_preflight(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    repair_script = tmp_path / "backend" / "scripts" / "repair_test_account_account_ids.py"
+    repair_script.parent.mkdir(parents=True)
+    repair_script.write_text("print('repair script')\n", encoding="utf-8")
+    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.environment = "development"
+    captured = {}
+
+    def fake_run(cmd, input, capture_output, text, timeout):
+        captured["cmd"] = cmd
+        captured["input"] = input
+        captured["capture_output"] = capture_output
+        captured["text"] = text
+        captured["timeout"] = timeout
+        return SimpleNamespace(stdout="accounts_checked=1\nrepaired slots=1 account_id_present=true\n", stderr="", returncode=0)
+
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+
+    repaired = orchestrator._repair_missing_preflight_account_ids([
+        run_tests.SpecResult(
+            name="test-account-preflight.spec.ts",
+            status="failed",
+            account=1,
+            account_email="acct@example.test",
+            error="Persistent E2E account is missing users.account_id",
+        )
+    ])
+
+    assert repaired is True
+    assert captured["cmd"][:6] == ["docker", "exec", "-i", "api", "python", "-c"]
+    assert "acct@example.test" not in " ".join(captured["cmd"])
+    payload = json.loads(captured["input"])
+    assert payload["script"] == "print('repair script')\n"
+    assert payload["accounts"] == [{"slot": 1, "email": "acct@example.test"}]
+    assert captured["capture_output"] is True
+    assert captured["text"] is True
+    assert captured["timeout"] == 180
+
+
+def test_account_id_repair_skips_non_development_environment():
+    run_tests = load_run_tests_module()
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.environment = "production"
+
+    repaired = orchestrator._repair_missing_preflight_account_ids([
+        run_tests.SpecResult(
+            name="test-account-preflight.spec.ts",
+            status="failed",
+            account=1,
+            account_email="acct@example.test",
+            error="Persistent E2E account is missing users.account_id",
+        )
+    ])
+
+    assert repaired is False
 
 
 def test_credential_update_artifacts_are_persisted_outside_screenshots(tmp_path, monkeypatch):

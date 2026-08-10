@@ -23,10 +23,13 @@ Usage:
     python3 scripts/tests.py run --suite vitest            # just vitest
     python3 scripts/tests.py run --suite playwright        # just browser E2E
     python3 scripts/tests.py run --suite cli               # just CLI integration
+    python3 scripts/tests.py run --suite apple             # just Apple Remote checks
     python3 scripts/tests.py run --daily                   # cron mode (3 AM nightly)
     python3 scripts/tests.py run --daily --force           # skip commit check
     python3 scripts/tests.py run --hourly-dev              # hourly dev smoke (4 specs)
-    python3 scripts/tests.py run --hourly-prod             # hourly prod smoke
+    python3 scripts/tests.py run --hourly-prod             # free hourly prod smoke (legacy alias)
+    python3 scripts/tests.py run --prod-paid-chat          # paid prod chat smoke (scheduled slots)
+    python3 scripts/tests.py run --prod-app-skill          # prod CLI app-skill smoke (daily slot)
     python3 scripts/tests.py run --hourly-dev --dry-run-notify  # test Discord wiring
     python3 scripts/tests.py run --max-concurrent 10       # override batch size
     python3 scripts/tests.py run --no-fail-fast            # run all batches
@@ -49,26 +52,59 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from html import escape
 from pathlib import Path
 from typing import Optional
+from zoneinfo import ZoneInfo
+
+try:
+    from scripts import sessions as session_control
+except ModuleNotFoundError:
+    import sessions as session_control
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
+
+def _resolve_control_plane_root(checkout_root: Path) -> Path:
+    """Resolve the main checkout that owns shared local credentials and config."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=str(checkout_root),
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return checkout_root
+    if result.returncode != 0 or not result.stdout.strip():
+        return checkout_root
+    common_dir = Path(result.stdout.strip())
+    if not common_dir.is_absolute():
+        common_dir = checkout_root / common_dir
+    common_dir = common_dir.resolve()
+    return common_dir.parent if common_dir.name == ".git" else checkout_root
+
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CONTROL_PLANE_ROOT = _resolve_control_plane_root(PROJECT_ROOT)
 RESULTS_DIR = PROJECT_ROOT / "test-results"
 TEST_RECORDINGS_DIR = RESULTS_DIR / "recordings" / "latest"
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 LOCKFILE = Path("/tmp/openmates-daily-tests.lock")
 LOCKFILE_HOURLY_DEV = Path("/tmp/openmates-hourly-dev-tests.lock")
 LOCKFILE_HOURLY_PROD = Path("/tmp/openmates-hourly-prod-tests.lock")
+LOCKFILE_PROD_PAID_CHAT = Path("/tmp/openmates-prod-paid-chat-tests.lock")
+LOCKFILE_PROD_APP_SKILL = Path("/tmp/openmates-prod-app-skill-tests.lock")
 # Written by the Claude Code docker-restart-marker hook whenever a
 # `docker compose down/restart/stop` command is detected. Hourly smoke
 # runs check this file and skip if Docker was restarted too recently.
@@ -83,12 +119,27 @@ ESSENTIAL_TEST_KEYWORDS = ("signup", "login", "chat-flow")
 WORKFLOW_NAME = "playwright-spec.yml"
 CLI_INTEGRATION_SPEC = "__cli_integration_code_docs__"
 PROD_SMOKE_WORKFLOW = "prod-smoke.yml"
+PROD_SMOKE_SUITE_FREE_HOURLY = "free-hourly"
+PROD_SMOKE_SUITE_PAID_CHAT = "paid-chat"
+PROD_SMOKE_SUITE_APP_SKILL_WEB_SEARCH = "app-skill-web-search"
 GH_REPO = "glowingkitty/OpenMates"
 GH_BRANCH = "dev"
-MAX_ACCOUNTS = 20
+MAX_ACCOUNTS = 27
 ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
+PROVISION_AUTH_ACCOUNTS_SPEC = "cli-provision-auth-accounts.spec.ts"
 E2E_CREDIT_GUARD_DEFAULT_MINIMUM = 20_000
 E2E_CREDIT_GUARD_DEFAULT_TARGET = 50_000
+BACKEND_LIVE_MOCK_PREFLIGHT_CONTAINERS = (
+    "api",
+    "app-ai-worker",
+    "workflow-worker",
+    "task-worker",
+    "app-images-worker",
+    "app-videos-worker",
+)
+BACKEND_LIVE_MOCK_PREFLIGHT_NAME = "backend-live-mock-preflight"
+BACKEND_LIVE_MOCK_PREFLIGHT_FILE = "scripts/run_tests.py"
+BACKEND_LIVE_MOCK_PREFLIGHT_DISABLED_VALUES = {"0", "false", "False", "no", "NO"}
 RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC = {
     "account-recovery-flow.spec.ts": 14,
     "backup-code-login-flow.spec.ts": 15,
@@ -106,21 +157,32 @@ NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS = tuple(
 )
 CREDENTIAL_UPDATE_ARTIFACT_NAMES = frozenset({"new_otp_key.txt", "api_key.txt"})
 POLL_INTERVAL = 15  # seconds between status checks
+DAILY_STATUS_INTERVAL_SECONDS = 30 * 60
 RUN_TIMEOUT = 1800  # 30 min max per batch
 PROD_SMOKE_RUN_TIMEOUT = 1800  # 30 min — prod-smoke.yml has its own 25-min job cap
 VITEST_TIMEOUT = 300  # seconds — vitest must complete in 5 min or be killed
 VERCEL_WAIT_TIMEOUT = 1200  # 20 min max to wait for dev deployment before E2E specs
 VERCEL_WAIT_POLL_INTERVAL = 15
+APPLE_REMOTE_TIMEOUT = 7200  # seconds — Xcode test/build runs can be slow on the remote Mac
 MAX_ERROR_SNIPPET = 600
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 TEST_RECORDINGS_BUCKET_KEY = "test_recordings"
 TEST_RECORDINGS_S3_PREFIX = "latest"
 VERCEL_API = "https://api.vercel.com"
+APPLE_REMOTE_NIGHTLY_COMMANDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("sync-repo", ("sync-repo", "--branch", GH_BRANCH)),
+    ("test-ios", ("test-ios", "--simulator", "iPhone 17")),
+    ("test-macos", ("test-macos",)),
+    (
+        "verify-watch-startup",
+        ("verify-watch-startup", "--simulator", "Apple Watch Series 11 (46mm)", "--duration", "60"),
+    ),
+)
 
 # Hourly dev smoke spec list — kept SHORT on purpose. See OPE-349 + the
 # tests/dev-smoke/README.md for the policy. Anything that isn't a core user
 # flow that must keep working belongs in the nightly run, not here.
-HOURLY_DEV_SPECS: list[str] = [
+CORE_JOURNEY_SPECS: list[str] = [
     # Order determines test-account slot: specs[i] → account (i+1).
     # chat-flow is first so it uses testacct1 (known healthy) — testacct4 has
     # accumulated broken chat state that stalls DB init during login.
@@ -130,11 +192,81 @@ HOURLY_DEV_SPECS: list[str] = [
     "signup-flow-stripe-managed.spec.ts",
     "dev-smoke/dev-smoke-reachability.spec.ts",
 ]
+CORE_JOURNEY_ACCOUNT_SLOTS = (2, 3, 5, 6)
+HOURLY_DEV_SPECS = CORE_JOURNEY_SPECS
+
+# The promotion gate is intentionally broader than the hourly smoke. Filename
+# patterns make new signup and billing specs release-blocking by default.
+RELEASE_GATE_SPEC_PATTERNS = (
+    "*signup*.spec.ts",
+    "buy-credits-flow.spec.ts",
+    "saved-payment-invoice-flow.spec.ts",
+    "settings-buy-credits-*.spec.ts",
+    "settings-gift-card-*.spec.ts",
+    "settings-support-*.spec.ts",
+    "usage-token-breakdown.spec.ts",
+)
+RELEASE_GATE_BASE_SPECS = (
+    "chat-flow.spec.ts",
+    "dev-smoke/dev-smoke-reachability.spec.ts",
+)
+RELEASE_GATE_EXCLUDED_PREFIXES = ("prod-smoke/",)
+RELEASE_GATE_ACCOUNT_SLOTS = (2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 21, 22, 23, 24, 25, 26, 27)
+RELEASE_GATE_MAX_ACCOUNT_WAVES = 2
+
+
+def discover_release_gate_specs() -> list[str]:
+    """Return core availability plus every signup and billing E2E spec."""
+    related_specs = {
+        path.relative_to(SPEC_DIR).as_posix()
+        for pattern in RELEASE_GATE_SPEC_PATTERNS
+        for path in SPEC_DIR.rglob(pattern)
+    }
+    related_specs = {
+        spec for spec in related_specs
+        if not spec.startswith(RELEASE_GATE_EXCLUDED_PREFIXES)
+    }
+    return [*RELEASE_GATE_BASE_SPECS, *sorted(related_specs - set(RELEASE_GATE_BASE_SPECS))]
+
+
+RELEASE_GATE_SPECS = discover_release_gate_specs()
+
+
+def print_core_journey_matrix() -> None:
+    """Print the canonical release-gate matrix for GitHub Actions."""
+    if len(RELEASE_GATE_SPECS) > len(RELEASE_GATE_ACCOUNT_SLOTS) * RELEASE_GATE_MAX_ACCOUNT_WAVES:
+        raise RuntimeError(
+            "Release gate requires more specs than the configured serialized account capacity"
+        )
+    matrix = {
+        "include": [
+            {
+                "spec": spec,
+                "account": str(RELEASE_GATE_ACCOUNT_SLOTS[index % len(RELEASE_GATE_ACCOUNT_SLOTS)]),
+            }
+            for index, spec in enumerate(RELEASE_GATE_SPECS)
+        ]
+    }
+    print(json.dumps(matrix, separators=(",", ":")))
 
 # Where each hourly mode parks its result archives + heartbeat marker.
 HOURLY_DEV_DIR = RESULTS_DIR / "hourly-dev"
 HOURLY_PROD_DIR = RESULTS_DIR / "hourly-prod"
+PROD_PAID_CHAT_DIR = RESULTS_DIR / "prod-paid-chat"
+PROD_APP_SKILL_DIR = RESULTS_DIR / "prod-app-skill"
 HOURLY_ARCHIVE_RETENTION_DAYS = 7
+BERLIN_TZ = ZoneInfo("Europe/Berlin")
+PROD_FREE_HOURLY_START_HOUR = 6
+PROD_FREE_HOURLY_END_HOUR = 23
+PROD_PAID_CHAT_HOURS = frozenset({7, 13, 19})
+PROD_APP_SKILL_HOURS = frozenset({9})
+ACCOUNT_IMPORT_TEST_CATALOG = (
+    "account-import: backend parser/limits/scan/fail-closed pytest",
+    "account-import: frontend CLI parser/client node test",
+    "account-import: npm SDK import parity node test",
+    "account-import: pip SDK import parity pytest",
+    "account-import: real dev CLI verifier script",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -154,6 +286,7 @@ class SpecResult:
     account_email: Optional[str] = None
     retries: int = 0
     flaky: bool = False
+    attempt_statuses: list[str] = field(default_factory=list)
     # Structured Playwright data for MD reports
     playwright_errors: list[dict] = field(default_factory=list)
     steps: list[dict] = field(default_factory=list)
@@ -161,6 +294,9 @@ class SpecResult:
     video_paths: list[str] = field(default_factory=list)
     video_artifact_name: Optional[str] = None
     github_run_url: Optional[str] = None
+    debug_artifacts: list[str] = field(default_factory=list)
+    debug_output_summary: Optional[str] = None
+    environment_blocker: Optional[str] = None
 
 
 @dataclass
@@ -222,6 +358,275 @@ def _problem_summary_label(summary: dict) -> str:
     return ", ".join(parts) if parts else "all passed"
 
 
+CRITICAL_PRODUCT_AREA_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "Billing & payments",
+        ("billing", "payment", "stripe", "credit", "invoice", "purchase", "bank transfer", "usage"),
+    ),
+    (
+        "Signup & authentication",
+        (
+            "signup", "sign up", "login", "log in", "recovery key", "backup code",
+            "passkey", "2fa", "change email", "force logout", "account delete",
+            "delete account", "authentication",
+        ),
+    ),
+    (
+        "Core chat",
+        ("chat", "composer", "encryption", "chat sync", "recent chats"),
+    ),
+)
+
+PRODUCT_AREA_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    CRITICAL_PRODUCT_AREA_RULES[1],
+    CRITICAL_PRODUCT_AREA_RULES[0],
+    CRITICAL_PRODUCT_AREA_RULES[2],
+    ("Apps & skills", ("skill", "apps api", "focus mode", "daily inspiration", "reminder")),
+    ("Workflows, tasks & plans", ("workflow", "task", "plan")),
+    ("Embeds & files", ("embed", "pdf", "paste", "source quote", "detail")),
+    ("Sharing & collaboration", ("share", "team", "project", "referral")),
+    ("Settings & account", ("settings", "account", "session", "language", "translation")),
+)
+DEFAULT_PRODUCT_AREA = "Platform & quality"
+
+
+def _matches_product_area(searchable: str, keywords: tuple[str, ...]) -> bool:
+    """Match whole normalized words or phrases in a test identifier."""
+    normalized = " " + re.sub(r"[^a-z0-9]+", " ", searchable.lower()).strip() + " "
+    return any(f" {keyword} " in normalized for keyword in keywords)
+
+
+def _primary_product_area(searchable: str) -> str:
+    """Return the single display group used for a failed file."""
+    for area_name, keywords in PRODUCT_AREA_RULES:
+        if _matches_product_area(searchable, keywords):
+            return area_name
+    return DEFAULT_PRODUCT_AREA
+
+
+def _build_discord_failure_embeds(
+    suites: dict,
+    color: int,
+    truncate_descriptions: bool = True,
+) -> list[dict]:
+    """Build one product-area-grouped Discord embed per failing suite."""
+    suite_failures: list[tuple[str, int, dict[str, int], dict[str, list[str]]]] = []
+    for suite_name, suite_data in suites.items():
+        failed_file_counts: dict[str, int] = {}
+        failed_file_searchable: dict[str, list[str]] = {}
+        failure_count = 0
+        for test in (suite_data or {}).get("tests", []):
+            if not _is_problem_status(test.get("status", "")):
+                continue
+            failure_count += 1
+            test_file = test.get("file") or test.get("name") or "unknown"
+            # Pytest node IDs identify a test after the file with `::`.
+            test_file = str(test_file).split("::", 1)[0]
+            failed_file_counts[test_file] = failed_file_counts.get(test_file, 0) + 1
+            failed_file_searchable.setdefault(test_file, []).append(
+                str(test.get("name") or test_file)
+            )
+        if failure_count:
+            suite_failures.append(
+                (suite_name, failure_count, failed_file_counts, failed_file_searchable)
+            )
+
+    suite_failures.sort(key=lambda suite: (-suite[1], suite[0]))
+    embeds: list[dict] = []
+    for suite_name, failure_count, failed_file_counts, failed_file_searchable in suite_failures:
+        category_label = suite_name.replace("_", " ").capitalize()
+        file_label = "file" if len(failed_file_counts) == 1 else "files"
+        suite_failure_label = "failure" if failure_count == 1 else "failures"
+        title = (
+            f"{category_label} · {failure_count} {suite_failure_label} · "
+            f"{len(failed_file_counts)} {file_label}"
+        )
+
+        lines = ["**Critical product areas**"]
+        for area_name, keywords in CRITICAL_PRODUCT_AREA_RULES:
+            matching_files = sum(
+                _matches_product_area(
+                    f"{test_file} {' '.join(failed_file_searchable[test_file])}", keywords
+                )
+                for test_file in failed_file_counts
+            )
+            status_icon = "🔴" if matching_files else "🟢"
+            failed_file_label = "failed file" if matching_files == 1 else "failed files"
+            lines.append(f"{status_icon} {area_name}: **{matching_files}** {failed_file_label}")
+
+        grouped_files: dict[str, list[tuple[str, int]]] = {}
+        for test_file, count in failed_file_counts.items():
+            searchable = f"{test_file} {' '.join(failed_file_searchable[test_file])}"
+            area_name = _primary_product_area(searchable)
+            grouped_files.setdefault(area_name, []).append((test_file, count))
+
+        lines.extend(["", "**Files by product area**"])
+        area_order = [area_name for area_name, _keywords in PRODUCT_AREA_RULES]
+        area_order.append(DEFAULT_PRODUCT_AREA)
+        for area_name in area_order:
+            area_files = grouped_files.get(area_name, [])
+            if not area_files:
+                continue
+            area_failures = sum(count for _test_file, count in area_files)
+            failure_label = "failure" if area_failures == 1 else "failures"
+            area_file_label = "file" if len(area_files) == 1 else "files"
+            lines.append(
+                f"**{area_name} · {area_failures} {failure_label} · "
+                f"{len(area_files)} {area_file_label}**"
+            )
+            for test_file, count in sorted(area_files):
+                count_suffix = f" — {count} failures" if count > 1 else ""
+                lines.append(f"• `{test_file}`{count_suffix}")
+
+        description = (
+            _fit_discord_description(lines)
+            if truncate_descriptions
+            else "\n".join(lines)
+        )
+        embeds.append({
+            "title": title,
+            "description": description,
+            "color": color,
+        })
+    return embeds
+
+
+def _plain_notification_text(value: str) -> str:
+    """Remove Discord markdown while preserving the grouped report structure."""
+    return (
+        value.replace("**", "")
+        .replace("`", "")
+        .replace("🔴", "FAIL")
+        .replace("🟢", "OK")
+        .replace("•", "-")
+    )
+
+
+def _limit_discord_failure_embeds(embeds: list[dict], color: int) -> list[dict]:
+    """Reserve one Discord embed for the run summary and report overflow."""
+    max_detail_embeds = DISCORD_MAX_EMBEDS - 1
+    if len(embeds) <= max_detail_embeds:
+        return embeds
+
+    visible = embeds[:max_detail_embeds - 1]
+    omitted = embeds[max_detail_embeds - 1:]
+    omitted_lines = [f"• {embed['title']}" for embed in omitted]
+    visible.append({
+        "title": f"{len(omitted)} more failing suites",
+        "description": _fit_discord_description(omitted_lines),
+        "color": color,
+    })
+    return visible
+
+
+def _fit_discord_description(lines: list[str], max_chars: Optional[int] = None) -> str:
+    """Fit whole summary lines within Discord's description limit."""
+    if max_chars is None:
+        max_chars = DISCORD_DESCRIPTION_MAX_CHARS
+    description = "\n".join(lines)
+    if len(description) <= max_chars:
+        return description
+
+    prior_omitted = 0
+    content_lines = []
+    for line in lines:
+        omission_match = re.match(r"^…and (\d+) more failed files;", line)
+        if omission_match:
+            prior_omitted += int(omission_match.group(1))
+        else:
+            content_lines.append(line)
+
+    total_file_lines = prior_omitted + sum(line.startswith("• `") for line in content_lines)
+    fitted: list[str] = []
+    included_file_lines = 0
+    for line in content_lines:
+        next_file_count = included_file_lines + int(line.startswith("• `"))
+        omitted = total_file_lines - next_file_count
+        omission_line = f"…and {omitted} more failed files; see the full test report."
+        candidate = "\n".join([*fitted, line, omission_line])
+        if len(candidate) > max_chars:
+            break
+        fitted.append(line)
+        included_file_lines = next_file_count
+
+    omitted = total_file_lines - included_file_lines
+    fitted.append(f"…and {omitted} more failed files; see the full test report.")
+    return "\n".join(fitted)
+
+
+def _fit_discord_embed_total(embeds: list[dict]) -> list[dict]:
+    """Keep the full Discord message within its aggregate embed text cap."""
+    fitted = [dict(embed) for embed in embeds]
+
+    def total_chars() -> int:
+        return sum(
+            len(str(embed.get("title", ""))) + len(str(embed.get("description", "")))
+            for embed in fitted
+        )
+
+    overage = total_chars() - DISCORD_EMBED_TOTAL_MAX_CHARS
+    if overage <= 0:
+        return fitted
+
+    # Detail embeds start after the run summary. Trim longest file lists first,
+    # retaining enough space for each suite's critical-area block.
+    detail_indexes = sorted(
+        range(1, len(fitted)),
+        key=lambda index: len(str(fitted[index].get("description", ""))),
+        reverse=True,
+    )
+    for index in detail_indexes:
+        if overage <= 0:
+            break
+        description = str(fitted[index].get("description", ""))
+        minimum_chars = min(len(description), DISCORD_MIN_DETAIL_DESCRIPTION_CHARS)
+        reducible = len(description) - minimum_chars
+        if reducible <= 0:
+            continue
+        target_chars = len(description) - min(overage, reducible)
+        fitted[index]["description"] = _fit_discord_description(
+            description.splitlines(), target_chars
+        )
+        overage = total_chars() - DISCORD_EMBED_TOTAL_MAX_CHARS
+    return fitted
+
+
+def _apple_remote_commands_for_nightly() -> list[tuple[str, tuple[str, ...]]]:
+    """Return serialized Apple Remote commands for the nightly suite."""
+    raw = os.getenv("OPENMATES_APPLE_REMOTE_NIGHTLY_COMMANDS", "").strip()
+    if not raw:
+        return list(APPLE_REMOTE_NIGHTLY_COMMANDS)
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        _log(f"Invalid OPENMATES_APPLE_REMOTE_NIGHTLY_COMMANDS JSON: {exc}; using defaults", "WARN")
+        return list(APPLE_REMOTE_NIGHTLY_COMMANDS)
+
+    if not isinstance(parsed, list):
+        _log("OPENMATES_APPLE_REMOTE_NIGHTLY_COMMANDS must be a JSON list; using defaults", "WARN")
+        return list(APPLE_REMOTE_NIGHTLY_COMMANDS)
+
+    commands: list[tuple[str, tuple[str, ...]]] = []
+    for index, entry in enumerate(parsed, start=1):
+        label = f"apple-remote-{index}"
+        command: object = entry
+        if isinstance(entry, dict):
+            label = str(entry.get("name") or label)
+            command = entry.get("command")
+        if not isinstance(command, list) or not all(isinstance(part, str) for part in command):
+            _log(f"Ignoring invalid Apple Remote command entry #{index}", "WARN")
+            continue
+        commands.append((label, tuple(command)))
+    return commands
+
+
+def _print_test_catalog() -> None:
+    """Print deterministic catalog entries used by spec evidence checks."""
+    for entry in ACCOUNT_IMPORT_TEST_CATALOG:
+        print(entry)
+
+
 def _test_recording_slug(spec_name: str) -> str:
     """Return a stable URL/S3-safe slug for a Playwright spec file."""
     slug = spec_name.replace(".spec.ts", "").replace(".test.ts", "")
@@ -260,12 +665,52 @@ def _print_flaky_report() -> None:
 
     ranked.sort(key=lambda x: (-x[3], -x[1]))  # rate desc, then count desc
 
-    print(f"\nTop flaky tests ({len(ranked)} total):\n")
+    print(f"\nTop flaky tests ({len(ranked)} total, ADVISORY):\n")
     print(f"{'Rate':>6}  {'Flaky/Total':>12}  {'Last Flaky':<12}  Test")
     print(f"{'─' * 6}  {'─' * 12}  {'─' * 12}  {'─' * 40}")
     for key, flaky, total, rate, last_date in ranked[:15]:
         print(f"{rate:5.0%}   {flaky:>4}/{total:<6}  {last_date:<12}  {key}")
     print()
+
+
+def record_flake_history(run_data: dict) -> None:
+    """Persist bounded retry metrics without errors, logs, or test contents."""
+    run_id = str(run_data.get("run_id") or "")
+    if not run_id:
+        return
+    history_path = RESULTS_DIR / "flaky-history.json"
+    try:
+        history = json.loads(history_path.read_text(encoding="utf-8")) if history_path.is_file() else {}
+    except (json.JSONDecodeError, OSError):
+        history = {}
+    recorded_run_ids = set(history.get("recorded_run_ids") or [])
+    if run_id in recorded_run_ids:
+        return
+
+    tests = history.setdefault("tests", {})
+    for suite_name, suite in (run_data.get("suites") or {}).items():
+        if suite_name != "playwright" or not isinstance(suite, dict):
+            continue
+        for test in suite.get("tests") or []:
+            if not isinstance(test, dict):
+                continue
+            name = str(test.get("file") or test.get("name") or "")
+            if not name:
+                continue
+            entry = tests.setdefault(f"playwright::{name}", {"total_runs": 0, "flaky_count": 0})
+            entry["total_runs"] = int(entry.get("total_runs", 0)) + 1
+            entry["last_run_id"] = run_id
+            entry["last_status"] = str(test.get("status") or "unknown")
+            attempt_statuses = [str(status) for status in test.get("attempt_statuses") or []]
+            if attempt_statuses:
+                entry["last_attempt_statuses"] = attempt_statuses
+            if test.get("flaky"):
+                entry["flaky_count"] = int(entry.get("flaky_count", 0)) + 1
+                entry["last_flaky_date"] = datetime.now(timezone.utc).date().isoformat()
+
+    history["schema_version"] = 1
+    history["recorded_run_ids"] = sorted([*recorded_run_ids, run_id])[-500:]
+    _safe_write_json(history_path, history)
 
 
 def _record_unified_test_state(data: dict) -> None:
@@ -277,6 +722,7 @@ def _record_unified_test_state(data: dict) -> None:
     if spec is None or spec.loader is None:
         return
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     module.record_run_result(data)
 
@@ -290,6 +736,10 @@ def _log(msg: str, level: str = "INFO") -> None:
 
 def _git_info() -> tuple[str, str]:
     """Return (short_sha, branch)."""
+    subject_commit = os.environ.get("OPENMATES_TEST_SUBJECT_COMMIT", "").strip()
+    if subject_commit:
+        return subject_commit[:9], "dev"
+
     sha = "unknown"
     branch = "unknown"
     try:
@@ -306,9 +756,21 @@ def _git_info() -> tuple[str, str]:
     return sha, branch
 
 
+def _full_git_sha(git_ref: str) -> str:
+    """Resolve a display ref to the full commit SHA required by actions/checkout."""
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(PROJECT_ROOT), "rev-parse", git_ref],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except (OSError, subprocess.SubprocessError):
+        return git_ref
+
+
 def _read_env_file() -> dict[str, str]:
-    """Read .env file from project root."""
-    env_path = PROJECT_ROOT / ".env"
+    """Read .env from the shared control-plane checkout."""
+    env_path = CONTROL_PLANE_ROOT / ".env"
     env_vars: dict[str, str] = {}
     if not env_path.is_file():
         return env_vars
@@ -333,9 +795,65 @@ def _get_env(key: str, dot_env: Optional[dict] = None, default: str = "") -> str
     return val or default
 
 
+def _docker_container_env(container: str, key: str) -> tuple[Optional[str], Optional[str]]:
+    try:
+        proc = subprocess.run(
+            ["docker", "exec", container, "printenv", key],
+            cwd=str(PROJECT_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except FileNotFoundError:
+        return None, "docker CLI is unavailable"
+    except subprocess.TimeoutExpired:
+        return None, f"docker exec {container} printenv {key} timed out"
+
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or f"{key} is unset").strip()
+        return None, detail[:200]
+    return proc.stdout.strip(), None
+
+
+def _development_backend_live_mock_preflight_error() -> Optional[str]:
+    if os.getenv("OPENMATES_E2E_BACKEND_MOCK_PREFLIGHT", "1") in BACKEND_LIVE_MOCK_PREFLIGHT_DISABLED_VALUES:
+        _log("Backend live-mock preflight disabled via OPENMATES_E2E_BACKEND_MOCK_PREFLIGHT", "WARN")
+        return None
+
+    problems: list[str] = []
+    for container in BACKEND_LIVE_MOCK_PREFLIGHT_CONTAINERS:
+        values: dict[str, str] = {}
+        read_errors: set[str] = set()
+        for key in ("SERVER_ENVIRONMENT", "MOCK_EXTERNAL_APIS"):
+            value, error = _docker_container_env(container, key)
+            if error:
+                problems.append(f"{container}: cannot read {key} ({error})")
+                read_errors.add(key)
+                continue
+            values[key] = value or ""
+
+        server_env = values.get("SERVER_ENVIRONMENT", "").strip().lower()
+        mock_external_apis = values.get("MOCK_EXTERNAL_APIS", "").strip()
+        if "SERVER_ENVIRONMENT" not in read_errors and server_env in {"", "production", "prod"}:
+            problems.append(f"{container}: SERVER_ENVIRONMENT={values.get('SERVER_ENVIRONMENT') or '<unset>'}")
+        if "MOCK_EXTERNAL_APIS" not in read_errors and mock_external_apis != "true":
+            problems.append(f"{container}: MOCK_EXTERNAL_APIS={mock_external_apis or '<unset>'}")
+
+    if not problems:
+        return None
+
+    joined = "; ".join(problems)
+    return (
+        "Backend live-mock preflight failed. Playwright was about to dispatch with "
+        "cached live mocks enabled, but dev backend containers would ignore live-mock markers: "
+        f"{joined}. Set MOCK_EXTERNAL_APIS=true, restart the affected dev services, or run "
+        "with --no-mocks for an intentional real-provider run."
+    )
+
+
 def _vercel_project_config() -> tuple[str, str]:
     """Return (team_id, project_id) for the web app Vercel project."""
-    project_json = PROJECT_ROOT / "frontend" / "apps" / "web_app" / ".vercel" / "project.json"
+    project_json = CONTROL_PLANE_ROOT / "frontend" / "apps" / "web_app" / ".vercel" / "project.json"
     if not project_json.is_file():
         raise RuntimeError(f"Vercel project config not found: {project_json}")
     try:
@@ -360,6 +878,38 @@ def _vercel_api_get(path: str, token: str, params: dict[str, str | int]) -> dict
     with urllib.request.urlopen(request, timeout=30) as response:
         raw = response.read().decode("utf-8")
     return json.loads(raw)
+
+
+def _vercel_api_post(
+    path: str,
+    token: str,
+    params: dict[str, str | int],
+    payload: dict,
+) -> dict:
+    """POST JSON to the Vercel REST API."""
+    query = urllib.parse.urlencode(params)
+    request = urllib.request.Request(
+        f"{VERCEL_API}{path}?{query}",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        raw = response.read().decode("utf-8")
+    return json.loads(raw)
+
+
+def _redeploy_vercel_deployment(token: str, team_id: str, deployment_id: str) -> dict:
+    """Request one fresh build for a canceled development deployment."""
+    return _vercel_api_post(
+        "/v13/deployments",
+        token,
+        {"teamId": team_id, "forceNew": 1},
+        {"deploymentId": deployment_id},
+    )
 
 
 def _latest_vercel_deployment_for_sha(
@@ -388,22 +938,34 @@ def _latest_vercel_deployment_for_sha(
     return None
 
 
-def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> bool:
+def _deployment_matches_commit(deployment: dict, git_sha: str, *, exact: bool) -> bool:
+    """Return whether a deployment can prove the requested commit mode."""
+    if not exact:
+        state = str(deployment.get("state", deployment.get("readyState", ""))).upper()
+        return state == "READY"
+    deployed_sha = str((deployment.get("meta") or {}).get("githubCommitSha", ""))
+    requested = str(git_sha or "")
+    return bool(requested and deployed_sha and (deployed_sha.startswith(requested) or requested.startswith(deployed_sha)))
+
+
+def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> tuple[bool, str]:
     """Block Playwright dispatch until Vercel has deployed the current dev commit."""
     if _get_env("OPENMATES_SKIP_VERCEL_WAIT", dot_env).lower() == "true":
         _log("OPENMATES_SKIP_VERCEL_WAIT=true — skipping Vercel wait", "WARN")
-        return True
+        return True, ""
 
     token = _get_env("VERCEL_TOKEN", dot_env)
     if not token:
-        _log("VERCEL_TOKEN is required before running development Playwright specs", "ERROR")
-        return False
+        reason = "VERCEL_TOKEN is required before running development Playwright specs"
+        _log(reason, "ERROR")
+        return False, reason
 
     try:
         team_id, project_id = _vercel_project_config()
     except RuntimeError as exc:
-        _log(str(exc), "ERROR")
-        return False
+        reason = str(exc)
+        _log(reason, "ERROR")
+        return False, reason
 
     timeout = int(_get_env("OPENMATES_VERCEL_WAIT_TIMEOUT", dot_env, str(VERCEL_WAIT_TIMEOUT)))
     poll_interval = int(
@@ -411,6 +973,8 @@ def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> bool:
     )
     deadline = time.time() + timeout
     last_status = "not found"
+    redeploy_attempted = False
+    canceled_deployment_id: Optional[str] = None
 
     _log(f"Waiting for Vercel dev deployment for commit {git_sha} before Playwright specs...")
     while time.time() < deadline:
@@ -437,21 +1001,101 @@ def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> bool:
 
         if state == "READY":
             _log("Vercel deployment is Ready — dispatching Playwright specs", "OK")
-            return True
-        if state in {"ERROR", "CANCELED"}:
-            _log(
-                f"Vercel deployment {deploy_id} is {state}; fix the deployment before running specs",
-                "ERROR",
-            )
-            return False
+            return True, ""
+        error_message = str(deployment.get("errorMessage") or "").strip()
+        detail = f": {error_message}" if error_message else ""
+        if state == "CANCELED":
+            if redeploy_attempted:
+                # Vercel can briefly return the old canceled deployment while
+                # the replacement is being created. Wait for a different result.
+                if str(deploy_id) == canceled_deployment_id:
+                    time.sleep(poll_interval)
+                    continue
+                reason = f"Vercel deployment {deploy_id} is CANCELED after one retry{detail}"
+                _log(reason, "ERROR")
+                return False, reason
+            try:
+                _redeploy_vercel_deployment(token, team_id, str(deploy_id))
+            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+                reason = f"Vercel deployment {deploy_id} is CANCELED and retry failed: {exc}{detail}"
+                _log(reason, "ERROR")
+                return False, reason
+            redeploy_attempted = True
+            canceled_deployment_id = str(deploy_id)
+            last_status = "redeploy requested"
+            _log(f"Vercel deployment {deploy_id} is CANCELED; requested one retry", "WARN")
+        elif state == "ERROR":
+            reason = f"Vercel deployment {deploy_id} is ERROR{detail}"
+            _log(reason, "ERROR")
+            return False, reason
 
         time.sleep(poll_interval)
 
-    _log(
-        f"Timed out after {timeout}s waiting for Vercel deployment for {git_sha} (last status: {last_status})",
-        "ERROR",
+    reason = f"Timed out after {timeout}s waiting for Vercel deployment for {git_sha} (last status: {last_status})"
+    _log(reason, "ERROR")
+    return False, reason
+
+
+def _not_started_playwright_specs(specs: list[str], reason: str) -> list[dict]:
+    """Preserve every undispatched spec in the daily result instead of hiding it."""
+    return [
+        {
+            "name": spec,
+            "status": "not_started",
+            "duration_seconds": 0,
+            "error": reason,
+        }
+        for spec in specs
+    ]
+
+
+def _validate_requested_playwright_spec(spec_name: str, deployed_git_ref: str | None = None) -> str:
+    """Return a dispatch-blocking error for missing or uncommitted specs."""
+    if not spec_name.endswith(".spec.ts"):
+        return f"Playwright specs must end with .spec.ts: {spec_name}"
+
+    spec_path = (SPEC_DIR / spec_name).resolve()
+    try:
+        spec_path.relative_to(SPEC_DIR.resolve())
+    except ValueError:
+        return f"Spec path escapes Playwright spec directory: {spec_name}"
+
+    if not spec_path.is_file():
+        try:
+            display_path = str(spec_path.relative_to(PROJECT_ROOT))
+        except ValueError:
+            display_path = str(spec_path)
+        return f"Spec file not found: {display_path}"
+
+    try:
+        rel_path = str(spec_path.relative_to(PROJECT_ROOT))
+    except ValueError:
+        return f"Spec file is outside the repository: {spec_path}"
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", rel_path],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
-    return False
+    if tracked.returncode != 0:
+        deployed = None
+        if deployed_git_ref:
+            deployed = subprocess.run(
+                ["git", "cat-file", "-e", f"{deployed_git_ref}:{rel_path}"],
+                cwd=PROJECT_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        if deployed is not None and deployed.returncode == 0:
+            return ""
+        return (
+            f"Spec file is untracked and cannot run in GitHub Actions until deployed: {rel_path}. "
+            "Track it in the active session and deploy with scripts/sessions.py deploy first."
+        )
+
+    return ""
 
 
 def _safe_write_json(path: Path, data: dict) -> None:
@@ -470,6 +1114,10 @@ def _safe_write_json(path: Path, data: dict) -> None:
 # unless boosted. Be conservative: cap to 5 files at 2 MB each.
 DISCORD_MAX_ATTACHMENTS = 5
 DISCORD_MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024
+DISCORD_DESCRIPTION_MAX_CHARS = 4000
+DISCORD_MAX_EMBEDS = 10
+DISCORD_EMBED_TOTAL_MAX_CHARS = 6000
+DISCORD_MIN_DETAIL_DESCRIPTION_CHARS = 300
 
 # ---------------------------------------------------------------------------
 # Discord per-test deduplication state (OPE-349 follow-up)
@@ -732,8 +1380,9 @@ def _configured_preflight_accounts(results: list[SpecResult]) -> list[dict]:
 class GitHubActionsClient:
     """Wraps the `gh` CLI for workflow dispatch and status polling."""
 
-    def __init__(self) -> None:
+    def __init__(self, git_sha: Optional[str] = None) -> None:
         self.last_dispatch_error: Optional[str] = None
+        self.git_sha = git_sha
         self._check_gh()
 
     def _check_gh(self) -> None:
@@ -748,7 +1397,15 @@ class GitHubActionsClient:
             _log("gh not authenticated. Run: gh auth login", "ERROR")
             sys.exit(1)
 
-    def dispatch_spec(self, spec: str, account: int, use_mocks: bool = True) -> Optional[int]:
+    def dispatch_spec(
+        self,
+        spec: str,
+        account: int,
+        use_mocks: bool = True,
+        record_live_fixtures: bool = False,
+        create_account_slot: Optional[int] = None,
+        allow_credential_updates: bool = True,
+    ) -> Optional[int]:
         """
         Dispatch a single spec workflow run.
         Returns the run ID or None on failure.
@@ -757,16 +1414,25 @@ class GitHubActionsClient:
         dispatch_token = f"rt-{os.getpid()}-{time.time_ns()}-{account}"
 
         # playwright-spec.yml: lightweight 1-job workflow per spec
+        command = [
+            "gh", "workflow", "run", WORKFLOW_NAME,
+            "--repo", GH_REPO,
+            "--ref", GH_BRANCH,
+            "-f", f"spec={spec}",
+            "-f", f"account={account}",
+            "-f", f"use_mocks={'true' if use_mocks else 'false'}",
+            "-f", f"use_live_mocks={'true' if use_mocks else 'false'}",
+            "-f", f"record_live_fixtures={'true' if record_live_fixtures else 'false'}",
+            "-f", f"allow_credential_updates={'true' if allow_credential_updates else 'false'}",
+            "-f", f"dispatch_token={dispatch_token}",
+        ]
+        if self.git_sha:
+            command.extend(["-f", f"checkout_ref={self.git_sha}"])
+        if create_account_slot is not None:
+            command.extend(["-f", f"create_account_slot={create_account_slot}"])
+
         rc = subprocess.run(
-            ["gh", "workflow", "run", WORKFLOW_NAME,
-             "--repo", GH_REPO,
-             "--ref", GH_BRANCH,
-             "-f", f"spec={spec}",
-             "-f", f"account={account}",
-             "-f", f"use_mocks={'true' if use_mocks else 'false'}",
-             "-f", f"use_live_mocks={'true' if use_mocks else 'false'}",
-             "-f", "record_live_fixtures=false",
-             "-f", f"dispatch_token={dispatch_token}"],
+            command,
             capture_output=True, text=True,
         )
         if rc.returncode != 0:
@@ -1028,6 +1694,12 @@ def _passed_preflight_slots(results: list[SpecResult]) -> frozenset[int]:
     )
 
 
+def _passed_normal_preflight_slots(results: list[SpecResult]) -> tuple[int, ...]:
+    """Return healthy normal account slots in stable dispatch order."""
+    passed_slots = _passed_preflight_slots(results)
+    return tuple(slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS if slot in passed_slots)
+
+
 def _apply_preflight_account_availability(
     specs: list[str],
     preflight_results: list[SpecResult],
@@ -1084,14 +1756,20 @@ class BatchRunner:
         batch_size: int = 20,
         fail_fast: bool = True,
         use_mocks: bool = True,
+        record_live_fixtures: bool = False,
         normal_account_slots: tuple[int, ...] = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS,
+        create_account_slot: Optional[int] = None,
+        allow_credential_updates: bool = True,
     ) -> None:
         self.client = client
         self.specs = specs
         self.batch_size = batch_size
         self.fail_fast = fail_fast
         self.use_mocks = use_mocks
+        self.record_live_fixtures = record_live_fixtures
         self.normal_account_slots = normal_account_slots
+        self.create_account_slot = create_account_slot
+        self.allow_credential_updates = allow_credential_updates
 
     def run_all_batches(self) -> SuiteResult:
         """Execute all specs in batches. Returns aggregated SuiteResult."""
@@ -1166,11 +1844,26 @@ class BatchRunner:
                 normal_account_index += 1
             _log(f"  Dispatching {spec} (account {account})")
 
-            run_id = self.client.dispatch_spec(spec, account, self.use_mocks)
+            create_account_slot = self.create_account_slot if spec == PROVISION_AUTH_ACCOUNTS_SPEC else None
+            run_id = self.client.dispatch_spec(
+                spec,
+                account,
+                self.use_mocks,
+                self.record_live_fixtures,
+                create_account_slot=create_account_slot,
+                allow_credential_updates=self.allow_credential_updates,
+            )
             if run_id is None:
                 # Retry once
                 time.sleep(5)
-                run_id = self.client.dispatch_spec(spec, account, self.use_mocks)
+                run_id = self.client.dispatch_spec(
+                    spec,
+                    account,
+                    self.use_mocks,
+                    self.record_live_fixtures,
+                    create_account_slot=create_account_slot,
+                    allow_credential_updates=self.allow_credential_updates,
+                )
 
             if run_id is None:
                 dispatch_errors.append(SpecResult(
@@ -1221,7 +1914,13 @@ class BatchRunner:
             pw_steps: list[dict] = []
             screenshot_paths: list[str] = []
             video_paths: list[str] = []
+            debug_artifacts: list[str] = []
+            debug_output_summary: Optional[str] = None
+            environment_blocker: Optional[str] = None
             account_email: Optional[str] = None
+            retries = 0
+            flaky = False
+            attempt_statuses: list[str] = []
 
             art_name = f"playwright-{spec.replace('/', '-')}"
             art_path = self.client.download_artifact(rid, art_name, artifact_dir)
@@ -1234,6 +1933,11 @@ class BatchRunner:
                     extracted_err, pw_errors, pw_steps, pw_result_statuses = (
                         self._extract_structured_data_from_playwright_json(pw_json)
                     )
+                    attempt_summary = self._playwright_attempt_summary(pw_json)
+                    pw_result_statuses = attempt_summary["terminal_statuses"]
+                    retries = int(attempt_summary["retries"])
+                    flaky = bool(attempt_summary["flaky"])
+                    attempt_statuses = list(attempt_summary["attempt_statuses"])
                     account_email = self._extract_account_email_from_playwright_json(pw_json)
                     if status == "passed" and pw_result_statuses:
                         non_passing_statuses = {
@@ -1250,6 +1954,12 @@ class BatchRunner:
                             error = extracted_err or f"Playwright JSON reported non-passing result(s): {status_summary}"
                     if extracted_err and status == "failed":
                         error = extracted_err
+                    debug_summary = self._persist_playwright_debug_outputs(spec, pw_json)
+                    debug_artifacts = list(debug_summary.get("artifact_paths") or [])
+                    debug_output_summary = str(debug_summary.get("summary") or "") or None
+                    environment_blocker = self._environment_blocker_from_text(
+                        "\n".join(part for part in [error or "", debug_output_summary or ""] if part)
+                    )
 
                 # Persist artifacts (screenshots, traces, playwright.json)
                 self._persist_failure_artifacts(spec, art_path)
@@ -1285,12 +1995,16 @@ class BatchRunner:
             results.append(SpecResult(
                 name=spec, file=spec, status=status,
                 error=error, run_id=rid, account=account, account_email=account_email,
+                retries=retries, flaky=flaky, attempt_statuses=attempt_statuses,
                 playwright_errors=pw_errors,
                 steps=pw_steps,
                 screenshot_paths=screenshot_paths,
                 video_paths=video_paths,
                 video_artifact_name=art_name if video_paths else None,
                 github_run_url=f"https://github.com/{GH_REPO}/actions/runs/{rid}" if rid else None,
+                debug_artifacts=debug_artifacts,
+                debug_output_summary=debug_output_summary,
+                environment_blocker=environment_blocker,
             ))
 
         # Cleanup artifact dir
@@ -1395,6 +2109,56 @@ class BatchRunner:
         return first_error, errors, steps, result_statuses
 
     @staticmethod
+    def _playwright_attempt_summary(pw_json: Path) -> dict[str, object]:
+        """Normalize terminal Playwright attempts while preserving flake evidence."""
+        terminal_statuses: list[str] = []
+        attempt_statuses: list[str] = []
+        retries = 0
+        flaky = False
+
+        def process_suite(suite: dict) -> None:
+            nonlocal retries, flaky
+            for spec in suite.get("specs", []):
+                for test in spec.get("tests", []):
+                    results = test.get("results", [])
+                    if not results:
+                        continue
+                    statuses = [str(result.get("status") or "") for result in results if result.get("status")]
+                    attempt_statuses.extend(statuses)
+                    if not statuses:
+                        continue
+                    has_retry_metadata = any("retry" in result for result in results)
+                    terminal_index = max(
+                        range(len(results)),
+                        key=lambda index: int(results[index].get("retry", index) or 0),
+                    ) if has_retry_metadata else len(results) - 1
+                    terminal_status = str(results[terminal_index].get("status") or "")
+                    if terminal_status:
+                        terminal_statuses.append(terminal_status)
+                    retries += max(0, len(results) - 1)
+                    if terminal_status == "passed" and any(
+                        status not in {"passed", "skipped"} for status in statuses[:terminal_index]
+                    ):
+                        flaky = True
+            for child_suite in suite.get("suites", []):
+                process_suite(child_suite)
+
+        try:
+            with pw_json.open(encoding="utf-8") as handle:
+                data = json.load(handle)
+            for suite in data.get("suites", []):
+                process_suite(suite)
+        except (json.JSONDecodeError, OSError) as exc:
+            _log(f"Failed to summarize Playwright attempts: {exc}", "WARN")
+
+        return {
+            "terminal_statuses": terminal_statuses,
+            "attempt_statuses": attempt_statuses,
+            "retries": retries,
+            "flaky": flaky,
+        }
+
+    @staticmethod
     def _extract_account_email_from_playwright_json(pw_json: Path) -> Optional[str]:
         """Extract the configured test account email from preflight stdout."""
         marker = 'meta={"email":"'
@@ -1423,6 +2187,80 @@ class BatchRunner:
         except Exception as e:
             _log(f"Failed to extract preflight account email: {e}", "WARN")
         return None
+
+    @staticmethod
+    def _environment_blocker_from_text(text: str) -> Optional[str]:
+        normalized = " ".join((text or "").lower().split())
+        markers = (
+            "approved_device_required",
+            "new device detected",
+            "device not approved",
+            "a new device attempted to use your api key",
+            "please review and approve it in developer settings",
+        )
+        if any(marker in normalized for marker in markers):
+            return "api_key_device_approval_required"
+        return None
+
+    @staticmethod
+    def _persist_playwright_debug_outputs(spec: str, pw_json: Path) -> dict[str, object]:
+        """Persist full per-attempt stdout/stderr and compact summaries."""
+        spec_name = spec.replace(".spec.ts", "")
+        dest = RESULTS_DIR / "debug" / "current" / spec_name
+        if dest.exists():
+            shutil.rmtree(dest, ignore_errors=True)
+        dest.mkdir(parents=True, exist_ok=True)
+        artifact_paths: list[str] = []
+        summary_parts: list[str] = []
+
+        def write_artifact(name: str, content: str) -> None:
+            path = dest / name
+            path.write_text(content, encoding="utf-8", errors="replace")
+            artifact_paths.append(str(path.relative_to(RESULTS_DIR)))
+
+        def entry_text(entries: object) -> str:
+            if not isinstance(entries, list):
+                return ""
+            chunks: list[str] = []
+            for entry in entries:
+                if isinstance(entry, dict):
+                    chunks.append(str(entry.get("text") or ""))
+                else:
+                    chunks.append(str(entry))
+            return "".join(chunks)
+
+        def process_suite(suite: dict) -> None:
+            for spec_entry in suite.get("specs", []):
+                for test_index, test in enumerate(spec_entry.get("tests", []), start=1):
+                    for result_index, result in enumerate(test.get("results", []), start=1):
+                        retry = result.get("retry", result_index - 1)
+                        prefix = f"attempt-{test_index}-{retry}"
+                        stdout_text = entry_text(result.get("stdout"))
+                        stderr_text = entry_text(result.get("stderr"))
+                        if stdout_text:
+                            write_artifact(f"{prefix}-stdout.txt", stdout_text)
+                            summary_parts.append(stdout_text[-4000:])
+                        if stderr_text:
+                            write_artifact(f"{prefix}-stderr.txt", stderr_text)
+                            summary_parts.append(stderr_text[-4000:])
+                        write_artifact(
+                            f"{prefix}-result.json",
+                            json.dumps(result, indent=2, sort_keys=True),
+                        )
+            for child_suite in suite.get("suites", []):
+                process_suite(child_suite)
+
+        try:
+            data = json.loads(pw_json.read_text(encoding="utf-8"))
+            for suite in data.get("suites", []):
+                process_suite(suite)
+        except (json.JSONDecodeError, OSError) as exc:
+            _log(f"Failed to persist Playwright debug outputs: {exc}", "WARN")
+
+        return {
+            "artifact_paths": artifact_paths,
+            "summary": "\n".join(summary_parts)[-MAX_ERROR_SNIPPET * 4:],
+        }
 
     @staticmethod
     def _persist_failure_artifacts(spec: str, art_path: Path) -> None:
@@ -1604,6 +2442,8 @@ class BatchRunner:
             d["retries"] = r.retries
         if r.flaky:
             d["flaky"] = True
+        if r.attempt_statuses:
+            d["attempt_statuses"] = r.attempt_statuses
         if r.playwright_errors:
             d["playwright_errors"] = r.playwright_errors
         if r.steps:
@@ -1616,6 +2456,12 @@ class BatchRunner:
             d["video_artifact_name"] = r.video_artifact_name
         if r.github_run_url:
             d["github_run_url"] = r.github_run_url
+        if r.debug_artifacts:
+            d["debug_artifacts"] = r.debug_artifacts
+        if r.debug_output_summary:
+            d["debug_output_summary"] = r.debug_output_summary
+        if r.environment_blocker:
+            d["environment_blocker"] = r.environment_blocker
         return d
 
 
@@ -1711,6 +2557,7 @@ class ResultAggregator:
 
         # Write last-run.json (always overwritten)
         _safe_write_json(RESULTS_DIR / "last-run.json", data)
+        record_flake_history(data)
         try:
             _record_unified_test_state(data)
         except Exception as exc:
@@ -1721,6 +2568,15 @@ class ResultAggregator:
     @staticmethod
     def load_failed_specs() -> list[str]:
         """Load previously failed spec files from last-run.json."""
+        seeded_failed = os.getenv("OPENMATES_ONLY_FAILED_FILES_JSON")
+        if seeded_failed:
+            try:
+                decoded = json.loads(seeded_failed)
+            except json.JSONDecodeError:
+                decoded = []
+            if isinstance(decoded, list):
+                return [str(item) for item in decoded if str(item)]
+
         last_run = RESULTS_DIR / "last-run.json"
         if not last_run.is_file():
             _log("No last-run.json found — cannot use --only-failed", "ERROR")
@@ -1806,6 +2662,58 @@ class NotificationService:
         else:
             _log("No email credentials available — skipping start email", "WARN")
 
+    def send_daily_discord_status(
+        self,
+        git_sha: str,
+        git_branch: str,
+        environment: str,
+        run_id: str,
+        elapsed_seconds: float,
+        phase: str,
+        *,
+        started: bool = False,
+    ) -> None:
+        """Post a non-fatal start or running status update for the daily run."""
+        if not self.discord_webhook_url:
+            _log("DISCORD_WEBHOOK_DEV_NIGHTLY not set — skipping daily Discord status", "DEBUG")
+            return
+
+        elapsed_minutes = max(0, int(elapsed_seconds // 60))
+        title = (
+            f"▶️ {environment} nightly — started"
+            if started
+            else f"⏳ {environment} nightly — still running"
+        )
+        description = (
+            f"**Run ID:** `{run_id}`\n"
+            f"**Phase:** {phase}\n"
+            f"**Elapsed:** {elapsed_minutes}m\n"
+            f"**Git:** `{git_sha[:8]}@{git_branch}`"
+        )
+        payload = {
+            "username": "OpenMates Server",
+            "avatar_url": "https://openmates.org/favicon.png",
+            "embeds": [{"title": title, "description": description, "color": 0x3B82F6}],
+        }
+        try:
+            request = urllib.request.Request(
+                self.discord_webhook_url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=30) as response:
+                response.read()
+            _log("Daily Discord start posted" if started else "Daily Discord 30-minute status posted")
+        except urllib.error.HTTPError as error:
+            body = error.read().decode("utf-8", errors="replace") if error.fp else ""
+            _log(f"Daily Discord status POST failed: HTTP {error.code} — {body[:300]}", "ERROR")
+        except Exception as error:
+            _log(f"Daily Discord status POST failed: {error}", "ERROR")
+
     def send_summary_email(self, result: RunResult) -> None:
         """Send test summary email after run completes, plus Discord fallback.
 
@@ -1881,6 +2789,35 @@ class NotificationService:
             self._send_via_internal_api("dispatch-test-summary-email", payload)
         else:
             _log("No email credentials available — skipping urgent essential-flow email", "WARN")
+
+    def send_prod_failure_email(self, result: RunResult, mode_label: str, run_url: Optional[str] = None) -> None:
+        """Send a production smoke failure email from the dev-server runner."""
+        if _problem_count(result.summary) == 0:
+            return
+        if not self.admin_email:
+            _log("ADMIN_NOTIFY_EMAIL not set — cannot send prod smoke failure email", "ERROR")
+            return
+
+        subject = f"[OpenMates] {mode_label} FAILED"
+        text = self._build_summary_text(result)
+        if run_url:
+            text = f"{text}\nGitHub Actions run: {run_url}\n"
+        html = self._build_summary_html(result)
+        if run_url:
+            html = html.replace(
+                "</body></html>",
+                f'<p><a href="{run_url}" style="color:#60a5fa">View GitHub Actions run</a></p></body></html>',
+            )
+
+        if self.brevo_api_key:
+            self._send_via_brevo(subject, text, html)
+        elif self.internal_token:
+            payload = self._build_internal_api_payload(result)
+            payload["subject_override"] = subject
+            payload["run_url"] = run_url
+            self._send_via_internal_api("dispatch-test-summary-email", payload)
+        else:
+            _log("No email credentials available — cannot send prod smoke failure email", "ERROR")
 
     def push_to_openobserve(self, result: RunResult) -> None:
         """Push test run summary to OpenObserve via internal API."""
@@ -2106,44 +3043,6 @@ class NotificationService:
             status_suffix = _problem_summary_label(s)
             title = f"{title_emoji} {result.environment} {mode_label} — {status_suffix}"
 
-        # Build a compact description listing up to the first 10 problem tests
-        # AND their error snippets so readers can act on the alert without
-        # leaving Discord. Each entry: name + per-test GH Actions run link
-        # (when present) + a fenced code block with the truncated error.
-        failed_blocks: list[str] = []
-        max_failures_shown = 5  # keep description well under 4096 chars
-        max_error_chars = 500   # per failure
-        for suite_name, suite_data in result.suites.items():
-            for t in suite_data.get("tests", []):
-                if not _is_problem_status(t.get("status", "")):
-                    continue
-                name = t.get("file", t.get("name", "?"))
-                status = t.get("status", "failed").replace("_", " ")
-                err = (t.get("error") or "").strip()
-                rid = t.get("run_id")
-                # Header line: suite/test name + optional [logs] link.
-                if rid:
-                    rid_url = f"https://github.com/{GH_REPO}/actions/runs/{rid}"
-                    header = f"• `{suite_name}` — **{name}** — `{status}` — [logs]({rid_url})"
-                else:
-                    header = f"• `{suite_name}` — **{name}** — `{status}`"
-                if err:
-                    if len(err) > max_error_chars:
-                        err = err[:max_error_chars - 3].rstrip() + "..."
-                    # Strip backticks so they don't break the fenced block.
-                    err_safe = err.replace("```", "ʼʼʼ")
-                    failed_blocks.append(f"{header}\n```\n{err_safe}\n```")
-                else:
-                    failed_blocks.append(header)
-                if len(failed_blocks) >= max_failures_shown:
-                    break
-            if len(failed_blocks) >= max_failures_shown:
-                break
-
-        remaining = max(0, problem_count - len(failed_blocks))
-        if remaining > 0:
-            failed_blocks.append(f"…and {remaining} more failure(s)")
-
         dur_min = int(result.duration_seconds // 60)
         dur_sec = int(result.duration_seconds % 60)
 
@@ -2155,15 +3054,7 @@ class NotificationService:
         ]
         if run_url:
             description_parts.append(f"**Run:** [GitHub Actions]({run_url})")
-        if failed_blocks:
-            description_parts.append("")
-            description_parts.append("**Failures / Dispatch Errors:**")
-            description_parts.extend(failed_blocks)
-
-        description = "\n".join(description_parts)
-        # Discord caps description at 4096 chars
-        if len(description) > 4000:
-            description = description[:3997] + "..."
+        description = _fit_discord_description(description_parts)
 
         embed: dict = {
             "title": title,
@@ -2173,10 +3064,16 @@ class NotificationService:
         if run_url:
             embed["url"] = run_url
 
+        embeds = [embed]
+        if problem_count:
+            failure_embeds = _build_discord_failure_embeds(result.suites, color)
+            embeds.extend(_limit_discord_failure_embeds(failure_embeds, color))
+        embeds = _fit_discord_embed_total(embeds)
+
         payload = {
             "username": "OpenMates Server",
             "avatar_url": "https://openmates.org/favicon.png",
-            "embeds": [embed],
+            "embeds": embeds,
         }
 
         # Collect attachments. Each path on disk is read into memory once,
@@ -2947,28 +3844,10 @@ class NotificationService:
         status_color = "#22c55e" if problem_count == 0 else "#ef4444"
         status_text = "ALL PASSED" if problem_count == 0 else _problem_summary_label(s).upper()
 
-        # Collect failed tests — prefer structured Playwright errors over GHA logs
-        failed_rows = ""
-        for suite_name, suite_data in result.suites.items():
-            for t in suite_data.get("tests", []):
-                if _is_problem_status(t.get("status", "")):
-                    # Use first structured Playwright error if available
-                    pw_errors = t.get("playwright_errors", [])
-                    if pw_errors:
-                        error = (pw_errors[0].get("message") or "")[:500].replace("<", "&lt;")
-                    else:
-                        error = (t.get("error") or "")[:300].replace("<", "&lt;")
-                    name = t.get("file", t.get("name", "?"))
-                    failed_rows += (
-                        f"<tr><td style='padding:4px 8px'>{suite_name}</td>"
-                        f"<td style='padding:4px 8px'>{name}</td>"
-                        f"<td style='padding:4px 8px;font-size:12px;color:#888'>"
-                        f"<pre style='margin:0;white-space:pre-wrap;max-width:500px'>{error}</pre>"
-                        f"</td></tr>"
-                    )
-
         dur_min = int(result.duration_seconds // 60)
         dur_sec = int(result.duration_seconds % 60)
+        git_ref = escape(f"{result.git_sha}@{result.git_branch}")
+        environment = escape(str(result.environment))
 
         html = f"""<html><body style="font-family:monospace;background:#1a1a2e;color:#e0e0e0;padding:20px">
 <h2 style="color:{status_color}">{status_text}</h2>
@@ -2980,16 +3859,27 @@ class NotificationService:
 <tr><td style="padding:4px 12px 4px 0;color:#888">Skipped</td><td>{s['skipped']}</td></tr>
 <tr><td style="padding:4px 12px 4px 0;color:#888">Not started</td><td>{s.get('not_started', 0)}</td></tr>
 <tr><td style="padding:4px 12px 4px 0;color:#888">Duration</td><td>{dur_min}m {dur_sec}s</td></tr>
-<tr><td style="padding:4px 12px 4px 0;color:#888">Git</td><td>{result.git_sha}@{result.git_branch}</td></tr>
-<tr><td style="padding:4px 12px 4px 0;color:#888">Environment</td><td>{result.environment}</td></tr>
+<tr><td style="padding:4px 12px 4px 0;color:#888">Git</td><td>{git_ref}</td></tr>
+<tr><td style="padding:4px 12px 4px 0;color:#888">Environment</td><td>{environment}</td></tr>
 </table>"""
 
-        if failed_rows:
-            html += f"""<h3 style="color:#ef4444;margin-top:20px">Failed Tests / Dispatch Errors</h3>
-<table style="border-collapse:collapse;width:100%;font-size:13px">
-<tr style="color:#888"><th style="text-align:left;padding:4px 8px">Suite</th><th style="text-align:left;padding:4px 8px">Test</th><th style="text-align:left;padding:4px 8px">Error</th></tr>
-{failed_rows}
-</table>"""
+        if problem_count:
+            html += '<h3 style="color:#ef4444;margin-top:20px">Failures by suite and product area</h3>'
+            failure_embeds = _build_discord_failure_embeds(
+                result.suites,
+                color=0xEF4444,
+                truncate_descriptions=False,
+            )
+            for failure_embed in failure_embeds:
+                title = escape(str(failure_embed["title"]))
+                description = escape(
+                    _plain_notification_text(str(failure_embed["description"]))
+                )
+                html += (
+                    f'<h4 style="margin:18px 0 6px">{title}</h4>'
+                    f'<pre style="margin:0;white-space:pre-wrap;font-size:13px">'
+                    f'{description}</pre>'
+                )
 
         html += "</body></html>"
         return html
@@ -3012,21 +3902,17 @@ class NotificationService:
         ]
 
         if _problem_count(s) > 0:
-            lines.append("Failed Tests / Dispatch Errors:")
+            lines.append("Failures by suite and product area:")
             lines.append("-" * 40)
-            for suite_name, suite_data in result.suites.items():
-                for t in suite_data.get("tests", []):
-                    if _is_problem_status(t.get("status", "")):
-                        name = t.get("file", t.get("name", "?"))
-                        # Prefer structured Playwright error
-                        pw_errors = t.get("playwright_errors", [])
-                        if pw_errors:
-                            error = (pw_errors[0].get("message") or "")[:400]
-                        else:
-                            error = (t.get("error") or "")[:200]
-                        lines.append(f"  [{suite_name}] {name}")
-                        if error:
-                            lines.append(f"    {error}")
+            failure_embeds = _build_discord_failure_embeds(
+                result.suites,
+                color=0xEF4444,
+                truncate_descriptions=False,
+            )
+            for failure_embed in failure_embeds:
+                lines.append(str(failure_embed["title"]))
+                lines.append(_plain_notification_text(str(failure_embed["description"])))
+                lines.append("")
             lines.append("")
 
         return "\n".join(lines)
@@ -3143,6 +4029,13 @@ def _archive_hourly_run(archive_dir: Path, result: RunResult) -> Path:
     return run_file
 
 
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(path)
+
+
 def _heartbeat_should_fire(archive_dir: Path) -> bool:
     """Return True at most once per UTC day.
 
@@ -3218,6 +4111,7 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
         batch_size=len(HOURLY_DEV_SPECS),  # one batch — small list
         fail_fast=False,                    # always run all 4, surface every failure
         use_mocks=True,
+        normal_account_slots=CORE_JOURNEY_ACCOUNT_SLOTS,
     )
     suite_result = runner.run_all_batches()
     duration = time.time() - start
@@ -3233,7 +4127,7 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
     )
 
     archive_path = _archive_hourly_run(HOURLY_DEV_DIR, result)
-    _log(f"Archived hourly-dev run to {archive_path.relative_to(PROJECT_ROOT)}")
+    _log(f"Archived hourly-dev run to {_display_path(archive_path)}")
 
     s = result.summary
     print()
@@ -3285,23 +4179,28 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
     return 1 if problem_count > 0 else 0
 
 
-# prod-smoke.yml writes one playwright JSON file per spec into the artifact:
-# test-results/{reachability,signup}.json. We use these as the source of
-# truth for per-spec status. Step `conclusion` is unreliable here because
-# every step uses `continue-on-error: true && exit 0`, so all step
-# conclusions are `success` even when the underlying spec failed.
+# prod-smoke.yml writes one JSON file per selected suite into the artifact:
+# test-results/{reachability,paid-chat,app-skill-web-search}.json. We use these
+# as the source of truth for per-suite status. Step `conclusion` is unreliable
+# here because selected steps use `continue-on-error: true && exit 0`, so step
+# conclusions are `success` even when the underlying command failed.
 PROD_SMOKE_SPECS: list[tuple[str, str, str]] = [
     # (key, human-readable label, spec filename)
     ("reachability", "reachability spec", "prod-smoke-reachability.spec.ts"),
-    (
-        "signup",
-        "signup + gift card + chat + login + history + chat + delete spec",
-        "prod-smoke-signup-giftcard-chat.spec.ts",
-    ),
+    ("paid-chat", "CLI paid chat smoke", "verify_prod_cli_smoke.py"),
+    ("app-skill-web-search", "CLI web-search app-skill smoke", "verify_prod_cli_smoke.py"),
 ]
+PROD_SMOKE_SPECS_BY_SUITE: dict[str, list[tuple[str, str, str]]] = {
+    PROD_SMOKE_SUITE_FREE_HOURLY: [PROD_SMOKE_SPECS[0]],
+    PROD_SMOKE_SUITE_PAID_CHAT: [PROD_SMOKE_SPECS[1]],
+    PROD_SMOKE_SUITE_APP_SKILL_WEB_SEARCH: [PROD_SMOKE_SPECS[2]],
+}
 
 
-def _parse_prod_smoke_artifact(art_path: Path) -> list[dict]:
+def _parse_prod_smoke_artifact(
+    art_path: Path,
+    specs: Optional[list[tuple[str, str, str]]] = None,
+) -> list[dict]:
     """Parse per-spec results from a downloaded prod-smoke artifact.
 
     Returns one dict per spec in the order they ran:
@@ -3320,8 +4219,10 @@ def _parse_prod_smoke_artifact(art_path: Path) -> list[dict]:
         return []
 
     # The JSON files live under one of these locations depending on how the
-    # artifact was unpacked. Try both.
+    # artifact was unpacked. GitHub flattens uploaded directory contents in
+    # some cases, so the artifact root itself is a valid candidate.
     candidates = [
+        art_path,
         art_path / "test-results",
         art_path / f"prod-smoke-results-{art_path.name}" / "test-results",
     ]
@@ -3334,13 +4235,16 @@ def _parse_prod_smoke_artifact(art_path: Path) -> list[dict]:
                     candidates.append(inner)
                     break
 
-    base: Optional[Path] = next((c for c in candidates if c.is_dir()), None)
-    if base is None:
+    candidate_dirs = [c for c in candidates if c.is_dir()]
+    if not candidate_dirs:
         return []
 
     out: list[dict] = []
-    for spec_key, spec_label, spec_filename in PROD_SMOKE_SPECS:
-        json_path = base / f"{spec_key}.json"
+    for spec_key, spec_label, spec_filename in (specs or PROD_SMOKE_SPECS):
+        json_path = next(
+            (candidate / f"{spec_key}.json" for candidate in candidate_dirs if (candidate / f"{spec_key}.json").is_file()),
+            candidate_dirs[0] / f"{spec_key}.json",
+        )
         if not json_path.is_file() or json_path.stat().st_size == 0:
             out.append({
                 "key": spec_key,
@@ -3385,6 +4289,35 @@ def _parse_prod_smoke_artifact(art_path: Path) -> list[dict]:
             })
             continue
 
+        # CLI verifier JSON: {status, scenarios: {name: {status, error?}}}
+        if "scenarios" in data and data.get("status") in {"passed", "failed"}:
+            scenarios = data.get("scenarios") if isinstance(data.get("scenarios"), dict) else {}
+            failed_scenarios = [
+                (name, value)
+                for name, value in scenarios.items()
+                if isinstance(value, dict) and value.get("status") != "passed"
+            ]
+            first_error = ""
+            if failed_scenarios:
+                scenario_name, scenario_data = failed_scenarios[0]
+                first_error = str(scenario_data.get("error") or f"{scenario_name} failed")
+            passed_count = sum(
+                1
+                for value in scenarios.values()
+                if isinstance(value, dict) and value.get("status") == "passed"
+            )
+            failed_count = len(failed_scenarios)
+            out.append({
+                "key": spec_key,
+                "filename": spec_filename,
+                "name": spec_label,
+                "status": "passed" if data.get("status") == "passed" else "failed",
+                "error": first_error,
+                "passed": passed_count,
+                "failed": failed_count,
+            })
+            continue
+
         # Playwright JSON: stats.expected = passed, stats.unexpected = failed
         stats = data.get("stats", {}) or {}
         expected = int(stats.get("expected", 0) or 0)
@@ -3423,14 +4356,53 @@ def _parse_prod_smoke_artifact(art_path: Path) -> list[dict]:
     return out
 
 
-def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
-    """Hourly prod smoke: dispatch the existing prod-smoke.yml workflow once
-    and report its result. The workflow internally runs all 3 prod specs.
-    """
+def _berlin_now() -> datetime:
+    return datetime.now(BERLIN_TZ)
+
+
+def _skip_outside_prod_schedule(
+    *,
+    force: bool,
+    mode_label: str,
+    allowed_hours: Optional[frozenset[int]] = None,
+    hour_range: Optional[tuple[int, int]] = None,
+) -> bool:
+    if force:
+        return False
+    now = _berlin_now()
+    if allowed_hours is not None and now.hour not in allowed_hours:
+        _log(
+            f"Skipping {mode_label}: Berlin hour {now.hour:02d} is outside "
+            f"scheduled hours {sorted(allowed_hours)}"
+        )
+        return True
+    if hour_range is not None:
+        start_hour, end_hour = hour_range
+        if now.hour < start_hour or now.hour > end_hour:
+            _log(
+                f"Skipping {mode_label}: Berlin hour {now.hour:02d} is outside "
+                f"{start_hour:02d}:00-{end_hour:02d}:59"
+            )
+            return True
+    return False
+
+
+def _run_prod_smoke_suite(
+    notification: NotificationService,
+    *,
+    force: bool,
+    suite: str,
+    archive_dir: Path,
+    mode_flag: str,
+    mode_label: str,
+    display_title: str,
+    dry_run: bool = False,
+) -> int:
+    """Dispatch one selected prod-smoke.yml suite and notify from dev server."""
     if not force and _docker_restarted_recently():
         _log(
             f"Docker restarted within the last {DOCKER_GRACE_MINUTES} min "
-            "— skipping hourly-prod smoke run to avoid false failures"
+            f"— skipping {mode_label} smoke run to avoid false failures"
         )
         return 0
 
@@ -3439,14 +4411,20 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
 
     print()
     print("=" * 60)
-    print("  OpenMates Hourly Smoke — PROD")
+    print(f"  {display_title}")
     print("=" * 60)
     _log(f"Git: {git_sha}@{git_branch}")
-    _log(f"Workflow: {PROD_SMOKE_WORKFLOW}")
+    _log(f"Workflow: {PROD_SMOKE_WORKFLOW} suite={suite}")
     print()
+
+    if dry_run:
+        _log("Dry run — would dispatch production smoke workflow")
+        print(f"    gh workflow run {PROD_SMOKE_WORKFLOW} --repo {GH_REPO} --ref {GH_BRANCH} -f suite={suite}")
+        return 0
 
     client = GitHubActionsClient()
     pre_ids = client._recent_run_ids(limit=5, workflow=PROD_SMOKE_WORKFLOW)
+    dispatch_token = f"prod-{suite}-{os.getpid()}-{time.time_ns()}"
 
     new_run_id: Optional[int] = None
     suite_result: Optional[SuiteResult] = None  # set by failure paths OR by artifact parser
@@ -3454,7 +4432,9 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
 
     rc = subprocess.run(
         ["gh", "workflow", "run", PROD_SMOKE_WORKFLOW,
-         "--repo", GH_REPO, "--ref", GH_BRANCH],
+         "--repo", GH_REPO, "--ref", GH_BRANCH,
+         "-f", f"suite={suite}",
+         "-f", f"dispatch_token={dispatch_token}"],
         capture_output=True, text=True,
     )
     if rc.returncode != 0:
@@ -3468,15 +4448,22 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
                     "error": f"Dispatch failed: {detail}"}],
         )
     else:
-        # Find the new run ID
-        time.sleep(5)
-        for _ in range(10):
+        # Find the exact dispatched run by token. Multiple prod suites can be
+        # scheduled in the same Berlin hour, so selecting the newest run is
+        # race-prone.
+        for _ in range(15):
+            new_run_id = _matching_dispatched_run_id(
+                client._recent_runs(limit=30, workflow=PROD_SMOKE_WORKFLOW),
+                dispatch_token,
+            )
+            if new_run_id is not None:
+                break
+            time.sleep(2)
+        if new_run_id is None:
             post_ids = client._recent_run_ids(limit=10, workflow=PROD_SMOKE_WORKFLOW)
             fresh = [rid for rid in post_ids if rid not in pre_ids]
-            if fresh:
+            if len(fresh) == 1:
                 new_run_id = fresh[0]
-                break
-            time.sleep(3)
 
         if new_run_id is None:
             _log("Could not find dispatched prod-smoke run", "ERROR")
@@ -3487,7 +4474,7 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
                         "error": "Could not find dispatched workflow run"}],
             )
         else:
-            _log(f"Waiting for prod-smoke run {new_run_id}...")
+            _log(f"Waiting for prod-smoke run {new_run_id} ({suite})...")
             statuses = client.wait_for_runs(
                 [new_run_id], fail_fast=False,
                 timeout=PROD_SMOKE_RUN_TIMEOUT,
@@ -3512,7 +4499,8 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
         art_path = client.download_artifact(
             new_run_id, f"prod-smoke-results-{new_run_id}", artifact_dir
         )
-        spec_results = _parse_prod_smoke_artifact(art_path) if art_path else []
+        selected_specs = PROD_SMOKE_SPECS_BY_SUITE.get(suite, PROD_SMOKE_SPECS)
+        spec_results = _parse_prod_smoke_artifact(art_path, selected_specs) if art_path else []
         # Job-level log snippet — used when an individual spec's JSON is
         # empty/missing (the spec crashed before producing structured output).
         if conclusion != "success":
@@ -3564,24 +4552,24 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
                 )
 
     result = ResultAggregator.build_run_result(
-        suites={"prod-smoke": suite_result},
+        suites={suite: suite_result},
         run_id=run_id,
         git_sha=git_sha,
         git_branch=git_branch,
         environment="production",
         duration=0.0,  # we don't time the GH workflow itself
-        flags={"mode": "hourly-prod", "force": force},
+        flags={"mode": mode_flag, "suite": suite, "force": force},
     )
 
-    archive_path = _archive_hourly_run(HOURLY_PROD_DIR, result)
-    _log(f"Archived hourly-prod run to {archive_path.relative_to(PROJECT_ROOT)}")
+    archive_path = _archive_hourly_run(archive_dir, result)
+    _log(f"Archived {mode_flag} run to {_display_path(archive_path)}")
 
     s = result.summary
     problem_count = _problem_count(s)
     print()
     print("=" * 60)
     icon = "✓" if problem_count == 0 else "✗"
-    print(f"  {icon} hourly-prod: {s['passed']}/{s['total']} passed, "
+    print(f"  {icon} {mode_flag}: {s['passed']}/{s['total']} passed, "
           f"{_problem_summary_label(s)}")
     print("=" * 60)
     print()
@@ -3627,8 +4615,12 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
         else None
     )
 
-    post_on_success = force or _heartbeat_should_fire(HOURLY_PROD_DIR)
-    state_file = HOURLY_PROD_DIR / DISCORD_STATE_FILE_NAME
+    # Production notifications are failure-only. Use --dry-run-notify to test
+    # webhook wiring instead of sending green heartbeat messages from cron.
+    post_on_success = False
+    state_file = archive_dir / DISCORD_STATE_FILE_NAME
+    if problem_count > 0 and not notification.discord_webhook_prod_smoke:
+        _log("DISCORD_WEBHOOK_PROD_SMOKE not set — cannot send prod smoke Discord failure", "ERROR")
     try:
         # Lightweight summary first (overview of which specs failed +
         # clickable links). Skipped automatically when the failure set is
@@ -3636,13 +4628,14 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
         notification._send_summary_to_discord(
             result,
             webhook_url=notification.discord_webhook_prod_smoke,
-            mode_label="prod hourly",
+            mode_label=mode_label,
             post_on_success=post_on_success,
             env_var_name="DISCORD_WEBHOOK_PROD_SMOKE",
             run_url=run_url,
             state_file=state_file,
-            suite_name_for_dedup="prod-smoke",
+            suite_name_for_dedup=suite,
         )
+        notification.send_prod_failure_email(result, mode_label, run_url)
         # Always call the per-test sender so recoveries get reported
         # and the state file gets pruned even on a green tick. When
         # there are no current failures and no screenshots, the call
@@ -3650,7 +4643,7 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
         notification.send_per_test_md_messages(
             result,
             webhook_url=notification.discord_webhook_prod_smoke,
-            suite_name="prod-smoke",
+            suite_name=suite,
             # staged_root may be None on a fully-green run; pass a
             # non-existent path so the per-test builder simply finds
             # nothing and the recovery scan still runs.
@@ -3665,6 +4658,71 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
             shutil.rmtree(staged_root, ignore_errors=True)
 
     return 1 if problem_count > 0 else 0
+
+
+def run_hourly_prod_mode(notification: NotificationService, force: bool, dry_run: bool = False) -> int:
+    """Backward-compatible alias for the free production hourly smoke."""
+    return run_prod_free_hourly_mode(notification, force=force, dry_run=dry_run)
+
+
+def run_prod_free_hourly_mode(notification: NotificationService, force: bool, dry_run: bool = False) -> int:
+    """Free prod smoke: hourly between 06:00 and 23:59 Berlin time."""
+    if _skip_outside_prod_schedule(
+        force=force,
+        mode_label="prod-free-hourly",
+        hour_range=(PROD_FREE_HOURLY_START_HOUR, PROD_FREE_HOURLY_END_HOUR),
+    ):
+        return 0
+    return _run_prod_smoke_suite(
+        notification,
+        force=force,
+        suite=PROD_SMOKE_SUITE_FREE_HOURLY,
+        archive_dir=HOURLY_PROD_DIR,
+        mode_flag="prod-free-hourly",
+        mode_label="prod free hourly",
+        display_title="OpenMates Free Hourly Smoke — PROD",
+        dry_run=dry_run,
+    )
+
+
+def run_prod_paid_chat_mode(notification: NotificationService, force: bool, dry_run: bool = False) -> int:
+    """Paid prod chat smoke: three Berlin-time slots per day."""
+    if _skip_outside_prod_schedule(
+        force=force,
+        mode_label="prod-paid-chat",
+        allowed_hours=PROD_PAID_CHAT_HOURS,
+    ):
+        return 0
+    return _run_prod_smoke_suite(
+        notification,
+        force=force,
+        suite=PROD_SMOKE_SUITE_PAID_CHAT,
+        archive_dir=PROD_PAID_CHAT_DIR,
+        mode_flag="prod-paid-chat",
+        mode_label="prod paid chat",
+        display_title="OpenMates Paid Chat Smoke — PROD",
+        dry_run=dry_run,
+    )
+
+
+def run_prod_app_skill_mode(notification: NotificationService, force: bool, dry_run: bool = False) -> int:
+    """Production app-skill smoke: direct CLI web-search command, daily by default."""
+    if _skip_outside_prod_schedule(
+        force=force,
+        mode_label="prod-app-skill",
+        allowed_hours=PROD_APP_SKILL_HOURS,
+    ):
+        return 0
+    return _run_prod_smoke_suite(
+        notification,
+        force=force,
+        suite=PROD_SMOKE_SUITE_APP_SKILL_WEB_SEARCH,
+        archive_dir=PROD_APP_SKILL_DIR,
+        mode_flag="prod-app-skill",
+        mode_label="prod app-skill",
+        display_title="OpenMates App-Skill Smoke — PROD",
+        dry_run=dry_run,
+    )
 
 
 def run_dry_run_notify_mode(notification: NotificationService, mode: str) -> int:
@@ -4753,21 +5811,82 @@ class TestOrchestrator:
     def __init__(self, args: argparse.Namespace) -> None:
         self.suite = args.suite
         self.spec = args.spec
+        self.core_journeys = args.core_journeys
         self.only_failed = args.only_failed
         self.daily = args.daily
         self.force = args.force
         self.environment = args.environment
         self.max_concurrent = args.max_concurrent
+        self.account = args.account
+        self.create_account_slot = args.create_account_slot
         self.fail_fast = not args.no_fail_fast
         self.use_mocks = not args.no_mocks
+        self.record_live_fixtures = args.record_live_fixtures
         self.dry_run = args.dry_run
         self.dot_env = _read_env_file()
+        self.only_failed_synthetic_files: tuple[str, ...] = ()
+        selected_labels = os.getenv("OPENMATES_CAMPAIGN_TEST_LABELS_JSON", "")
+        try:
+            decoded_labels = json.loads(selected_labels) if selected_labels else []
+        except json.JSONDecodeError:
+            decoded_labels = []
+        self.campaign_test_labels = [str(label) for label in decoded_labels] if isinstance(decoded_labels, list) else []
 
         self.git_sha, self.git_branch = _git_info()
         self.run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         self.notification = NotificationService()
+        self.current_phase = "starting"
+        self._daily_status_stop = threading.Event()
+        self._daily_status_thread: Optional[threading.Thread] = None
+
+    def _send_daily_status_updates(self, start_time: float) -> None:
+        """Post Discord status every 30 minutes until the daily run finishes."""
+        next_update = start_time + DAILY_STATUS_INTERVAL_SECONDS
+        while not self._daily_status_stop.wait(max(0, next_update - time.monotonic())):
+            self.notification.send_daily_discord_status(
+                self.git_sha,
+                self.git_branch,
+                self.environment,
+                self.run_id,
+                time.monotonic() - start_time,
+                self.current_phase,
+            )
+            next_update += DAILY_STATUS_INTERVAL_SECONDS
+
+    def _start_daily_status_updates(self, start_time: float) -> None:
+        """Post the start status, start the heartbeat, then dispatch email."""
+        self.notification.send_daily_discord_status(
+            self.git_sha,
+            self.git_branch,
+            self.environment,
+            self.run_id,
+            0,
+            self.current_phase,
+            started=True,
+        )
+        self._daily_status_thread = threading.Thread(
+            target=self._send_daily_status_updates,
+            args=(start_time,),
+            name="daily-test-discord-status",
+            daemon=True,
+        )
+        self._daily_status_thread.start()
+        self.notification.send_start_email(self.git_sha, self.git_branch, self.environment)
+
+    def _stop_daily_status_updates(self) -> None:
+        """Stop any heartbeat before a completion summary can be posted."""
+        self._daily_status_stop.set()
+        if self._daily_status_thread and self._daily_status_thread is not threading.current_thread():
+            self._daily_status_thread.join(timeout=35)
 
     def run(self) -> int:
+        """Execute the test run and always stop the daily status heartbeat."""
+        try:
+            return self._run()
+        finally:
+            self._stop_daily_status_updates()
+
+    def _run(self) -> int:
         """Execute the test run. Returns exit code (0=pass, 1=fail)."""
         print()
         print("=" * 60)
@@ -4778,6 +5897,10 @@ class TestOrchestrator:
         _log(f"Run ID: {self.run_id}")
         if self.spec:
             _log(f"Single spec: {self.spec}")
+        if self.account is not None:
+            _log(f"Pinned Playwright account: {self.account}")
+        if self.create_account_slot is not None:
+            _log(f"Create account slot: {self.create_account_slot}")
         if self.only_failed:
             _log("Mode: --only-failed (rerunning previous failures)")
         print()
@@ -4787,16 +5910,15 @@ class TestOrchestrator:
             if not self._daily_gate():
                 return 0
 
-        # Send start notification
-        if self.daily:
-            self.notification.send_start_email(self.git_sha, self.git_branch, self.environment)
-
         start_time = time.time()
+        status_start_time = time.monotonic()
+        if self.daily:
+            self._start_daily_status_updates(status_start_time)
         suites: dict[str, SuiteResult] = {}
 
         # Archive previous failure screenshots before starting a new run
         screenshots_dir = RESULTS_DIR / "screenshots"
-        if screenshots_dir.is_dir():
+        if not self.dry_run and screenshots_dir.is_dir():
             # Move current screenshots to date-stamped archive (preserves history)
             current_dir = screenshots_dir / "current"
             if current_dir.is_dir() and any(current_dir.iterdir()):
@@ -4809,25 +5931,36 @@ class TestOrchestrator:
 
         # Run all suites via GitHub Actions (prevents dev server overload)
         if not self.spec and self.suite in ("all", "vitest"):
+            self.current_phase = "vitest"
             suites["vitest"] = self._run_unit_suite_via_gha("vitest.yml", "vitest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
 
         if not self.spec and self.suite in ("all", "pytest"):
+            self.current_phase = "pytest"
             suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
 
         if not self.spec and self.suite in ("all", "cli"):
+            self.current_phase = "CLI integration"
             suites["cli"] = self._run_cli_integration()
 
         # Run Playwright via GitHub Actions
         if self.suite in ("all", "playwright"):
+            self.current_phase = "Playwright"
             suites["playwright"] = self._run_playwright()
 
+        # Run native Apple checks only for nightly cron or explicit --suite apple.
+        if not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
+            self.current_phase = "Apple remote"
+            suites["apple_remote"] = self._run_apple_remote_nightly()
+
         # Aggregate results
+        self.current_phase = "finalizing results"
         duration = time.time() - start_time
         flags = {
             "suite": self.suite,
             "only_failed": self.only_failed,
             "fail_fast": self.fail_fast,
             "use_mocks": self.use_mocks,
+            "record_live_fixtures": self.record_live_fixtures,
         }
 
         result = ResultAggregator.build_run_result(
@@ -4853,6 +5986,7 @@ class TestOrchestrator:
 
         # Daily mode: post-run tasks
         if self.daily and not self.dry_run:
+            self._stop_daily_status_updates()
             self._daily_post_run(result)
 
         return 1 if result.summary["failed"] > 0 else 0
@@ -4879,6 +6013,77 @@ class TestOrchestrator:
             "WARN",
         )
 
+    def _run_apple_remote_nightly(self) -> SuiteResult:
+        """Run Apple Remote nightly checks serially on the remote Mac."""
+        commands = _apple_remote_commands_for_nightly()
+        if not commands:
+            return SuiteResult(status="skipped", reason="no Apple Remote nightly commands configured")
+
+        script = PROJECT_ROOT / "scripts" / "apple_remote.py"
+        if not script.is_file():
+            return SuiteResult(
+                status="failed",
+                tests=[{
+                    "name": "apple-remote-script",
+                    "file": "scripts/apple_remote.py",
+                    "status": "failed",
+                    "duration_seconds": 0,
+                    "error": "scripts/apple_remote.py is missing",
+                }],
+                reason="apple_remote.py missing",
+            )
+
+        _log(f"Apple Remote: {len(commands)} command(s), serialized")
+        if self.dry_run:
+            for name, remote_args in commands:
+                print(f"    {name}: python3 scripts/apple_remote.py {' '.join(remote_args)}")
+            return SuiteResult(status="skipped", reason="dry run")
+
+        tests: list[dict] = []
+        suite_started = time.time()
+        timeout = int(os.getenv("OPENMATES_APPLE_REMOTE_TIMEOUT", str(APPLE_REMOTE_TIMEOUT)))
+        for name, remote_args in commands:
+            command_text = f"python3 scripts/apple_remote.py {' '.join(remote_args)}"
+            _log(f"  Apple Remote: {name}...")
+            started = time.time()
+            entry = {
+                "name": name,
+                "file": "scripts/apple_remote.py",
+                "command": command_text,
+                "duration_seconds": 0,
+            }
+            try:
+                proc = subprocess.run(
+                    [sys.executable, str(script), *remote_args],
+                    cwd=str(PROJECT_ROOT),
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                )
+                entry["duration_seconds"] = round(time.time() - started, 1)
+                entry["exit_code"] = proc.returncode
+                if proc.returncode == 0:
+                    entry["status"] = "passed"
+                    _log(f"  Apple Remote: {name} passed ({entry['duration_seconds']}s)", "OK")
+                else:
+                    output = "\n".join(part for part in (proc.stdout, proc.stderr) if part).strip()
+                    entry["status"] = "failed"
+                    entry["error"] = output[:MAX_ERROR_SNIPPET] if output else f"{command_text} exited {proc.returncode}"
+                    _log(f"  Apple Remote: {name} failed with exit {proc.returncode}", "ERROR")
+            except subprocess.TimeoutExpired as exc:
+                output = "\n".join(part for part in (exc.stdout, exc.stderr) if isinstance(part, str)).strip()
+                entry["duration_seconds"] = round(time.time() - started, 1)
+                entry["status"] = "failed"
+                entry["error"] = output[:MAX_ERROR_SNIPPET] if output else f"{command_text} timed out after {timeout}s"
+                _log(f"  Apple Remote: {name} timed out after {timeout}s", "ERROR")
+            tests.append(entry)
+
+        return SuiteResult(
+            status="failed" if any(test.get("status") == "failed" for test in tests) else "passed",
+            tests=tests,
+            duration_seconds=round(time.time() - suite_started, 1),
+        )
+
     def _run_unit_suite_via_gha(self, workflow_file: str, artifact_name: str) -> SuiteResult:
         """Dispatch a unit test workflow to GitHub Actions, wait, download results.
 
@@ -4897,9 +6102,12 @@ class TestOrchestrator:
         # Record pre-dispatch run IDs to find the new one
         pre_ids = client._recent_run_ids(limit=5, workflow=workflow_file)
 
+        dispatch_command = ["gh", "workflow", "run", workflow_file, "--repo", GH_REPO, "--ref", GH_BRANCH]
+        if self.campaign_test_labels and workflow_file in {"pytest-unit.yml", "vitest.yml"}:
+            input_name = "test_targets_json" if workflow_file == "pytest-unit.yml" else "test_files_json"
+            dispatch_command.extend(["-f", f"{input_name}={json.dumps(self.campaign_test_labels, separators=(',', ':'))}"])
         rc = subprocess.run(
-            ["gh", "workflow", "run", workflow_file,
-             "--repo", GH_REPO, "--ref", GH_BRANCH],
+            dispatch_command,
             capture_output=True, text=True,
         )
         if rc.returncode != 0:
@@ -4946,20 +6154,16 @@ class TestOrchestrator:
 
         if art_path:
             all_tests = self._parse_unit_test_artifact(art_path, suite_label)
-            if not all_tests and conclusion != "success":
-                # Fallback: no parseable results but the run failed
-                log_error = client.get_failed_job_error(run_id)
-                all_tests = [{"name": f"{suite_label}-run", "status": "failed",
-                              "duration_seconds": 0, "error": log_error or f"Run failed: {conclusion}"}]
-        elif conclusion != "success":
-            log_error = client.get_failed_job_error(run_id)
-            all_tests = [{"name": f"{suite_label}-run", "status": "failed",
-                          "duration_seconds": 0, "error": log_error or f"Run failed: {conclusion}"}]
 
-        # Recalculate overall status from actual test results
-        if all_tests:
-            has_failures = any(_is_problem_status(t.get("status", "")) for t in all_tests)
-            overall_status = "failed" if has_failures else "passed"
+        if conclusion != "success" and not any(
+            _is_problem_status(test.get("status", "")) for test in all_tests
+        ):
+            log_error = client.get_failed_job_error(run_id)
+            all_tests.append({"name": f"{suite_label}-run", "status": "failed",
+                              "duration_seconds": 0, "error": log_error or f"Run failed: {conclusion}"})
+
+        if any(_is_problem_status(test.get("status", "")) for test in all_tests):
+            overall_status = "failed"
 
         shutil.rmtree(artifact_dir, ignore_errors=True)
 
@@ -5010,7 +6214,8 @@ class TestOrchestrator:
             # Vitest format: { testResults: [{ assertionResults: [...] }] }
             if "testResults" in data:
                 for tf in data.get("testResults", []):
-                    for ar in tf.get("assertionResults", []):
+                    assertion_results = tf.get("assertionResults", [])
+                    for ar in assertion_results:
                         name = ar.get("fullName", ar.get("title", "unknown"))
                         status = "passed" if ar.get("status") == "passed" else "failed"
                         test_dur = ar.get("duration", 0) / 1000.0
@@ -5019,11 +6224,22 @@ class TestOrchestrator:
                             "status": status,
                             "duration_seconds": round(test_dur, 3),
                         }
+                        if tf.get("name"):
+                            entry["file"] = tf["name"]
                         if status == "failed":
                             msgs = ar.get("failureMessages", [])
                             if msgs:
                                 entry["error"] = msgs[0][:MAX_ERROR_SNIPPET]
                         all_tests.append(entry)
+                    if tf.get("status") == "failed" and not assertion_results:
+                        name = tf.get("name", "unknown")
+                        all_tests.append({
+                            "name": name,
+                            "file": name,
+                            "status": "failed",
+                            "duration_seconds": 0,
+                            "error": str(tf.get("message") or "Vitest suite failed during collection")[:MAX_ERROR_SNIPPET],
+                        })
 
             # Pytest-json-report format: { tests: [{ nodeid, outcome, call: { longrepr } }] }
             elif "tests" in data:
@@ -5042,6 +6258,39 @@ class TestOrchestrator:
                         if longrepr:
                             entry["error"] = str(longrepr)[:MAX_ERROR_SNIPPET]
                     all_tests.append(entry)
+
+        for txt_file in sorted(art_path.rglob("cli-account-import-tests.txt")):
+            try:
+                content = txt_file.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            parsed_node_tests = 0
+            expected_node_tests = None
+            for line in content.splitlines():
+                summary_match = re.match(r"^ℹ tests (\d+)$", line)
+                if summary_match:
+                    expected_node_tests = int(summary_match.group(1))
+                    continue
+                match = re.match(r"^\s{2}([✔✖])\s+(.+?)\s+\(([\d.]+)ms\)$", line)
+                if not match:
+                    continue
+                parsed_node_tests += 1
+                status = "passed" if match.group(1) == "✔" else "failed"
+                entry = {
+                    "name": match.group(2),
+                    "status": status,
+                    "duration_seconds": round(float(match.group(3)) / 1000, 3),
+                }
+                if status == "failed":
+                    entry["error"] = "Node test failed; see cli-account-import-tests.txt"
+                all_tests.append(entry)
+            if expected_node_tests is not None and parsed_node_tests != expected_node_tests:
+                all_tests.append({
+                    "name": "cli-account-import-results",
+                    "status": "failed",
+                    "duration_seconds": 0,
+                    "error": f"Parsed {parsed_node_tests} of {expected_node_tests} Node test results",
+                })
 
         # Fallback: parse pytest verbose text output (test::name PASSED/FAILED lines)
         if not all_tests:
@@ -5064,8 +6313,29 @@ class TestOrchestrator:
 
     def _run_playwright(self) -> SuiteResult:
         """Run Playwright specs via GitHub Actions."""
-        specs = self._discover_specs()
-        if not specs:
+        try:
+            specs = self._discover_specs()
+        except RuntimeError as exc:
+            reason = str(exc)
+            return SuiteResult(
+                status="failed",
+                tests=[{
+                    "name": self.spec or "playwright-spec-discovery",
+                    "file": self.spec or "playwright-spec-discovery",
+                    "status": "dispatch_error",
+                    "duration_seconds": 0,
+                    "error": reason,
+                }],
+                reason=reason,
+            )
+        only_failed = bool(getattr(self, "only_failed", False))
+        only_failed_synthetic_files = getattr(self, "only_failed_synthetic_files", set())
+        clear_backend_mock_preflight = (
+            only_failed
+            and BACKEND_LIVE_MOCK_PREFLIGHT_FILE in only_failed_synthetic_files
+        )
+
+        if not specs and not clear_backend_mock_preflight:
             return SuiteResult(status="skipped", reason="no specs to run")
 
         effective_batch_size = _effective_playwright_batch_size(self.max_concurrent)
@@ -5073,30 +6343,74 @@ class TestOrchestrator:
 
         if self.dry_run:
             _log("Dry run — would dispatch these specs:")
-            for _batch_idx, spec, account in build_playwright_dispatch_plan(specs, self.max_concurrent):
+            plan_account_slots = (self.account,) if self.account is not None else NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
+            for _batch_idx, spec, account in build_playwright_dispatch_plan(specs, self.max_concurrent, plan_account_slots):
                 reserved = " reserved" if spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC else ""
                 print(f"    account {account:02d}{reserved}  {spec}")
             return SuiteResult(status="skipped", reason="dry run")
 
-        if self.environment == "development" and not _wait_for_vercel_deployment(self.git_sha, self.dot_env):
-            return SuiteResult(
-                status="failed",
-                tests=[{
-                    "name": "vercel-deployment-gate",
-                    "status": "failed",
+        synthetic_preflight_results: list[dict] = []
+        if self.environment == "development" and self.use_mocks:
+            backend_mock_error = _development_backend_live_mock_preflight_error()
+            if backend_mock_error:
+                return SuiteResult(
+                    status="failed",
+                    tests=[
+                        {
+                            "name": BACKEND_LIVE_MOCK_PREFLIGHT_NAME,
+                            "file": BACKEND_LIVE_MOCK_PREFLIGHT_FILE,
+                            "status": "failed",
+                            "duration_seconds": 0,
+                            "error": backend_mock_error,
+                        },
+                        *_not_started_playwright_specs(specs, backend_mock_error),
+                    ],
+                    reason=backend_mock_error,
+                )
+            if clear_backend_mock_preflight:
+                synthetic_preflight_results.append({
+                    "name": BACKEND_LIVE_MOCK_PREFLIGHT_NAME,
+                    "file": BACKEND_LIVE_MOCK_PREFLIGHT_FILE,
+                    "status": "passed",
                     "duration_seconds": 0,
-                    "error": "Vercel deployment was not ready for the current dev commit before Playwright dispatch",
-                }],
-                reason="vercel deployment not ready",
+                })
+
+        if not specs:
+            return SuiteResult(
+                status="passed" if synthetic_preflight_results else "skipped",
+                tests=synthetic_preflight_results,
+                reason=None if synthetic_preflight_results else "no specs to run",
             )
 
-        client = GitHubActionsClient()
+        if self.environment == "development":
+            deployment_ready, deployment_reason = _wait_for_vercel_deployment(self.git_sha, self.dot_env)
+            if deployment_ready:
+                deployment_reason = ""
+            else:
+                gate_error = deployment_reason or "Vercel deployment was not ready before Playwright dispatch"
+                return SuiteResult(
+                    status="failed",
+                    tests=[
+                        {
+                            "name": "vercel-deployment-gate",
+                            "status": "failed",
+                            "duration_seconds": 0,
+                            "error": gate_error,
+                        },
+                        *_not_started_playwright_specs(specs, gate_error),
+                    ],
+                    reason=gate_error,
+                )
+
+        client = GitHubActionsClient(
+            git_sha=_full_git_sha(self.git_sha) if self.environment == "development" else None,
+        )
 
         blocked_preflight_results: list[SpecResult] = []
         preflight_reason: Optional[str] = None
         normal_account_slots = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
 
-        if not self.spec and not self.only_failed:
+        if not self.spec:
             preflight = self._run_account_preflight(client)
             preflight_results = [self._dict_to_spec_result(test) for test in preflight.tests]
             specs, blocked_preflight_results, normal_account_slots, preflight_reason = (
@@ -5111,11 +6425,53 @@ class TestOrchestrator:
                 )
             if preflight_reason:
                 _log(f"Account preflight limited dispatch: {preflight_reason}", "WARN")
+        elif self.spec == ACCOUNT_PREFLIGHT_SPEC and self.account is not None:
+            return self._run_account_preflight(client, accounts=[self.account])
         elif self.spec and self.spec != ACCOUNT_PREFLIGHT_SPEC:
-            account = _account_for_spec_in_batch(self.spec, 0)
+            reserved_account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(self.spec)
+            if self.account is not None and reserved_account is not None and self.account != reserved_account:
+                return SuiteResult(
+                    status="failed",
+                    tests=[{
+                        "name": self.spec,
+                        "status": "failed",
+                        "duration_seconds": 0,
+                        "error": f"{self.spec} requires reserved account slot {reserved_account}; received --account {self.account}",
+                    }],
+                    reason=f"Reserved-account spec requires slot {reserved_account}",
+                )
+
+            account = self.account if self.account is not None else _account_for_spec_in_batch(self.spec, 0)
             preflight = self._run_account_preflight(client, accounts=[account])
             if preflight.status == "failed":
-                return preflight
+                if self.account is not None or self.spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
+                    return preflight
+
+                fallback_accounts = [
+                    slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
+                    if slot != account
+                ]
+                fallback_preflight = self._run_account_preflight(client, accounts=fallback_accounts)
+                fallback_slots = _passed_normal_preflight_slots([
+                    self._dict_to_spec_result(test)
+                    for test in fallback_preflight.tests
+                ])
+                if not fallback_slots:
+                    return SuiteResult(
+                        status="failed",
+                        tests=[*preflight.tests, *fallback_preflight.tests],
+                        duration_seconds=round(preflight.duration_seconds + fallback_preflight.duration_seconds, 1),
+                        reason="No healthy normal Playwright account slots after single-spec preflight fallback",
+                    )
+
+                normal_account_slots = (fallback_slots[0],)
+                preflight_reason = (
+                    f"Selected normal account slot {account} failed preflight; "
+                    f"using fallback slot {fallback_slots[0]} for {self.spec}"
+                )
+                _log(preflight_reason, "WARN")
+            else:
+                normal_account_slots = (account,)
 
         runner = BatchRunner(
             client=client,
@@ -5123,7 +6479,10 @@ class TestOrchestrator:
             batch_size=self.max_concurrent,
             fail_fast=self.fail_fast,
             use_mocks=self.use_mocks,
+            record_live_fixtures=self.record_live_fixtures,
             normal_account_slots=normal_account_slots,
+            create_account_slot=self.create_account_slot,
+            allow_credential_updates=not bool(getattr(self, "core_journeys", False)),
         )
         result = runner.run_all_batches()
 
@@ -5133,6 +6492,8 @@ class TestOrchestrator:
                 for blocked_result in blocked_preflight_results
             ] + result.tests
             result.status = "failed"
+        if synthetic_preflight_results:
+            result.tests = synthetic_preflight_results + result.tests
         if preflight_reason:
             result.reason = (
                 f"{preflight_reason}; {result.reason}"
@@ -5162,8 +6523,46 @@ class TestOrchestrator:
             _log(f"Dry run — would dispatch {CLI_INTEGRATION_SPEC}")
             return SuiteResult(status="skipped", reason="dry run")
 
-        client = GitHubActionsClient()
-        run_id = client.dispatch_spec(CLI_INTEGRATION_SPEC, account=1, use_mocks=self.use_mocks)
+        client = GitHubActionsClient(
+            git_sha=_full_git_sha(self.git_sha) if self.environment == "development" else None,
+        )
+        account = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS[0]
+        preflight_reason: Optional[str] = None
+        preflight_duration = 0.0
+        preflight = self._run_account_preflight(client, accounts=[account])
+        preflight_duration += preflight.duration_seconds
+        if preflight.status == "failed":
+            fallback_accounts = [
+                slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
+                if slot != account
+            ]
+            fallback_preflight = self._run_account_preflight(client, accounts=fallback_accounts)
+            preflight_duration += fallback_preflight.duration_seconds
+            fallback_slots = _passed_normal_preflight_slots([
+                self._dict_to_spec_result(test)
+                for test in fallback_preflight.tests
+            ])
+            if not fallback_slots:
+                return SuiteResult(
+                    status="failed",
+                    tests=[*preflight.tests, *fallback_preflight.tests],
+                    duration_seconds=round(preflight.duration_seconds + fallback_preflight.duration_seconds, 1),
+                    reason="No healthy normal Playwright account slots for CLI integration",
+                )
+
+            preflight_reason = (
+                f"Selected normal account slot {account} failed preflight; "
+                f"using fallback slot {fallback_slots[0]} for CLI integration"
+            )
+            _log(preflight_reason, "WARN")
+            account = fallback_slots[0]
+
+        run_id = client.dispatch_spec(
+            CLI_INTEGRATION_SPEC,
+            account=account,
+            use_mocks=self.use_mocks,
+            record_live_fixtures=self.record_live_fixtures,
+        )
         if run_id is None:
             detail = client.last_dispatch_error or "Could not dispatch CLI integration workflow"
             return SuiteResult(
@@ -5202,10 +6601,21 @@ class TestOrchestrator:
         overall_status = "failed" if conclusion != "success" or has_failures else "passed"
         shutil.rmtree(artifact_dir, ignore_errors=True)
 
+        if overall_status == "passed":
+            tests = [{
+                "name": ACCOUNT_PREFLIGHT_SPEC,
+                "file": ACCOUNT_PREFLIGHT_SPEC,
+                "status": "passed",
+                "duration_seconds": round(preflight_duration, 1),
+            }, *tests]
+
         passed = sum(1 for test in tests if test.get("status") == "passed")
         _log(f"  CLI integration: {passed}/{len(tests)} passed")
 
-        return SuiteResult(status=overall_status, tests=tests)
+        result = SuiteResult(status=overall_status, tests=tests)
+        if preflight_reason:
+            result.reason = preflight_reason
+        return result
 
     @staticmethod
     def _dict_to_spec_result(data: dict) -> SpecResult:
@@ -5242,6 +6652,13 @@ class TestOrchestrator:
             0,
             account_overrides=target_accounts,
         )
+        if self._repair_missing_preflight_account_ids(results):
+            _log("Playwright account preflight: rerunning repaired account slot(s)")
+            results = runner._run_batch(
+                [ACCOUNT_PREFLIGHT_SPEC] * len(target_accounts),
+                0,
+                account_overrides=target_accounts,
+            )
         failures = [r for r in results if r.status != "passed"]
         if failures:
             failed_slots = ", ".join(str(r.account) for r in failures)
@@ -5265,6 +6682,66 @@ class TestOrchestrator:
             duration_seconds=round(time.time() - started, 1),
             reason=f"Account preflight failed for slot(s): {failed_slots}" if failures else None,
         )
+
+    def _repair_missing_preflight_account_ids(self, results: list[SpecResult]) -> bool:
+        """Repair configured E2E accounts that fail preflight due to missing account_id."""
+        if self.environment != "development":
+            return False
+
+        missing_account_id_results = [
+            result for result in results
+            if result.status != "passed"
+            and "users.account_id" in " ".join(
+                part for part in (result.error, result.debug_output_summary) if part
+            )
+        ]
+        if not missing_account_id_results:
+            return False
+
+        accounts = _configured_preflight_accounts(missing_account_id_results)
+        if not accounts:
+            _log("E2E account_id repair skipped: failed preflight did not expose configured account email", "WARN")
+            return False
+
+        script_path = PROJECT_ROOT / "backend" / "scripts" / "repair_test_account_account_ids.py"
+        try:
+            script_source = script_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            _log(f"E2E account_id repair skipped: repair script unavailable: {exc}", "ERROR")
+            return False
+
+        runner_source = (
+            "import json, os, runpy, sys, tempfile\n"
+            "payload = json.load(sys.stdin)\n"
+            "with tempfile.NamedTemporaryFile('w', suffix='.py', delete=False) as handle:\n"
+            "    handle.write(payload['script'])\n"
+            "    script_path = handle.name\n"
+            "try:\n"
+            "    sys.argv = [script_path, '--accounts-json', json.dumps(payload['accounts'])]\n"
+            "    runpy.run_path(script_path, run_name='__main__')\n"
+            "finally:\n"
+            "    os.unlink(script_path)\n"
+        )
+        try:
+            proc = subprocess.run(
+                ["docker", "exec", "-i", "api", "python", "-c", runner_source],
+                input=json.dumps({"script": script_source, "accounts": accounts}),
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            _log(f"E2E account_id repair failed to execute: {exc}", "ERROR")
+            return False
+        output = (proc.stdout or "").strip()
+        if output:
+            for line in output.splitlines():
+                _log(f"E2E account_id repair: {line}")
+        if proc.returncode != 0:
+            detail = (proc.stderr or output or "unknown error").strip()[:MAX_ERROR_SNIPPET]
+            _log(f"E2E account_id repair failed: {detail}", "ERROR")
+            return False
+        return True
 
     @staticmethod
     def _ensure_preflight_account_credits(results: list[SpecResult]) -> Optional[str]:
@@ -5345,6 +6822,7 @@ class TestOrchestrator:
     # triggered manually via --spec.
     EXCLUDED_SPECS = {
         "create-test-account.spec.ts",
+        PROVISION_AUTH_ACCOUNTS_SPEC,
         "selfhost-smoke.spec.ts",
         ACCOUNT_PREFLIGHT_SPEC,
     }
@@ -5352,10 +6830,20 @@ class TestOrchestrator:
     def _discover_specs(self) -> list[str]:
         """Find which specs to run."""
         if self.spec:
+            validation_error = _validate_requested_playwright_spec(
+                self.spec,
+                getattr(self, "git_sha", None),
+            )
+            if validation_error:
+                raise RuntimeError(validation_error)
             return [self.spec]
+
+        if self.core_journeys:
+            return list(RELEASE_GATE_SPECS)
 
         if self.only_failed:
             failed = ResultAggregator.load_failed_specs()
+            self.only_failed_synthetic_files = tuple(f for f in failed if not f.endswith(".spec.ts"))
             # Filter to only .spec.ts files
             specs = [f for f in failed if f.endswith(".spec.ts")]
             if specs:
@@ -5473,12 +6961,35 @@ class TestOrchestrator:
 # CLI
 # ---------------------------------------------------------------------------
 
+
+def _run_with_dev_stack_lease(args, callback):
+    production_mode = bool(
+        args.environment == "production"
+        or args.hourly_prod
+        or args.prod_free_hourly
+        or args.prod_paid_chat
+        or args.prod_app_skill
+    )
+    if production_mode or args.dry_run or os.environ.get("OPENMATES_DOCKER_TEST_LEASE_HELD") == "1":
+        return callback()
+    lease_id = f"runner-{os.getpid()}-{int(time.time())}"
+    owner = os.environ.get("OPENCODE_SESSION_ID", "local-test-runner")
+    session_control.acquire_test_resource_lease(
+        lease_id,
+        owner,
+        {session_control.DOCKER_RESOURCE_DEV_STACK},
+    )
+    try:
+        return callback()
+    finally:
+        session_control.release_test_resource_lease(lease_id)
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="OpenMates unified test orchestrator",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--suite", choices=["all", "vitest", "pytest", "cli", "playwright"], default="all",
+    parser.add_argument("--suite", choices=["all", "vitest", "pytest", "cli", "playwright", "apple"], default="all",
                         help="Suite to run (default: all)")
     parser.add_argument("--spec", type=str, default=None,
                         help="Run a single Playwright spec (e.g., chat-flow.spec.ts)")
@@ -5489,9 +7000,17 @@ def main() -> int:
     parser.add_argument("--hourly-dev", action="store_true",
                         help="Hourly DEV smoke (4 specs, post on failure to "
                              "DISCORD_WEBHOOK_DEV_SMOKE). See OPE-349.")
+    parser.add_argument("--core-journeys", action="store_true",
+                        help="Run the canonical release core journeys through normal commit-pinned orchestration")
     parser.add_argument("--hourly-prod", action="store_true",
                         help="Hourly PROD smoke (dispatches prod-smoke.yml, "
-                             "posts on failure to DISCORD_WEBHOOK_PROD_SMOKE).")
+                             "free reachability suite; legacy alias for --prod-free-hourly).")
+    parser.add_argument("--prod-free-hourly", action="store_true",
+                        help="Free production smoke, hourly between 06:00 and 23:59 Europe/Berlin.")
+    parser.add_argument("--prod-paid-chat", action="store_true",
+                        help="Paid production CLI chat smoke, scheduled at 07:00, 13:00, and 19:00 Europe/Berlin.")
+    parser.add_argument("--prod-app-skill", action="store_true",
+                        help="Production CLI app-skill smoke for web search, scheduled once daily by default.")
     parser.add_argument("--dry-run-notify", action="store_true",
                         help="Send a one-shot ✅ test embed to the Discord "
                              "webhook of the chosen mode (--daily / --hourly-dev "
@@ -5503,14 +7022,24 @@ def main() -> int:
                         help="Target environment (default: development)")
     parser.add_argument("--max-concurrent", type=int, default=20,
                         help="Max concurrent GitHub Actions runners (default: 20)")
+    parser.add_argument("--account", type=int, choices=range(1, MAX_ACCOUNTS + 1), metavar=f"1-{MAX_ACCOUNTS}", default=None,
+                        help="Pin a single Playwright spec to a specific GitHub Actions test-account slot")
+    parser.add_argument("--create-account-slot", type=int, choices=range(14, 21), metavar="14-20", default=None,
+                        help="Provision a reserved auth-test account slot via cli-provision-auth-accounts.spec.ts")
     parser.add_argument("--no-fail-fast", action="store_true",
                         help="Don't stop on first batch failure")
     parser.add_argument("--no-mocks", action="store_true",
                         help="Run with real LLM calls instead of mocks")
+    parser.add_argument("--record-live-fixtures", action="store_true",
+                        help="Dispatch Playwright with TEST_LIVE_RECORD markers instead of replaying live-mock fixtures")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would run without executing")
     parser.add_argument("--flaky-report", action="store_true",
                         help="Show top flaky tests from history and exit")
+    parser.add_argument("--list", action="store_true",
+                        help="List deterministic test catalog entries and exit")
+    parser.add_argument("--list-core-journeys", action="store_true",
+                        help="Print the canonical core-journey GitHub Actions matrix as JSON and exit")
 
     args = parser.parse_args()
 
@@ -5518,11 +7047,45 @@ def main() -> int:
         _print_flaky_report()
         return 0
 
+    if args.list:
+        _print_test_catalog()
+        return 0
+
+    if args.list_core_journeys:
+        print_core_journey_matrix()
+        return 0
+
     # Reject incompatible mode combinations early so the user gets a clear
     # error instead of weird half-runs.
-    mode_flags = sum(int(x) for x in (args.daily, args.hourly_dev, args.hourly_prod))
+    mode_flags = sum(int(x) for x in (
+        args.daily,
+        args.hourly_dev,
+        args.hourly_prod,
+        args.prod_free_hourly,
+        args.prod_paid_chat,
+        args.prod_app_skill,
+        args.core_journeys,
+    ))
     if mode_flags > 1:
-        _log("Pass at most one of: --daily, --hourly-dev, --hourly-prod", "ERROR")
+        _log(
+            "Pass at most one of: --daily, --hourly-dev, --hourly-prod, "
+            "--prod-free-hourly, --prod-paid-chat, --prod-app-skill, --core-journeys",
+            "ERROR",
+        )
+        return 2
+    if args.core_journeys and args.spec:
+        _log("--core-journeys cannot be combined with --spec", "ERROR")
+        return 2
+    if args.account is not None and not args.spec:
+        _log("--account requires --spec so one GitHub Actions run maps to one explicit test-account slot", "ERROR")
+        return 2
+    if args.create_account_slot is not None and args.spec != PROVISION_AUTH_ACCOUNTS_SPEC:
+        _log("--create-account-slot requires --spec cli-provision-auth-accounts.spec.ts", "ERROR")
+        return 2
+    if args.core_journeys:
+        args.suite = "playwright"
+    if args.no_mocks and args.record_live_fixtures:
+        _log("--record-live-fixtures requires live-mock markers; do not combine it with --no-mocks", "ERROR")
         return 2
 
     # Always source .env into the process so cron jobs (which only run via
@@ -5539,9 +7102,15 @@ def main() -> int:
             return run_dry_run_notify_mode(notification, "hourly-dev")
         if args.hourly_prod:
             return run_dry_run_notify_mode(notification, "hourly-prod")
+        if args.prod_free_hourly or args.prod_paid_chat or args.prod_app_skill:
+            return run_dry_run_notify_mode(notification, "hourly-prod")
         if args.daily:
             return run_dry_run_notify_mode(notification, "daily")
-        _log("--dry-run-notify requires one of: --daily, --hourly-dev, --hourly-prod", "ERROR")
+        _log(
+            "--dry-run-notify requires one of: --daily, --hourly-dev, --hourly-prod, "
+            "--prod-free-hourly, --prod-paid-chat, --prod-app-skill",
+            "ERROR",
+        )
         return 2
 
     # --hourly-dev: separate lockfile so it never collides with --daily or
@@ -5555,22 +7124,53 @@ def main() -> int:
             _log("Another --hourly-dev run is in progress — skipping this hour")
             return 0
         try:
-            return run_hourly_dev_mode(NotificationService(), force=args.force)
+            return _run_with_dev_stack_lease(
+                args,
+                lambda: run_hourly_dev_mode(NotificationService(), force=args.force),
+            )
         finally:
             if lock_fd:
                 lock_fd.close()
 
-    # --hourly-prod: separate lockfile (same rationale as --hourly-dev).
-    if args.hourly_prod:
+    # --hourly-prod / --prod-free-hourly: separate lockfile (same rationale as --hourly-dev).
+    if args.hourly_prod or args.prod_free_hourly:
         lock_fd = None
         try:
             lock_fd = open(LOCKFILE_HOURLY_PROD, "w")
             fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except (IOError, OSError):
-            _log("Another --hourly-prod run is in progress — skipping this hour")
+            _log("Another prod free-hourly run is in progress — skipping this tick")
             return 0
         try:
-            return run_hourly_prod_mode(NotificationService(), force=args.force)
+            return run_prod_free_hourly_mode(NotificationService(), force=args.force, dry_run=args.dry_run)
+        finally:
+            if lock_fd:
+                lock_fd.close()
+
+    if args.prod_paid_chat:
+        lock_fd = None
+        try:
+            lock_fd = open(LOCKFILE_PROD_PAID_CHAT, "w")
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (IOError, OSError):
+            _log("Another prod paid-chat run is in progress — skipping this tick")
+            return 0
+        try:
+            return run_prod_paid_chat_mode(NotificationService(), force=args.force, dry_run=args.dry_run)
+        finally:
+            if lock_fd:
+                lock_fd.close()
+
+    if args.prod_app_skill:
+        lock_fd = None
+        try:
+            lock_fd = open(LOCKFILE_PROD_APP_SKILL, "w")
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (IOError, OSError):
+            _log("Another prod app-skill run is in progress — skipping this tick")
+            return 0
+        try:
+            return run_prod_app_skill_mode(NotificationService(), force=args.force, dry_run=args.dry_run)
         finally:
             if lock_fd:
                 lock_fd.close()
@@ -5587,7 +7187,7 @@ def main() -> int:
 
     try:
         orchestrator = TestOrchestrator(args)
-        return orchestrator.run()
+        return _run_with_dev_stack_lease(args, orchestrator.run)
     finally:
         if lock_fd:
             lock_fd.close()

@@ -138,7 +138,7 @@ Three tiers of fallback ensure reliability:
 |------|--------|---------|
 | Primary | Best ranked for task area | `alibaba/qwen3-235b-a22b-2507` |
 | Secondary | Second-best ranked | `google/gemini-3.1-pro-preview` |
-| Tertiary | Hardcoded reliable default | `anthropic/claude-sonnet-4-6` |
+| Tertiary | Hardcoded reliable default | `anthropic/claude-sonnet-5` |
 
 Each model tries its configured servers in order (e.g., Bedrock then direct API) before moving to the next tier.
 

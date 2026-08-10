@@ -58,6 +58,49 @@ function extractJsonLd(html: string): Record<string, any> {
 	return JSON.parse(match[1]);
 }
 
+async function expectGuestSlideZeroIntro(page: any) {
+	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute(
+		'data-landing-intro-phase',
+		/^(expanded|expanding)$/,
+		{ timeout: 10000 }
+	);
+}
+
+async function expectNoPreviewOverflow(locator: any, label: string) {
+	const overflow = await locator.evaluate((node: HTMLElement) => {
+		const epsilon = 1;
+		const nodeRect = node.getBoundingClientRect();
+		const overflowingChildren = Array.from(node.querySelectorAll<HTMLElement>('[data-testid]'))
+			.filter((child) => {
+				const style = window.getComputedStyle(child);
+				return style.display !== 'none' && style.visibility !== 'hidden' && child.offsetParent !== null;
+			})
+			.map((child) => ({
+				testId: child.getAttribute('data-testid'),
+				rect: child.getBoundingClientRect(),
+				text: child.textContent?.replace(/\s+/g, ' ').trim().slice(0, 80) || ''
+			}))
+			.filter(({ rect }) =>
+				rect.left < nodeRect.left - epsilon ||
+				rect.right > nodeRect.right + epsilon ||
+				rect.top < nodeRect.top - epsilon ||
+				rect.bottom > nodeRect.bottom + epsilon
+			)
+			.map(({ testId, text }) => ({ testId, text }));
+
+		return {
+			selfOverflows:
+				node.scrollWidth > node.clientWidth + epsilon ||
+				node.scrollHeight > node.clientHeight + epsilon,
+			overflowingChildren
+		};
+	});
+
+	expect(overflow, label).toEqual({ selfOverflows: false, overflowingChildren: [] });
+}
+
 test.describe('Example chats loading for new users', () => {
 	async function ensureSidebarVisible(page: any): Promise<void> {
 		const history = page.getByTestId('activity-history-wrapper');
@@ -145,6 +188,87 @@ test.describe('Example chats loading for new users', () => {
 		}
 	});
 
+	test('guest show-all examples uses expanded resume cards and global search covers every example', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(90000);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await expectGuestSlideZeroIntro(page);
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
+		const previousSlideId = await page
+			.locator('[data-testid="daily-inspiration-mounted-slide"][data-current="true"]')
+			.getAttribute('data-slide-index');
+
+		const showAllExamples = page.getByTestId('guest-show-all-examples');
+		await expect(showAllExamples).toBeVisible({ timeout: 10000 });
+		await showAllExamples.click();
+
+		const allExamplesView = page.getByTestId('guest-all-examples-view');
+		await expect(allExamplesView).toBeVisible({ timeout: 10000 });
+		await expect(allExamplesView.getByText('Explore real OpenMates chats')).toHaveCount(0);
+		await expect(allExamplesView.getByText('Pick one to see how the workspace feels in practice.')).toHaveCount(0);
+
+		const allExampleCards = allExamplesView.getByTestId('resume-chat-large-card');
+		await expect.poll(async () => allExampleCards.count(), {
+			message: 'Show all examples should render the full unfiltered example catalog, not the current slide subset',
+			timeout: 10000
+		}).toBeGreaterThan(10);
+		await expect(allExamplesView.getByTestId('guest-all-example-card')).toHaveCount(0);
+		await expect(allExamplesView.locator('[data-chat-id="example-screenshot-to-html-pricing"]')).toBeVisible({ timeout: 10000 });
+
+		const backToRecent = page.getByTestId('guest-all-examples-back');
+		const searchAllExamples = page.getByTestId('guest-all-examples-search');
+		await expect(backToRecent).toBeVisible({ timeout: 10000 });
+		await expect(searchAllExamples).toBeVisible({ timeout: 10000 });
+		await expect(backToRecent).toHaveCSS('box-shadow', 'none');
+		await expect(searchAllExamples).toHaveCSS('box-shadow', 'none');
+		await expect(backToRecent).toHaveCSS('text-shadow', 'none');
+		await expect(searchAllExamples).toHaveCSS('text-shadow', 'none');
+
+		const firstCardTop = await allExampleCards.first().evaluate((node: HTMLElement) => node.getBoundingClientRect().top);
+		expect(firstCardTop, 'All examples should start near the visible content top, without the guest intro banner reserve gap.').toBeLessThan(420);
+		const expandedLayout = await page.getByTestId('guest-all-examples-grid').evaluate((grid: HTMLElement) => {
+			const gridRect = grid.getBoundingClientRect();
+			const composer = document.querySelector<HTMLElement>('[data-testid="message-input-wrapper"]');
+			const composerRect = composer?.getBoundingClientRect();
+			return {
+				scrollTop: grid.scrollTop,
+				bottomGap: composerRect ? composerRect.top - gridRect.bottom : Number.POSITIVE_INFINITY
+			};
+		});
+		expect(expandedLayout.scrollTop, 'Expanded examples should open at the top of the result list.').toBe(0);
+		expect(expandedLayout.bottomGap, 'Expanded examples should use the available height above the composer.').toBeLessThanOrEqual(24);
+
+		await backToRecent.click();
+		await expect(allExamplesView).toHaveCount(0);
+		await expect(page.getByTestId('guest-show-all-examples')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('[data-testid="daily-inspiration-mounted-slide"][data-current="true"]'))
+			.toHaveAttribute('data-slide-index', previousSlideId ?? '1');
+
+		await page.getByTestId('guest-show-all-examples').click();
+		await expect(page.getByTestId('guest-all-examples-view')).toBeVisible({ timeout: 10000 });
+
+		await expect(searchAllExamples).toBeVisible({ timeout: 10000 });
+		await searchAllExamples.click();
+
+		const searchInput = page.getByTestId('search-input');
+		await expect(searchInput).toBeVisible({ timeout: 10000 });
+		await searchInput.fill('screenshot');
+
+		const searchResults = page.getByTestId('search-results');
+		await expect(searchResults).toBeVisible({ timeout: 10000 });
+		await expect(
+			page.locator('[data-testid="search-chat-item"][data-result-id="example-screenshot-to-html-pricing"]')
+		).toBeVisible({ timeout: 30000 });
+	});
+
 	test('deep research example renders static sub-chat cards without a forced focus mention', async ({
 		page
 	}: {
@@ -175,6 +299,69 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.locator('body')).not.toContainText('"type":"focus_mode_activation"');
 	});
 
+	test('guest example chat exposes share and chat settings with a static public link', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+		const exampleChatId = 'example-ai-workshops-meetups-berlin';
+
+		await page.goto(getE2EDebugUrl(`/#chat-id=${exampleChatId}`), {
+			waitUntil: 'domcontentloaded'
+		});
+
+		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
+
+		const appSkillGroup = page.getByTestId('app-skill-embed-group').first();
+		await expect(appSkillGroup, 'Berlin AI workshops example should render its grouped app-skill previews').toBeVisible({ timeout: 15000 });
+		await expect(appSkillGroup.getByText('5 app skills used:', { exact: true })).toBeVisible({
+			timeout: 15000
+		});
+
+		const appSkillItems = appSkillGroup.locator('[data-embed-type="app-skill-use"][data-embed-item-id]');
+		await expect(appSkillItems, 'Berlin AI workshops example should keep all five parent embeds in the group').toHaveCount(5, {
+			timeout: 15000
+		});
+
+		const finishedPreviews = appSkillGroup.locator('[data-testid="embed-preview"][data-status="finished"]');
+		await expect(finishedPreviews, 'Berlin AI workshops example should mount all five finished app-skill previews').toHaveCount(5, {
+			timeout: 15000
+		});
+
+		const eventsPreviews = appSkillGroup.locator('[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"]');
+		await expect(eventsPreviews, 'Berlin AI workshops example should render three event-search previews').toHaveCount(3);
+		const webPreviews = appSkillGroup.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]');
+		await expect(webPreviews, 'Berlin AI workshops example should render two web-search previews').toHaveCount(2);
+		for (let index = 0; index < 2; index += 1) {
+			await expect(webPreviews.nth(index), `web-search preview ${index + 1} should use decoded result_count`).toContainText('+ 6 more');
+			await expect(webPreviews.nth(index), `web-search preview ${index + 1} should not hide a known result count behind a generic fallback`).not.toContainText('Open to view results');
+		}
+		for (let index = 0; index < 3; index += 1) {
+			await expect(eventsPreviews.nth(index), `event-search preview ${index + 1} should use decoded result_count`).toContainText('+ 10 more');
+		}
+
+		await expect(page.getByTestId('chat-share-button')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('chat-details-button')).toBeVisible({ timeout: 10000 });
+
+		await page.getByTestId('chat-details-button').click();
+		const settingsMenu = page.getByTestId('settings-menu');
+		await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+		await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${exampleChatId}`, {
+			timeout: 10000
+		});
+		await expect(settingsMenu.getByTestId('chat-settings-tabpanel-share')).toBeVisible({ timeout: 10000 });
+
+		const expectedShareUrl = await page.evaluate((chatId: string) => `${window.location.origin}/#chat-id=${chatId}`, exampleChatId);
+		await expect(settingsMenu.getByTestId('share-short-link-url')).toHaveText(expectedShareUrl, {
+			timeout: 10000
+		});
+		await expect(settingsMenu.getByTestId('chat-settings-share-password')).toHaveCount(0);
+		await expect(settingsMenu.getByTestId('chat-settings-share-community')).toHaveCount(0);
+		await expect(settingsMenu.getByTestId('chat-settings-share-expire')).toHaveCount(0);
+		await expect(settingsMenu.getByTestId('share-generate-link')).toHaveCount(0);
+	});
+
 	test('memory example cards update the reloadable chat hash on wide viewports', async ({
 		page
 	}: {
@@ -196,11 +383,11 @@ test.describe('Example chats loading for new users', () => {
 		await expect(exampleCard).toBeVisible({ timeout: 15000 });
 
 		await exampleCard.click();
-		await expect(page).toHaveURL(/#chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
+		await expect(page).toHaveURL(/[&#]chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
 		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15000 });
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
-		await expect(page).toHaveURL(/#chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
+		await expect(page).toHaveURL(/[&#]chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'spoiler-free one-week reading plan' })).toBeVisible({ timeout: 15000 });
 	});
 
@@ -233,6 +420,88 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.locator('body')).not.toContainText('app_settings_memories_request');
 		await expect(page.locator('body')).not.toContainText('app_settings_memories_response');
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Best, Alex' })).toBeVisible({ timeout: 15000 });
+	});
+
+	test('privacy-first local AI example hides compressed history behind forgotten messages', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-privacy-first-local-ai'), {
+			waitUntil: 'domcontentloaded'
+		});
+
+		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('show-older-messages')).toHaveCount(0);
+
+		const compressionSummary = page.getByTestId('message-system').filter({ hasText: 'Conversation History Summary' });
+		await expect(compressionSummary).toBeVisible({ timeout: 15000 });
+		await expect(compressionSummary.locator('h2, h3').filter({ hasText: 'Conversation History Summary' })).toBeVisible({ timeout: 15000 });
+		await expect(compressionSummary.locator('strong').filter({ hasText: 'Compressed Messages:' })).toBeVisible({ timeout: 15000 });
+		await expect(compressionSummary).not.toContainText('## Conversation History Summary');
+		await expect(compressionSummary).not.toContainText('**Compressed Messages:**');
+
+		const summaryShowMore = compressionSummary.getByTestId('compression-summary-toggle');
+		await expect(summaryShowMore).toBeVisible({ timeout: 10000 });
+		await expect(summaryShowMore).toHaveText(/Show full summary|Show more/);
+		await expect(compressionSummary).not.toContainText('Referenced Artifacts');
+		await summaryShowMore.click();
+		await expect(summaryShowMore).toHaveText(/Show less/);
+		await expect(compressionSummary).toContainText('Referenced Artifacts', { timeout: 15000 });
+
+		await page.keyboard.press('End');
+
+		const sprintBacklogPrompt = page.locator(
+			'[data-testid="message-user"][data-message-id="6adc84b3-2fa5-4f2c-9e46-a35fff64d220"]'
+		);
+		const sprintBacklogResponse = page.locator(
+			'[data-testid="message-assistant"][data-message-id="207ca93d-3959-5db1-869c-6368232737ee"]'
+		);
+		const latestPrompt = page.locator(
+			'[data-testid="message-user"][data-message-id="f2dd7311-d9eb-4c73-87a8-5a7bc5b815c4"]'
+		);
+		const latestResponse = page.locator(
+			'[data-testid="message-assistant"][data-message-id="5c1d9872-f3c9-59b3-9730-7bc5376e70cf"]'
+		);
+
+		await expect(sprintBacklogPrompt).toBeVisible({ timeout: 15000 });
+		await expect(sprintBacklogResponse).toBeVisible({ timeout: 15000 });
+		await expect(latestPrompt).toBeVisible({ timeout: 15000 });
+		await expect(latestResponse).toBeVisible({ timeout: 15000 });
+
+		const firstPrompt = page.getByTestId('user-message-content').filter({
+			hasText: 'I want to build a privacy-first AI productivity company from zero'
+		});
+		await expect(firstPrompt).toHaveCount(0);
+
+		const visibleMessageCount = await page.locator('[data-testid="message-user"], [data-testid="message-assistant"]').count();
+		await page.getByTestId('show-forgotten-messages').click();
+
+		await expect.poll(async () => page.locator('[data-testid="message-user"], [data-testid="message-assistant"]').count(), {
+			message: 'Show forgotten messages should reveal the compressed static example history',
+			timeout: 10000
+		}).toBeGreaterThan(visibleMessageCount);
+		await expect(firstPrompt).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('hide-forgotten-messages-at-boundary')).toBeVisible({ timeout: 10000 });
+
+		await firstPrompt.getByTestId('remember-forgotten-message').click();
+		const messageEditor = page.getByTestId('message-editor');
+		await expect(messageEditor).toContainText('Remember my earlier message:', { timeout: 10000 });
+		await expect(messageEditor).toContainText('privacy-first AI productivity company from zero', { timeout: 10000 });
+
+		await page.locator('[data-testid="new-chat-cta-fullwidth"], [data-testid="new-chat-button"]').first().click();
+		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
+		await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeFocused({ timeout: 5000 });
+		await expect(
+			page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first()
+		).toBeVisible({ timeout: 10000 });
+		await expect(compressionSummary).toHaveCount(0);
+
+		await page.getByTestId('profile-container').click();
+		await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 8000 });
+		await expect(compressionSummary).toHaveCount(0);
 	});
 
 	test('nutrition example renders Edamam recipe search embed card', async ({
@@ -286,12 +555,116 @@ test.describe('Example chats loading for new users', () => {
 		const resultCards = await verifySearchGrid(fullscreenOverlay, 3, 30000);
 		await expect(resultCards.first().getByTestId('nutrition-recipe-preview-image')).toBeVisible({ timeout: 15000 });
 
-		await resultCards.first().click();
+		await resultCards.first().click({ force: true });
 		await expect(page.getByTestId('nutrition-recipe-image')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('nutrition-recipe-details')).toContainText('4 servings');
 		await expect(page.getByTestId('nutrition-recipe-tags')).toContainText('Vegetarian');
 		await expect(page.getByTestId('nutrition-recipe-categories')).toContainText('middle eastern');
 		await expect(page.locator('body')).toContainText('8.7g');
+	});
+
+	test('Deutschlandticket travel example keeps preview metadata readable and shows map route lines', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(120000);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-deutschlandticket-train-fare-breakdown'), {
+			waitUntil: 'domcontentloaded'
+		});
+
+		const assistantMessage = page
+			.getByTestId('message-assistant')
+			.filter({ hasText: 'Deutsche Bahn' })
+			.first();
+		await expect(assistantMessage).toBeVisible({ timeout: 15000 });
+
+		const travelSearchCards = assistantMessage.locator(
+			'[data-testid="embed-preview"][data-app-id="travel"][data-skill-id="search_connections"][data-status="finished"]'
+		);
+		await expect.poll(async () => travelSearchCards.count(), {
+			message: 'Deutschlandticket example should render at least one finished travel search preview',
+			timeout: 15000
+		}).toBeGreaterThan(0);
+
+		const travelSearchCount = await travelSearchCards.count();
+		for (let index = 0; index < travelSearchCount; index += 1) {
+			const card = travelSearchCards.nth(index);
+			await expect(card, `travel search preview ${index + 1} should keep route metadata`).toContainText(
+				/Bonn.*M(unich|ünchen)/i
+			);
+			await expect(card, `travel search preview ${index + 1} should keep date metadata`).toContainText(
+				/(Aug 12|2026-08-12)/i
+			);
+		}
+
+		const firstTravelSearch = travelSearchCards.first();
+		await expect(firstTravelSearch, 'parent preview should use result_count/embed_ids instead of showing 0').toContainText('5 connections');
+
+		const mapView = assistantMessage.getByTestId('embeds-map-view');
+		await expect(mapView, 'Deutschlandticket example should include a grouped route map view').toBeVisible({ timeout: 15000 });
+		await expect(mapView).toContainText('Bonn');
+		await mapView.scrollIntoViewIfNeeded();
+		await expect.poll(async () => Number(await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')), {
+			message: 'grouped Deutschlandticket map should render all route polylines',
+			timeout: 15000
+		}).toBeGreaterThanOrEqual(5);
+		await expect.poll(async () => mapView.getByTestId('embeds-map-view-map').getAttribute('data-map-hydrated'), {
+			message: 'grouped Deutschlandticket map should lazy-hydrate once visible',
+			timeout: 15000
+		}).toBe('true');
+		await expect(mapView.getByTestId('embed-leaflet-map')).toHaveCount(1, { timeout: 15000 });
+
+		const filterButton = mapView.getByTestId('embeds-map-view-filter-button');
+		await expect(filterButton).toBeVisible();
+		await filterButton.click();
+		const filterMenu = mapView.getByTestId('embeds-map-view-filter-menu');
+		await expect(filterMenu).toContainText('Departure time');
+		await expect(filterMenu).toContainText('Duration');
+		await expect(filterMenu).toContainText('Stops');
+		await expect(filterMenu).toContainText('Train line');
+		const filterMenuBox = await filterMenu.boundingBox();
+		expect(filterMenuBox, 'mobile map-view filter sheet should be measurable').not.toBeNull();
+		expect(filterMenuBox!.x, 'mobile map-view filter sheet should not be clipped off the left edge').toBeGreaterThanOrEqual(0);
+		expect(
+			filterMenuBox!.x + filterMenuBox!.width,
+			'mobile map-view filter sheet should not be clipped off the right edge'
+		).toBeLessThanOrEqual(390);
+		expect(filterMenuBox!.height, 'mobile map-view filter sheet should stay compact and internally scrollable').toBeLessThanOrEqual(330);
+		await expect(mapView.getByTestId('embeds-map-view-option-train-line-rb26')).toBeVisible();
+		await mapView.getByTestId('embeds-map-view-option-train-line-rb26').click();
+		await expect(mapView.getByTestId('embeds-map-view-filter-button')).toContainText('Filter (1)');
+		await expect.poll(async () => Number(await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')), {
+			message: 'train-line filtering should reduce visible route polylines without reloading the chat',
+			timeout: 15000
+		}).toBeGreaterThan(0);
+		await mapView.getByTestId('embeds-map-view-clear-filters').click();
+
+		const fullscreenOverlay = await openFullscreen(page, firstTravelSearch);
+		const resultCards = await verifySearchGrid(fullscreenOverlay, 5, 30000);
+		const cardsToCheck = Math.min(3, await resultCards.count());
+		for (let index = 0; index < cardsToCheck; index += 1) {
+			const previewDetails = resultCards.nth(index).getByTestId('connection-preview-details');
+			await expect(previewDetails).toBeVisible({ timeout: 5000 });
+			await expectNoPreviewOverflow(previewDetails, `travel result card ${index + 1} should not clip visible preview details`);
+		}
+
+		await resultCards.first().click();
+		await expect(page.getByTestId('flight-details-card')).toBeVisible({ timeout: 15000 });
+
+		const routePaths = page.locator('[data-testid="travel-route-path"]');
+		await expect.poll(async () => routePaths.count(), {
+			message: 'travel connection fullscreen should draw visible route lines between stops',
+			timeout: 15000
+		}).toBeGreaterThanOrEqual(2);
+
+		const transportTypes = await routePaths.evaluateAll((paths: SVGPathElement[]) =>
+			paths.map((path) => path.getAttribute('data-transport-type')).filter(Boolean)
+		);
+		expect(transportTypes).toContain('regional_train');
+		expect(transportTypes).not.toContain('long_distance_train');
 	});
 
 	test('sidebar example chats show newest first and append older results after show more', async ({

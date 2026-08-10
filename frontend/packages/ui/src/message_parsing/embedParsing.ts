@@ -10,6 +10,127 @@ import {
 } from "./utils";
 import { normalizeEmbedType } from "../data/embedRegistry.generated";
 
+const EMBEDS_MAP_VIEW_LANGUAGE = "embeds_map_view";
+const EMBEDS_RESULTS_VIEW_LANGUAGE = "embeds_results_view";
+const INTERACTIVE_QUESTION_LANGUAGE = "interactive_question";
+const MAP_VIEW_ALLOWED_FIELDS = new Set(["title", "embeds", "sources", "highlight"]);
+
+function normalizeFenceLanguage(language?: string): string {
+  return (language || "").toLowerCase().trim();
+}
+
+function isResultsViewLanguage(language: string): boolean {
+  const fenceLanguage = language.trim().split(/\s+/, 1)[0].toLowerCase();
+  return fenceLanguage === EMBEDS_MAP_VIEW_LANGUAGE || fenceLanguage === EMBEDS_RESULTS_VIEW_LANGUAGE;
+}
+
+function normalizeRefList(value: string | undefined): string[] {
+  if (!value) return [];
+  const seen = new Set<string>();
+  const refs: string[] = [];
+
+  for (const rawRef of value.split(",")) {
+    const ref = rawRef.trim();
+    if (!ref || seen.has(ref)) continue;
+    seen.add(ref);
+    refs.push(ref);
+  }
+
+  return refs;
+}
+
+function parseEmbedsMapViewBlock(content: string): EmbedNodeAttributes | null {
+  const fields = new Map<string, string>();
+
+  for (const rawLine of content.split("\n")) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+
+    const separatorIndex = line.indexOf(":");
+    if (separatorIndex === -1) continue;
+
+    const key = line.slice(0, separatorIndex).trim().toLowerCase();
+    if (!MAP_VIEW_ALLOWED_FIELDS.has(key)) continue;
+    const value = line.slice(separatorIndex + 1).trim();
+    if (value) fields.set(key, value);
+  }
+
+  const title = fields.get("title") || "Results view";
+  const mapEmbedRefs = normalizeRefList(fields.get("embeds"));
+  const mapSourceRefs = normalizeRefList(fields.get("sources"));
+  const mapHighlightRefs = normalizeRefList(fields.get("highlight"));
+
+  if (mapEmbedRefs.length === 0 && mapSourceRefs.length === 0) {
+    return null;
+  }
+
+  const id = deterministicId(
+    `${title}:${mapEmbedRefs.join(",")}:${mapSourceRefs.join(",")}:${mapHighlightRefs.join(",")}`,
+    "mapview",
+  );
+
+  return {
+    id,
+    type: "embeds-map-view",
+    status: "finished",
+    contentRef: `map-view:${id}`,
+    title,
+    mapEmbedRefs,
+    mapSourceRefs,
+    mapHighlightRefs,
+  };
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(/[|,\s]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function parseSubChatBatchReference(embedRef: Record<string, unknown>): EmbedNodeAttributes | null {
+  if (embedRef.type !== "sub_chat_batch") return null;
+
+  const batchId = typeof embedRef.batch_id === "string" && embedRef.batch_id.trim()
+    ? embedRef.batch_id.trim()
+    : null;
+  if (!batchId) return null;
+
+  const rawStatus = typeof embedRef.status === "string" ? embedRef.status : "processing";
+  const status = ["processing", "finished", "error", "cancelled"].includes(rawStatus)
+    ? rawStatus as EmbedNodeAttributes["status"]
+    : "processing";
+
+  return {
+    id: batchId,
+    type: "sub-chat-batch",
+    status,
+    contentRef: `sub-chat-batch:${batchId}`,
+    batchId,
+    parentChatId: typeof embedRef.chat_id === "string"
+      ? embedRef.chat_id
+      : typeof embedRef.parent_chat_id === "string"
+        ? embedRef.parent_chat_id
+        : undefined,
+    parentMessageId: typeof embedRef.parent_message_id === "string"
+      ? embedRef.parent_message_id
+      : typeof embedRef.message_id === "string"
+        ? embedRef.message_id
+        : undefined,
+    taskId: typeof embedRef.task_id === "string" ? embedRef.task_id : undefined,
+    subChatIds: normalizeStringArray(embedRef.sub_chat_ids),
+    executionMode: typeof embedRef.execution_mode === "string" ? embedRef.execution_mode : undefined,
+  };
+}
+
 /**
  * Map embed reference type from server to EmbedNodeType.
  *
@@ -30,7 +151,7 @@ function mapEmbedReferenceType(embedType: string): string {
  * @returns The embed type ('code-code' or 'docs-doc')
  */
 function getEmbedTypeFromLanguage(language?: string): "code-code" | "docs-doc" {
-  const normalizedLang = (language || "").toLowerCase().trim();
+  const normalizedLang = normalizeFenceLanguage(language);
   if (normalizedLang === "doc" || normalizedLang === "document") {
     return "docs-doc";
   }
@@ -49,7 +170,7 @@ function createPreviewEmbed(
   // STABLE ID: Derive from language + first 200 chars of content so
   // re-parsing the same markdown produces an identical node ID.
   const embedType = getEmbedTypeFromLanguage(language);
-  const normalizedLang = (language || "").toLowerCase().trim();
+  const normalizedLang = normalizeFenceLanguage(language);
   const id = deterministicId(
     `${embedType}:${normalizedLang}:${content.slice(0, 200)}`,
     "code",
@@ -96,7 +217,7 @@ function createReadEmbed(
   // STABLE ID: Derive from language + first 200 chars of content so
   // re-parsing during streaming produces the same node ID each time.
   const embedType = getEmbedTypeFromLanguage(language);
-  const normalizedLang = (language || "").toLowerCase().trim();
+  const normalizedLang = normalizeFenceLanguage(language);
   const id = deterministicId(
     `${embedType}:${normalizedLang}:${content.slice(0, 200)}`,
     "code",
@@ -119,6 +240,9 @@ function createReadEmbed(
   if (embedType === "code-code") {
     readEmbed.language = normalizedLang || undefined;
     readEmbed.filename = filename || undefined;
+    if (normalizedLang === INTERACTIVE_QUESTION_LANGUAGE) {
+      readEmbed.code = content;
+    }
   } else {
     const titleMatch = content.match(EMBED_PATTERNS.TITLE_COMMENT);
     if (titleMatch) {
@@ -217,6 +341,12 @@ export function parseEmbedNodes(
           const content = event.content || pendingJsonContent;
           try {
             const embedRef = JSON.parse(content.trim());
+            const subChatBatchRef = parseSubChatBatchReference(embedRef);
+            if (subChatBatchRef) {
+              embedNodes.push(subChatBatchRef);
+              continue;
+            }
+
             if (embedRef.type && embedRef.embed_id) {
               // STABLE ID: Use server's embed_id directly instead of generateUUID().
               // This is critical for incremental streaming updates — when the same
@@ -391,6 +521,17 @@ export function parseEmbedNodes(
           );
           const language = event.language || pendingCodeLanguage;
           const filename = event.filename || pendingCodeFilename;
+
+          if (isResultsViewLanguage(language || "")) {
+            const embed = parseEmbedsMapViewBlock(content);
+            if (embed) {
+              embedNodes.push(embed);
+            }
+            pendingCodeContent = "";
+            pendingCodeLanguage = undefined;
+            pendingCodeFilename = undefined;
+            break;
+          }
 
           if (mode === "write") {
             const embed = createPreviewEmbed(content, language, filename);

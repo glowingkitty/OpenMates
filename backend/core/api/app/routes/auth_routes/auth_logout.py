@@ -12,6 +12,10 @@ from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_or
 import time
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.tasks.celery_config import app as celery_app # Import the Celery app instance
+from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
+    invalidate_recovery_leases_for_device,
+)
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -48,6 +52,27 @@ async def logout(
             # Get user_id from session cache before deleting it
             session_data = await cache_service.get(cache_key)
             user_id = session_data.get("user_id") if session_data else None
+            device_hash = None
+
+            if user_id:
+                device_hash, _, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=user_id)
+                try:
+                    await invalidate_recovery_leases_for_device(
+                        directus_service=directus_service,
+                        user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+                        device_fingerprint_hash=device_hash,
+                    )
+                except ChatRecoveryProtocolError as recovery_error:
+                    if recovery_error.status_code == 404:
+                        logger.info("Recovery extension unavailable; logout lease invalidation is a safe no-op")
+                    else:
+                        logger.warning(
+                            "Failed to invalidate recovery leases during logout for user=%s device=%s code=%s",
+                            user_id[:8],
+                            device_hash[:8],
+                            recovery_error.code,
+                            exc_info=True,
+                        )
 
             # Attempt to logout from Directus
             success, message = await directus_service.logout_user(refresh_token)
@@ -61,7 +86,6 @@ async def logout(
 
             # Log logout compliance event (GDPR-compatible: no IP stored for routine logouts)
             if user_id:
-                device_hash, _, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=user_id)
                 compliance_service = ComplianceService()
                 compliance_service.log_auth_event_safe(
                     event_type="logout",

@@ -3,11 +3,10 @@
 # Integration tests for the incoming webhook endpoint and the AI dispatch helper.
 #
 # Coverage:
-#   - Default path: chat is pre-created in Directus, plaintext is broadcast over
-#     the WebSocket, the AI ask-skill is dispatched, response carries the
+#   - Default path: chat is pre-created in Directus, plaintext is sent to one
+#     WebSocket device, the AI ask-skill is dispatched, response carries the
 #     processing status.
-#   - Offline path: when no device is live, an email notification is queued
-#     instead of (in addition to) the WS broadcast.
+#   - Offline path: when no device is live, an email notification is queued.
 #   - require_confirmation path: AI dispatch is skipped, response status is
 #     "pending_confirmation".
 #   - Vault encryption failure short-circuits with HTTP 500.
@@ -17,6 +16,7 @@
 
 import sys
 import types
+import hashlib
 from types import SimpleNamespace
 from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -30,6 +30,9 @@ import pytest
 
 _FAKE_WS_MANAGER = MagicMock(name="fake_ws_manager")
 _FAKE_WS_MANAGER.is_user_active = MagicMock(return_value=True)
+_FAKE_WS_MANAGER.get_connections_for_user = MagicMock(return_value={"device-a": object()})
+_FAKE_WS_MANAGER.is_connection_completion_capable = MagicMock(return_value=True)
+_FAKE_WS_MANAGER.send_personal_message = AsyncMock()
 _FAKE_WS_MANAGER.broadcast_to_user = AsyncMock()
 
 _FAKE_CELERY_APP = MagicMock(name="fake_celery_app")
@@ -235,6 +238,28 @@ def _make_encryption_service(succeed: bool = True):
     return enc
 
 
+class _FakeCutoverController:
+    admissions: list[str] = []
+    admission_result: dict = {"admitted": True}
+
+    def __init__(self, *_args):
+        pass
+
+    async def admit_legacy_inference(self, task_identity: str) -> dict:
+        self.admissions.append(task_identity)
+        return self.admission_result
+
+
+def _reset_cutover_admission(result: dict | None = None) -> None:
+    _FakeCutoverController.admissions = []
+    _FakeCutoverController.admission_result = result or {"admitted": True}
+
+
+def _webhook_legacy_identity(user_id: str, chat_id: str, message_id: str) -> str:
+    digest = hashlib.sha256(f"{user_id}:{chat_id}:{message_id}".encode()).hexdigest()
+    return f"server-trigger:{digest}"
+
+
 # ---------------------------------------------------------------------------
 # Default path — online user, no confirmation required
 # ---------------------------------------------------------------------------
@@ -243,6 +268,13 @@ def _reset_stubs(user_online: bool = True):
     """Reset the WS manager + celery stubs between tests so call counts don't leak."""
     _FAKE_WS_MANAGER.is_user_active.reset_mock()
     _FAKE_WS_MANAGER.is_user_active.return_value = user_online
+    _FAKE_WS_MANAGER.get_connections_for_user.reset_mock()
+    _FAKE_WS_MANAGER.get_connections_for_user.return_value = {"device-a": object()} if user_online else {}
+    _FAKE_WS_MANAGER.is_connection_completion_capable.reset_mock()
+    _FAKE_WS_MANAGER.is_connection_completion_capable.return_value = True
+    _FAKE_WS_MANAGER.send_personal_message.reset_mock()
+    _FAKE_WS_MANAGER.send_personal_message.return_value = True
+    _FAKE_WS_MANAGER.send_personal_message.side_effect = None
     _FAKE_WS_MANAGER.broadcast_to_user.reset_mock()
     _FAKE_CELERY_APP.send_task.reset_mock()
 
@@ -268,10 +300,14 @@ async def test_webhook_incoming_default_template_dumps_full_json_body():
 
     fake_registry = MagicMock()
     fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "ai_task_123"})
+    _reset_cutover_admission()
 
     with patch(
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
     ):
         response = await _webhook_incoming_handler()(
             request=request,
@@ -288,10 +324,12 @@ async def test_webhook_incoming_default_template_dumps_full_json_body():
     minimal = directus.chat.create_chat_in_directus.await_args.args[0]
     assert minimal["hashed_user_id"] == "hashed_user_test_id"
 
-    # WS broadcast content is the RENDERED template output — for the default
+    # WS plaintext content is sent to one device only. For the default
     # `{{payload_json}}` that's the pretty-printed full JSON body.
-    _FAKE_WS_MANAGER.broadcast_to_user.assert_awaited_once()
-    msg = _FAKE_WS_MANAGER.broadcast_to_user.await_args.kwargs["message"]
+    _FAKE_WS_MANAGER.send_personal_message.assert_awaited_once()
+    _FAKE_WS_MANAGER.broadcast_to_user.assert_not_called()
+    assert _FAKE_WS_MANAGER.send_personal_message.await_args.kwargs["device_fingerprint_hash"] == "device-a"
+    msg = _FAKE_WS_MANAGER.send_personal_message.await_args.kwargs["message"]
     rendered = msg["payload"]["content"]
     assert "Fix race in webhook handler" in rendered
     assert "octocat" in rendered
@@ -308,6 +346,7 @@ async def test_webhook_incoming_default_template_dumps_full_json_body():
     user_turn = ask_request["message_history"][0]
     assert "[Incoming Webhook" in user_turn["content"]
     assert "Fix race in webhook handler" in user_turn["content"]
+    assert ask_request["legacy_cutover_task_id"] in _FakeCutoverController.admissions
 
 
 @pytest.mark.asyncio
@@ -341,10 +380,14 @@ async def test_webhook_incoming_custom_template_extracts_fields_via_dotted_path(
 
     fake_registry = MagicMock()
     fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "ai_task_dotted"})
+    _reset_cutover_admission()
 
     with patch(
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
     ):
         response = await _webhook_incoming_handler()(
             request=request,
@@ -354,7 +397,7 @@ async def test_webhook_incoming_custom_template_extracts_fields_via_dotted_path(
 
     assert response.status == "processing"
 
-    rendered = _FAKE_WS_MANAGER.broadcast_to_user.await_args.kwargs["message"]["payload"]["content"]
+    rendered = _FAKE_WS_MANAGER.send_personal_message.await_args.kwargs["message"]["payload"]["content"]
     # All four field substitutions present
     assert "openmates/webhooks" in rendered
     assert "Title: Fix race" in rendered
@@ -383,6 +426,9 @@ async def test_webhook_incoming_template_missing_field_renders_empty_not_crash()
     with patch(
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
     ):
         await _webhook_incoming_handler()(
             request=request,
@@ -390,9 +436,86 @@ async def test_webhook_incoming_template_missing_field_renders_empty_not_crash()
             webhook_info=webhook_info,
         )
 
-    rendered = _FAKE_WS_MANAGER.broadcast_to_user.await_args.kwargs["message"]["payload"]["content"]
+    rendered = _FAKE_WS_MANAGER.send_personal_message.await_args.kwargs["message"]["payload"]["content"]
     assert "Missing: []" in rendered
     assert "Present: [that doesn't match]" in rendered
+
+
+@pytest.mark.asyncio
+async def test_webhook_incoming_sends_plaintext_to_one_connection_only():
+    _reset_stubs(user_online=True)
+    _FAKE_WS_MANAGER.get_connections_for_user.return_value = {
+        "device-b": object(),
+        "device-a": object(),
+    }
+    _FAKE_WS_MANAGER.is_connection_completion_capable.side_effect = (
+        lambda _user_id, device_hash: device_hash == "device-b"
+    )
+    cache = _make_cache_service()
+    enc = _make_encryption_service()
+    directus = _make_directus_service()
+    request = _make_request(cache, enc, directus)
+
+    fake_registry = MagicMock()
+    fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "tk"})
+
+    with patch(
+        "backend.core.api.app.services.skill_registry.get_global_registry",
+        return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
+    ):
+        await _webhook_incoming_handler()(
+            request=request,
+            payload={"message": "single writer"},
+            webhook_info=_make_webhook_info(),
+        )
+
+    _FAKE_WS_MANAGER.broadcast_to_user.assert_not_called()
+    _FAKE_WS_MANAGER.send_personal_message.assert_awaited_once()
+    assert _FAKE_WS_MANAGER.send_personal_message.await_args.kwargs["device_fingerprint_hash"] == "device-b"
+
+
+@pytest.mark.asyncio
+async def test_webhook_incoming_retries_next_connection_when_first_is_stale():
+    _reset_stubs(user_online=True)
+    _FAKE_WS_MANAGER.get_connections_for_user.return_value = {
+        "device-a": object(),
+        "device-b": object(),
+    }
+    _FAKE_WS_MANAGER.is_connection_completion_capable.side_effect = (
+        lambda _user_id, device_hash: device_hash == "device-a"
+    )
+    _FAKE_WS_MANAGER.send_personal_message.side_effect = [False, True]
+    cache = _make_cache_service()
+    enc = _make_encryption_service()
+    directus = _make_directus_service()
+    request = _make_request(cache, enc, directus)
+
+    fake_registry = MagicMock()
+    fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "tk"})
+
+    with patch(
+        "backend.core.api.app.services.skill_registry.get_global_registry",
+        return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
+    ):
+        await _webhook_incoming_handler()(
+            request=request,
+            payload={"message": "retry stale"},
+            webhook_info=_make_webhook_info(),
+        )
+
+    assert _FAKE_WS_MANAGER.send_personal_message.await_count == 2
+    sent_devices = [
+        call.kwargs["device_fingerprint_hash"]
+        for call in _FAKE_WS_MANAGER.send_personal_message.await_args_list
+    ]
+    assert sent_devices == ["device-a", "device-b"]
+    _FAKE_WS_MANAGER.broadcast_to_user.assert_not_called()
 
 
 def test_render_webhook_template_falls_back_on_broken_template():
@@ -434,10 +557,14 @@ async def test_webhook_incoming_offline_user_queues_email_and_still_dispatches_a
 
     fake_registry = MagicMock()
     fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "ai_task_offline"})
+    _reset_cutover_admission()
 
     with patch(
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
     ):
         response = await _webhook_incoming_handler()(
             request=request,
@@ -447,7 +574,8 @@ async def test_webhook_incoming_offline_user_queues_email_and_still_dispatches_a
 
     assert response.status == "processing"
 
-    # No live WS broadcast went out
+    # No live WS event went out
+    _FAKE_WS_MANAGER.send_personal_message.assert_not_called()
     _FAKE_WS_MANAGER.broadcast_to_user.assert_not_called()
 
     # Email Celery task queued instead
@@ -490,9 +618,10 @@ async def test_webhook_incoming_require_confirmation_skips_ai_dispatch():
         )
 
     assert response.status == "pending_confirmation"
-    _FAKE_WS_MANAGER.broadcast_to_user.assert_awaited_once()
-    broadcast_msg = _FAKE_WS_MANAGER.broadcast_to_user.await_args.kwargs["message"]
-    assert broadcast_msg["payload"]["status"] == "pending_confirmation"
+    _FAKE_WS_MANAGER.send_personal_message.assert_awaited_once()
+    _FAKE_WS_MANAGER.broadcast_to_user.assert_not_called()
+    sent_msg = _FAKE_WS_MANAGER.send_personal_message.await_args.kwargs["message"]
+    assert sent_msg["payload"]["status"] == "pending_confirmation"
 
     # AI must NOT be dispatched while the chat is awaiting approval
     fake_registry.dispatch_skill.assert_not_called()
@@ -535,10 +664,14 @@ async def test_dispatch_webhook_ai_request_builds_wrapped_user_turn():
     cache = _make_cache_service()
     fake_registry = MagicMock()
     fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "tk1"})
+    _reset_cutover_admission()
 
     with patch(
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
     ):
         await _dispatch_webhook_ai_request(
             user_id="u1",
@@ -546,6 +679,7 @@ async def test_dispatch_webhook_ai_request_builds_wrapped_user_turn():
             message_id="m1",
             message="hello world",
             cache_service=cache,
+            directus_service=_make_directus_service(),
         )
 
     fake_registry.dispatch_skill.assert_awaited_once()
@@ -559,7 +693,37 @@ async def test_dispatch_webhook_ai_request_builds_wrapped_user_turn():
     assert len(ask_request["message_history"]) == 1
     assert "hello world" in ask_request["message_history"][0]["content"]
     assert ask_request["user_preferences"].get("timezone") == "UTC"
+    assert ask_request["legacy_cutover_task_id"] == _webhook_legacy_identity("u1", "c1", "m1")
+    assert _FakeCutoverController.admissions == [ask_request["legacy_cutover_task_id"]]
     cache.set_active_ai_task.assert_awaited_once_with("c1", "tk1")
+
+
+@pytest.mark.asyncio
+async def test_dispatch_webhook_ai_request_skips_duplicate_admission():
+    cache = _make_cache_service()
+    fake_registry = MagicMock()
+    fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "unexpected"})
+    _reset_cutover_admission({"idempotent": True})
+
+    with patch(
+        "backend.core.api.app.services.skill_registry.get_global_registry",
+        return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
+    ):
+        await _dispatch_webhook_ai_request(
+            user_id="u1",
+            chat_id="c1",
+            message_id="m1",
+            message="hello world",
+            cache_service=cache,
+            directus_service=_make_directus_service(),
+        )
+
+    fake_registry.dispatch_skill.assert_not_called()
+    cache.set_active_ai_task.assert_not_called()
+    assert _FakeCutoverController.admissions == [_webhook_legacy_identity("u1", "c1", "m1")]
 
 
 @pytest.mark.asyncio
@@ -567,10 +731,14 @@ async def test_dispatch_webhook_ai_request_warns_on_missing_task_id():
     cache = _make_cache_service()
     fake_registry = MagicMock()
     fake_registry.dispatch_skill = AsyncMock(return_value={})  # no task_id
+    _reset_cutover_admission()
 
     with patch(
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
     ):
         await _dispatch_webhook_ai_request(
             user_id="u1",
@@ -578,6 +746,7 @@ async def test_dispatch_webhook_ai_request_warns_on_missing_task_id():
             message_id="m1",
             message="hi",
             cache_service=cache,
+            directus_service=_make_directus_service(),
         )
 
     cache.set_active_ai_task.assert_not_called()

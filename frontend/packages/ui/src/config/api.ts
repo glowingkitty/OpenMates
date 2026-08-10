@@ -134,6 +134,7 @@ export function getUploadEndpoint(path: string = ""): string {
 // API endpoints
 export const apiEndpoints = {
   auth: {
+    methods: "/v1/auth/methods", // Current user's available authentication methods
     // Session management
     lookup: "/v1/auth/lookup", // Email-only first step to get available login methods
     login: "/v1/auth/login", // Login with username/email and password
@@ -206,6 +207,7 @@ export const apiEndpoints = {
       verifyEmailChangeCode: "/v1/settings/user/email/verify-change-code", // Verify new login email code
       reauthEmailChange: "/v1/settings/user/email/reauth", // Verify recent auth server-side for email changes
       confirmEmailChange: "/v1/settings/user/email/confirm-change", // Commit verified login email change
+      disable2FA: "/v1/settings/user/disable-2fa", // Disable OTP 2FA after re-auth and user confirmation
     },
     autoTopUp: {
       lowBalance: "/v1/settings/auto-topup/low-balance", // Update low balance auto top-up settings (requires 2FA)
@@ -231,10 +233,25 @@ export const apiEndpoints = {
     exportAccountData: "/v1/settings/export-account-data", // Get export data (usage, invoices, profile)
     updatePassword: "/v1/settings/update-password", // Add or change user password
     issueLogs: "/v1/settings/issue-logs", // Push console logs to OpenObserve when any auth user submits an issue report
-    importChat: "/v1/settings/import-chat", // Import chats from YAML export file (safety-scanned server-side)
+    importChat: "/v1/settings/import-chat", // Legacy plaintext import endpoint; server keeps it disabled/fail-closed
     debugSession: "/v1/settings/debug-session", // Create/get/delete user debug log sharing session
     debugLogs: "/v1/settings/debug-logs", // Push console logs during active debug session (tagged with debugging_id)
     clientLogsEphemeral: "/v1/client-logs", // Ephemeral anonymized console log forwarding for all authenticated users (48h retention)
+  },
+  accountImports: {
+    preview: "/v1/account-imports/preview", // Account Import V1 preview/limits/cost estimate
+    confirm: (importId: string) =>
+      `/v1/account-imports/${encodeURIComponent(importId)}/confirm`, // Explicitly confirm selected fingerprints
+    scan: (importId: string) =>
+      `/v1/account-imports/${encodeURIComponent(importId)}/scan`, // Transient plaintext safety scan
+    status: (importId: string) =>
+      `/v1/account-imports/${encodeURIComponent(importId)}/status`, // Metadata-only resumable cursors
+    compress: (importId: string) =>
+      `/v1/account-imports/${encodeURIComponent(importId)}/compress`, // Transient sanitized compression
+    persistEncrypted: (importId: string) =>
+      `/v1/account-imports/${encodeURIComponent(importId)}/persist-encrypted`, // Persist client-encrypted imported records
+    complete: (importId: string) =>
+      `/v1/account-imports/${encodeURIComponent(importId)}/complete`, // Finalize import audit/billing state
   },
   referrals: {
     status: "/v1/referrals/status", // Current user's referral code and campaign availability
@@ -250,7 +267,6 @@ export const apiEndpoints = {
     listPaymentMethods: "/v1/payments/payment-methods", // List all saved payment methods for user
     processPaymentWithSavedMethod:
       "/v1/payments/process-payment-with-saved-method", // Process payment with saved payment method
-    getUserAuthMethods: "/v1/payments/user-auth-methods", // Get user authentication methods (passkey/2FA)
     createSubscription: "/v1/payments/create-subscription", // Create monthly auto top-up subscription
     getSubscription: "/v1/payments/subscription", // Get user's subscription details
     cancelSubscription: "/v1/payments/cancel-subscription", // Cancel monthly subscription

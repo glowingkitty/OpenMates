@@ -38,6 +38,18 @@ def test_kimi_k2_7_code_config_uses_together_primary_with_openrouter_fallback():
     assert model["servers"][1]["model_id"] == "moonshotai/kimi-k2.7-code"
 
 
+def test_kimi_k3_config_uses_together_primary_without_openrouter_fallback():
+    provider_config = yaml.safe_load((REPO_ROOT / "backend/providers/moonshot.yml").read_text())
+    model = next(model for model in provider_config["models"] if model["id"] == "kimi-k3")
+
+    assert model["default_server"] == "together"
+    assert model["external_ids"]["together"] == "moonshotai/Kimi-K3"
+    assert [server["id"] for server in model["servers"]] == ["together"]
+    assert model["servers"][0]["model_id"] == "moonshotai/Kimi-K3"
+    assert model["pricing"]["tokens"]["input"]["per_credit_unit"] == 110
+    assert model["pricing"]["tokens"]["output"]["per_credit_unit"] == 20
+
+
 def test_sandbox_rejects_imports():
     with pytest.raises(AssertionError, match="Forbidden syntax"):
         smoke._exec_generated("import os\n")

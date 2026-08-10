@@ -29,6 +29,18 @@ _BULK_FETCH_PAGE_SIZE: int = 500
 _VAULT_CIPHERTEXT_PREFIX = "vault:v1:"
 
 
+def _hash_embed_id(embed_id: str) -> str:
+    return hashlib.sha256(embed_id.encode()).hexdigest()
+
+
+def _with_hashed_embed_id(payload: Dict[str, Any], embed_id: str) -> Dict[str, Any]:
+    if not embed_id:
+        return payload
+    updated_payload = dict(payload)
+    updated_payload["hashed_embed_id"] = _hash_embed_id(embed_id)
+    return updated_payload
+
+
 def _validate_client_encrypted_embed_content(embed_id: str, payload: Dict[str, Any]) -> None:
     """Block server-side Vault ciphertext from being persisted as chat embed content."""
     encrypted_content = payload.get("encrypted_content")
@@ -42,6 +54,7 @@ def _validate_client_encrypted_embed_content(embed_id: str, payload: Dict[str, A
 EMBED_ALL_FIELDS = (
     "id,"
     "embed_id,"
+    "hashed_embed_id,"
     "hashed_chat_id,"
     "hashed_message_id,"
     "hashed_task_id,"
@@ -225,6 +238,45 @@ class EmbedMethods:
 
         logger.debug(f"Found {len(all_embeds)} embed(s) total for {len(hashed_chat_ids)} chats")
         return all_embeds
+
+    async def get_embeds_by_hashed_embed_ids(self, hashed_embed_ids: List[str]) -> List[Dict[str, Any]]:
+        """
+        Fetch embeds by hashed_embed_id values from chat-scoped key wrappers.
+
+        Shared-chat payloads primarily query embeds by hashed_chat_id, but upload
+        finalization can leave a file embed discoverable through its chat key
+        wrapper before the embed row's chat hash is queryable. The key wrapper is
+        still scoped to the shared chat, so this lookup returns only encrypted
+        embed rows addressable by those wrappers.
+        """
+        unique_hashes = [hashed for hashed in dict.fromkeys(hashed_embed_ids) if hashed]
+        if not unique_hashes:
+            return []
+
+        all_embeds: List[Dict[str, Any]] = []
+        batch_size = self._EMBED_KEYS_BATCH_SIZE
+        for i in range(0, len(unique_hashes), batch_size):
+            chunk = unique_hashes[i:i + batch_size]
+            params = {
+                'filter[hashed_embed_id][_in]': ','.join(chunk),
+                'fields': EMBED_ALL_FIELDS,
+                'limit': -1,
+            }
+            try:
+                response = await self.directus_service.get_items(
+                    'embeds',
+                    params=params,
+                    no_cache=True,
+                    admin_required=True,
+                )
+            except Exception as e:
+                logger.error(f"Error fetching embeds by hashed_embed_ids: {e}", exc_info=True)
+                continue
+            if response and isinstance(response, list):
+                all_embeds.extend(response)
+
+        logger.debug(f"Found {len(all_embeds)} embed(s) for {len(unique_hashes)} hashed_embed_ids")
+        return all_embeds
     
     async def create_embed(self, embed_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
@@ -236,8 +288,10 @@ class EmbedMethods:
         Returns:
             Created embed dictionary if successful, None otherwise
         """
-        embed_id = str(embed_data.get('embed_id', 'unknown'))
-        _validate_client_encrypted_embed_content(embed_id, embed_data)
+        raw_embed_id = embed_data.get('embed_id')
+        embed_id = str(raw_embed_id) if raw_embed_id else ''
+        _validate_client_encrypted_embed_content(embed_id or 'unknown', embed_data)
+        embed_data = _with_hashed_embed_id(embed_data, embed_id)
         logger.debug(f"Creating embed with embed_id: {embed_id}")
         try:
             # Use create_item from api_methods
@@ -283,6 +337,7 @@ class EmbedMethods:
             Updated embed dictionary if successful, None otherwise
         """
         _validate_client_encrypted_embed_content(embed_id, update_data)
+        update_data = _with_hashed_embed_id(update_data, embed_id)
         logger.debug(f"Updating embed with embed_id: {embed_id}")
         try:
             # ── Step 1: Resolve the Directus internal UUID ────────────────────

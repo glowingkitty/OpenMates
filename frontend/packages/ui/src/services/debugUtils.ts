@@ -1906,14 +1906,18 @@ function parseQuickTipSlugs(value: string | undefined): string[] | null {
  * @param options - Optional configuration
  * @param options.download - If true, downloads report as a text file (default: false)
  * @param options.verbose - If true, always shows full report (default: false)
+ * @param options.hideKeys - If true, masks full key material in the report (default: false)
+ * @param options.redactText - If true, masks decrypted metadata text previews (default: false)
+ * @param options.silent - If true, returns the report without logging it (default: false)
  * @returns The formatted report string
  */
 export async function inspectChat(
   chatId: string,
-  options: { download?: boolean; verbose?: boolean; hideKeys?: boolean } = {},
+  options: { download?: boolean; verbose?: boolean; hideKeys?: boolean; redactText?: boolean; silent?: boolean } = {},
 ): Promise<string> {
   const forceVerbose = options.verbose || options.download || false;
   const hideKeys = options.hideKeys ?? false;
+  const redactText = options.redactText ?? false;
   const db = await openDB();
 
   // ---- Gather all data ----
@@ -2107,11 +2111,15 @@ export async function inspectChat(
       );
       if (decResult) {
         if (decResult.success) {
-          const preview =
-            decResult.preview.length > 30
-              ? decResult.preview.substring(0, 30) + "..."
-              : decResult.preview;
-          lines.push(`  🟢 ${fd.shortLabel.padEnd(12)} "${preview}"`);
+          if (redactText) {
+            lines.push(`  🟢 ${fd.shortLabel.padEnd(12)} decrypted (redacted)`);
+          } else {
+            const preview =
+              decResult.preview.length > 30
+                ? decResult.preview.substring(0, 30) + "..."
+                : decResult.preview;
+            lines.push(`  🟢 ${fd.shortLabel.padEnd(12)} "${preview}"`);
+          }
         } else {
           lines.push(`  🔴 ${fd.shortLabel.padEnd(12)} DECRYPT FAILED`);
         }
@@ -2140,7 +2148,7 @@ export async function inspectChat(
       lines.push(
         `  🟢 Local: ${quickTipSlugs.length} slug(s) decrypted from ${encryptedQuickTips.length} chars`,
       );
-      lines.push(`     ${quickTipSlugs.join(", ")}`);
+      lines.push(redactText ? "     [redacted]" : `     ${quickTipSlugs.join(", ")}`);
     } else if (quickTipDecrypt) {
       lines.push(
         `  🔴 Local: encrypted_quick_tip_slugs present (${encryptedQuickTips.length} chars) but decrypt failed: ${quickTipDecrypt.preview}`,
@@ -2438,7 +2446,9 @@ export async function inspectChat(
 
   const fullReport = report + serverSyncBlock;
 
-  console.log(fullReport);
+  if (!options.silent) {
+    console.log(fullReport);
+  }
 
   if (options.download) {
     const blob = new Blob([fullReport], { type: "text/plain" });

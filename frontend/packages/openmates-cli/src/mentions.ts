@@ -10,7 +10,7 @@
  *
  * Resolution order for each @token:
  *   1. Model alias (@best, @fast)
- *   2. Model name (@Claude-Opus-4.6 → @ai-model:claude-opus-4-6)
+ *   2. Model name (@Claude-Opus-5 → @ai-model:claude-opus-5)
  *   3. Mate name (@Sophia → @mate:software_development)
  *   4. Skill (@Code-Get-Docs → @skill:code:get_docs)
  *   5. Focus mode (@Web-Research → @focus:web:research)
@@ -115,7 +115,7 @@ export interface MentionContext {
  * Backend resolution: preprocessor.py lines 1664-1686
  */
 export const MODEL_ALIASES: Record<string, string> = {
-  best: "claude-opus-4-7",
+  best: "claude-fable-5",
   fast: "qwen3-235b-a22b-2507",
 };
 
@@ -131,21 +131,25 @@ export const MODEL_ALIASES: Record<string, string> = {
  * NOTE: When modelsMetadata.ts changes, update this list.
  */
 export const CHAT_MODELS: ModelInfo[] = [
-  { id: "claude-opus-4-7", name: "Claude Opus 4.7" },
-  { id: "claude-opus-4-6", name: "Claude Opus 4.6" },
-  { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
+  { id: "claude-fable-5", name: "Claude Fable 5" },
+  { id: "claude-opus-5", name: "Claude Opus 5" },
+  { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
   { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
   { id: "gpt-5.4", name: "GPT-5.4" },
   { id: "gpt-oss-120b", name: "GPT-OSS-120b" },
   { id: "gpt-oss-20b", name: "GPT-OSS-20b" },
+  { id: "gemma-4-31b", name: "Gemma 4 31B" },
   { id: "gemini-3-flash-preview", name: "Gemini 3 Flash" },
+  { id: "gemini-3.6-flash", name: "Gemini 3.6 Flash" },
   { id: "gemini-3-pro-image-preview", name: "Gemini 3 Pro" },
   { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro" },
+  { id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite" },
   { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
   { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash" },
   { id: "qwen3-235b-a22b-2507", name: "Qwen 3 256b" },
   { id: "kimi-k2.5", name: "Kimi K2.5" },
   { id: "kimi-k2.6", name: "Kimi K2.6" },
+  { id: "kimi-k3", name: "Kimi K3" },
   { id: "zai-glm-4.7", name: "GLM 4.7" },
   { id: "mistral-medium-latest", name: "Mistral Medium 3.5", providerId: "mistral" },
   { id: "mistral-small-2506", name: "Mistral Small 3.2", providerId: "mistral" },
@@ -191,9 +195,13 @@ function isFilePath(token: string): boolean {
   );
 }
 
+function isTaskShortIdMention(token: string): boolean {
+  return /^TASK-[A-Za-z0-9_-]+[.,;:!?)]?$/.test(token);
+}
+
 /**
  * Normalize a display name for comparison.
- * "Claude Opus 4.6" → "claude-opus-4.6"
+ * "Claude Opus 5" → "claude-opus-5"
  * "Code-Get-Docs" → "code-get-docs"
  */
 function normalize(name: string): string {
@@ -447,6 +455,10 @@ export function parseMentions(
     if (isFilePath(token)) {
       filePaths.push(token);
       continue; // Leave in message as-is — caller handles file processing
+    }
+
+    if (isTaskShortIdMention(token)) {
+      continue; // Backend task context resolution handles @TASK-* references.
     }
 
     // Try to resolve against known mentions

@@ -1,0 +1,4003 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-22'
+generated_at: '2026-07-09T15:49:28+00:00'
+range:
+  since: '2026-06-22T00:00:00+00:00'
+  until: '2026-06-22T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 90
+  section_counts:
+    features: 9
+    bug_fixes: 34
+    improvements: 0
+    docs: 6
+    tests: 39
+    infrastructure: 1
+    internal: 0
+    other: 1
+  newsletter_ready_items: 24
+  user_facing_items: 31
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add workflows v1 foundation'
+    section: features
+    commits:
+    - 9f35db7b3
+    authored_at: '2026-06-22T23:00:11+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
+    - apple/OpenMatesTests/WorkflowsParityTests.swift
+    - apple/OpenMatesUITests/WorkflowsParityUITests.swift
+    - backend/config/backend_config.yml
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/feature_availability_guards.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/workflow_node_runs.yml
+    - backend/core/directus/schemas/workflow_runs.yml
+    - backend/core/directus/schemas/workflow_triggers.yml
+    - backend/core/directus/schemas/workflow_versions.yml
+    - backend/core/directus/schemas/workflow_waits.yml
+    - backend/core/directus/schemas/workflows.yml
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflows_models.py
+    - docs/specs/workflows-v1/spec.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+    - scripts/audit_sdk_cli_parity.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos, platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos, platform:workflows'
+  - title: 'feat: complete sdk parity surfaces'
+    section: features
+    commits:
+    - e17cfdf03
+    authored_at: '2026-06-22T19:47:34+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - docs/specs/sdk-cli-parity-v1/spec.yml
+    - docs/user-guide/developers/sdk.md
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/README.md
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: support embeds in interactive questions'
+    section: features
+    commits:
+    - 8e4d6f979
+    authored_at: '2026-06-22T19:44:11+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMatesTests/InteractiveQuestionsParityTests.swift
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_interactive_questions_streaming.py
+    - docs/specs/interactive-questions-parity/spec.yml
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    - frontend/packages/openmates-cli/src/interactiveQuestions.ts
+    - frontend/packages/openmates-cli/tests/interactiveQuestions.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.preview.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionEmbeds.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/ChoiceQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/SwipeQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/types.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/__tests__/questionState.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: complete sdk cli parity'
+    section: features
+    commits:
+    - 0c0880d48
+    authored_at: '2026-06-22T17:46:45+00:00'
+    changed_paths:
+    - .claude/rules/testing.md
+    - AGENTS.md
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/services/api_key_authorization.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/sdk-cli-parity-v1/spec.yml
+    - docs/user-guide/cli/settings.md
+    - docs/user-guide/developers/sdk.md
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/examples/chat-and-app-skills.mjs
+    - frontend/packages/openmates-cli/examples/settings-and-billing.mjs
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/crypto.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - packages/openmates-python/README.md
+    - packages/openmates-python/examples/chat_and_app_skills.py
+    - packages/openmates-python/examples/settings_and_billing.py
+    - packages/openmates-python/openmates/generated/__init__.py
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/pyproject.toml
+    - packages/openmates-python/tests/test_sdk.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/audit_sdk_cli_parity.py
+    - scripts/generate_sdk_app_skills.py
+    - scripts/sdk_cli_parity_live_smoke.py
+    - scripts/tests/test_sdk_parity_instructions.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add Apple interest tag ranking'
+    section: features
+    commits:
+    - 561b9010f
+    authored_at: '2026-06-22T10:58:12+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add CLI TUI and typed guest interests'
+    section: features
+    commits:
+    - 83d2504fc
+    authored_at: '2026-06-22T10:52:14+00:00'
+    changed_paths:
+    - .agents/skills/create-release/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/publish-newsletter/SKILL.md
+    - .claude/skills/create-release/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .claude/skills/publish-newsletter/SKILL.md
+    - .github/workflows/publish-selfhost-images.yml
+    - backend/apps/openapi_docs_gen.py
+    - backend/config/backend_config.yml
+    - backend/core/docker-compose.selfhost.yml
+    - backend/preview/main.py
+    - backend/status/frontend/package-lock.json
+    - backend/status/frontend/package.json
+    - backend/tests/test_software_update_docker_mode.py
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/architecture/platforms/cli-package.md
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/self-hosting/setup.md
+    - docs/specs/cli-terminal-chat-tui/spec.yml
+    - docs/specs/unified-server-cli-management/spec.yml
+    - docs/user-guide/cli/README.md
+    - docs/user-guide/cli/chats.md
+    - docs/user-guide/cli/server-management.md
+    - frontend/apps/web_app/package.json
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/eslint-config/package.json
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiExampleContinuation.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiTerminal.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/packages/openmates-cli/tests/loader.mjs
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/openmates-cli/tests/tui.test.ts
+    - frontend/packages/openmates-cli/tests/tuiExampleContinuation.test.ts
+    - frontend/packages/secret-scanner/package.json
+    - frontend/packages/typescript-config/package.json
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/data/product_features.yml
+    - frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/stores/__tests__/topicPreferencesStore.test.ts
+    - package.json
+    - shared/config/product_version.json
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add politics focus example chat'
+    section: features
+    commits:
+    - 5ca9f2581
+    authored_at: '2026-06-22T08:48:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/housing-policy-dinner-discussion.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/housing_policy_dinner_discussion.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add politics focus mode'
+    section: features
+    commits:
+    - 999b870fc
+    authored_at: '2026-06-22T08:36:12+00:00'
+    changed_paths:
+    - backend/apps/politics/app.yml
+    - backend/apps/politics/focus_modes/prepare-discussion/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/politics.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/politics_prepare_discussion.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add sdk packages v1 foundations'
+    section: features
+    commits:
+    - 70d8c1b50
+    authored_at: '2026-06-22T08:17:59+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/api_key_authorization.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/utils/api_key_auth.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/api_keys.yml
+    - backend/tests/test_api_key_scopes.py
+    - backend/tests/test_sdk_session.py
+    - docs/specs/sdk-packages-v1/spec.yml
+    - docs/user-guide/developers/sdk.md
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+    - packages/openmates-python/openmates/__init__.py
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/pyproject.toml
+    - packages/openmates-python/tests/conftest.py
+    - packages/openmates-python/tests/test_sdk.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  bug_fixes:
+  - title: 'fix: recover from Gemini malformed stream failures'
+    section: bug_fixes
+    commits:
+    - e9cd8fc3b
+    authored_at: '2026-06-22T23:15:08+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow audio transcription custom route'
+    section: bug_fixes
+    commits:
+    - b1865b199
+    authored_at: '2026-06-22T23:14:18+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/apps_api.py
+    - backend/tests/test_audio_transcribe_ascii_sanitization.py
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow workflow api through caddy'
+    section: bug_fixes
+    commits:
+    - b0a20735f
+    authored_at: '2026-06-22T23:13:31+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: show guest shared chats in continue carousel'
+    section: bug_fixes
+    commits:
+    - baf314012
+    authored_at: '2026-06-22T22:18:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: label shared chats in continue cards'
+    section: bug_fixes
+    commits:
+    - 448eb1a09
+    authored_at: '2026-06-22T21:52:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: block company promotion in daily inspirations'
+    section: bug_fixes
+    commits:
+    - f4e22dab2
+    authored_at: '2026-06-22T21:51:49+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/daily_inspiration/content_filter.py
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/validator.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/shared/config/blocked_content_keywords.yml
+    - backend/tests/test_daily_inspiration_content_policy.py
+    - backend/tests/test_daily_inspiration_wiki_generator.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: include contact email on authenticated issue reports'
+    section: bug_fixes
+    commits:
+    - 9c126e423
+    authored_at: '2026-06-22T21:49:40+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/utils/issue_report_contact_email.py
+    - backend/tests/test_issue_report_contact_email.py
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: normalize sdk chat responses'
+    section: bug_fixes
+    commits:
+    - 5d4475623
+    authored_at: '2026-06-22T21:33:29+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show shared chat indicators'
+    section: bug_fixes
+    commits:
+    - 371ffa774
+    authored_at: '2026-06-22T21:31:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: repair filename embed refs in interactive questions'
+    section: bug_fixes
+    commits:
+    - d3518ad2e
+    authored_at: '2026-06-22T21:31:14+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_interactive_questions_streaming.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: call apps api for sdk memory types'
+    section: bug_fixes
+    commits:
+    - 83d4711f8
+    authored_at: '2026-06-22T21:18:19+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: attach generated embeds to interactive questions'
+    section: bug_fixes
+    commits:
+    - a2219a590
+    authored_at: '2026-06-22T21:16:34+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_interactive_questions_streaming.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route sdk memory types through apps api'
+    section: bug_fixes
+    commits:
+    - 5a03100fb
+    authored_at: '2026-06-22T21:11:08+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - packages/openmates-python/openmates/sdk.py
+    - scripts/approve_test_api_key_device.mjs
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: require embed refs in interactive options'
+    section: bug_fixes
+    commits:
+    - 8204f3690
+    authored_at: '2026-06-22T21:05:05+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve Apple interest control identifiers'
+    section: bug_fixes
+    commits:
+    - 799f96454
+    authored_at: '2026-06-22T12:11:01+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: add politics app gradient'
+    section: bug_fixes
+    commits:
+    - a6f7563bc
+    authored_at: '2026-06-22T12:09:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: compile Apple mindmap renderer'
+    section: bug_fixes
+    commits:
+    - 3ea0641da
+    authored_at: '2026-06-22T11:49:06+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MindMapEmbedRenderer.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: compile Apple topic preferences'
+    section: bug_fixes
+    commits:
+    - 17e2fac02
+    authored_at: '2026-06-22T11:47:17+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: include mindmap renderer in Apple target'
+    section: bug_fixes
+    commits:
+    - 6f6e7f5aa
+    authored_at: '2026-06-22T11:46:01+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: use translated topic tags on new chat'
+    section: bug_fixes
+    commits:
+    - 0206544e6
+    authored_at: '2026-06-22T11:22:37+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: verify api key devices directly'
+    section: bug_fixes
+    commits:
+    - e1869f955
+    authored_at: '2026-06-22T11:14:23+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/directus/api_key_device_methods.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/utils/api_key_device_ownership.py
+    - backend/tests/test_api_key_scopes.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show mindmap preview title and white icon'
+    section: bug_fixes
+    commits:
+    - a5472441b
+    authored_at: '2026-06-22T10:46:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use admin access for api key records'
+    section: bug_fixes
+    commits:
+    - 15f6893c2
+    authored_at: '2026-06-22T10:44:50+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/directus.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: encode api key list filter as directus json'
+    section: bug_fixes
+    commits:
+    - 01376bbd8
+    authored_at: '2026-06-22T10:36:28+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/directus.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: list api keys by hashed user id'
+    section: bug_fixes
+    commits:
+    - faebe55f4
+    authored_at: '2026-06-22T10:26:04+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/directus.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: interpolate image authenticity labels'
+    section: bug_fixes
+    commits:
+    - 62a17c33a
+    authored_at: '2026-06-22T09:53:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/images/__tests__/imageAuthenticity.test.ts
+    - frontend/packages/ui/src/components/embeds/images/imageAuthenticity.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow sdk routes through caddy'
+    section: bug_fixes
+    commits:
+    - 8965b7944
+    authored_at: '2026-06-22T09:49:38+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: decouple cerebras health check model'
+    section: bug_fixes
+    commits:
+    - 5fb3f808a
+    authored_at: '2026-06-22T08:42:19+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/health_check_tasks.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: improve politics focus routing'
+    section: bug_fixes
+    commits:
+    - 088d03c5f
+    authored_at: '2026-06-22T08:40:49+00:00'
+    changed_paths:
+    - backend/apps/politics/app.yml
+    - backend/apps/politics/focus_modes/prepare-discussion/SKILL.md
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align embed streaming test decoding'
+    section: bug_fixes
+    commits:
+    - 4d4b334ce
+    authored_at: '2026-06-22T08:38:51+00:00'
+    changed_paths:
+    - backend/tests/test_mermaid_embed_streaming.py
+    - backend/tests/test_mindmap_embed_streaming.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: render mindmap embeds visually'
+    section: bug_fixes
+    commits:
+    - 048fd084b
+    authored_at: '2026-06-22T08:36:44+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/mindmap_fences.py
+    - backend/apps/mindmaps/app.yml
+    - backend/tests/test_mindmap_embed_streaming.py
+    - docs/specs/mindmap-embeds/spec.yml
+    - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapCanvas.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/__tests__/mindMapContent.test.ts
+    - frontend/packages/ui/src/components/embeds/mindmaps/mindMapContent.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize learning mode test paths'
+    section: bug_fixes
+    commits:
+    - 47f71c94d
+    authored_at: '2026-06-22T08:36:00+00:00'
+    changed_paths:
+    - backend/tests/test_learning_mode_prompts_and_embeds.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: stabilize daily test regressions'
+    section: bug_fixes
+    commits:
+    - 22de6c0ff
+    authored_at: '2026-06-22T08:30:58+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/routes/payments.py
+    - backend/tests/test_application_preview_config.py
+    - backend/tests/test_ascii_smuggling_boundaries.py
+    - backend/tests/test_daily_inspiration_generator.py
+    - backend/tests/test_embed_diff_version_contract.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_remotion_create_skill.py
+    - backend/tests/test_youtube_metadata.py
+    - frontend/packages/ui/src/components/embeds/code/codeHighlighting.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/email-verification-sequence-diagram.ts
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove habit garden example chat'
+    section: bug_fixes
+    commits:
+    - 643c46092
+    authored_at: '2026-06-22T08:02:09+00:00'
+    changed_paths:
+    - docs/specs/application-embeds/spec.yml
+    - frontend/apps/web_app/tests/example-application-preview.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/habit-garden-vite-app.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/habit_garden_vite_app.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: record workflows apple verification blocker'
+    section: docs
+    commits:
+    - 81810c1d5
+    authored_at: '2026-06-22T23:29:13+00:00'
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record workflows e2e evidence'
+    section: docs
+    commits:
+    - 0722fbb34
+    authored_at: '2026-06-22T23:26:08+00:00'
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: add sdk cli parity spec'
+    section: docs
+    commits:
+    - 6fba0fb65
+    authored_at: '2026-06-22T12:33:03+00:00'
+    changed_paths:
+    - docs/specs/sdk-cli-parity-v1/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: update sdk package usage guides'
+    section: docs
+    commits:
+    - d840e32af
+    authored_at: '2026-06-22T11:11:51+00:00'
+    changed_paths:
+    - docs/user-guide/developers/sdk.md
+    - frontend/packages/openmates-cli/README.md
+    - packages/openmates-python/README.md
+    - packages/openmates-python/pyproject.toml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record sdk packages green evidence'
+    section: docs
+    commits:
+    - 2b5cdc461
+    authored_at: '2026-06-22T11:04:03+00:00'
+    changed_paths:
+    - docs/specs/sdk-packages-v1/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: update cookie inventory'
+    section: docs
+    commits:
+    - aead07fa2
+    authored_at: '2026-06-22T10:53:24+00:00'
+    changed_paths:
+    - docs/architecture/compliance/cookies.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: dispatch audio recorder hold event'
+    section: tests
+    commits:
+    - '961716695'
+    authored_at: '2026-06-22T23:42:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: target active audio recorder button'
+    section: tests
+    commits:
+    - 7d22aeb4f
+    authored_at: '2026-06-22T23:33:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use spacebar for audio transcription spec'
+    section: tests
+    commits:
+    - fea7bdace
+    authored_at: '2026-06-22T23:23:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use sidebar new chat in shared chat spec'
+    section: tests
+    commits:
+    - 1685bed24
+    authored_at: '2026-06-22T22:02:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: target embed choice label'
+    section: tests
+    commits:
+    - e55e13cc5
+    authored_at: '2026-06-22T20:16:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: authenticate apple contract uploads'
+    section: tests
+    commits:
+    - 28526fd1c
+    authored_at: '2026-06-22T20:08:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: ignore resize observer preview warning'
+    section: tests
+    commits:
+    - f60d00c8e
+    authored_at: '2026-06-22T20:03:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use guest composer for apple contracts'
+    section: tests
+    commits:
+    - 75a648588
+    authored_at: '2026-06-22T19:58:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: disambiguate new chat helper click'
+    section: tests
+    commits:
+    - 80cd8bc83
+    authored_at: '2026-06-22T19:45:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: open demo chat for replay mode'
+    section: tests
+    commits:
+    - 69c258cf7
+    authored_at: '2026-06-22T19:18:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-replay-demo-mode.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: focus current guest audio composer'
+    section: tests
+    commits:
+    - fc88c5632
+    authored_at: '2026-06-22T19:00:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: expect welcome screen after backup settings logout'
+    section: tests
+    commits:
+    - 9c94a60f5
+    authored_at: '2026-06-22T18:40:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-codes-settings.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert authenticated backup code login'
+    section: tests
+    commits:
+    - ebeac64ef
+    authored_at: '2026-06-22T18:23:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: expect welcome screen after backup logout'
+    section: tests
+    commits:
+    - a2c660b28
+    authored_at: '2026-06-22T18:10:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for new chat scroll to settle'
+    section: tests
+    commits:
+    - b541db302
+    authored_at: '2026-06-22T17:43:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: search real sidebar chat titles'
+    section: tests
+    commits:
+    - 69f0c44ac
+    authored_at: '2026-06-22T17:24:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-search-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for chat management rows to settle'
+    section: tests
+    commits:
+    - a8aac32b7
+    authored_at: '2026-06-22T16:58:08+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-management-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: authenticate chat header navigation spec'
+    section: tests
+    commits:
+    - 5c2b289ef
+    authored_at: '2026-06-22T16:32:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: focus composer before new chat suggestions'
+    section: tests
+    commits:
+    - e1d8bb511
+    authored_at: '2026-06-22T12:24:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert visible Apple suggestion filtering'
+    section: tests
+    commits:
+    - b5098dc50
+    authored_at: '2026-06-22T12:14:39+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: find Apple interest continue by identifier'
+    section: tests
+    commits:
+    - 275da54d9
+    authored_at: '2026-06-22T12:07:28+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: select visible Apple interest tags'
+    section: tests
+    commits:
+    - b727859ba
+    authored_at: '2026-06-22T12:04:39+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: target Apple interest tag scroll view'
+    section: tests
+    commits:
+    - c47c6fc5c
+    authored_at: '2026-06-22T12:00:42+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: scroll Apple interest tag container'
+    section: tests
+    commits:
+    - 10e9e0100
+    authored_at: '2026-06-22T11:58:40+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: query Apple interest rail by identifier'
+    section: tests
+    commits:
+    - 9f8c564ee
+    authored_at: '2026-06-22T11:56:05+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: scroll Apple interest rail'
+    section: tests
+    commits:
+    - 6fca3f822
+    authored_at: '2026-06-22T11:52:53+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: cover translated guest interest tag labels'
+    section: tests
+    commits:
+    - c3b0f2d8f
+    authored_at: '2026-06-22T11:36:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: open demo chat for anonymous flow'
+    section: tests
+    commits:
+    - 52d05eb8b
+    authored_at: '2026-06-22T11:26:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover Apple interest tag filtering'
+    section: tests
+    commits:
+    - 3c00e4b96
+    authored_at: '2026-06-22T11:13:38+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/NewChatSuggestionsView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: allow draft chat context in chat flow'
+    section: tests
+    commits:
+    - 1e101f3b4
+    authored_at: '2026-06-22T10:26:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: start explicit new chat in chat flow'
+    section: tests
+    commits:
+    - 80bd3101f
+    authored_at: '2026-06-22T10:15:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: open intro chat in demo embed spec'
+    section: tests
+    commits:
+    - aa63f6255
+    authored_at: '2026-06-22T09:41:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use sdk endpoint for api key device approval'
+    section: tests
+    commits:
+    - fefca53d9
+    authored_at: '2026-06-22T09:34:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: open intro chat in example chat spec'
+    section: tests
+    commits:
+    - 8d5e0ad6f
+    authored_at: '2026-06-22T09:22:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: harden api key developers locator'
+    section: tests
+    commits:
+    - cd29dca04
+    authored_at: '2026-06-22T09:19:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix api key devices locator'
+    section: tests
+    commits:
+    - a8837665d
+    authored_at: '2026-06-22T09:08:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: skip disabled application preview e2e'
+    section: tests
+    commits:
+    - a3ff31b48
+    authored_at: '2026-06-22T09:01:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize api key device navigation'
+    section: tests
+    commits:
+    - 68cd4be79
+    authored_at: '2026-06-22T08:56:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: update api key flow spec for guided creation'
+    section: tests
+    commits:
+    - d25436b60
+    authored_at: '2026-06-22T08:35:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'ci: add python sdk pypi publishing'
+    section: infrastructure
+    commits:
+    - 628169a24
+    authored_at: '2026-06-22T21:58:25+00:00'
+    changed_paths:
+    - .github/workflows/publish-python-sdk.yml
+    - docs/contributing/guides/publish-python-sdk.md
+    - packages/openmates-python/README.md
+    - packages/openmates-python/pyproject.toml
+    - scripts/prepare_python_publish_version.py
+    - scripts/tests/test_prepare_python_publish_version.py
+    - shared/config/product_version.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other:
+  - title: 'Merge pull request #474 from glowingkitty/dev'
+    section: other
+    commits:
+    - c173ebae5
+    authored_at: '2026-06-22T16:50:53+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add workflows v1 foundation'
+    commits:
+    - 9f35db7b3
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: improve politics focus routing'
+    commits:
+    - 088d03c5f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render mindmap embeds visually'
+    commits:
+    - 048fd084b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add politics focus mode'
+    commits:
+    - 999b870fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize daily test regressions'
+    commits:
+    - 22de6c0ff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: remove habit garden example chat'
+    commits:
+    - 643c46092
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: recover from Gemini malformed stream failures'
+    commits:
+    - e9cd8fc3b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: allow audio transcription custom route'
+    commits:
+    - b1865b199
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show guest shared chats in continue carousel'
+    commits:
+    - baf314012
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: label shared chats in continue cards'
+    commits:
+    - 448eb1a09
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: block company promotion in daily inspirations'
+    commits:
+    - f4e22dab2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: include contact email on authenticated issue reports'
+    commits:
+    - 9c126e423
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: normalize sdk chat responses'
+    commits:
+    - 5d4475623
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show shared chat indicators'
+    commits:
+    - 371ffa774
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: repair filename embed refs in interactive questions'
+    commits:
+    - d3518ad2e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: call apps api for sdk memory types'
+    commits:
+    - 83d4711f8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: attach generated embeds to interactive questions'
+    commits:
+    - a2219a590
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: route sdk memory types through apps api'
+    commits:
+    - 5a03100fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: require embed refs in interactive options'
+    commits:
+    - 8204f3690
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: complete sdk parity surfaces'
+    commits:
+    - e17cfdf03
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: complete sdk cli parity'
+    commits:
+    - 0c0880d48
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: verify api key devices directly'
+    commits:
+    - e1869f955
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add CLI TUI and typed guest interests'
+    commits:
+    - 83d2504fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show mindmap preview title and white icon'
+    commits:
+    - a5472441b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: interpolate image authenticity labels'
+    commits:
+    - 62a17c33a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve politics focus routing'
+    commits:
+    - 088d03c5f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render mindmap embeds visually'
+    commits:
+    - 048fd084b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add politics focus mode'
+    commits:
+    - 999b870fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize daily test regressions'
+    commits:
+    - 22de6c0ff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: remove habit garden example chat'
+    commits:
+    - 643c46092
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: recover from Gemini malformed stream failures'
+    commits:
+    - e9cd8fc3b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: allow audio transcription custom route'
+    commits:
+    - b1865b199
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add workflows v1 foundation'
+    commits:
+    - 9f35db7b3
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: show guest shared chats in continue carousel'
+    commits:
+    - baf314012
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: label shared chats in continue cards'
+    commits:
+    - 448eb1a09
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: block company promotion in daily inspirations'
+    commits:
+    - f4e22dab2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: include contact email on authenticated issue reports'
+    commits:
+    - 9c126e423
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: normalize sdk chat responses'
+    commits:
+    - 5d4475623
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show shared chat indicators'
+    commits:
+    - 371ffa774
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: repair filename embed refs in interactive questions'
+    commits:
+    - d3518ad2e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: call apps api for sdk memory types'
+    commits:
+    - 83d4711f8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: attach generated embeds to interactive questions'
+    commits:
+    - a2219a590
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: route sdk memory types through apps api'
+    commits:
+    - 5a03100fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: require embed refs in interactive options'
+    commits:
+    - 8204f3690
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: complete sdk parity surfaces'
+    commits:
+    - e17cfdf03
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: support embeds in interactive questions'
+    commits:
+    - 8e4d6f979
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: complete sdk cli parity'
+    commits:
+    - 0c0880d48
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve Apple interest control identifiers'
+    commits:
+    - 799f96454
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: compile Apple mindmap renderer'
+    commits:
+    - 3ea0641da
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: compile Apple topic preferences'
+    commits:
+    - 17e2fac02
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: verify api key devices directly'
+    commits:
+    - e1869f955
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Apple interest tag ranking'
+    commits:
+    - 561b9010f
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add CLI TUI and typed guest interests'
+    commits:
+    - 83d2504fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show mindmap preview title and white icon'
+    commits:
+    - a5472441b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: interpolate image authenticity labels'
+    commits:
+    - 62a17c33a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve politics focus routing'
+    commits:
+    - 088d03c5f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render mindmap embeds visually'
+    commits:
+    - 048fd084b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add politics focus mode'
+    commits:
+    - 999b870fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize daily test regressions'
+    commits:
+    - 22de6c0ff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add sdk packages v1 foundations'
+    commits:
+    - 70d8c1b50
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: remove habit garden example chat'
+    commits:
+    - 643c46092
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 961716695a52fb98befe8daabda3c7d0dd03189b
+    short_sha: '961716695'
+    authored_at: '2026-06-22T23:42:34+00:00'
+    subject: 'test: dispatch audio recorder hold event'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    related_feature_ids: []
+  - sha: 7d22aeb4f310b62ffbb3af13c39befb192940340
+    short_sha: 7d22aeb4f
+    authored_at: '2026-06-22T23:33:59+00:00'
+    subject: 'test: target active audio recorder button'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    related_feature_ids: []
+  - sha: 81810c1d53596d5fc360e26ce4d461eaf8e08751
+    short_sha: 81810c1d5
+    authored_at: '2026-06-22T23:29:13+00:00'
+    subject: 'docs: record workflows apple verification blocker'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    related_feature_ids: []
+  - sha: 0722fbb34c75f1b3bcc9d4ab541fbad6c1b6f22f
+    short_sha: 0722fbb34
+    authored_at: '2026-06-22T23:26:08+00:00'
+    subject: 'docs: record workflows e2e evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    related_feature_ids: []
+  - sha: fea7bdace5c309bb43c68b85fc1a09704a753ec6
+    short_sha: fea7bdace
+    authored_at: '2026-06-22T23:23:49+00:00'
+    subject: 'test: use spacebar for audio transcription spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    related_feature_ids: []
+  - sha: e9cd8fc3b1fdc9d55dc0c5c49c0ff27b9a1f2394
+    short_sha: e9cd8fc3b
+    authored_at: '2026-06-22T23:15:08+00:00'
+    subject: 'fix: recover from Gemini malformed stream failures'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    related_feature_ids: []
+  - sha: b1865b1997a36c813823951773b29ab6a5fe2420
+    short_sha: b1865b199
+    authored_at: '2026-06-22T23:14:18+00:00'
+    subject: 'fix: allow audio transcription custom route'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/apps_api.py
+    - backend/tests/test_audio_transcribe_ascii_sanitization.py
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    related_feature_ids: []
+  - sha: b0a20735f78e268bd5fd50cb2c808e582279c78a
+    short_sha: b0a20735f
+    authored_at: '2026-06-22T23:13:31+00:00'
+    subject: 'fix: allow workflow api through caddy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    related_feature_ids: []
+  - sha: 9f35db7b3e25a08e61ec099e75dbde46e3e9dc2a
+    short_sha: 9f35db7b3
+    authored_at: '2026-06-22T23:00:11+00:00'
+    subject: 'feat: add workflows v1 foundation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
+    - apple/OpenMatesTests/WorkflowsParityTests.swift
+    - apple/OpenMatesUITests/WorkflowsParityUITests.swift
+    - backend/config/backend_config.yml
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/feature_availability_guards.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/workflow_node_runs.yml
+    - backend/core/directus/schemas/workflow_runs.yml
+    - backend/core/directus/schemas/workflow_triggers.yml
+    - backend/core/directus/schemas/workflow_versions.yml
+    - backend/core/directus/schemas/workflow_waits.yml
+    - backend/core/directus/schemas/workflows.yml
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflows_models.py
+    - docs/specs/workflows-v1/spec.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+    - scripts/audit_sdk_cli_parity.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+    - platform:workflows
+  - sha: baf3140122c7062ff74535f3b3186908594fc2b7
+    short_sha: baf314012
+    authored_at: '2026-06-22T22:18:24+00:00'
+    subject: 'fix: show guest shared chats in continue carousel'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 1685bed249c910e40a5985333a070aae76770790
+    short_sha: 1685bed24
+    authored_at: '2026-06-22T22:02:01+00:00'
+    subject: 'test: use sidebar new chat in shared chat spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    related_feature_ids: []
+  - sha: 628169a242f973bbf31a4ced439d450675a334a0
+    short_sha: 628169a24
+    authored_at: '2026-06-22T21:58:25+00:00'
+    subject: 'ci: add python sdk pypi publishing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-python-sdk.yml
+    - docs/contributing/guides/publish-python-sdk.md
+    - packages/openmates-python/README.md
+    - packages/openmates-python/pyproject.toml
+    - scripts/prepare_python_publish_version.py
+    - scripts/tests/test_prepare_python_publish_version.py
+    - shared/config/product_version.json
+    related_feature_ids: []
+  - sha: 448eb1a09334d0039c671fc6fe29ffcfc7e6fc3d
+    short_sha: 448eb1a09
+    authored_at: '2026-06-22T21:52:44+00:00'
+    subject: 'fix: label shared chats in continue cards'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: f4e22dab2f454e18562f243b58cd8c9f1cf4d885
+    short_sha: f4e22dab2
+    authored_at: '2026-06-22T21:51:49+00:00'
+    subject: 'fix: block company promotion in daily inspirations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/daily_inspiration/content_filter.py
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/validator.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/shared/config/blocked_content_keywords.yml
+    - backend/tests/test_daily_inspiration_content_policy.py
+    - backend/tests/test_daily_inspiration_wiki_generator.py
+    related_feature_ids: []
+  - sha: 9c126e4234d2c49d233f27c2ba82870c8769a506
+    short_sha: 9c126e423
+    authored_at: '2026-06-22T21:49:40+00:00'
+    subject: 'fix: include contact email on authenticated issue reports'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/utils/issue_report_contact_email.py
+    - backend/tests/test_issue_report_contact_email.py
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    related_feature_ids: []
+  - sha: 5d4475623b4f7b6158023a62ca916d432fd9d7ee
+    short_sha: 5d4475623
+    authored_at: '2026-06-22T21:33:29+00:00'
+    subject: 'fix: normalize sdk chat responses'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+    related_feature_ids: []
+  - sha: 371ffa7740fc30b1b9495eb15ddd26ce15965c90
+    short_sha: 371ffa774
+    authored_at: '2026-06-22T21:31:51+00:00'
+    subject: 'fix: show shared chat indicators'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    related_feature_ids: []
+  - sha: d3518ad2e99156babe99830429991c50033e4db0
+    short_sha: d3518ad2e
+    authored_at: '2026-06-22T21:31:14+00:00'
+    subject: 'fix: repair filename embed refs in interactive questions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_interactive_questions_streaming.py
+    related_feature_ids: []
+  - sha: 83d4711f8371ea044e235e7b682f6c6b3e644a4b
+    short_sha: 83d4711f8
+    authored_at: '2026-06-22T21:18:19+00:00'
+    subject: 'fix: call apps api for sdk memory types'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    related_feature_ids: []
+  - sha: a2219a590ff00b50fbe782f219dfa1ff7c8607c4
+    short_sha: a2219a590
+    authored_at: '2026-06-22T21:16:34+00:00'
+    subject: 'fix: attach generated embeds to interactive questions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_interactive_questions_streaming.py
+    related_feature_ids: []
+  - sha: 5a03100fb70cdbb901d993cce91c5c0f43902c43
+    short_sha: 5a03100fb
+    authored_at: '2026-06-22T21:11:08+00:00'
+    subject: 'fix: route sdk memory types through apps api'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - packages/openmates-python/openmates/sdk.py
+    - scripts/approve_test_api_key_device.mjs
+    related_feature_ids: []
+  - sha: 8204f36902ee0485038a2fe0506e45a427d214e1
+    short_sha: 8204f3690
+    authored_at: '2026-06-22T21:05:05+00:00'
+    subject: 'fix: require embed refs in interactive options'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    related_feature_ids: []
+  - sha: e55e13cc5d5b63bff532c1fae4335d5b023f7b08
+    short_sha: e55e13cc5
+    authored_at: '2026-06-22T20:16:25+00:00'
+    subject: 'test: target embed choice label'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    related_feature_ids: []
+  - sha: 28526fd1cca14f00685d6131472eb6805119a9ee
+    short_sha: 28526fd1c
+    authored_at: '2026-06-22T20:08:06+00:00'
+    subject: 'test: authenticate apple contract uploads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    related_feature_ids: []
+  - sha: f60d00c8e5271487725e59a506767199a847b93e
+    short_sha: f60d00c8e
+    authored_at: '2026-06-22T20:03:52+00:00'
+    subject: 'test: ignore resize observer preview warning'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
+    related_feature_ids: []
+  - sha: 75a64858813bf4af79d0707924ba7d1e7f9fb6f5
+    short_sha: 75a648588
+    authored_at: '2026-06-22T19:58:16+00:00'
+    subject: 'test: use guest composer for apple contracts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    related_feature_ids: []
+  - sha: e17cfdf032371c46df7fc40d30377529ac0cb248
+    short_sha: e17cfdf03
+    authored_at: '2026-06-22T19:47:34+00:00'
+    subject: 'feat: complete sdk parity surfaces'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - docs/specs/sdk-cli-parity-v1/spec.yml
+    - docs/user-guide/developers/sdk.md
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/README.md
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    related_feature_ids: []
+  - sha: 80cd8bc83d1590f4963efb69f113a77b4844b62c
+    short_sha: 80cd8bc83
+    authored_at: '2026-06-22T19:45:32+00:00'
+    subject: 'test: disambiguate new chat helper click'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: 8e4d6f979603de153ef5cf499f6be4a8f995ace4
+    short_sha: 8e4d6f979
+    authored_at: '2026-06-22T19:44:11+00:00'
+    subject: 'feat: support embeds in interactive questions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMatesTests/InteractiveQuestionsParityTests.swift
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_interactive_questions_streaming.py
+    - docs/specs/interactive-questions-parity/spec.yml
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    - frontend/packages/openmates-cli/src/interactiveQuestions.ts
+    - frontend/packages/openmates-cli/tests/interactiveQuestions.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.preview.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionEmbeds.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/ChoiceQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/SwipeQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/types.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/__tests__/questionState.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 69c258cf73e4a5b13b2d773eb94d85c03008bd2d
+    short_sha: 69c258cf7
+    authored_at: '2026-06-22T19:18:03+00:00'
+    subject: 'test: open demo chat for replay mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-replay-demo-mode.spec.ts
+    related_feature_ids: []
+  - sha: fc88c56328f4595300ed36d80a3e6c1ff3f05798
+    short_sha: fc88c5632
+    authored_at: '2026-06-22T19:00:20+00:00'
+    subject: 'test: focus current guest audio composer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    related_feature_ids: []
+  - sha: 9c94a60f5d0459ed923e02a27362b4829f2aea12
+    short_sha: 9c94a60f5
+    authored_at: '2026-06-22T18:40:31+00:00'
+    subject: 'test: expect welcome screen after backup settings logout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-codes-settings.spec.ts
+    related_feature_ids: []
+  - sha: ebeac64ef8b0a77a876d8ae9be92b594867acf7f
+    short_sha: ebeac64ef
+    authored_at: '2026-06-22T18:23:42+00:00'
+    subject: 'test: assert authenticated backup code login'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    related_feature_ids: []
+  - sha: a2c660b28629ccafb6b04ed318a3a37bdedcee6b
+    short_sha: a2c660b28
+    authored_at: '2026-06-22T18:10:51+00:00'
+    subject: 'test: expect welcome screen after backup logout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    related_feature_ids: []
+  - sha: 0c0880d48c0e2f2f7d16ddcfdb3f04bbf75b1e04
+    short_sha: 0c0880d48
+    authored_at: '2026-06-22T17:46:45+00:00'
+    subject: 'feat: complete sdk cli parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/rules/testing.md
+    - AGENTS.md
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/services/api_key_authorization.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/sdk-cli-parity-v1/spec.yml
+    - docs/user-guide/cli/settings.md
+    - docs/user-guide/developers/sdk.md
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/examples/chat-and-app-skills.mjs
+    - frontend/packages/openmates-cli/examples/settings-and-billing.mjs
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/crypto.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - packages/openmates-python/README.md
+    - packages/openmates-python/examples/chat_and_app_skills.py
+    - packages/openmates-python/examples/settings_and_billing.py
+    - packages/openmates-python/openmates/generated/__init__.py
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/pyproject.toml
+    - packages/openmates-python/tests/test_sdk.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/audit_sdk_cli_parity.py
+    - scripts/generate_sdk_app_skills.py
+    - scripts/sdk_cli_parity_live_smoke.py
+    - scripts/tests/test_sdk_parity_instructions.py
+    related_feature_ids: []
+  - sha: b541db302750ea60f591814ce3ec0e22aa06f477
+    short_sha: b541db302
+    authored_at: '2026-06-22T17:43:31+00:00'
+    subject: 'test: wait for new chat scroll to settle'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    related_feature_ids: []
+  - sha: 69f0c44acd916804c2339b5c1c2c7e6dd3759475
+    short_sha: 69f0c44ac
+    authored_at: '2026-06-22T17:24:40+00:00'
+    subject: 'test: search real sidebar chat titles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-search-flow.spec.ts
+    related_feature_ids: []
+  - sha: a8aac32b7324409b741eed71613c0475cfa536ee
+    short_sha: a8aac32b7
+    authored_at: '2026-06-22T16:58:08+00:00'
+    subject: 'test: wait for chat management rows to settle'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-management-flow.spec.ts
+    related_feature_ids: []
+  - sha: 5c2b289efc52df7e9dfeb5434fafb08c3428fd7a
+    short_sha: 5c2b289ef
+    authored_at: '2026-06-22T16:32:58+00:00'
+    subject: 'test: authenticate chat header navigation spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids: []
+  - sha: c173ebae506b00852bd07c9a25a5c8cc2e579cf1
+    short_sha: c173ebae5
+    authored_at: '2026-06-22T16:50:53+02:00'
+    subject: 'Merge pull request #474 from glowingkitty/dev'
+    in_main: true
+    in_dev: false
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 6fba0fb6589bc680f2b567bd05d944c310ca944b
+    short_sha: 6fba0fb65
+    authored_at: '2026-06-22T12:33:03+00:00'
+    subject: 'docs: add sdk cli parity spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/sdk-cli-parity-v1/spec.yml
+    related_feature_ids: []
+  - sha: e1d8bb51123257d9a839f8fef39b517cfe0fcabd
+    short_sha: e1d8bb511
+    authored_at: '2026-06-22T12:24:14+00:00'
+    subject: 'test: focus composer before new chat suggestions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: b5098dc502d0e90e11556659f77edf90fec05730
+    short_sha: b5098dc50
+    authored_at: '2026-06-22T12:14:39+00:00'
+    subject: 'test: assert visible Apple suggestion filtering'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 799f964544f4d8d4c1e0cde3c08829aec7db4475
+    short_sha: 799f96454
+    authored_at: '2026-06-22T12:11:01+00:00'
+    subject: 'fix: preserve Apple interest control identifiers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a6f7563bc43ca6441e6fda3ac2c077f0b81ebcab
+    short_sha: a6f7563bc
+    authored_at: '2026-06-22T12:09:09+00:00'
+    subject: 'fix: add politics app gradient'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    related_feature_ids: []
+  - sha: 275da54d98090a54866175ce440c05975f8e22c6
+    short_sha: 275da54d9
+    authored_at: '2026-06-22T12:07:28+00:00'
+    subject: 'test: find Apple interest continue by identifier'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b727859ba4cdf3e5c37edb43820c56633d701727
+    short_sha: b727859ba
+    authored_at: '2026-06-22T12:04:39+00:00'
+    subject: 'test: select visible Apple interest tags'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: c47c6fc5cff3a1cec50c0357d2ac6206befa667e
+    short_sha: c47c6fc5c
+    authored_at: '2026-06-22T12:00:42+00:00'
+    subject: 'test: target Apple interest tag scroll view'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 10e9e01004b0110b2e3b0551693226fd9e3d719e
+    short_sha: 10e9e0100
+    authored_at: '2026-06-22T11:58:40+00:00'
+    subject: 'test: scroll Apple interest tag container'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 9f8c564ee067a7f97a240ebd9a78bd89338413ad
+    short_sha: 9f8c564ee
+    authored_at: '2026-06-22T11:56:05+00:00'
+    subject: 'test: query Apple interest rail by identifier'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6fca3f822fcb7c586ba71bb73fadc48e2f933581
+    short_sha: 6fca3f822
+    authored_at: '2026-06-22T11:52:53+00:00'
+    subject: 'test: scroll Apple interest rail'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 3ea0641da8f106c655dc704f0ed317934bc989a9
+    short_sha: 3ea0641da
+    authored_at: '2026-06-22T11:49:06+00:00'
+    subject: 'fix: compile Apple mindmap renderer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MindMapEmbedRenderer.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 17e2fac02e7f4126965dc8d84007cf8ab86f887a
+    short_sha: 17e2fac02
+    authored_at: '2026-06-22T11:47:17+00:00'
+    subject: 'fix: compile Apple topic preferences'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6f6e7f5aa07c8e4dc8fde849b34d417de89cae00
+    short_sha: 6f6e7f5aa
+    authored_at: '2026-06-22T11:46:01+00:00'
+    subject: 'fix: include mindmap renderer in Apple target'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: c3b0f2d8f74085d4ebd96b05b328c132cd63c8c2
+    short_sha: c3b0f2d8f
+    authored_at: '2026-06-22T11:36:09+00:00'
+    subject: 'test: cover translated guest interest tag labels'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: 52d05eb8b004902af4517ca04298567a966c78c5
+    short_sha: 52d05eb8b
+    authored_at: '2026-06-22T11:26:01+00:00'
+    subject: 'test: open demo chat for anonymous flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: 0206544e67111c613003ac514c0382ef5f691b2c
+    short_sha: 0206544e6
+    authored_at: '2026-06-22T11:22:37+00:00'
+    subject: 'fix: use translated topic tags on new chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    related_feature_ids: []
+  - sha: e1869f955dd2479c11184aca87c5c547acb35352
+    short_sha: e1869f955
+    authored_at: '2026-06-22T11:14:23+00:00'
+    subject: 'fix: verify api key devices directly'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/directus/api_key_device_methods.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/utils/api_key_device_ownership.py
+    - backend/tests/test_api_key_scopes.py
+    related_feature_ids: []
+  - sha: 3c00e4b96fd3d84648e6765167d9c018ac034aa1
+    short_sha: 3c00e4b96
+    authored_at: '2026-06-22T11:13:38+00:00'
+    subject: 'test: cover Apple interest tag filtering'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/NewChatSuggestionsView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d840e32afe7adfb8eec28c45f0ce346e0d1a26bf
+    short_sha: d840e32af
+    authored_at: '2026-06-22T11:11:51+00:00'
+    subject: 'docs: update sdk package usage guides'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/user-guide/developers/sdk.md
+    - frontend/packages/openmates-cli/README.md
+    - packages/openmates-python/README.md
+    - packages/openmates-python/pyproject.toml
+    related_feature_ids: []
+  - sha: 2b5cdc461de0dbc12c6216c943ed53b487d5d430
+    short_sha: 2b5cdc461
+    authored_at: '2026-06-22T11:04:03+00:00'
+    subject: 'docs: record sdk packages green evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/sdk-packages-v1/spec.yml
+    related_feature_ids: []
+  - sha: 561b9010ff230fca49b81bb3b3178028c7d515b3
+    short_sha: 561b9010f
+    authored_at: '2026-06-22T10:58:12+00:00'
+    subject: 'feat: add Apple interest tag ranking'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: aead07fa2d3e2dbf71791b9e6e8e4247d6c413ad
+    short_sha: aead07fa2
+    authored_at: '2026-06-22T10:53:24+00:00'
+    subject: 'docs: update cookie inventory'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/compliance/cookies.yml
+    related_feature_ids: []
+  - sha: 83d2504fcf0b47fe84458371ca71951dbf3dd628
+    short_sha: 83d2504fc
+    authored_at: '2026-06-22T10:52:14+00:00'
+    subject: 'feat: add CLI TUI and typed guest interests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-release/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/publish-newsletter/SKILL.md
+    - .claude/skills/create-release/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .claude/skills/publish-newsletter/SKILL.md
+    - .github/workflows/publish-selfhost-images.yml
+    - backend/apps/openapi_docs_gen.py
+    - backend/config/backend_config.yml
+    - backend/core/docker-compose.selfhost.yml
+    - backend/preview/main.py
+    - backend/status/frontend/package-lock.json
+    - backend/status/frontend/package.json
+    - backend/tests/test_software_update_docker_mode.py
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/architecture/platforms/cli-package.md
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/self-hosting/setup.md
+    - docs/specs/cli-terminal-chat-tui/spec.yml
+    - docs/specs/unified-server-cli-management/spec.yml
+    - docs/user-guide/cli/README.md
+    - docs/user-guide/cli/chats.md
+    - docs/user-guide/cli/server-management.md
+    - frontend/apps/web_app/package.json
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/eslint-config/package.json
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiExampleContinuation.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiTerminal.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/packages/openmates-cli/tests/loader.mjs
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/openmates-cli/tests/tui.test.ts
+    - frontend/packages/openmates-cli/tests/tuiExampleContinuation.test.ts
+    - frontend/packages/secret-scanner/package.json
+    - frontend/packages/typescript-config/package.json
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/data/product_features.yml
+    - frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/stores/__tests__/topicPreferencesStore.test.ts
+    - package.json
+    - shared/config/product_version.json
+    related_feature_ids: []
+  - sha: a5472441b50aa3e8c7eb5db1941133f63dbb57f5
+    short_sha: a5472441b
+    authored_at: '2026-06-22T10:46:41+00:00'
+    subject: 'fix: show mindmap preview title and white icon'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 15f6893c217a910eddab19e04d55cb3eab9e9d4a
+    short_sha: 15f6893c2
+    authored_at: '2026-06-22T10:44:50+00:00'
+    subject: 'fix: use admin access for api key records'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/directus.py
+    related_feature_ids: []
+  - sha: 01376bbd8fe1364e3e731881a0547dd979522569
+    short_sha: 01376bbd8
+    authored_at: '2026-06-22T10:36:28+00:00'
+    subject: 'fix: encode api key list filter as directus json'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/directus.py
+    related_feature_ids: []
+  - sha: 1e101f3b4e18b862e1614d8d4f63f5b8383364dd
+    short_sha: 1e101f3b4
+    authored_at: '2026-06-22T10:26:16+00:00'
+    subject: 'test: allow draft chat context in chat flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: faebe55f4566c9ea19d97e62e8b42c7d72eceaf1
+    short_sha: faebe55f4
+    authored_at: '2026-06-22T10:26:04+00:00'
+    subject: 'fix: list api keys by hashed user id'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/directus.py
+    related_feature_ids: []
+  - sha: 80bd3101f92dba1fa631187f32e6b15bd39bcbf9
+    short_sha: 80bd3101f
+    authored_at: '2026-06-22T10:15:23+00:00'
+    subject: 'test: start explicit new chat in chat flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 62a17c33a861467541309d1dec27412438f9891d
+    short_sha: 62a17c33a
+    authored_at: '2026-06-22T09:53:15+00:00'
+    subject: 'fix: interpolate image authenticity labels'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/images/__tests__/imageAuthenticity.test.ts
+    - frontend/packages/ui/src/components/embeds/images/imageAuthenticity.ts
+    related_feature_ids: []
+  - sha: 8965b7944faf80deb452f17f5f02b1896d64a5ac
+    short_sha: 8965b7944
+    authored_at: '2026-06-22T09:49:38+00:00'
+    subject: 'fix: allow sdk routes through caddy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    related_feature_ids: []
+  - sha: aa63f62551e54efd24c1b60e77deb9ab7d1fe127
+    short_sha: aa63f6255
+    authored_at: '2026-06-22T09:41:55+00:00'
+    subject: 'test: open intro chat in demo embed spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    related_feature_ids: []
+  - sha: fefca53d9f348e04c130d2551ca78fe5e55459e3
+    short_sha: fefca53d9
+    authored_at: '2026-06-22T09:34:48+00:00'
+    subject: 'test: use sdk endpoint for api key device approval'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: 8d5e0ad6f9f9181f2e877f93151e2c3e4a5243ea
+    short_sha: 8d5e0ad6f
+    authored_at: '2026-06-22T09:22:58+00:00'
+    subject: 'test: open intro chat in example chat spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: cd29dca04865aa92f51b73847b8ea7b5c3d40acd
+    short_sha: cd29dca04
+    authored_at: '2026-06-22T09:19:00+00:00'
+    subject: 'test: harden api key developers locator'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: a8837665dc959d01a3b2de04922585bc32c49fba
+    short_sha: a8837665d
+    authored_at: '2026-06-22T09:08:07+00:00'
+    subject: 'test: fix api key devices locator'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: a3ff31b48465cb22d66ce6d02d914b63a8678c1f
+    short_sha: a3ff31b48
+    authored_at: '2026-06-22T09:01:27+00:00'
+    subject: 'test: skip disabled application preview e2e'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    related_feature_ids: []
+  - sha: 68cd4be798f0c3410b95e6110811ee3e53b7566a
+    short_sha: 68cd4be79
+    authored_at: '2026-06-22T08:56:30+00:00'
+    subject: 'test: stabilize api key device navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: 5ca9f25811ae13c1e72c0c21139a18ba9ba2aaa9
+    short_sha: 5ca9f2581
+    authored_at: '2026-06-22T08:48:50+00:00'
+    subject: 'feat: add politics focus example chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/housing-policy-dinner-discussion.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/housing_policy_dinner_discussion.yml
+    related_feature_ids: []
+  - sha: 5fb3f808a4ad1b3cb87e421a6b8ae87dd3d9ce57
+    short_sha: 5fb3f808a
+    authored_at: '2026-06-22T08:42:19+00:00'
+    subject: 'fix: decouple cerebras health check model'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/health_check_tasks.py
+    related_feature_ids: []
+  - sha: 088d03c5f65eca5bce9e864ee7f2ca6a5e3bc7ed
+    short_sha: 088d03c5f
+    authored_at: '2026-06-22T08:40:49+00:00'
+    subject: 'fix: improve politics focus routing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/politics/app.yml
+    - backend/apps/politics/focus_modes/prepare-discussion/SKILL.md
+    related_feature_ids: []
+  - sha: 4d4b334cedb072c4fc59c773d09436574137a994
+    short_sha: 4d4b334ce
+    authored_at: '2026-06-22T08:38:51+00:00'
+    subject: 'fix: align embed streaming test decoding'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_mermaid_embed_streaming.py
+    - backend/tests/test_mindmap_embed_streaming.py
+    related_feature_ids: []
+  - sha: 048fd084b7ca5954084efd8c54311e5003f16d51
+    short_sha: 048fd084b
+    authored_at: '2026-06-22T08:36:44+00:00'
+    subject: 'fix: render mindmap embeds visually'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/mindmap_fences.py
+    - backend/apps/mindmaps/app.yml
+    - backend/tests/test_mindmap_embed_streaming.py
+    - docs/specs/mindmap-embeds/spec.yml
+    - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapCanvas.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/__tests__/mindMapContent.test.ts
+    - frontend/packages/ui/src/components/embeds/mindmaps/mindMapContent.ts
+    related_feature_ids: []
+  - sha: 999b870fc4b46e315bc3cb10054a6dd140ba526a
+    short_sha: 999b870fc
+    authored_at: '2026-06-22T08:36:12+00:00'
+    subject: 'feat: add politics focus mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/politics/app.yml
+    - backend/apps/politics/focus_modes/prepare-discussion/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/politics.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/politics_prepare_discussion.yml
+    related_feature_ids: []
+  - sha: 47f71c94d3892cdda05c98562ffd8251b6d938cb
+    short_sha: 47f71c94d
+    authored_at: '2026-06-22T08:36:00+00:00'
+    subject: 'fix: stabilize learning mode test paths'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_learning_mode_prompts_and_embeds.py
+    related_feature_ids: []
+  - sha: d25436b60a0bba4aa50cff607e0e293e76c39d82
+    short_sha: d25436b60
+    authored_at: '2026-06-22T08:35:28+00:00'
+    subject: 'test: update api key flow spec for guided creation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: 22de6c0ff26951ae42eeb2272db0d1a334aca834
+    short_sha: 22de6c0ff
+    authored_at: '2026-06-22T08:30:58+00:00'
+    subject: 'fix: stabilize daily test regressions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/routes/payments.py
+    - backend/tests/test_application_preview_config.py
+    - backend/tests/test_ascii_smuggling_boundaries.py
+    - backend/tests/test_daily_inspiration_generator.py
+    - backend/tests/test_embed_diff_version_contract.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_remotion_create_skill.py
+    - backend/tests/test_youtube_metadata.py
+    - frontend/packages/ui/src/components/embeds/code/codeHighlighting.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/email-verification-sequence-diagram.ts
+    - scripts/apple_remote.py
+    related_feature_ids: []
+  - sha: 70d8c1b50e8883000c6f32b736c9d1f643a9df51
+    short_sha: 70d8c1b50
+    authored_at: '2026-06-22T08:17:59+00:00'
+    subject: 'feat: add sdk packages v1 foundations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/api_key_authorization.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/utils/api_key_auth.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/api_keys.yml
+    - backend/tests/test_api_key_scopes.py
+    - backend/tests/test_sdk_session.py
+    - docs/specs/sdk-packages-v1/spec.yml
+    - docs/user-guide/developers/sdk.md
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+    - packages/openmates-python/openmates/__init__.py
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/pyproject.toml
+    - packages/openmates-python/tests/conftest.py
+    - packages/openmates-python/tests/test_sdk.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 643c460928ffe44f405af510c77c4a24e3742c90
+    short_sha: 643c46092
+    authored_at: '2026-06-22T08:02:09+00:00'
+    subject: 'fix: remove habit garden example chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/application-embeds/spec.yml
+    - frontend/apps/web_app/tests/example-application-preview.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/habit-garden-vite-app.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/habit_garden_vite_app.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on developer parity and core interface improvements today. Key highlights include achieving
+    full parity between the SDK and CLI, the introduction of a new CLI Terminal User Interface, and the launch of a Politics
+    focus mode. The update also refined shared chat visibility and resolved several reliability issues in AI streaming and
+    content filtering.
+  released_changes:
+  - text: OpenMates achieved full parity between the SDK and CLI surfaces, including normalized chat responses and memory
+      type routing through the apps API.
+    evidence:
+      commits:
+      - e17cfdf03
+      - 0c0880d48
+      - 5d4475623
+      - 83d4711f8
+      - 5a03100fb
+    release_status: released_main
+  - text: The CLI now features a Terminal User Interface (TUI) and supports typed guest interests.
+    evidence:
+      commits:
+      - 83d2504fc
+    release_status: released_main
+  - text: A new Politics focus mode was added, featuring specialized skills for preparing discussions.
+    evidence:
+      commits:
+      - 999b870fc
+      - 088d03c5f
+    release_status: released_main
+  - text: Shared chats are now more visible with new indicators and labeling in the continue carousel for guests.
+    evidence:
+      commits:
+      - 448eb1a09
+      - baf314012
+      - 371ffa774
+    release_status: released_main
+  - text: Mindmap embeds received visual rendering updates, including improved preview titles and icons.
+    evidence:
+      commits:
+      - 048fd084b
+      - a5472441b
+    release_status: released_main
+  bug_fixes:
+  - text: OpenMates now recovers from malformed Gemini stream failures to ensure chat continuity.
+    evidence:
+      commits:
+      - e9cd8fc3b
+    release_status: released_main
+  - text: Audio transcription now supports custom routing and improved ASCII sanitization.
+    evidence:
+      commits:
+      - b1865b199
+    release_status: released_main
+  - text: Daily inspirations now include a content filter to block company promotions and specific keywords.
+    evidence:
+      commits:
+      - f4e22dab2
+    release_status: released_main
+  - text: Authenticated issue reports now correctly include the user contact email.
+    evidence:
+      commits:
+      - 9c126e423
+    release_status: released_main
+  - text: API key device verification now uses direct ownership checks for improved security.
+    evidence:
+      commits:
+      - e1869f955
+    release_status: released_main
+  - text: Interactive questions received several fixes for embed reference handling and attachment during streaming.
+    evidence:
+      commits:
+      - d3518ad2e
+      - a2219a590
+      - 8204f3690
+    release_status: released_main
+  unreleased_progress:
+  - text: Foundational work for Workflows v1 was added, though the feature remains disabled in the current configuration.
+    evidence:
+      commits:
+      - 9f35db7b3
+      - b0a20735f
+      - 81810c1d5
+      - 0722fbb34
+    release_status: released_main
+  - text: Several updates for Apple platforms were integrated, including interest tag ranking, mindmap rendering fixes, and
+      topic preference compilation, while the platforms remain unreleased.
+    evidence:
+      commits:
+      - 561b9010f
+      - 799f96454
+      - 3ea0641da
+      - 17e2fac02
+      - 6f6e7f5aa
+      - 3c00e4b96
+    release_status: released_main
+  - text: Support for embeds within interactive questions was added but is currently gated by unreleased platform flags.
+    evidence:
+      commits:
+      - 8e4d6f979
+    release_status: released_main
+  - text: Foundations for SDK packages v1 were established, including API key scope testing and developer settings updates.
+    evidence:
+      commits:
+      - 70d8c1b50
+      - 2b5cdc461
+    release_status: released_main
+  internal_progress:
+  - text: Automated CI workflows were added for publishing the Python SDK to PyPI.
+    evidence:
+      commits:
+      - 628169a24
+    release_status: released_main
+  - text: The project stabilized several daily test regressions across payment routes, learning mode prompts, and application
+      previews.
+    evidence:
+      commits:
+      - 22de6c0ff
+      - 47f71c94d
+      - a3ff31b48
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Full SDK and CLI parity for chat and application skills.
+      evidence:
+        commits:
+        - e17cfdf03
+        - 0c0880d48
+      reason: Achieves full parity between SDK and CLI surfaces for developers.
+    - text: New Terminal User Interface (TUI) for the OpenMates CLI.
+      evidence:
+        commits:
+        - 83d2504fc
+      reason: Introduces a significant new interface for CLI users.
+    - text: Introduction of the Politics focus mode with optimized discussion routing.
+      evidence:
+        commits:
+        - 999b870fc
+        - 088d03c5f
+      reason: New user-facing focus mode for political discussions.
+    - text: Enhanced shared chat indicators and visibility in the continue carousel.
+      evidence:
+        commits:
+        - 448eb1a09
+        - baf314012
+        - 371ffa774
+      reason: Improves the visibility and labeling of shared content for all users.
+    - text: Visual rendering updates and preview improvements for mindmap embeds.
+      evidence:
+        commits:
+        - 048fd084b
+        - a5472441b
+      reason: Visual improvements to a core embed type.
+    exclude:
+    - text: Workflows v1 foundation.
+      evidence:
+        commits:
+        - 9f35db7b3
+      reason: Related to the disabled platform:workflows feature.
+    - text: Apple-specific interest tag ranking, interactive question embeds, and SDK package foundations.
+      evidence:
+        commits:
+        - 561b9010f
+        - 8e4d6f979
+        - 70d8c1b50
+      reason: Related to disabled platform:ios and platform:macos features.
+    - text: Python SDK publishing automation.
+      evidence:
+        commits:
+        - 628169a24
+      reason: Internal infrastructure and CI work.
+    rationale: The update focuses on developer experience through SDK/CLI parity and introduces new user-facing features like
+      the Politics focus mode and CLI TUI. Significant work on shared chat visibility and mindmap rendering is also ready
+      for communication. Features gated by disabled platforms (Workflows, iOS, macOS) are excluded.
+  social_video_recommendations:
+  - idea: A demo of the new CLI TUI showing terminal-based chat interactions.
+    priority: high
+    reason: The TUI is a visually distinct and concrete product update for the developer community.
+    evidence:
+      commits:
+      - 83d2504fc
+  - idea: Showcasing the Politics focus mode and how it helps prepare for discussions.
+    priority: medium
+    reason: Focus modes provide a clear story on how OpenMates assists with specific real-world tasks.
+    evidence:
+      commits:
+      - 999b870fc
+  - idea: A side-by-side comparison of the improved mindmap rendering.
+    priority: low
+    reason: Visual improvements to embeds are good for showing product polish.
+    evidence:
+      commits:
+      - 048fd084b
+  quality_notes:
+  - The project maintained high test coverage with 39 test-related commits, specifically targeting audio recording, API key
+    flows, and Apple-specific UI contracts.
+  - Documentation was updated to reflect SDK usage guides and workflow verification blockers.
+  validation_warnings: []

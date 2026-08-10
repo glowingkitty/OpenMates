@@ -20,6 +20,8 @@ python3 scripts/issues.py findings $ARGS --env prod
 
 If the issue is known to be from dev, use `--env dev`. The findings command creates a local-only, gitignored note at `docs/findings/issues/<env>/<YYYY>/...md`. Update this note with the first anomaly, root-cause hypothesis, related reports, attempts, tests, and final status before changing product code. Do not store reported-issue findings elsewhere.
 
+For production issues, inspect the production code on `main` before using the current worktree: run `git fetch origin main:refs/remotes/origin/main`, read suspect files with `git show origin/main:<path>`, and only then compare with `dev`. Use `dev` only to check whether it is also susceptible to the same issue/bug/behavior or whether it already contains a fix.
+
 Use these workflow helpers before raw debug commands:
 
 ```bash
@@ -33,7 +35,7 @@ python3 scripts/issues.py mark $ARGS --env prod --status investigating
 
 Launch the `issue-forensics` agent with this prompt:
 
-> Investigate issue `$ARGS`. Use `scripts/issues.py show`, `scripts/issues.py timeline`, and the created findings note as the workflow entry points. Run raw `debug.py issue` only when the wrapper lacks a needed low-level view. Follow any trace IDs, identify the first anomaly, and return the structured JSON + narrative. Use `--env prod` when this is a prod issue.
+> Investigate issue `$ARGS`. Use `scripts/issues.py show`, `scripts/issues.py timeline`, and the created findings note as the workflow entry points. Run raw `debug.py issue` only when the wrapper lacks a needed low-level view. For prod issues, inspect suspect code on `origin/main` first after `git fetch origin main:refs/remotes/origin/main`; use `dev` only as a susceptibility/fix comparison. Follow any trace IDs, identify the first anomaly, and return the structured JSON + narrative. Use `--env prod` when this is a prod issue.
 
 The agent runs all `debug.py` commands, correlates browser↔backend events, git-blames suspects, and returns a compact report with `first_anomaly`, `root_cause_hypothesis`, `suspect_files[]`, `reproduction_steps`, and `related_recent_commits`.
 

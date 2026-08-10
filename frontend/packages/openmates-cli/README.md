@@ -99,17 +99,17 @@ openmates chats delete <chat-id> --yes
 Exports include YAML and Markdown. When present, code embeds and video
 transcripts are written as separate files.
 
-### Run app skills
+### Use apps and typed commands
 
 ```bash
 openmates apps list
-openmates apps web search "latest AI news"
-openmates apps ai ask "What is Docker?"
+openmates apps skill-info web search
+openmates tasks create --title "Draft launch checklist"
+openmates workflows list
 openmates apps code run --language python --code 'print("Hello from CLI")'
-openmates apps travel search_connections --input '{"requests":[{"legs":[{"origin":"BER","destination":"LHR","date":"2026-04-15"}]}]}'
 ```
 
-App commands use your logged-in session by default. For non-interactive scripts,
+Typed app commands use your logged-in session by default. For non-interactive scripts,
 create an API key in **Settings > Developers > API Keys**, then pass
 `--api-key <key>` or set `OPENMATES_API_KEY`.
 
@@ -144,14 +144,34 @@ review the spend confirmation before live runs.
 ### Local source bridge
 
 ```bash
-openmates remote-access start --path ./my-repo --source-id repo-1 --local-only
-openmates remote-access status --json
-openmates remote-access search --source repo-1 "TODO" --limit 20
+openmates remote-access --personal
+openmates remote-access --team <team> --path ./my-repo --path ../shared
+openmates remote-access --personal --path ./my-repo --json
+openmates projects files list <project> --personal --json
+openmates projects files search <project> <query> --team <team> --source <source-id> --json
+openmates projects files read <project> <relative-path> --team <team> --source <source-id> --json
 ```
 
-`openmates remote-access` stores source metadata under
-`~/.openmates/remote-sources.json`, searches with `rg` inside the approved root,
-and does not upload repository files by default.
+The command discovers Git repositories below the current folder by default;
+explicit `--path` values replace that scope. It remains in the foreground,
+reconnects after temporary network loss, and marks sources offline when it
+stops. OpenMates can request bounded directory listings, text search, and
+selected text previews. The bridge is read-only, excludes ignored, protected,
+binary, and out-of-root files, and never uploads a preview unless you explicitly
+choose to upload it.
+
+Interactive hosting confirms Personal or Team context before discovery.
+Non-interactive/JSON hosting and live file requests require `--personal` or
+`--team <team>`. Team permissions are enforced by the API; live filesystem
+methods remain CLI-only and are not exposed by the npm SDK.
+Project deletion requires the exact Project ID, and source removal requires the
+exact source ID, both in the CLI prompt and in the server request. Generic
+boolean confirmation is not supported.
+
+Project keys authenticate end-to-end encryption between trusted clients. The
+backend receives routing metadata and opaque ciphertext, not filesystem paths,
+queries, snippets, file contents, or encryption keys. Local source associations
+are stored with owner-only permissions under `~/.openmates/remote-sources.json`.
 
 ## Self-Host Server Management
 
@@ -295,12 +315,12 @@ intentionally want the chat saved to the OpenMates account.
 
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.14`, in the web app.
+OpenMates shows the short product line, for example `v0.15`, in the web app.
 The npm package uses exact artifact versions:
 
-- `0.14.N-alpha.0` is a prerelease from the `dev` branch published under the
+- `0.15.0-alpha.N` is a prerelease from the `dev` branch published under the
   `alpha` npm tag.
-- `0.14.N` is a stable release from `main` published under the `latest` npm tag.
+- `0.15.0` is a stable release from `main` published under the `latest` npm tag.
 
 Install stable releases with `npm install -g openmates`. Install prereleases with
 `npm install -g openmates@alpha`.

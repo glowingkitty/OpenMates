@@ -1,0 +1,50 @@
+{
+  "fingerprint": "0695f9e8d7fb628f",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "math_calculate_web",
+  "recorded_at": "2026-08-03T13:06:48.961506+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 3,
+    "temperature": 0.0,
+    "tool_choice": "auto",
+    "last_message_hash": "87976319982150e7",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "expression_latex: \"12\"\nresult_latex: \"12.0\"\nresult_numeric: 12.0\nresult_str: \"12.0000000000000\"\nexpression_raw: sqrt(144)\ntitle: Square root of 144\nsteps: \"\"\nmode_used: numeric\nerror: null\nexpression:..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "The square root of 144 is 12. \n\nWould you like to calculate another square root, or explore exponents?",
+    "chunk_count": 4,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "The square"
+      },
+      {
+        "kind": "text",
+        "value": " root of 144 is 12. \n\nWould you like to calculate"
+      },
+      {
+        "kind": "text",
+        "value": " another square root, or explore exponents?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 13629,
+          "candidates_token_count": 28,
+          "total_token_count": 13657,
+          "user_input_tokens": 147,
+          "system_prompt_tokens": 12501
+        }
+      }
+    ]
+  }
+}

@@ -31,16 +31,40 @@
    */
 
   import { onMount, onDestroy } from 'svelte';
+  import { fade } from 'svelte/transition';
   import { get } from 'svelte/store';
   import { text } from '@repo/ui';
   import { CATEGORY_GRADIENTS, getCategoryGradientColors } from '../utils/categoryUtils';
-  import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSurface } from '../stores/dailyInspirationStore';
-  import { loadDefaultInspirations } from '../demo_chats/loadDefaultInspirations';
+  import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSource, type DailyInspirationSurface } from '../stores/dailyInspirationStore';
+  import { loadDefaultInspirations, loadGuestOnboardingInspirations } from '../demo_chats/loadDefaultInspirations';
   import { authStore } from '../stores/authStore';
+  import { introBannerVisible } from '../stores/uiStateStore';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../utils/imageProxy';
+  import { appsMetadata } from '../data/appsMetadata';
+  import { resolveIconName } from '../utils/iconNameResolver';
   import VideoEmbedPreview from './embeds/videos/VideoEmbedPreview.svelte';
   import DirectVideoEmbedFullscreen from './embeds/videos/DirectVideoEmbedFullscreen.svelte';
   import WikipediaEmbedPreview from './embeds/wiki/WikipediaEmbedPreview.svelte';
+  import LandingActionableEventDemo from './landing/LandingActionableEventDemo.svelte';
+  import LandingPrivacySafetyDemo from './landing/LandingPrivacySafetyDemo.svelte';
+  import LandingMatesFocusDemo from './landing/LandingMatesFocusDemo.svelte';
+  import LandingPeopleExperienceDemo from './landing/LandingPeopleExperienceDemo.svelte';
+  import LandingHeadingMotion, { type LandingHeadingMotionPhase } from './landing/LandingHeadingMotion.svelte';
+  import {
+    ACTIONABLE_DEMO_DURATION_MS,
+    ACTIONABLE_MOBILE_HEADING_FADE_IN_MS,
+    ACTIONABLE_MOBILE_HEADING_FADE_OUT_MS,
+    ACTIONABLE_MOBILE_HEADING_SWAP_MS,
+    ACTIONABLE_MOBILE_START_DELAY_MS,
+  } from './landing/landingActionableEventTimeline';
+  import {
+    PRODUCT_STORY_HEADING_DELAY_MS,
+    PRODUCT_STORY_HEADING_FADE_OUT_MS,
+    PRODUCT_STORY_HEADING_FADE_IN_MS,
+    PRIVACY_STORY_CAROUSEL_DURATION_MS,
+    MATES_FOCUS_STORY_CAROUSEL_DURATION_MS,
+    PEOPLE_EXPERIENCE_STORY_CAROUSEL_DURATION_MS,
+  } from './landing/landingProductStoryTimelines';
 
   // ─── Lucide icons ────────────────────────────────────────────────────────────
 
@@ -53,8 +77,27 @@
 
   const INSPIRATION_AUTO_ROTATION_INTERVAL_MS = 20000;
   const MOBILE_CARD_ROTATION_INTERVAL_MS = Math.round(INSPIRATION_AUTO_ROTATION_INTERVAL_MS * 0.55);
+  const LANDING_INTRO_REQUESTS_COUNT = 4;
+  const LANDING_INTRO_HEADLINE_ONLY_MS = 1200;
+  const LANDING_INTRO_REQUEST_INTERVAL_MS = 2100;
+  const LANDING_INTRO_TOTAL_MS = LANDING_INTRO_HEADLINE_ONLY_MS + (LANDING_INTRO_REQUEST_INTERVAL_MS * LANDING_INTRO_REQUESTS_COUNT) + 700;
+  const LANDING_INTRO_CONTENT_FADE_MS = 360;
+  const LANDING_INTRO_REGULAR_REVEAL_MS = 520;
+  const LANDING_INTRO_RESIZE_TRANSITION_MS = 760;
+  const GUEST_SLIDE_CONTENT_FADE_MS = 320;
+  const HEADING_ENTRY_PAINT_DELAY_MS = 80;
+  const SIGNUP_BENEFITS_HOLD_MS = 2800;
+  const SIGNUP_STAGE_TRANSITION_MS = 420;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
+  const LANDING_INTRO_INSPIRATION_ID = 'openmates-intro';
+  const LANDING_ACTIONABLE_EVENTS_ID = 'openmates-actionable-events';
+  const LANDING_SIGNUP_CTA_ID = 'openmates-signup-cta';
+  const LANDING_INTRO_RAIL_MIN_ICON_COUNT = 40;
+  const LANDING_INTRO_PRIMARY_RAIL_MAX_BASE_ICON_COUNT = 12;
+  const LANDING_INTRO_PRIMARY_RAIL_DURATION_MS = Math.round(
+    LANDING_INTRO_REQUEST_INTERVAL_MS * LANDING_INTRO_RAIL_MIN_ICON_COUNT,
+  );
   // Temporarily disabled with the visit-cycling effect below.
   // const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
   const AUTHENTICATED_ONLY_FEATURE_IDS = new Set([
@@ -69,6 +112,24 @@
     'privacy/hide-personal-data',
     'settings_memories',
   ]);
+  const LANDING_INTRO_FEATURED_APP_IDS = ['health', 'events', 'code', 'news'];
+  const LANDING_INTRO_EXCLUDED_APP_IDS = new Set(['ai']);
+  const LANDING_INTRO_REQUESTS = [
+    { appId: 'health', labelKey: 'demo_chats.for_everyone.landing_intro_request_doctor' },
+    { appId: 'events', labelKey: 'demo_chats.for_everyone.landing_intro_request_events' },
+    { appId: 'code', labelKey: 'demo_chats.for_everyone.landing_intro_request_web_app' },
+    { appId: 'news', labelKey: 'demo_chats.for_everyone.landing_intro_request_news' },
+  ];
+
+  interface LandingIntroAppIcon {
+    appId: string;
+    iconName: string;
+  }
+
+  type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
+  type ActionableMobileHeadingPhase = 'large' | 'fading-out' | 'hidden' | 'fading-in' | 'ready';
+  type GuestSlidePhase = 'idle' | 'fading-out' | 'hidden' | 'fading-in';
+  type SignupSlidePhase = 'idle' | 'benefits-in' | 'benefits' | 'benefits-out' | 'cta-in' | 'cta';
 
   // ─── Component props ────────────────────────────────────────────────────────
 
@@ -92,11 +153,19 @@
     surface?: DailyInspirationSurface;
     /** Visual treatment. Guest intro keeps carousel behavior with ChatHeader-like split media. */
     variant?: 'default' | 'guest-intro';
+    /** Increment to force the guest intro carousel back to slide 0. */
+    landingIntroResetToken?: number;
+    /** Increment to move the guest carousel to the terminal signup slide. */
+    landingSignupSlideToken?: number;
+    /** Start after the expanded intro when returning from a guest example chat. */
+    skipLandingIntro?: boolean;
     /** Called when the visible inspiration changes, including manual and automatic carousel moves. */
     onVisibleInspirationChange?: (inspiration: DailyInspiration) => void;
+    /** Called while the logged-out intro overlay changes size over the welcome surface. */
+    onLandingIntroExpandedChange?: (phase: LandingIntroPhase) => void;
   }
 
-  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', onVisibleInspirationChange }: Props = $props();
+  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', landingIntroResetToken = 0, landingSignupSlideToken = 0, skipLandingIntro = false, onVisibleInspirationChange, onLandingIntroExpandedChange }: Props = $props();
   let isGuestIntroVariant = $derived(variant === 'guest-intro');
 
   // ─── Local state (Svelte 5 runes) ──────────────────────────────────────────
@@ -105,6 +174,7 @@
   let inspirations = $state<DailyInspiration[]>([]);
   let currentIndex = $state(0);
   let isAuthenticated = $state(false);
+  let inspirationSource = $state<DailyInspirationSource>('none');
 
   // Track which inspiration_ids we have already sent a `viewed` WS event for.
   // An entry is added as soon as the banner is visible in the viewport AND the
@@ -121,6 +191,13 @@
   // On mobile, alternate between the assistant message and interactive preview instead
   // of squeezing both into the narrow banner width.
   let showMobileCard = $state(false);
+  let actionableMobileHeadingReady = $state(false);
+  let actionableMobileHeadingPhase = $state<ActionableMobileHeadingPhase>('large');
+  let guestHeadingMotionPhase = $state<LandingHeadingMotionPhase>('entering');
+  let introHeadingMotionPhase = $state<LandingHeadingMotionPhase>('entering');
+  let guestSlidePhase = $state<GuestSlidePhase>('idle');
+  let signupSlidePhase = $state<SignupSlidePhase>('idle');
+  let pendingGuestSlideIndex = $state<number | null>(null);
 
   // Touch gesture state for mobile carousel swipes.
   let touchStartX = $state(0);
@@ -128,11 +205,37 @@
   let touchSwipeHandled = $state(false);
   let suppressNextClick = $state(false);
   let prefersTouchCta = $state(false);
+  let prefersReducedMotion = $state(false);
   let isUserInteracting = $state(false);
   let isOpeningInspiration = $state(false);
   let directVideoFullscreenOpen = $state(false);
   let progressRestartToken = $state(0);
+  let actionableDemoComplete = $state(false);
+  let actionableProgressComplete = $state(false);
+  let actionableAdvanceCommitted = $state(false);
+  let actionableCompletionKey = $state('');
   let lastNotifiedInspirationId = $state('');
+  let lastNotifiedLandingIntroPhase = $state<LandingIntroPhase>('regular');
+  let landingIntroDismissed = $state(false);
+  let landingIntroPhase = $state<LandingIntroPhase>('expanded');
+  let landingIntroRequestIndex = $state(-1);
+  let pendingLandingIntroIndex = $state<number | null>(null);
+  let landingIntroRevealActive = $state(false);
+  let landingIntroRevealVisible = $state(false);
+  let landingIntroTransitionTimeout: number | undefined;
+  let landingIntroAnimationFrame: number | undefined;
+  let landingIntroRevealAnimationFrame: number | undefined;
+  let landingIntroRevealTimeout: number | undefined;
+  let landingIntroRailSyncAnimationFrame: number | undefined;
+  let guestSlideTransitionTimeout: number | undefined;
+  let guestSlideTransitionAnimationFrame: number | undefined;
+  let signupStageTimeout: number | undefined;
+  let signupStageTransitionTimeout: number | undefined;
+  let signupStageAnimationFrame: number | undefined;
+  let lastLandingIntroResetToken = $state(0);
+  let lastLandingSignupSlideToken = $state(0);
+  let skipLandingIntroApplied = $state(false);
+  let landingIntroPrimaryRailOffsetPx = $state(0);
   // Temporarily disabled with the visit-cycling effect below.
   // let visitCycleTargetIndexes = $state(new Map<string, number>());
   // let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
@@ -140,17 +243,21 @@
 
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
   let bannerWrapperEl = $state<HTMLElement | null>(null);
+  let landingIntroPrimaryRailRowEl = $state<HTMLElement | null>(null);
+  let landingIntroPrimaryRailEl = $state<HTMLElement | null>(null);
 
   // ─── Crossfade when data source changes ─────────────────────────────────────
-  // When hardcoded inspirations are replaced by real data (IndexedDB / server /
-  // WS), the banner crossfades: the old content fades out, then the new content
-  // fades in. This avoids a jarring instant swap.
+  // When bootstrap/fallback inspirations are replaced by a new source, the
+  // banner crossfades: the old content fades out, then the new content fades in.
+  // This avoids a jarring instant swap during auth recovery.
   const HARDCODED_ID_PREFIX = "hardcoded-";
   let isCrossfading = $state(false);
 
   // ─── Subscribe to store ─────────────────────────────────────────────────────
 
   const unsubscribeDailyInspirations = dailyInspirationStore.subscribe((state) => {
+    const previousSource = inspirationSource;
+    inspirationSource = state.source;
     const wasHardcoded = inspirations.length > 0 &&
       inspirations.every((i) => i.inspiration_id.startsWith(HARDCODED_ID_PREFIX));
     const isNowReal = state.inspirations.length > 0 &&
@@ -164,8 +271,13 @@
       isDailyInspirationVisible(inspiration),
     );
     const isSameVisibleSet = hasSameVisibleInspirationIds(previousVisibleInspirations, nextVisibleInspirations);
+    const isSourceReplacement = previousSource !== 'none' && previousSource !== state.source;
+    const shouldCrossfade = !isSameVisibleSet &&
+      previousVisibleInspirations.length > 0 &&
+      nextVisibleInspirations.length > 0 &&
+      ((wasHardcoded && isNowReal) || isSourceReplacement);
 
-    if (wasHardcoded && isNowReal) {
+    if (shouldCrossfade) {
       // Trigger crossfade: fade out, swap data, fade in
       isCrossfading = true;
       setTimeout(() => {
@@ -187,12 +299,33 @@
   });
 
   const unsubscribeAuth = authStore.subscribe((state) => {
+    const becameAuthenticated = state.isAuthenticated && !isAuthenticated;
+    const becameUnauthenticated = !state.isAuthenticated && isAuthenticated;
     isAuthenticated = state.isAuthenticated;
+    if (becameAuthenticated && surface === 'chats') {
+      void loadDefaultInspirations({ allowIndexedDB: true, surface: 'chats' }).catch((error) => {
+        console.error('[DailyInspirationBanner] Failed to restore authenticated inspirations:', error);
+      });
+    } else if (becameUnauthenticated && surface === 'chats') {
+      loadGuestOnboardingInspirations();
+    }
   });
 
   onDestroy(() => {
     unsubscribeDailyInspirations();
     unsubscribeAuth();
+    onLandingIntroExpandedChange?.('regular');
+    window.clearTimeout(landingIntroTransitionTimeout);
+    window.clearTimeout(landingIntroRevealTimeout);
+    window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
+    window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
+    window.cancelAnimationFrame(landingIntroRailSyncAnimationFrame ?? 0);
+    window.clearTimeout(guestSlideTransitionTimeout);
+    window.cancelAnimationFrame(guestSlideTransitionAnimationFrame ?? 0);
+    window.clearTimeout(signupStageTimeout);
+    window.clearTimeout(signupStageTransitionTimeout);
+    window.cancelAnimationFrame(signupStageAnimationFrame ?? 0);
+    introBannerVisible.set(false);
   });
 
   // ─── Reload inspirations on language change ─────────────────────────────────
@@ -203,11 +336,17 @@
   // user's language at creation time — they cannot be retranslated, so we skip.
   onMount(() => {
     const pointerQuery = window.matchMedia('(pointer: coarse)');
+    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     const updatePointerCta = () => {
       prefersTouchCta = pointerQuery.matches || navigator.maxTouchPoints > 0;
     };
+    const updateReducedMotion = () => {
+      prefersReducedMotion = reducedMotionQuery.matches;
+    };
     updatePointerCta();
+    updateReducedMotion();
     pointerQuery.addEventListener('change', updatePointerCta);
+    reducedMotionQuery.addEventListener('change', updateReducedMotion);
 
     const handleLanguageChange = () => {
       const state = get(dailyInspirationStore);
@@ -221,10 +360,13 @@
     // Use 'language-changed-complete' (fires 50ms after locale.set + waitLocale)
     // to ensure the svelte-i18n locale store is fully settled before re-fetching.
     window.addEventListener('language-changed-complete', handleLanguageChange);
+    window.addEventListener('resize', scheduleLandingIntroRailSync);
 
     return () => {
       pointerQuery.removeEventListener('change', updatePointerCta);
+      reducedMotionQuery.removeEventListener('change', updateReducedMotion);
       window.removeEventListener('language-changed-complete', handleLanguageChange);
+      window.removeEventListener('resize', scheduleLandingIntroRailSync);
     };
   });
 
@@ -265,6 +407,22 @@
     return () => observer.disconnect();
   });
 
+  $effect(() => {
+    if (!landingIntroOverlayActive) {
+      introHeadingMotionPhase = 'hidden';
+      return;
+    }
+    if (landingIntroPhase === 'fading-out' || landingIntroPhase === 'collapsing') {
+      introHeadingMotionPhase = 'exiting';
+      return;
+    }
+    introHeadingMotionPhase = 'entering';
+    const timeout = window.setTimeout(() => {
+      introHeadingMotionPhase = 'visible';
+    }, HEADING_ENTRY_PAINT_DELAY_MS);
+    return () => window.clearTimeout(timeout);
+  });
+
   // Fire `inspiration_viewed` whenever the current inspiration becomes visible.
   $effect(() => {
     if (!isBannerVisible) return;
@@ -289,16 +447,79 @@
     onVisibleInspirationChange?.(current);
   });
 
-  // Mobile card loop: start on the assistant message, then alternate message and preview.
+  // Mobile cards start with explanatory text. Guest landing slides then compact the
+  // heading after 1500ms once the expanded intro overlay is gone, matching the Figma flow.
   $effect(() => {
-    if (!shouldCycleMobileCard) {
+    if (!shouldCycleMobileCard || landingIntroOverlayActive) {
       showMobileCard = false;
+      actionableMobileHeadingReady = false;
+      actionableMobileHeadingPhase = 'large';
+      guestHeadingMotionPhase = 'hidden';
       return;
     }
 
     void currentIndex;
     void mobilePreviewKey;
     showMobileCard = false;
+    actionableMobileHeadingReady = false;
+    actionableMobileHeadingPhase = 'large';
+    guestHeadingMotionPhase = 'entering';
+
+    if (isGuestIntroVariant) {
+      if (prefersReducedMotion) {
+        showMobileCard = true;
+        actionableMobileHeadingReady = true;
+        actionableMobileHeadingPhase = 'ready';
+        guestHeadingMotionPhase = 'visible';
+        return;
+      }
+      const headingStartDelayMs = guestProductAnimationKind
+        ? PRODUCT_STORY_HEADING_DELAY_MS
+        : ACTIONABLE_MOBILE_START_DELAY_MS;
+      const headingFadeOutMs = guestProductAnimationKind
+        ? PRODUCT_STORY_HEADING_FADE_OUT_MS
+        : ACTIONABLE_MOBILE_HEADING_FADE_OUT_MS;
+      const headingFadeInMs = guestProductAnimationKind
+        ? PRODUCT_STORY_HEADING_FADE_IN_MS
+        : ACTIONABLE_MOBILE_HEADING_FADE_IN_MS;
+      let headingFadeOutTimeout: number | undefined;
+      let headingFadeInTimeout: number | undefined;
+      let headingSwapAnimationFrame: number | undefined;
+      let headingEntryTimeout: number | undefined;
+      let headingVisibleTimeout: number | undefined;
+      headingEntryTimeout = window.setTimeout(() => {
+        guestHeadingMotionPhase = 'visible';
+      }, HEADING_ENTRY_PAINT_DELAY_MS);
+      const headingStartTimeout = window.setTimeout(() => {
+        guestHeadingMotionPhase = 'exiting';
+        actionableMobileHeadingPhase = 'fading-out';
+        headingFadeOutTimeout = window.setTimeout(() => {
+          guestHeadingMotionPhase = 'hidden';
+          actionableMobileHeadingPhase = 'hidden';
+          showMobileCard = true;
+          headingSwapAnimationFrame = window.requestAnimationFrame(() => {
+            actionableMobileHeadingPhase = 'fading-in';
+            guestHeadingMotionPhase = 'entering';
+            headingVisibleTimeout = window.setTimeout(() => {
+              guestHeadingMotionPhase = 'visible';
+            }, HEADING_ENTRY_PAINT_DELAY_MS);
+            headingFadeInTimeout = window.setTimeout(() => {
+              actionableMobileHeadingPhase = 'ready';
+              actionableMobileHeadingReady = true;
+            }, headingFadeInMs);
+          });
+        }, headingFadeOutMs);
+      }, headingStartDelayMs);
+
+      return () => {
+        window.clearTimeout(headingStartTimeout);
+        window.clearTimeout(headingFadeOutTimeout);
+        window.clearTimeout(headingFadeInTimeout);
+        window.clearTimeout(headingEntryTimeout);
+        window.clearTimeout(headingVisibleTimeout);
+        window.cancelAnimationFrame(headingSwapAnimationFrame ?? 0);
+      };
+    }
 
     const interval = window.setInterval(() => {
       showMobileCard = !showMobileCard;
@@ -317,6 +538,199 @@
   let current = $derived.by(() => {
     if (visibleInspirations.length === 0) return null;
     return visibleInspirations[currentIndex % visibleInspirations.length] ?? null;
+  });
+  let reachableSlideIndexes = $derived.by(() => getReachableSlideIndexes(currentIndex, visibleInspirations.length));
+
+  let landingIntroIsCurrentSlide = $derived(
+    isGuestIntroVariant && current?.inspiration_id === LANDING_INTRO_INSPIRATION_ID,
+  );
+  let landingIntroOverlayActive = $derived(landingIntroIsCurrentSlide);
+  let landingIntroUsesFullHeight = $derived(
+    landingIntroOverlayActive && (
+      landingIntroPhase === 'regular'
+      || landingIntroPhase === 'expanded'
+      || landingIntroPhase === 'fading-out'
+    ),
+  );
+  let landingIntroParentPhase = $derived(
+    landingIntroOverlayActive && landingIntroPhase === 'regular' ? 'expanded' : landingIntroPhase,
+  );
+  let landingIntroActiveRequest = $derived(
+    LANDING_INTRO_REQUESTS[landingIntroRequestIndex] ?? LANDING_INTRO_REQUESTS[0],
+  );
+
+  let landingIntroExamplesVisible = $derived(landingIntroRequestIndex >= 0);
+  let landingIntroRequestLabel = $derived(landingIntroExamplesVisible ? $text(landingIntroActiveRequest.labelKey) : '');
+  let landingIntroActiveAppId = $derived(landingIntroActiveRequest.appId);
+  let isGuestActionableSlide = $derived(
+    isGuestIntroVariant && !landingIntroOverlayActive && current?.inspiration_id === LANDING_ACTIONABLE_EVENTS_ID,
+  );
+  let isGuestSignupCtaSlide = $derived(
+    isGuestIntroVariant && !landingIntroOverlayActive && current?.inspiration_id === LANDING_SIGNUP_CTA_ID,
+  );
+  let shouldHoldOnFinalSlide = $derived(isGuestSignupCtaSlide && currentIndex === visibleInspirations.length - 1);
+  let signupBenefitsVisible = $derived(
+    signupSlidePhase === 'benefits-in'
+      || signupSlidePhase === 'benefits'
+      || signupSlidePhase === 'benefits-out',
+  );
+  let signupCtaVisible = $derived(signupSlidePhase === 'cta-in' || signupSlidePhase === 'cta');
+  let guestProductAnimationKind = $derived.by(() => {
+    if (!isGuestIntroVariant || landingIntroOverlayActive) return '';
+    if (current?.inspiration_id === 'openmates-privacy-safety') return 'privacy';
+    if (current?.inspiration_id === 'openmates-mates-focus') return 'mates';
+    if (current?.inspiration_id === 'openmates-provider-cross-platform') return 'platform';
+    return '';
+  });
+  let isCoordinatedGuestStory = $derived(isGuestActionableSlide || !!guestProductAnimationKind);
+  let guestFeatureHeadlineLines = $derived.by(() => {
+    if (isGuestActionableSlide) {
+      return [
+        $text('demo_chats.for_everyone.landing_actionable_line1'),
+        $text('demo_chats.for_everyone.landing_actionable_line2'),
+      ];
+    }
+    return current?.phrase ? [current.phrase] : [];
+  });
+
+  let landingIntroAppIcons = $derived(buildLandingIntroAppIcons());
+  let landingIntroFirstRailBase = $derived.by(() => buildPrimaryLandingIntroIcons(landingIntroAppIcons));
+  let landingIntroSecondRailBase = $derived.by(() => buildSecondaryLandingIntroIcons(landingIntroAppIcons, landingIntroFirstRailBase));
+  let landingIntroFirstRail = $derived.by(() => repeatLandingIntroRailIcons(landingIntroFirstRailBase));
+  let landingIntroSecondRail = $derived.by(() => repeatLandingIntroRailIcons(landingIntroSecondRailBase));
+  $effect(() => {
+    if (landingIntroParentPhase === lastNotifiedLandingIntroPhase) return;
+    lastNotifiedLandingIntroPhase = landingIntroParentPhase;
+    onLandingIntroExpandedChange?.(landingIntroParentPhase);
+  });
+
+  $effect(() => {
+    if (!isGuestIntroVariant || landingIntroDismissed || visibleInspirations.length === 0) return;
+    const introIndex = visibleInspirations.findIndex((inspiration) =>
+      inspiration.inspiration_id === LANDING_INTRO_INSPIRATION_ID,
+    );
+    if (introIndex >= 0 && currentIndex !== introIndex) {
+      currentIndex = introIndex;
+    }
+  });
+
+  $effect(() => {
+    if (!skipLandingIntro) {
+      skipLandingIntroApplied = false;
+      return;
+    }
+    if (!isGuestIntroVariant || skipLandingIntroApplied || visibleInspirations.length < 2) return;
+    skipLandingIntroApplied = true;
+    landingIntroDismissed = true;
+    landingIntroPhase = 'regular';
+    if (landingIntroIsCurrentSlide) {
+      currentIndex = 1;
+    }
+  });
+
+  $effect(() => {
+    window.clearTimeout(signupStageTimeout);
+    window.clearTimeout(signupStageTransitionTimeout);
+    window.cancelAnimationFrame(signupStageAnimationFrame ?? 0);
+
+    if (!isGuestSignupCtaSlide) {
+      signupSlidePhase = 'idle';
+      return;
+    }
+
+    signupSlidePhase = prefersReducedMotion ? 'benefits' : 'benefits-in';
+    if (!prefersReducedMotion) {
+      signupStageAnimationFrame = window.requestAnimationFrame(() => {
+        signupSlidePhase = 'benefits';
+      });
+    }
+
+    signupStageTimeout = window.setTimeout(() => {
+      if (prefersReducedMotion) {
+        signupSlidePhase = 'cta';
+        return;
+      }
+
+      signupSlidePhase = 'benefits-out';
+      signupStageTransitionTimeout = window.setTimeout(() => {
+        signupSlidePhase = 'cta-in';
+        signupStageAnimationFrame = window.requestAnimationFrame(() => {
+          signupSlidePhase = 'cta';
+        });
+      }, SIGNUP_STAGE_TRANSITION_MS);
+    }, SIGNUP_BENEFITS_HOLD_MS);
+
+    return () => {
+      window.clearTimeout(signupStageTimeout);
+      window.clearTimeout(signupStageTransitionTimeout);
+      window.cancelAnimationFrame(signupStageAnimationFrame ?? 0);
+    };
+  });
+
+  $effect(() => {
+    introBannerVisible.set(isGuestSignupCtaSlide && signupCtaVisible && isBannerVisible);
+    return () => introBannerVisible.set(false);
+  });
+
+  $effect(() => {
+    if (!isGuestIntroVariant || landingIntroResetToken === lastLandingIntroResetToken) return;
+    lastLandingIntroResetToken = landingIntroResetToken;
+    resetLandingIntroToFirstSlide();
+  });
+
+  $effect(() => {
+    if (!isGuestIntroVariant || landingSignupSlideToken === lastLandingSignupSlideToken) return;
+    const signupIndex = visibleInspirations.findIndex((inspiration) =>
+      inspiration.inspiration_id === LANDING_SIGNUP_CTA_ID,
+    );
+    if (signupIndex < 0) return;
+    lastLandingSignupSlideToken = landingSignupSlideToken;
+    landingIntroDismissed = true;
+    landingIntroPhase = 'regular';
+    goToVisibleIndex(signupIndex);
+  });
+
+  $effect(() => {
+    void containerWidth;
+    void landingIntroRequestIndex;
+    void landingIntroFirstRail.length;
+    void landingIntroPrimaryRailRowEl;
+    void landingIntroPrimaryRailEl;
+    if (!landingIntroOverlayActive || landingIntroPhase !== 'expanded') {
+      landingIntroPrimaryRailOffsetPx = 0;
+      return;
+    }
+    if (landingIntroRequestIndex >= 0) return;
+    scheduleLandingIntroRailSync();
+  });
+
+  $effect(() => {
+    if (!landingIntroOverlayActive || landingIntroPhase === 'regular') {
+      landingIntroRequestIndex = -1;
+      return;
+    }
+    if (landingIntroPhase !== 'expanded') return;
+
+    landingIntroRequestIndex = -1;
+    let interval: number | undefined;
+    const headlineTimeout = window.setTimeout(() => {
+      landingIntroRequestIndex = 0;
+      interval = window.setInterval(() => {
+        landingIntroRequestIndex = Math.min(
+          LANDING_INTRO_REQUESTS.length - 1,
+          landingIntroRequestIndex + 1,
+        );
+      }, LANDING_INTRO_REQUEST_INTERVAL_MS);
+    }, LANDING_INTRO_HEADLINE_ONLY_MS);
+    const timeout = window.setTimeout(() => {
+      completeLandingIntro(1);
+    }, LANDING_INTRO_TOTAL_MS);
+
+    return () => {
+      window.clearTimeout(headlineTimeout);
+      if (interval !== undefined) window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
   });
 
   /** Valid mate/category class to render. Public cached wiki cards may contain old unsupported categories. */
@@ -401,6 +815,52 @@
 
   /** Whether the banner is rendered in the narrow mobile layout. */
   let isMobileBannerLayout = $derived(containerWidth > 0 && containerWidth <= 730);
+  let actionablePlaybackActive = $derived(
+    isGuestActionableSlide
+      && isBannerVisible
+      && containerWidth > 0
+      && actionableMobileHeadingReady
+      && !prefersReducedMotion,
+  );
+  let productStoryPlaybackActive = $derived(
+    !!guestProductAnimationKind
+      && isBannerVisible
+      && containerWidth > 0
+      && actionableMobileHeadingReady
+      && !prefersReducedMotion,
+  );
+  let carouselProgressDurationMs = $derived(
+    landingIntroOverlayActive
+      ? LANDING_INTRO_TOTAL_MS
+      : isGuestActionableSlide
+        ? ACTIONABLE_DEMO_DURATION_MS + ACTIONABLE_MOBILE_START_DELAY_MS + ACTIONABLE_MOBILE_HEADING_SWAP_MS
+        : guestProductAnimationKind === 'privacy'
+          ? PRIVACY_STORY_CAROUSEL_DURATION_MS
+          : guestProductAnimationKind === 'mates'
+            ? MATES_FOCUS_STORY_CAROUSEL_DURATION_MS
+            : guestProductAnimationKind === 'platform'
+              ? PEOPLE_EXPERIENCE_STORY_CAROUSEL_DURATION_MS
+              : INSPIRATION_AUTO_ROTATION_INTERVAL_MS,
+  );
+
+  $effect(() => {
+    const completionKey = isCoordinatedGuestStory
+      ? `${current?.inspiration_id ?? 'none'}-${currentIndex}`
+      : '';
+    if (completionKey === actionableCompletionKey) return;
+    actionableCompletionKey = completionKey;
+    actionableDemoComplete = false;
+    actionableProgressComplete = false;
+    actionableAdvanceCommitted = false;
+  });
+
+  $effect(() => {
+    if (!isCoordinatedGuestStory || prefersReducedMotion) return;
+    if (!actionableDemoComplete || !actionableProgressComplete || actionableAdvanceCommitted) return;
+    if (!isBannerVisible || isUserInteracting || isOpeningInspiration) return;
+    actionableAdvanceCommitted = true;
+    goToNavigableVisibleIndex(currentIndex + 1, 1);
+  });
 
   /**
    * The embed_id to use for VideoEmbedPreview.
@@ -444,11 +904,9 @@
 
   /** Whether mobile should alternate between the assistant message and preview. */
   let shouldCycleMobileCard = $derived(
-    isMobileBannerLayout && (
-      isGuestIntroVariant
-        ? !!directVideoMp4Url || hasInfoContent
-        : hasAttachedVideo || hasInfoContent
-    )
+    isGuestIntroVariant
+      ? !!directVideoMp4Url || hasInfoContent
+      : isMobileBannerLayout && (hasAttachedVideo || hasInfoContent)
   );
 
   let hasVideo = $derived(hasAttachedVideo && (containerWidth >= 520 || shouldCycleMobileCard));
@@ -465,6 +923,10 @@
   let hasInfoCard = $derived(!isGuestIntroVariant && !hasVideo && hasInfoContent && !hasWikiContent);
   let mobilePreviewKey = $derived(embedPreviewId || infoCardTitle || current?.inspiration_id || '');
   let progressAnimationKey = $derived(`${current?.inspiration_id ?? 'none'}-${currentIndex}-${progressRestartToken}`);
+  let landingIntroPrimaryRailStyle = $derived([
+    `--landing-intro-primary-rail-offset: ${landingIntroPrimaryRailOffsetPx}px`,
+    `--landing-intro-primary-rail-duration: ${LANDING_INTRO_PRIMARY_RAIL_DURATION_MS}ms`,
+  ].join(';'));
   let InfoCardIconComponent = $derived.by(() => {
     if (!current) return null;
     if (current.content_type === 'wiki') return getLucideIcon('book-open');
@@ -481,9 +943,14 @@
   function handlePrevious(e: MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
+    if (guestSlidePhase !== 'idle') return;
+    if (landingIntroOverlayActive) {
+      completeLandingIntro(-1);
+      return;
+    }
     markManualNavigation();
     resumeAutoRotation();
-    goToVisibleIndex(currentIndex - 1);
+    goToNavigableVisibleIndex(currentIndex - 1, -1);
     restartProgressAnimation();
   }
 
@@ -494,14 +961,20 @@
   function handleNext(e: MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
+    if (guestSlidePhase !== 'idle') return;
+    if (landingIntroOverlayActive) {
+      completeLandingIntro(1);
+      return;
+    }
+    if (shouldHoldOnFinalSlide) return;
     markManualNavigation();
     resumeAutoRotation();
-    goToVisibleIndex(currentIndex + 1);
+    goToNavigableVisibleIndex(currentIndex + 1, 1);
     restartProgressAnimation();
   }
 
   function handleTouchStart(e: TouchEvent) {
-    if (!hasMultiple || e.touches.length !== 1) return;
+    if (!hasMultiple || guestSlidePhase !== 'idle' || e.touches.length !== 1) return;
 
     isUserInteracting = true;
     const touch = e.touches[0];
@@ -532,11 +1005,20 @@
     markManualNavigation();
 
     if (deltaX < 0) {
+      if (landingIntroOverlayActive) {
+        completeLandingIntro(1);
+        return;
+      }
+      if (shouldHoldOnFinalSlide) return;
       resumeAutoRotation();
-      goToVisibleIndex(currentIndex + 1);
+      goToNavigableVisibleIndex(currentIndex + 1, 1);
     } else {
+      if (landingIntroOverlayActive) {
+        completeLandingIntro(-1);
+        return;
+      }
       resumeAutoRotation();
-      goToVisibleIndex(currentIndex - 1);
+      goToNavigableVisibleIndex(currentIndex - 1, -1);
     }
   }
 
@@ -563,8 +1045,8 @@
   }
 
   /**
-   * Handle clicking on the banner body — start a chat from this inspiration.
-   * Also marks the inspiration as viewed via WebSocket.
+   * Handle clicking on the banner body. Guest intro slides advance through the
+   * explainer carousel; regular inspiration banners still start/open chats.
    */
   function handleStartChat(e: MouseEvent) {
     const sourceCapabilities = (e as MouseEvent & {
@@ -577,7 +1059,28 @@
       return;
     }
 
+    if (landingIntroOverlayActive) {
+      e.stopPropagation();
+      e.preventDefault();
+      completeLandingIntro(1);
+      return;
+    }
+
     if (!current) return;
+    if (isGuestSignupCtaSlide) {
+      e.stopPropagation();
+      e.preventDefault();
+      return;
+    }
+    if (isGuestIntroVariant) {
+      e.stopPropagation();
+      e.preventDefault();
+      markManualNavigation();
+      resumeAutoRotation();
+      goToNavigableVisibleIndex(currentIndex + 1, 1);
+      restartProgressAnimation();
+      return;
+    }
     isOpeningInspiration = true;
 
     // Send viewed event if not already sent
@@ -605,11 +1108,49 @@
     progressRestartToken += 1;
   }
 
+  function resetLandingIntroToFirstSlide(): void {
+    window.clearTimeout(landingIntroTransitionTimeout);
+    window.clearTimeout(landingIntroRevealTimeout);
+    window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
+    window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
+    window.cancelAnimationFrame(landingIntroRailSyncAnimationFrame ?? 0);
+    cancelGuestSlideTransition();
+    landingIntroDismissed = false;
+    landingIntroRequestIndex = -1;
+    landingIntroRevealActive = false;
+    landingIntroRevealVisible = false;
+    pendingLandingIntroIndex = null;
+    const introIndex = visibleInspirations.findIndex((inspiration) =>
+      inspiration.inspiration_id === LANDING_INTRO_INSPIRATION_ID,
+    );
+    currentIndex = introIndex >= 0 ? introIndex : 0;
+    landingIntroPhase = 'expanded';
+    restartProgressAnimation();
+  }
+
   function handleProgressAnimationEnd(e: AnimationEvent) {
     if (e.target !== e.currentTarget) return;
-    if (!isBannerVisible || visibleInspirations.length <= 1) return;
+    if (landingIntroOverlayActive) {
+      completeLandingIntro(1);
+      return;
+    }
+    if (isCoordinatedGuestStory) {
+      actionableProgressComplete = true;
+      return;
+    }
+    if (!isBannerVisible || visibleInspirations.length <= 1 || shouldHoldOnFinalSlide) return;
     if (isUserInteracting || isOpeningInspiration) return;
-    goToVisibleIndex(currentIndex + 1);
+    goToNavigableVisibleIndex(currentIndex + 1, 1);
+  }
+
+  function handleActionableDemoComplete() {
+    if (!isCoordinatedGuestStory || !isBannerVisible) return;
+    actionableDemoComplete = true;
+  }
+
+  function openSignup(): void {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('openSignupInterface'));
   }
 
   /**
@@ -653,6 +1194,10 @@
   }
 
   function handleDirectVideoClick(e: MouseEvent | KeyboardEvent) {
+    if (isGuestIntroVariant) {
+      handleStartChat(e as MouseEvent);
+      return;
+    }
     if (!directVideoMp4Url) return;
     e.stopPropagation();
     e.preventDefault();
@@ -684,6 +1229,165 @@
     return hashString(items.map((item) => item.inspiration_id).join('|'));
   }
 
+  function completeLandingIntro(direction: 1 | -1): void {
+    if (!landingIntroOverlayActive || landingIntroPhase === 'fading-out' || landingIntroPhase === 'collapsing') return;
+    window.clearTimeout(landingIntroTransitionTimeout);
+    window.clearTimeout(landingIntroRevealTimeout);
+    window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
+    window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
+    window.cancelAnimationFrame(landingIntroRailSyncAnimationFrame ?? 0);
+    landingIntroRevealActive = false;
+    landingIntroRevealVisible = false;
+    pendingLandingIntroIndex = getResolvedVisibleIndex(currentIndex + direction);
+    landingIntroPhase = 'fading-out';
+    markManualNavigation();
+    resumeAutoRotation();
+    landingIntroDismissed = true;
+    landingIntroTransitionTimeout = window.setTimeout(() => {
+      landingIntroPhase = 'collapsing';
+      if (pendingLandingIntroIndex !== null) {
+        currentIndex = pendingLandingIntroIndex;
+        pendingLandingIntroIndex = null;
+        landingIntroRequestIndex = -1;
+        startLandingIntroRegularReveal();
+        restartProgressAnimation();
+      }
+      landingIntroTransitionTimeout = window.setTimeout(() => {
+        finishLandingIntroCollapse();
+      }, LANDING_INTRO_RESIZE_TRANSITION_MS + 80);
+    }, LANDING_INTRO_CONTENT_FADE_MS);
+  }
+
+  function finishLandingIntroCollapse(): void {
+    if (landingIntroPhase !== 'collapsing') return;
+    window.clearTimeout(landingIntroTransitionTimeout);
+    landingIntroPhase = 'regular';
+  }
+
+  function startLandingIntroRegularReveal(): void {
+    window.clearTimeout(landingIntroRevealTimeout);
+    window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
+    landingIntroRevealActive = true;
+    landingIntroRevealVisible = false;
+    landingIntroRevealAnimationFrame = window.requestAnimationFrame(() => {
+      landingIntroRevealVisible = true;
+      landingIntroRevealTimeout = window.setTimeout(() => {
+        landingIntroRevealActive = false;
+        landingIntroRevealVisible = false;
+      }, LANDING_INTRO_REGULAR_REVEAL_MS);
+    });
+  }
+
+  function buildLandingIntroAppIcons(): LandingIntroAppIcon[] {
+    return Object.values(appsMetadata)
+      .filter((app) => Boolean(app.id && app.icon_image) && !LANDING_INTRO_EXCLUDED_APP_IDS.has(app.id))
+      .map((app) => ({
+        appId: app.id,
+        iconName: resolveIconName((app.icon_image ?? app.id).replace(/\.svg$/, '').trim()),
+      }))
+      .sort((a, b) => {
+        const aIndex = LANDING_INTRO_FEATURED_APP_IDS.indexOf(a.appId);
+        const bIndex = LANDING_INTRO_FEATURED_APP_IDS.indexOf(b.appId);
+        if (aIndex >= 0 || bIndex >= 0) {
+          return (aIndex >= 0 ? aIndex : Number.MAX_SAFE_INTEGER)
+            - (bIndex >= 0 ? bIndex : Number.MAX_SAFE_INTEGER);
+        }
+        return a.appId.localeCompare(b.appId);
+      });
+  }
+
+  function buildPrimaryLandingIntroIcons(icons: LandingIntroAppIcon[]): LandingIntroAppIcon[] {
+    const featuredIcons = LANDING_INTRO_FEATURED_APP_IDS
+      .map((appId) => icons.find((icon) => icon.appId === appId))
+      .filter((icon): icon is LandingIntroAppIcon => Boolean(icon));
+    const otherIcons = icons.filter((icon) => !LANDING_INTRO_FEATURED_APP_IDS.includes(icon.appId));
+    if (featuredIcons.length === 0) return otherIcons.slice(0, LANDING_INTRO_PRIMARY_RAIL_MAX_BASE_ICON_COUNT);
+    const remainingIconCount = Math.max(0, LANDING_INTRO_PRIMARY_RAIL_MAX_BASE_ICON_COUNT - featuredIcons.length);
+    return [
+      ...featuredIcons,
+      ...otherIcons.slice(0, remainingIconCount),
+    ];
+  }
+
+  function buildSecondaryLandingIntroIcons(
+    icons: LandingIntroAppIcon[],
+    firstRail: LandingIntroAppIcon[],
+  ): LandingIntroAppIcon[] {
+    const firstRailIds = new Set(firstRail.map((icon) => icon.appId));
+    const remainingIcons = icons.filter((icon) => !firstRailIds.has(icon.appId));
+    const sourceIcons = remainingIcons.length >= 7 ? remainingIcons : icons.filter((icon) => !LANDING_INTRO_FEATURED_APP_IDS.includes(icon.appId));
+    if (sourceIcons.length === 0) return [];
+    return Array.from({ length: Math.min(Math.max(sourceIcons.length, 7), 12) }, (_, index) => sourceIcons[index % sourceIcons.length]);
+  }
+
+  function repeatLandingIntroRailIcons(icons: LandingIntroAppIcon[]): LandingIntroAppIcon[] {
+    if (icons.length === 0) return [];
+    const count = Math.max(icons.length, LANDING_INTRO_RAIL_MIN_ICON_COUNT);
+    return Array.from({ length: count }, (_, index) => icons[index % icons.length]);
+  }
+
+  function getReachableSlideIndexes(index: number, count: number): number[] {
+    if (count <= 0) return [];
+    if (count === 1) return [0];
+    const safeIndex = Math.min(Math.max(index, 0), count - 1);
+    const start = Math.max(0, safeIndex - 1);
+    const end = Math.min(count - 1, safeIndex + 1);
+    return Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
+  }
+
+  function getResolvedVisibleIndex(nextIndex: number): number {
+    if (visibleInspirations.length === 0) return 0;
+    return (nextIndex + visibleInspirations.length) % visibleInspirations.length;
+  }
+
+  function landingIntroIconStyle(icon: LandingIntroAppIcon): string {
+    return [
+      `--landing-intro-icon-url: var(--icon-url-${icon.iconName})`,
+      `--landing-intro-app-bg: var(--color-app-${icon.appId}, rgba(255, 255, 255, 0.16))`,
+    ].join(';');
+  }
+
+  function scheduleLandingIntroRailSync(): void {
+    if (typeof window === 'undefined') return;
+    window.cancelAnimationFrame(landingIntroRailSyncAnimationFrame ?? 0);
+    landingIntroRailSyncAnimationFrame = window.requestAnimationFrame(() => {
+      landingIntroRailSyncAnimationFrame = window.requestAnimationFrame(() => {
+        landingIntroRailSyncAnimationFrame = undefined;
+        syncLandingIntroPrimaryRail();
+      });
+    });
+  }
+
+  function syncLandingIntroPrimaryRail(): void {
+    const railRow = landingIntroPrimaryRailRowEl;
+    const rail = landingIntroPrimaryRailEl;
+    if (!railRow || !rail || !landingIntroOverlayActive || landingIntroPhase !== 'expanded' || landingIntroRequestIndex >= 0) return;
+
+    const rowRect = railRow.getBoundingClientRect();
+    const railRect = rail.getBoundingClientRect();
+    const targetCenterX = rowRect.left + rowRect.width / 2;
+    const activeIcons = Array.from(rail.querySelectorAll<HTMLElement>('[data-testid="landing-intro-app-icon"]'))
+      .filter((icon) => icon.dataset.appId === landingIntroActiveAppId);
+    if (activeIcons.length === 0) return;
+
+    let bestDelta = 0;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (const icon of activeIcons) {
+      const iconRect = icon.getBoundingClientRect();
+      const iconCenterX = iconRect.left + iconRect.width / 2;
+      const delta = targetCenterX - iconCenterX;
+      const railCoversRowAfterMove = railRect.left + delta <= rowRect.left && railRect.right + delta >= rowRect.right;
+      const score = Math.abs(delta) + (railCoversRowAfterMove ? 0 : 100000);
+      if (score < bestScore) {
+        bestScore = score;
+        bestDelta = delta;
+      }
+    }
+
+    if (Math.abs(bestDelta) < 0.5) return;
+    landingIntroPrimaryRailOffsetPx += bestDelta;
+  }
+
   function getVisibleIndexForStoreIndex(items: DailyInspiration[], storeIndex: number): number {
     const storeItem = items[storeIndex];
     const visibleItems = items.filter((inspiration) => isDailyInspirationVisible(inspiration));
@@ -706,12 +1410,86 @@
     );
   }
 
-  function goToVisibleIndex(nextIndex: number): void {
+  function goToVisibleIndex(
+    nextIndex: number,
+    options: { restoreLandingIntro?: boolean } = {},
+  ): void {
+    window.clearTimeout(landingIntroRevealTimeout);
+    window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
+    landingIntroRevealActive = false;
+    landingIntroRevealVisible = false;
+
     if (visibleInspirations.length === 0) {
       currentIndex = 0;
       return;
     }
-    currentIndex = (nextIndex + visibleInspirations.length) % visibleInspirations.length;
+    const resolvedIndex = getResolvedVisibleIndex(nextIndex);
+    if (options.restoreLandingIntro && visibleInspirations[resolvedIndex]?.inspiration_id === LANDING_INTRO_INSPIRATION_ID) {
+      window.clearTimeout(landingIntroTransitionTimeout);
+      window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
+      pendingLandingIntroIndex = null;
+      landingIntroDismissed = false;
+      landingIntroRequestIndex = -1;
+      landingIntroPhase = 'expanding';
+      landingIntroAnimationFrame = window.requestAnimationFrame(() => {
+        landingIntroPhase = 'expanded';
+      });
+    }
+    currentIndex = resolvedIndex;
+  }
+
+  function goToNavigableVisibleIndex(nextIndex: number, direction: 1 | -1): void {
+    if (!isGuestIntroVariant || !landingIntroDismissed || visibleInspirations.length <= 1) {
+      goToVisibleIndex(nextIndex, { restoreLandingIntro: direction < 0 });
+      return;
+    }
+
+    let resolvedIndex = getResolvedVisibleIndex(nextIndex);
+    if (visibleInspirations[resolvedIndex]?.inspiration_id === LANDING_INTRO_INSPIRATION_ID) {
+      if (direction > 0) {
+        resolvedIndex = getResolvedVisibleIndex(resolvedIndex + direction);
+      } else {
+        goToVisibleIndex(resolvedIndex, { restoreLandingIntro: true });
+        return;
+      }
+    }
+    if (resolvedIndex !== currentIndex) {
+      startGuestSlideTransition(resolvedIndex);
+      return;
+    }
+    goToVisibleIndex(resolvedIndex, { restoreLandingIntro: direction < 0 });
+  }
+
+  function startGuestSlideTransition(resolvedIndex: number): void {
+    if (guestSlidePhase !== 'idle') return;
+    pendingGuestSlideIndex = resolvedIndex;
+    guestSlidePhase = 'fading-out';
+    guestHeadingMotionPhase = 'exiting';
+    const fadeDurationMs = prefersReducedMotion ? 0 : GUEST_SLIDE_CONTENT_FADE_MS;
+    guestSlideTransitionTimeout = window.setTimeout(() => {
+      if (pendingGuestSlideIndex === null) return;
+      guestSlidePhase = 'hidden';
+      goToVisibleIndex(pendingGuestSlideIndex);
+      pendingGuestSlideIndex = null;
+      guestSlideTransitionAnimationFrame = window.requestAnimationFrame(() => {
+        guestSlideTransitionAnimationFrame = window.requestAnimationFrame(() => {
+          guestSlidePhase = 'fading-in';
+          guestSlideTransitionTimeout = window.setTimeout(() => {
+            guestSlidePhase = 'idle';
+          }, fadeDurationMs);
+        });
+      });
+    }, fadeDurationMs);
+  }
+
+  function cancelGuestSlideTransition(): void {
+    window.clearTimeout(guestSlideTransitionTimeout);
+    window.cancelAnimationFrame(guestSlideTransitionAnimationFrame ?? 0);
+    guestSlideTransitionTimeout = undefined;
+    guestSlideTransitionAnimationFrame = undefined;
+    pendingGuestSlideIndex = null;
+    guestSlidePhase = 'idle';
+    guestHeadingMotionPhase = 'visible';
   }
 
   // Temporarily disabled with the visit-cycling effect above.
@@ -787,28 +1565,54 @@
   <!-- Outer wrapper for fade-in animation and full-width layout.
        bind:this lets the IntersectionObserver target this element to detect
        when the banner enters the viewport for passive view tracking. -->
-  <div class="daily-inspiration-wrapper" class:crossfading={isCrossfading} bind:this={bannerWrapperEl}>
+  <div
+    class="daily-inspiration-wrapper"
+    class:crossfading={isCrossfading}
+    class:landing-intro-overlay-active={landingIntroOverlayActive}
+    bind:this={bannerWrapperEl}
+  >
 
     <!--
       Banner card: div[role=button] avoids nested-button HTML validation errors
       since carousel arrow <button> elements live inside the card.
       Fixed height of 240px so the embed is never cut off.
     -->
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div
         class="daily-inspiration-banner"
       class:guest-intro-variant={isGuestIntroVariant}
+      class:guest-signup-slide={isGuestSignupCtaSlide}
+      class:landing-intro-overlay-active={landingIntroOverlayActive}
+      class:landing-intro-expanded={landingIntroUsesFullHeight}
+      class:landing-intro-fading-out={landingIntroPhase === 'fading-out'}
+      class:landing-intro-collapsing={landingIntroPhase === 'collapsing'}
+      class:landing-intro-expanding={landingIntroPhase === 'expanding'}
+      class:landing-intro-revealing-next={landingIntroRevealActive}
+      class:landing-intro-reveal-visible={landingIntroRevealVisible}
+      data-landing-intro-phase={landingIntroParentPhase}
+      data-landing-intro-revealing-next={landingIntroRevealActive ? 'true' : 'false'}
+      data-guest-slide-phase={guestSlidePhase}
+      data-mounted-slide-indexes={reachableSlideIndexes.join(',')}
+      data-visible-inspiration-ids={visibleInspirations.map((inspiration) => inspiration.inspiration_id).join(',')}
+      data-inspiration-source={inspirationSource}
       data-testid="daily-inspiration-banner"
+      data-current-inspiration-id={current.inspiration_id}
       style={gradientStyle}
       onclick={handleStartChat}
       onpointerdown={handleBannerPointerDown}
+      ontransitionend={(e) => {
+        if (e.target === e.currentTarget && (e.propertyName === 'height' || e.propertyName === 'min-height')) {
+          finishLandingIntroCollapse();
+        }
+      }}
       ontouchstart={handleTouchStart}
       ontouchmove={handleTouchMove}
       ontouchend={handleTouchEnd}
       ontouchcancel={handleTouchEnd}
       onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleStartChat(e as unknown as MouseEvent); } }}
-      role="button"
-      tabindex="0"
-      aria-label={current.phrase}
+      role={isGuestSignupCtaSlide ? undefined : 'button'}
+      tabindex={isGuestSignupCtaSlide ? undefined : 0}
+      aria-label={isGuestSignupCtaSlide ? undefined : current.phrase}
     >
       <!-- ── Living gradient orbs — same Creative Code technique as ChatHeader.svelte.
            Three soft radial-gradient blobs morph shape and drift behind all content.
@@ -847,30 +1651,150 @@
         <!-- ── Main content row: left (mate + text + CTA) + right (embed) ── -->
         <div
           class="banner-content"
-          class:mobile-card-loop={shouldCycleMobileCard}
-          class:show-mobile-card={shouldCycleMobileCard && showMobileCard}
+          class:mobile-card-loop={shouldCycleMobileCard && !landingIntroOverlayActive}
+          class:show-mobile-card={shouldCycleMobileCard && !landingIntroOverlayActive && showMobileCard}
+          class:guest-actionable-slide={isGuestActionableSlide}
+          class:actionable-heading-fading-out={actionableMobileHeadingPhase === 'fading-out'}
+          class:actionable-heading-hidden={actionableMobileHeadingPhase === 'hidden'}
+          class:actionable-heading-fading-in={actionableMobileHeadingPhase === 'fading-in'}
+          class:guest-slide-fading-out={guestSlidePhase === 'fading-out'}
+          class:guest-slide-hidden={guestSlidePhase === 'hidden'}
+          class:guest-slide-fading-in={guestSlidePhase === 'fading-in'}
+          data-actionable-heading-phase={isGuestActionableSlide ? actionableMobileHeadingPhase : undefined}
+          data-guest-heading-phase={shouldCycleMobileCard ? actionableMobileHeadingPhase : undefined}
+          data-mobile-heading-phase={shouldCycleMobileCard ? actionableMobileHeadingPhase : undefined}
+          data-testid="guest-slide-content"
+          style={`--actionable-mobile-heading-fade-out: ${ACTIONABLE_MOBILE_HEADING_FADE_OUT_MS}ms; --actionable-mobile-heading-fade-in: ${ACTIONABLE_MOBILE_HEADING_FADE_IN_MS}ms; --guest-slide-content-fade: ${GUEST_SLIDE_CONTENT_FADE_MS}ms`}
         >
 
           {#if isGuestIntroVariant}
-            <div
-              class="guest-intro-copy"
-              class:guest-feature-copy={current.inspiration_id !== 'openmates-intro'}
-              data-testid="guest-intro-copy"
-            >
-              {#if current.inspiration_id === 'openmates-intro'}
-                <div class="guest-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
-                <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line1')}</span>
-                <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line2')}</span>
-                <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line3')}</span>
-              {:else}
-                {#if InfoCardIconComponent}
-                  <span class="guest-feature-inline-icon" aria-hidden="true">
-                    <InfoCardIconComponent size={44} color="white" />
-                  </span>
-                {/if}
-                <span class="guest-feature-headline" data-testid="daily-inspiration-phrase">{current.phrase}</span>
-              {/if}
-            </div>
+            {#if landingIntroOverlayActive}
+              <div
+                class="landing-intro-expanded-content"
+                class:examples-visible={landingIntroExamplesVisible}
+                data-testid="landing-intro-expanded"
+              >
+                <div class="landing-intro-expanded-motion">
+                  <LandingHeadingMotion phase={introHeadingMotionPhase} testId="landing-intro-heading-motion">
+                    <div class="guest-intro-ai-icon landing-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
+                    <h1 class="landing-intro-headline" data-testid="landing-intro-headline">
+                      <span>{$text('demo_chats.for_everyone.landing_intro_headline_line1')}</span>
+                      <span>{$text('demo_chats.for_everyone.landing_intro_headline_line2')}</span>
+                    </h1>
+                  </LandingHeadingMotion>
+                  <div class="landing-intro-examples" class:visible={landingIntroExamplesVisible}>
+                    <div class="landing-intro-request" data-testid="landing-intro-request" aria-live="polite">
+                      {#key landingIntroRequestLabel}
+                        <span>{landingIntroRequestLabel}</span>
+                      {/key}
+                    </div>
+                    <div class="landing-intro-app-rails" aria-hidden="true">
+                      <div class="landing-intro-app-rail-row landing-intro-app-rail-row-primary" bind:this={landingIntroPrimaryRailRowEl}>
+                        <div
+                          class="landing-intro-app-rail landing-intro-app-rail-primary"
+                          data-testid="landing-intro-app-rail"
+                          data-active-app-id={landingIntroActiveAppId}
+                          style={landingIntroPrimaryRailStyle}
+                          bind:this={landingIntroPrimaryRailEl}
+                        >
+                          {#each [...landingIntroFirstRail, ...landingIntroFirstRail] as icon, index (`primary-${icon.appId}-${index}`)}
+                            <span
+                              class="landing-intro-app-icon"
+                              class:highlighted={icon.appId === landingIntroActiveAppId}
+                              data-testid="landing-intro-app-icon"
+                              data-app-id={icon.appId}
+                              data-highlighted={icon.appId === landingIntroActiveAppId ? 'true' : 'false'}
+                              style={landingIntroIconStyle(icon)}
+                            ></span>
+                          {/each}
+                        </div>
+                      </div>
+                      <div class="landing-intro-app-rail-row landing-intro-app-rail-row-secondary">
+                        <div class="landing-intro-app-rail landing-intro-app-rail-secondary" data-testid="landing-intro-app-rail">
+                          {#each [...landingIntroSecondRail, ...landingIntroSecondRail] as icon, index (`secondary-${icon.appId}-${index}`)}
+                            <span
+                              class="landing-intro-app-icon"
+                              data-testid="landing-intro-app-icon"
+                              data-app-id={icon.appId}
+                              data-highlighted="false"
+                              style={landingIntroIconStyle(icon)}
+                            ></span>
+                          {/each}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {:else if isGuestSignupCtaSlide}
+              <div
+                class="guest-signup-sequence"
+                data-testid="landing-signup-cta"
+                data-stage={signupCtaVisible ? 'cta' : 'benefits'}
+              >
+                <div
+                  class="guest-signup-stage guest-signup-benefits-stage"
+                  class:stage-visible={signupSlidePhase === 'benefits'}
+                  class:stage-entering={signupSlidePhase === 'benefits-in'}
+                  class:stage-exiting={signupSlidePhase === 'benefits-out'}
+                  aria-hidden={!signupBenefitsVisible}
+                >
+                  <ul
+                    class="guest-signup-benefits-list"
+                    data-testid="landing-signup-benefits"
+                    aria-label={current.feature?.description ?? current.phrase}
+                  >
+                    {#each current.follow_up_suggestions ?? [] as reason}
+                      <li data-testid="landing-signup-benefit">
+                        <span class="guest-signup-benefit-check" aria-hidden="true">✓</span>
+                        <span>{reason}</span>
+                      </li>
+                    {/each}
+                  </ul>
+                </div>
+                <div
+                  class="guest-signup-stage guest-signup-cta"
+                  class:stage-visible={signupSlidePhase === 'cta'}
+                  class:stage-entering={signupSlidePhase === 'cta-in'}
+                  aria-hidden={!signupCtaVisible}
+                >
+                  <h2>{current.phrase}</h2>
+                  <button
+                    class="guest-signup-cta-button"
+                    class:pulsing={signupSlidePhase === 'cta'}
+                    data-testid="landing-signup-cta-button"
+                    type="button"
+                    onclick={(e) => { e.stopPropagation(); openSignup(); }}
+                  >
+                    {current.title ?? current.phrase}
+                  </button>
+                </div>
+              </div>
+            {:else}
+              {#key current.inspiration_id}
+                <div
+                  class="guest-intro-copy"
+                  class:guest-feature-copy={true}
+                  class:guest-actionable-copy={isGuestActionableSlide}
+                  data-actionable-heading-ready={isGuestActionableSlide ? (actionableMobileHeadingReady ? 'true' : 'false') : undefined}
+                  data-testid="guest-intro-copy"
+                  in:fade={{ duration: 320 }}
+                >
+                  <LandingHeadingMotion phase={guestHeadingMotionPhase} testId="landing-guest-heading-motion">
+                    {#if InfoCardIconComponent}
+                      <span class="guest-feature-inline-icon" data-testid="guest-feature-inline-icon" aria-hidden="true">
+                        <InfoCardIconComponent size={44} color="white" />
+                      </span>
+                    {/if}
+                    <span class="guest-feature-headline" data-testid="daily-inspiration-phrase">
+                      {#each guestFeatureHeadlineLines as line, index}
+                        <span>{line}</span>{#if index < guestFeatureHeadlineLines.length - 1}<br>{/if}
+                      {/each}
+                    </span>
+                  </LandingHeadingMotion>
+                </div>
+              {/key}
+            {/if}
           {:else}
             <!-- Left column: mate profile (left) + phrase (right), CTA pinned to bottom -->
             <div class="banner-left">
@@ -907,55 +1831,79 @@
                Click on this area opens the video fullscreen, NOT a new chat.
                We wrap with a transparent overlay button to capture clicks cleanly
                and prevent the banner's onclick from firing. -->
-          {#if isGuestIntroVariant && directVideoMp4Url}
-            <button
-              type="button"
-              class="guest-intro-video-box"
-              data-testid="guest-intro-video-shell"
-              aria-label={$text('daily_inspiration.watch_video')}
-              onclick={handleDirectVideoClick}
-            >
-              {#if directVideoTeaserUrl || directVideoTeaserMp4Url}
-                <video
-                  class="guest-intro-video"
-                  data-testid="guest-intro-video"
-                  poster={directVideoPosterUrl || undefined}
-                  autoplay
-                  muted
-                  loop
-                  playsinline
-                  preload="metadata"
+          {#if isGuestIntroVariant && landingIntroOverlayActive}
+            <!-- The expanded intro owns the full banner; no side preview is rendered. -->
+          {:else if isGuestIntroVariant}
+            {#key current.inspiration_id}
+              {#if isGuestSignupCtaSlide}
+                <!-- The final slide sequence owns the full banner content area. -->
+              {:else if isGuestActionableSlide}
+                <div class="guest-actionable-demo-shell" in:fade={{ duration: 320 }}>
+                  <LandingActionableEventDemo playing={actionablePlaybackActive} onComplete={handleActionableDemoComplete} />
+                </div>
+              {:else if guestProductAnimationKind}
+                <div class="guest-story-demo-shell" in:fade={{ duration: 320 }}>
+                  {#if guestProductAnimationKind === 'privacy'}
+                    <LandingPrivacySafetyDemo playing={productStoryPlaybackActive} reducedMotion={prefersReducedMotion} onComplete={handleActionableDemoComplete} />
+                  {:else if guestProductAnimationKind === 'mates'}
+                    <LandingMatesFocusDemo playing={productStoryPlaybackActive} reducedMotion={prefersReducedMotion} onComplete={handleActionableDemoComplete} />
+                  {:else}
+                    <LandingPeopleExperienceDemo playing={productStoryPlaybackActive} reducedMotion={prefersReducedMotion} onComplete={handleActionableDemoComplete} />
+                  {/if}
+                </div>
+              {:else if directVideoMp4Url}
+                <button
+                  type="button"
+                  class="guest-intro-video-box"
+                  data-testid="guest-intro-video-shell"
+                  aria-label={$text('daily_inspiration.watch_video')}
+                  onclick={handleDirectVideoClick}
+                  in:fade={{ duration: 320 }}
                 >
-                  {#if directVideoTeaserUrl}
-                    <source src={directVideoTeaserUrl} type="video/webm" />
+                  {#if directVideoTeaserUrl || directVideoTeaserMp4Url}
+                    <video
+                      class="guest-intro-video"
+                      data-testid="guest-intro-video"
+                      poster={directVideoPosterUrl || undefined}
+                      autoplay
+                      muted
+                      loop
+                      playsinline
+                      preload="metadata"
+                    >
+                      {#if directVideoTeaserUrl}
+                        <source src={directVideoTeaserUrl} type="video/webm" />
+                      {/if}
+                      {#if directVideoTeaserMp4Url}
+                        <source src={directVideoTeaserMp4Url} type="video/mp4" />
+                      {/if}
+                    </video>
+                  {:else if directVideoPosterUrl}
+                    <img class="guest-intro-video" data-testid="guest-intro-video" src={directVideoPosterUrl} alt="" />
                   {/if}
-                  {#if directVideoTeaserMp4Url}
-                    <source src={directVideoTeaserMp4Url} type="video/mp4" />
+                  <span class="guest-intro-play" aria-hidden="true"><span></span></span>
+                </button>
+              {:else if hasInfoContent}
+                <div
+                  class="guest-intro-feature-card"
+                  class:guest-feature-card={current.inspiration_id !== LANDING_INTRO_INSPIRATION_ID}
+                  data-testid="daily-inspiration-info-card"
+                  in:fade={{ duration: 320 }}
+                >
+                  {#if InfoCardIconComponent}
+                    <div class="guest-intro-feature-icon" aria-hidden="true">
+                      <InfoCardIconComponent size={34} color="white" />
+                    </div>
                   {/if}
-                </video>
-              {:else if directVideoPosterUrl}
-                <img class="guest-intro-video" data-testid="guest-intro-video" src={directVideoPosterUrl} alt="" />
-              {/if}
-              <span class="guest-intro-play" aria-hidden="true"><span></span></span>
-            </button>
-          {:else if isGuestIntroVariant && hasInfoContent}
-            <div
-              class="guest-intro-feature-card"
-              class:guest-feature-card={current.inspiration_id !== 'openmates-intro'}
-              data-testid="daily-inspiration-info-card"
-            >
-              {#if InfoCardIconComponent}
-                <div class="guest-intro-feature-icon" aria-hidden="true">
-                  <InfoCardIconComponent size={34} color="white" />
+                  <div class="guest-intro-feature-text">
+                    <h3>{infoCardTitle}</h3>
+                    {#if infoCardSubtitle && current.inspiration_id === LANDING_INTRO_INSPIRATION_ID}
+                      <p>{infoCardSubtitle}</p>
+                    {/if}
+                  </div>
                 </div>
               {/if}
-              <div class="guest-intro-feature-text">
-                <h3>{infoCardTitle}</h3>
-                {#if infoCardSubtitle && current.inspiration_id === 'openmates-intro'}
-                  <p>{infoCardSubtitle}</p>
-                {/if}
-              </div>
-            </div>
+            {/key}
           {:else if hasVideo && embedPreviewId}
             <div
               class="banner-embed-wrapper"
@@ -1063,44 +2011,60 @@
         </div>
       </div><!-- /.banner-inner -->
 
+      <div class="mounted-slide-sentinels" aria-hidden="true">
+        {#each reachableSlideIndexes as slideIndex (slideIndex)}
+          <span
+            data-testid="daily-inspiration-mounted-slide"
+            data-slide-index={slideIndex}
+            data-current={slideIndex === currentIndex ? 'true' : 'false'}
+          ></span>
+        {/each}
+      </div>
+
       <!-- ── Carousel navigation arrows ──
            These are real <button> elements with explicit stopPropagation.
            They are positioned outside .banner-inner so they sit at the edges
            of the full-width card, not constrained by the 680px inner width.
            z-index: 20 ensures they are always on top of the embed wrapper. -->
       {#if hasMultiple}
-        {#if isBannerVisible && !isOpeningInspiration}
+        {#if isBannerVisible && !isOpeningInspiration && !shouldHoldOnFinalSlide && landingIntroPhase !== 'fading-out' && landingIntroPhase !== 'collapsing'}
           <div
             class="carousel-progress"
             data-testid="daily-inspiration-carousel-progress"
-            style={`--carousel-progress-duration: ${INSPIRATION_AUTO_ROTATION_INTERVAL_MS}ms`}
+            style={`--carousel-progress-duration: ${carouselProgressDurationMs}ms`}
             aria-hidden="true"
           >
             {#key progressAnimationKey}
-              <div class="carousel-progress-fill" onanimationend={handleProgressAnimationEnd}></div>
+              <div class="carousel-progress-fill" class:reduced-motion={prefersReducedMotion} data-testid="daily-inspiration-carousel-progress-fill" onanimationend={handleProgressAnimationEnd}></div>
             {/key}
           </div>
         {/if}
 
-        <button
-          class="carousel-arrow carousel-arrow-left"
-          data-testid="daily-inspiration-previous"
-          onclick={handlePrevious}
-          aria-label={$text('daily_inspiration.previous')}
-          type="button"
-        >
-          <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
-        </button>
+        {#if !landingIntroOverlayActive}
+          <button
+            class="carousel-arrow carousel-arrow-left"
+            data-testid="daily-inspiration-previous"
+            onclick={handlePrevious}
+            disabled={guestSlidePhase !== 'idle'}
+            aria-label={$text('daily_inspiration.previous')}
+            type="button"
+          >
+            <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
+          </button>
+        {/if}
 
-        <button
-          class="carousel-arrow carousel-arrow-right"
-          data-testid="daily-inspiration-next"
-          onclick={handleNext}
-          aria-label={$text('daily_inspiration.next')}
-          type="button"
-        >
-          <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
-        </button>
+        {#if !shouldHoldOnFinalSlide}
+          <button
+            class="carousel-arrow carousel-arrow-right"
+            data-testid="daily-inspiration-next"
+            onclick={handleNext}
+            disabled={guestSlidePhase !== 'idle'}
+            aria-label={$text('daily_inspiration.next')}
+            type="button"
+          >
+            <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
+          </button>
+        {/if}
       {/if}
     </div><!-- /.daily-inspiration-banner -->
   </div>
@@ -1119,9 +2083,18 @@
   .daily-inspiration-wrapper {
     animation: inspirationFadeIn 300ms ease-out;
     width: 100%;
+    height: 100%;
     /* Must be above other chat-side elements so the banner is clickable */
     position: relative;
     z-index: var(--z-index-dropdown);
+  }
+
+  .daily-inspiration-wrapper.landing-intro-overlay-active {
+    position: absolute;
+    inset: 0;
+    bottom: calc(0px - var(--landing-intro-input-reserve, 0px));
+    height: auto;
+    z-index: var(--z-index-dropdown-1);
   }
 
   @keyframes inspirationFadeIn {
@@ -1129,7 +2102,7 @@
     to   { opacity: 1; transform: translateY(0);   }
   }
 
-  /* Crossfade transition: when hardcoded data is replaced by real data,
+  /* Crossfade transition: when bootstrap/fallback data is replaced,
      the banner fades out (200ms), data swaps, then fades back in (300ms). */
   .daily-inspiration-wrapper {
     transition: opacity 300ms ease-in;
@@ -1148,8 +2121,8 @@
     width: 100%;
     border: none;
     border-radius: var(--radius-6);
-    height: 35vh;
-    min-height: 240px;
+    height: 100%;
+    min-height: 0;
     cursor: pointer;
     overflow: hidden;
     transition: filter 0.15s ease, transform 0.1s ease, height 0.3s ease, min-height 0.3s ease;
@@ -1162,21 +2135,83 @@
     touch-action: pan-y;
   }
 
-  /* When settings panel is open or embed fullscreen is side-by-side, revert to
-     fixed height so the banner matches the settings/embed header height.
-     Mirrors the identical rule in ChatHeader.svelte. */
-  :global(.menu-open) .daily-inspiration-banner,
-  :global(.side-by-side-active) .daily-inspiration-banner {
-    height: 240px;
-    min-height: unset;
+  .daily-inspiration-banner.guest-signup-slide {
+    cursor: default;
   }
 
-  .daily-inspiration-banner:hover {
+  /* Settings and side-by-side layouts use the same container-derived height as
+     the surrounding daily-inspiration area. */
+  :global(.menu-open) .daily-inspiration-banner,
+  :global(.side-by-side-active) .daily-inspiration-banner {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .daily-inspiration-banner:not(.guest-signup-slide):hover {
     filter: brightness(1.07);
   }
 
-  .daily-inspiration-banner:active {
+  .daily-inspiration-banner:not(.guest-signup-slide):active {
     transform: scale(0.995);
+  }
+
+  .daily-inspiration-banner.landing-intro-expanded {
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    transition:
+      filter 0.15s ease,
+      transform 0.1s ease,
+      height 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+      min-height 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .daily-inspiration-banner.landing-intro-fading-out {
+    transition:
+      filter 0.15s ease,
+      transform 0.1s ease,
+      height 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+      min-height 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .daily-inspiration-banner.landing-intro-collapsing {
+    transition:
+      filter 0.15s ease,
+      transform 0.1s ease,
+      height 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+      min-height 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .daily-inspiration-banner.landing-intro-fading-out .landing-intro-expanded-content,
+  .daily-inspiration-banner.landing-intro-collapsing .landing-intro-expanded-content {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-14px) scale(0.985);
+  }
+
+  .daily-inspiration-banner.landing-intro-revealing-next:not(.landing-intro-reveal-visible) .guest-intro-copy,
+  .daily-inspiration-banner.landing-intro-revealing-next:not(.landing-intro-reveal-visible) .guest-intro-video-box,
+  .daily-inspiration-banner.landing-intro-revealing-next:not(.landing-intro-reveal-visible) .guest-intro-feature-card,
+  .daily-inspiration-banner.landing-intro-revealing-next:not(.landing-intro-reveal-visible) .guest-product-demo-shell,
+  .daily-inspiration-banner.landing-intro-revealing-next:not(.landing-intro-reveal-visible) .guest-story-demo-shell,
+  .daily-inspiration-banner.landing-intro-revealing-next:not(.landing-intro-reveal-visible) .guest-actionable-demo-shell {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(12px) scale(0.985);
+  }
+
+  .daily-inspiration-banner.landing-intro-fading-out .orb,
+  .daily-inspiration-banner.landing-intro-collapsing .orb,
+  .daily-inspiration-banner.landing-intro-fading-out .landing-intro-headline span,
+  .daily-inspiration-banner.landing-intro-collapsing .landing-intro-headline span,
+  .daily-inspiration-banner.landing-intro-fading-out .landing-intro-app-rail,
+  .daily-inspiration-banner.landing-intro-collapsing .landing-intro-app-rail {
+    animation-play-state: paused;
+  }
+
+  .daily-inspiration-banner.landing-intro-collapsing .landing-intro-expanded-content {
+    position: absolute;
+    inset: 0;
   }
 
   /* ── Inner content wrapper: max-width 680px, centered ── */
@@ -1197,9 +2232,11 @@
   }
 
   .guest-intro-variant .banner-inner {
-    width: min(calc(100% - 80px), clamp(960px, 72vw, 1480px));
+    width: 100%;
+    height: 100%;
     max-width: none;
-    padding: 8px 40px;
+    padding: clamp(16px, 2.5cqi, 32px) 48px;
+    box-sizing: border-box;
     justify-content: center;
     gap: 0;
   }
@@ -1226,13 +2263,360 @@
     min-height: 0;
   }
 
+  .banner-content.guest-slide-fading-out {
+    opacity: 0;
+    transition: opacity var(--guest-slide-content-fade) ease;
+  }
+
+  .banner-content.guest-slide-hidden {
+    opacity: 0;
+    transition: none;
+  }
+
+  .banner-content.guest-slide-fading-in {
+    opacity: 1;
+    transition: opacity var(--guest-slide-content-fade) ease;
+  }
+
   .guest-intro-variant .banner-content {
-    align-items: center;
+    position: relative;
+    flex-direction: column;
+    align-items: stretch;
     justify-content: center;
-    gap: 36px;
+    gap: 14px;
     width: 100%;
     transform: translateZ(0);
-    contain: layout paint;
+    contain: layout;
+  }
+
+  .landing-intro-expanded .banner-inner {
+    width: 100%;
+    padding: 0;
+  }
+
+  .landing-intro-expanded .banner-content {
+    contain: none;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .landing-intro-expanded-content {
+    position: relative;
+    z-index: var(--z-index-dropdown-1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-width: 100%;
+    height: 100%;
+    padding: clamp(18px, 2.2vw, 34px) 0 clamp(16px, 1.8vw, 28px);
+    box-sizing: border-box;
+    overflow: visible;
+    color: white;
+    opacity: 1;
+    text-align: center;
+    transform: translateY(0) scale(1);
+    transition:
+      opacity 360ms ease,
+      transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .landing-intro-expanded-motion {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    animation: landingIntroEnter 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .landing-intro-expanded-motion :global(.landing-heading-motion) {
+    flex: 0 0 auto;
+  }
+
+  .landing-intro-ai-icon {
+    width: clamp(68px, 6.2vw, 112px);
+    height: clamp(68px, 6.2vw, 112px);
+    margin: 0 0 clamp(8px, 1vw, 16px);
+    filter: drop-shadow(0 12px 34px rgba(0, 0, 0, 0.2));
+    transition: transform 780ms cubic-bezier(0.22, 1, 0.36, 1), margin 780ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .landing-intro-headline {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    margin: 0 auto;
+    max-width: min(100% - 48px, 1050px);
+    font-size: clamp(2.75rem, 4.7vw, 5.65rem);
+    line-height: 1.05;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.96);
+    text-shadow: 0 8px 38px rgba(0, 0, 0, 0.22);
+    transition: transform 780ms cubic-bezier(0.22, 1, 0.36, 1), font-size 780ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .landing-intro-headline span {
+    transform-origin: center;
+    white-space: nowrap;
+    animation: landingIntroHeadlineScale 1800ms ease-in-out infinite alternate;
+  }
+
+  .landing-intro-headline span:nth-child(2) {
+    animation-delay: 160ms;
+  }
+
+  .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
+    margin-bottom: clamp(6px, 0.8vw, 12px);
+    transform: scale(0.92);
+  }
+
+  .landing-intro-expanded-content.examples-visible .landing-intro-headline {
+    transform: scale(0.96);
+  }
+
+  .landing-intro-examples {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    min-width: 100%;
+    padding-bottom: 0;
+    box-sizing: border-box;
+    opacity: 0;
+    transform: translateY(12px);
+    pointer-events: none;
+    transition:
+      opacity 680ms ease,
+      transform 780ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .landing-intro-examples.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .landing-intro-request {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: clamp(10px, 1.15vw, 20px);
+    min-height: clamp(44px, 4.1vw, 68px);
+    padding: 0 clamp(22px, 2.5vw, 38px);
+    border-radius: clamp(11px, 1.1vw, 18px);
+    color: var(--color-grey-100);
+    background: var(--color-grey-blue);
+    box-shadow: 0 8px 0 rgba(43, 62, 122, 0.22), 0 16px 30px rgba(17, 31, 76, 0.24);
+    font-size: clamp(1.2rem, 2.25vw, 2.35rem);
+    font-weight: 750;
+    letter-spacing: -0.035em;
+    white-space: nowrap;
+  }
+
+  .landing-intro-request::after {
+    content: '';
+    position: absolute;
+    right: -8px;
+    bottom: 9px;
+    width: 18px;
+    height: 18px;
+    background: var(--color-grey-blue);
+    clip-path: polygon(0 0, 100% 100%, 0 72%);
+  }
+
+  .landing-intro-request span {
+    animation: landingIntroRequestIn 360ms ease both;
+  }
+
+  .landing-intro-app-rails {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(12px, 1.4vw, 22px);
+    width: calc(100% + clamp(220px, 32vw, 520px));
+    min-width: calc(100% + clamp(220px, 32vw, 520px));
+    margin-left: calc(-1 * clamp(110px, 16vw, 260px));
+    margin-right: calc(-1 * clamp(110px, 16vw, 260px));
+    margin-top: clamp(12px, 1.35vw, 24px);
+    overflow: visible;
+  }
+
+  .landing-intro-app-rail-row {
+    position: relative;
+    width: 100%;
+    min-width: 100%;
+    overflow: visible;
+  }
+
+  .landing-intro-app-rail {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: clamp(22px, 2.7vw, 38px);
+    min-width: max-content;
+    width: max-content;
+    padding: clamp(8px, 1vw, 14px) 0;
+  }
+
+  .landing-intro-app-rail-primary {
+    translate: var(--landing-intro-primary-rail-offset, 0px) 0;
+    animation: landingIntroRailLeft var(--landing-intro-primary-rail-duration, 84000ms) linear infinite;
+    animation-play-state: paused;
+    will-change: transform;
+  }
+
+  .landing-intro-expanded-content.examples-visible .landing-intro-app-rail-primary {
+    animation-play-state: running;
+  }
+
+  .landing-intro-app-rail-secondary {
+    animation: landingIntroRailRight 48s linear infinite;
+  }
+
+  .mounted-slide-sentinels {
+    display: none;
+  }
+
+  .landing-intro-app-icon {
+    display: inline-grid;
+    place-items: center;
+    width: clamp(64px, 5.9vw, 112px);
+    height: clamp(64px, 5.9vw, 112px);
+    border-radius: clamp(14px, 1.15vw, 22px);
+    background: var(--landing-intro-app-bg);
+    border: 0;
+    box-shadow: 0 16px 32px rgba(24, 43, 106, 0.16);
+    opacity: 0.3;
+    transform: scale(0.94);
+    transition:
+      opacity 680ms ease,
+      transform 680ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 680ms ease;
+  }
+
+  .landing-intro-app-icon::before {
+    content: '';
+    width: 54%;
+    height: 54%;
+    background: rgba(209, 223, 255, 0.78);
+    -webkit-mask-image: var(--landing-intro-icon-url);
+    mask-image: var(--landing-intro-icon-url);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+  }
+
+  .landing-intro-app-icon.highlighted {
+    opacity: 1;
+    transform: scale(1.12);
+    box-shadow: 0 22px 48px rgba(24, 43, 106, 0.28);
+  }
+
+  @media (orientation: landscape) and (max-height: 760px) {
+    .daily-inspiration-banner.landing-intro-expanded {
+      height: 100%;
+      min-height: 0;
+      max-height: none;
+    }
+
+    .landing-intro-expanded-content {
+      padding: clamp(12px, 2.1vh, 18px) 0 clamp(10px, 1.8vh, 16px);
+    }
+
+    .landing-intro-ai-icon {
+      width: clamp(58px, 9.2vh, 76px);
+      height: clamp(58px, 9.2vh, 76px);
+      margin-bottom: clamp(4px, 1vh, 8px);
+    }
+
+    .landing-intro-headline {
+      font-size: clamp(2.5rem, 7.2vh, 3.9rem);
+      line-height: 1.02;
+    }
+
+    .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
+      transform: scale(0.92);
+      margin-bottom: 4px;
+    }
+
+    .landing-intro-expanded-content.examples-visible .landing-intro-headline {
+      transform: scale(0.94);
+    }
+
+    .landing-intro-examples {
+      padding-bottom: 10px;
+    }
+
+    .landing-intro-request {
+      min-height: 38px;
+      margin-top: 6px;
+      padding: 0 22px;
+      font-size: clamp(1.1rem, 3.7vh, 1.75rem);
+      border-radius: 12px;
+    }
+
+    .landing-intro-request::after {
+      bottom: 6px;
+      width: 14px;
+      height: 14px;
+    }
+
+    .landing-intro-app-rails {
+      gap: clamp(8px, 1.3vh, 12px);
+      margin-top: clamp(8px, 1.4vh, 12px);
+      width: calc(100% + clamp(260px, 44vw, 560px));
+      min-width: calc(100% + clamp(260px, 44vw, 560px));
+      margin-left: calc(-1 * clamp(130px, 22vw, 280px));
+      margin-right: calc(-1 * clamp(130px, 22vw, 280px));
+    }
+
+    .landing-intro-app-rail {
+      gap: clamp(22px, 3.8vh, 36px);
+      padding: 3px 0;
+    }
+
+    .landing-intro-app-icon {
+      width: clamp(54px, 8.8vh, 74px);
+      height: clamp(54px, 8.8vh, 74px);
+      border-radius: clamp(14px, 2vh, 18px);
+    }
+  }
+
+  @keyframes landingIntroEnter {
+    from { opacity: 0; transform: translateY(14px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes landingIntroRequestIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes landingIntroHeadlineScale {
+    from { transform: scale(1); }
+    to { transform: scale(1.018); }
+  }
+
+  @keyframes landingIntroRailLeft {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  @keyframes landingIntroRailRight {
+    from { transform: translateX(-50%); }
+    to { transform: translateX(0); }
   }
 
   .guest-intro-copy {
@@ -1244,7 +2628,12 @@
     justify-content: center;
     gap: 4px;
     color: white;
+    opacity: 1;
     text-align: left;
+    transform: translateY(0) scale(1);
+    transition:
+      opacity 420ms ease,
+      transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .guest-intro-ai-icon {
@@ -1261,6 +2650,11 @@
     -webkit-mask-position: center;
     mask-position: center;
     background-color: rgba(255, 255, 255, 0.92);
+  }
+
+  .guest-intro-ai-icon.landing-intro-ai-icon {
+    width: clamp(70px, 6.2vw, 112px);
+    height: clamp(70px, 6.2vw, 112px);
   }
 
   .guest-intro-copy-line {
@@ -1318,20 +2712,208 @@
     height: 100%;
   }
 
+  .guest-signup-sequence {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-height: min(240px, 100%);
+  }
+
+  .guest-signup-stage {
+    grid-area: 1 / 1;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(18px);
+    transition:
+      opacity 420ms ease,
+      transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+      visibility 0s linear 420ms;
+  }
+
+  .guest-signup-stage.stage-entering,
+  .guest-signup-stage.stage-visible,
+  .guest-signup-stage.stage-exiting {
+    visibility: visible;
+    transition-delay: 0s;
+  }
+
+  .guest-signup-stage.stage-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .guest-signup-stage.stage-exiting {
+    transform: translateY(-18px);
+  }
+
+  .guest-signup-benefits-stage {
+    width: min(100%, 720px);
+  }
+
+  .guest-signup-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(18px, 1.8vw, 28px);
+    text-align: center;
+  }
+
+  .guest-signup-cta h2 {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.98);
+    font-size: clamp(2rem, 2.8vw, 4rem);
+    line-height: 1.02;
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.2);
+  }
+
+  .guest-signup-benefits-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(22px, 2.4vw, 40px) clamp(30px, 5vw, 80px);
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .guest-signup-benefits-list li {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    gap: clamp(10px, 1vw, 16px);
+    color: rgba(255, 255, 255, 0.96);
+    font-size: clamp(1.05rem, 1.7vw, 2.1rem);
+    line-height: 1.1;
+    font-weight: 750;
+    letter-spacing: -0.03em;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.22);
+    justify-content: flex-start;
+  }
+
+  .guest-signup-benefit-check {
+    display: grid;
+    place-items: center;
+    width: 1.25em;
+    height: 1.25em;
+    flex: 0 0 auto;
+    color: #62cf20;
+    font-size: 1.25em;
+    line-height: 1;
+    text-shadow: none;
+  }
+
+  .guest-signup-cta-button {
+    min-width: 0 !important;
+    height: auto !important;
+    margin: 10px 0 0 !important;
+    padding: 18px 32px !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: var(--color-button-primary, #ff553b) !important;
+    color: white !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24) !important;
+    filter: none !important;
+    font: inherit;
+    font-size: clamp(1.05rem, 1.3vw, 1.35rem) !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em;
+    cursor: pointer;
+    transform-origin: center;
+  }
+
+  .guest-signup-cta-button.pulsing {
+    animation: landingSignupCtaPulse 4.8s ease-in-out infinite;
+  }
+
+  @keyframes landingSignupCtaPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+  }
+
+  .guest-signup-cta-button:hover {
+    filter: brightness(1.06) !important;
+  }
+
   .guest-intro-video-box,
-  .guest-intro-feature-card {
+  .guest-intro-feature-card,
+  .guest-product-demo-shell,
+  .guest-actionable-demo-shell,
+  .guest-story-demo-shell {
     position: relative;
     flex: 0 1 auto;
-    height: calc(100% - 20px);
-    width: auto;
-    min-width: 360px;
-    max-width: min(54vw, 920px);
+    height: auto;
+    width: min(100%, 760px);
+    min-width: 0;
+    max-width: 760px;
     aspect-ratio: 16 / 9;
     border-radius: var(--radius-4);
     border: 1px solid rgba(255, 255, 255, 0.16);
     overflow: hidden;
+    opacity: 1;
     background: rgba(18, 18, 18, 0.9);
     box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.18);
+    transform: translateY(0) scale(1);
+    transition:
+      opacity 420ms ease,
+      transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .guest-actionable-demo-shell {
+    display: grid;
+    place-items: center;
+    min-height: 210px;
+    overflow: visible;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .guest-story-demo-shell {
+    display: grid;
+    place-items: center;
+    min-height: 210px;
+    overflow: visible;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .guest-product-demo-shell {
+    display: grid;
+    place-items: center;
+    min-height: 210px;
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.2), transparent 28%),
+      radial-gradient(circle at 82% 76%, rgba(255, 255, 255, 0.14), transparent 32%),
+      rgba(18, 18, 18, 0.45);
+  }
+
+  .guest-product-demo-shell::before {
+    content: '';
+    position: absolute;
+    inset: 14%;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    animation: landingProductPulse 4.8s ease-in-out infinite;
+    z-index: -1;
+  }
+
+  @keyframes landingProductPulse {
+    0%, 100% { transform: scale(0.96); opacity: 0.74; }
+    50% { transform: scale(1.05); opacity: 1; }
+  }
+
+  .guest-actionable-demo-shell :global(.landing-actionable-demo) {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
   }
 
   .guest-intro-video-box {
@@ -1419,6 +3001,7 @@
   .guest-intro-feature-text h3 {
     font-size: var(--font-size-lg);
     line-height: 1.15;
+    color: rgba(255, 255, 255, 0.96);
   }
 
   .guest-intro-feature-text p {
@@ -1652,12 +3235,14 @@
     font-size: var(--font-size-sm);
     line-height: 1.2;
     font-weight: 700;
+    color: rgba(255, 255, 255, 0.96);
   }
 
   .banner-info-text p {
     margin-top: var(--spacing-2);
     font-size: var(--font-size-xs);
     line-height: 1.25;
+    color: rgba(255, 255, 255, 0.9);
     opacity: 0.9;
   }
 
@@ -1726,7 +3311,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    height: 2px;
+    height: 4px;
     background: transparent;
     pointer-events: none;
     z-index: var(--z-index-dropdown-2);
@@ -1739,6 +3324,12 @@
     transform: scaleX(0);
     transform-origin: left center;
     animation: carouselProgressFill var(--carousel-progress-duration) linear forwards;
+  }
+
+  .carousel-progress-fill.reduced-motion {
+    width: 100%;
+    animation: none;
+    transform: scaleX(1);
   }
 
   @keyframes carouselProgressFill {
@@ -1817,6 +3408,26 @@
   /* Orb morph + drift @keyframes are in animations.css (shared globally). */
   @media (prefers-reduced-motion: reduce) {
     .orb { animation: none !important; }
+    .landing-intro-expanded-content,
+    .landing-intro-request span,
+    .landing-intro-app-rail-row,
+    .landing-intro-app-rail,
+    .guest-product-demo-shell::before,
+    .guest-signup-stage,
+    .guest-signup-cta-button.pulsing,
+    .guest-signup-benefits-list li {
+      animation: none !important;
+      transition: none !important;
+    }
+
+    .landing-intro-app-rail-primary {
+      transition: none !important;
+    }
+
+    .guest-signup-benefits-list li {
+      opacity: 1;
+      transform: none;
+    }
   }
 
   /* ── Large decorative icons at banner edges ────────────────────────────────
@@ -1862,15 +3473,33 @@
   }
 
   /* ── Mobile adjustments (≤730px) ── */
-  @media (max-width: 730px) {
+  @container chat-side (max-width: 730px) {
     .daily-inspiration-banner {
-      height: 190px;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded) {
+      height: 100%;
+      min-height: 0;
+    }
+
+    .daily-inspiration-banner.landing-intro-expanded {
+      height: 100%;
+      min-height: 0;
+      max-height: none;
     }
 
     :global(.menu-open) .daily-inspiration-banner,
     :global(.side-by-side-active) .daily-inspiration-banner {
-      height: 190px;
-      min-height: unset;
+      height: 100%;
+      min-height: 0;
+    }
+
+    :global(.menu-open) .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded),
+    :global(.side-by-side-active) .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded) {
+      height: 100%;
+      min-height: 0;
     }
 
     .banner-inner {
@@ -1882,14 +3511,80 @@
       padding: 16px 48px 18px;
     }
 
+    .landing-intro-expanded .banner-inner {
+      padding: 0;
+    }
+
     .guest-intro-variant .banner-content {
       flex-direction: column;
       align-items: stretch;
       gap: 14px;
     }
 
+    .landing-intro-expanded .banner-content {
+      display: grid;
+      align-items: center;
+    }
+
+    .landing-intro-headline {
+      max-width: calc(100% - 18px);
+      font-size: clamp(1.95rem, 10vw, 2.5rem);
+      line-height: 1.1;
+      letter-spacing: -0.032em;
+      text-align: center;
+      align-items: center;
+    }
+
+    .landing-intro-ai-icon {
+      width: clamp(60px, 15vw, 74px);
+      height: clamp(60px, 15vw, 74px);
+      margin-bottom: 8px;
+    }
+
+    .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
+      transform: scale(0.92);
+      margin-bottom: 6px;
+    }
+
+    .landing-intro-expanded-content.examples-visible .landing-intro-headline {
+      transform: scale(0.94);
+    }
+
+    .landing-intro-examples {
+      padding-bottom: 0;
+    }
+
+    .landing-intro-request {
+      max-width: min(calc(100% - 32px), 360px);
+      min-height: 44px;
+      margin-top: 18px;
+      padding: 0 18px;
+      font-size: clamp(1.12rem, 5.4vw, 1.5rem);
+      line-height: 1.08;
+      white-space: normal;
+    }
+
+    .landing-intro-app-rails {
+      gap: 12px;
+      margin-top: 12px;
+      width: calc(100% + 180px);
+      min-width: calc(100% + 180px);
+      margin-left: -90px;
+      margin-right: -90px;
+    }
+
+    .landing-intro-app-rail {
+      gap: 22px;
+    }
+
+    .landing-intro-app-icon {
+      width: clamp(54px, 14vw, 66px);
+      height: clamp(54px, 14vw, 66px);
+      border-radius: 12px;
+    }
+
     .guest-intro-copy-line {
-      font-size: clamp(0.98rem, 4.8vw, 1.42rem);
+      font-size: clamp(1.35rem, 7vw, 1.9rem);
       line-height: 1.06;
     }
 
@@ -1903,7 +3598,7 @@
     }
 
     .guest-feature-headline {
-      font-size: clamp(0.98rem, 4.8vw, 1.42rem);
+      font-size: clamp(1.45rem, 7.2vw, 2rem);
       line-height: 1.08;
       -webkit-line-clamp: 5;
       line-clamp: 5;
@@ -1912,8 +3607,37 @@
       overflow: hidden;
     }
 
+    .guest-signup-cta {
+      align-items: center;
+      gap: 10px;
+      text-align: center;
+    }
+
+    .guest-signup-cta h2 {
+      font-size: clamp(1.35rem, 7vw, 2rem);
+    }
+
+    .guest-signup-benefits-list {
+      gap: 14px 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .guest-signup-benefits-list li {
+      gap: 7px;
+      justify-content: flex-start;
+      font-size: clamp(0.82rem, 3.8vw, 1.05rem);
+    }
+
+    .guest-signup-cta-button {
+      padding: 12px 22px !important;
+      font-size: 1rem !important;
+    }
+
     .guest-intro-video-box,
-    .guest-intro-feature-card {
+    .guest-intro-feature-card,
+    .guest-product-demo-shell,
+    .guest-actionable-demo-shell,
+    .guest-story-demo-shell {
       width: 100%;
       min-width: 0;
       flex-basis: auto;
@@ -1946,9 +3670,11 @@
       line-clamp: 4;
     }
 
+  }
+
     .banner-content.mobile-card-loop {
       position: relative;
-      overflow: hidden;
+      overflow: visible;
     }
 
     .banner-content.mobile-card-loop .banner-left,
@@ -1956,6 +3682,10 @@
     .banner-content.mobile-card-loop .banner-embed-wrapper,
     .banner-content.mobile-card-loop .guest-intro-video-box,
     .banner-content.mobile-card-loop .guest-intro-feature-card,
+    .banner-content.mobile-card-loop .guest-product-demo-shell,
+    .banner-content.mobile-card-loop .guest-actionable-demo-shell,
+    .banner-content.mobile-card-loop .guest-story-demo-shell,
+    .banner-content.mobile-card-loop :global(.landing-actionable-demo),
     .banner-content.mobile-card-loop .banner-info-card {
       position: absolute;
       inset: 0;
@@ -1971,12 +3701,138 @@
       transform: translateY(0);
     }
 
-    .banner-content.mobile-card-loop.show-mobile-card .banner-left,
-    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy {
+    .banner-content.mobile-card-loop .guest-intro-copy.guest-feature-copy {
+      inset: auto;
+      top: 50%;
+      left: 50%;
+      width: min(calc(100% - 88px), 700px);
+      height: auto;
+      padding-inline: 0;
+      box-sizing: border-box;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      transform: translate(-50%, -50%);
+      transform-origin: top center;
+      transition:
+        top 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        left 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        width 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        padding 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .banner-content.mobile-card-loop .guest-intro-copy.guest-feature-copy .guest-feature-inline-icon {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      margin: 0;
+      transform: translate3d(-50%, 0, 0);
+    }
+
+    .banner-content.mobile-card-loop .guest-intro-copy.guest-feature-copy .guest-feature-headline {
+      margin-top: clamp(46px, 11vw, 58px);
+      margin-left: 0;
+      text-align: center;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .banner-left {
       opacity: 0;
       pointer-events: none;
       transform: translateY(-6px);
     }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy {
+      inset: auto;
+      top: 4px;
+      left: 50%;
+      width: fit-content;
+      max-width: min(calc(100% - 48px), 360px);
+      height: auto;
+      padding-inline: 0;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      opacity: 1;
+      pointer-events: none;
+      text-align: center;
+      transform: translateX(-50%);
+      transform-origin: top center;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy .guest-feature-inline-icon {
+      width: 20px;
+      height: 20px;
+      margin: 0;
+      opacity: 0.5;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy.guest-feature-copy .guest-feature-inline-icon {
+      position: static;
+      transform: none;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy.guest-feature-copy .guest-feature-headline {
+      max-width: min(calc(100cqi - 72px), 360px);
+      margin-top: 0;
+      margin-left: 0;
+    }
+
+    .banner-content.mobile-card-loop .guest-feature-inline-icon {
+      transition:
+        width 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        height 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        top 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        left 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        margin 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 520ms ease;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy-line,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-feature-headline {
+      display: block;
+      max-width: min(100%, 330px);
+      overflow: visible;
+      color: rgba(255, 255, 255, 0.92);
+      font-size: clamp(0.82rem, 3.4vw, 1rem);
+      line-height: 1.08;
+      opacity: 0.5;
+      text-align: center;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+    }
+
+    .banner-content.mobile-card-loop .guest-feature-headline {
+      transition:
+        font-size 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        line-height 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        margin 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 520ms ease;
+    }
+
+    .banner-content.mobile-card-loop .guest-feature-copy,
+    .banner-content.mobile-card-loop .guest-feature-copy .guest-feature-inline-icon,
+    .banner-content.mobile-card-loop .guest-feature-copy .guest-feature-headline {
+      transition: none;
+    }
+
+    .banner-content.mobile-card-loop.actionable-heading-fading-out .guest-feature-copy {
+      opacity: 0;
+      transition: opacity var(--actionable-mobile-heading-fade-out) ease;
+    }
+
+    .banner-content.mobile-card-loop.actionable-heading-hidden .guest-feature-copy {
+      opacity: 0;
+      transition: none;
+    }
+
+    .banner-content.mobile-card-loop.actionable-heading-fading-in .guest-feature-copy {
+      opacity: 1;
+      transition: opacity var(--actionable-mobile-heading-fade-in) ease;
+    }
+
+  @container chat-side (max-width: 730px) {
 
     .banner-embed-wrapper {
       width: 140px;
@@ -2002,9 +3858,15 @@
       display: none;
     }
 
+  }
+
     .banner-content.mobile-card-loop .banner-embed-wrapper,
     .banner-content.mobile-card-loop .guest-intro-video-box,
     .banner-content.mobile-card-loop .guest-intro-feature-card,
+    .banner-content.mobile-card-loop .guest-product-demo-shell,
+    .banner-content.mobile-card-loop .guest-actionable-demo-shell,
+    .banner-content.mobile-card-loop .guest-story-demo-shell,
+    .banner-content.mobile-card-loop :global(.landing-actionable-demo),
     .banner-content.mobile-card-loop .banner-info-card {
       margin: 0;
       opacity: 0;
@@ -2016,6 +3878,10 @@
     .banner-content.mobile-card-loop.show-mobile-card .banner-embed-wrapper,
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-video-box,
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-feature-card,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-product-demo-shell,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-demo-shell,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-story-demo-shell,
+    .banner-content.mobile-card-loop.show-mobile-card :global(.landing-actionable-demo),
     .banner-content.mobile-card-loop.show-mobile-card .banner-info-card {
       opacity: 1;
       pointer-events: auto;
@@ -2023,11 +3889,49 @@
     }
 
     .banner-content.mobile-card-loop .guest-intro-video-box,
-    .banner-content.mobile-card-loop .guest-intro-feature-card {
-      width: min(100%, 560px);
+    .banner-content.mobile-card-loop .guest-intro-feature-card,
+    .banner-content.mobile-card-loop .guest-product-demo-shell,
+    .banner-content.mobile-card-loop .guest-actionable-demo-shell,
+    .banner-content.mobile-card-loop .guest-story-demo-shell,
+    .banner-content.mobile-card-loop :global(.landing-actionable-demo) {
+      width: min(100%, 760px);
       height: 100%;
       max-height: none;
+      min-height: 0;
       margin: 0 auto;
+    }
+
+    .banner-content.mobile-card-loop .guest-actionable-demo-shell {
+      aspect-ratio: auto;
+      max-height: 100%;
+    }
+
+    .banner-content.mobile-card-loop .guest-story-demo-shell {
+      aspect-ratio: auto;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-video-box,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-feature-card,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-product-demo-shell,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-demo-shell,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-story-demo-shell {
+      inset: clamp(44px, 12vw, 56px) 0 0;
+      height: auto;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-demo-shell :global(.landing-actionable-demo) {
+      inset: 0;
+      height: 100%;
+      margin: auto;
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-demo-shell {
+      inset-block-start: clamp(42px, 11vw, 48px);
+    }
+
+    .banner-content.mobile-card-loop.show-mobile-card .guest-story-demo-shell {
+      height: auto;
+      max-height: none;
     }
 
     .banner-content.mobile-card-loop .banner-embed-wrapper :global(.embed-preview-container) {
@@ -2043,7 +3947,10 @@
       max-width: unset !important;
       height: 100% !important;
       max-height: unset !important;
+      scale: 0.8;
     }
+
+  @container chat-side (max-width: 730px) {
 
     .banner-mate-profile {
       width: 36px !important;
@@ -2062,6 +3969,15 @@
       height: 10px !important;
       bottom: -2px !important;
       right: -2px !important;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .banner-content.guest-slide-fading-out,
+    .banner-content.guest-slide-fading-in,
+    .banner-content.mobile-card-loop.actionable-heading-fading-out .guest-feature-copy,
+    .banner-content.mobile-card-loop.actionable-heading-fading-in .guest-feature-copy {
+      transition-duration: 1ms !important;
     }
   }
 

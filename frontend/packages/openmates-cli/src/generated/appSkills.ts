@@ -4,7 +4,8 @@
  * Regenerate with: python3 scripts/generate_sdk_app_skills.py
  */
 
-export type AppSkillRunner = <T = unknown>(appId: string, skillId: string, input: unknown) => Promise<T>;
+export type AppSkillRunOptions = { promptInjectionProtection?: boolean };
+export type AppSkillRunner = <T = unknown>(appId: string, skillId: string, input: unknown, options?: AppSkillRunOptions) => Promise<T>;
 export type SkillInput = Record<string, unknown>;
 
 export const APP_SKILL_METADATA = [
@@ -19,7 +20,214 @@ export const APP_SKILL_METADATA = [
     "description": "Run this OpenMates app skill.",
     "schema": {
       "type": "object",
-      "properties": {}
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "The question or task for the Workflow AI step."
+        },
+        "conversation": {
+          "type": "string",
+          "description": "Optional run-local conversation name for retaining previous Workflow AI context in the same run."
+        }
+      },
+      "required": [
+        "prompt"
+      ]
+    }
+  },
+  {
+    "app_id": "audio",
+    "skill_id": "generate",
+    "app_namespace_ts": "audio",
+    "skill_method_ts": "generate",
+    "app_namespace_py": "audio",
+    "skill_method_py": "generate",
+    "description_key": "app_skills.audio.generate.description",
+    "description": "Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit speech generation.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "description": "REQUIRED: Array of short sound-effect generation request objects.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "description": "Optional caller-supplied ID preserved in the result."
+              },
+              "prompt": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 400,
+                "description": "Non-speech sound effect prompt."
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "elevenlabs"
+                ],
+                "default": "elevenlabs",
+                "description": "Audio provider. v1 supports ElevenLabs only; keep explicit for future provider expansion."
+              },
+              "duration_seconds": {
+                "type": "number",
+                "minimum": 0.5,
+                "maximum": 2.0,
+                "default": 1.0
+              },
+              "prompt_influence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "default": 0.3
+              },
+              "loop": {
+                "type": "boolean",
+                "default": false
+              },
+              "output_format": {
+                "type": "string",
+                "enum": [
+                  "mp3_22050_32",
+                  "mp3_24000_48",
+                  "mp3_44100_32",
+                  "mp3_44100_64",
+                  "mp3_44100_96",
+                  "mp3_44100_128",
+                  "mp3_44100_192"
+                ],
+                "default": "mp3_44100_128"
+              },
+              "model": {
+                "type": "string",
+                "enum": [
+                  "eleven_text_to_sound_v2"
+                ],
+                "default": "eleven_text_to_sound_v2"
+              }
+            },
+            "required": [
+              "prompt",
+              "provider"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requests"
+      ]
+    }
+  },
+  {
+    "app_id": "audio",
+    "skill_id": "speak",
+    "app_namespace_ts": "audio",
+    "skill_method_ts": "speak",
+    "app_namespace_py": "audio",
+    "skill_method_py": "speak",
+    "description_key": "app_skills.audio.speak.description",
+    "description": "Convert explicit user-provided text into short speech audio using an OpenMates voice preset after a required GPT OSS safeguard approval. Do not use this for automatic assistant voice replies, long narration, voice cloning, raw provider voice IDs, impersonation, scams, or deceptive speech.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "description": "REQUIRED: Array of explicit text-to-speech request objects.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "description": "Optional caller-supplied ID preserved in the result."
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "description": "Text to synthesize after safety approval."
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "elevenlabs"
+                ],
+                "default": "elevenlabs",
+                "description": "Audio provider. v1 supports ElevenLabs only; keep explicit for future provider expansion."
+              },
+              "voice": {
+                "type": "string",
+                "enum": [
+                  "warm_neutral",
+                  "bright_neutral",
+                  "calm_narrator"
+                ],
+                "default": "warm_neutral",
+                "description": "OpenMates voice preset; raw provider voice IDs are not accepted."
+              },
+              "accent": {
+                "type": "string",
+                "enum": [
+                  "en_us",
+                  "en_gb",
+                  "de_de",
+                  "es_es",
+                  "fr_fr"
+                ],
+                "default": "en_us"
+              },
+              "style": {
+                "type": "string",
+                "enum": [
+                  "natural",
+                  "calm",
+                  "friendly",
+                  "energetic"
+                ],
+                "default": "natural"
+              },
+              "speed": {
+                "type": "number",
+                "minimum": 0.7,
+                "maximum": 1.2,
+                "default": 1.0
+              },
+              "output_format": {
+                "type": "string",
+                "enum": [
+                  "mp3_22050_32",
+                  "mp3_24000_48",
+                  "mp3_44100_32",
+                  "mp3_44100_64",
+                  "mp3_44100_96",
+                  "mp3_44100_128",
+                  "mp3_44100_192"
+                ],
+                "default": "mp3_44100_128"
+              },
+              "model": {
+                "type": "string",
+                "enum": [
+                  "eleven_flash_v2_5",
+                  "eleven_multilingual_v2"
+                ],
+                "default": "eleven_flash_v2_5",
+                "description": "ElevenLabs TTS model. Flash v2.5 is the low-cost default; Multilingual v2 is the premium high-quality option."
+              }
+            },
+            "required": [
+              "text",
+              "provider"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requests"
+      ]
     }
   },
   {
@@ -34,6 +242,87 @@ export const APP_SKILL_METADATA = [
     "schema": {
       "type": "object",
       "properties": {}
+    }
+  },
+  {
+    "app_id": "business",
+    "skill_id": "company_financials",
+    "app_namespace_ts": "business",
+    "skill_method_ts": "companyFinancials",
+    "app_namespace_py": "business",
+    "skill_method_py": "company_financials",
+    "description_key": "app_skills.business.company_financials.description",
+    "description": "Get official SEC EDGAR financial filing facts for explicit public company tickers, CIKs, or exact company names, including revenue, profit, cash flow, and balance sheet data. Use for company performance research and comparisons; do not use for private companies, investment advice, stock-price forecasts, portfolio decisions, or discovering companies by broad category.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "companies": {
+          "type": "array",
+          "description": "Explicit public companies to look up by ticker, CIK, or exact company name. Do not pass broad categories such as \"egg producers\".",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Ticker, CIK, or exact public company name, e.g. CALM, 0000016160, or Cal-Maine Foods Inc."
+              },
+              "identifier_type": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "ticker",
+                  "cik",
+                  "company_name"
+                ],
+                "default": "auto"
+              },
+              "display_name": {
+                "type": "string",
+                "description": "Optional user-facing label from the original request."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        },
+        "period": {
+          "type": "string",
+          "enum": [
+            "latest_annual",
+            "latest_quarter",
+            "annual_history",
+            "quarterly_history"
+          ],
+          "default": "latest_annual"
+        },
+        "metric_group": {
+          "type": "string",
+          "enum": [
+            "summary",
+            "income",
+            "balance_sheet",
+            "cash_flow",
+            "all"
+          ],
+          "default": "summary"
+        },
+        "years": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 3
+        },
+        "include_sources": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "companies"
+      ]
     }
   },
   {
@@ -106,6 +395,61 @@ export const APP_SKILL_METADATA = [
   },
   {
     "app_id": "code",
+    "skill_id": "image_to_html",
+    "app_namespace_ts": "code",
+    "skill_method_ts": "imageToHtml",
+    "app_namespace_py": "code",
+    "skill_method_py": "image_to_html",
+    "description_key": "app_skills.code.image_to_html.description",
+    "description": "Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; pass source_image with the uploaded image embed_ref in chat, or image_base64 for REST/API calls.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "description": "Array of screenshot-to-HTML requests.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "image_base64": {
+                "type": "string",
+                "description": "Base64-encoded PNG, JPEG, or WEBP image bytes. Use this for REST/API calls."
+              },
+              "source_image": {
+                "type": "string",
+                "description": "Uploaded image filename/embed_ref from the conversation. Use this in chat/CLI when the user references an attached screenshot or mockup."
+              },
+              "mime_type": {
+                "type": "string",
+                "enum": [
+                  "image/png",
+                  "image/jpeg",
+                  "image/webp"
+                ],
+                "description": "MIME type for image_base64. Optional when using source_image because the server resolves it from the uploaded image."
+              },
+              "filename": {
+                "type": "string",
+                "description": "Optional source filename for caller-side correlation."
+              },
+              "max_correction_passes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 5,
+                "default": 2,
+                "description": "Maximum E2B render-feedback correction passes."
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "requests"
+      ]
+    }
+  },
+  {
+    "app_id": "code",
     "skill_id": "clean_repo",
     "app_namespace_ts": "code",
     "skill_method_ts": "cleanRepo",
@@ -172,6 +516,70 @@ export const APP_SKILL_METADATA = [
     "schema": {
       "type": "object",
       "properties": {}
+    }
+  },
+  {
+    "app_id": "design",
+    "skill_id": "search_icons",
+    "app_namespace_ts": "design",
+    "skill_method_ts": "searchIcons",
+    "app_namespace_py": "design",
+    "skill_method_py": "search_icons",
+    "description_key": "app_skills.design.search_icons.description",
+    "description": "Search for free SVG icons for UI, product, interface, or graphic design. Use this when the user asks to find icons by name, concept, object, or action. Do not use it for brand-logo search or generated icon creation.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "description": "Array of icon search requests backed by Iconify.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query, e.g. \"home\", \"calendar\", or \"settings\"."
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 24,
+                "description": "Maximum number of icon results to return."
+              },
+              "license_policy": {
+                "type": "string",
+                "enum": [
+                  "permissive",
+                  "all"
+                ],
+                "default": "permissive",
+                "description": "Filter to permissive/no-attribution licenses by default."
+              },
+              "include_prefixes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Optional Iconify collection prefixes to include."
+              },
+              "exclude_prefixes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Optional Iconify collection prefixes to exclude."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requests"
+      ]
     }
   },
   {
@@ -854,6 +1262,14 @@ export const APP_SKILL_METADATA = [
                 "type": "string",
                 "description": "Optional mailbox name (defaults to INBOX)"
               },
+              "start_date": {
+                "type": "string",
+                "description": "Optional inclusive start date for the search range (YYYY-MM-DD)"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "Optional inclusive end date for the search range (YYYY-MM-DD)"
+              },
               "limit": {
                 "type": "integer",
                 "minimum": 1,
@@ -978,6 +1394,62 @@ export const APP_SKILL_METADATA = [
                 "type": "boolean",
                 "description": "If true, include user reviews in the response. Defaults to false to keep response size manageable. Reviews significantly increase response size.",
                 "default": false
+              },
+              "osmEnrichment": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "disabled",
+                  "required"
+                ],
+                "description": "Optional OSM/Geoapify enrichment mode. Use auto for source-labelled amenity details, disabled to avoid Geoapify calls, or required when amenity filters must be provider-verified.",
+                "default": "auto"
+              },
+              "amenityFilters": {
+                "type": "object",
+                "description": "Optional OSM-backed amenity filters. Mark a value as required to keep only Geoapify/OSM-verified matches; unknown OSM fields are not treated as matches.",
+                "properties": {
+                  "airConditioning": {
+                    "type": "string",
+                    "enum": [
+                      "required"
+                    ]
+                  },
+                  "internetAccess": {
+                    "type": "string",
+                    "enum": [
+                      "free_required",
+                      "required"
+                    ]
+                  },
+                  "wheelchair": {
+                    "type": "string",
+                    "enum": [
+                      "required"
+                    ]
+                  },
+                  "outdoorSeating": {
+                    "type": "string",
+                    "enum": [
+                      "required"
+                    ]
+                  },
+                  "toilets": {
+                    "type": "string",
+                    "enum": [
+                      "required"
+                    ]
+                  },
+                  "smoking": {
+                    "type": "string"
+                  },
+                  "diet": {
+                    "type": "string"
+                  },
+                  "payment": {
+                    "type": "string"
+                  }
+                }
               }
             },
             "required": [
@@ -1041,6 +1513,73 @@ export const APP_SKILL_METADATA = [
       },
       "required": [
         "expression"
+      ]
+    }
+  },
+  {
+    "app_id": "models3d",
+    "skill_id": "search",
+    "app_namespace_ts": "models3d",
+    "skill_method_ts": "search",
+    "app_namespace_py": "models3d",
+    "skill_method_py": "search",
+    "description_key": "app_skills.models3d.search.description",
+    "description": "Search public 3D model catalogs for existing models. Use this when the user wants to find, browse, compare, or link to existing 3D-printable or downloadable 3D models. Do not use it to generate new models.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "description": "Array of 3D model search requests. Each request searches public 3D model catalogs and returns preview-only result cards.\n",
+          "items": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query, e.g. \"benchy\", \"phone stand\", or \"desk cable clip\"."
+              },
+              "providers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "Printables"
+                  ]
+                },
+                "description": "Optional provider filter. Defaults to Printables."
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20,
+                "default": 10,
+                "description": "Maximum total results to return after merging providers."
+              },
+              "sort": {
+                "type": "string",
+                "enum": [
+                  "best_match",
+                  "popular",
+                  "downloads",
+                  "newest"
+                ],
+                "default": "best_match",
+                "description": "Sorting strategy applied after provider results are merged."
+              },
+              "free_only": {
+                "type": "boolean",
+                "default": false,
+                "description": "Return only results that the provider marks as free."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requests"
       ]
     }
   },
@@ -1421,28 +1960,6 @@ export const APP_SKILL_METADATA = [
     }
   },
   {
-    "app_id": "openmates",
-    "skill_id": "search-docs",
-    "app_namespace_ts": "openmates",
-    "skill_method_ts": "searchDocs",
-    "app_namespace_py": "openmates",
-    "skill_method_py": "search_docs",
-    "description_key": "openmates_app.search_docs.description",
-    "description": "Use when the user asks about OpenMates features, setup, architecture, or documentation. Searches across all OpenMates documentation to find relevant pages.",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "query": {
-          "type": "string",
-          "description": "Search terms to find in OpenMates documentation"
-        }
-      },
-      "required": [
-        "query"
-      ]
-    }
-  },
-  {
     "app_id": "pdf",
     "skill_id": "read",
     "app_namespace_ts": "pdf",
@@ -1533,6 +2050,106 @@ export const APP_SKILL_METADATA = [
       "required": [
         "file_path",
         "pages",
+        "query"
+      ]
+    }
+  },
+  {
+    "app_id": "plans",
+    "skill_id": "create",
+    "app_namespace_ts": "plans",
+    "skill_method_ts": "create",
+    "app_namespace_py": "plans",
+    "skill_method_py": "create",
+    "description_key": "plans.skills.create.description",
+    "description": "Request creation of a user-visible plan. Durable plan content is client-side encrypted, so a capable connected client must apply the change.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Short user-facing plan title."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Optional plan summary."
+        },
+        "goal": {
+          "type": "string",
+          "description": "Optional plan goal."
+        }
+      },
+      "required": [
+        "title"
+      ]
+    }
+  },
+  {
+    "app_id": "plans",
+    "skill_id": "search",
+    "app_namespace_ts": "plans",
+    "skill_method_ts": "search",
+    "app_namespace_py": "plans",
+    "skill_method_py": "search",
+    "description_key": "plans.skills.search.description",
+    "description": "Search the user's encrypted plans through a connected capable client. Do not use server-visible metadata as a private plan-content fallback.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Private plan text to search for on a connected client."
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
+    "app_id": "projects",
+    "skill_id": "create",
+    "app_namespace_ts": "projects",
+    "skill_method_ts": "create",
+    "app_namespace_py": "projects",
+    "skill_method_py": "create",
+    "description_key": "projects.skills.create.description",
+    "description": "Request creation of a user-visible project. Durable project content is client-side encrypted, so a capable connected client must apply the change.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Short user-facing project name."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional project description."
+        }
+      },
+      "required": [
+        "name"
+      ]
+    }
+  },
+  {
+    "app_id": "projects",
+    "skill_id": "search",
+    "app_namespace_ts": "projects",
+    "skill_method_ts": "search",
+    "app_namespace_py": "projects",
+    "skill_method_py": "search",
+    "description_key": "projects.skills.search.description",
+    "description": "Search the user's encrypted projects through a connected capable client. Do not use server-visible metadata as a private project-content fallback.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Private project text to search for on a connected client."
+        }
+      },
+      "required": [
         "query"
       ]
     }
@@ -2131,6 +2748,88 @@ export const APP_SKILL_METADATA = [
     }
   },
   {
+    "app_id": "tasks",
+    "skill_id": "create",
+    "app_namespace_ts": "tasks",
+    "skill_method_ts": "create",
+    "app_namespace_py": "tasks",
+    "skill_method_py": "create",
+    "description_key": "tasks.skills.create.description",
+    "description": "Create one or more user-visible tasks. Use this for planning, task capture, or breaking a request into trackable work. Default unclear assignees to the user.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "assignee": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "openmates"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "blocked"
+                ]
+              }
+            }
+          }
+        },
+        "title": {
+          "type": "string",
+          "description": "Single-task title when not using tasks[]."
+        },
+        "description": {
+          "type": "string"
+        },
+        "assignee": {
+          "type": "string",
+          "enum": [
+            "user",
+            "openmates"
+          ]
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "app_id": "tasks",
+    "skill_id": "search",
+    "app_namespace_ts": "tasks",
+    "skill_method_ts": "search",
+    "app_namespace_py": "tasks",
+    "skill_method_py": "search",
+    "description_key": "tasks.skills.search.description",
+    "description": "Search the user's encrypted tasks through a connected capable client. Do not use server-visible metadata as a private task-content search fallback.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Private task text to search for on a connected client."
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
     "app_id": "travel",
     "skill_id": "search_connections",
     "app_namespace_ts": "travel",
@@ -2138,7 +2837,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "travel",
     "skill_method_py": "search_connections",
     "description_key": "app_skills.travel.search_connections.description",
-    "description": "Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices). Use when user asks about flights, train connections, or travel between cities on a specific date. Set transport_methods to [\"airplane\"] for flights or [\"train\"] for trains. If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix. If no provider is specified, all providers for the selected transport method are searched. Add cou",
+    "description": "Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices). Use when user asks about flights, train connections, or travel between cities on a specific date. Set transport_methods to [\"airplane\"] for flights or [\"train\"] for trains. If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix, transitous. If no provider is specified, all providers for the selected transport method are searc",
     "schema": {
       "type": "object",
       "properties": {
@@ -2148,6 +2847,18 @@ export const APP_SKILL_METADATA = [
           "items": {
             "type": "object",
             "properties": {
+              "origin": {
+                "type": "string",
+                "description": "Flat route origin accepted from LLM or CLI callers. Prefer legs for round trips and multi-stop trips; single-leg flat requests are normalized into legs before execution.\n"
+              },
+              "destination": {
+                "type": "string",
+                "description": "Flat route destination accepted from LLM or CLI callers. Prefer legs for round trips and multi-stop trips; single-leg flat requests are normalized into legs before execution.\n"
+              },
+              "date": {
+                "type": "string",
+                "description": "Flat route departure date in YYYY-MM-DD format. Prefer legs for round trips and multi-stop trips; single-leg flat requests are normalized into legs before execution.\n"
+              },
               "legs": {
                 "type": "array",
                 "description": "Ordered list of trip legs. One-way trip = 1 leg. Round trip = 2 legs (outbound + return). Multi-stop = N legs. Each leg specifies an origin, destination, and departure date.\n",
@@ -2190,17 +2901,38 @@ export const APP_SKILL_METADATA = [
                   "airplane"
                 ]
               },
+              "transport_method": {
+                "type": "string",
+                "description": "Singular transport method alias accepted from LLM or CLI callers. Normalized into transport_methods before execution.\n",
+                "enum": [
+                  "airplane",
+                  "train",
+                  "bus",
+                  "boat"
+                ]
+              },
               "providers": {
                 "type": "array",
-                "description": "Optional provider IDs to search. Use \"google_flights\" for flights, \"deutsche_bahn\" for Deutsche Bahn / ICE / Bahn.de / Sparpreis train searches, and \"flix\" for FlixBus / FlixTrain. If omitted, all providers for the selected transport method are used, then filtered by countries if provided.\n",
+                "description": "Optional provider IDs to search. Use \"google_flights\" for flights, \"deutsche_bahn\" for Deutsche Bahn / ICE / Bahn.de / Sparpreis train searches, \"flix\" for FlixBus / FlixTrain, and \"transitous\" only for timetable-only public transport routing. If omitted, priced providers for the selected transport method are used, then filtered by countries if provided.\n",
                 "items": {
                   "type": "string",
                   "enum": [
                     "google_flights",
                     "deutsche_bahn",
-                    "flix"
+                    "flix",
+                    "transitous"
                   ]
                 }
+              },
+              "provider": {
+                "type": "string",
+                "description": "Singular provider alias accepted from LLM or CLI callers. Normalized into providers before execution.\n",
+                "enum": [
+                  "google_flights",
+                  "deutsche_bahn",
+                  "flix",
+                  "transitous"
+                ]
               },
               "countries": {
                 "type": "array",
@@ -2257,6 +2989,36 @@ export const APP_SKILL_METADATA = [
                   "type": "string"
                 }
               },
+              "owned_passes": {
+                "type": "array",
+                "description": "Fare or mobility pass IDs the traveller already owns, such as \"deutschland_ticket\". Use for pass-aware train pricing when the user says they have a Deutschlandticket.\n",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "pass_only": {
+                "type": "boolean",
+                "description": "If true, prefer routes covered by owned fare passes when supported. Use with owned_passes [\"deutschland_ticket\"] for Deutschlandticket-only routing.\n",
+                "default": false
+              },
+              "rail_products": {
+                "type": "array",
+                "description": "Stable rail product filters for train searches. Use high_speed for ICE/high-speed, intercity for IC/EC, regional_express for IRE/RE-like services, regional for RB/local, s_bahn for S-Bahn, subway, tram, bus, or ferry.\n",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "high_speed",
+                    "intercity",
+                    "regional_express",
+                    "regional",
+                    "s_bahn",
+                    "subway",
+                    "tram",
+                    "bus",
+                    "ferry"
+                  ]
+                }
+              },
               "min_departure_time": {
                 "type": "string",
                 "description": "Earliest acceptable local departure time in HH:MM format."
@@ -2276,6 +3038,11 @@ export const APP_SKILL_METADATA = [
               "max_duration_minutes": {
                 "type": "integer",
                 "description": "Maximum total duration for the first leg, in minutes."
+              },
+              "min_transfer_minutes": {
+                "type": "integer",
+                "description": "Minimum acceptable layover or transfer duration, in minutes. Defaults to 10.",
+                "default": 10
               },
               "max_layover_minutes": {
                 "type": "integer",
@@ -2306,10 +3073,7 @@ export const APP_SKILL_METADATA = [
                 ],
                 "default": "price_asc"
               }
-            },
-            "required": [
-              "legs"
-            ]
+            }
           }
         }
       },
@@ -3009,6 +3773,59 @@ export const APP_SKILL_METADATA = [
         "requests"
       ]
     }
+  },
+  {
+    "app_id": "workflows",
+    "skill_id": "create-or-modify",
+    "app_namespace_ts": "workflows",
+    "skill_method_ts": "createOrModify",
+    "app_namespace_py": "workflows",
+    "skill_method_py": "create_or_modify",
+    "description_key": "workflows.skills.create_or_modify.description",
+    "description": "Create or modify exactly one workflow from chat. Do not batch multiple workflows into one skill call.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "workflow_id": {
+          "type": "string",
+          "description": "Existing workflow ID when modifying a workflow."
+        },
+        "title": {
+          "type": "string",
+          "description": "Short user-facing workflow title."
+        },
+        "graph": {
+          "type": "object",
+          "description": "Valid WorkflowGraph definition."
+        }
+      },
+      "required": [
+        "title"
+      ]
+    }
+  },
+  {
+    "app_id": "workflows",
+    "skill_id": "search",
+    "app_namespace_ts": "workflows",
+    "skill_method_ts": "search",
+    "app_namespace_py": "workflows",
+    "skill_method_py": "search",
+    "description_key": "workflows.skills.search.description",
+    "description": "Search the user's existing persisted workflows before proposing a new automation. Include temporary workflows only when the user explicitly asks about recent chat-created workflows.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Workflow title or intent text to search for."
+        },
+        "include_temporary": {
+          "type": "boolean",
+          "description": "Include temporary chat-created workflows in the search results."
+        }
+      }
+    }
   }
 ] as const;
 
@@ -3022,8 +3839,31 @@ export class AiAppSkills {
    * Description key: ai.ask.description
    * Skill: ai/ask
    */
-  async ask<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("ai", "ask", input);
+  async ask<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("ai", "ask", input, options);
+  }
+}
+
+export class AudioAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit speech generation.
+   * Description key: app_skills.audio.generate.description
+   * Skill: audio/generate
+   */
+  async generate<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("audio", "generate", input, options);
+  }
+  /**
+   * Convert explicit user-provided text into short speech audio using an OpenMates voice preset after a required GPT OSS safeguard approval. Do not use this for automatic assistant voice replies, long narration, voice cloning, raw provider voice IDs, impersonation, scams, or deceptive speech.
+   * Description key: app_skills.audio.speak.description
+   * Skill: audio/speak
+   */
+  async speak<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("audio", "speak", input, options);
   }
 }
 
@@ -3037,8 +3877,23 @@ export class BooksAppSkills {
    * Description key: books.translate.description
    * Skill: books/translate
    */
-  async translate<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("books", "translate", input);
+  async translate<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("books", "translate", input, options);
+  }
+}
+
+export class BusinessAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Get official SEC EDGAR financial filing facts for explicit public company tickers, CIKs, or exact company names, including revenue, profit, cash flow, and balance sheet data. Use for company performance research and comparisons; do not use for private companies, investment advice, stock-price forecasts, portfolio decisions, or discovering companies by broad category.
+   * Description key: app_skills.business.company_financials.description
+   * Skill: business/company_financials
+   */
+  async companyFinancials<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("business", "company_financials", input, options);
   }
 }
 
@@ -3052,56 +3907,79 @@ export class CodeAppSkills {
    * Description key: code.add_issue.description
    * Skill: code/add_issue
    */
-  async addIssue<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("code", "add_issue", input);
+  async addIssue<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "add_issue", input, options);
   }
   /**
    * Run this OpenMates app skill.
    * Description key: code.clean_repo.description
    * Skill: code/clean_repo
    */
-  async cleanRepo<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("code", "clean_repo", input);
+  async cleanRepo<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "clean_repo", input, options);
   }
   /**
    * Get latest documentation for programming libraries, frameworks, APIs, SDKs. Use for ANY programming-related query about a specific library or framework.
    * Description key: code.get_docs.description
    * Skill: code/get_docs
    */
-  async getDocs<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("code", "get_docs", input);
+  async getDocs<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "get_docs", input, options);
   }
   /**
    * Run this OpenMates app skill.
    * Description key: code.get_issues.description
    * Skill: code/get_issues
    */
-  async getIssues<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("code", "get_issues", input);
+  async getIssues<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "get_issues", input, options);
   }
   /**
    * Run this OpenMates app skill.
    * Description key: code.get_project_overview.description
    * Skill: code/get_project_overview
    */
-  async getProjectOverview<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("code", "get_project_overview", input);
+  async getProjectOverview<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "get_project_overview", input, options);
+  }
+  /**
+   * Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; pass source_image with the uploaded image embed_ref in chat, or image_base64 for REST/API calls.
+   * Description key: app_skills.code.image_to_html.description
+   * Skill: code/image_to_html
+   */
+  async imageToHtml<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "image_to_html", input, options);
   }
   /**
    * Run this OpenMates app skill.
    * Description key: code.remove_secrets.description
    * Skill: code/remove_secrets
    */
-  async removeSecrets<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("code", "remove_secrets", input);
+  async removeSecrets<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "remove_secrets", input, options);
   }
   /**
    * Search GitHub repositories. Use this instead of web.search whenever the user asks to find GitHub repos, repositories, open-source libraries, starred repos, or repo examples by topic, language, framework, or project need. Returns licensed repository embeds. Costs 10 credits per search.
    * Description key: code.search_repos.description
    * Skill: code/search_repos
    */
-  async searchRepos<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("code", "search_repos", input);
+  async searchRepos<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "search_repos", input, options);
+  }
+}
+
+export class DesignAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Search for free SVG icons for UI, product, interface, or graphic design. Use this when the user asks to find icons by name, concept, object, or action. Do not use it for brand-logo search or generated icon creation.
+   * Description key: app_skills.design.search_icons.description
+   * Skill: design/search_icons
+   */
+  async searchIcons<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("design", "search_icons", input, options);
   }
 }
 
@@ -3115,8 +3993,8 @@ export class ElectronicsAppSkills {
    * Description key: electronics.search_components.description
    * Skill: electronics/search_components
    */
-  async searchComponents<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("electronics", "search_components", input);
+  async searchComponents<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("electronics", "search_components", input, options);
   }
 }
 
@@ -3130,8 +4008,8 @@ export class EventsAppSkills {
    * Description key: events.search.description
    * Skill: events/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("events", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("events", "search", input, options);
   }
 }
 
@@ -3145,16 +4023,16 @@ export class FitnessAppSkills {
    * Description key: fitness.search_classes.description
    * Skill: fitness/search_classes
    */
-  async searchClasses<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("fitness", "search_classes", input);
+  async searchClasses<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("fitness", "search_classes", input, options);
   }
   /**
    * Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches.
    * Description key: fitness.search_locations.description
    * Skill: fitness/search_locations
    */
-  async searchLocations<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("fitness", "search_locations", input);
+  async searchLocations<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("fitness", "search_locations", input, options);
   }
 }
 
@@ -3168,16 +4046,16 @@ export class HealthAppSkills {
    * Description key: health.create_report.description
    * Skill: health/create_report
    */
-  async createReport<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("health", "create_report", input);
+  async createReport<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("health", "create_report", input, options);
   }
   /**
    * Search available medical appointments at German doctors/specialists by speciality and city. Covers any medical booking — general practitioners, specialists (e.g. dentist, dermatologist, gynecologist), scans and imaging (e.g. MRT/MRI, CT, Röntgen, Ultraschall), vaccinations, check-ups, blood tests, and other examinations. Note: "Termin" in a medical context means appointment, not event — route here instead of events-search. Sources: Doctolib, Jameda (Germany only).
    * Description key: app_skills.health.search_appointments.description
    * Skill: health/search_appointments
    */
-  async searchAppointments<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("health", "search_appointments", input);
+  async searchAppointments<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("health", "search_appointments", input, options);
   }
 }
 
@@ -3191,8 +4069,8 @@ export class HomeAppSkills {
    * Description key: app_skills.home.search.description
    * Skill: home/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("home", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("home", "search", input, options);
   }
 }
 
@@ -3206,16 +4084,16 @@ export class ImagesAppSkills {
    * Description key: images.generate.description
    * Skill: images/generate
    */
-  async generate<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("images", "generate", input);
+  async generate<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("images", "generate", input, options);
   }
   /**
    * Quickly generate a draft/preview image from a text prompt and/or reference images (image-to-image). Also use for: quick mockups, rough design concepts, draft illustrations, sketches, quick visual previews, or any request for a fast/rough image. When the user provides uploaded images as references (embed_refs), pass them via reference_images. Do not use this for scam, spam, fake-document, fake-endorsement, public-figure impersonation, or watermark/detection-evasion requests.
    * Description key: images.generate_draft.description
    * Skill: images/generate_draft
    */
-  async generateDraft<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("images", "generate_draft", input);
+  async generateDraft<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("images", "generate_draft", input, options);
   }
 }
 
@@ -3229,8 +4107,8 @@ export class MailAppSkills {
    * Description key: app_skills.mail.search.description
    * Skill: mail/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("mail", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("mail", "search", input, options);
   }
 }
 
@@ -3244,8 +4122,8 @@ export class MapsAppSkills {
    * Description key: maps.search.description
    * Skill: maps/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("maps", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("maps", "search", input, options);
   }
 }
 
@@ -3259,8 +4137,23 @@ export class MathAppSkills {
    * Description key: math.calculate.description
    * Skill: math/calculate
    */
-  async calculate<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("math", "calculate", input);
+  async calculate<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("math", "calculate", input, options);
+  }
+}
+
+export class Models3dAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Search public 3D model catalogs for existing models. Use this when the user wants to find, browse, compare, or link to existing 3D-printable or downloadable 3D models. Do not use it to generate new models.
+   * Description key: app_skills.models3d.search.description
+   * Skill: models3d/search
+   */
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("models3d", "search", input, options);
   }
 }
 
@@ -3274,8 +4167,8 @@ export class MusicAppSkills {
    * Description key: app_skills.music.generate.description
    * Skill: music/generate
    */
-  async generate<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("music", "generate", input);
+  async generate<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("music", "generate", input, options);
   }
 }
 
@@ -3289,8 +4182,8 @@ export class NewsAppSkills {
    * Description key: news.search.description
    * Skill: news/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("news", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("news", "search", input, options);
   }
 }
 
@@ -3304,8 +4197,8 @@ export class NutritionAppSkills {
    * Description key: app_skills.nutrition.search_recipes.description
    * Skill: nutrition/search_recipes
    */
-  async searchRecipes<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("nutrition", "search_recipes", input);
+  async searchRecipes<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("nutrition", "search_recipes", input, options);
   }
 }
 
@@ -3319,24 +4212,16 @@ export class OpenmatesAppSkills {
    * Description key: openmates_app.get_docs.description
    * Skill: openmates/get-docs
    */
-  async getDocs<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("openmates", "get-docs", input);
-  }
-  /**
-   * Use when the user asks about OpenMates features, setup, architecture, or documentation. Searches across all OpenMates documentation to find relevant pages.
-   * Description key: openmates_app.search_docs.description
-   * Skill: openmates/search-docs
-   */
-  async searchDocs<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("openmates", "search-docs", input);
+  async getDocs<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("openmates", "get-docs", input, options);
   }
   /**
    * Use when the user has explicitly agreed to anonymously share a summary of their intended use cases with the OpenMates team to help improve the product. NEVER call this without clear user consent.
    * Description key: openmates_app.share_usecase.description
    * Skill: openmates/share-usecase
    */
-  async shareUsecase<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("openmates", "share-usecase", input);
+  async shareUsecase<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("openmates", "share-usecase", input, options);
   }
 }
 
@@ -3350,24 +4235,70 @@ export class PdfAppSkills {
    * Description key: pdf.read.description
    * Skill: pdf/read
    */
-  async read<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("pdf", "read", input);
+  async read<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("pdf", "read", input, options);
   }
   /**
    * Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Returns matching text blocks with surrounding context and page numbers. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. No LLM call required — pure text search over the OCR data. Pass the exact embed_ref (original filename) from the toon block as file_path.
    * Description key: pdf.search.description
    * Skill: pdf/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("pdf", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("pdf", "search", input, options);
   }
   /**
    * View one or more page screenshots from an uploaded PDF and return them as multimodal image blocks so the main inference model can see the pages directly. Use when the user asks about the visual layout, diagrams, charts, figures, or images on specific pages. Also useful when text OCR may have been imperfect (e.g. complex tables, mathematical notation, handwriting). Up to 5 pages can be viewed per call. Pass the exact embed_ref (original filename) from the toon block as file_path — the server reso
    * Description key: pdf.view.skill_description
    * Skill: pdf/view
    */
-  async view<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("pdf", "view", input);
+  async view<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("pdf", "view", input, options);
+  }
+}
+
+export class PlansAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Request creation of a user-visible plan. Durable plan content is client-side encrypted, so a capable connected client must apply the change.
+   * Description key: plans.skills.create.description
+   * Skill: plans/create
+   */
+  async create<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("plans", "create", input, options);
+  }
+  /**
+   * Search the user's encrypted plans through a connected capable client. Do not use server-visible metadata as a private plan-content fallback.
+   * Description key: plans.skills.search.description
+   * Skill: plans/search
+   */
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("plans", "search", input, options);
+  }
+}
+
+export class ProjectsAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Request creation of a user-visible project. Durable project content is client-side encrypted, so a capable connected client must apply the change.
+   * Description key: projects.skills.create.description
+   * Skill: projects/create
+   */
+  async create<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("projects", "create", input, options);
+  }
+  /**
+   * Search the user's encrypted projects through a connected capable client. Do not use server-visible metadata as a private project-content fallback.
+   * Description key: projects.skills.search.description
+   * Skill: projects/search
+   */
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("projects", "search", input, options);
   }
 }
 
@@ -3381,24 +4312,24 @@ export class ReminderAppSkills {
    * Description key: reminder.cancel_reminder.description
    * Skill: reminder/cancel-reminder
    */
-  async cancelReminder<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("reminder", "cancel-reminder", input);
+  async cancelReminder<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("reminder", "cancel-reminder", input, options);
   }
   /**
    * Show the user's existing scheduled reminders.
    * Description key: reminder.list_reminders.description
    * Skill: reminder/list-reminders
    */
-  async listReminders<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("reminder", "list-reminders", input);
+  async listReminders<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("reminder", "list-reminders", input, options);
   }
   /**
    * Schedule, create, or set up reminders for the user. Handles one-time and recurring reminders (e.g., "every morning", "daily at 9am", "weekly", "monthly"). Use when user wants to be reminded, notified, or alerted about something at a specific time or on a recurring schedule. Also use for automating tasks like "get news every day" or "summarize updates weekly".
    * Description key: reminder.set_reminder.description
    * Skill: reminder/set-reminder
    */
-  async setReminder<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("reminder", "set-reminder", input);
+  async setReminder<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("reminder", "set-reminder", input, options);
   }
 }
 
@@ -3412,8 +4343,8 @@ export class ShoppingAppSkills {
    * Description key: app_skills.shopping.search_products.description
    * Skill: shopping/search_products
    */
-  async searchProducts<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("shopping", "search_products", input);
+  async searchProducts<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("shopping", "search_products", input, options);
   }
 }
 
@@ -3427,16 +4358,39 @@ export class SocialMediaAppSkills {
    * Description key: app_skills.social_media.get_posts.description
    * Skill: social_media/get-posts
    */
-  async getPosts<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("social_media", "get-posts", input);
+  async getPosts<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("social_media", "get-posts", input, options);
   }
   /**
    * Search supported social platforms for recent public posts around a topic. Use this for topic monitoring and broad discovery across pages/profiles, not for monitoring a known profile; use Get posts for profile/page posts. Omit platform to search every supported social platform. Costs 10 credits per request.
    * Description key: app_skills.social_media.search.description
    * Skill: social_media/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("social_media", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("social_media", "search", input, options);
+  }
+}
+
+export class TasksAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Create one or more user-visible tasks. Use this for planning, task capture, or breaking a request into trackable work. Default unclear assignees to the user.
+   * Description key: tasks.skills.create.description
+   * Skill: tasks/create
+   */
+  async create<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("tasks", "create", input, options);
+  }
+  /**
+   * Search the user's encrypted tasks through a connected capable client. Do not use server-visible metadata as a private task-content search fallback.
+   * Description key: tasks.skills.search.description
+   * Skill: tasks/search
+   */
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("tasks", "search", input, options);
   }
 }
 
@@ -3450,24 +4404,24 @@ export class TravelAppSkills {
    * Description key: app_skills.travel.get_flight.description
    * Skill: travel/get_flight
    */
-  async getFlight<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("travel", "get_flight", input);
+  async getFlight<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("travel", "get_flight", input, options);
   }
   /**
-   * Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices). Use when user asks about flights, train connections, or travel between cities on a specific date. Set transport_methods to ["airplane"] for flights or ["train"] for trains. If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix. If no provider is specified, all providers for the selected transport method are searched. Add cou
+   * Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices). Use when user asks about flights, train connections, or travel between cities on a specific date. Set transport_methods to ["airplane"] for flights or ["train"] for trains. If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix, transitous. If no provider is specified, all providers for the selected transport method are searc
    * Description key: app_skills.travel.search_connections.description
    * Skill: travel/search_connections
    */
-  async searchConnections<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("travel", "search_connections", input);
+  async searchConnections<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("travel", "search_connections", input, options);
   }
   /**
    * Run this OpenMates app skill.
    * Description key: app_skills.travel.search_stays.description
    * Skill: travel/search_stays
    */
-  async searchStays<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("travel", "search_stays", input);
+  async searchStays<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("travel", "search_stays", input, options);
   }
 }
 
@@ -3481,32 +4435,32 @@ export class VideosAppSkills {
    * Description key: app_skills.videos.create.description
    * Skill: videos/create
    */
-  async create<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("videos", "create", input);
+  async create<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("videos", "create", input, options);
   }
   /**
    * Generate short photorealistic or generative footage from text prompts using Google Veo. Use this when the user asks for cinematic footage, realistic scenes, camera movement, stylized animation, or non-deterministic video generation. Do not use this for exact text slides, product announcements, diagrams, charts, UI-like motion graphics, or branded videos where exact text and layout matter; those requests should use videos.create with an explicit ```remotion:Name.tsx fence instead. Do not use this
    * Description key: app_skills.videos.generate.description
    * Skill: videos/generate
    */
-  async generate<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("videos", "generate", input);
+  async generate<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("videos", "generate", input, options);
   }
   /**
    * Get the transcript/content of a specific YouTube video URL.
    * Description key: videos.get_transcript.description
    * Skill: videos/get_transcript
    */
-  async getTranscript<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("videos", "get_transcript", input);
+  async getTranscript<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("videos", "get_transcript", input, options);
   }
   /**
    * Search for videos, documentaries, tutorials, clips on the web.
    * Description key: videos.search.description
    * Skill: videos/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("videos", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("videos", "search", input, options);
   }
 }
 
@@ -3520,16 +4474,16 @@ export class WeatherAppSkills {
    * Description key: apps.weather.forecast.description
    * Skill: weather/forecast
    */
-  async forecast<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("weather", "forecast", input);
+  async forecast<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("weather", "forecast", input, options);
   }
   /**
    * Get nearby German rain radar with a timeline, including whether rain is visible now, whether rain is expected around the selected location in about 10 minutes, and compact frame-by-frame rain intensity metadata. Use this for rain radar, precipitation radar, and hyperlocal "will it rain here soon" questions in Germany.
    * Description key: apps.weather.rain_radar.description
    * Skill: weather/rain_radar
    */
-  async rainRadar<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("weather", "rain_radar", input);
+  async rainRadar<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("weather", "rain_radar", input, options);
   }
 }
 
@@ -3543,24 +4497,50 @@ export class WebAppSkills {
    * Description key: web.read.description
    * Skill: web/read
    */
-  async read<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("web", "read", input);
+  async read<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("web", "read", input, options);
   }
   /**
    * General web search for current information, prices, weather, facts, stocks, sports scores, etc. Use as a fallback when no specialized skill applies.
    * Description key: app_skills.web.search.description
    * Skill: web/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("web", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("web", "search", input, options);
+  }
+}
+
+export class WorkflowsAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Create or modify exactly one workflow from chat. Do not batch multiple workflows into one skill call.
+   * Description key: workflows.skills.create_or_modify.description
+   * Skill: workflows/create-or-modify
+   */
+  async createOrModify<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("workflows", "create-or-modify", input, options);
+  }
+  /**
+   * Search the user's existing persisted workflows before proposing a new automation. Include temporary workflows only when the user explicitly asks about recent chat-created workflows.
+   * Description key: workflows.skills.search.description
+   * Skill: workflows/search
+   */
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("workflows", "search", input, options);
   }
 }
 
 export class GeneratedAppSkills {
   constructor(runSkill: AppSkillRunner) {
     this.ai = new AiAppSkills(runSkill);
+    this.audio = new AudioAppSkills(runSkill);
     this.books = new BooksAppSkills(runSkill);
+    this.business = new BusinessAppSkills(runSkill);
     this.code = new CodeAppSkills(runSkill);
+    this.design = new DesignAppSkills(runSkill);
     this.electronics = new ElectronicsAppSkills(runSkill);
     this.events = new EventsAppSkills(runSkill);
     this.fitness = new FitnessAppSkills(runSkill);
@@ -3570,22 +4550,30 @@ export class GeneratedAppSkills {
     this.mail = new MailAppSkills(runSkill);
     this.maps = new MapsAppSkills(runSkill);
     this.math = new MathAppSkills(runSkill);
+    this.models3d = new Models3dAppSkills(runSkill);
     this.music = new MusicAppSkills(runSkill);
     this.news = new NewsAppSkills(runSkill);
     this.nutrition = new NutritionAppSkills(runSkill);
     this.openmates = new OpenmatesAppSkills(runSkill);
     this.pdf = new PdfAppSkills(runSkill);
+    this.plans = new PlansAppSkills(runSkill);
+    this.projects = new ProjectsAppSkills(runSkill);
     this.reminder = new ReminderAppSkills(runSkill);
     this.shopping = new ShoppingAppSkills(runSkill);
     this.socialMedia = new SocialMediaAppSkills(runSkill);
+    this.tasks = new TasksAppSkills(runSkill);
     this.travel = new TravelAppSkills(runSkill);
     this.videos = new VideosAppSkills(runSkill);
     this.weather = new WeatherAppSkills(runSkill);
     this.web = new WebAppSkills(runSkill);
+    this.workflows = new WorkflowsAppSkills(runSkill);
   }
   readonly ai: AiAppSkills;
+  readonly audio: AudioAppSkills;
   readonly books: BooksAppSkills;
+  readonly business: BusinessAppSkills;
   readonly code: CodeAppSkills;
+  readonly design: DesignAppSkills;
   readonly electronics: ElectronicsAppSkills;
   readonly events: EventsAppSkills;
   readonly fitness: FitnessAppSkills;
@@ -3595,16 +4583,21 @@ export class GeneratedAppSkills {
   readonly mail: MailAppSkills;
   readonly maps: MapsAppSkills;
   readonly math: MathAppSkills;
+  readonly models3d: Models3dAppSkills;
   readonly music: MusicAppSkills;
   readonly news: NewsAppSkills;
   readonly nutrition: NutritionAppSkills;
   readonly openmates: OpenmatesAppSkills;
   readonly pdf: PdfAppSkills;
+  readonly plans: PlansAppSkills;
+  readonly projects: ProjectsAppSkills;
   readonly reminder: ReminderAppSkills;
   readonly shopping: ShoppingAppSkills;
   readonly socialMedia: SocialMediaAppSkills;
+  readonly tasks: TasksAppSkills;
   readonly travel: TravelAppSkills;
   readonly videos: VideosAppSkills;
   readonly weather: WeatherAppSkills;
   readonly web: WebAppSkills;
+  readonly workflows: WorkflowsAppSkills;
 }

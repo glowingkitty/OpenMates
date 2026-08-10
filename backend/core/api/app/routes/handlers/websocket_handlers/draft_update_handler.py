@@ -1,5 +1,6 @@
 import logging
 import time
+import hashlib
 from typing import Dict, Any, Optional
 
 from fastapi import WebSocket
@@ -8,6 +9,8 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.routes.ideabucket import FORBIDDEN_IDEABUCKET_CLEARTEXT_KEYS
+from backend.core.api.app.tasks.celery_config import app as celery_app_instance
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +65,7 @@ async def handle_update_draft(
     based on the revised chat_sync_architecture.md Section 7."""
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("update_draft", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -164,6 +167,116 @@ async def handle_update_draft(
             logger.error(f"Failed to update user draft in cache for user {user_id}, chat {chat_id}.")
             # Log error but continue, version was incremented.
 
+        draft_metadata: Dict[str, Any] = {}
+        if "ideabucket" in payload or "ideabucket_processing_window_id" in payload:
+            forbidden_cleartext = sorted(FORBIDDEN_IDEABUCKET_CLEARTEXT_KEYS.intersection(payload.keys()))
+            if forbidden_cleartext:
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": "IdeaBucket plaintext fields are not accepted.", "fields": forbidden_cleartext, "chat_id": chat_id}},
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                )
+                return
+
+            draft_metadata = {
+                "ideabucket": bool(payload.get("ideabucket")),
+            }
+            processing_window_id = payload.get("ideabucket_processing_window_id")
+            if isinstance(processing_window_id, str) and processing_window_id.strip():
+                draft_metadata["ideabucket_processing_window_id"] = processing_window_id.strip()
+
+        processing_payload_synced = False
+        encrypted_chat_key_for_metadata: Optional[str] = None
+        processing_payload_fields = (
+            "ideabucket_processing_version",
+            "encrypted_chat_key",
+            "scheduled_send_at",
+            "server_vault_encrypted_processing_payload",
+            "client_encrypted_future_user_message",
+            "client_encrypted_ideabucket_system_event",
+            "payload_hash",
+        )
+        if any(field in payload for field in processing_payload_fields):
+            processing_window_id = draft_metadata.get("ideabucket_processing_window_id") or payload.get("ideabucket_processing_window_id")
+            try:
+                processing_version = int(payload.get("ideabucket_processing_version"))
+                scheduled_send_at = int(payload.get("scheduled_send_at"))
+            except (TypeError, ValueError):
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": "Invalid IdeaBucket processing payload version or schedule.", "chat_id": chat_id}},
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                )
+                return
+
+            server_payload = payload.get("server_vault_encrypted_processing_payload")
+            future_user_message = payload.get("client_encrypted_future_user_message")
+            system_event = payload.get("client_encrypted_ideabucket_system_event")
+            encrypted_chat_key = payload.get("encrypted_chat_key")
+            payload_hash = payload.get("payload_hash")
+            if not all(isinstance(value, str) and value.strip() for value in (processing_window_id, encrypted_chat_key, server_payload, future_user_message, system_event, payload_hash)):
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": "Missing IdeaBucket processing payload fields.", "chat_id": chat_id}},
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                )
+                return
+
+            processing_payload_synced = await cache_service.replace_ideabucket_processing_window_in_cache(
+                user_id,
+                processing_window_id,
+                version=processing_version,
+                chat_id=chat_id,
+                scheduled_send_at=scheduled_send_at,
+                encrypted_chat_key=encrypted_chat_key,
+                server_vault_encrypted_processing_payload=server_payload,
+                client_encrypted_future_user_message=future_user_message,
+                client_encrypted_ideabucket_system_event=system_event,
+                payload_hash=payload_hash,
+            )
+            if not processing_payload_synced:
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": "Stale or failed IdeaBucket processing payload update.", "chat_id": chat_id}},
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                )
+                return
+            encrypted_chat_key_for_metadata = encrypted_chat_key.strip()
+
+        if encrypted_chat_key_for_metadata:
+            draft_metadata["encrypted_chat_key"] = encrypted_chat_key_for_metadata
+
+        if draft_metadata:
+            metadata_update_success = await cache_service.update_user_draft_metadata_in_cache(
+                user_id,
+                chat_id,
+                **draft_metadata,
+            )
+            if not metadata_update_success:
+                logger.error(f"Failed to update user draft metadata in cache for user {user_id}, chat {chat_id}.")
+
+        if update_success:
+            # Keep this persistence dispatch with the WebSocket cache write: CLI/SDK
+            # refreshes read /v1/drafts from a separate request path and must not
+            # depend on the sender's Redis connection still holding the ciphertext.
+            persistence_kwargs = {
+                "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
+                "chat_id": chat_id,
+                "encrypted_draft_content": encrypted_draft_str,
+                "draft_version": new_user_draft_v,
+            }
+            processing_window_id = draft_metadata.get("ideabucket_processing_window_id")
+            if isinstance(processing_window_id, str) and processing_window_id:
+                persistence_kwargs.update({
+                    "user_id": user_id,
+                    "ideabucket_processing_window_id": processing_window_id,
+                })
+            celery_app_instance.send_task(
+                name="app.tasks.persistence_tasks.persist_user_draft",
+                kwargs=persistence_kwargs,
+                queue="persistence",
+            )
+
         # --- Draft-only chat discoverability for cross-device sync ---
         # For draft-only NEW chats (not yet in the sorted set), we add them so that
         # initial_sync and reconnect can discover them on other devices.
@@ -196,6 +309,7 @@ async def handle_update_draft(
             "data": {
                 "encrypted_draft_md": encrypted_draft_str,
                 "encrypted_draft_preview": draft_preview_from_payload,
+                **draft_metadata,
             },
             "versions": {"draft_v": new_user_draft_v},
             "last_edited_overall_timestamp": chat_timestamp,
@@ -205,6 +319,18 @@ async def handle_update_draft(
             message=broadcast_payload,
             user_id=user_id,
             exclude_device_hash=device_fingerprint_hash # Exclude the sender device
+        )
+        await websocket.send_json(
+            {
+                "type": "draft_update_receipt",
+                "payload": {
+                    "chat_id": chat_id,
+                    "draft_v": new_user_draft_v,
+                    "success": True,
+                    **draft_metadata,
+                    **({"processing_payload_synced": True} if processing_payload_synced else {}),
+                },
+            }
         )
         logger.info(f"Broadcasted chat_draft_updated for user {user_id}, chat {chat_id}, new draft_v: {new_user_draft_v}")
 

@@ -18,6 +18,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key, get_current_user_optional
+from backend.core.api.app.routes.auth_routes.auth_sessions import _broadcast_force_logout
 from backend.core.api.app.routes.auth_routes.auth_utils import validate_username
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.core.api.app.utils.newsletter_utils import hash_email
@@ -37,7 +38,16 @@ from backend.core.api.app.utils.report_issue_ids import (
     issue_identifier_filter,
 )
 from backend.core.api.app.utils.issue_report_contact_email import resolve_account_contact_email
+from backend.core.api.app.utils.issue_report_text import normalize_issue_report_error_sentinels
 from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
+    invalidate_recovery_jobs_for_account_deletion,
+    invalidate_recovery_leases_for_device,
+)
+from backend.shared.python_utils.invoice_ciphertext_versions import (
+    select_latest_invoice_ciphertext,
+)
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
 optional_api_key_scheme = HTTPBearer(
@@ -48,6 +58,9 @@ optional_api_key_scheme = HTTPBearer(
 
 router = APIRouter(prefix="/v1/settings", tags=["Settings"])
 logger = logging.getLogger(__name__)
+
+ISSUE_REPORT_TITLE_MAX_CHARS = 5_000
+ISSUE_REPORT_DB_TITLE_MAX_CHARS = 250
 
 LLM_PROVIDER_ENV_KEYS = (
     "SECRET__MISTRAL_AI__API_KEY",
@@ -123,6 +136,13 @@ async def _are_ai_models_configured(request: Request) -> bool:
 class SimpleSuccessResponse(BaseModel):
     success: bool
     message: str
+
+
+class Disable2FARequest(BaseModel):
+    confirmed_less_secure: bool = Field(
+        default=False,
+        description="User confirmed that disabling OTP 2FA reduces account security.",
+    )
 
 
 # --- Response models for active reminders ---
@@ -461,7 +481,6 @@ async def delete_reminder_endpoint(
         raise HTTPException(status_code=500, detail="Failed to delete reminder")
 
 
-# --- Endpoint for Privacy & Apps Consent ---
 @router.post("/user/consent/privacy-apps", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist
 @limiter.limit("30/minute")  # Prevent abuse of consent updates
 async def record_privacy_apps_consent(
@@ -805,6 +824,7 @@ async def update_username(
 @limiter.limit("5/minute")  # Sensitive security operation - strict rate limit
 async def disable_2fa(
     request: Request,
+    payload: Disable2FARequest,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
@@ -817,6 +837,12 @@ async def disable_2fa(
     """
     user_id = current_user.id
     client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+
+    if not payload.confirmed_less_secure:
+        raise HTTPException(
+            status_code=400,
+            detail="Please confirm that disabling 2FA reduces account security.",
+        )
     
     logger.info(f"[2FA] User {user_id} requesting to disable 2FA")
 
@@ -1077,6 +1103,7 @@ class ApiKeyResponse(BaseModel):
     full_access: bool = True
     scopes: Dict[str, Any] = Field(default_factory=dict)
     credit_limit: Optional[Dict[str, Any]] = None
+    pending_device_count: int = 0
 
 class ApiKeyListResponse(BaseModel):
     api_keys: list[ApiKeyResponse]
@@ -1104,6 +1131,13 @@ async def get_api_keys(
         
         logger.debug(f"Retrieved {len(api_keys_data) if api_keys_data else 0} API keys from Directus for user {current_user.id}")
         
+        pending_devices = await directus_service.get_pending_api_key_devices(current_user.id)
+        pending_device_counts: Dict[str, int] = {}
+        for device in pending_devices or []:
+            api_key_id = device.get('api_key_id')
+            if api_key_id:
+                pending_device_counts[api_key_id] = pending_device_counts.get(api_key_id, 0) + 1
+
         # Convert to response format (client will decrypt encrypted fields)
         api_keys = []
         if api_keys_data:
@@ -1143,7 +1177,8 @@ async def get_api_keys(
                         encrypted_key_prefix=key.get('encrypted_key_prefix'),
                         full_access=key.get('full_access', True),
                         scopes=key.get('scopes') or {},
-                        credit_limit=key.get('credit_limit')
+                        credit_limit=key.get('credit_limit'),
+                        pending_device_count=pending_device_counts.get(key.get('id'), 0)
                     )
                     api_keys.append(api_key_response)
                 except Exception as key_error:
@@ -1274,7 +1309,8 @@ async def create_api_key(
             encrypted_key_prefix=created_key.get('encrypted_key_prefix'),
             full_access=created_key.get('full_access', True),
             scopes=created_key.get('scopes') or {},
-            credit_limit=created_key.get('credit_limit')
+            credit_limit=created_key.get('credit_limit'),
+            pending_device_count=0
         )
 
     except HTTPException as e:
@@ -1306,6 +1342,22 @@ async def delete_api_key(
         # Get the key_hash to delete the associated encryption key
         key_hash = key_to_delete.get('key_hash')
         hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
+
+        # Revoke recovery leases before deleting the credential that owns them.
+        api_key_devices = await directus_service.get_api_key_devices(key_id, user_id=current_user.id)
+        for device in api_key_devices or []:
+            device_hash = device.get('device_hash')
+            if device_hash:
+                try:
+                    await invalidate_recovery_leases_for_device(
+                        directus_service=directus_service,
+                        user_id_hash=hashed_user_id,
+                        device_fingerprint_hash=device_hash,
+                    )
+                except ChatRecoveryProtocolError as recovery_error:
+                    if recovery_error.status_code != 404:
+                        raise
+                    logger.info("Recovery extension unavailable; API-key invalidation is a safe no-op")
         
         # Delete the API key record
         delete_success = await directus_service.delete_api_key(key_id)
@@ -1345,8 +1397,7 @@ class DeviceResponse(BaseModel):
     last_access_at: Optional[str] = None
     access_type: str
     machine_identifier: Optional[str] = None
-    # Note: encrypted_device_name is excluded from REST API responses
-    # This field is only available via CLI tools that have decryption keys
+    encrypted_device_name: Optional[str] = None
 
 class DeviceListResponse(BaseModel):
     """Response model for list of API key devices"""
@@ -1393,8 +1444,8 @@ async def get_api_key_devices(
                 first_access_at=device.get('first_access_at'),
                 last_access_at=device.get('last_access_at'),
                 access_type=device.get('access_type', 'rest_api'),
-                machine_identifier=device.get('machine_identifier')
-                # Note: encrypted_device_name excluded from REST API (only available via CLI)
+                machine_identifier=device.get('machine_identifier'),
+                encrypted_device_name=device.get('encrypted_device_name')
             )
             for device in all_devices
         ]
@@ -1435,7 +1486,8 @@ async def approve_api_key_device(
     request: Request,
     device_id: str,
     current_user: User = Depends(get_current_user),  # Web app only - no API key access
-    directus_service: DirectusService = Depends(get_directus_service)
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ):
     """
     Approve an API key device, allowing it to use the API key.
@@ -1453,10 +1505,11 @@ async def approve_api_key_device(
         # Invalidate device approval cache
         api_key_id = user_device.get('api_key_id')
         device_hash = user_device.get('device_hash')
-        if api_key_id and device_hash and hasattr(directus_service, 'cache') and directus_service.cache:
+
+        if api_key_id and device_hash:
             device_approval_cache_key = f"api_key_device_approval:{api_key_id}:{device_hash}"
             try:
-                await directus_service.cache.delete(device_approval_cache_key)
+                await cache_service.delete(device_approval_cache_key)
             except Exception as cache_error:
                 logger.warning(f"Failed to invalidate device approval cache: {cache_error}")
         
@@ -1475,7 +1528,8 @@ async def revoke_api_key_device(
     request: Request,
     device_id: str,
     current_user: User = Depends(get_current_user),
-    directus_service: DirectusService = Depends(get_directus_service)
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ):
     """
     Revoke access for an API key device by deleting the device record.
@@ -1487,6 +1541,18 @@ async def revoke_api_key_device(
         # Get device_hash for cache invalidation before deletion
         api_key_id = user_device.get('api_key_id')
         device_hash = user_device.get('device_hash')
+
+        if device_hash:
+            try:
+                await invalidate_recovery_leases_for_device(
+                    directus_service=directus_service,
+                    user_id_hash=hashlib.sha256(current_user.id.encode()).hexdigest(),
+                    device_fingerprint_hash=device_hash,
+                )
+            except ChatRecoveryProtocolError as recovery_error:
+                if recovery_error.status_code != 404:
+                    raise
+                logger.info("Recovery extension unavailable; device invalidation is a safe no-op")
         
         # Revoke the device
         success, message = await directus_service.revoke_api_key_device(device_id)
@@ -1495,10 +1561,10 @@ async def revoke_api_key_device(
             raise HTTPException(status_code=500, detail=message)
         
         # Invalidate device approval cache (already done in revoke_api_key_device, but ensure it's done)
-        if api_key_id and device_hash and hasattr(directus_service, 'cache') and directus_service.cache:
+        if api_key_id and device_hash:
             device_approval_cache_key = f"api_key_device_approval:{api_key_id}:{device_hash}"
             try:
-                await directus_service.cache.delete(device_approval_cache_key)
+                await cache_service.delete(device_approval_cache_key)
             except Exception as cache_error:
                 logger.warning(f"Failed to invalidate device approval cache: {cache_error}")
         
@@ -2027,6 +2093,57 @@ async def get_daily_overview(
         raise HTTPException(status_code=500, detail="Failed to fetch daily overview")
 
 
+@router.get("/usage/overview", include_in_schema=False)
+@limiter.limit("30/minute")
+async def get_usage_overview(
+    request: Request,
+    granularity: Literal["daily", "weekly", "monthly"] = "daily",
+    days: int = 30,
+    weeks: int = 12,
+    months: int = 12,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
+    """
+    Fetch fast private usage overview rollups for daily, weekly, or monthly periods.
+    Raw usage rows remain authoritative; missing/stale rollups are rebuilt on demand.
+    """
+    try:
+        count = {"daily": days, "weekly": weeks, "monthly": months}[granularity]
+        max_count = {"daily": 90, "weekly": 52, "monthly": 36}[granularity]
+        if count < 1 or count > max_count:
+            raise HTTPException(status_code=400, detail=f"{granularity} count must be between 1 and {max_count}")
+
+        user_vault_key_id = await cache_service.get_user_vault_key_id(current_user.id)
+        if not user_vault_key_id:
+            user_profile_result = await directus_service.get_user_profile(current_user.id)
+            if not user_profile_result or not user_profile_result[0]:
+                raise HTTPException(status_code=404, detail="User profile not found")
+            user_profile = user_profile_result[1]
+            user_vault_key_id = user_profile.get("vault_key_id")
+            if not user_vault_key_id:
+                raise HTTPException(status_code=500, detail="User encryption key not found")
+            await cache_service.update_user(current_user.id, {"vault_key_id": user_vault_key_id})
+
+        from backend.core.api.app.services.usage_overview_service import UsageOverviewService
+
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+        service = UsageOverviewService(directus_service=directus_service, encryption_service=encryption_service)
+        return await service.get_overview(
+            user_id_hash=user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            granularity=granularity,
+            count=count,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching usage overview for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch usage overview")
+
+
 # --- Endpoint for fetching all usage entries for a specific chat (no month filter) ---
 @router.get("/usage/chat-entries", include_in_schema=False)  # Exclude from schema - not in whitelist (available via usage_api)
 @limiter.limit("30/minute")
@@ -2465,7 +2582,7 @@ async def get_server_status(
     try:
         # Import server mode utilities
         from backend.core.api.app.utils.server_mode import (
-            is_payment_enabled,
+            is_cloud_billing_enabled,
             get_server_edition,
             validate_request_domain
         )
@@ -2484,8 +2601,8 @@ async def get_server_status(
         if is_self_hosted:
             payment_enabled = None
         else:
-            # Only check environment-based payment logic if NOT self-hosted
-            payment_enabled = is_payment_enabled()
+            # Only official-cloud overlay runtimes expose cloud payment state.
+            payment_enabled = is_cloud_billing_enabled()
         
         ai_models_configured = await _are_ai_models_configured(request)
         free_testing_credits = None
@@ -2567,7 +2684,7 @@ class DeviceInfo(BaseModel):
 
 class IssueReportRequest(BaseModel):
     """Request model for issue reporting endpoint"""
-    title: str = Field(..., min_length=3, max_length=500, description="Short description of the issue (required, 3-500 characters)")
+    title: str = Field(..., min_length=3, max_length=ISSUE_REPORT_TITLE_MAX_CHARS, description="Short description of the issue (required, 3-5000 characters)")
     description: Optional[str] = Field(None, min_length=10, max_length=5000, description="Issue description (optional, 10-5000 characters if provided)")
     issue_type: Literal["bug_report", "feature_request"] = Field("bug_report", description="Lightweight category for the submitted report")
     chat_or_embed_url: Optional[str] = Field(None, max_length=500, description="Optional chat or embed URL related to the issue")
@@ -2699,7 +2816,7 @@ async def report_issue(
         # This runs BEFORE html.escape() so hidden characters don't bypass XSS filtering
         from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
 
-        raw_title = issue_data.title.strip()
+        raw_title = normalize_issue_report_error_sentinels(issue_data.title.strip()) or ""
         ascii_cleaned_title, title_ascii_stats = sanitize_text_for_ascii_smuggling(
             raw_title, log_prefix="[report_issue/title] ", include_stats=True
         )
@@ -2710,7 +2827,11 @@ async def report_issue(
                 f"(hidden_ascii={title_ascii_stats.get('hidden_ascii_detected', False)})"
             )
 
-        raw_description = issue_data.description.strip() if issue_data.description else None
+        raw_description = (
+            normalize_issue_report_error_sentinels(issue_data.description.strip())
+            if issue_data.description
+            else None
+        )
         ascii_cleaned_description = None
         description_ascii_suspicious = False
         if raw_description:
@@ -3032,11 +3153,10 @@ async def report_issue(
             # Truncate here so the Directus write never fails on long titles while the
             # migration is pending. Apply `ALTER TABLE issues ALTER COLUMN title TYPE TEXT`
             # on the production DB to remove this limit.
-            _DB_TITLE_MAX = 250
-            db_title = sanitized_title[:_DB_TITLE_MAX] if len(sanitized_title) > _DB_TITLE_MAX else sanitized_title
-            if len(sanitized_title) > _DB_TITLE_MAX:
+            db_title = sanitized_title[:ISSUE_REPORT_DB_TITLE_MAX_CHARS] if len(sanitized_title) > ISSUE_REPORT_DB_TITLE_MAX_CHARS else sanitized_title
+            if len(sanitized_title) > ISSUE_REPORT_DB_TITLE_MAX_CHARS:
                 logger.warning(
-                    f"[report_issue] Title truncated from {len(sanitized_title)} to {_DB_TITLE_MAX} chars "
+                    f"[report_issue] Title truncated from {len(sanitized_title)} to {ISSUE_REPORT_DB_TITLE_MAX_CHARS} chars "
                     "for Directus storage (varchar(255) constraint not yet migrated to TEXT on prod)"
                 )
 
@@ -3292,7 +3412,7 @@ def _empty_delete_account_preview(total_credits: int = 0) -> DeleteAccountPrevie
 # ============================================================================
 
 # Allowed action identifiers for email OTP verification
-ALLOWED_VERIFICATION_ACTIONS = {"delete_account"}
+ALLOWED_VERIFICATION_ACTIONS = {"delete_account", "delete_team"}
 # TTL for action verification codes: 10 minutes
 ACTION_VERIFICATION_CODE_TTL = 600
 
@@ -4090,9 +4210,11 @@ async def delete_account(
             if not delete_request.auth_code:
                 raise HTTPException(status_code=400, detail="Passkey credential ID is required")
             
-            # Verify passkey belongs to user
+            # Verify the credential belongs to this account and was just asserted
+            # through WebAuthn. A credential ID alone is not proof of possession.
             passkey = await directus_service.get_passkey_by_credential_id(delete_request.auth_code)
-            if not passkey or passkey.get("user_id") != user_id:
+            recent_passkey = await cache_service.get(f"reauth_recent_passkey:{user_id}")
+            if not passkey or passkey.get("user_id") != user_id or recent_passkey != delete_request.auth_code:
                 logger.warning(f"Invalid passkey verification for account deletion: user {user_id}")
                 raise HTTPException(status_code=401, detail="Invalid passkey authentication")
             
@@ -4139,6 +4261,16 @@ async def delete_account(
             raise HTTPException(status_code=400, detail="Invalid authentication method")
         
         # Trigger Celery task for account deletion
+        try:
+            await invalidate_recovery_jobs_for_account_deletion(
+                directus_service=directus_service,
+                user_id_hash=user_id_hash,
+            )
+        except ChatRecoveryProtocolError as recovery_error:
+            if recovery_error.status_code != 404:
+                raise
+            logger.info("Recovery extension unavailable; account invalidation is a safe no-op")
+
         from backend.core.api.app.tasks.celery_config import app
         task_result = app.send_task(
             name="delete_user_account",
@@ -4158,6 +4290,7 @@ async def delete_account(
         
         # Logout user immediately (delete sessions)
         try:
+            await _broadcast_force_logout(cache_service, user_id, "account_deleted")
             await directus_service.logout_all_sessions(user_id)
             # Clear cache
             await cache_service.delete(f"user_profile:{user_id}")
@@ -4315,7 +4448,7 @@ async def get_export_manifest(
         app_settings = await directus_service.get_items(
             "user_app_settings_and_memories",
             params={
-                "filter": {"hashed_user_id": {"_eq": user_id_hash}},
+                "filter": {"hashed_user_id": {"_eq": user_id_hash}, "hashed_team_id": {"_null": True}},
                 "fields": "id",
                 "limit": 1
             }
@@ -4451,6 +4584,22 @@ async def get_export_data(
                         "limit": -1  # No limit - get ALL invoices
                     }
                 )
+                if invoices_data:
+                    invoice_versions = await directus_service.get_items(
+                        collection="invoice_ciphertext_versions",
+                        params={
+                            "filter": {
+                                "invoice_id": {"_in": [invoice["id"] for invoice in invoices_data]},
+                                "user_id_hash": {"_eq": user_id_hash},
+                                "verified_at": {"_nnull": True},
+                            },
+                            "sort": "-version_number",
+                        },
+                    )
+                    invoices_data = select_latest_invoice_ciphertext(
+                        invoices_data,
+                        invoice_versions or [],
+                    )
                 
                 processed_invoices = []
                 invoice_ids_for_download = []
@@ -4674,7 +4823,7 @@ async def get_export_data(
             app_settings = await directus_service.get_items(
                 "user_app_settings_and_memories",
                 params={
-                    "filter": {"hashed_user_id": {"_eq": user_id_hash}},
+                    "filter": {"hashed_user_id": {"_eq": user_id_hash}, "hashed_team_id": {"_null": True}},
                     "limit": -1
                 }
             )
@@ -5637,14 +5786,14 @@ async def view_storage_file(
     Security model:
     - Authentication required.
     - Ownership validated: upload_files.user_id must match current_user.id.
-    - The AES key is stored server-side in upload_files (same security model as
-      the existing deduplication path — the server already has the key).
+    - Legacy rows may carry a raw AES key; v2 rows use only the owner's
+      Vault-wrapped key and decrypt it in memory.
 
     Endpoint: GET /v1/settings/storage/files/{embed_id}/view
     """
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     import base64
     from fastapi.responses import Response as FastAPIResponse
+    from backend.shared.python_utils.media_encryption import decrypt_media_payload
 
     user_id: str = current_user.id
     log_prefix = f"[StorageView] [user:{user_id[:8]}...] [embed:{embed_id[:8]}...]"
@@ -5658,7 +5807,7 @@ async def view_storage_file(
                     "embed_id": {"_eq": embed_id},
                     "user_id": {"_eq": user_id},
                 },
-                "fields": "id,content_type,files_metadata,aes_key,aes_nonce",
+                "fields": "id,content_type,files_metadata,aes_key,aes_nonce,vault_wrapped_aes_key",
                 "limit": 1,
             },
             no_cache=True,
@@ -5674,9 +5823,14 @@ async def view_storage_file(
         aes_key_b64: str = record.get("aes_key") or ""
         aes_nonce_b64: str = record.get("aes_nonce") or ""
 
-        if not aes_key_b64 or not aes_nonce_b64:
-            logger.error(f"{log_prefix} Missing AES key or nonce in upload_files record")
-            raise HTTPException(status_code=500, detail="Encryption metadata missing")
+        if not aes_key_b64:
+            wrapped_key = record.get("vault_wrapped_aes_key")
+            vault_key_id = getattr(current_user, "vault_key_id", None)
+            if not wrapped_key or not vault_key_id:
+                logger.error(f"{log_prefix} Missing wrapped media key metadata")
+                raise HTTPException(status_code=500, detail="Encryption metadata missing")
+            encryption_service = request.app.state.encryption_service
+            aes_key_b64 = await encryption_service.decrypt_with_user_key(wrapped_key, vault_key_id)
 
         # ── 2. Choose the best variant to serve ───────────────────────────────
         # For images: prefer 'full' (high-res WEBP), fall back to 'preview', then 'original'.
@@ -5726,10 +5880,13 @@ async def view_storage_file(
 
         # ── 5. Decrypt AES-256-GCM ────────────────────────────────────────────
         try:
-            aes_key: bytes = base64.b64decode(aes_key_b64)
-            aes_nonce: bytes = base64.b64decode(aes_nonce_b64)
-            aesgcm = AESGCM(aes_key)
-            plaintext: bytes = aesgcm.decrypt(aes_nonce, encrypted_bytes, None)
+            aes_key: bytes = base64.b64decode(aes_key_b64, validate=True)
+            plaintext: bytes = decrypt_media_payload(
+                encrypted_data=encrypted_bytes,
+                aes_key=aes_key,
+                variant=chosen_variant,
+                legacy_nonce_b64=aes_nonce_b64,
+            )
         except Exception as dec_err:
             logger.error(f"{log_prefix} Decryption failed: {dec_err}", exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to decrypt file")
@@ -6309,193 +6466,12 @@ async def import_chat(
     Rate-limited to 3/minute to prevent abuse.
     Endpoint: POST /v1/settings/import-chat
     """
-    from backend.core.api.app.utils.secrets_manager import SecretsManager
-    from backend.core.api.app.services.billing_service import BillingService
-    from backend.apps.ai.processing.content_sanitization import sanitize_message_for_import
-    import uuid as _uuid
-
-    user_id: str = current_user.id
-    user_id_hash: str = hashlib.sha256(user_id.encode()).hexdigest()
-
-    billing_service = BillingService(cache_service, directus_service, encryption_service)
-    secrets_manager = SecretsManager(cache_service=cache_service)
-
-    results: List[ImportedChatResult] = []
-    total_credits = 0
-
-    for chat_index, chat in enumerate(body.chats):
-        chat_task_id = f"import_{user_id[:8]}_{chat_index}"
-        new_chat_id = str(_uuid.uuid4())
-
-        # Sanitize each message sequentially (respects OpenRouter 100 RPM limit)
-        sanitized_messages = []
-        messages_blocked = 0
-        total_input_tokens = 0
-
-        for msg_index, msg in enumerate(chat.messages):
-            content = msg.content or ""
-            total_input_tokens += max(1, len(content) // 4)  # conservative token estimate
-
-            if not content.strip():
-                # Empty messages pass through unchanged (no safety cost)
-                sanitized_messages.append({
-                    "role": msg.role,
-                    "content": content,
-                    "completed_at": msg.completed_at,
-                    "assistant_category": msg.assistant_category,
-                    "thinking": msg.thinking,
-                    "has_thinking": msg.has_thinking,
-                    "thinking_tokens": msg.thinking_tokens,
-                })
-                continue
-
-            msg_task_id = f"{chat_task_id}_msg{msg_index}"
-            try:
-                scanned = await sanitize_message_for_import(
-                    content=content,
-                    task_id=msg_task_id,
-                    secrets_manager=secrets_manager,
-                    cache_service=cache_service,
-                )
-            except Exception as scan_err:
-                logger.error(
-                    f"[ImportChat] Safety scan error for {msg_task_id}: {scan_err}",
-                    exc_info=True,
-                )
-                # Treat scan error as block (fail-closed)
-                scanned = ""
-
-            if scanned == "":
-                # Message was blocked
-                messages_blocked += 1
-                final_content = _IMPORT_BLOCKED_PLACEHOLDER
-            else:
-                final_content = scanned
-
-            # Normalise assistant_category
-            category = (msg.assistant_category or "").strip().lower()
-            if category not in _VALID_ASSISTANT_CATEGORIES:
-                category = "general knowledge"
-
-            sanitized_messages.append({
-                "role": msg.role,
-                "content": final_content,
-                "completed_at": msg.completed_at,
-                "assistant_category": category if msg.role == "assistant" else None,
-                "thinking": msg.thinking if msg.role == "assistant" else None,
-                "has_thinking": msg.has_thinking if msg.role == "assistant" else None,
-                "thinking_tokens": msg.thinking_tokens if msg.role == "assistant" else None,
-            })
-
-        # Do not charge if ALL messages were blocked
-        messages_imported = len(sanitized_messages) - messages_blocked
-        credits_to_charge = 0
-        if messages_imported > 0 and total_input_tokens > 0:
-            credits_to_charge = max(1, total_input_tokens // _IMPORT_TOKENS_PER_CREDIT)
-
-        # ----------------------------------------------------------------
-        # Store chat + messages in Directus
-        # ----------------------------------------------------------------
-        try:
-            # Create the chat record
-            chat_payload: Dict[str, Any] = {
-                "id": new_chat_id,
-                "user_id": user_id,
-                "hashed_user_id": user_id_hash,
-                "title": (chat.title or "").strip() or None,
-                "draft": chat.draft,
-                "summary": chat.summary,
-                "imported": True,
-            }
-            await directus_service.create_item("chats", chat_payload)
-
-            # Create each message
-            for msg_data in sanitized_messages:
-                msg_id = str(_uuid.uuid4())
-                msg_payload: Dict[str, Any] = {
-                    "id": msg_id,
-                    "chat_id": new_chat_id,
-                    "user_id": user_id,
-                    "role": msg_data["role"],
-                    "content": msg_data["content"],
-                }
-                if msg_data.get("completed_at"):
-                    msg_payload["completed_at"] = msg_data["completed_at"]
-                if msg_data.get("assistant_category"):
-                    msg_payload["assistant_category"] = msg_data["assistant_category"]
-                if msg_data.get("thinking"):
-                    msg_payload["thinking"] = msg_data["thinking"]
-                if msg_data.get("has_thinking") is not None:
-                    msg_payload["has_thinking"] = msg_data["has_thinking"]
-                if msg_data.get("thinking_tokens") is not None:
-                    msg_payload["thinking_tokens"] = msg_data["thinking_tokens"]
-                await directus_service.create_item("messages", msg_payload)
-
-        except Exception as store_err:
-            logger.error(
-                f"[ImportChat] Failed to store chat {new_chat_id} for user {user_id}: {store_err}",
-                exc_info=True,
-            )
-            raise HTTPException(status_code=500, detail=f"Failed to store imported chat {chat_index + 1}")
-
-        # ----------------------------------------------------------------
-        # Charge credits for this chat
-        # ----------------------------------------------------------------
-        if credits_to_charge > 0:
-            try:
-                await billing_service.charge_user_credits(
-                    user_id=user_id,
-                    credits_to_deduct=credits_to_charge,
-                    user_id_hash=user_id_hash,
-                    app_id="settings",
-                    skill_id="chat_import",
-                    usage_details={
-                        "title": "Chat import & safety check",
-                        "chat_id": new_chat_id,
-                        "input_tokens": total_input_tokens,
-                    },
-                )
-                total_credits += credits_to_charge
-            except Exception as billing_err:
-                logger.error(
-                    f"[ImportChat] Billing failed for chat {new_chat_id}, user {user_id}: {billing_err}",
-                    exc_info=True,
-                )
-                # Non-fatal: chat is already stored, log and continue
-
-        # ----------------------------------------------------------------
-        # Broadcast new chat to all user's connected devices via WS
-        # ----------------------------------------------------------------
-        try:
-            await ws_manager.broadcast_to_user(
-                {
-                    "type": "chat_imported",
-                    "payload": {"chat_id": new_chat_id},
-                },
-                user_id,
-                exclude_device_hash=None,
-            )
-        except Exception:
-            pass  # Non-fatal
-
-        results.append(ImportedChatResult(
-            chat_id=new_chat_id,
-            title=chat.title,
-            messages_imported=messages_imported,
-            messages_blocked=messages_blocked,
-            credits_charged=credits_to_charge,
-            messages=[ImportMessageModel(**msg) for msg in sanitized_messages],
-        ))
-
-        logger.info(
-            f"[ImportChat] user={user_id} chat={new_chat_id} "
-            f"msgs={len(sanitized_messages)} blocked={messages_blocked} "
-            f"credits={credits_to_charge}"
-        )
-
-    return ImportChatResponse(
-        imported=results,
-        total_credits_charged=total_credits,
+    raise HTTPException(
+        status_code=503,
+        detail=(
+            "Chat import is temporarily disabled while OpenMates replaces the legacy "
+            "plaintext import path with a client-encrypted import flow."
+        ),
     )
 
 

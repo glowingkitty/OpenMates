@@ -367,6 +367,35 @@ tests:
         timestamp: "2026-06-09T16:41:45Z"
         notes: "Logged into dev CLI test slot 4 and ran node dist/cli.js --api-url https://api.dev.openmates.org chats new <egg-prices research prompt> --json --auto-approve. Output included spawn_sub_chats with 3 child chats, awaiting_sub_chats_completion, and a final report beginning with ## Short Answer followed by Surface Explanation, What Else May Be Going On, Evidence, Counterarguments, and Bottom Line."
 
+  - id: T-E2E-DEEP-RESEARCH-001
+    type: playwright
+    file: frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    command: python3 scripts/tests.py run --spec deep-research-real-inference.spec.ts --gate-deploy --expected-commit 8652ae9
+    target: app.dev.openmates.org
+    covers:
+      - AC-5
+      - AC-6
+    assertions:
+      - Explicit Deep research activation delegates exactly three distinct child chats.
+      - Child reports do not expose raw app_skill_use payloads.
+      - The final parent response includes all six required Deep research sections.
+      - Parent synthesis settles without AI-service error or a lingering typing indicator.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        reason: Deterministic backend coverage and prior deployed failures supplied red evidence before the final Playwright readiness fixes.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: GitHub Actions 31234745560
+        subject_commit: 8652ae9
+        timestamp: "2026-08-08T02:25:29Z"
+        notes: "The deployed flow selected the explicit Deep research mention, displayed activation, completed exactly three clean child reports, and visibly scrolled through Short Answer, Surface Explanation, What Else May Be Going On, Evidence, Counterarguments, and Bottom Line. The captioned frame-reviewed video was delivered to Discord dev-smoke as message 1535474706738577498."
+
 implementation_plan:
   existing_patterns:
     - Mirror `handleSpawnSubChatsImpl` from the web client in Node.js, using existing CLI encryption helpers.
@@ -473,9 +502,11 @@ tasks:
       - backend/apps/ai/processing/preprocessor.py
       - backend/apps/ai/processing/main_processor.py
       - backend/apps/web/focus_modes/research/SKILL.md
+      - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
     verification:
       - T-CLI-BUILD-001
       - T-CLI-QUALITY-001
+      - T-E2E-DEEP-RESEARCH-001
     independently_deployable: true
 
   - id: TASK-4

@@ -18,6 +18,8 @@ from pathlib import Path
 import audit_embed_structure
 import audit_app_provider_contracts
 import audit_apple_release_preflight
+import audit_domain_security
+import audit_figma_visual_evidence
 import audit_opencode_automation_budget
 import audit_playwright_determinism
 import audit_sensitive_logging
@@ -34,6 +36,9 @@ EMBED_STRUCTURE_PATH_RE = re.compile(
 )
 PLAYWRIGHT_SPEC_PATH_RE = re.compile(r"^frontend/apps/web_app/tests/.*\.(spec|test)\.ts$")
 APP_PROVIDER_PATH_RE = re.compile(r"^(backend/apps/[^/]+/app\.yml|backend/providers/.*\.ya?ml)$")
+DOMAIN_SECURITY_PATH_RE = re.compile(
+    r"^(backend/core/api/app/services/domain_security(_.*\.encrypted|\.py)|scripts/audit_domain_security\.py)$"
+)
 OPENCODE_AUTOMATION_PATH_RE = re.compile(
     r"^(scripts/.*\.(py|sh|js|mjs)|scripts/prompts/.*\.md|\.agents/skills/.*/SKILL\.md|opencode\.json)$"
 )
@@ -48,6 +53,15 @@ VERCEL_PROJECT_MUTATION_RE = re.compile(
 )
 VERCEL_PAID_BUILD_MACHINE_RE = re.compile(
     r"(?i)(buildMachine(Type|Selection|Elastic)?|elasticConcurrency|resourceConfig|turbo|dynamic build)"
+)
+CLI_GENERIC_APP_SKILL_RUNNER_RE = re.compile(
+    r"client\.runSkill\s*\(\s*\{\s*app\s*,\s*skill\b|Sugar alias:\s*openmates apps <app> <skill>"
+)
+CHAT_DIRECTUS_DIRECT_WRITE_RE = re.compile(
+    r"\b(?:create_item|update_item|update_item_if_version)\s*\(\s*['\"](?:chats|messages)['\"]"
+)
+CHAT_DIRECTUS_PLAINTEXT_FIELD_RE = re.compile(
+    r"['\"](?:assistant_category|category|content|draft|model_name|pii_mappings|sender_name|summary|thinking|thinking_content|thinking_signature|thinking_tokens|title|user_id)['\"]\s*:"
 )
 
 BLOCK_PATTERNS = {
@@ -269,6 +283,40 @@ def _audit_vercel_project_mutations(added_lines: list[tuple[str, int, str]]) -> 
     return issues
 
 
+def _audit_generic_cli_app_skill_execution(added_lines: list[tuple[str, int, str]]) -> list[str]:
+    issues: list[str] = []
+    for path, line_no, line in added_lines:
+        if path != "frontend/packages/openmates-cli/src/cli.ts":
+            continue
+        if not CLI_GENERIC_APP_SKILL_RUNNER_RE.search(line):
+            continue
+        issues.append(
+            f"{path}:{line_no}: generic `openmates apps <app> <skill>` execution is forbidden; "
+            "add an explicit typed command with command-specific help and validation instead"
+        )
+    return issues
+
+
+def _audit_direct_chat_plaintext_writes(staged_files: list[str]) -> list[str]:
+    issues: list[str] = []
+    for path in staged_files:
+        if path.startswith("backend/tests/") or not BACKEND_PY_PATH_RE.search(path):
+            continue
+        source = _staged_file_text(path)
+        if not CHAT_DIRECTUS_DIRECT_WRITE_RE.search(source):
+            continue
+        for line_no, function_name, block in _python_function_blocks(source):
+            if not CHAT_DIRECTUS_DIRECT_WRITE_RE.search(block):
+                continue
+            if not CHAT_DIRECTUS_PLAINTEXT_FIELD_RE.search(block):
+                continue
+            issues.append(
+                f"{path}:{line_no}: {function_name} directly writes plaintext-shaped fields to Directus chats/messages; "
+                "use client-encrypted encrypted_* payloads through chat helpers"
+            )
+    return issues
+
+
 def main() -> int:
     strict = os.environ.get("CODE_QUALITY_GUARD_STRICT", "").lower() in {"1", "true", "yes"}
     blocks: list[str] = []
@@ -282,6 +330,10 @@ def main() -> int:
             blocks.append(f"embed structure: {issue}")
         for warning in audit_result.warnings:
             blocks.append(f"embed structure: {warning}")
+
+    if any(DOMAIN_SECURITY_PATH_RE.search(path) for path in staged_files):
+        for issue in audit_domain_security.audit_domain_security():
+            blocks.append(f"domain security: {issue}")
 
     for issue in _run_caddyfile_preflight(staged_files):
         blocks.append(f"caddy preflight: {issue}")
@@ -306,6 +358,17 @@ def main() -> int:
     ]
     for issue in ui_control_issues:
         label = f"ui control visibility: {issue.path}:{issue.line}: {issue.message}"
+        if issue.blocking:
+            blocks.append(label)
+        else:
+            warnings.append(label)
+
+    for issue in audit_figma_visual_evidence.audit_paths(
+        [REPO_ROOT / path for path in staged_files],
+        added_lines=added_lines_with_numbers,
+        evidence_paths=[REPO_ROOT / path for path in staged_files],
+    ):
+        label = f"figma visual evidence: {issue.path}:{issue.line}: {issue.message}"
         if issue.blocking:
             blocks.append(label)
         else:
@@ -342,6 +405,12 @@ def main() -> int:
 
     for issue in _audit_vercel_project_mutations(added_lines_with_numbers):
         blocks.append(f"vercel build machine guard: {issue}")
+
+    for issue in _audit_generic_cli_app_skill_execution(added_lines_with_numbers):
+        blocks.append(f"cli generic app-skill guard: {issue}")
+
+    for issue in _audit_direct_chat_plaintext_writes(staged_files):
+        blocks.append(f"chat plaintext directus guard: {issue}")
 
     added_lines = [(path, line) for path, _line_no, line in added_lines_with_numbers]
     for path, line in added_lines:

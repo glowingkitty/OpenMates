@@ -34,6 +34,8 @@ const {
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
 
+const IMAGE_SEARCH_FIXTURE_QUERY = 'openmates_e2e_image_fixture_sunset';
+
 test.describe('App: Images / Skill: search', () => {
 	test.setTimeout(120_000);
 
@@ -49,31 +51,13 @@ test.describe('App: Images / Skill: search', () => {
 	});
 
 	test('Phase 2: CLI apps images search returns results', async () => {
-		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
-
-		const result = await runCli(
-			apiUrl,
-			[
-				'apps', 'images', 'search',
-				'--input', JSON.stringify({ requests: [{ query: 'sunset over ocean' }] }),
-				'--json'
-			],
-			30_000
-		);
-
-		expect(result.code).toBe(0);
-		const parsed = parseCliJson(result);
-		expect(parsed.success).toBe(true);
-
-		const results = parsed.data?.results?.[0]?.results || [];
-		expect(results.length).toBeGreaterThan(0);
-		console.log(`[P2] images/search found ${results.length} image(s)`);
+		test.skip(true, 'images/search is hidden from direct REST/CLI because reverse search needs encrypted embed context.');
 	});
 
 	test('Phase 3: CLI chats new triggers images search', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
-		const message = withLiveMockMarker('Search for images of sunsets over the ocean', 'images_search_cli');
+		const message = withLiveMockMarker(`Use images.search to find images for exact query ${IMAGE_SEARCH_FIXTURE_QUERY}`, 'images_search_cli');
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 60_000);
 		expect(result.code).toBe(0);
 
@@ -100,7 +84,7 @@ test.describe('App: Images / Skill: search', () => {
 
 		await sendMessage(
 			page,
-			withLiveMockMarker('Search for images of sunsets over the ocean', 'images_search_web'),
+			withLiveMockMarker(`Use images.search to find images for exact query ${IMAGE_SEARCH_FIXTURE_QUERY}`, 'images_search_web'),
 			logCheckpoint, takeStepScreenshot, 'images-search'
 		);
 

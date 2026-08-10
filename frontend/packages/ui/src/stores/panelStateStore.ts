@@ -159,17 +159,13 @@ function resetActivityHistoryIntent(): void {
 // Determine the *intended* state of Activity History based on conditions
 const intendedActivityHistoryOpen = derived(
   [
-    authStore,
     isInSignupProcess,
-    isLoggingOut,
     isMobileView,
     loginInterfaceOpen,
     _activityHistoryUserIntent,
   ],
   ([
-    ,
     $isInSignupProcess,
-    ,
     $isMobileView,
     $loginInterfaceOpen,
     $activityHistoryUserIntent,
@@ -211,8 +207,8 @@ const intendedActivityHistoryOpen = derived(
 // NOTE: Non-authenticated users can access app_store and interface settings
 // This allows them to browse apps and change language during signup
 const intendedSettingsOpen = derived(
-  [authStore, isInSignupProcess, isLoggingOut, _isSettingsOpen],
-  ([, , $isLoggingOut, $isSettingsOpen]) => {
+  [isLoggingOut, _isSettingsOpen],
+  ([$isLoggingOut, $isSettingsOpen]) => {
     // Allow settings to open for non-authenticated users (they can access app_store and interface)
     // Only block during logout
     if ($isLoggingOut) {
@@ -242,82 +238,84 @@ const intendedSettingsOpen = derived(
 // queueMicrotask defers execution until after the current synchronous module-
 // evaluation stack has fully completed, at which point every module is
 // initialized and the TDZ no longer applies.
-queueMicrotask(() => {
-  intendedActivityHistoryOpen.subscribe((intendedState) => {
-    if (get(_isActivityHistoryOpen) !== intendedState) {
-      console.debug(
-        `[PanelState] Updating Activity History Open: ${get(_isActivityHistoryOpen)} -> ${intendedState}`,
-      );
-      _isActivityHistoryOpen.set(intendedState);
-    }
+if (typeof window !== "undefined") {
+  queueMicrotask(() => {
+    intendedActivityHistoryOpen.subscribe((intendedState) => {
+      if (get(_isActivityHistoryOpen) !== intendedState) {
+        console.debug(
+          `[PanelState] Updating Activity History Open: ${get(_isActivityHistoryOpen)} -> ${intendedState}`,
+        );
+        _isActivityHistoryOpen.set(intendedState);
+      }
+    });
+
+    intendedSettingsOpen.subscribe((intendedState) => {
+      // Only close reactively. Opening is handled by explicit actions.
+      if (!intendedState && get(_isSettingsOpen)) {
+        console.debug(
+          `[PanelState] Reactively Closing Settings: ${get(_isSettingsOpen)} -> ${intendedState}`,
+        );
+        _isSettingsOpen.set(false);
+      }
+      // We don't automatically open settings here, only close based on auth/logout state.
+      // Actual opening happens via openSettings() action.
+    });
+
+    // Reset intent only on logout transitions.
+    // On login, keep the current intent so the sidebar doesn't auto-open again
+    // after the login interface closes.
+    let previousAuthState = get(authStore).isAuthenticated;
+    derived([authStore, isLoggingOut], ([$authStore, $isLoggingOut]) => ({
+      isAuthenticated: $authStore.isAuthenticated,
+      isLoggingOut: $isLoggingOut,
+    })).subscribe(({ isAuthenticated, isLoggingOut }) => {
+      const didLogout = previousAuthState && !isAuthenticated;
+      previousAuthState = isAuthenticated;
+
+      if (didLogout || isLoggingOut) {
+        console.debug(
+          "[PanelState] Logout detected, resetting Activity History user intent to auto.",
+        );
+        resetActivityHistoryIntent();
+      }
+    });
+
+    // CRITICAL: Immediately close panel when signup process starts
+    // This ensures the panel is closed even if it was opened before signup detection
+    isInSignupProcess.subscribe((inSignup) => {
+      if (inSignup) {
+        console.debug(
+          "[PanelState] Signup process started - immediately closing Activity History panel",
+        );
+        _isActivityHistoryOpen.set(false);
+        _activityHistoryUserIntent.set("closed");
+      }
+    });
+
+    // CRITICAL: Immediately close panel when login interface opens
+    // This ensures the panel is closed even if it was opened before login interface detection
+    // This prevents the panel from opening on resize from mobile to desktop when login interface is open
+    let previousLoginOpen = get(loginInterfaceOpen);
+    loginInterfaceOpen.subscribe((loginOpen) => {
+      if (previousLoginOpen && !loginOpen) {
+        _suppressNextAutoOpenFromLoginClose = true;
+        queueMicrotask(() => {
+          _suppressNextAutoOpenFromLoginClose = false;
+        });
+      }
+
+      if (loginOpen) {
+        console.debug(
+          "[PanelState] Login interface opened - immediately closing Activity History panel",
+        );
+        _isActivityHistoryOpen.set(false);
+        _activityHistoryUserIntent.set("closed");
+      }
+
+      previousLoginOpen = loginOpen;
+    });
   });
-
-  intendedSettingsOpen.subscribe((intendedState) => {
-    // Only close reactively. Opening is handled by explicit actions.
-    if (!intendedState && get(_isSettingsOpen)) {
-      console.debug(
-        `[PanelState] Reactively Closing Settings: ${get(_isSettingsOpen)} -> ${intendedState}`,
-      );
-      _isSettingsOpen.set(false);
-    }
-    // We don't automatically open settings here, only close based on auth/logout state.
-    // Actual opening happens via openSettings() action.
-  });
-
-  // Reset intent only on logout transitions.
-  // On login, keep the current intent so the sidebar doesn't auto-open again
-  // after the login interface closes.
-  let previousAuthState = get(authStore).isAuthenticated;
-  derived([authStore, isLoggingOut], ([$authStore, $isLoggingOut]) => ({
-    isAuthenticated: $authStore.isAuthenticated,
-    isLoggingOut: $isLoggingOut,
-  })).subscribe(({ isAuthenticated, isLoggingOut }) => {
-    const didLogout = previousAuthState && !isAuthenticated;
-    previousAuthState = isAuthenticated;
-
-    if (didLogout || isLoggingOut) {
-      console.debug(
-        "[PanelState] Logout detected, resetting Activity History user intent to auto.",
-      );
-      resetActivityHistoryIntent();
-    }
-  });
-
-  // CRITICAL: Immediately close panel when signup process starts
-  // This ensures the panel is closed even if it was opened before signup detection
-  isInSignupProcess.subscribe((inSignup) => {
-    if (inSignup) {
-      console.debug(
-        "[PanelState] Signup process started - immediately closing Activity History panel",
-      );
-      _isActivityHistoryOpen.set(false);
-      _activityHistoryUserIntent.set("closed");
-    }
-  });
-
-  // CRITICAL: Immediately close panel when login interface opens
-  // This ensures the panel is closed even if it was opened before login interface detection
-  // This prevents the panel from opening on resize from mobile to desktop when login interface is open
-  let previousLoginOpen = get(loginInterfaceOpen);
-  loginInterfaceOpen.subscribe((loginOpen) => {
-    if (previousLoginOpen && !loginOpen) {
-      _suppressNextAutoOpenFromLoginClose = true;
-      queueMicrotask(() => {
-        _suppressNextAutoOpenFromLoginClose = false;
-      });
-    }
-
-    if (loginOpen) {
-      console.debug(
-        "[PanelState] Login interface opened - immediately closing Activity History panel",
-      );
-      _isActivityHistoryOpen.set(false);
-      _activityHistoryUserIntent.set("closed");
-    }
-
-    previousLoginOpen = loginOpen;
-  });
-});
+}
 
 // --- Exports ---
 export const panelState = {

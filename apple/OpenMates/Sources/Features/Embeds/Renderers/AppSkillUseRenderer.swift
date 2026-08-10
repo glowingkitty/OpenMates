@@ -6,11 +6,38 @@
 //          frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialsEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialResultEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/models3d/Model3DSearchEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/models3d/Model3DSearchEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/models3d/Model3DResultEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/models3d/Model3DResultEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/tasks/TaskCreateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/tasks/TaskSearchEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/tasks/TaskEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/tasks/TaskEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/workflows/WorkflowCreateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/workflows/WorkflowSearchEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedFullscreen.svelte
 // CSS:     frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+import Combine
 import SwiftUI
 
 struct AppSkillUseRenderer: View {
@@ -70,6 +97,10 @@ struct AppSkillUseRenderer: View {
         appId == "fitness" && (skillId == "search_locations" || skillId == "search_classes")
     }
 
+    private var isCalendarActionSkill: Bool {
+        appId == "calendar" && ["get-events", "create-event", "update-event", "delete-event"].contains(skillId)
+    }
+
     private var childEmbeds: [EmbedRecord] {
         let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
         if !explicit.isEmpty { return uniqueEmbeds(explicit) }
@@ -106,7 +137,10 @@ struct AppSkillUseRenderer: View {
     }
 
     private var previewChildEmbeds: [EmbedRecord] {
-        let previewResults = EmbedFieldReader.dictionaryArray(data, key: "preview_results")
+        let previewResults = ["preview_results", "results", "preview_thumbnails"]
+            .lazy
+            .map { EmbedFieldReader.dictionaryArray(data, key: $0) }
+            .first { !$0.isEmpty } ?? []
         guard !previewResults.isEmpty else { return [] }
 
         return previewResults.enumerated().map { index, result in
@@ -127,11 +161,18 @@ struct AppSkillUseRenderer: View {
     }
 
     private var previewChildType: String {
-        switch appId {
-        case "images", "photos": return EmbedType.imagesImageResult.rawValue
-        case "videos": return EmbedType.videosVideo.rawValue
-        default: return EmbedType.webWebsite.rawValue
-        }
+        EmbedType.normalized(rawValue: embed.type)?.childType?.rawValue
+            ?? {
+                switch appId {
+                case "images", "photos": return EmbedType.imagesImageResult.rawValue
+                case "videos": return EmbedType.videosVideo.rawValue
+                case "business": return EmbedType.businessCompanyFinancialResult.rawValue
+                case "models3d": return EmbedType.models3dModelResult.rawValue
+                case "tasks": return EmbedType.tasksTask.rawValue
+                case "workflows": return EmbedType.workflowsWorkflow.rawValue
+                default: return EmbedType.webWebsite.rawValue
+                }
+            }()
     }
 
     var body: some View {
@@ -161,14 +202,28 @@ struct AppSkillUseRenderer: View {
             return AnyView(CodeGetDocsEmbedRenderer(data: data, mode: .preview))
         } else if appId == "events", skillId == "search" {
             return AnyView(EventsSearchEmbedRenderer(embed: embed, data: data, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if isCalendarActionSkill {
+            return AnyView(CalendarActionEmbedRenderer(embed: embed, data: data, skillId: skillId, mode: .preview))
         } else if isFitnessSearchSkill {
             return AnyView(FitnessSearchEmbedRenderer(embed: embed, data: data, mode: .preview))
+        } else if appId == "weather", skillId == "rain_radar" {
+            return AnyView(WeatherRainRadarEmbedRenderer(embed: embed, data: data, mode: .preview))
         } else if appId == "travel", skillId == "search_connections" {
             return AnyView(TravelSearchEmbedRenderer(embed: embed, data: data, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "travel", skillId == "search_stays" {
             return AnyView(TravelStaysEmbedRenderer(embed: embed, data: data, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "travel", skillId == "price_calendar" {
             return AnyView(TravelPriceCalendarEmbedRenderer(data: data, mode: .preview))
+        } else if appId == "business", skillId == "company_financials" {
+            return AnyView(BusinessCompanyFinancialsEmbedRenderer(embed: embed, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "models3d", skillId == "search" {
+            return AnyView(Models3DSearchParentRenderer(embed: embed, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "models3d", skillId == "generate" {
+            return AnyView(Models3DGenerateEmbedRenderer(embed: embed, mode: .preview))
+        } else if appId == "tasks", skillId == "create" || skillId == "search" {
+            return AnyView(TaskWorkflowParentRenderer(embed: embed, kind: .task, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "workflows", skillId == "create-or-modify" || skillId == "search" {
+            return AnyView(TaskWorkflowParentRenderer(embed: embed, kind: .workflow, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "images", !childEmbeds.isEmpty {
             return AnyView(imagesSearchPreview)
         } else {
@@ -256,14 +311,28 @@ struct AppSkillUseRenderer: View {
             CodeGetDocsEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "events", skillId == "search" {
             EventsSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if isCalendarActionSkill {
+            CalendarActionEmbedRenderer(embed: embed, data: data, skillId: skillId, mode: .fullscreen)
         } else if isFitnessSearchSkill {
             FitnessSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen)
+        } else if appId == "weather", skillId == "rain_radar" {
+            WeatherRainRadarEmbedRenderer(embed: embed, data: data, mode: .fullscreen)
         } else if appId == "travel", skillId == "search_connections" {
             TravelSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else if appId == "travel", skillId == "search_stays" {
             TravelStaysEmbedRenderer(embed: embed, data: data, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else if appId == "travel", skillId == "price_calendar" {
             TravelPriceCalendarEmbedRenderer(data: data, mode: .fullscreen)
+        } else if appId == "business", skillId == "company_financials" {
+            BusinessCompanyFinancialsEmbedRenderer(embed: embed, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "models3d", skillId == "search" {
+            Models3DSearchParentRenderer(embed: embed, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "models3d", skillId == "generate" {
+            Models3DGenerateEmbedRenderer(embed: embed, mode: .fullscreen)
+        } else if appId == "tasks", skillId == "create" || skillId == "search" {
+            TaskWorkflowParentRenderer(embed: embed, kind: .task, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "workflows", skillId == "create-or-modify" || skillId == "search" {
+            TaskWorkflowParentRenderer(embed: embed, kind: .workflow, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else {
             VStack(alignment: .leading, spacing: .spacing6) {
                 if !childEmbeds.isEmpty {
@@ -436,6 +505,689 @@ struct AppSkillUseRenderer: View {
             maxWidth: 64
         ) ?? EmbedFieldReader.proxiedFaviconURL(pageURL: firstString(in: data, keys: ["source_page_url", "url"]))
     }
+}
+
+enum TaskWorkflowEmbedKind {
+    case task
+    case workflow
+
+    var appId: String {
+        switch self {
+        case .task: return "tasks"
+        case .workflow: return "workflows"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .task: return "task"
+        case .workflow: return "workflow"
+        }
+    }
+
+    @MainActor var singularTitle: String {
+        switch self {
+        case .task: return AppStrings.tasks
+        case .workflow: return AppStrings.workflows
+        }
+    }
+
+    var cardIdentifier: String {
+        switch self {
+        case .task: return "task-embed-card"
+        case .workflow: return "workflow-embed-card"
+        }
+    }
+
+    var fullscreenIdentifier: String {
+        switch self {
+        case .task: return "task-embed-fullscreen"
+        case .workflow: return "workflow-embed-fullscreen"
+        }
+    }
+
+    var fullscreenContentIdentifier: String {
+        switch self {
+        case .task: return "task-embed-fullscreen-content"
+        case .workflow: return "workflow-embed-fullscreen-content"
+        }
+    }
+
+    @MainActor func title(from raw: [String: AnyCodable]) -> String {
+        EmbedFieldReader.string(raw, keys: ["title", "name"]) ?? singularTitle
+    }
+
+    @MainActor func subtitle(from raw: [String: AnyCodable]) -> String? {
+        switch self {
+        case .task:
+            return EmbedFieldReader.string(raw, keys: ["short_id", "task_id"])
+                ?? statusLabel(from: raw)
+        case .workflow:
+            return EmbedFieldReader.string(raw, keys: ["trigger_summary", "workflow_id"])
+                ?? statusLabel(from: raw)
+        }
+    }
+
+    func description(from raw: [String: AnyCodable]) -> String? {
+        EmbedFieldReader.string(raw, keys: ["description", "summary"])
+    }
+
+    @MainActor func statusLabel(from raw: [String: AnyCodable]) -> String {
+        let rawStatus = EmbedFieldReader.string(raw, keys: ["status"]) ?? ""
+        let normalized = rawStatus.replacingOccurrences(of: "_", with: " ").replacingOccurrences(of: "-", with: " ")
+        let status = normalized.isEmpty ? singularTitle : normalized.capitalized
+        guard self == .workflow, let enabled = raw["enabled"]?.value as? Bool else { return status }
+        return enabled ? status : AppStrings.disabled
+    }
+
+    func secondaryPill(from raw: [String: AnyCodable]) -> String? {
+        switch self {
+        case .task:
+            return EmbedFieldReader.string(raw, keys: ["assignee", "assignee_type"])
+        case .workflow:
+            return nil
+        }
+    }
+}
+
+struct TaskWorkflowParentRenderer: View {
+    let embed: EmbedRecord
+    let kind: TaskWorkflowEmbedKind
+    let mode: EmbedDisplayMode
+    let allEmbedRecords: [String: EmbedRecord]
+    let onOpenEmbed: (EmbedRecord) -> Void
+
+    private var data: [String: AnyCodable] { embed.rawData ?? [:] }
+    private var children: [EmbedRecord] {
+        let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        if !explicit.isEmpty { return explicit }
+
+        let parented = allEmbedRecords.values
+            .filter { $0.parentEmbedId == embed.id || $0.appId == kind.appId }
+            .filter { $0.id != embed.id }
+            .sorted { $0.id < $1.id }
+        if !parented.isEmpty { return parented }
+
+        return previewChildren
+    }
+
+    private var previewChildren: [EmbedRecord] {
+        let previewResults = ["preview_results", "results"]
+            .lazy
+            .map { EmbedFieldReader.dictionaryArray(data, key: $0) }
+            .first { !$0.isEmpty } ?? []
+        return previewResults.enumerated().map { index, result in
+            var recordData = result.mapValues { AnyCodable($0) }
+            recordData["app_id"] = recordData["app_id"] ?? AnyCodable(kind.appId)
+            return EmbedRecord(
+                id: "\(embed.id)-\(kind.appId)-preview-\(index)",
+                type: kind == .task ? EmbedType.tasksTask.rawValue : EmbedType.workflowsWorkflow.rawValue,
+                status: .finished,
+                data: .raw(recordData),
+                parentEmbedId: embed.id,
+                appId: kind.appId,
+                skillId: nil,
+                embedIds: nil,
+                createdAt: embed.createdAt
+            )
+        }
+    }
+
+    private var displayTitle: String {
+        EmbedFieldReader.string(data, keys: ["instruction", "query", "title"])
+            ?? EmbedType.normalized(rawValue: embed.type)?.displayName
+            ?? kind.singularTitle
+    }
+
+    private var resultCount: Int {
+        EmbedFieldReader.int(data, keys: ["result_count"]) ?? children.count
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            parentPreview
+        case .fullscreen:
+            parentFullscreen
+        }
+    }
+
+    private var parentPreview: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            Text(displayTitle)
+                .font(.omSmall)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(summary)
+                .font(.omXs)
+                .foregroundStyle(Color.fontSecondary)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .accessibilityIdentifier(parentPreviewIdentifier)
+    }
+
+    private var parentFullscreen: some View {
+        Group {
+            if children.isEmpty {
+                Text(summary)
+                    .font(.omP)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 200)
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260, maximum: 320), spacing: .spacing6, alignment: .top)], spacing: .spacing6) {
+                    ForEach(children) { child in
+                        TaskWorkflowEmbedRenderer(embed: child, kind: kind, mode: .preview) {
+                            onOpenEmbed(child)
+                        }
+                    }
+                }
+                .frame(maxWidth: 1040)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing8)
+                .padding(.bottom, 120)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .accessibilityIdentifier(kind == .task ? "task-parent-fullscreen" : "workflow-parent-fullscreen")
+    }
+
+    private var parentPreviewIdentifier: String {
+        switch (kind, embed.skillId) {
+        case (.task, "create"):
+            return "task-create-embed-preview"
+        case (.task, "search"):
+            return "task-search-embed-preview"
+        case (.workflow, "create-or-modify"):
+            return "workflow-create-embed-preview"
+        case (.workflow, "search"):
+            return "workflow-search-embed-preview"
+        default:
+            return kind == .task ? "task-parent-preview" : "workflow-parent-preview"
+        }
+    }
+
+    private var summary: String {
+        if embed.status != .finished { return AppStrings.loading }
+        guard resultCount > 0 else { return AppStrings.searchNoResults }
+        return "\(resultCount) \(kind.singularTitle)"
+    }
+}
+
+struct TaskWorkflowEmbedRenderer: View {
+    let embed: EmbedRecord
+    let kind: TaskWorkflowEmbedKind
+    let mode: EmbedDisplayMode
+    var onTap: () -> Void = {}
+
+    private var raw: [String: AnyCodable] { embed.rawData ?? [:] }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            Button(action: onTap) { previewCard }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier(kind.cardIdentifier)
+        case .fullscreen:
+            fullscreen
+        }
+    }
+
+    private var previewCard: some View {
+        HStack(alignment: .center, spacing: .spacing5) {
+            iconShell
+                .frame(width: 56)
+
+            VStack(alignment: .leading, spacing: .spacing3) {
+                if let subtitle = kind.subtitle(from: raw) {
+                    Text(subtitle)
+                        .font(.omXs)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(1)
+                }
+
+                Text(kind.title(from: raw))
+                    .font(.omSmall)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(2)
+
+                if let description = kind.description(from: raw) {
+                    Text(description)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(2)
+                }
+
+                HStack(spacing: 6) {
+                    pill(kind.statusLabel(from: raw))
+                    if let assignee = kind.secondaryPill(from: raw), !assignee.isEmpty {
+                        pill(assignee)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.spacing6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
+    private var fullscreen: some View {
+        VStack(alignment: .leading, spacing: .spacing8) {
+            HStack(alignment: .top, spacing: .spacing6) {
+                iconShell.frame(width: 72, height: 72)
+                VStack(alignment: .leading, spacing: .spacing3) {
+                    if let subtitle = kind.subtitle(from: raw) {
+                        Text(subtitle)
+                            .font(.omSmall)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                    Text(kind.title(from: raw))
+                        .font(.omH1)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(3)
+                    if let description = kind.description(from: raw) {
+                        Text(description)
+                            .font(.omP)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                }
+            }
+
+            HStack(spacing: .spacing3) {
+                pill(kind.statusLabel(from: raw))
+                if let assignee = kind.secondaryPill(from: raw), !assignee.isEmpty { pill(assignee) }
+            }
+        }
+        .padding(.spacing8)
+        .frame(maxWidth: 860, alignment: .leading)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, .spacing12)
+        .padding(.bottom, 120)
+        .accessibilityIdentifier(kind.fullscreenIdentifier)
+    }
+
+    private var iconShell: some View {
+        ZStack {
+            AppGradientBackground(appId: kind.appId)
+            Icon(kind.iconName, size: 28)
+                .foregroundStyle(Color.grey0)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    private func pill(_ label: String) -> some View {
+        Text(label)
+            .font(.omXs)
+            .fontWeight(.semibold)
+            .foregroundStyle(Color.fontSecondary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Color.grey10)
+            .clipShape(Capsule())
+    }
+}
+
+struct Models3DSearchParentRenderer: View {
+    let embed: EmbedRecord
+    let mode: EmbedDisplayMode
+    let allEmbedRecords: [String: EmbedRecord]
+    let onOpenEmbed: (EmbedRecord) -> Void
+
+    private var data: [String: AnyCodable] { embed.rawData ?? [:] }
+    private var children: [EmbedRecord] {
+        let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        if !explicit.isEmpty { return explicit }
+        let parented = allEmbedRecords.values
+            .filter { ($0.parentEmbedId == embed.id || $0.appId == "models3d") && $0.id != embed.id }
+            .sorted { $0.id < $1.id }
+        if !parented.isEmpty { return parented }
+        return previewChildren
+    }
+
+    private var previewChildren: [EmbedRecord] {
+        let previewResults = ["preview_results", "results", "preview_thumbnails"]
+            .lazy
+            .map { EmbedFieldReader.dictionaryArray(data, key: $0) }
+            .first { !$0.isEmpty } ?? []
+        return previewResults.enumerated().map { index, result in
+            var recordData = result.mapValues { AnyCodable($0) }
+            recordData["app_id"] = recordData["app_id"] ?? AnyCodable("models3d")
+            return EmbedRecord(
+                id: "\(embed.id)-models3d-preview-\(index)",
+                type: EmbedType.models3dModelResult.rawValue,
+                status: .finished,
+                data: .raw(recordData),
+                parentEmbedId: embed.id,
+                appId: "models3d",
+                skillId: nil,
+                embedIds: nil,
+                createdAt: embed.createdAt
+            )
+        }
+    }
+
+    private var query: String {
+        EmbedFieldReader.string(data, keys: ["query", "title"]) ?? AppStrings.models3d
+    }
+
+    private var provider: String {
+        EmbedFieldReader.string(data, keys: ["provider"]) ?? "Printables"
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            preview
+        case .fullscreen:
+            fullscreen
+        }
+    }
+
+    private var preview: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            let imageChildren = childrenWithImages.prefix(5)
+            if !imageChildren.isEmpty {
+                HStack(spacing: 4) {
+                    ForEach(Array(imageChildren)) { child in
+                        modelThumbnail(child)
+                    }
+                }
+                .frame(height: 74)
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+                .background(Color.grey10)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(query)
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(1)
+                Text(metaText)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .accessibilityIdentifier("models3d-search-preview")
+    }
+
+    private var fullscreen: some View {
+        Group {
+            if children.isEmpty {
+                Text(AppStrings.models3dNoResults)
+                    .font(.omP)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 200)
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260, maximum: 320), spacing: .spacing6, alignment: .top)], spacing: .spacing6) {
+                    ForEach(children) { child in
+                        Models3DResultEmbedRenderer(embed: child, mode: .preview) {
+                            onOpenEmbed(child)
+                        }
+                    }
+                }
+                .frame(maxWidth: 1040)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing8)
+                .padding(.bottom, 120)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .accessibilityIdentifier("models3d-search-fullscreen")
+    }
+
+    private var metaText: String {
+        if children.isEmpty { return AppStrings.models3dOpenToView }
+        return "\(AppStrings.models3dResultsCount(children.count)) · \(AppStrings.via) \(provider)"
+    }
+
+    private var childrenWithImages: [EmbedRecord] {
+        children.filter { modelImageURL(for: $0.rawData ?? [:], maxWidth: 260) != nil }
+    }
+
+    private func modelThumbnail(_ child: EmbedRecord) -> some View {
+        ZStack {
+            if let imageURL = modelImageURL(for: child.rawData ?? [:], maxWidth: 260), let url = URL(string: imageURL) {
+                CachedRemoteImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: { Color.grey10 }
+            } else {
+                Color.grey10.overlay(Icon("3dmodels", size: 32).foregroundStyle(Color.grey40))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+    }
+}
+
+struct Models3DResultEmbedRenderer: View {
+    let embed: EmbedRecord
+    let mode: EmbedDisplayMode
+    var onTap: () -> Void = {}
+
+    private var raw: [String: AnyCodable] { embed.rawData ?? [:] }
+    private var title: String { EmbedFieldReader.string(raw, keys: ["title", "name"]) ?? AppStrings.models3dResultTitle }
+    private var provider: String? { EmbedFieldReader.string(raw, keys: ["provider"]) }
+    private var creator: String? { EmbedFieldReader.string(raw, keys: ["creator_name", "creatorName"]) }
+    private var license: String? { EmbedFieldReader.string(raw, keys: ["license"]) }
+    private var filesCount: Int? { EmbedFieldReader.int(raw, keys: ["files_count", "filesCount"]) }
+    private var sourceURL: String? { EmbedFieldReader.string(raw, keys: ["source_page_url", "sourcePageUrl", "source_url", "url"]) }
+    private var imageURL: String? { modelImageURL(for: raw, maxWidth: mode == .preview ? 520 : 960) }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            Button(action: onTap) { previewCard }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("models3d-result-card")
+        case .fullscreen:
+            fullscreen
+        }
+    }
+
+    private var previewCard: some View {
+        HStack(alignment: .center, spacing: .spacing4) {
+            VStack(alignment: .leading, spacing: .spacing3) {
+                Text(title)
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(2)
+                metaLine
+                pills
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            imageShell
+                .frame(width: 112)
+        }
+        .padding(.spacing6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
+    private var fullscreen: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: .spacing12) {
+                largeImageShell.frame(maxWidth: .infinity, minHeight: 360)
+                metadata.frame(width: 300, alignment: .leading)
+            }
+            VStack(alignment: .leading, spacing: .spacing8) {
+                largeImageShell.frame(minHeight: 320)
+                metadata
+            }
+        }
+        .padding(.spacing12)
+        .frame(maxWidth: 1120)
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 120)
+        .accessibilityIdentifier("models3d-result-fullscreen")
+    }
+
+    private var imageShell: some View {
+        ZStack {
+            if let imageURL, let url = URL(string: imageURL) {
+                CachedRemoteImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: { modelPlaceholder }
+            } else {
+                modelPlaceholder
+            }
+        }
+        .aspectRatio(4 / 3, contentMode: .fit)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .accessibilityIdentifier("models3d-result-card-image")
+    }
+
+    private var largeImageShell: some View {
+        ZStack {
+            if let imageURL, let url = URL(string: imageURL) {
+                CachedRemoteImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fit)
+                } placeholder: { modelPlaceholder }
+            } else {
+                modelPlaceholder
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: 560)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+
+    private var modelPlaceholder: some View {
+        Color.grey10.overlay(Icon("3dmodels", size: mode == .preview ? 32 : 44).foregroundStyle(Color.grey40))
+    }
+
+    private var metadata: some View {
+        VStack(alignment: .leading, spacing: .spacing5) {
+            Text(title)
+                .font(.omH2)
+                .foregroundStyle(Color.fontPrimary)
+            if let creator { Text(creator).font(.omP).foregroundStyle(Color.fontSecondary) }
+            if let license { Text(license).font(.omP).foregroundStyle(Color.fontSecondary) }
+            if let filesCount { Text(AppStrings.models3dFilesCount(filesCount)).font(.omP).foregroundStyle(Color.fontSecondary) }
+            if let sourceURL, let host = EmbedFieldReader.host(from: sourceURL) {
+                Text(AppStrings.models3dOpenOnProvider(provider ?? host))
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontButton)
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 9)
+                    .background(Color.buttonPrimary)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            }
+        }
+        .foregroundStyle(Color.fontPrimary)
+    }
+
+    private var metaLine: some View {
+        HStack(spacing: 6) {
+            if let creator { Text(creator) }
+            if let provider { Text(provider) }
+        }
+        .font(.omXs)
+        .foregroundStyle(Color.fontSecondary)
+        .lineLimit(1)
+    }
+
+    private var pills: some View {
+        HStack(spacing: 6) {
+            if raw["is_free"]?.value as? Bool == true || raw["isFree"]?.value as? Bool == true { pill(AppStrings.models3dFree) }
+            if let filesCount { pill(AppStrings.models3dFilesCount(filesCount)) }
+            if let license { pill(license) }
+        }
+    }
+
+    private func pill(_ label: String) -> some View {
+        Text(label)
+            .font(.omXs)
+            .foregroundStyle(Color.fontSecondary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Color.grey10)
+            .clipShape(Capsule())
+    }
+}
+
+struct Models3DGenerateEmbedRenderer: View {
+    let embed: EmbedRecord
+    let mode: EmbedDisplayMode
+
+    private var raw: [String: AnyCodable] { embed.rawData ?? [:] }
+    private var prompt: String { EmbedFieldReader.string(raw, keys: ["prompt", "title"]) ?? AppStrings.models3d }
+    private var providerModel: String? { EmbedFieldReader.string(raw, keys: ["provider_model", "providerModel", "provider"]) }
+    private var posterURL: String? { modelImageURL(for: raw, maxWidth: mode == .preview ? 520 : 960) }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            preview
+        case .fullscreen:
+            fullscreen
+        }
+    }
+
+    private var preview: some View {
+        ZStack {
+            if let posterURL, let url = URL(string: posterURL) {
+                CachedRemoteImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fit)
+                } placeholder: { modelFallbackText }
+            } else {
+                modelFallbackText
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityIdentifier("models3d-generate-preview")
+    }
+
+    private var fullscreen: some View {
+        VStack(spacing: .spacing6) {
+            if let posterURL, let url = URL(string: posterURL) {
+                CachedRemoteImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fit)
+                } placeholder: { modelFallbackText }
+                .frame(maxWidth: .infinity, maxHeight: 560)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            } else {
+                modelFallbackText
+                    .frame(minHeight: 320)
+            }
+            if let providerModel {
+                Text(providerModel)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 120)
+        .accessibilityIdentifier("models3d-generate-fullscreen")
+    }
+
+    private var modelFallbackText: some View {
+        Text(prompt)
+            .font(.omP)
+            .foregroundStyle(Color.fontPrimary)
+            .multilineTextAlignment(.center)
+            .lineLimit(mode == .preview ? 4 : nil)
+    }
+}
+
+private func modelImageURL(for raw: [String: AnyCodable], maxWidth: Int) -> String? {
+    EmbedFieldReader.proxiedImageURL(
+        EmbedFieldReader.string(raw, keys: ["preview_image_url", "previewImageUrl", "thumbnail_url", "thumbnailUrl", "poster_url", "posterUrl", "image_url", "image"]),
+        maxWidth: maxWidth
+    )
 }
 
 private struct SearchResultFullscreenRow: View {
@@ -631,6 +1383,847 @@ private struct ImageResultFullscreenCard: View {
     }
 }
 
+private struct BusinessCompanyFinancialsEmbedRenderer: View {
+    let embed: EmbedRecord
+    let mode: EmbedDisplayMode
+    let allEmbedRecords: [String: EmbedRecord]
+    let onOpenEmbed: (EmbedRecord) -> Void
+
+    private var model: BusinessCompanyFinancialsModel {
+        BusinessCompanyFinancialsModel(embed: embed, allEmbedRecords: allEmbedRecords)
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            BusinessCompanyFinancialsPreview(model: model)
+        case .fullscreen:
+            BusinessCompanyFinancialsFullscreen(model: model, onOpenEmbed: onOpenEmbed)
+        }
+    }
+}
+
+private struct BusinessCompanyFinancialsPreview: View {
+    let model: BusinessCompanyFinancialsModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(model.query)
+                .font(.omSmall)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.fontPrimary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(model.resultSummary)
+                .font(.omXs)
+                .foregroundStyle(Color.fontSecondary)
+                .lineLimit(2)
+
+            HStack(spacing: .spacing2) {
+                BusinessFinancialChip(label: model.periodLabel)
+                BusinessFinancialChip(label: model.metricGroupLabel)
+            }
+            .padding(.top, .spacing1)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .accessibilityIdentifier("business-financials-preview")
+    }
+}
+
+private struct BusinessCompanyFinancialsFullscreen: View {
+    let model: BusinessCompanyFinancialsModel
+    let onOpenEmbed: (EmbedRecord) -> Void
+
+    private let columns = [GridItem(.adaptive(minimum: 260, maximum: 320), spacing: .spacing6, alignment: .top)]
+
+    var body: some View {
+        let results = model.financialResults
+        Group {
+            if model.status == .error {
+                Text(AppStrings.genericProcessingError)
+                    .font(.omP)
+                    .foregroundStyle(Color.error)
+                    .frame(maxWidth: .infinity, minHeight: 200)
+            } else if results.isEmpty {
+                Text(model.resultSummary)
+                    .font(.omP)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.fontSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, minHeight: 200)
+            } else {
+                LazyVGrid(columns: columns, alignment: .center, spacing: .spacing6) {
+                    ForEach(results) { result in
+                        BusinessCompanyFinancialResultCard(model: result) {
+                            onOpenEmbed(result.embed)
+                        }
+                        .frame(maxWidth: 320)
+                    }
+                }
+                .frame(maxWidth: 1040)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing8)
+                .padding(.bottom, 120)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .accessibilityIdentifier("business-financials-fullscreen")
+    }
+}
+
+struct BusinessCompanyFinancialResultEmbedRenderer: View {
+    let embed: EmbedRecord
+    let mode: EmbedDisplayMode
+
+    private var model: BusinessCompanyFinancialResultModel {
+        BusinessCompanyFinancialResultModel(embed: embed)
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            BusinessCompanyFinancialResultCard(model: model) {}
+        case .fullscreen:
+            BusinessCompanyFinancialResultFullscreen(model: model)
+        }
+    }
+}
+
+private struct BusinessCompanyFinancialResultCard: View {
+    let model: BusinessCompanyFinancialResultModel
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                VStack(alignment: .leading, spacing: .spacing1) {
+                    Text(model.company)
+                        .font(.omSmall)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(1)
+                    Text(model.subtitle ?? model.periodLabel)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(1)
+                }
+
+                HStack(spacing: .spacing3) {
+                    BusinessFinancialMetricTile(label: AppStrings.businessFinancialRevenue, value: model.revenue)
+                    BusinessFinancialMetricTile(label: AppStrings.businessFinancialNetIncome, value: model.netIncome)
+                }
+
+                if let filed = model.filed {
+                    Text("\(AppStrings.businessFinancialFiled) \(filed)")
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.spacing4)
+            .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: 22)
+                    .fill(Color.grey0)
+                    .overlay(alignment: .topTrailing) {
+                        AppGradientBackground(appId: "business")
+                            .frame(width: 92, height: 92)
+                            .opacity(0.16)
+                            .clipShape(RoundedRectangle(cornerRadius: 22))
+                    }
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 22)
+                    .stroke(Color.grey20, lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("business-financial-result-preview")
+    }
+}
+
+private struct BusinessCompanyFinancialResultFullscreen: View {
+    let model: BusinessCompanyFinancialResultModel
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: .spacing6) {
+                heroCard.frame(maxWidth: 560)
+                sideColumn.frame(maxWidth: 420)
+            }
+            VStack(alignment: .leading, spacing: .spacing6) {
+                heroCard
+                sideColumn
+            }
+        }
+        .frame(maxWidth: 1040)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, .spacing4)
+        .padding(.vertical, .spacing6)
+        .padding(.bottom, 120)
+        .accessibilityIdentifier("business-financial-result-fullscreen")
+    }
+
+    private var heroCard: some View {
+        VStack(alignment: .leading, spacing: .spacing8) {
+            VStack(alignment: .leading, spacing: .spacing3) {
+                Text(AppStrings.businessFinancialSecFiling)
+                    .font(.omXs)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.fontSecondary)
+                    .textCase(.uppercase)
+                Text(model.company)
+                    .font(.omH1)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(3)
+                Text([model.periodLabel, model.periodRange].compactMap { $0 }.joined(separator: " · "))
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+
+            HStack(spacing: .spacing4) {
+                BusinessFinancialMetricTile(label: AppStrings.businessFinancialRevenue, value: model.revenue, prominent: true)
+                BusinessFinancialMetricTile(label: AppStrings.businessFinancialNetIncome, value: model.netIncome, prominent: true)
+            }
+        }
+        .padding(.spacing8)
+        .frame(maxWidth: .infinity, minHeight: 300, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 28)
+                .fill(Color.grey0)
+                .overlay(alignment: .topTrailing) {
+                    AppGradientBackground(appId: "business")
+                        .frame(width: 190, height: 190)
+                        .opacity(0.18)
+                        .clipShape(RoundedRectangle(cornerRadius: 28))
+                }
+        )
+        .overlay { RoundedRectangle(cornerRadius: 28).stroke(Color.grey20, lineWidth: 1) }
+    }
+
+    private var sideColumn: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            metricsCard
+            sourceCard
+            if !model.notes.isEmpty { notesCard }
+        }
+    }
+
+    private var metricsCard: some View {
+        BusinessFinancialPanel(title: AppStrings.businessFinancialMetrics) {
+            if model.metricRows.isEmpty {
+                Text(AppStrings.businessFinancialNoMetrics)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(model.metricRows.enumerated()), id: \.offset) { _, row in
+                        HStack(alignment: .firstTextBaseline, spacing: .spacing4) {
+                            Text(row.label)
+                                .font(.omSmall)
+                                .foregroundStyle(Color.fontSecondary)
+                            Spacer(minLength: .spacing4)
+                            Text(row.value)
+                                .font(.omSmall)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(Color.fontPrimary)
+                                .lineLimit(1)
+                        }
+                        .padding(.vertical, .spacing3)
+                        .overlay(alignment: .top) { Divider().opacity(0.4) }
+                    }
+                }
+            }
+        }
+    }
+
+    private var sourceCard: some View {
+        BusinessFinancialPanel(title: AppStrings.businessFinancialSource) {
+            if let sourceMetadata = model.sourceMetadata {
+                Text(sourceMetadata)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+            if model.sourceURL != nil {
+                Text(AppStrings.businessFinancialOpenFiling)
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.buttonPrimary)
+            }
+        }
+    }
+
+    private var notesCard: some View {
+        BusinessFinancialPanel(title: AppStrings.businessFinancialNotes) {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                ForEach(Array(model.notes.enumerated()), id: \.offset) { _, note in
+                    Text(note)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                }
+            }
+        }
+    }
+}
+
+private struct BusinessFinancialPanel<Content: View>: View {
+    let title: String
+    let content: Content
+
+    init(title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            Text(title)
+                .font(.omP)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+            content
+        }
+        .padding(.spacing5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey0)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .overlay { RoundedRectangle(cornerRadius: 24).stroke(Color.grey20, lineWidth: 1) }
+    }
+}
+
+private struct BusinessFinancialMetricTile: View {
+    let label: String
+    let value: String
+    var prominent = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing1) {
+            Text(label)
+                .font(.omXs)
+                .foregroundStyle(Color.fontSecondary)
+                .lineLimit(1)
+            Text(value)
+                .font(prominent ? .omH3 : .omSmall)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .padding(prominent ? .spacing5 : .spacing3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey10.opacity(0.82))
+        .clipShape(RoundedRectangle(cornerRadius: prominent ? 20 : 16))
+        .overlay {
+            RoundedRectangle(cornerRadius: prominent ? 20 : 16)
+                .stroke(Color.grey20, lineWidth: 1)
+        }
+    }
+}
+
+private struct BusinessFinancialChip: View {
+    let label: String
+
+    var body: some View {
+        Text(label.capitalized)
+            .font(.omXxs)
+            .foregroundStyle(Color.fontSecondary)
+            .padding(.horizontal, .spacing2)
+            .padding(.vertical, .spacing1)
+            .background(Color.grey10)
+            .clipShape(Capsule())
+    }
+}
+
+private struct CalendarActionEmbedRenderer: View {
+    let embed: EmbedRecord
+    let data: [String: AnyCodable]
+    let skillId: String
+    let mode: EmbedDisplayMode
+
+    private var model: CalendarActionValue {
+        CalendarActionValue(data: data, skillId: skillId)
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            CalendarActionPreview(model: model, isError: embed.status == .error, isProcessing: embed.status == .processing)
+        case .fullscreen:
+            CalendarActionFullscreen(model: model, isError: embed.status == .error, isProcessing: embed.status == .processing)
+        }
+    }
+}
+
+private struct CalendarActionPreview: View {
+    let model: CalendarActionValue
+    let isError: Bool
+    let isProcessing: Bool
+
+    private var detail: String? {
+        if isError { return model.error ?? AppStrings.genericProcessingError }
+        if let summary = model.summary { return summary }
+        return isProcessing ? AppStrings.loading : nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            HStack(spacing: .spacing3) {
+                Icon("calendar", size: .iconSizeSm)
+                    .foregroundStyle(LinearGradient.appCalendar)
+                Text(model.title)
+                    .font(.omP.weight(.bold))
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(2)
+            }
+
+            if let detail {
+                Text(detail)
+                    .font(.omSmall)
+                    .foregroundStyle(isError ? Color.error : Color.fontSecondary)
+                    .lineLimit(3)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+}
+
+private struct CalendarActionFullscreen: View {
+    let model: CalendarActionValue
+    let isError: Bool
+    let isProcessing: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            if isError {
+                Text(model.error ?? AppStrings.genericProcessingError)
+                    .font(.omP)
+                    .foregroundStyle(Color.error)
+            } else if !model.items.isEmpty {
+                LazyVStack(spacing: .spacing3) {
+                    ForEach(model.items) { item in
+                        VStack(alignment: .leading, spacing: .spacing2) {
+                            Text(item.title)
+                                .font(.omP.weight(.bold))
+                                .foregroundStyle(Color.fontPrimary)
+                            if let detail = item.detail {
+                                Text(detail)
+                                    .font(.omP)
+                                    .foregroundStyle(Color.fontSecondary)
+                            }
+                        }
+                        .padding(.spacing4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.grey0)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: .radius4)
+                                .stroke(Color.grey20, lineWidth: 1)
+                        }
+                    }
+                }
+            } else {
+                Text(model.summary ?? (isProcessing ? AppStrings.loading : model.title))
+                    .font(.omP)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+        }
+        .padding(.spacing4)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
+
+@MainActor
+private struct CalendarActionValue {
+    let title: String
+    let summary: String?
+    let error: String?
+    let items: [CalendarActionItem]
+
+    init(data: [String: AnyCodable], skillId: String) {
+        let fallbackTitle = AppStrings.calendarSkillTitle(skillId)
+        title = EmbedFieldReader.string(data, keys: ["title"]) ?? fallbackTitle
+        summary = EmbedFieldReader.string(data, keys: ["summary", "message"])
+        error = EmbedFieldReader.string(data, keys: ["error"])
+        let values = EmbedFieldReader.dictionaryArray(data, key: "events").isEmpty
+            ? EmbedFieldReader.dictionaryArray(data, key: "results")
+            : EmbedFieldReader.dictionaryArray(data, key: "events")
+        items = values.enumerated().map { index, value in
+            CalendarActionItem(index: index, data: value, fallbackTitle: fallbackTitle)
+        }
+    }
+}
+
+private struct CalendarActionItem: Identifiable {
+    let id: String
+    let title: String
+    let detail: String?
+
+    init(index: Int, data: [String: Any], fallbackTitle: String) {
+        id = data.string("event_id") ?? "calendar-item-\(index)"
+        title = data.string("summary") ?? data.string("title") ?? data.string("event_id") ?? fallbackTitle
+        detail = data.string("start") ?? data.string("start_time") ?? data.string("status") ?? data.string("html_link")
+    }
+}
+
+private struct WeatherRainRadarEmbedRenderer: View {
+    let embed: EmbedRecord
+    let data: [String: AnyCodable]
+    let mode: EmbedDisplayMode
+
+    private var model: RainRadarValue { RainRadarValue(data: data) }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            RainRadarPreview(model: model, status: embed.status)
+        case .fullscreen:
+            RainRadarFullscreen(model: model)
+        }
+    }
+}
+
+private struct RainRadarPreview: View {
+    let model: RainRadarValue
+    let status: EmbedStatus
+
+    var body: some View {
+        if status == .error {
+            Text(AppStrings.genericProcessingError)
+                .font(.omSmall)
+                .foregroundStyle(Color.error)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        } else if status == .processing {
+            Text(AppStrings.loading)
+                .font(.omSmall)
+                .foregroundStyle(Color.fontSecondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: .spacing6) { radar; copy }
+                VStack(alignment: .leading, spacing: .spacing4) { radar; copy }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        }
+    }
+
+    private var radar: some View {
+        RainRadarMap(frame: model.previewFrame, compact: true)
+            .frame(minWidth: 120, maxWidth: .infinity, minHeight: 96)
+    }
+
+    private var copy: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(model.locationName ?? AppStrings.rainRadar)
+                .font(.omSmall.weight(.bold))
+                .foregroundStyle(Color.grey100)
+                .lineLimit(2)
+            Text(model.summaryInTenMinutes ?? AppStrings.rainRadarNoRain)
+                .font(.omXs)
+                .foregroundStyle(Color.grey70)
+                .lineLimit(3)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct RainRadarFullscreen: View {
+    let model: RainRadarValue
+
+    @State private var selectedIndex = 0
+    @State private var isPlaying = false
+    private let playbackTimer = Timer.publish(every: 0.85, on: .main, in: .common).autoconnect()
+
+    private var selectedFrame: RainRadarFrame? {
+        guard model.timeline.indices.contains(selectedIndex) else { return model.timeline.first }
+        return model.timeline[selectedIndex]
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: .spacing10) {
+                if model.isUnavailable {
+                    summaryCard(unavailable: true)
+                } else {
+                    radarStage
+                    summaryCard(unavailable: false)
+                    timelineCard
+                }
+            }
+            .padding(.horizontal, .spacing8)
+            .padding(.vertical, .spacing12)
+            .padding(.bottom, .spacing20 * 3)
+            .frame(maxWidth: 1040)
+            .frame(maxWidth: .infinity)
+        }
+        .onReceive(playbackTimer) { _ in
+            guard isPlaying, model.timeline.count > 1 else { return }
+            selectedIndex = (selectedIndex + 1) % model.timeline.count
+        }
+        .onAppear {
+            selectedIndex = model.previewIndex
+        }
+        .onChange(of: model.previewIndex) { _, previewIndex in
+            selectedIndex = previewIndex
+        }
+    }
+
+    private var radarStage: some View {
+        RainRadarMap(frame: selectedFrame, compact: false)
+            .frame(minHeight: 320)
+            .padding(.spacing6)
+            .background(Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .overlay { RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20, lineWidth: 1) }
+            .shadow(color: .black.opacity(0.10), radius: .spacing10, x: 0, y: .spacing4)
+    }
+
+    private func summaryCard(unavailable: Bool) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: .spacing10) {
+                summaryCopy(unavailable: unavailable)
+                Spacer(minLength: .spacing8)
+                metrics
+            }
+            VStack(alignment: .leading, spacing: .spacing8) {
+                summaryCopy(unavailable: unavailable)
+                metrics
+            }
+        }
+        .padding(.spacing10)
+        .background(Color.grey0)
+        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        .overlay { RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20, lineWidth: 1) }
+        .shadow(color: .black.opacity(0.10), radius: .spacing10, x: 0, y: .spacing4)
+    }
+
+    private func summaryCopy(unavailable: Bool) -> some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            if let locationName = model.locationName {
+                Text(locationName).font(.omSmall).foregroundStyle(Color.grey70)
+            }
+            Text(model.summaryInTenMinutes ?? (unavailable ? AppStrings.rainRadarUnavailable : AppStrings.rainRadarNoRain))
+                .font(.omH1.weight(.bold))
+                .foregroundStyle(Color.grey100)
+            if let nextTwoHours = model.summaryNextTwoHours {
+                Text(nextTwoHours).font(.omSmall).foregroundStyle(Color.grey70)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var metrics: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            if let peakIntensity = model.peakIntensity {
+                Text("\(AppStrings.rainRadarPeak): \(peakIntensity)")
+            }
+            if let rain = selectedFrame?.rainAtLocation {
+                Text("\(AppStrings.rainRadarAtLocation): \(rain.formatted())")
+            }
+        }
+        .font(.omSmall)
+        .foregroundStyle(Color.grey70)
+    }
+
+    private var timelineCard: some View {
+        VStack(alignment: .leading, spacing: .spacing6) {
+            HStack(spacing: .spacing6) {
+                Button {
+                    isPlaying.toggle()
+                } label: {
+                    HStack(spacing: .spacing2) {
+                        Icon(isPlaying ? "pause" : "play", size: .iconSizeXs)
+                        Text(isPlaying ? AppStrings.rainRadarPause : AppStrings.rainRadarPlay)
+                    }
+                    .font(.omSmall.weight(.bold))
+                    .foregroundStyle(Color.grey100)
+                    .padding(.horizontal, .spacing6)
+                    .padding(.vertical, .spacing4)
+                    .background(LinearGradient.appWeather.opacity(0.16))
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 0)
+                Text(AppStrings.rainRadarFrameCount(model.timeline.count))
+                    .font(.omSmall)
+                    .foregroundStyle(Color.grey70)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: .spacing4) {
+                    ForEach(Array(model.timeline.enumerated()), id: \.element.id) { index, frame in
+                        Button {
+                            selectedIndex = index
+                            isPlaying = false
+                        } label: {
+                            VStack(alignment: .leading, spacing: .spacing1) {
+                                if let label = frame.label {
+                                    Text(label).lineLimit(1)
+                                }
+                                if let intensity = frame.maxIntensity {
+                                    Text(intensity).fontWeight(.bold).lineLimit(1)
+                                }
+                            }
+                            .font(.omXs)
+                            .foregroundStyle(index == selectedIndex ? Color.grey0 : Color.grey100)
+                            .padding(.horizontal, .spacing5)
+                            .padding(.vertical, .spacing4)
+                            .frame(minWidth: 76, alignment: .leading)
+                            .background {
+                                Capsule()
+                                    .fill(LinearGradient.appWeather)
+                                    .opacity(index == selectedIndex ? 1 : 0.16)
+                            }
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .padding(.spacing8)
+        .background(Color.grey0)
+        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        .overlay { RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20, lineWidth: 1) }
+        .shadow(color: .black.opacity(0.10), radius: .spacing10, x: 0, y: .spacing4)
+    }
+}
+
+private struct RainRadarMap: View {
+    let frame: RainRadarFrame?
+    let compact: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                LinearGradient.appWeather.opacity(0.18)
+                grid(size: geometry.size)
+                Capsule()
+                    .fill(LinearGradient.appWeather)
+                    .opacity(rainOpacity(base: 0.20, contribution: (frame?.rainAreaPercent ?? 0) / 100))
+                    .frame(width: geometry.size.width * 0.54, height: geometry.size.height * 0.48)
+                    .offset(x: -geometry.size.width * 0.12, y: -geometry.size.height * 0.10)
+                Capsule()
+                    .fill(LinearGradient.appWeather)
+                    .opacity(rainOpacity(base: 0.15, contribution: frame?.rainAtLocation ?? 0))
+                    .frame(width: geometry.size.width * 0.34, height: geometry.size.height * 0.34)
+                    .offset(x: geometry.size.width * 0.20, y: geometry.size.height * 0.18)
+                Circle()
+                    .fill(Color.grey100)
+                    .frame(width: compact ? 12 : 16, height: compact ? 12 : 16)
+                    .overlay(Circle().stroke(Color.grey0, lineWidth: compact ? 2 : 3))
+                    .shadow(color: .black.opacity(0.12), radius: compact ? 4 : 6)
+
+                if !compact, let frame {
+                    VStack(alignment: .trailing, spacing: .spacing1) {
+                        if let label = frame.label { Text(label) }
+                        if let timestamp = frame.formattedTimestamp { Text(timestamp).fontWeight(.bold) }
+                    }
+                    .font(.omXs)
+                    .foregroundStyle(Color.grey100)
+                    .padding(.spacing5)
+                    .background(Color.grey0.opacity(0.86))
+                    .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding(.spacing8)
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        .overlay {
+            RoundedRectangle(cornerRadius: .radius8)
+                .stroke(Color.grey20, lineWidth: 1)
+        }
+    }
+
+    private func grid(size: CGSize) -> some View {
+        Canvas { context, _ in
+            let step: CGFloat = compact ? 18 : 28
+            var path = Path()
+            stride(from: CGFloat.zero, through: size.width, by: step).forEach {
+                path.move(to: CGPoint(x: $0, y: 0))
+                path.addLine(to: CGPoint(x: $0, y: size.height))
+            }
+            stride(from: CGFloat.zero, through: size.height, by: step).forEach {
+                path.move(to: CGPoint(x: 0, y: $0))
+                path.addLine(to: CGPoint(x: size.width, y: $0))
+            }
+            context.stroke(path, with: .color(Color.grey100.opacity(0.08)), lineWidth: 1)
+        }
+    }
+
+    private func rainOpacity(base: Double, contribution: Double) -> Double {
+        guard frame?.normalizedIntensity != "none" else { return 0.05 }
+        return min(compact ? 0.85 : 0.90, base + contribution)
+    }
+}
+
+private struct RainRadarValue {
+    let locationName: String?
+    let summaryInTenMinutes: String?
+    let summaryNextTwoHours: String?
+    let peakIntensity: String?
+    let previewFrameId: String?
+    let timeline: [RainRadarFrame]
+    let isUnavailable: Bool
+
+    init(data: [String: AnyCodable]) {
+        let location = data.dictionary("location")
+        let summary = data.dictionary("summary")
+        let coverage = data.dictionary("coverage")
+        locationName = location.string("name") ?? EmbedFieldReader.string(data, keys: ["location_name"])
+        summaryInTenMinutes = summary.string("in_10_min")
+        summaryNextTwoHours = summary.string("next_2_hours")
+        peakIntensity = summary.string("peak_intensity")
+        previewFrameId = summary.string("preview_frame_id")
+        timeline = EmbedFieldReader.dictionaryArray(data, key: "timeline").enumerated().map { index, frame in
+            RainRadarFrame(index: index, data: frame)
+        }
+        isUnavailable = coverage.string("status") == "unavailable"
+    }
+
+    var previewIndex: Int {
+        if let previewFrameId, let index = timeline.firstIndex(where: { $0.id == previewFrameId }) { return index }
+        if let index = timeline.firstIndex(where: { $0.kind == "forecast" }) { return index }
+        return 0
+    }
+
+    var previewFrame: RainRadarFrame? {
+        timeline.indices.contains(previewIndex) ? timeline[previewIndex] : timeline.first
+    }
+}
+
+private struct RainRadarFrame: Identifiable {
+    let id: String
+    let timestamp: String?
+    let kind: String?
+    let label: String?
+    let rainAtLocation: Double?
+    let maxIntensity: String?
+    let rainAreaPercent: Double?
+
+    init(index: Int, data: [String: Any]) {
+        id = data.string("frame_id") ?? "radar-frame-\(index)"
+        timestamp = data.string("timestamp")
+        kind = data.string("kind")
+        label = data.string("label")
+        rainAtLocation = data.double("rain_at_location_mm_5min")
+        maxIntensity = data.string("max_intensity")
+        rainAreaPercent = data.double("rain_area_pct")
+    }
+
+    var normalizedIntensity: String {
+        maxIntensity?.lowercased() ?? "none"
+    }
+
+    var formattedTimestamp: String? {
+        guard let timestamp else { return nil }
+        guard let date = ISO8601DateFormatter().date(from: timestamp) else { return timestamp }
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+}
+
 private struct FitnessSearchEmbedRenderer: View {
     let embed: EmbedRecord
     let data: [String: AnyCodable]?
@@ -786,9 +2379,72 @@ private struct FitnessSearchFullscreen: View {
     }
 }
 
+struct FitnessResultEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+
+    private var raw: [String: Any] {
+        (data ?? [:]).mapValues(\.value)
+    }
+
+    private var result: FitnessResultSummary {
+        FitnessResultSummary(index: 0, data: raw)
+    }
+
+    private var provider: String? {
+        raw.string("provider")
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            FitnessResultPreview(result: result)
+        case .fullscreen:
+            FitnessResultCard(result: result, provider: provider)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing8)
+                .frame(maxWidth: 1000, alignment: .topLeading)
+                .frame(maxWidth: .infinity, alignment: .top)
+        }
+    }
+}
+
+private struct FitnessResultPreview: View {
+    let result: FitnessResultSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(result.name)
+                .font(.omSmall)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+                .lineLimit(1)
+
+            if let subtitle = result.previewSubtitle {
+                Text(subtitle)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineLimit(1)
+            }
+
+            ForEach(result.previewMeta, id: \.self) { item in
+                Text(item)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineLimit(1)
+            }
+
+            if !result.tags.isEmpty {
+                FitnessChipRow(chips: result.tags)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+}
+
 private struct FitnessResultCard: View {
     let result: FitnessResultSummary
-    let provider: String
+    let provider: String?
 
     @Environment(\.openURL) private var openURL
 
@@ -818,11 +2474,11 @@ private struct FitnessResultCard: View {
                 }
             }
 
-            if let plans = result.plansRequired, !plans.isEmpty {
-                FitnessChipRow(chips: [plans.joined(separator: ", ")])
+            if !result.tags.isEmpty {
+                FitnessChipRow(chips: result.tags)
             }
 
-            if let url = result.url.flatMap(URL.init(string:)) {
+            if let provider, let url = result.url.flatMap(URL.init(string:)) {
                 Button {
                     openURL(url)
                 } label: {
@@ -877,14 +2533,39 @@ private struct FitnessSearchGroup {
     let results: [FitnessResultSummary]
 
     init(data: [String: AnyCodable]) {
-        let firstGroup = EmbedFieldReader.dictionaryArray(data, key: "results").first ?? [:]
-        provider = firstGroup.string("provider") ?? EmbedFieldReader.string(data, keys: ["provider"]) ?? "Urban Sports Club"
-        query = EmbedFieldReader.string(data, keys: ["query", "title"])
-        summary = firstGroup.string("summary")
-        error = firstGroup.string("error")
-        resultCount = firstGroup.int("result_count") ?? firstGroup.dictionaryArray("results").count
-        filters = firstGroup.dictionary("filters")
-        results = firstGroup.dictionaryArray("results").enumerated().map { index, item in
+        let rawResults = EmbedFieldReader.dictionaryArray(data, key: "results")
+        let firstGroup = rawResults.first ?? [:]
+        let hasGroupedResults = firstGroup["results"] is [Any]
+        let normalizedResults = hasGroupedResults
+            ? firstGroup.dictionaryArray("results")
+            : (rawResults.isEmpty ? EmbedFieldReader.dictionaryArray(data, key: "preview_results") : rawResults)
+        let explicitFilters = hasGroupedResults ? firstGroup.dictionary("filters") : data.dictionary("filters")
+        var fallbackFilters: [String: Any] = [:]
+        for (key, sourceKeys) in [
+            ("address", ["address", "location"]),
+            ("city", ["city"]),
+            ("radius_km", ["radius_km"]),
+            ("plan", ["plan"]),
+            ("attendance_mode", ["attendance_mode"])
+        ] {
+            if let value = EmbedFieldReader.string(data, keys: sourceKeys) {
+                fallbackFilters[key] = value
+            }
+        }
+
+        provider = (hasGroupedResults ? firstGroup.string("provider") : nil)
+            ?? EmbedFieldReader.string(data, keys: ["provider"])
+            ?? "Urban Sports Club"
+        query = EmbedFieldReader.string(data, keys: ["query", "location", "address", "city", "title"])
+        summary = (hasGroupedResults ? firstGroup.string("summary") : nil)
+            ?? EmbedFieldReader.string(data, keys: ["summary"])
+        error = (hasGroupedResults ? firstGroup.string("error") : nil)
+            ?? EmbedFieldReader.string(data, keys: ["error"])
+        resultCount = (hasGroupedResults ? firstGroup.int("result_count") : nil)
+            ?? EmbedFieldReader.int(data, keys: ["result_count"])
+            ?? normalizedResults.count
+        filters = explicitFilters.isEmpty ? fallbackFilters : explicitFilters
+        results = normalizedResults.enumerated().map { index, item in
             FitnessResultSummary(index: index, data: item)
         }
     }
@@ -908,23 +2589,35 @@ private struct FitnessResultSummary: Identifiable {
     let distanceKm: String?
     let spotsDisplay: String?
     let plansRequired: [String]?
+    let disciplines: [String]?
     let url: String?
+    let skillId: String?
 
     init(index: Int, data: [String: Any]) {
         id = data.string("id") ?? "fitness-result-\(index)"
         name = data.string("name") ?? data.string("venue_name") ?? id
         venueName = data.string("venue_name")
-        address = data.string("address") ?? data.string("venue_address")
+        address = data.string("address")
+            ?? data.string("venue_address")
+            ?? [data.string("street"), data.string("postal_code"), data.string("city")]
+                .compactMap { $0 }
+                .joined(separator: ", ")
+                .nilIfEmpty
         date = data.string("date")
         timeRange = data.string("time_range")
         distanceKm = data.distance("distance_km")
         spotsDisplay = data.string("spots_display")
         plansRequired = data.stringArray("plans_required")
-        url = data.string("url") ?? data.string("detail_url")
+        disciplines = data.stringArray("disciplines")
+        url = data.string("detail_url") ?? data.string("url") ?? data.string("venue_url")
+        skillId = data.string("skill_id") ?? data.string("app_skill_id")
     }
 
     var previewSubtitle: String? {
-        venueName ?? dateTimeText ?? distanceKm.map { "\($0) km" }
+        if skillId == "search_classes" {
+            return [dateTimeText, venueName].compactMap { $0 }.joined(separator: " · ").nilIfEmpty
+        }
+        return address ?? venueName
     }
 
     var fullSubtitle: String? {
@@ -934,13 +2627,28 @@ private struct FitnessResultSummary: Identifiable {
     var meta: [String] {
         [
             dateTimeText,
-            distanceKm.map { "\($0) km" },
+            distanceText,
             spotsDisplay
         ].compactMap { $0 }
     }
 
+    var previewMeta: [String] {
+        [distanceText, spotsDisplay].compactMap { $0 }
+    }
+
+    var tags: [String] {
+        (disciplines ?? []) + (plansRequired ?? [])
+    }
+
     private var dateTimeText: String? {
         [date, timeRange].compactMap { $0 }.joined(separator: " ").nilIfEmpty
+    }
+
+    private var distanceText: String? {
+        guard let distanceKm, let value = Double(distanceKm) else { return distanceKm }
+        return Measurement(value: value, unit: UnitLength.kilometers).formatted(
+            .measurement(width: .abbreviated, usage: .road)
+        )
     }
 }
 
@@ -958,6 +2666,13 @@ private extension Dictionary where Key == String, Value == Any {
         return nil
     }
 
+    func double(_ key: String) -> Double? {
+        if let value = self[key] as? Double { return value }
+        if let value = self[key] as? Int { return Double(value) }
+        if let value = self[key] as? String { return Double(value) }
+        return nil
+    }
+
     func dictionary(_ key: String) -> [String: Any] {
         if let value = self[key] as? [String: Any] { return value }
         if let value = self[key] as? [String: AnyCodable] { return value.mapValues(\.value) }
@@ -972,6 +2687,10 @@ private extension Dictionary where Key == String, Value == Any {
 
     func stringArray(_ key: String) -> [String]? {
         if let value = self[key] as? [String] { return value }
+        if let value = self[key] as? String {
+            let strings = value.split(separator: "|").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            return strings.isEmpty ? nil : strings
+        }
         if let value = self[key] as? [Any] {
             let strings = value.compactMap { $0 as? String }
             return strings.isEmpty ? nil : strings
@@ -988,6 +2707,39 @@ private extension Dictionary where Key == String, Value == Any {
     func chip(_ key: String, prefix: String = "", suffix: String = "") -> String? {
         guard let value = string(key), !value.isEmpty else { return nil }
         return "\(prefix)\(value)\(suffix)"
+    }
+}
+
+private extension Dictionary where Key == String, Value == AnyCodable {
+    func dictionary(_ key: String) -> [String: Any] {
+        if let value = self[key]?.value as? [String: Any] { return value }
+        if let value = self[key]?.value as? [String: AnyCodable] { return value.mapValues(\.value) }
+        return [:]
+    }
+}
+
+private extension AppStrings {
+    static func calendarSkillTitle(_ skillId: String) -> String {
+        let key: String
+        switch skillId {
+        case "create-event": key = "app_skills.calendar.create_event"
+        case "update-event": key = "app_skills.calendar.update_event"
+        case "delete-event": key = "app_skills.calendar.delete_event"
+        default: key = "app_skills.calendar.get_events"
+        }
+        return LocalizationManager.shared.text(key)
+    }
+
+    static var rainRadar: String { LocalizationManager.shared.text("apps.weather.rain_radar") }
+    static var rainRadarNoRain: String { LocalizationManager.shared.text("embeds.weather.rain_radar.no_rain") }
+    static var rainRadarUnavailable: String { LocalizationManager.shared.text("embeds.weather.rain_radar.unavailable") }
+    static var rainRadarPeak: String { LocalizationManager.shared.text("embeds.weather.rain_radar.peak") }
+    static var rainRadarAtLocation: String { LocalizationManager.shared.text("embeds.weather.rain_radar.at_location") }
+    static var rainRadarPlay: String { LocalizationManager.shared.text("embeds.weather.rain_radar.play") }
+    static var rainRadarPause: String { LocalizationManager.shared.text("embeds.weather.rain_radar.pause") }
+
+    static func rainRadarFrameCount(_ count: Int) -> String {
+        "\(count) \(LocalizationManager.shared.text("embeds.weather.rain_radar.frames"))"
     }
 }
 

@@ -3,6 +3,18 @@
 // cross-module TypeScript imports that use .js extensions (for tsup compatibility).
 
 export async function resolve(specifier, context, nextResolve) {
+  const parentUrl = context.parentURL ?? '';
+  const parentPath = parentUrl.split(/[?#]/, 1)[0];
+  const isWorkspaceTypeScriptParent =
+    parentPath.includes('/frontend/packages/') &&
+    !parentPath.includes('/node_modules/') &&
+    !parentPath.includes('/dist/') &&
+    /\.tsx?$/.test(parentPath);
+
+  if (!isWorkspaceTypeScriptParent) {
+    return nextResolve(specifier, context);
+  }
+
   // Only rewrite relative .js imports within the CLI package
   if (specifier.endsWith('.js') && (specifier.startsWith('./') || specifier.startsWith('../'))) {
     const tsSpecifier = specifier.replace(/\.js$/, '.ts');

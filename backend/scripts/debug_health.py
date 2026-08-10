@@ -51,6 +51,8 @@ def _section(text: str) -> str: return f"\n{BOLD}{CYAN}{'─'*4} {text} {'─'*(
 PROMETHEUS_URL = "http://prometheus:9090"
 OPENOBSERVE_URL = "http://openobserve:5080"
 OPENOBSERVE_ORG = "default"
+TRACE_STREAM = "default"
+TRACE_HEALTH_WINDOW_MINUTES = 15
 
 # Maximum chars per line in health output
 MAX_LINE_LEN = 80
@@ -264,18 +266,102 @@ async def check_log_access() -> Tuple[bool, bool]:
     return local_ok, prod_ok
 
 
+async def check_trace_access() -> Tuple[bool, bool]:
+    """
+    Verify that local and production OpenObserve trace queries return recent data.
+
+    Log auth can be healthy while trace ingestion or trace proxying is broken.
+    This probe uses the same endpoints that `debug.py trace recent` depends on.
+    """
+    import os
+
+    print(_section("Trace Access Check"))
+
+    local_ok = False
+    email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+    password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+    now_us = int(time.time() * 1_000_000)
+    start_us = now_us - TRACE_HEALTH_WINDOW_MINUTES * 60 * 1_000_000
+
+    if not email or not password:
+        print(_err("  Local traces — credentials not set"))
+        print(_c(DIM, "    Set OPENOBSERVE_ROOT_EMAIL and OPENOBSERVE_ROOT_PASSWORD env vars."))
+    else:
+        probe_url = (
+            f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/{TRACE_STREAM}/traces/latest"
+            f"?start_time={start_us}&end_time={now_us}&from=0&size=1&filter="
+        )
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(probe_url, auth=(email, password))
+            if resp.status_code == 200:
+                hits = resp.json().get("hits", [])
+                if hits:
+                    local_ok = True
+                    print(_ok("  Local traces — recent spans available"))
+                else:
+                    print(_err(f"  Local traces — no spans in the last {TRACE_HEALTH_WINDOW_MINUTES} min"))
+                    print(_c(DIM, "    Trace debugging will be incomplete until ingestion resumes."))
+            else:
+                print(_err(f"  Local traces — HTTP {resp.status_code}"))
+                print(_c(DIM, f"    URL: {probe_url}"))
+        except Exception as exc:
+            print(_err(f"  Local traces — cannot connect: {exc}"))
+            print(_c(DIM, f"    Expected at {OPENOBSERVE_URL}. Run from the api container."))
+
+    prod_ok = False
+    try:
+        from debug_utils import get_admin_debug_api_key
+        api_key = await get_admin_debug_api_key("prod")
+    except SystemExit:
+        print(_err("  Production traces — Admin API key not found in Vault"))
+        api_key = None
+    except Exception as exc:
+        print(_err(f"  Production traces — Vault unreachable: {exc}"))
+        api_key = None
+
+    if api_key:
+        probe_url = f"{PROD_API_BASE}/o2/traces/latest"
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(
+                    probe_url,
+                    params={"since_minutes": TRACE_HEALTH_WINDOW_MINUTES, "size": 1},
+                    headers={"Authorization": f"Bearer {api_key}"},
+                )
+            if resp.status_code == 200:
+                hits = resp.json().get("hits", [])
+                if hits:
+                    prod_ok = True
+                    print(_ok("  Production traces — recent spans available"))
+                else:
+                    print(_err(f"  Production traces — no spans in the last {TRACE_HEALTH_WINDOW_MINUTES} min"))
+                    print(_c(DIM, "    Production trace debugging will be incomplete until ingestion resumes."))
+            elif resp.status_code in (401, 403):
+                print(_err(f"  Production traces — API key rejected (HTTP {resp.status_code})"))
+            else:
+                print(_err(f"  Production traces — unexpected HTTP {resp.status_code} from {probe_url}"))
+        except Exception as exc:
+            print(_err(f"  Production traces — cannot reach {probe_url}: {exc}"))
+            print(_c(DIM, "    Check production API health and DNS from inside Docker."))
+
+    print()
+    return local_ok, prod_ok
+
+
 async def run_log_access_check() -> None:
     """
     Standalone entrypoint for `debug.py health --log-access` (or just `debug.py health`).
 
-    Runs check_log_access() and exits non-zero if either source is inaccessible,
+    Runs log and trace access checks and exits non-zero if any source is inaccessible,
     printing a clear stop message so Claude knows to halt the task and ask the user.
     """
     import sys
     local_ok, prod_ok = await check_log_access()
+    local_trace_ok, prod_trace_ok = await check_trace_access()
 
-    if local_ok and prod_ok:
-        print(_ok("  Log sources healthy — safe to proceed with debugging."))
+    if local_ok and prod_ok and local_trace_ok and prod_trace_ok:
+        print(_ok("  Log and trace sources healthy — safe to proceed with debugging."))
         print()
         return
 
@@ -287,8 +373,14 @@ async def run_log_access_check() -> None:
     if not prod_ok:
         print(_c(RED, "    ✗ Production Admin API is not accessible."))
         print(_c(DIM, "      Production log queries (--production / run_prod_mode) will fail."))
+    if not local_trace_ok:
+        print(_c(RED, "    ✗ Local traces are not accessible."))
+        print(_c(DIM, "      `debug.py trace` cannot reliably inspect dev request lifecycles."))
+    if not prod_trace_ok:
+        print(_c(RED, "    ✗ Production traces are not accessible."))
+        print(_c(DIM, "      `debug.py trace --production` cannot reliably inspect prod request lifecycles."))
     print()
-    print("  Please resolve the issues above and re-run `debug.py health` before proceeding.")
+    print("  Please resolve the issues above and re-run `debug.py health --log-access` before proceeding.")
     print()
     sys.exit(1)
 
@@ -351,9 +443,10 @@ async def run_health_check(verbose: bool = False, skip_log_access: bool = False)
     # ── 0. Log access — verify we can actually read logs before proceeding ────
     if not skip_log_access:
         local_ok, prod_ok = await check_log_access()
-        if not local_ok or not prod_ok:
+        local_trace_ok, prod_trace_ok = await check_trace_access()
+        if not local_ok or not prod_ok or not local_trace_ok or not prod_trace_ok:
             import sys
-            print(_c(RED + BOLD, "  STOP — cannot access one or more log sources (see above)."))
+            print(_c(RED + BOLD, "  STOP — cannot access one or more observability sources (see above)."))
             print("  Resolve the issues and re-run `debug.py health` before debugging.")
             print()
             sys.exit(1)
@@ -1300,7 +1393,7 @@ async def _async_main():
     parser = argparse.ArgumentParser(description="Health, replay, and errors")
     sub = parser.add_subparsers(dest="command")
 
-    health_p = sub.add_parser("health", help="System health check (includes log access verification)")
+    health_p = sub.add_parser("health", help="System health check (includes observability access verification)")
     health_p.add_argument("-v", "--verbose", action="store_true")
     health_p.add_argument(
         "--compact", action="store_true",
@@ -1308,7 +1401,7 @@ async def _async_main():
     )
     health_p.add_argument(
         "--log-access", action="store_true",
-        help="Run ONLY the log access check (OpenObserve + production API). Exit 1 if any source is down.",
+        help="Run ONLY the log and trace access checks. Exit 1 if any source is down.",
     )
     health_p.add_argument(
         "--skip-log-access", action="store_true",

@@ -28,8 +28,13 @@
     id: string;
     query?: string;
     provider?: string;
+    start_date?: string;
+    end_date?: string;
+    time_range?: string;
+    result_count?: number;
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     results?: MailSearchResult[];
+    preview_results?: MailSearchResult[];
     taskId?: string;
     skillTaskId?: string;
     isMobile?: boolean;
@@ -40,8 +45,13 @@
     id,
     query: queryProp,
     provider: providerProp,
+    start_date: startDateProp,
+    end_date: endDateProp,
+    time_range: timeRangeProp,
+    result_count: resultCountProp,
     status: statusProp,
     results: resultsProp,
+    preview_results: previewResultsProp,
     taskId,
     // skillTaskId reserved for future skill-cancellation support (not yet used in mail search)
     skillTaskId: _skillTaskId,
@@ -51,6 +61,8 @@
 
   let localQuery = $state('');
   let localProvider = $state('');
+  let localTimeRange = $state('');
+  let localResultCount = $state(0);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
   let localResults = $state<MailSearchResult[]>([]);
@@ -59,8 +71,10 @@
     if (!storeResolved) {
       localQuery = queryProp || 'Recent emails';
       localProvider = providerProp || 'Proton Mail';
+      localTimeRange = timeRangeProp || buildTimeRange(startDateProp, endDateProp);
+      localResultCount = typeof resultCountProp === 'number' ? resultCountProp : (resultsProp || previewResultsProp || []).length;
       localStatus = statusProp || 'processing';
-      localResults = resultsProp || [];
+      localResults = resultsProp || previewResultsProp || [];
     }
   });
 
@@ -76,7 +90,11 @@
     const c = data.decodedContent;
     if (typeof c.query === 'string' && c.query.trim()) localQuery = c.query;
     if (typeof c.provider === 'string' && c.provider.trim()) localProvider = c.provider;
+    if (typeof c.time_range === 'string' && c.time_range.trim()) localTimeRange = c.time_range;
+    else localTimeRange = buildTimeRange(c.start_date, c.end_date);
+    if (typeof c.result_count === 'number') localResultCount = c.result_count;
     if (Array.isArray(c.results)) localResults = c.results as MailSearchResult[];
+    else if (Array.isArray(c.preview_results)) localResults = c.preview_results as MailSearchResult[];
 
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
@@ -87,13 +105,23 @@
   let status = $derived(localStatus);
   let skillName = $derived($text('embeds.mail.email'));
   let statusText = $derived.by(() => {
-    const count = localResults.length;
-    if (status === 'processing') return `${localQuery} · ${localProvider}`;
-    if (count <= 0) return `${localQuery} · 0 results`;
-    return `${localQuery} · ${count} result${count === 1 ? '' : 's'}`;
+    const count = localResultCount || localResults.length;
+    const range = localTimeRange && localTimeRange !== 'All time' ? ` · ${localTimeRange}` : '';
+    if (status === 'processing') return `${localQuery}${range} · ${localProvider}`;
+    if (count <= 0) return `${localQuery}${range} · 0 results`;
+    return `${localQuery}${range} · ${count} result${count === 1 ? '' : 's'}`;
   });
 
   let topResults = $derived(localResults.slice(0, 3));
+
+  function buildTimeRange(startDate: unknown, endDate: unknown): string {
+    const start = typeof startDate === 'string' ? startDate.trim() : '';
+    const end = typeof endDate === 'string' ? endDate.trim() : '';
+    if (start && end) return `${start} to ${end}`;
+    if (start) return `Since ${start}`;
+    if (end) return `Until ${end}`;
+    return 'All time';
+  }
 </script>
 
 <UnifiedEmbedPreview

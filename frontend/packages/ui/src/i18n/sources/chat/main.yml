@@ -22,6 +22,78 @@ new_chat:
   sv: Ny chatt
   he: "צ'אט חדש"
   verified_by_human: []
+ideabucket_badge:
+  context: Compact badge shown next to chats that came from IdeaBucket by OpenMates
+  en: IdeaBucket
+  de: IdeaBucket
+  zh: IdeaBucket
+  es: IdeaBucket
+  fr: IdeaBucket
+  pt: IdeaBucket
+  ru: IdeaBucket
+  ja: IdeaBucket
+  ko: IdeaBucket
+  it: IdeaBucket
+  tr: IdeaBucket
+  vi: IdeaBucket
+  id: IdeaBucket
+  pl: IdeaBucket
+  nl: IdeaBucket
+  ar: IdeaBucket
+  hi: IdeaBucket
+  th: IdeaBucket
+  cs: IdeaBucket
+  sv: IdeaBucket
+  he: IdeaBucket
+  verified_by_human: []
+ideabucket_draft:
+  context: Sidebar status label for an unsent IdeaBucket draft chat
+  en: IdeaBucket draft
+  de: IdeaBucket-Entwurf
+  zh: IdeaBucket 草稿
+  es: Borrador de IdeaBucket
+  fr: Brouillon IdeaBucket
+  pt: Rascunho do IdeaBucket
+  ru: Черновик IdeaBucket
+  ja: IdeaBucket 下書き
+  ko: IdeaBucket 초안
+  it: Bozza IdeaBucket
+  tr: IdeaBucket taslağı
+  vi: Bản nháp IdeaBucket
+  id: Draf IdeaBucket
+  pl: Szkic IdeaBucket
+  nl: IdeaBucket-concept
+  ar: مسودة IdeaBucket
+  hi: IdeaBucket ड्राफ़्ट
+  th: ฉบับร่าง IdeaBucket
+  cs: Koncept IdeaBucket
+  sv: IdeaBucket-utkast
+  he: טיוטת IdeaBucket
+  verified_by_human: []
+ideabucket_input_pill:
+  context: Pill shown above the message input when the active chat is an IdeaBucket draft
+  en: IdeaBucket for today
+  de: IdeaBucket für heute
+  zh: 今日 IdeaBucket
+  es: IdeaBucket de hoy
+  fr: IdeaBucket du jour
+  pt: IdeaBucket de hoje
+  ru: IdeaBucket на сегодня
+  ja: 今日の IdeaBucket
+  ko: 오늘의 IdeaBucket
+  it: IdeaBucket di oggi
+  tr: Bugünün IdeaBucket'ı
+  vi: IdeaBucket hôm nay
+  id: IdeaBucket hari ini
+  pl: Dzisiejszy IdeaBucket
+  nl: IdeaBucket voor vandaag
+  ar: IdeaBucket لليوم
+  hi: आज का IdeaBucket
+  th: IdeaBucket สำหรับวันนี้
+  cs: Dnešní IdeaBucket
+  sv: Dagens IdeaBucket
+  he: IdeaBucket להיום
+  verified_by_human: []
 request_feature:
   context: Text link shown at the end of chat history to open the feature request form
   en: Request feature
@@ -2142,6 +2214,31 @@ header.just_now:
   he: ממש עכשיו
   verified_by_human: []
 
+header.last_saved:
+  context: Timestamp line in a draft-only chat header. {time} is a localized relative or absolute time.
+  en: "Last saved: {time}"
+  de: "Zuletzt gespeichert: {time}"
+  zh: "上次保存：{time}"
+  es: "Último guardado: {time}"
+  fr: "Dernière sauvegarde : {time}"
+  pt: "Último salvamento: {time}"
+  ru: "Последнее сохранение: {time}"
+  ja: "最終保存: {time}"
+  ko: "마지막 저장: {time}"
+  it: "Ultimo salvataggio: {time}"
+  tr: "Son kaydedilme: {time}"
+  vi: "Lưu lần cuối: {time}"
+  id: "Terakhir disimpan: {time}"
+  pl: "Ostatnio zapisano: {time}"
+  nl: "Laatst opgeslagen: {time}"
+  ar: "آخر حفظ: {time}"
+  hi: "पिछली बार सहेजा गया: {time}"
+  th: "บันทึกล่าสุด: {time}"
+  cs: "Naposledy uloženo: {time}"
+  sv: "Senast sparad: {time}"
+  he: "נשמר לאחרונה: {time}"
+  verified_by_human: []
+
 header.previous_chat:
   context: Accessible label for the "previous chat" navigation arrow button shown in the chat header banner
   en: Previous chat
@@ -2494,8 +2591,8 @@ compression.show_less:
 
 compression.show_forgotten:
   context: Button text to show messages that were compressed/forgotten
-  en: Show earlier messages
-  de: Frühere Nachrichten anzeigen
+  en: Show old forgotten messages
+  de: Alte vergessene Nachrichten anzeigen
   zh: 显示早期消息
   es: Mostrar mensajes anteriores
   fr: Afficher les messages précédents
@@ -2517,9 +2614,109 @@ compression.show_forgotten:
   he: הצג הודעות קודמות
   verified_by_human: []
 
+compression.show_more_forgotten:
+  context: Button text to load another page of compressed/forgotten messages
+  en: Show more forgotten messages
+  de: Mehr vergessene Nachrichten anzeigen
+  zh: Show more forgotten messages
+  es: Show more forgotten messages
+  fr: Show more forgotten messages
+  pt: Show more forgotten messages
+  ru: Show more forgotten messages
+  ja: Show more forgotten messages
+  ko: Show more forgotten messages
+  it: Show more forgotten messages
+  tr: Show more forgotten messages
+  vi: Show more forgotten messages
+  id: Show more forgotten messages
+  pl: Show more forgotten messages
+  nl: Show more forgotten messages
+  ar: Show more forgotten messages
+  hi: Show more forgotten messages
+  th: Show more forgotten messages
+  cs: Show more forgotten messages
+  sv: Show more forgotten messages
+  he: Show more forgotten messages
+  verified_by_human: []
+
+compression.forgotten_note:
+  context: Explanation shown above messages that are readable but no longer active AI context
+  en: These messages are readable history, but they are no longer part of the assistant's active context.
+  de: Ausgeblendete Nachrichten sind lesbarer Verlauf, gehören aber nicht mehr zum aktiven Kontext des Assistenten.
+  zh: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  es: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  fr: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  pt: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  ru: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  ja: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  ko: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  it: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  tr: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  vi: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  id: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  pl: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  nl: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  ar: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  hi: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  th: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  cs: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  sv: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  he: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  verified_by_human: []
+
+compression.remember_this_message:
+  context: Pill button shown on forgotten messages to copy that message into the draft as an explicit quote block
+  en: Remember this message
+  de: Diese Nachricht erinnern
+  zh: Remember this message
+  es: Remember this message
+  fr: Remember this message
+  pt: Remember this message
+  ru: Remember this message
+  ja: Remember this message
+  ko: Remember this message
+  it: Remember this message
+  tr: Remember this message
+  vi: Remember this message
+  id: Remember this message
+  pl: Remember this message
+  nl: Remember this message
+  ar: Remember this message
+  hi: Remember this message
+  th: Remember this message
+  cs: Remember this message
+  sv: Remember this message
+  he: Remember this message
+  verified_by_human: []
+
+history.show_older_messages:
+  context: Button text to load another page of older active chat messages
+  en: Show older messages
+  de: Ältere Nachrichten anzeigen
+  zh: Show older messages
+  es: Show older messages
+  fr: Show older messages
+  pt: Show older messages
+  ru: Show older messages
+  ja: Show older messages
+  ko: Show older messages
+  it: Show older messages
+  tr: Show older messages
+  vi: Show older messages
+  id: Show older messages
+  pl: Show older messages
+  nl: Show older messages
+  ar: Show older messages
+  hi: Show older messages
+  th: Show older messages
+  cs: Show older messages
+  sv: Show older messages
+  he: Show older messages
+  verified_by_human: []
+
 compression.hide_forgotten:
   context: Button text to hide the earlier compressed/forgotten messages
-  en: Hide earlier messages
+  en: Hide old forgotten messages
   de: Frühere Nachrichten ausblenden
   zh: 隐藏早期消息
   es: Ocultar mensajes anteriores

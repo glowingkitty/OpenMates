@@ -8,9 +8,15 @@
  */
 
 declare module "tweetnacl" {
+  interface ScalarMult {
+    (secretKey: Uint8Array, publicKey: Uint8Array): Uint8Array;
+    base(secretKey: Uint8Array): Uint8Array;
+  }
+
   const nacl: {
     randomBytes(length: number): Uint8Array;
     secretbox(message: Uint8Array, nonce: Uint8Array, key: Uint8Array): Uint8Array;
+    scalarMult: ScalarMult;
   };
 
   export default nacl;

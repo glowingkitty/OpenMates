@@ -86,6 +86,16 @@
     let emailError = $state('');
     let showTitleWarning = $state(false);
     let showEmailWarning = $state(false);
+    const RAW_CHAT_ERROR_KEYS = new Set(['chat.an_error_occured', 'chat.an_error_occurred']);
+    const CHAT_INSPECTION_TIMEOUT_MS = 3500;
+
+    function normalizeIssueReportText(value: string): string {
+        let normalized = value;
+        for (const rawKey of RAW_CHAT_ERROR_KEYS) {
+            normalized = normalized.replaceAll(rawKey, $text('chat.an_error_occured'));
+        }
+        return normalized;
+    }
     
     /**
      * Validate email format - must be a valid email address
@@ -280,10 +290,23 @@
             }
             
             console.debug('[SettingsReportIssue] Generating IndexedDB inspection for chat:', activeChatId);
+
+            const timeoutReport = `Chat inspection skipped: timed out after ${CHAT_INSPECTION_TIMEOUT_MS}ms while preparing issue report.`;
+            let timeoutId: ReturnType<typeof setTimeout> | undefined;
             
             // Generate the inspection report (same format as window.inspectChat)
             // This only returns metadata - no plaintext content is included
-            const report = await inspectChat(activeChatId, { verbose: true });
+            const report = await Promise.race([
+                inspectChat(activeChatId, { hideKeys: true, redactText: true, silent: true }).finally(() => {
+                    if (timeoutId) clearTimeout(timeoutId);
+                }),
+                new Promise<string>((resolve) => {
+                    timeoutId = setTimeout(() => {
+                        console.warn('[SettingsReportIssue] IndexedDB inspection timed out; submitting issue without full chat inspection');
+                        resolve(timeoutReport);
+                    }, CHAT_INSPECTION_TIMEOUT_MS);
+                })
+            ]);
             
             console.debug('[SettingsReportIssue] Generated IndexedDB inspection report:', report.length, 'chars');
             return report;
@@ -452,7 +475,10 @@
     /**
      * Handle form submission
      */
-    async function handleSubmit() {
+    async function handleSubmit(event?: Event) {
+        event?.preventDefault();
+        event?.stopPropagation();
+
         // Reset error message from any previous submission attempt
         errorMessage = '';
         
@@ -471,19 +497,19 @@
         
         try {
             // SECURITY: Sanitize inputs before sending to backend
-            const sanitizedTitle = sanitizeTextInput(issueTitle);
+            const sanitizedTitle = sanitizeTextInput(normalizeIssueReportText(issueTitle));
 
             // Compose the three structured fields into a single formatted description.
             // Only include sections that have content; send null if everything is empty.
             const descriptionParts: string[] = [];
             if (userFlow.trim()) {
-                descriptionParts.push(`## What did you do?\n${sanitizeTextInput(userFlow)}`);
+                descriptionParts.push(`## What did you do?\n${sanitizeTextInput(normalizeIssueReportText(userFlow))}`);
             }
             if (expectedBehaviour.trim()) {
-                descriptionParts.push(`## Expected behaviour\n${sanitizeTextInput(expectedBehaviour)}`);
+                descriptionParts.push(`## Expected behaviour\n${sanitizeTextInput(normalizeIssueReportText(expectedBehaviour))}`);
             }
             if (actualBehaviour.trim()) {
-                descriptionParts.push(`## Actual behaviour\n${sanitizeTextInput(actualBehaviour)}`);
+                descriptionParts.push(`## Actual behaviour\n${sanitizeTextInput(normalizeIssueReportText(actualBehaviour))}`);
             }
             const sanitizedDescription = descriptionParts.length > 0
                 ? descriptionParts.join('\n\n')
@@ -1529,6 +1555,7 @@
         <!-- Submit Button -->
         <div class="button-container">
             <button
+                type="button"
                 onclick={handleSubmit}
                 disabled={!isFormValid || isSubmitting}
                 aria-label={$text('settings.report_issue.submit_button')}

@@ -13,7 +13,13 @@ from types import ModuleType, SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
-from backend.apps.audio.skills.transcribe_skill import _sanitize_transcription_result_text
+from backend.apps.audio.skills import transcribe_skill as transcribe_module
+from backend.apps.audio.skills.transcribe_skill import (
+    GEMINI_CORRECTION_MODEL,
+    GEMINI_TRANSCRIPT_TOOL_NAME,
+    TranscribeSkill,
+    _sanitize_transcription_result_text,
+)
 from backend.core.api.app.utils.text_sanitization import contains_ascii_smuggling
 
 
@@ -27,6 +33,7 @@ def _tag_payload(text: str = HIDDEN_INSTRUCTION) -> str:
 def test_transcription_result_fields_remove_ascii_smuggling() -> None:
     hidden = _tag_payload()
     result = {
+        "title": f"Visible title {hidden}",
         "transcript": f"Corrected visible {hidden}",
         "transcript_original": f"Original visible {hidden}",
         "transcript_corrected": f"Corrected visible {hidden}",
@@ -35,13 +42,301 @@ def test_transcription_result_fields_remove_ascii_smuggling() -> None:
 
     sanitized = _sanitize_transcription_result_text(result, log_prefix="[test] ")
 
+    assert sanitized["title"] == "Visible title "
     assert sanitized["transcript"] == "Corrected visible "
     assert sanitized["transcript_original"] == "Original visible "
     assert sanitized["transcript_corrected"] == "Corrected visible "
     assert sanitized["s3_key"] == result["s3_key"]
-    for field in ("transcript", "transcript_original", "transcript_corrected"):
+    for field in ("title", "transcript", "transcript_original", "transcript_corrected"):
         contains, decoded = contains_ascii_smuggling(sanitized[field])
         assert not contains, decoded
+
+
+@pytest.mark.asyncio
+async def test_gemini_correction_failure_does_not_mark_transcript_corrected() -> None:
+    skill = object.__new__(TranscribeSkill)
+
+    async def unwrap_aes_key(*_args, **_kwargs) -> bytes:
+        return b"0" * 32
+
+    async def fetch_and_decrypt_audio(*_args, **_kwargs) -> bytes:
+        return b"fake-webm-bytes"
+
+    async def transcribe_with_mistral(*_args, **_kwargs) -> dict:
+        return {
+            "text": "\u00e4hm suche nach gelben boxen nein warte gr\u00fcnen boxen",
+            "language": "de",
+            "duration": 12.0,
+        }
+
+    async def fail_correction(*_args, **_kwargs) -> str:
+        raise RuntimeError("Gemini correction unavailable")
+
+    class FakeSecretsManager:
+        async def get_secret(self, *, secret_path: str, secret_key: str) -> str:
+            if "mistral_ai" in secret_path:
+                return "mistral-key"
+            if "google_ai_studio" in secret_path:
+                return "google-key"
+            raise AssertionError(f"Unexpected secret lookup: {secret_path}/{secret_key}")
+
+    skill._unwrap_aes_key = unwrap_aes_key
+    skill._fetch_and_decrypt_audio = fetch_and_decrypt_audio
+    skill._transcribe_with_mistral = transcribe_with_mistral
+    skill._correct_transcript_with_gemini = fail_correction
+
+    _request_id, results, error = await skill._process_single_transcribe_request(
+        {
+            "s3_key": "uploads/audio.webm.enc",
+            "aes_nonce": "nonce",
+            "vault_wrapped_aes_key": "vault:v1:key",
+            "_vault_key_id": "user_test",
+            "filename": "recording.webm",
+        },
+        "recording-1",
+        FakeSecretsManager(),
+    )
+
+    assert error is None
+    assert len(results) == 1
+    result = results[0]
+    assert result["transcript"] == "\u00e4hm suche nach gelben boxen nein warte gr\u00fcnen boxen"
+    assert result["transcript_original"] == result["transcript"]
+    assert result["transcript_corrected"] is None
+    assert result["use_corrected"] is False
+    assert result["correction_model"] is None
+
+
+@pytest.mark.asyncio
+async def test_successful_gemini_correction_marks_transcript_corrected() -> None:
+    skill = object.__new__(TranscribeSkill)
+
+    async def unwrap_aes_key(*_args, **_kwargs) -> bytes:
+        return b"0" * 32
+
+    async def fetch_and_decrypt_audio(*_args, **_kwargs) -> bytes:
+        return b"fake-webm-bytes"
+
+    async def transcribe_with_mistral(*_args, **_kwargs) -> dict:
+        return {
+            "text": "um search yellow actually green storage boxes",
+            "language": "en",
+            "duration": 9.0,
+        }
+
+    async def correct_transcript(*_args, **_kwargs) -> dict[str, str]:
+        return {
+            "title": "Green storage boxes",
+            "corrected_transcript": "Search for green storage boxes.",
+        }
+
+    class FakeSecretsManager:
+        async def get_secret(self, *, secret_path: str, secret_key: str) -> str:
+            if "mistral_ai" in secret_path:
+                return "mistral-key"
+            if "google_ai_studio" in secret_path:
+                return "google-key"
+            raise AssertionError(f"Unexpected secret lookup: {secret_path}/{secret_key}")
+
+    skill._unwrap_aes_key = unwrap_aes_key
+    skill._fetch_and_decrypt_audio = fetch_and_decrypt_audio
+    skill._transcribe_with_mistral = transcribe_with_mistral
+    skill._correct_transcript_with_gemini = correct_transcript
+
+    _request_id, results, error = await skill._process_single_transcribe_request(
+        {
+            "s3_key": "uploads/audio.webm.enc",
+            "aes_nonce": "nonce",
+            "vault_wrapped_aes_key": "vault:v1:key",
+            "_vault_key_id": "user_test",
+            "filename": "recording.webm",
+        },
+        "recording-1",
+        FakeSecretsManager(),
+    )
+
+    assert error is None
+    result = results[0]
+    assert result["title"] == "Green storage boxes"
+    assert result["transcript"] == "Search for green storage boxes."
+    assert result["transcript_original"] == "um search yellow actually green storage boxes"
+    assert result["transcript_corrected"] == "Search for green storage boxes."
+    assert result["use_corrected"] is True
+    assert result["correction_model"] == GEMINI_CORRECTION_MODEL
+
+
+@pytest.mark.asyncio
+async def test_gemini_correction_prompt_supports_german_and_long_confusing_audio(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_body: dict = {}
+    captured_url = ""
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self) -> dict:
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "functionCall": {
+                                        "name": GEMINI_TRANSCRIPT_TOOL_NAME,
+                                        "args": {
+                                            "title": "Grüne Boxen suchen",
+                                            "corrected_transcript": "Suche nach grünen Boxen und fasse die wichtigsten Ergebnisse zusammen.",
+                                        },
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            return None
+
+        async def post(self, *args, **kwargs) -> FakeResponse:
+            nonlocal captured_url
+            captured_url = args[0]
+            captured_body.update(kwargs["json"])
+            return FakeResponse()
+
+    monkeypatch.setattr(transcribe_module.httpx, "AsyncClient", FakeAsyncClient)
+
+    skill = object.__new__(TranscribeSkill)
+    result = await skill._correct_transcript_with_gemini(
+        raw_transcript=(
+            "\u00e4hm ich brauche also suche mal gelbe boxen nein warte gr\u00fcne boxen "
+            "und dann bitte sehr lange zusammenfassen was wichtig ist"
+        ),
+        google_api_key="google-key",
+        detected_language="de",
+    )
+
+    prompt = captured_body["contents"][0]["parts"][0]["text"]
+    assert result == {
+        "title": "Grüne Boxen suchen",
+        "corrected_transcript": "Suche nach grünen Boxen und fasse die wichtigsten Ergebnisse zusammen.",
+    }
+    assert GEMINI_CORRECTION_MODEL in captured_url
+    assert captured_body["tools"][0]["functionDeclarations"][0]["name"] == GEMINI_TRANSCRIPT_TOOL_NAME
+    assert captured_body["tools"][0]["functionDeclarations"][0]["parameters"]["required"] == [
+        "title",
+        "corrected_transcript",
+    ]
+    assert captured_body["toolConfig"] == {
+        "functionCallingConfig": {
+            "mode": "ANY",
+            "allowedFunctionNames": [GEMINI_TRANSCRIPT_TOOL_NAME],
+        }
+    }
+    assert "Detected or requested transcript language: de" in prompt
+    assert "same language" in prompt
+    assert "Do not translate" in prompt
+    assert "German" in prompt
+    assert "long or confusing recordings" in prompt
+
+
+@pytest.mark.asyncio
+async def test_gemini_correction_rejects_response_without_tool_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeResponse:
+        status_code = 200
+
+        def json(self) -> dict:
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": '{"title":"Green storage boxes","corrected_transcript":"Can you search for green storage boxes?"}'
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            return None
+
+        async def post(self, *args, **kwargs) -> FakeResponse:
+            return FakeResponse()
+
+    monkeypatch.setattr(transcribe_module.httpx, "AsyncClient", FakeAsyncClient)
+
+    skill = object.__new__(TranscribeSkill)
+    with pytest.raises(RuntimeError, match="did not call finalize_transcript"):
+        await skill._correct_transcript_with_gemini(
+            raw_transcript="um search yellow actually green storage boxes",
+            google_api_key="google-key",
+            detected_language="en",
+        )
+
+
+@pytest.mark.asyncio
+async def test_gemini_correction_rejects_malformed_json_without_corrected_field(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeResponse:
+        status_code = 200
+
+        def json(self) -> dict:
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {"text": '{"transcript":"Raw text should not be accepted"'}
+                            ]
+                        }
+                    }
+                ]
+            }
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            return None
+
+        async def post(self, *args, **kwargs) -> FakeResponse:
+            return FakeResponse()
+
+    monkeypatch.setattr(transcribe_module.httpx, "AsyncClient", FakeAsyncClient)
+
+    skill = object.__new__(TranscribeSkill)
+
+    with pytest.raises(RuntimeError, match="Failed to run Gemini correction"):
+        await skill._correct_transcript_with_gemini(
+            raw_transcript="um search yellow actually green storage boxes",
+            google_api_key="google-key",
+            detected_language="en",
+        )
 
 
 @pytest.mark.anyio
@@ -91,6 +386,11 @@ async def test_audio_custom_route_can_dispatch_hidden_transcribe_skill(monkeypat
     )
 
     from backend.core.api.app.routes import apps_api
+
+    async def fake_sanitize_app_skill_output(result, _context):
+        return result
+
+    monkeypatch.setattr(apps_api, "sanitize_app_skill_output", fake_sanitize_app_skill_output)
 
     user_info = {
         "user_id": "user-audio-test",

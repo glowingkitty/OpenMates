@@ -1,0 +1,65 @@
+{
+  "fingerprint": "402efc6fc6f3f2a1",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "events_search_web",
+  "recorded_at": "2026-08-02T13:58:39.055769+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 3,
+    "temperature": 0.0,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Use events.search to make two separate searches for tech events in Berlin. First search: start_date 2026-06-20T00:00:00+02:00 and end_date 2026-06-21T23:59:59+02:00. Second search: start_date ..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "events-search-0bec2727",
+          "function_name": "events-search",
+          "function_arguments_raw": "{\"requests\": [{\"query\": \"tech\", \"location\": \"Berlin, Germany\", \"start_date\": \"2026-06-20T00:00:00+02:00\", \"end_date\": \"2026-06-21T23:59:59+02:00\"}, {\"start_date\": \"2026-06-27T00:00:00+02:00\", \"end_date\": \"2026-06-28T23:59:59+02:00\", \"location\": \"Berlin, Germany\", \"query\": \"tech\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "query": "tech",
+                "location": "Berlin, Germany",
+                "start_date": "2026-06-20T00:00:00+02:00",
+                "end_date": "2026-06-21T23:59:59+02:00"
+              },
+              {
+                "start_date": "2026-06-27T00:00:00+02:00",
+                "end_date": "2026-06-28T23:59:59+02:00",
+                "location": "Berlin, Germany",
+                "query": "tech"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "EjQKMgERTTIPnWDF4PVsIr0r4hro4YbEwsHtUYVpzjYcsMH6XNIl2Ejw+B6XLkKdPJrkrROf"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14399,
+          "candidates_token_count": 169,
+          "total_token_count": 14568,
+          "user_input_tokens": 110,
+          "system_prompt_tokens": 13337
+        }
+      }
+    ]
+  }
+}

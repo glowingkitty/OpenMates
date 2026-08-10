@@ -1,0 +1,54 @@
+{
+  "fingerprint": "e4580c7024c7e5c6",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "web_search_zero_results",
+  "recorded_at": "2026-07-29T10:51:16.250363+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 2,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Search the web for \"xyznonexistentproduct123456\" lokale API MQTT — just try to find results"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "web-search-3ee8a8bf",
+          "function_name": "web-search",
+          "function_arguments_raw": "{\"requests\": [\"xyznonexistentproduct123456 lokale API MQTT\"]}",
+          "function_arguments_parsed": {
+            "requests": [
+              "xyznonexistentproduct123456 lokale API MQTT"
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "EjQKMgERTTIPc5yBdQxdFEXID443YLpzqzNz9ewWSoDeuWBWqsddactI1GFL358XOrmq11zk"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 11239,
+          "candidates_token_count": 28,
+          "total_token_count": 11267,
+          "user_input_tokens": 23,
+          "system_prompt_tokens": 10392
+        }
+      }
+    ]
+  }
+}

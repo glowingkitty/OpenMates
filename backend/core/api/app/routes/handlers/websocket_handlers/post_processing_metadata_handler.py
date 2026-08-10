@@ -10,8 +10,49 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.tasks.persistence_tasks import _async_persist_encrypted_chat_metadata
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.routes.handlers.websocket_handlers.encrypted_chat_metadata_handler import (
+    allocate_chat_metadata_versions,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _version_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _effective_metadata_v(metadata: Dict[str, Any]) -> int:
+    metadata_v = _version_int(metadata.get("metadata_v"))
+    title_v = _version_int(metadata.get("title_v"))
+    if not metadata_v and title_v > 0:
+        return title_v
+    return metadata_v
+
+
+async def _current_metadata_v(
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    user_id: str,
+    chat_id: str,
+) -> int:
+    current = await directus_service.chat.get_chat_metadata(chat_id) or {}
+    current_metadata_v = _effective_metadata_v(current)
+
+    get_versions = getattr(cache_service, "get_chat_versions", None)
+    if callable(get_versions):
+        cached_versions = await get_versions(user_id, chat_id)
+        if cached_versions:
+            cached_metadata_v = _version_int(getattr(cached_versions, "metadata_v", None))
+            if not cached_metadata_v:
+                cached_metadata_v = _version_int(getattr(cached_versions, "title_v", None))
+            current_metadata_v = max(current_metadata_v, cached_metadata_v)
+
+    return current_metadata_v
 
 
 async def handle_post_processing_metadata(
@@ -41,6 +82,7 @@ async def handle_post_processing_metadata(
         "encrypted_quick_tip_slugs": "...",  // Optional: Encrypted array of selected quick tip slugs
         "encrypted_title": "...",  // Optional (OPE-265): Updated title from post-processing when conversation drifted
         "encrypted_chat_key": "...",  // Optional (OPE-314): For server-side key validation to prevent stale-key metadata
+        "manual_update": true,  // Optional: user-edited title/summary, not generated post-processing
     }
 
     All fields are encrypted CLIENT-SIDE (not server-encrypted) for zero-knowledge storage.
@@ -54,6 +96,7 @@ async def handle_post_processing_metadata(
     try:
         try:
             chat_id = payload.get("chat_id")
+            team_id = payload.get("team_id")
             encrypted_follow_up_suggestions = payload.get("encrypted_follow_up_suggestions")
             encrypted_new_chat_suggestions = payload.get("encrypted_new_chat_suggestions", [])
             encrypted_chat_summary = payload.get("encrypted_chat_summary")
@@ -65,6 +108,9 @@ async def handle_post_processing_metadata(
             # OPE-314: Client includes encrypted_chat_key so server can validate metadata
             # was encrypted with the correct key (prevents stale-key metadata from persisting)
             encrypted_chat_key = payload.get("encrypted_chat_key")
+            client_versions = payload.get("versions", {})
+            is_manual_update = payload.get("manual_update") is True
+            title_changed = payload.get("title_changed")
 
             if not chat_id:
                 logger.error(f"Missing chat_id in post-processing metadata from {user_id}")
@@ -79,7 +125,28 @@ async def handle_post_processing_metadata(
             # Same fallback as encrypted_chat_metadata_handler: if the cache is primed but
             # the chat isn't there yet, the persist_encrypted_chat_metadata Celery task is
             # still in flight. Check Directus directly before hard-rejecting.
-            is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+            is_team_chat = isinstance(team_id, str) and bool(team_id)
+            if is_team_chat:
+                try:
+                    await directus_service.team.require_team_role(str(team_id), user_id, {"owner", "admin", "member"})
+                except TeamPermissionError:
+                    logger.warning("User %s attempted to update team post-processing metadata without write role", user_id[:8])
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": "You do not have permission to modify this team chat.", "chat_id": chat_id}},
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
+                existing_chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+                if existing_chat and existing_chat.get("hashed_team_id") != hash_id(str(team_id)):
+                    logger.warning("User %s attempted to update post-processing metadata for chat %s outside team scope", user_id[:8], chat_id)
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
+            is_owner = True if is_team_chat else await directus_service.chat.check_chat_ownership(chat_id, user_id)
             if not is_owner:
                 import hashlib as _hashlib
                 existing_chat = await directus_service.chat.get_chat_metadata(chat_id)
@@ -101,25 +168,76 @@ async def handle_post_processing_metadata(
 
             logger.info(f"Processing post-processing metadata for chat {chat_id} from {user_id}")
 
+            if not is_manual_update and (encrypted_title or encrypted_chat_summary):
+                client_metadata_v = 0
+                if isinstance(client_versions, dict):
+                    client_metadata_v = _version_int(client_versions.get("metadata_v"))
+                    if not client_metadata_v:
+                        client_metadata_v = _version_int(client_versions.get("title_v"))
+
+                if client_metadata_v > 0:
+                    current_metadata_v = await _current_metadata_v(
+                        cache_service,
+                        directus_service,
+                        user_id,
+                        chat_id,
+                    )
+                    if client_metadata_v < current_metadata_v:
+                        logger.info(
+                            "Dropping stale post-processing title/summary for chat %s: "
+                            "client_metadata_v=%s current_metadata_v=%s",
+                            chat_id,
+                            client_metadata_v,
+                            current_metadata_v,
+                        )
+                        encrypted_title = None
+                        encrypted_chat_summary = None
+                else:
+                    current_metadata = await directus_service.chat.get_chat_metadata(chat_id) or {}
+                    cached_metadata = None
+                    get_cached_metadata = getattr(cache_service, "get_chat_list_item_data", None)
+                    if callable(get_cached_metadata):
+                        try:
+                            cached_metadata = await get_cached_metadata(user_id, chat_id)
+                        except Exception as cache_metadata_error:
+                            logger.warning(
+                                "Failed to read cached metadata before unversioned post-processing guard for chat %s: %s",
+                                chat_id,
+                                cache_metadata_error,
+                            )
+
+                    existing_title = current_metadata.get("encrypted_title")
+                    existing_summary = current_metadata.get("encrypted_chat_summary")
+                    if cached_metadata is not None:
+                        existing_title = getattr(cached_metadata, "title", None) or existing_title
+                        existing_summary = (
+                            getattr(cached_metadata, "encrypted_chat_summary", None)
+                            or existing_summary
+                        )
+
+                    dropped_fields = []
+                    if encrypted_title and existing_title:
+                        encrypted_title = None
+                        dropped_fields.append("encrypted_title")
+                    if encrypted_chat_summary and existing_summary:
+                        encrypted_chat_summary = None
+                        dropped_fields.append("encrypted_chat_summary")
+                    if dropped_fields:
+                        logger.info(
+                            "Dropping unversioned generated post-processing metadata for chat %s: %s",
+                            chat_id,
+                            ",".join(dropped_fields),
+                        )
+
             # Build update fields for Directus
             chat_update_fields = {}
 
             if encrypted_follow_up_suggestions:
                 chat_update_fields["encrypted_follow_up_request_suggestions"] = encrypted_follow_up_suggestions
 
-            if encrypted_new_chat_suggestions and len(encrypted_new_chat_suggestions) > 0:
-                # CRITICAL: This task MUST be dispatched to 'persistence' queue, which is handled by 'task-worker' container.
-                # app-web-worker only handles 'app_web' queue for long-running web app skills (like scraping).
-                # If you see this task executing in app-web-worker logs, there's a queue routing misconfiguration.
-                task_result = celery_app.send_task(
-                    "app.tasks.persistence_tasks.persist_new_chat_suggestions",
-                    args=[user_id_hash, chat_id, encrypted_new_chat_suggestions[:6]],
-                    queue="persistence"  # Must route to task-worker, NOT app-web-worker
-                )
-                logger.info(
-                    f"Queued new chat suggestions task for chat {chat_id} ({len(encrypted_new_chat_suggestions[:6])} suggestions) "
-                    f"to 'persistence' queue (handled by task-worker). Task ID: {task_result.id}"
-                )
+            has_new_chat_suggestions = bool(
+                not is_team_chat and encrypted_new_chat_suggestions
+            )
 
             if encrypted_chat_summary:
                 chat_update_fields["encrypted_chat_summary"] = encrypted_chat_summary
@@ -143,7 +261,7 @@ async def handle_post_processing_metadata(
 
             # OPE-314: Forward encrypted_chat_key so persistence task can validate
             # metadata was encrypted with the correct key
-            if encrypted_chat_key:
+            if encrypted_chat_key and (chat_update_fields or has_new_chat_suggestions):
                 chat_update_fields["encrypted_chat_key"] = encrypted_chat_key
 
             if not chat_update_fields:
@@ -154,16 +272,59 @@ async def handle_post_processing_metadata(
             now_ts = int(datetime.now(timezone.utc).timestamp())
             chat_update_fields["updated_at"] = now_ts
 
+            accepted_versions = None
+            cache_updates = []
+            if encrypted_title or encrypted_chat_summary:
+                accepted_versions = await allocate_chat_metadata_versions(
+                    cache_service,
+                    directus_service,
+                    user_id,
+                    chat_id,
+                    title_changed=bool(encrypted_title) if title_changed is None else title_changed is True,
+                    fallback_versions=client_versions,
+                )
+                chat_update_fields.update(accepted_versions)
+
+                if encrypted_title:
+                    cache_updates.append(("title", encrypted_title))
+                if encrypted_chat_summary:
+                    cache_updates.append(("encrypted_chat_summary", encrypted_chat_summary))
+
             logger.info(f"Storing encrypted post-processing metadata for chat {chat_id}: {list(chat_update_fields.keys())}")
 
-            # Queue task to update chat metadata in Directus
-            # CRITICAL: Pass user_id (not hashed) for cache updates
-            celery_app.send_task(
-                "app.tasks.persistence_tasks.persist_encrypted_chat_metadata",
-                args=[chat_id, chat_update_fields, user_id_hash, user_id],  # Added user_id for cache updates
-                queue="persistence"
+            # This acknowledgement is a durability boundary for logout and
+            # cross-device sync, so Directus must be updated before it is sent.
+            persisted = await _async_persist_encrypted_chat_metadata(
+                chat_id,
+                chat_update_fields,
+                "websocket-direct",
+                user_id_hash,
+                user_id,
             )
-            logger.info(f"Queued post-processing metadata update task for chat {chat_id}")
+            if not persisted:
+                raise RuntimeError(f"Post-processing metadata was not persisted for chat {chat_id}")
+            logger.info(f"Persisted post-processing metadata for chat {chat_id}")
+
+            if has_new_chat_suggestions:
+                # Queue only after the chat-key guard accepted the metadata payload.
+                task_result = celery_app.send_task(
+                    "app.tasks.persistence_tasks.persist_new_chat_suggestions",
+                    args=[user_id_hash, chat_id, encrypted_new_chat_suggestions[:6]],
+                    queue="persistence",
+                )
+                logger.info(
+                    f"Queued new chat suggestions task for chat {chat_id} ({len(encrypted_new_chat_suggestions[:6])} suggestions) "
+                    f"to 'persistence' queue (handled by task-worker). Task ID: {task_result.id}"
+                )
+
+            for field, value in cache_updates:
+                update_field_success = await cache_service.update_chat_list_item_field(
+                    user_id, chat_id, field, value
+                )
+                if not update_field_success:
+                    logger.error(
+                        f"Failed to update {field} in list_item_data for chat {chat_id}. User: {user_id}"
+                    )
 
             # Send confirmation to client
             await manager.send_personal_message(
@@ -171,7 +332,8 @@ async def handle_post_processing_metadata(
                     "type": "post_processing_metadata_stored",
                     "payload": {
                         "chat_id": chat_id,
-                        "status": "queued_for_storage"
+                        "status": "stored",
+                        "versions": accepted_versions or {},
                     }
                 },
                 user_id,
@@ -179,6 +341,21 @@ async def handle_post_processing_metadata(
             )
 
             logger.info(f"Confirmed post-processing metadata storage for chat {chat_id}")
+
+            if accepted_versions:
+                broadcast_payload = {
+                    "chat_id": chat_id,
+                    "versions": accepted_versions,
+                }
+                if encrypted_title:
+                    broadcast_payload["encrypted_title"] = encrypted_title
+                if encrypted_chat_summary:
+                    broadcast_payload["encrypted_chat_summary"] = encrypted_chat_summary
+                await manager.broadcast_to_user(
+                    message={"type": "encrypted_chat_metadata", "payload": broadcast_payload},
+                    user_id=user_id,
+                    exclude_device_hash=device_fingerprint_hash,
+                )
 
         except Exception as e:
             logger.error(f"Error handling post-processing metadata from {user_id}: {e}", exc_info=True)

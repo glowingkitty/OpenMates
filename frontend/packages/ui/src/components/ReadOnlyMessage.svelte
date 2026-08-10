@@ -28,7 +28,7 @@
 
     // Bump this when parse/render semantics change so stale in-memory parsed docs
     // (cached by markdown text) are invalidated and re-parsed with new logic.
-    const READ_ONLY_PARSE_CACHE_VERSION = 'v2-assistant-large-embed-promotion';
+    const READ_ONLY_PARSE_CACHE_VERSION = 'v3-sub-chat-batch-inline';
 
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
@@ -41,7 +41,8 @@
         selectable = false,
         piiMappings = undefined,
         piiRevealed = false,
-        role = undefined
+        role = undefined,
+        chatId = ''
     }: {
         content: string | Record<string, unknown> | null;
         isStreaming?: boolean;
@@ -50,6 +51,7 @@
         piiMappings?: PIIMapping[];
         piiRevealed?: boolean; // Whether PII original values are visible (false = placeholders shown, true = originals shown)
         role?: "user" | "assistant" | "system"; // Message role — passed to parse_message for single-embed large promotion
+        chatId?: string;
     } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
@@ -145,14 +147,6 @@
     // We preserve the previous height as min-height to prevent this visual glitch.
     let preservedMinHeight = $state<number | null>(null);
 
-    // STREAMING DEBOUNCE: Limit content update frequency during streaming.
-    // Streaming chunks arrive every ~30-50ms but DOM updates are expensive.
-    // We debounce to at most once per STREAMING_DEBOUNCE_MS to reduce CPU usage
-    // while keeping the UI responsive. The last pending content is always applied
-    // when the timer fires, so no content is ever lost.
-    const STREAMING_DEBOUNCE_MS = 80;
-    let streamingDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-    let pendingStreamContent: string | Record<string, unknown> | null = null;
     const STREAM_CHUNK_FADE_DURATION_MS = 220;
     let streamFadeResetTimer: ReturnType<typeof setTimeout> | null = null;
     let streamFadeTargetEl: HTMLElement | null = null;
@@ -450,7 +444,7 @@
             if (category) {
                 // Map alias to resolved model ID for deep link
                 const aliasModelMap: Record<string, string> = {
-                    'best': 'claude-opus-4-7',
+                    'best': 'claude-fable-5',
                     'fast': 'qwen3-235b-a22b-2507',
                 };
                 const resolvedModelId = aliasModelMap[category];
@@ -528,7 +522,7 @@
                 // Handle special translation keys
                 if (inputContent === 'chat.an_error_occured') {
                     const translatedText = $text('chat.an_error_occured');
-                    return parse_message(translatedText, 'read', { unifiedParsingEnabled: true, role });
+                    return parse_message(translatedText, 'read', { unifiedParsingEnabled: true, role, chatId });
                 }
 
                 // Performance optimization: Check cache before parsing
@@ -537,7 +531,7 @@
                 // This handles the case where embed data becomes available after initial render
                 // (the markdown is unchanged but embeds can now be decrypted and rendered)
                 const currentLocale = $locale || 'en';
-                const cacheKey = `${READ_ONLY_PARSE_CACHE_VERSION}:${currentLocale}:${role || 'unknown'}:${inputContent}`;
+                const cacheKey = `${READ_ONLY_PARSE_CACHE_VERSION}:${currentLocale}:${role || 'unknown'}:${chatId}:${inputContent}`;
                 
                 // Bypass cache if embed update is pending - forces fresh parsing and re-rendering
                 // This is necessary because embed NodeViews need to call resolveEmbed() again
@@ -555,7 +549,7 @@
                 }
 
                 // Parse markdown text to TipTap JSON with unified parsing (includes embed parsing)
-                const parsed = parse_message(inputContent, 'read', { unifiedParsingEnabled: true, role });
+                const parsed = parse_message(inputContent, 'read', { unifiedParsingEnabled: true, role, chatId });
                 
                 // Only cache if not bypassing (avoid polluting cache with stale embed state)
                 if (!bypassCache) {
@@ -580,7 +574,7 @@
                     } else if (isMarkdownContent(textContent)) {
                         // If the text content looks like markdown, parse it with unified parsing
                         logger.debug('Converting TipTap JSON with markdown text to proper markdown structure');
-                        return parse_message(textContent, 'read', { unifiedParsingEnabled: true, role });
+                        return parse_message(textContent, 'read', { unifiedParsingEnabled: true, role, chatId });
                     }
                 }
                 
@@ -596,7 +590,7 @@
             const stringContent = String(inputContent);
             if (isMarkdownContent(stringContent)) {
                 logger.debug('Converting unknown content type to markdown');
-                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role });
+                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role, chatId });
             }
             
             // Fallback: return content as-is (should already be processed)
@@ -608,7 +602,7 @@
             // Final fallback: try to parse as markdown text
             try {
                 const stringContent = typeof inputContent === 'string' ? inputContent : String(inputContent);
-                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role });
+                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role, chatId });
             } catch (markdownError) {
                 logger.debug("Markdown parsing also failed, returning simple paragraph", markdownError);
                 
@@ -670,7 +664,7 @@
             WikiInlineNode, // For Wikipedia topic inline links from post-processing
             SourceQuoteNode, // For > [quoted text](embed:ref) verified source quotes
             EmbedPreviewLargeNode, // For [!](embed:ref) and [](embed:ref) — responsive preview card (carousel-capable)
-            InteractiveQuestionNode, // For interactive questions embedded in LLM output
+            InteractiveQuestionNode.configure({ chatId }), // For interactive questions embedded in LLM output
             ...MarkdownExtensions, // Spread the array of markdown extensions
         ];
         
@@ -971,24 +965,11 @@
 
     // Track previous locale to detect changes
     let previousLocale = $state($locale || 'en');
+    let previousEmbedUpdateTimestamp = $state<number | null>(null);
     
-    // STREAMING FIX: When streaming ends, flush any pending debounced content and clear min-height.
-    // This ensures the final content is rendered and the container resizes properly.
+    // Release the streaming height guard after the canonical final document renders.
     $effect(() => {
         if (!isStreaming) {
-            // Flush any pending debounced streaming content
-            if (streamingDebounceTimer) {
-                clearTimeout(streamingDebounceTimer);
-                streamingDebounceTimer = null;
-            }
-            if (pendingStreamContent && editor && !editor.isDestroyed) {
-                const processed = processContent(pendingStreamContent);
-                pendingStreamContent = null;
-                // Use full setContent() for the final render to ensure clean state
-                editor.commands.setContent(processed, { emitUpdate: false });
-                applyPIIDecorations(editor);
-            }
-            
             // Clear preserved min-height after final content renders
             if (preservedMinHeight !== null) {
                 const cleanup = setTimeout(() => {
@@ -1006,69 +987,33 @@
     // Reactive statement to update Tiptap editor when 'content' prop OR locale changes using $effect (Svelte 5 runes mode)
     /**
      * Apply a content update to the editor.
-     * During streaming: uses incremental ProseMirror diff to preserve NodeViews.
-     * Otherwise: uses setContent() for full replacement.
+      * Every update after editor creation uses an incremental ProseMirror diff
+      * so stable NodeViews survive streaming, completion, and metadata refreshes.
      *
      * @param processedContent - Pre-processed TipTap JSON content
-     * @param streaming - Whether this is a streaming update
-     * @param forceFullReplace - Force setContent() even during streaming (locale/embed updates)
-     */
-    function applyContentUpdate(processedContent: Record<string, unknown> | null, streaming: boolean, forceFullReplace: boolean) {
+      * @param streamingPresentation - Whether to apply streaming-only height and fade behavior
+      */
+    function applyContentUpdate(
+        processedContent: Record<string, unknown> | null,
+        streamingPresentation: boolean
+    ) {
         if (!editor || editor.isDestroyed) return;
-        
-        if (streaming && !forceFullReplace) {
-            // STREAMING PATH: Use incremental ProseMirror updates to avoid destroying NodeViews.
-            // This preserves mounted Svelte embed components across streaming chunks,
-            // eliminating the visual flicker caused by setContent()'s nuclear teardown.
-            
-            // Preserve current height as safety net
-            if (editorElement) {
-                const currentHeight = editorElement.offsetHeight;
-                if (currentHeight > 0) {
-                    editorElement.style.minHeight = `${currentHeight}px`;
-                    preservedMinHeight = currentHeight;
-                }
-            }
-            
-            // Check if new content introduces embedPreviewLarge nodes
-            const hasLargePreview = JSON.stringify(processedContent).includes('"embedPreviewLarge"');
-            const editorHasLargePreview = JSON.stringify(editor.getJSON()).includes('"embedPreviewLarge"');
+        const startedAt = typeof performance === 'undefined' ? 0 : performance.now();
 
-            // If a new embedPreviewLarge node is being introduced, skip incremental update
-            // and use full setContent(). The ReplaceStep can fail when transitioning from
-            // inline paragraph content to a block-level atom node, and even when it succeeds
-            // the freshly mounted NodeView may get 0-width before layout reflows, causing
-            // CSS container queries to use the compact layout.
-            if (hasLargePreview && !editorHasLargePreview) {
-                logger.debug('New embedPreviewLarge detected during streaming — using setContent() for clean NodeView mount');
-                editor.commands.setContent(processedContent, { emitUpdate: false });
-            } else {
-                // Try incremental update first
-                const result = applyIncrementalUpdate(editor, processedContent);
+        if (streamingPresentation && editorElement) {
+            const currentHeight = editorElement.offsetHeight;
+            if (currentHeight > 0) {
+                editorElement.style.minHeight = `${currentHeight}px`;
+                preservedMinHeight = currentHeight;
+            }
+        }
 
-                if (!result.applied) {
-                    // Incremental update failed — fall back to setContent()
-                    // This should be rare but handles edge cases gracefully
-                    logger.debug('Incremental update failed, falling back to setContent()');
-                    editor.commands.setContent(processedContent, { emitUpdate: false });
-                }
-            }
-        } else {
-            // NON-STREAMING PATH: Use setContent() for locale changes, embed updates,
-            // and non-streaming content changes. These are infrequent and benefit from
-            // full re-render to ensure all NodeViews pick up new state.
-            
-            // Preserve current height SYNCHRONOUSLY before content replacement
-            if (streaming && editorElement) {
-                const currentHeight = editorElement.offsetHeight;
-                if (currentHeight > 0) {
-                    editorElement.style.minHeight = `${currentHeight}px`;
-                    preservedMinHeight = currentHeight;
-                }
-            }
-            
-            // Full content replacement
-            editor.commands.setContent(processedContent, { emitUpdate: false });
+        const result = applyIncrementalUpdate(editor, processedContent);
+        if (!result.applied) {
+            console.error('[ReadOnlyMessage] Incremental content update rejected; preserving last good document', {
+                failureClass: 'streaming_document_convergence_failed'
+            });
+            return;
         }
         
         // Re-apply PII decorations after content update
@@ -1078,12 +1023,19 @@
         triggerStreamChunkFadePulse();
         
         // Update min-height to match actual rendered content
-        if (streaming && editorElement) {
+        if (streamingPresentation && editorElement) {
             requestAnimationFrame(() => {
                 if (!editorElement) return;
                 const newHeight = editorElement.scrollHeight;
                 editorElement.style.minHeight = `${newHeight}px`;
                 preservedMinHeight = newHeight;
+            });
+        }
+
+        if (typeof performance !== 'undefined') {
+            performance.measure('openmates.streaming.apply', {
+                start: startedAt,
+                end: performance.now(),
             });
         }
     }
@@ -1096,7 +1048,10 @@
         // CRITICAL: Track embed update timestamp to force re-render when embed data arrives
         // This handles the race condition where embeds are initially unreadable (keys not cached)
         // but become decryptable after send_embed_data finishes processing
-        const hasEmbedUpdate = _embedUpdateTimestamp && _embedUpdateTimestamp > 0;
+        const hasEmbedUpdate = previousEmbedUpdateTimestamp !== null &&
+            _embedUpdateTimestamp > 0 &&
+            _embedUpdateTimestamp !== previousEmbedUpdateTimestamp;
+        previousEmbedUpdateTimestamp = _embedUpdateTimestamp;
 
         
         if (localeChanged) {
@@ -1104,62 +1059,7 @@
         }
         
         if (editor && content) {
-            // For streaming content changes, debounce to limit update frequency.
-            // Streaming chunks arrive every ~30-50ms but parsing + DOM updates are expensive.
-            // We buffer the latest content and apply at most once per STREAMING_DEBOUNCE_MS.
-            if (isStreaming && !localeChanged && !hasEmbedUpdate) {
-                // Check if the new content contains an embed ref link that would produce
-                // an embedPreviewLarge node. If so, bypass debounce and process immediately
-                // to ensure the large preview renders at full size right away.
-                const contentStr = typeof content === 'string' ? content : '';
-                const hasEmbedRefLink = contentStr.includes('](embed:');
-                const editorHasLargePreview = JSON.stringify(editor.getJSON()).includes('"embedPreviewLarge"');
-                if (hasEmbedRefLink && !editorHasLargePreview) {
-                    // Bypass debounce — process immediately so the large preview mounts
-                    // with the editor at full width (avoids 0-width container query issue)
-                    if (streamingDebounceTimer) {
-                        clearTimeout(streamingDebounceTimer);
-                        streamingDebounceTimer = null;
-                    }
-                    pendingStreamContent = null;
-                    const processed = processContent(content);
-                    const currentJson = editor.getJSON();
-                    if (JSON.stringify(currentJson) !== JSON.stringify(processed)) {
-                        applyContentUpdate(processed, true, true); // forceFullReplace for clean mount
-                    }
-                    return;
-                }
-
-                // Store raw content for debounced processing
-                pendingStreamContent = content;
-
-                // If no timer is running, start one
-                if (!streamingDebounceTimer) {
-                    streamingDebounceTimer = setTimeout(() => {
-                        streamingDebounceTimer = null;
-                        if (!editor || editor.isDestroyed || !pendingStreamContent) return;
-
-                        const processed = processContent(pendingStreamContent);
-                        pendingStreamContent = null;
-
-                        // Check if content actually changed
-                        const currentJson = editor.getJSON();
-                        if (JSON.stringify(currentJson) !== JSON.stringify(processed)) {
-                            applyContentUpdate(processed, true, false);
-                        }
-                    }, STREAMING_DEBOUNCE_MS);
-                }
-                
-                // Cleanup: clear timer when effect re-runs or component destroys
-                return () => {
-                    if (streamingDebounceTimer) {
-                        clearTimeout(streamingDebounceTimer);
-                        streamingDebounceTimer = null;
-                    }
-                };
-            }
-            
-            // NON-STREAMING or FORCED path: process immediately
+            // ChatHistory owns stream coalescing; apply each canonical document immediately.
             const newProcessedContent = processContent(content);
             const currentEditorContent = editor.getJSON();
             const contentChanged = JSON.stringify(currentEditorContent) !== JSON.stringify(newProcessedContent);
@@ -1169,9 +1069,7 @@
                     logger.debug('Forcing re-render due to embed update at:', _embedUpdateTimestamp);
                 }
 
-                // During streaming but with locale/embed update: use full replacement
-                const forceFullReplace = localeChanged || !!hasEmbedUpdate;
-                applyContentUpdate(newProcessedContent, isStreaming, forceFullReplace);
+                applyContentUpdate(newProcessedContent, isStreaming);
             }
         } else if (editor && !content) {
             // Handle case where content becomes null/undefined after editor initialization
@@ -1211,25 +1109,19 @@
             editor.view.dom.removeEventListener('click', handleMentionClick as EventListener);
             // Clear any pending touch timers
             clearTouchTimer();
-            // Clear streaming debounce timer
-            if (streamingDebounceTimer) {
-                clearTimeout(streamingDebounceTimer);
-                streamingDebounceTimer = null;
-            }
             if (streamFadeResetTimer) {
                 clearTimeout(streamFadeResetTimer);
                 streamFadeResetTimer = null;
             }
             streamFadeTargetEl?.classList.remove('stream-fade-tail');
             streamFadeTargetEl = null;
-            pendingStreamContent = null;
             editor.destroy();
             editor = null;
         }
     });
 </script>
 
-<div class="read-only-message" data-testid="message-content" class:is-streaming={isStreaming} class:is-selectable={selectable}>
+<div class="read-only-message" data-testid="message-content" data-streaming={isStreaming} class:is-streaming={isStreaming} class:is-selectable={selectable}>
     <!-- STREAMING FIX: min-height is applied directly to the DOM via JavaScript (synchronously)
          before TipTap's setContent() clears the content. This prevents the visual collapse/stutter.
          Direct DOM manipulation is necessary because Svelte's reactive style updates are async. -->

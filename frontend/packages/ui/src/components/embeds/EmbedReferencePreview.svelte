@@ -8,11 +8,14 @@
   // See docs/architecture/embeds.md for renderer routing.
   // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 
-  import { onDestroy } from 'svelte';
+  import { mount, onDestroy, unmount } from 'svelte';
   import { embedStore, embedRefIndexVersion } from '../../services/embedStore';
   import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
   import { getEmbedRenderer } from '../enter_message/extensions/embed_renderers';
   import { normalizeEmbedType } from '../../data/embedRegistry.generated';
+  import InteractiveQuestionContainer from '../interactive_questions/InteractiveQuestionContainer.svelte';
+  import type { InteractiveQuestionPayload } from '../interactive_questions/types';
+  import { parseInteractiveQuestionPayloadCandidate } from '../interactive_questions/utils/questionState';
   import type { EmbedNodeAttributes } from '../../message_parsing/types';
 
   interface Props {
@@ -30,6 +33,7 @@
   let containerEl = $state<HTMLElement | null>(null);
   let errorText = $state<string | null>(null);
   let loading = $state(true);
+  let mountedPreviewComponent: ReturnType<typeof mount> | null = null;
 
   /**
    * Monotonically increasing render version to prevent stale async callbacks
@@ -80,6 +84,48 @@
     'location', 'flight', 'stay', 'event', 'product', 'job',
     'health_result', 'recipe', 'price_calendar_result', 'listing',
   ]);
+  const INTERACTIVE_QUESTION_LANGUAGE = 'interactive_question';
+
+  function normalizedLanguage(value: unknown): string {
+    return typeof value === 'string' ? value.trim().toLowerCase() : '';
+  }
+
+  function cleanupMountedPreviewComponent(): void {
+    if (!mountedPreviewComponent) return;
+    try {
+      unmount(mountedPreviewComponent);
+    } catch (error) {
+      console.warn('[EmbedReferencePreview] Failed to unmount previous preview component:', error);
+    }
+    mountedPreviewComponent = null;
+  }
+
+  function resolveInteractiveQuestionPayload(
+    attrs: EmbedNodeAttributes,
+    decodedContent: Record<string, unknown> | null,
+  ): InteractiveQuestionPayload | null {
+    if (normalizedLanguage(attrs.language) !== INTERACTIVE_QUESTION_LANGUAGE) return null;
+
+    return parseInteractiveQuestionPayloadCandidate(attrs.code)
+      || parseInteractiveQuestionPayloadCandidate(decodedContent?.code)
+      || parseInteractiveQuestionPayloadCandidate(decodedContent?.content)
+      || parseInteractiveQuestionPayloadCandidate(decodedContent?.payload)
+      || parseInteractiveQuestionPayloadCandidate(decodedContent);
+  }
+
+  function renderInteractiveQuestionPayload(payload: InteractiveQuestionPayload): void {
+    if (!containerEl) return;
+    cleanupMountedPreviewComponent();
+    containerEl.innerHTML = '';
+    mountedPreviewComponent = mount(InteractiveQuestionContainer, {
+      target: containerEl,
+      props: {
+        payload,
+        chatId: '',
+      },
+    });
+    loading = false;
+  }
 
   function buildAttrs(
     id: string,
@@ -141,6 +187,7 @@
     }
 
     return {
+      ...(decodedContent ?? {}),
       id,
       type: resolvedType,
       status: String(data.status || 'finished') as EmbedNodeAttributes['status'],
@@ -154,8 +201,10 @@
       subject: (decodedContent?.subject as string | null) || (data.subject as string | null) || undefined,
       content: (decodedContent?.content as string | null) || (data.content as string | null) || undefined,
       footer: (decodedContent?.footer as string | null) || (data.footer as string | null) || undefined,
-      filename: (data.filename as string | null) || null,
-      language: (data.language as string | null) || null,
+      filename: (decodedContent?.filename as string | null) || (data.filename as string | null) || null,
+      language: (decodedContent?.language as string | null) || (data.language as string | null) || null,
+      code: typeof decodedContent?.code === 'string' ? decodedContent.code : undefined,
+      aiDetection: decodedContent?.aiDetection ?? decodedContent?.ai_detection ?? null,
       previewVariant: variant,
     } as EmbedNodeAttributes;
   }
@@ -167,6 +216,7 @@
     // will detect it has been superseded and skip its DOM update.
     const thisVersion = ++renderVersion;
 
+    cleanupMountedPreviewComponent();
     containerEl.innerHTML = '';
     errorText = null;
 
@@ -252,6 +302,19 @@
       if (thisVersion !== renderVersion) return;
 
       const attrs = buildAttrs(resolvedEmbedId, embedData, decodedContent);
+      const interactivePayload = resolveInteractiveQuestionPayload(attrs, decodedContent);
+      if (interactivePayload) {
+        renderInteractiveQuestionPayload(interactivePayload);
+        return;
+      }
+
+      if (normalizedLanguage(attrs.language) === INTERACTIVE_QUESTION_LANGUAGE) {
+        console.warn(
+          '[EmbedReferencePreview] interactive_question code embed did not contain a valid question payload; falling back to code preview',
+          { embedRef, resolvedEmbedId },
+        );
+      }
+
       const renderer = getEmbedRenderer(attrs.type || '');
       if (!renderer) {
         errorText = 'Preview unavailable';
@@ -263,6 +326,8 @@
         attrs,
         container: containerEl,
         content: containerEl,
+        embedData,
+        decodedContent,
       });
 
       if (maybePromise instanceof Promise) {
@@ -298,6 +363,7 @@
   onDestroy(() => {
     if (retryTimer) clearTimeout(retryTimer);
     if (containerEl) {
+      cleanupMountedPreviewComponent();
       containerEl.innerHTML = '';
     }
   });

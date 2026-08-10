@@ -95,6 +95,8 @@ Pull requests are still welcome for small, clearly scoped changes, especially:
 
 Before working on larger code changes, please open a GitHub issue or discuss the idea in the Signal group first. This avoids duplicated work and makes sure the change fits the current direction of the project.
 
+By contributing code to the OpenMates Apple app under `apple/`, you agree that your contribution is licensed under AGPLv3 with the Apple App Store additional permission described in `APPLE-APP-STORE-EXCEPTION.md`.
+
 More complete development guidelines are coming later.
 
 Existing technical docs are available here:

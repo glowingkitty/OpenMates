@@ -36,6 +36,7 @@
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
   import { skillPreviewService } from '../../../services/skillPreviewService';
   import type { AIDetectionMetadata } from './imageAuthenticity';
+  import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
 
   /** Max display length for the filename in the card title (chars) */
   const MAX_FILENAME_LENGTH = 30;
@@ -50,6 +51,8 @@
     height: number;
     size_bytes: number;
     format: string;
+    aes_nonce?: string;
+    encryption?: string;
   }
 
   interface Props {
@@ -79,6 +82,8 @@
     isMobile?: boolean;
     /** Whether the user is authenticated (affects subtitle text) */
     isAuthenticated?: boolean;
+    /** Local-only anonymous preview that cannot upload until signup. */
+    needsSignup?: boolean;
     /** File size in bytes (from the original File object) */
     fileSize?: number;
     /** File MIME type (from the original File object, e.g. 'image/jpeg') */
@@ -110,6 +115,7 @@
     aesNonce,
     isMobile = false,
     isAuthenticated = true,
+    needsSignup = false,
     fileSize,
     fileType,
     onFullscreen,
@@ -228,7 +234,8 @@
   // --- Derived state ---
 
   let status = $derived(statusProp);
-  let previewS3Key = $derived(s3Files?.preview?.s3_key);
+  let previewFile = $derived(s3Files?.preview);
+  let previewS3Key = $derived(previewFile?.s3_key);
 
   /** Map our upload-specific status to the UnifiedEmbedPreview status union.
    *  When being viewed by the AI (isBeingViewed), show the processing spinner. */
@@ -307,8 +314,8 @@
    * Card subtitle (customStatusText):
    * - 'uploading'                       → "Uploading…"
    * - 'error'                           → "Upload failed" (or server error message)
-   * - 'finished' + !isAuthenticated     → "Signup to upload…"
-   * - 'finished' + isAuthenticated      → "JPEG · 1.2 MB" (file type + size)
+   * - 'finished' + renderable image      → "JPEG · 1.2 MB" (file type + size) or "Uploaded image"
+   * - 'finished' + no renderable image   → "Signup to upload…"
    * - no displayUrl yet (S3 loading)    → empty (UnifiedEmbedPreview shows its own skeleton)
    */
   let statusText = $derived.by(() => {
@@ -318,11 +325,11 @@
     if (status === 'error') return uploadError || $text('common.upload_failed');
     if (imageError) return imageError;
     if (status === 'finished') {
-      // Unauthenticated users: prompt to sign up for actual upload
-      if (!isAuthenticated) {
+      if (needsSignup) return $text('app_skills.images.view.signup_to_upload');
+      const hasRenderableSource = !!displayUrl || !!(previewS3Key && s3BaseUrl && aesKey && hasMediaEncryptionMetadata(previewFile, aesNonce));
+      if (!isAuthenticated && !hasRenderableSource) {
         return $text('app_skills.images.view.signup_to_upload');
       }
-      // Authenticated + finished: show file type and size
       const typeLabel = getFileTypeLabel(fileType, filename);
       const sizeLabel = fileSize ? formatFileSize(fileSize) : '';
       if (typeLabel && sizeLabel) return `${typeLabel} \u00B7 ${sizeLabel}`;
@@ -346,7 +353,7 @@
    * Only called in read-only context (src is absent).
    */
   async function loadPreviewImage() {
-    if (!previewS3Key || !s3BaseUrl || !aesKey || !aesNonce) {
+    if (!previewS3Key || !s3BaseUrl || !aesKey || !hasMediaEncryptionMetadata(previewFile, aesNonce)) {
       console.debug('[ImageEmbedPreview] Missing data for image load:', {
         hasPreviewKey: !!previewS3Key,
         hasS3BaseUrl: !!s3BaseUrl,
@@ -387,7 +394,7 @@
         `[ImageEmbedPreview] Loading preview image from S3 (attempt ${loadRetryCount}/${MAX_IMAGE_LOAD_RETRIES}):`,
         previewS3Key,
       );
-      const blob = await fetchAndDecryptImage(s3BaseUrl, previewS3Key, aesKey, aesNonce);
+      const blob = await fetchAndDecryptImage(s3BaseUrl, previewS3Key, aesKey, aesNonce ?? '', previewFile);
       imageUrl = URL.createObjectURL(blob);
       if (retainedS3Key && retainedS3Key !== previewS3Key) releaseCachedImage(retainedS3Key);
       retainedS3Key = previewS3Key;
@@ -420,7 +427,7 @@
       previewS3Key &&
       s3BaseUrl &&
       aesKey &&
-      aesNonce &&
+      hasMediaEncryptionMetadata(previewFile, aesNonce) &&
       !imageUrl &&
       !isLoadingImage &&
       !imageError
@@ -555,7 +562,7 @@
    */
   .preview-image.portrait {
     object-fit: contain;
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-20, #f0f0f0);
   }
 
   .image-content.clickable:hover .preview-image {
@@ -581,7 +588,7 @@
 
   .skeleton-line {
     height: 12px;
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-20, #f0f0f0);
     border-radius: var(--radius-1);
     animation: pulse 1.5s ease-in-out infinite;
   }

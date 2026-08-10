@@ -13,11 +13,17 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from collections.abc import AsyncIterable, AsyncIterator
 from typing import Any, Dict, Optional
+
+from backend.shared.python_utils.media_encryption import MEDIA_ENCRYPTION_V2
+
+from .chunked_encryption import decrypt_chunked_stream
 
 logger = logging.getLogger(__name__)
 
 TOKEN_TTL_SECONDS = 900
+CHUNKED_MODEL_ENCRYPTION = "chunked-aes-256-gcm-v1"
 
 
 @dataclass(frozen=True)
@@ -48,12 +54,27 @@ class GeneratedAssetVariant:
         return data
 
 
+async def decrypt_generated_asset_variant(
+    variant_metadata: Dict[str, Any],
+    encrypted_source: AsyncIterable[bytes],
+    *,
+    aes_key: bytes,
+) -> AsyncIterator[bytes]:
+    """Stream-decrypt a versioned generated asset variant without buffering it."""
+    encryption = str(variant_metadata.get("encryption") or "")
+    if encryption != CHUNKED_MODEL_ENCRYPTION:
+        raise ValueError("Unsupported generated asset encryption")
+    async for plaintext_chunk in decrypt_chunked_stream(encrypted_source, key=aes_key):
+        yield plaintext_chunk
+
+
 def _token_secret() -> bytes:
     secret = os.getenv("GENERATED_ASSET_TOKEN_SECRET") or os.getenv("INTERNAL_API_SHARED_TOKEN")
-    if not secret:
-        # Development/test fallback only. Production should always set a stable secret.
-        secret = "openmates-generated-assets-dev-token-secret"
-    return secret.encode("utf-8")
+    if secret:
+        return secret.encode("utf-8")
+    if os.getenv("SERVER_ENVIRONMENT", "development") in {"development", "test"}:
+        return b"openmates-generated-assets-dev-token-secret"
+    raise RuntimeError("Generated asset token secret is required outside development")
 
 
 def _b64url_encode(data: bytes) -> str:
@@ -156,7 +177,6 @@ async def index_generated_asset(
         "file_size_bytes": file_size_bytes,
         "s3_base_url": s3_base_url,
         "files_metadata": files_metadata,
-        "aes_key": aes_key_b64,
         "aes_nonce": nonce_b64,
         "vault_wrapped_aes_key": vault_wrapped_aes_key,
         "malware_scan": "clean",
@@ -167,6 +187,9 @@ async def index_generated_asset(
         },
         "created_at": created_at,
     }
+    variants = [metadata for metadata in files_metadata.values() if isinstance(metadata, dict)]
+    if not variants or any(metadata.get("encryption") != MEDIA_ENCRYPTION_V2 for metadata in variants):
+        record["aes_key"] = aes_key_b64
     success, error = await task._directus_service.create_item("upload_files", record)
     if not success:
         logger.warning("%s Failed to create generated asset upload_files record: %s", log_prefix, error)

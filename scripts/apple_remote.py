@@ -28,6 +28,7 @@ LOCAL_CONFIG_PATH = Path.home() / ".config" / "openmates" / "apple-remote.json"
 REMOTE_LABEL = "macos-peer"
 DEFAULT_CONNECT_TIMEOUT_SECONDS = 10
 MIN_TESTFLIGHT_WHATS_NEW_LINES = 5
+SIMULATOR_LOCK_PATH = "/tmp/openmates-apple-simulator.lock"
 DESTRUCTIVE_TOKENS = {
     "rm",
     "shutdown",
@@ -38,6 +39,11 @@ DESTRUCTIVE_TOKENS = {
     "git reset --hard",
     "git clean",
 }
+TEST_ACCOUNT_ENV_PATTERN = re.compile(
+    r"^OPENMATES_TEST_ACCOUNT(?:_\d+)?_(?:EMAIL|PASSWORD|OTP_KEY|API_KEY)$"
+)
+CHAT_RENDERING_PARITY_ENV_PATTERN = re.compile(r"^CHAT_RENDERING_PARITY_[A-Z0-9_]+$")
+LIVE_TEST_CREDENTIALS_PATH = "apple/.openmates-live-test-account.env"
 XCODE_CACHE_TARGETS = {
     "derived-data": "~/Library/Developer/Xcode/DerivedData",
     "module-cache": "~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex",
@@ -45,6 +51,21 @@ XCODE_CACHE_TARGETS = {
     "simulator-caches": "~/Library/Developer/CoreSimulator/Caches",
     "device-support": "~/Library/Developer/Xcode/iOS DeviceSupport",
 }
+
+SIMULATOR_LOCK_SCRIPT = r'''
+import fcntl
+import subprocess
+import sys
+
+lock_path = sys.argv[1]
+command = sys.argv[2:]
+print("simulator_lock=waiting", flush=True)
+with open(lock_path, "w", encoding="utf-8") as lock_file:
+    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+    print("simulator_lock=acquired", flush=True)
+    result = subprocess.run(command)
+sys.exit(result.returncode)
+'''
 
 
 DEVICE_STATUS_SCRIPT = r'''
@@ -273,9 +294,9 @@ def print_tail(label, text, limit=120):
         print(sanitized)
 
 
-def run(label, cmd, *, timeout):
+def run(label, cmd, *, timeout, cwd=None):
     print(f"{label}=started")
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
     if result.returncode != 0:
         print_tail(label, result.stdout + result.stderr)
         sys.exit(result.returncode)
@@ -351,6 +372,9 @@ try:
             pid = token
     if pid:
         print(f"launch_pid={pid}")
+    else:
+        print("startup_status=missing_launch_pid")
+        sys.exit(5)
 
     screenshot_points = {5: "screenshot_5s", 30: "screenshot_30s"}
     deadline = time.monotonic() + duration
@@ -370,19 +394,18 @@ try:
                 print(f"{label}={'passed' if shot.returncode == 0 else 'failed'}")
                 captured.add(point)
 
-        launchctl = subprocess.run(
-            ["xcrun", "simctl", "spawn", simulator, "launchctl", "print", f"system/{bundle_id}"],
+        procinfo = subprocess.run(
+            ["xcrun", "simctl", "spawn", simulator, "launchctl", "procinfo", pid],
             capture_output=True,
             text=True,
             timeout=30,
         )
-        pgrep = subprocess.run(
-            ["xcrun", "simctl", "spawn", simulator, "pgrep", "-f", bundle_id],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if launchctl.returncode != 0 and pgrep.returncode != 0:
+        procinfo_text = procinfo.stdout + procinfo.stderr
+        if (
+            procinfo.returncode != 0
+            or "No such process" in procinfo_text
+            or "not managed by launchd" in procinfo_text
+        ):
             status = "process_exited"
             break
 
@@ -439,6 +462,325 @@ try:
     sys.exit(0 if status == "passed" else 6)
 finally:
     shutil.rmtree(derived, ignore_errors=True)
+    shutil.rmtree(artifact_dir, ignore_errors=True)
+'''
+
+
+APPLE_REMOTE_DOCTOR_SCRIPT = r'''
+import pathlib
+import subprocess
+import sys
+
+repo_path = sys.argv[1] if len(sys.argv) > 1 else ""
+
+
+def run(label, cmd, *, cwd=None, timeout=60, required=True):
+    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    print(f"{label}={'passed' if result.returncode == 0 else 'failed'}")
+    if result.returncode != 0:
+        for line in (result.stdout + result.stderr).splitlines()[-20:]:
+            print(line.replace(repo_path, "<repo-path>") if repo_path else line)
+        if required:
+            return False
+    return result.returncode == 0
+
+
+ok = True
+ok = run("xcode_status", ["xcodebuild", "-version"], timeout=30) and ok
+ok = run("simctl_status", ["xcrun", "simctl", "list", "devices", "available"], timeout=60) and ok
+
+if not repo_path:
+    print("repo_status=missing_config")
+    print("hint=Set OPENMATES_APPLE_REPO_PATH or repo_path in local apple-remote config.")
+    sys.exit(3)
+
+repo = pathlib.Path(repo_path)
+project = repo / "apple" / "OpenMates.xcodeproj"
+project_yml = repo / "apple" / "project.yml"
+print(f"repo_path_configured={bool(repo_path)}")
+if not project.exists():
+    print("project_status=project_not_found")
+    sys.exit(3)
+print("project_status=passed")
+
+run("git_status", ["git", "status", "--short"], cwd=repo, timeout=30, required=False)
+ok = run("scheme_status", ["xcodebuild", "-list", "-project", "apple/OpenMates.xcodeproj"], cwd=repo, timeout=120) and ok
+
+watch_test_status = "unknown"
+if project_yml.exists():
+    text = project_yml.read_text(encoding="utf-8")
+    has_watch_scheme = "OpenMatesWatch:" in text
+    has_watch_test_scheme = "OpenMatesWatchUITests" in text
+    if has_watch_scheme and not has_watch_test_scheme:
+        watch_test_status = "no_dedicated_watch_test_scheme"
+    elif has_watch_test_scheme:
+        watch_test_status = "dedicated_scheme_present"
+    else:
+        watch_test_status = "watch_scheme_missing"
+print(f"watch_test_status={watch_test_status}")
+print("watch_test_hint=Use test-ios --only-testing OpenMatesTests/<Watch...> for current Watch unit tests, or verify-watch-startup for runtime launch checks." if watch_test_status == "no_dedicated_watch_test_scheme" else "watch_test_hint=none")
+
+sys.exit(0 if ok else 4)
+'''
+
+
+IOS_STARTUP_SCRIPT = r'''
+import pathlib
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+
+simulator = sys.argv[1]
+duration = int(sys.argv[2])
+fresh_install = sys.argv[3] == "1" if len(sys.argv) > 3 else False
+bundle_id = "org.openmates.app"
+scheme = "OpenMates_iOS"
+project = "apple/OpenMates.xcodeproj"
+
+
+def print_tail(label, text, limit=120):
+    print(f"{label}=failed")
+    for line in text.splitlines()[-limit:]:
+        sanitized = line.replace(derived, "<derived-data>") if "derived" in globals() else line
+        sanitized = sanitized.replace(artifact_dir, "<ios-startup-artifacts>") if "artifact_dir" in globals() else sanitized
+        print(sanitized)
+
+
+def run(label, cmd, *, timeout, cwd=None):
+    print(f"{label}=started")
+    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    if result.returncode != 0:
+        print_tail(label, result.stdout + result.stderr)
+        sys.exit(result.returncode)
+    print(f"{label}=passed")
+    return result
+
+
+if duration < 5 or duration > 300:
+    print("startup_status=invalid_duration")
+    print("duration must be between 5 and 300 seconds")
+    sys.exit(2)
+
+derived = tempfile.mkdtemp(prefix="openmates-ios-startup-derived-")
+artifact_dir = tempfile.mkdtemp(prefix="openmates-ios-startup-artifacts-")
+print("artifact_dir=<ios-startup-artifacts>")
+crash_dir = pathlib.Path.home() / "Library" / "Logs" / "DiagnosticReports"
+started_at = time.time()
+
+try:
+    run("translations_status", ["npm", "run", "build:translations"], cwd="frontend/packages/ui", timeout=180)
+    run(
+        "settings_status",
+        [
+            "xcodebuild",
+            "-showBuildSettings",
+            "-project",
+            project,
+            "-scheme",
+            scheme,
+            "-destination",
+            f"platform=iOS Simulator,name={simulator}",
+            "-derivedDataPath",
+            derived,
+        ],
+        timeout=180,
+    )
+    run(
+        "build_status",
+        [
+            "xcodebuild",
+            "-project",
+            project,
+            "-scheme",
+            scheme,
+            "-destination",
+            f"platform=iOS Simulator,name={simulator}",
+            "-derivedDataPath",
+            derived,
+            "build",
+        ],
+        timeout=1800,
+    )
+    products = pathlib.Path(derived) / "Build" / "Products" / "Debug-iphonesimulator"
+    apps = sorted(products.glob("OpenMates.app")) or sorted(products.glob("*.app"))
+    if not apps:
+        print("install_status=no_app_bundle")
+        sys.exit(5)
+    app_path = str(apps[0])
+    subprocess.run(["xcrun", "simctl", "boot", simulator], capture_output=True, text=True, timeout=120)
+    run("boot_status", ["xcrun", "simctl", "bootstatus", simulator, "-b"], timeout=180)
+    if fresh_install:
+        uninstall = subprocess.run(["xcrun", "simctl", "uninstall", simulator, bundle_id], capture_output=True, text=True, timeout=120)
+        uninstall_text = uninstall.stdout + uninstall.stderr
+        if uninstall.returncode != 0 and "No such app" not in uninstall_text and "not installed" not in uninstall_text:
+            print_tail("uninstall_status", uninstall_text)
+            sys.exit(uninstall.returncode)
+        print("uninstall_status=passed" if uninstall.returncode == 0 else "uninstall_status=already_absent")
+    else:
+        print("uninstall_status=skipped")
+    run("install_status", ["xcrun", "simctl", "install", simulator, app_path], timeout=180)
+    launch = run("launch_status", ["xcrun", "simctl", "launch", simulator, bundle_id], timeout=120)
+    pid = next((token for token in launch.stdout.split() if token.isdigit()), None)
+    if not pid:
+        print("startup_status=missing_launch_pid")
+        sys.exit(5)
+    print(f"launch_pid={pid}")
+
+    screenshot_points = {5: "screenshot_5s", 30: "screenshot_30s"}
+    deadline = time.monotonic() + duration
+    captured = set()
+    status = "passed"
+    while time.monotonic() < deadline:
+        elapsed = int(duration - max(0, deadline - time.monotonic()))
+        for point, label in screenshot_points.items():
+            if elapsed >= point and point not in captured:
+                screenshot_path = pathlib.Path(artifact_dir) / f"{label}.png"
+                shot = subprocess.run(["xcrun", "simctl", "io", simulator, "screenshot", str(screenshot_path)], capture_output=True, text=True, timeout=60)
+                print(f"{label}={'passed' if shot.returncode == 0 else 'failed'}")
+                captured.add(point)
+        procinfo = subprocess.run(["xcrun", "simctl", "spawn", simulator, "launchctl", "procinfo", pid], capture_output=True, text=True, timeout=30)
+        procinfo_text = procinfo.stdout + procinfo.stderr
+        if procinfo.returncode != 0 or "No such process" in procinfo_text or "not managed by launchd" in procinfo_text:
+            status = "process_exited"
+            break
+        recent_crashes = []
+        if crash_dir.exists():
+            for path in crash_dir.glob("*OpenMates*"):
+                try:
+                    if path.stat().st_mtime >= started_at:
+                        recent_crashes.append(path)
+                except OSError:
+                    pass
+        if recent_crashes:
+            print("crash_report_status=found")
+            print("crash_report_count=" + str(len(recent_crashes)))
+            status = "crash_report_found"
+            break
+        time.sleep(2)
+
+    for point, label in screenshot_points.items():
+        if point <= duration and point not in captured:
+            screenshot_path = pathlib.Path(artifact_dir) / f"{label}.png"
+            shot = subprocess.run(["xcrun", "simctl", "io", simulator, "screenshot", str(screenshot_path)], capture_output=True, text=True, timeout=60)
+            print(f"{label}={'passed' if shot.returncode == 0 else 'failed'}")
+    logs = subprocess.run(["xcrun", "simctl", "spawn", simulator, "log", "show", "--last", f"{max(duration, 30)}s", "--predicate", f"process == 'OpenMates' OR eventMessage CONTAINS '{bundle_id}'", "--style", "compact"], capture_output=True, text=True, timeout=120)
+    log_path = pathlib.Path(artifact_dir) / "ios-startup.log"
+    log_path.write_text(logs.stdout + logs.stderr, encoding="utf-8")
+    print("log_capture_status=passed" if logs.returncode == 0 else "log_capture_status=partial")
+    print(f"startup_status={status}")
+    sys.exit(0 if status == "passed" else 6)
+finally:
+    shutil.rmtree(derived, ignore_errors=True)
+    shutil.rmtree(artifact_dir, ignore_errors=True)
+'''
+
+
+MACOS_STARTUP_SCRIPT = r'''
+import pathlib
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+
+duration = int(sys.argv[1])
+bundle_id = "org.openmates.app"
+scheme = "OpenMates_macOS"
+project = "apple/OpenMates.xcodeproj"
+
+
+def print_tail(label, text, limit=120):
+    print(f"{label}=failed")
+    for line in text.splitlines()[-limit:]:
+        sanitized = line.replace(derived, "<derived-data>") if "derived" in globals() else line
+        sanitized = sanitized.replace(artifact_dir, "<macos-startup-artifacts>") if "artifact_dir" in globals() else sanitized
+        print(sanitized)
+
+
+def run(label, cmd, *, timeout, cwd=None):
+    print(f"{label}=started")
+    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    if result.returncode != 0:
+        print_tail(label, result.stdout + result.stderr)
+        sys.exit(result.returncode)
+    print(f"{label}=passed")
+    return result
+
+
+if duration < 5 or duration > 300:
+    print("startup_status=invalid_duration")
+    print("duration must be between 5 and 300 seconds")
+    sys.exit(2)
+
+derived = tempfile.mkdtemp(prefix="openmates-macos-startup-derived-")
+artifact_dir = tempfile.mkdtemp(prefix="openmates-macos-startup-artifacts-")
+print("artifact_dir=<macos-startup-artifacts>")
+crash_dir = pathlib.Path.home() / "Library" / "Logs" / "DiagnosticReports"
+started_at = time.time()
+process = None
+
+try:
+    run("translations_status", ["npm", "run", "build:translations"], cwd="frontend/packages/ui", timeout=180)
+    run("settings_status", ["xcodebuild", "-showBuildSettings", "-project", project, "-scheme", scheme, "-destination", "platform=macOS", "-derivedDataPath", derived], timeout=180)
+    run("build_status", ["xcodebuild", "-project", project, "-scheme", scheme, "-destination", "platform=macOS", "-derivedDataPath", derived, "build"], timeout=1800)
+    products = pathlib.Path(derived) / "Build" / "Products" / "Debug"
+    apps = sorted(products.glob("OpenMates.app")) or sorted(products.glob("*.app"))
+    if not apps:
+        print("launch_status=no_app_bundle")
+        sys.exit(5)
+    app_path = str(apps[0])
+    executable = pathlib.Path(app_path) / "Contents" / "MacOS" / "OpenMates"
+    if not executable.exists():
+        print("launch_status=no_executable")
+        sys.exit(5)
+    print("launch_status=started")
+    process = subprocess.Popen([str(executable)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print("launch_status=passed")
+    print(f"launch_pid={process.pid}")
+
+    screenshot_points = {5: "screenshot_5s", 30: "screenshot_30s"}
+    deadline = time.monotonic() + duration
+    captured = set()
+    status = "passed"
+    while time.monotonic() < deadline:
+        elapsed = int(duration - max(0, deadline - time.monotonic()))
+        for point, label in screenshot_points.items():
+            if elapsed >= point and point not in captured:
+                print(f"{label}=skipped_privacy")
+                captured.add(point)
+        if process.poll() is not None:
+            status = "process_exited"
+            break
+        recent_crashes = []
+        if crash_dir.exists():
+            for path in crash_dir.glob("*OpenMates*"):
+                try:
+                    if path.stat().st_mtime >= started_at:
+                        recent_crashes.append(path)
+                except OSError:
+                    pass
+        if recent_crashes:
+            print("crash_report_status=found")
+            print("crash_report_count=" + str(len(recent_crashes)))
+            status = "crash_report_found"
+            break
+        time.sleep(2)
+
+    logs = subprocess.run(["log", "show", "--last", f"{max(duration, 30)}s", "--predicate", f"process == 'OpenMates' OR eventMessage CONTAINS '{bundle_id}'", "--style", "compact"], capture_output=True, text=True, timeout=120)
+    print("log_capture_status=passed" if logs.returncode == 0 else "log_capture_status=partial")
+    print(f"startup_status={status}")
+    sys.exit(0 if status == "passed" else 6)
+finally:
+    if process is not None and process.poll() is None:
+        process.terminate()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.kill()
+    shutil.rmtree(derived, ignore_errors=True)
+    shutil.rmtree(artifact_dir, ignore_errors=True)
 '''
 
 
@@ -464,6 +806,15 @@ target_platform = sys.argv[2] if len(sys.argv) > 2 else "ios"
 MIN_TESTFLIGHT_WHATS_NEW_LINES = 5
 testflight_whats_new = ""
 testflight_whats_new_locale = "en-US"
+requested_build_number = os.environ.get("OPENMATES_UNIFIED_BUILD_NUMBER")
+if requested_build_number:
+    requested_build_number = requested_build_number.strip()
+    if not re.fullmatch(r"\d{1,4}(?:\.\d{1,2}){0,2}", requested_build_number):
+        print("build_number_status=invalid")
+        sys.exit(2)
+    print(f"build_number_status=unified:{requested_build_number}")
+else:
+    requested_build_number = None
 if len(sys.argv) > 3 and sys.argv[3]:
     testflight_whats_new = base64.b64decode(sys.argv[3]).decode("utf-8").strip()
 if len(sys.argv) > 4 and sys.argv[4]:
@@ -481,7 +832,7 @@ distribution_identity_name = ""
 distribution_identity_sha1 = ""
 installer_identity_sha1 = ""
 profile_names = {}
-previous_testflight_build_id = None
+previous_testflight_build_ids = set()
 APP_GROUP_IDENTIFIER = "group.org.openmates.app.shared"
 if target_platform == "ios":
     scheme_name = "OpenMates_iOS"
@@ -581,6 +932,21 @@ def build_translations():
     print("translations_status=passed")
 
 
+def build_tokens():
+    print("tokens_status=started")
+    result = subprocess.run(
+        ["npm", "run", "build:tokens"],
+        cwd="frontend/packages/ui",
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    if result.returncode != 0:
+        print_tail("tokens_status", result.stdout + result.stderr, limit=120)
+        sys.exit(result.returncode)
+    print("tokens_status=passed")
+
+
 def b64url(data):
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
@@ -663,7 +1029,8 @@ def asc_request(path, method="GET", body=None):
     sys.exit(1)
 
 
-def latest_app_store_build_for_notes(excluded_build_id=None, wait_for_new=True):
+def latest_app_store_build_for_notes(excluded_build_ids=None, wait_for_new=True):
+    excluded_build_ids = set(excluded_build_ids or [])
     apps_query = urllib.parse.urlencode({"filter[bundleId]": "org.openmates.app", "limit": "10"})
     apps = asc_request(f"apps?{apps_query}").get("data", [])
     if not apps:
@@ -690,7 +1057,7 @@ def latest_app_store_build_for_notes(excluded_build_id=None, wait_for_new=True):
             for build in response.get("data", []):
                 pre_release_id = build.get("relationships", {}).get("preReleaseVersion", {}).get("data", {}).get("id")
                 platform = pre_release_versions.get(pre_release_id, {}).get("platform")
-                if platform == expected_platform and build.get("id") != excluded_build_id:
+                if platform == expected_platform and build.get("id") not in excluded_build_ids:
                     return build
         if attempt < attempts - 1:
             time.sleep(30)
@@ -709,7 +1076,7 @@ def upsert_testflight_whats_new():
         print("whats_new_status=skipped_watchos")
         return
 
-    build = latest_app_store_build_for_notes(excluded_build_id=previous_testflight_build_id)
+    build = latest_app_store_build_for_notes(excluded_build_ids=previous_testflight_build_ids)
     build_id = build.get("id")
     if not build_id:
         print("whats_new_status=missing_build_id")
@@ -1333,6 +1700,7 @@ def assert_ios_archive_embeds_watch_companion():
 
 preflight_signing()
 build_translations()
+build_tokens()
 if has_app_store_connect_api_auth():
     clean_openmates_provisioning_profiles()
     sync_bundle_capabilities()
@@ -1354,7 +1722,6 @@ export_options_path = pathlib.Path(derived) / "ExportOptions.plist"
 export_options = {
     "destination": "export" if target_platform == "watchos" else "upload",
     "method": "app-store-connect",
-    "manageAppVersionAndBuildNumber": True,
     "provisioningProfiles": profile_names,
     "signingCertificate": distribution_identity_sha1 if target_platform == "macos" else distribution_identity_name,
     "signingStyle": "manual",
@@ -1362,6 +1729,7 @@ export_options = {
     "testFlightInternalTestingOnly": internal_only,
     "uploadSymbols": True,
 }
+export_options["manageAppVersionAndBuildNumber"] = requested_build_number is None
 if target_platform == "macos":
     export_options["installerSigningCertificate"] = installer_identity_sha1
 with export_options_path.open("wb") as handle:
@@ -1390,6 +1758,8 @@ else:
     archive_cmd[-2:-2] = common_auth_args
 if build_keychain_path and not archive_without_signing:
     archive_cmd.insert(-1, f"OTHER_CODE_SIGN_FLAGS=--keychain {build_keychain_path}")
+if requested_build_number:
+    archive_cmd.insert(-1, f"CURRENT_PROJECT_VERSION={requested_build_number}")
 if target_platform == "watchos":
     watch_profile = profile_names.get("org.openmates.app.watch")
     if not watch_profile:
@@ -1425,9 +1795,15 @@ export_cmd = [
 ]
 
 if testflight_whats_new and target_platform != "watchos":
-    previous_build = latest_app_store_build_for_notes(wait_for_new=False)
-    previous_testflight_build_id = previous_build.get("id") if previous_build else None
-    print(f"whats_new_previous_build={previous_testflight_build_id or 'none'}")
+    while len(previous_testflight_build_ids) < 20:
+        previous_build = latest_app_store_build_for_notes(
+            excluded_build_ids=previous_testflight_build_ids,
+            wait_for_new=False,
+        )
+        if not previous_build or not previous_build.get("id"):
+            break
+        previous_testflight_build_ids.add(previous_build["id"])
+    print(f"whats_new_previous_build_count={len(previous_testflight_build_ids)}")
 
 print("upload_status=started")
 export = subprocess.run(export_cmd, capture_output=True, text=True, timeout=1800)
@@ -1475,6 +1851,87 @@ print("upload_status=passed")
 upsert_testflight_whats_new()
 for line in (export.stdout + export.stderr).replace(derived, "<macos-peer-tmp>").splitlines()[-40:]:
     print(line)
+'''
+
+
+RELEASE_ARCHIVE_PREFLIGHT_SCRIPT = r'''
+import pathlib
+import plistlib
+import shutil
+import subprocess
+import sys
+import tempfile
+
+target_platform = sys.argv[1]
+platforms = {
+    "ios": ("OpenMates_iOS", "generic/platform=iOS", "OpenMates.xcarchive"),
+    "macos": ("OpenMates_macOS", "generic/platform=macOS", "OpenMatesMac.xcarchive"),
+    "watchos": ("OpenMatesWatch", "generic/platform=watchOS", "OpenMatesWatch.xcarchive"),
+}
+if target_platform not in platforms:
+    print(f"release_archive_preflight=unsupported:{target_platform}")
+    sys.exit(2)
+
+scheme_name, archive_destination, archive_filename = platforms[target_platform]
+derived = tempfile.mkdtemp(prefix="openmates-release-preflight-")
+archive_path = pathlib.Path(derived) / archive_filename
+
+def fail(label, result):
+    print(f"release_archive_preflight={label}")
+    for line in (result.stdout + result.stderr).replace(derived, "<macos-peer-tmp>").splitlines()[-120:]:
+        print(line)
+    sys.exit(result.returncode or 1)
+
+def assert_ios_archive_passkey_entitlements():
+    if target_platform != "ios":
+        return
+    entitlements_path = pathlib.Path("apple/OpenMates/Resources/OpenMatesPasskey.entitlements")
+    try:
+        with entitlements_path.open("rb") as handle:
+            entitlements = plistlib.load(handle)
+    except (OSError, plistlib.InvalidFileException):
+        print("release_archive_preflight=invalid_ios_entitlements")
+        sys.exit(1)
+    domains = entitlements.get("com.apple.developer.associated-domains", [])
+    groups = entitlements.get("com.apple.security.application-groups", [])
+    if "webcredentials:openmates.org" not in domains or "group.org.openmates.app.shared" not in groups:
+        print("release_archive_preflight=missing_ios_entitlements")
+        sys.exit(1)
+
+def assert_ios_archive_embeds_watch_companion():
+    if target_platform != "ios":
+        return
+    watch_apps = sorted((archive_path / "Products" / "Applications" / "OpenMates.app" / "Watch").glob("*.app"))
+    if not watch_apps:
+        print("release_archive_preflight=missing_watch_companion")
+        sys.exit(1)
+    info_path = watch_apps[0] / "Info.plist"
+    try:
+        with info_path.open("rb") as handle:
+            info = plistlib.load(handle)
+    except (OSError, plistlib.InvalidFileException):
+        print("release_archive_preflight=invalid_watch_companion")
+        sys.exit(1)
+    if info.get("CFBundleIdentifier") != "org.openmates.app.watch" or info.get("WKCompanionAppBundleIdentifier") != "org.openmates.app":
+        print("release_archive_preflight=invalid_watch_companion")
+        sys.exit(1)
+
+try:
+    archive_cmd = [
+        "xcodebuild", "-project", "apple/OpenMates.xcodeproj", "-scheme", scheme_name,
+        "-configuration", "Release", "-destination", archive_destination,
+        "-derivedDataPath", str(pathlib.Path(derived) / "DerivedData"),
+        "-archivePath", str(archive_path),
+        "CODE_SIGNING_ALLOWED=NO", "CODE_SIGNING_REQUIRED=NO", "archive",
+    ]
+    result = subprocess.run(archive_cmd, capture_output=True, text=True, timeout=1800)
+    if result.returncode != 0:
+        fail("archive_failed", result)
+    assert_ios_archive_passkey_entitlements()
+    assert_ios_archive_embeds_watch_companion()
+    print(f"release_archive_preflight=passed:{target_platform}")
+finally:
+    shutil.rmtree(derived, ignore_errors=True)
 '''
 
 
@@ -1999,6 +2456,7 @@ bundle_id = sys.argv[1]
 build_limit = sys.argv[2] if len(sys.argv) > 2 else "10"
 require_changelogs = len(sys.argv) > 3 and sys.argv[3] == "1"
 whats_new_locale = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else "en-US"
+scan_all_builds = len(sys.argv) > 5 and sys.argv[5] == "1"
 MIN_TESTFLIGHT_WHATS_NEW_LINES = 5
 
 
@@ -2047,13 +2505,28 @@ def app_store_connect_jwt():
     return f"{signing_input}.{b64url(der_ecdsa_to_raw_jws_signature(signer.stdout))}"
 
 
-def asc_get(path):
+def asc_get_url(url):
     request = urllib.request.Request(
-        f"https://api.appstoreconnect.apple.com/v1/{path}",
+        url,
         headers={"Authorization": f"Bearer {app_store_connect_jwt()}"},
     )
     with urllib.request.urlopen(request, timeout=60) as response:
         return json.loads(response.read().decode("utf-8"))
+
+
+def asc_get(path):
+    return asc_get_url(f"https://api.appstoreconnect.apple.com/v1/{path}")
+
+
+def collect_build_pages(path):
+    pages = []
+    response = asc_get(path)
+    while True:
+        pages.append(response)
+        next_url = response.get("links", {}).get("next") if scan_all_builds else None
+        if not next_url:
+            return pages
+        response = asc_get_url(next_url)
 
 
 def whats_new_line_count(text):
@@ -2071,25 +2544,27 @@ print(f"app_id={app_id}")
 builds_query = urllib.parse.urlencode({
     "filter[app]": app_id,
     "include": "preReleaseVersion",
-    "limit": build_limit,
+    "limit": "200" if scan_all_builds else build_limit,
     "sort": "-uploadedDate",
 })
-response = asc_get(f"builds?{builds_query}")
-if not response.get("data"):
+responses = collect_build_pages(f"builds?{builds_query}")
+if not any(response.get("data") for response in responses):
     relationship_query = urllib.parse.urlencode({
         "include": "preReleaseVersion",
-        "limit": build_limit,
+        "limit": "200" if scan_all_builds else build_limit,
         "sort": "-uploadedDate",
     })
-    response = asc_get(f"apps/{app_id}/builds?{relationship_query}")
-included = response.get("included", [])
+    responses = collect_build_pages(f"apps/{app_id}/builds?{relationship_query}")
+included = [item for response in responses for item in response.get("included", [])]
 pre_release_versions = {
     item.get("id"): item.get("attributes", {})
     for item in included
     if item.get("type") == "preReleaseVersions"
 }
-builds = response.get("data", [])
+builds = [item for response in responses for item in response.get("data", [])]
 print(f"builds={len(builds)}")
+if scan_all_builds:
+    print("build_scan=complete")
 changelog_failures = []
 for build in builds:
     attributes = build.get("attributes", {})
@@ -2130,6 +2605,29 @@ if require_changelogs:
             print(f"changelog_failure={failure}")
         sys.exit(1)
     print("changelog_status=passed")
+'''
+
+
+NEXT_UNIFIED_BUILD_NUMBER_SCRIPT = r'''
+import re
+import sys
+
+output = sys.stdin.read()
+apps_match = re.search(r"(?m)^apps=(\d+)$", output)
+if not apps_match or int(apps_match.group(1)) < 1:
+    sys.exit("App Store Connect app lookup failed")
+if not re.search(r"(?m)^build_scan=complete$", output):
+    sys.exit("App Store Connect build scan did not complete")
+
+raw_build_numbers = re.findall(r"buildNumber=([^\s]+)", output)
+if any(not re.fullmatch(r"\d{1,4}", value) for value in raw_build_numbers):
+    sys.exit("App Store Connect contains a non-integer build number")
+
+build_numbers = [int(value) for value in raw_build_numbers]
+next_build_number = max(build_numbers, default=0) + 1
+if next_build_number > 9999:
+    sys.exit("App Store Connect build number range is exhausted")
+print(next_build_number)
 '''
 
 
@@ -2582,9 +3080,13 @@ def sync_repo_command(branch: str) -> str:
     ])
 
 
+def simulator_locked_command(parts: Sequence[str]) -> str:
+    return shell_join(["python3", "-c", SIMULATOR_LOCK_SCRIPT, SIMULATOR_LOCK_PATH, *parts])
+
+
 def build_ios_command(simulator: str) -> str:
     build_translations = shell_join(["npm", "run", "build:translations"])
-    xcodebuild = shell_join([
+    xcodebuild = simulator_locked_command([
         "xcodebuild",
         "-project",
         "apple/OpenMates.xcodeproj",
@@ -2597,7 +3099,129 @@ def build_ios_command(simulator: str) -> str:
     return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {xcodebuild}"
 
 
-def test_ios_command(simulator: str, only_testing: str | None) -> str:
+def load_local_dotenv(path: Path = REPO_ROOT / ".env") -> dict[str, str]:
+    if not path.exists():
+        return {}
+    values: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if TEST_ACCOUNT_ENV_PATTERN.fullmatch(key) and value:
+            values[key] = value
+    return values
+
+
+def local_test_account_env(env: dict[str, str] | None = None) -> dict[str, str]:
+    merged = load_local_dotenv()
+    source = env if env is not None else dict(os.environ)
+    for key, value in source.items():
+        if (TEST_ACCOUNT_ENV_PATTERN.fullmatch(key) or CHAT_RENDERING_PARITY_ENV_PATTERN.fullmatch(key)) and value:
+            merged[key] = value
+    return merged
+
+
+def with_env_assignments(command: str, env: dict[str, str]) -> str:
+    simulator_env = {
+        f"SIMCTL_CHILD_{key}": value
+        for key, value in env.items()
+        if TEST_ACCOUNT_ENV_PATTERN.fullmatch(key)
+    }
+    merged_env = {**env, **simulator_env}
+    assignments = [f"{key}={shlex.quote(merged_env[key])}" for key in sorted(merged_env)]
+    return f"{' '.join(assignments)} {command}" if assignments else command
+
+
+def write_live_test_credentials_command(env: dict[str, str]) -> str:
+    script = """
+import os
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+lines = []
+for key in sys.argv[2:]:
+    value = os.environ.get(key)
+    if value:
+        lines.append(f"{key}={value.replace(chr(10), '')}")
+path.write_text("\\n".join(lines) + ("\\n" if lines else ""), encoding="utf-8")
+path.chmod(0o600)
+""".strip()
+    keys = sorted(key for key in env if TEST_ACCOUNT_ENV_PATTERN.fullmatch(key))
+    command = shell_join(["python3", "-c", script, LIVE_TEST_CREDENTIALS_PATH, *keys])
+    return with_env_assignments(command, env)
+
+
+def cleanup_live_test_credentials_command() -> str:
+    script = """
+import pathlib
+import sys
+
+pathlib.Path(sys.argv[1]).unlink(missing_ok=True)
+""".strip()
+    return shell_join(["python3", "-c", script, LIVE_TEST_CREDENTIALS_PATH])
+
+
+def test_ios_command(
+    simulator: str,
+    only_testing: str | None,
+    test_account_env: dict[str, str] | None = None,
+) -> str:
+    build_translations = shell_join(["npm", "run", "build:translations"])
+    scheme = "OpenMates_iOS"
+    if only_testing and only_testing.startswith("OpenMatesUITests/"):
+        scheme = "OpenMates_iOS_UI_Tests"
+    elif only_testing and only_testing.startswith("OpenMatesTests/"):
+        scheme = "OpenMates_iOS_Unit_Tests"
+    parts = [
+        "xcodebuild",
+        "test",
+        "-project",
+        "apple/OpenMates.xcodeproj",
+        "-scheme",
+        scheme,
+        "-destination",
+        f"platform=iOS Simulator,name={simulator}",
+    ]
+    if only_testing:
+        parts.extend(["-only-testing", only_testing])
+    xcodebuild = simulator_locked_command(parts)
+    if test_account_env is not None:
+        xcodebuild = with_env_assignments(xcodebuild, test_account_env)
+    if test_account_env:
+        write_credentials = write_live_test_credentials_command(test_account_env)
+        cleanup_credentials = cleanup_live_test_credentials_command()
+        xcodebuild = f"{write_credentials} && trap {shlex.quote(cleanup_credentials)} EXIT && {xcodebuild}"
+    return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {xcodebuild}"
+
+
+def simulator_cleanup_command(simulator: str) -> str:
+    return simulator_locked_command(["xcrun", "simctl", "shutdown", simulator])
+
+
+def simctl_remote_command(simctl_args: Sequence[str]) -> str:
+    return simulator_locked_command(["xcrun", "simctl", *simctl_args])
+
+
+def build_macos_command() -> str:
+    build_translations = shell_join(["npm", "run", "build:translations"])
+    xcodebuild = shell_join([
+        "xcodebuild",
+        "-project",
+        "apple/OpenMates.xcodeproj",
+        "-scheme",
+        "OpenMates_macOS",
+        "-destination",
+        "platform=macOS",
+        "build",
+    ])
+    return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {xcodebuild}"
+
+
+def test_macos_command(only_testing: str | None) -> str:
     build_translations = shell_join(["npm", "run", "build:translations"])
     parts = [
         "xcodebuild",
@@ -2605,9 +3229,10 @@ def test_ios_command(simulator: str, only_testing: str | None) -> str:
         "-project",
         "apple/OpenMates.xcodeproj",
         "-scheme",
-        "OpenMates_iOS",
+        "OpenMates_macOS",
         "-destination",
-        f"platform=iOS Simulator,name={simulator}",
+        "platform=macOS",
+        "-allowProvisioningUpdates",
     ]
     if only_testing:
         parts.extend(["-only-testing", only_testing])
@@ -2615,7 +3240,7 @@ def test_ios_command(simulator: str, only_testing: str | None) -> str:
 
 
 def build_watch_command(simulator: str) -> str:
-    return shell_join([
+    return simulator_locked_command([
         "xcodebuild",
         "-project",
         "apple/OpenMates.xcodeproj",
@@ -2634,19 +3259,35 @@ def test_watch_command(simulator: str, only_testing: str | None) -> str:
         "-project",
         "apple/OpenMates.xcodeproj",
         "-scheme",
-        "OpenMatesWatch",
+        "OpenMatesWatchUITests",
         "-destination",
         f"platform=watchOS Simulator,name={simulator}",
     ]
     if only_testing:
         parts.extend(["-only-testing", only_testing])
-    return shell_join(parts)
+    return simulator_locked_command(parts)
 
 
 def verify_watch_startup_command(simulator: str, duration: int) -> str:
     if duration < 5 or duration > 300:
         raise AppleRemoteError("verify-watch-startup duration must be between 5 and 300 seconds")
-    return shell_join(["python3", "-c", WATCH_STARTUP_SCRIPT, simulator, str(duration)])
+    return simulator_locked_command(["python3", "-c", WATCH_STARTUP_SCRIPT, simulator, str(duration)])
+
+
+def apple_remote_doctor_command(repo_path: str | None) -> str:
+    return shell_join(["python3", "-c", APPLE_REMOTE_DOCTOR_SCRIPT, repo_path or ""])
+
+
+def verify_ios_startup_command(simulator: str, duration: int, fresh_install: bool = False) -> str:
+    if duration < 5 or duration > 300:
+        raise AppleRemoteError("verify-ios-startup duration must be between 5 and 300 seconds")
+    return simulator_locked_command(["python3", "-c", IOS_STARTUP_SCRIPT, simulator, str(duration), "1" if fresh_install else "0"])
+
+
+def verify_macos_startup_command(duration: int) -> str:
+    if duration < 5 or duration > 300:
+        raise AppleRemoteError("verify-macos-startup duration must be between 5 and 300 seconds")
+    return shell_join(["python3", "-c", MACOS_STARTUP_SCRIPT, str(duration)])
 
 
 def device_status_command() -> str:
@@ -2691,6 +3332,17 @@ def app_store_connect_env_prefix(
     return " ".join([*env_parts, command])
 
 
+def release_archive_preflight_command(platform: str) -> str:
+    if platform not in {"ios", "macos", "watchos"}:
+        raise AppleRemoteError(f"Unsupported release archive platform: {platform}")
+    return shell_join(["python3", "-c", RELEASE_ARCHIVE_PREFLIGHT_SCRIPT, platform])
+
+
+def release_preflight_then_upload_command(preflight_command: str, upload_command: str) -> str:
+    """Require the non-mutating archive check immediately before an upload."""
+    return f"{preflight_command} && {upload_command}"
+
+
 def upload_testflight_ios_command(
     internal_only: bool,
     *,
@@ -2710,12 +3362,13 @@ def upload_testflight_ios_command(
         encoded_whats_new,
         whats_new_locale,
     ])
-    return app_store_connect_env_prefix(
+    upload_command = app_store_connect_env_prefix(
         command,
         api_key_path=api_key_path,
         api_key_id=api_key_id,
         api_issuer_id=api_issuer_id,
     )
+    return release_preflight_then_upload_command(release_archive_preflight_command("ios"), upload_command)
 
 
 def upload_testflight_macos_command(
@@ -2737,12 +3390,13 @@ def upload_testflight_macos_command(
         encoded_whats_new,
         whats_new_locale,
     ])
-    return app_store_connect_env_prefix(
+    upload_command = app_store_connect_env_prefix(
         command,
         api_key_path=api_key_path,
         api_key_id=api_key_id,
         api_issuer_id=api_issuer_id,
     )
+    return release_preflight_then_upload_command(release_archive_preflight_command("macos"), upload_command)
 
 
 def upload_testflight_watch_command(
@@ -2764,12 +3418,13 @@ def upload_testflight_watch_command(
         encoded_whats_new,
         whats_new_locale,
     ])
-    return app_store_connect_env_prefix(
+    upload_command = app_store_connect_env_prefix(
         command,
         api_key_path=api_key_path,
         api_key_id=api_key_id,
         api_issuer_id=api_issuer_id,
     )
+    return release_preflight_then_upload_command(release_archive_preflight_command("watchos"), upload_command)
 
 
 def deploy_latest_testflight_command(
@@ -2782,8 +3437,24 @@ def deploy_latest_testflight_command(
     whats_new: str | None = None,
     whats_new_locale: str = "en-US",
 ) -> str:
+    builds_command = app_store_builds_command(
+        "org.openmates.app",
+        limit=50,
+        scan_all_builds=True,
+        api_key_path=api_key_path,
+        api_key_id=api_key_id,
+        api_issuer_id=api_issuer_id,
+    )
+    next_build_command = shell_join(["python3", "-c", NEXT_UNIFIED_BUILD_NUMBER_SCRIPT])
+    select_build_number_command = (
+        f'OPENMATES_UNIFIED_BUILD_NUMBER="$({builds_command} | {next_build_command})"'
+        ' && test -n "$OPENMATES_UNIFIED_BUILD_NUMBER"'
+        ' && export OPENMATES_UNIFIED_BUILD_NUMBER'
+        ' && printf "unified_build_number=%s\\n" "$OPENMATES_UNIFIED_BUILD_NUMBER"'
+    )
     commands = [
         sync_repo_command(branch),
+        select_build_number_command,
         upload_testflight_ios_command(
             internal_only,
             api_key_path=api_key_path,
@@ -2853,6 +3524,7 @@ def app_store_builds_command(
     limit: int = 10,
     require_changelogs: bool = False,
     whats_new_locale: str = "en-US",
+    scan_all_builds: bool = False,
     *,
     api_key_path: str | None = None,
     api_key_id: str | None = None,
@@ -2868,6 +3540,7 @@ def app_store_builds_command(
         str(limit),
         "1" if require_changelogs else "0",
         whats_new_locale,
+        "1" if scan_all_builds else "0",
     ])
     return app_store_connect_env_prefix(
         command,
@@ -2932,6 +3605,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("status", help="Check redacted SSH reachability")
 
+    subparsers.add_parser("doctor", help="Check redacted remote Mac, Xcode, repo, schemes, simulator, and Watch-test readiness")
+
     run_parser = subparsers.add_parser("run", help="Run a raw remote command")
     run_parser.add_argument("remote_command", nargs=argparse.REMAINDER)
 
@@ -2947,6 +3622,29 @@ def build_parser() -> argparse.ArgumentParser:
     test_parser = subparsers.add_parser("test-ios", help="Run OpenMates_iOS tests remotely")
     test_parser.add_argument("--simulator", default="iPhone 17")
     test_parser.add_argument("--only-testing")
+
+    verify_ios_parser = subparsers.add_parser(
+        "verify-ios-startup",
+        help="Build, install, launch, screenshot, log, and poll OpenMates_iOS for startup crashes",
+    )
+    verify_ios_parser.add_argument("--simulator", default="iPhone 17")
+    verify_ios_parser.add_argument("--duration", type=int, default=60)
+    verify_ios_parser.add_argument(
+        "--fresh-install",
+        action="store_true",
+        help="Uninstall the app before install/launch for first-run or state-dependent startup checks",
+    )
+
+    subparsers.add_parser("build-macos", help="Build OpenMates_macOS remotely")
+
+    test_macos_parser = subparsers.add_parser("test-macos", help="Run OpenMates_macOS tests remotely")
+    test_macos_parser.add_argument("--only-testing")
+
+    verify_macos_parser = subparsers.add_parser(
+        "verify-macos-startup",
+        help="Build, launch, screenshot, log, and poll OpenMates_macOS for startup crashes",
+    )
+    verify_macos_parser.add_argument("--duration", type=int, default=60)
 
     build_watch_parser = subparsers.add_parser("build-watch", help="Build OpenMatesWatch remotely")
     build_watch_parser.add_argument("--simulator", default="Apple Watch Series 11 (46mm)")
@@ -2974,6 +3672,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Use passkey/webcredentials Associated Domains entitlements for paid-team builds",
     )
+
+    release_preflight_parser = subparsers.add_parser(
+        "release-archive-preflight",
+        help="Run a non-uploading Release archive preflight before Apple distribution",
+    )
+    release_preflight_parser.add_argument("--platform", choices=["ios", "macos", "watchos"], required=True)
 
     testflight_parser = subparsers.add_parser("upload-testflight-ios", help="Archive and upload OpenMates_iOS to TestFlight")
     testflight_parser.add_argument(
@@ -3116,6 +3820,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         api_options = app_store_connect_api_options(args, local_config)
         if args.command == "status":
             return print_status(config)
+        if args.command == "doctor":
+            return run_remote(config, apple_remote_doctor_command(config.repo_path))
         if args.command == "run":
             remote_command = strip_command_separator(args.remote_command)
             if not remote_command:
@@ -3135,7 +3841,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "build-ios":
             return run_remote(config, repo_command(config, ["bash", "-lc", build_ios_command(args.simulator)]))
         if args.command == "test-ios":
-            return run_remote(config, repo_command(config, ["bash", "-lc", test_ios_command(args.simulator, args.only_testing)]))
+            return run_remote(
+                config,
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    test_ios_command(
+                        args.simulator,
+                        args.only_testing,
+                        local_test_account_env(),
+                    ),
+                ]),
+            )
+        if args.command == "verify-ios-startup":
+            return run_remote(config, repo_command(config, ["bash", "-lc", verify_ios_startup_command(args.simulator, args.duration, args.fresh_install)]))
+        if args.command == "build-macos":
+            return run_remote(config, repo_command(config, ["bash", "-lc", build_macos_command()]))
+        if args.command == "test-macos":
+            return run_remote(config, repo_command(config, ["bash", "-lc", test_macos_command(args.only_testing)]))
+        if args.command == "verify-macos-startup":
+            return run_remote(config, repo_command(config, ["bash", "-lc", verify_macos_startup_command(args.duration)]))
         if args.command == "build-watch":
             return run_remote(config, repo_command(config, ["bash", "-lc", build_watch_command(args.simulator)]))
         if args.command == "test-watch":
@@ -3157,6 +3882,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                         args.device_index,
                     ),
                 ]),
+            )
+        if args.command == "release-archive-preflight":
+            return run_remote(
+                config,
+                repo_command(config, ["bash", "-lc", release_archive_preflight_command(args.platform)]),
             )
         if args.command == "upload-testflight-ios":
             notes_options = testflight_notes_options(args)
@@ -3319,11 +4049,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             simctl_args = strip_command_separator(args.simctl_args)
             if not simctl_args:
                 raise AppleRemoteError("simctl requires arguments after --")
-            return run_remote(config, shell_join(["xcrun", "simctl", *simctl_args]), allow_destructive=args.allow_destructive)
+            return run_remote(config, simctl_remote_command(simctl_args), allow_destructive=args.allow_destructive)
         if args.command == "cleanup":
             return run_remote(
                 config,
-                shell_join(["xcrun", "simctl", "shutdown", args.simulator]),
+                simulator_cleanup_command(args.simulator),
                 allow_destructive=True,
             )
         if args.command == "xcode-cache-report":

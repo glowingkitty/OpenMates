@@ -35,6 +35,27 @@ const {
 const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
+const SHOULD_SKIP_GPT54_LIVE = !process.env.E2E_USE_MOCKS && !process.env.TEST_LIVE_RECORD;
+const GPT54_LIVE_SKIP_REASON = 'GPT-5.4 live OpenAI route is quota-dependent; deterministic coverage runs via recorded fixtures.';
+
+async function focusMessageEditor(messageEditor: any): Promise<void> {
+	await messageEditor.click();
+	await expect
+		.poll(async () => messageEditor.evaluate((editor: HTMLElement) => {
+			const activeElement = document.activeElement;
+			const selectionNode = document.getSelection()?.anchorNode ?? null;
+			const selectionElement = selectionNode instanceof Element
+				? selectionNode
+				: selectionNode?.parentElement ?? null;
+			return (
+				editor === activeElement ||
+				editor.contains(activeElement) ||
+				(!!selectionElement && editor.contains(selectionElement))
+			);
+		}), { timeout: 5000 })
+		.toBe(true);
+}
+
 /**
  * Model override test via MentionDropdown autocomplete.
  *
@@ -80,17 +101,18 @@ async function selectModelViaMentionDropdown(
 ): Promise<void> {
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
-	await messageEditor.click();
+	await focusMessageEditor(messageEditor);
 	logCheckpoint('Clicked on message editor.');
 
-	// Type "@" to trigger the mention dropdown
-	await page.keyboard.type('@');
-	logCheckpoint('Typed "@" to trigger mention dropdown.');
-	await page.waitForTimeout(500);
-
-	// Type the model search term to filter
-	await page.keyboard.type(modelSearchTerm);
-	logCheckpoint(`Typed model search term: "${modelSearchTerm}"`);
+	// Insert the trigger and query only after the contenteditable owns focus.
+	// Otherwise Chromium can drop the leading "@", leaving plain text like "qwen"
+	// and the mention plugin never enters dropdown mode.
+	const mentionQuery = `@${modelSearchTerm}`;
+	await page.keyboard.insertText(mentionQuery);
+	await expect
+		.poll(async () => ((await messageEditor.textContent()) || '').replace(/\s+/g, ' ').trim(), { timeout: 5000 })
+		.toContain(mentionQuery);
+	logCheckpoint(`Typed model mention query: "${mentionQuery}"`);
 	await page.waitForTimeout(500);
 
 	// Wait for the mention dropdown to appear with increased timeout
@@ -374,6 +396,8 @@ test('select qwen model via @ mention dropdown', async ({ page }: { page: any })
  * 6. Verify response shows "GPT-5.4" in generated-by text
  */
 test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any }) => {
+	test.skip(SHOULD_SKIP_GPT54_LIVE, GPT54_LIVE_SKIP_REASON);
+
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
 		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
@@ -461,6 +485,8 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
  * 5. Delete chat
  */
 test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: { page: any }) => {
+	test.skip(SHOULD_SKIP_GPT54_LIVE, GPT54_LIVE_SKIP_REASON);
+
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
 		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);

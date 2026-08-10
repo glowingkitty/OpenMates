@@ -3663,52 +3663,1060 @@ import_title:
   he: ייבוא שיחות
   verified_by_human: []
 import_description:
-  context: Description shown on the import page (supports ZIP and YAML)
-  en: Import chats from an OpenMates export ZIP or YAML file. Each message is safety-scanned before storage.
-  de: Chats aus einer zuvor exportierten OpenMates-YAML-Datei importieren. Jede Nachricht wird vor der Speicherung auf Sicherheit geprüft.
-  zh: 从之前导出的OpenMates YAML文件导入聊天记录。每条消息在存储前都会经过安全扫描。
-  es: Importa chats desde un archivo YAML de OpenMates exportado previamente. Cada mensaje se analiza por seguridad antes de almacenarse.
-  fr: Importez des chats depuis un fichier YAML OpenMates précédemment exporté. Chaque message est analysé pour la sécurité avant stockage.
-  pt: Importe conversas de um arquivo YAML do OpenMates exportado anteriormente. Cada mensagem é verificada por segurança antes do armazenamento.
-  ru: Импортируйте чаты из ранее экспортированного файла OpenMates YAML. Каждое сообщение проверяется на безопасность перед сохранением.
-  ja: 以前にエクスポートしたOpenMates YAMLファイルからチャットをインポートします。各メッセージは保存前にセキュリティスキャンされます。
-  ko: 이전에 내보낸 OpenMates YAML 파일에서 채팅을 가져옵니다. 각 메시지는 저장 전에 보안 검사를 받습니다。
-  it: Importa le chat da un file YAML OpenMates precedentemente esportato. Ogni messaggio viene analizzato per la sicurezza prima dell'archiviazione.
-  tr: OpenMates dışa aktarma ZIP veya YAML dosyasından sohbetleri içe aktarın. Her mesaj depolanmadan önce güvenlik taramasından geçirilir.
-  vi: Nhập chats từ tệp ZIP hoặc YAML xuất khẩu OpenMates. Mỗi tin nhắn được quét an toàn trước khi lưu trữ.
-  id: Impor obrolan dari file ZIP atau YAML ekspor OpenMates. Setiap pesan dipindai keamanan sebelum disimpan.
-  pl: Importuj czaty z pliku ZIP lub YAML eksportu OpenMates. Każda wiadomość jest skanowana pod kątem bezpieczeństwa przed zapisaniem.
-  nl: Importeer chats uit een OpenMates export ZIP- of YAML-bestand. Elk bericht wordt vóór opslag gescand op veiligheid.
-  ar: استورد المحادثات من ملف ZIP أو YAML لتصدير OpenMates. يتم فحص كل رسالة أمنيًا قبل التخزين.
-  hi: OpenMates एक्सपोर्ट ZIP या YAML फ़ाइल से चैट आयात करें। प्रत्येक संदेश को संग्रहीत करने से पहले सुरक्षा स्कैन किया जाता है।
-  th: นำเข้าแชทจากไฟล์ ZIP หรือ YAML ของ OpenMates แต่ละข้อความจะถูกสแกนความปลอดภัยก่อนจัดเก็บ
-  cs: Importujte chaty ze souboru ZIP nebo YAML exportu OpenMates. Každá zpráva je před uložením prověřena z hlediska bezpečnosti.
-  sv: Importera chattar från en OpenMates export ZIP- eller YAML-fil. Varje meddelande genomsöks för säkerhet innan lagring.
-  he: ייבא שיחות מקובץ ZIP או YAML של ייצוא OpenMates. כל הודעה נסרקת לאבטחה לפני האחסון.
+  context: Description shown on the Account Import V1 page
+  en: Import chats from OpenMates, ChatGPT, Claude, Gemini, OpenCode, or another AI assistant. Messages are safety-scanned, compressed when needed, and encrypted on this device before storage.
+  de: Importiere Chats aus OpenMates, ChatGPT, Claude, Gemini, OpenCode oder einem anderen KI-Assistenten. Nachrichten werden sicherheitsgeprüft, bei Bedarf komprimiert und vor der Speicherung auf diesem Gerät verschlüsselt.
+  zh: 使用受支持的 ZIP 或 JSON 文件，从 OpenMates、ChatGPT、Claude、Gemini、OpenCode 或其他 AI 助手导入聊天。消息会先经过安全扫描，并在存储前于此设备上加密。
+  es: Importa chats de OpenMates, ChatGPT, Claude, Gemini, OpenCode u otro asistente de IA mediante archivos ZIP o JSON compatibles. Los mensajes se analizan y se cifran en este dispositivo antes de almacenarse.
+  fr: Importez des chats depuis OpenMates, ChatGPT, Claude, Gemini, OpenCode ou un autre assistant IA avec des fichiers ZIP ou JSON compatibles. Les messages sont analysés puis chiffrés sur cet appareil avant stockage.
+  pt: Importe conversas do OpenMates, ChatGPT, Claude, Gemini, OpenCode ou de outro assistente de IA usando arquivos ZIP ou JSON compatíveis. As mensagens são verificadas e criptografadas neste dispositivo antes do armazenamento.
+  ru: Импортируйте чаты из OpenMates, ChatGPT, Claude, Gemini, OpenCode или другого ИИ-ассистента с помощью поддерживаемых файлов ZIP или JSON. Сообщения проверяются и шифруются на этом устройстве перед сохранением.
+  ja: 対応する ZIP または JSON ファイルを使って、OpenMates、ChatGPT、Claude、Gemini、OpenCode、その他の AI アシスタントからチャットをインポートします。メッセージは安全性を確認し、この端末で暗号化してから保存されます。
+  ko: 지원되는 ZIP 또는 JSON 파일로 OpenMates, ChatGPT, Claude, Gemini, OpenCode 또는 기타 AI 어시스턴트의 채팅을 가져옵니다. 메시지는 안전 검사를 거쳐 이 기기에서 암호화된 후 저장됩니다.
+  it: Importa chat da OpenMates, ChatGPT, Claude, Gemini, OpenCode o un altro assistente IA usando file ZIP o JSON supportati. I messaggi vengono controllati e cifrati su questo dispositivo prima dell'archiviazione.
+  tr: Desteklenen ZIP veya JSON dosyalarıyla OpenMates, ChatGPT, Claude, Gemini, OpenCode ya da başka bir yapay zeka asistanından sohbetleri içe aktarın. Mesajlar depolanmadan önce taranır ve bu cihazda şifrelenir.
+  vi: Nhập cuộc trò chuyện từ OpenMates, ChatGPT, Claude, Gemini, OpenCode hoặc trợ lý AI khác bằng tệp ZIP hay JSON được hỗ trợ. Tin nhắn được quét an toàn và mã hóa trên thiết bị này trước khi lưu.
+  id: Impor obrolan dari OpenMates, ChatGPT, Claude, Gemini, OpenCode, atau asisten AI lain dengan file ZIP atau JSON yang didukung. Pesan dipindai dan dienkripsi di perangkat ini sebelum disimpan.
+  pl: Importuj czaty z OpenMates, ChatGPT, Claude, Gemini, OpenCode lub innego asystenta AI przy użyciu obsługiwanych plików ZIP albo JSON. Wiadomości są skanowane i szyfrowane na tym urządzeniu przed zapisaniem.
+  nl: Importeer chats uit OpenMates, ChatGPT, Claude, Gemini, OpenCode of een andere AI-assistent met ondersteunde ZIP- of JSON-bestanden. Berichten worden gescand en op dit apparaat versleuteld voordat ze worden opgeslagen.
+  ar: استورد المحادثات من OpenMates أو ChatGPT أو Claude أو Gemini أو OpenCode أو مساعد ذكاء اصطناعي آخر باستخدام ملفات ZIP أو JSON المدعومة. تُفحص الرسائل وتُشفّر على هذا الجهاز قبل التخزين.
+  hi: समर्थित ZIP या JSON फ़ाइलों से OpenMates, ChatGPT, Claude, Gemini, OpenCode या किसी अन्य AI सहायक की चैट आयात करें। संदेशों की सुरक्षा जाँच होती है और संग्रहण से पहले इसी डिवाइस पर एन्क्रिप्ट किया जाता है।
+  th: นำเข้าแชทจาก OpenMates, ChatGPT, Claude, Gemini, OpenCode หรือผู้ช่วย AI อื่นด้วยไฟล์ ZIP หรือ JSON ที่รองรับ ข้อความจะถูกตรวจสอบและเข้ารหัสบนอุปกรณ์นี้ก่อนจัดเก็บ
+  cs: Importujte chaty z OpenMates, ChatGPT, Claude, Gemini, OpenCode nebo jiného AI asistenta pomocí podporovaných souborů ZIP či JSON. Zprávy se před uložením zkontrolují a zašifrují na tomto zařízení.
+  sv: Importera chattar från OpenMates, ChatGPT, Claude, Gemini, OpenCode eller en annan AI-assistent med ZIP- eller JSON-filer som stöds. Meddelanden granskas och krypteras på den här enheten före lagring.
+  he: ייבא שיחות מ-OpenMates, ChatGPT, Claude, Gemini, OpenCode או מסייע AI אחר באמצעות קובצי ZIP או JSON נתמכים. ההודעות נסרקות ומוצפנות במכשיר הזה לפני האחסון.
+  verified_by_human: []
+import_native_deferred:
+  context: Native Apple Account Import V1 explanation while file parsing is deferred to web and CLI
+  en: To preserve the same safety scanning and on-device encryption guarantees, import files through the web app or OpenMates CLI. Imported chats sync back to this device.
+  de: Um dieselben Sicherheitsprüfungen und die Verschlüsselung auf dem Gerät zu gewährleisten, importiere Dateien über die Web-App oder OpenMates CLI. Importierte Chats werden anschließend mit diesem Gerät synchronisiert.
+  zh: 为确保同等的安全扫描和设备端加密保障，请通过网页应用或 OpenMates CLI 导入文件。导入的聊天将同步回此设备。
+  es: Para mantener las mismas garantías de análisis de seguridad y cifrado en el dispositivo, importa los archivos mediante la aplicación web o la CLI de OpenMates. Los chats importados se sincronizarán con este dispositivo.
+  fr: Pour conserver les mêmes garanties d’analyse de sécurité et de chiffrement sur l’appareil, importez les fichiers via l’application web ou OpenMates CLI. Les chats importés seront synchronisés avec cet appareil.
+  pt: Para manter as mesmas garantias de verificação de segurança e criptografia no dispositivo, importe arquivos pelo aplicativo web ou pela CLI do OpenMates. Os chats importados serão sincronizados com este dispositivo.
+  ru: Чтобы обеспечить те же гарантии проверки безопасности и шифрования на устройстве, импортируйте файлы через веб-приложение или OpenMates CLI. Импортированные чаты синхронизируются с этим устройством.
+  ja: 同等の安全スキャンとデバイス上の暗号化を保証するため、ウェブアプリまたは OpenMates CLI からファイルをインポートしてください。インポートしたチャットはこのデバイスに同期されます。
+  ko: 동일한 안전 검사 및 기기 내 암호화 보장을 유지하려면 웹 앱 또는 OpenMates CLI를 통해 파일을 가져오세요. 가져온 채팅은 이 기기에 동기화됩니다.
+  it: Per mantenere le stesse garanzie di scansione di sicurezza e crittografia sul dispositivo, importa i file tramite l’app web o OpenMates CLI. Le chat importate verranno sincronizzate con questo dispositivo.
+  tr: Aynı güvenlik taraması ve cihaz içi şifreleme güvencelerini korumak için dosyaları web uygulaması veya OpenMates CLI üzerinden içe aktarın. İçe aktarılan sohbetler bu cihazla eşitlenir.
+  vi: Để duy trì cùng mức đảm bảo về quét an toàn và mã hóa trên thiết bị, hãy nhập tệp qua ứng dụng web hoặc OpenMates CLI. Các cuộc trò chuyện đã nhập sẽ đồng bộ lại với thiết bị này.
+  id: Untuk mempertahankan jaminan pemindaian keamanan dan enkripsi di perangkat yang sama, impor file melalui aplikasi web atau OpenMates CLI. Chat yang diimpor akan disinkronkan kembali ke perangkat ini.
+  pl: Aby zachować te same gwarancje skanowania bezpieczeństwa i szyfrowania na urządzeniu, zaimportuj pliki przez aplikację internetową lub OpenMates CLI. Zaimportowane czaty zostaną zsynchronizowane z tym urządzeniem.
+  nl: Importeer bestanden via de webapp of OpenMates CLI om dezelfde garanties voor veiligheidsscans en versleuteling op het apparaat te behouden. Geïmporteerde chats worden met dit apparaat gesynchroniseerd.
+  ar: للحفاظ على ضمانات فحص الأمان والتشفير على الجهاز نفسها، استورد الملفات عبر تطبيق الويب أو OpenMates CLI. ستتم مزامنة المحادثات المستوردة مع هذا الجهاز.
+  hi: समान सुरक्षा स्कैनिंग और डिवाइस पर एन्क्रिप्शन की गारंटी बनाए रखने के लिए, वेब ऐप या OpenMates CLI के माध्यम से फ़ाइलें आयात करें। आयात की गई चैट इस डिवाइस पर सिंक हो जाएंगी।
+  th: เพื่อคงการรับประกันด้านการสแกนความปลอดภัยและการเข้ารหัสบนอุปกรณ์แบบเดียวกัน ให้นำเข้าไฟล์ผ่านเว็บแอปหรือ OpenMates CLI แชทที่นำเข้าจะซิงค์กลับมายังอุปกรณ์นี้
+  cs: Chcete-li zachovat stejné záruky bezpečnostní kontroly a šifrování v zařízení, importujte soubory prostřednictvím webové aplikace nebo OpenMates CLI. Importované chaty se synchronizují s tímto zařízením.
+  sv: Importera filer via webbappen eller OpenMates CLI för att behålla samma garantier för säkerhetsskanning och kryptering på enheten. Importerade chattar synkroniseras med den här enheten.
+  he: כדי לשמור על אותן הבטחות של סריקת אבטחה והצפנה במכשיר, יש לייבא קבצים דרך אפליקציית האינטרנט או OpenMates CLI. הצ׳אטים שיובאו יסונכרנו עם מכשיר זה.
+  verified_by_human: []
+import_open_web:
+  context: Button opening the verified Account Import V1 web flow from an Apple app
+  en: Open secure web import
+  de: Sicheren Web-Import öffnen
+  zh: 打开安全网页导入
+  es: Abrir importación web segura
+  fr: Ouvrir l’importation web sécurisée
+  pt: Abrir importação segura pela web
+  ru: Открыть безопасный веб-импорт
+  ja: 安全なウェブインポートを開く
+  ko: 안전한 웹 가져오기 열기
+  it: Apri l’importazione web sicura
+  tr: Güvenli web içe aktarmayı aç
+  vi: Mở tính năng nhập an toàn trên web
+  id: Buka impor web aman
+  pl: Otwórz bezpieczny import internetowy
+  nl: Veilige webimport openen
+  ar: فتح الاستيراد الآمن عبر الويب
+  hi: सुरक्षित वेब आयात खोलें
+  th: เปิดการนำเข้าผ่านเว็บอย่างปลอดภัย
+  cs: Otevřít bezpečný webový import
+  sv: Öppna säker webbimport
+  he: פתיחת ייבוא מאובטח באינטרנט
+  verified_by_human: []
+import_source_other_assistant_name:
+  context: Display name for an imported assistant whose selected source is Other
+  en: AI assistant
+  de: KI-Assistent
+  zh: AI 助手
+  es: Asistente de IA
+  fr: Assistant IA
+  pt: Assistente de IA
+  ru: ИИ-ассистент
+  ja: AI アシスタント
+  ko: AI 어시스턴트
+  it: Assistente IA
+  tr: Yapay zeka asistanı
+  vi: Trợ lý AI
+  id: Asisten AI
+  pl: Asystent AI
+  nl: AI-assistent
+  ar: مساعد ذكاء اصطناعي
+  hi: AI सहायक
+  th: ผู้ช่วย AI
+  cs: AI asistent
+  sv: AI-assistent
+  he: עוזר AI
   verified_by_human: []
 import_choose_file:
-  context: Placeholder text for the file picker on the import page (accepts ZIP or YAML)
-  en: Choose a .zip or .yml file to import
-  de: .zip- oder .yml-Datei zum Importieren auswählen
-  zh: 选择要导入的.zip或.yml文件
-  es: Elige un archivo .zip o .yml para importar
-  fr: Choisir un fichier .zip ou .yml à importer
-  pt: Escolha um arquivo .zip ou .yml para importar
-  ru: Выберите файл .zip или .yml для импорта
-  ja: インポートする.zipまたは.ymlファイルを選択
-  ko: 가져올 .zip 또는 .yml 파일 선택
-  it: Scegli un file .zip o .yml da importare
-  tr: İçe aktarmak için .zip veya .yml dosyası seçin
-  vi: Chọn tệp .zip hoặc .yml để nhập
-  id: Pilih file .zip atau .yml untuk diimpor
-  pl: Wybierz plik .zip lub .yml do importu
-  nl: Kies een .zip- of .yml-bestand om te importeren
-  ar: اختر ملف .zip أو .yml للاستيراد
-  hi: आयात करने के लिए .zip या .yml फ़ाइल चुनें
-  th: เลือกไฟล์ .zip หรือ .yml เพื่อนำเข้า
-  cs: Vyberte soubor .zip nebo .yml k importu
-  sv: Välj en .zip- eller .yml-fil att importera
-  he: בחר קובץ .zip או .yml לייבוא
+  context: Accessible label for the Account Import V1 ZIP or JSON file picker
+  en: Choose a ZIP or JSON file to import
+  de: ZIP- oder JSON-Datei zum Importieren auswählen
+  zh: 选择受支持的 ZIP 或 JSON 文件进行导入
+  es: Elige un archivo ZIP o JSON compatible para importar
+  fr: Choisir un fichier ZIP ou JSON compatible à importer
+  pt: Escolha um arquivo ZIP ou JSON compatível para importar
+  ru: Выберите поддерживаемый файл ZIP или JSON для импорта
+  ja: インポートする対応 ZIP または JSON ファイルを選択
+  ko: 가져올 지원 ZIP 또는 JSON 파일 선택
+  it: Scegli un file ZIP o JSON supportato da importare
+  tr: İçe aktarmak için desteklenen bir ZIP veya JSON dosyası seçin
+  vi: Chọn tệp ZIP hoặc JSON được hỗ trợ để nhập
+  id: Pilih file ZIP atau JSON yang didukung untuk diimpor
+  pl: Wybierz obsługiwany plik ZIP lub JSON do importu
+  nl: Kies een ondersteund ZIP- of JSON-bestand om te importeren
+  ar: اختر ملف ZIP أو JSON مدعومًا للاستيراد
+  hi: आयात करने के लिए समर्थित ZIP या JSON फ़ाइल चुनें
+  th: เลือกไฟล์ ZIP หรือ JSON ที่รองรับเพื่อนำเข้า
+  cs: Vyberte podporovaný soubor ZIP nebo JSON k importu
+  sv: Välj en ZIP- eller JSON-fil som stöds för import
+  he: בחר קובץ ZIP או JSON נתמך לייבוא
+  verified_by_human: []
+import_source_heading:
+  context: Heading and accessible label for the required account import source selector
+  en: Choose the source shown for imported assistant messages
+  de: Wähle die Quelle, die für importierte Assistentennachrichten angezeigt wird
+  zh: 选择导入的助手消息所显示的来源
+  es: Elige la fuente que se mostrará para los mensajes del asistente importados
+  fr: "Choisis la source affichée pour les messages de l'assistant importés"
+  pt: Escolhe a fonte exibida para as mensagens importadas do assistente
+  ru: Выберите источник, отображаемый для импортированных сообщений ассистента
+  ja: インポートされたアシスタントメッセージのソースを選択してください
+  ko: 가져온 어시스턴트 메시지에 표시할 소스 선택
+  it: "Scegli la fonte mostrata per i messaggi dell'assistente importati"
+  tr: İçe aktarılan asistan mesajları için gösterilecek kaynağı seç
+  vi: Chọn nguồn hiển thị cho các tin nhắn trợ lý được nhập
+  id: Pilih sumber yang ditampilkan untuk pesan asisten yang diimpor
+  pl: Wybierz źródło wyświetlane dla zaimportowanych wiadomości asystenta
+  nl: Kies de bron die wordt getoond voor geïmporteerde berichten van de assistent
+  ar: اختر المصدر المعروض لرسائل المساعد المستوردة
+  hi: इंपोर्ट किए गए असिस्टेंट संदेशों के लिए दिखाए जाने वाले स्रोत को चुनें
+  th: เลือกแหล่งที่มาที่จะแสดงสำหรับข้อความจากผู้ช่วยที่นำเข้า
+  cs: Vyber zdroj, který se zobrazí u importovaných zpráv asistenta
+  sv: Välj källan som visas för importerade assistentmeddelanden
+  he: בחירת המקור שיוצג עבור הודעות עוזר שיובאו
+  verified_by_human: []
+import_source_openmates:
+  context: Account import source option
+  en: OpenMates
+  de: OpenMates
+  zh: OpenMates
+  es: OpenMates
+  fr: OpenMates
+  pt: OpenMates
+  ru: OpenMates
+  ja: OpenMates
+  ko: OpenMates
+  it: OpenMates
+  tr: OpenMates
+  vi: OpenMates
+  id: OpenMates
+  pl: OpenMates
+  nl: OpenMates
+  ar: OpenMates
+  hi: OpenMates
+  th: OpenMates
+  cs: OpenMates
+  sv: OpenMates
+  he: OpenMates
+  verified_by_human: []
+import_source_openmates_description:
+  context: Account import source option description
+  en: OpenMates Export V1 archive
+  de: OpenMates Export V1-Archiv
+  zh: OpenMates 导出 V1 存档
+  es: Archivo de exportación V1 de OpenMates
+  fr: "Archive d'exportation OpenMates V1"
+  pt: Arquivo de exportação OpenMates V1
+  ru: Архив экспорта OpenMates V1
+  ja: OpenMates エクスポート V1 アーカイブ
+  ko: OpenMates 내보내기 V1 아카이브
+  it: Archivio OpenMates Export V1
+  tr: OpenMates Dışa Aktarma V1 arşivi
+  vi: Kho lưu trữ OpenMates Export V1
+  id: Arsip OpenMates Export V1
+  pl: Archiwum OpenMates Export V1
+  nl: OpenMates Export V1-archief
+  ar: أرشيف تصدير OpenMates V1
+  hi: OpenMates एक्सपोर्ट V1 आर्काइव
+  th: ไฟล์เก็บถาวร OpenMates Export V1
+  cs: Archiv OpenMates Export V1
+  sv: OpenMates Export V1-arkiv
+  he: ארכיון OpenMates Export V1
+  verified_by_human: []
+import_source_chatgpt:
+  context: Account import source option
+  en: ChatGPT
+  de: ChatGPT
+  zh: ChatGPT
+  es: ChatGPT
+  fr: ChatGPT
+  pt: ChatGPT
+  ru: ChatGPT
+  ja: ChatGPT
+  ko: ChatGPT
+  it: ChatGPT
+  tr: ChatGPT
+  vi: ChatGPT
+  id: ChatGPT
+  pl: ChatGPT
+  nl: ChatGPT
+  ar: ChatGPT
+  hi: ChatGPT
+  th: ChatGPT
+  cs: ChatGPT
+  sv: ChatGPT
+  he: ChatGPT
+  verified_by_human: []
+import_source_chatgpt_description:
+  context: Account import source option description
+  en: Official ChatGPT export
+  de: Offizieller ChatGPT-Export
+  zh: ChatGPT 官方导出文件
+  es: Exportación oficial de ChatGPT
+  fr: Exportation officielle ChatGPT
+  pt: Exportação oficial do ChatGPT
+  ru: Официальный экспорт ChatGPT
+  ja: 公式の ChatGPT エクスポート
+  ko: 공식 ChatGPT 내보내기
+  it: Esportazione ufficiale ChatGPT
+  tr: Resmi ChatGPT dışa aktarımı
+  vi: Tệp xuất ChatGPT chính thức
+  id: Ekspor resmi ChatGPT
+  pl: Oficjalny eksport ChatGPT
+  nl: Officiële ChatGPT-export
+  ar: تصدير ChatGPT الرسمي
+  hi: आधिकारिक ChatGPT एक्सपोर्ट
+  th: ไฟล์ส่งออกอย่างเป็นทางการของ ChatGPT
+  cs: Oficiální export ChatGPT
+  sv: Officiell ChatGPT-export
+  he: ייצוא רשמי של ChatGPT
+  verified_by_human: []
+import_source_claude:
+  context: Account import source option
+  en: Claude
+  de: Claude
+  zh: Claude
+  es: Claude
+  fr: Claude
+  pt: Claude
+  ru: Claude
+  ja: Claude
+  ko: Claude
+  it: Claude
+  tr: Claude
+  vi: Claude
+  id: Claude
+  pl: Claude
+  nl: Claude
+  ar: Claude
+  hi: Claude
+  th: Claude
+  cs: Claude
+  sv: Claude
+  he: Claude
+  verified_by_human: []
+import_source_claude_description:
+  context: Account import source option description
+  en: Official Claude export
+  de: Offizieller Claude-Export
+  zh: Claude 官方导出文件
+  es: Exportación oficial de Claude
+  fr: Exportation officielle Claude
+  pt: Exportação oficial do Claude
+  ru: Официальный экспорт Claude
+  ja: 公式の Claude エクスポート
+  ko: 공식 Claude 내보내기
+  it: Esportazione ufficiale Claude
+  tr: Resmi Claude dışa aktarımı
+  vi: Tệp xuất Claude chính thức
+  id: Ekspor resmi Claude
+  pl: Oficjalny eksport Claude
+  nl: Officiële Claude-export
+  ar: تصدير Claude الرسمي
+  hi: आधिकारिक Claude एक्सपोर्ट
+  th: ไฟล์ส่งออกอย่างเป็นทางการของ Claude
+  cs: Oficiální export Claude
+  sv: Officiell Claude-export
+  he: ייצוא רשמי של Claude
+  verified_by_human: []
+import_source_gemini:
+  context: Account import source option
+  en: Gemini
+  de: Gemini
+  zh: Gemini
+  es: Gemini
+  fr: Gemini
+  pt: Gemini
+  ru: Gemini
+  ja: Gemini
+  ko: Gemini
+  it: Gemini
+  tr: Gemini
+  vi: Gemini
+  id: Gemini
+  pl: Gemini
+  nl: Gemini
+  ar: Gemini
+  hi: Gemini
+  th: Gemini
+  cs: Gemini
+  sv: Gemini
+  he: Gemini
+  verified_by_human: []
+import_source_gemini_description:
+  context: Account import source option description
+  en: Generic role/content JSON shown with Gemini identity
+  de: Generisches Rollen-/Inhalt-JSON mit Gemini-Identität
+  zh: 以 Gemini 身份显示的通用角色/内容 JSON
+  es: JSON genérico de rol/contenido mostrado con la identidad de Gemini
+  fr: "JSON générique rôle/contenu affiché avec l'identité Gemini"
+  pt: JSON genérico de função/conteúdo exibido com a identidade do Gemini
+  ru: Универсальный JSON (role/content), отображаемый как Gemini
+  ja: Gemini のアイデンティティで表示される汎用的な role/content JSON
+  ko: Gemini ID로 표시되는 일반 role/content JSON
+  it: "JSON generico ruolo/contenuto mostrato con l'identità di Gemini"
+  tr: "Gemini kimliğiyle gösterilen genel rol/içerik JSON'u"
+  vi: JSON vai trò/nội dung chung được hiển thị với danh tính Gemini
+  id: JSON peran/konten generik yang ditampilkan dengan identitas Gemini
+  pl: Ogólny format JSON role/content wyświetlany z tożsamością Gemini
+  nl: Generieke rol/inhoud JSON getoond met Gemini-identiteit
+  ar: تنسيق JSON عام (الدور/المحتوى) يُعرض بهوية Gemini
+  hi: Gemini पहचान के साथ दिखाया गया जेनेरिक रोल/कंटेंट JSON
+  th: JSON role/content ทั่วไปที่แสดงด้วยตัวตนของ Gemini
+  cs: Obecný JSON s rolemi/obsahem zobrazený s identitou Gemini
+  sv: Generisk roll/innehåll-JSON som visas med Gemini-identitet
+  he: JSON גנרי של תפקיד/תוכן המוצג עם זהות Gemini
+  verified_by_human: []
+import_source_opencode:
+  context: Account import source option
+  en: OpenCode
+  de: OpenCode
+  zh: OpenCode
+  es: OpenCode
+  fr: OpenCode
+  pt: OpenCode
+  ru: OpenCode
+  ja: OpenCode
+  ko: OpenCode
+  it: OpenCode
+  tr: OpenCode
+  vi: OpenCode
+  id: OpenCode
+  pl: OpenCode
+  nl: OpenCode
+  ar: OpenCode
+  hi: OpenCode
+  th: OpenCode
+  cs: OpenCode
+  sv: OpenCode
+  he: OpenCode
+  verified_by_human: []
+import_source_opencode_description:
+  context: Account import source option description
+  en: OpenCode CLI transcript export
+  de: OpenCode CLI-Transkriptexport
+  zh: OpenCode CLI 记录导出文件
+  es: Exportación de transcripción de la CLI de OpenCode
+  fr: Exportation de transcription CLI OpenCode
+  pt: Exportação de transcrição da CLI do OpenCode
+  ru: Экспорт стенограммы OpenCode CLI
+  ja: OpenCode CLI のトランスクリプトエクスポート
+  ko: OpenCode CLI 대화 기록 내보내기
+  it: Esportazione trascrizione CLI OpenCode
+  tr: OpenCode CLI döküm dışa aktarımı
+  vi: Tệp xuất bản ghi OpenCode CLI
+  id: Ekspor transkrip CLI OpenCode
+  pl: Eksport transkrypcji OpenCode CLI
+  nl: OpenCode CLI transcript-export
+  ar: تصدير نصوص واجهة سطر الأوامر (CLI) لـ OpenCode
+  hi: OpenCode CLI ट्रांसक्रिप्ट एक्सपोर्ट
+  th: ไฟล์ส่งออกบันทึกจาก OpenCode CLI
+  cs: Export přepisu OpenCode CLI
+  sv: OpenCode CLI-transkriptionsexport
+  he: ייצוא תמליל מ-OpenCode CLI
+  verified_by_human: []
+import_source_other:
+  context: Account import source option
+  en: Other
+  de: Andere
+  zh: 其他
+  es: Otro
+  fr: Autre
+  pt: Outro
+  ru: Другое
+  ja: その他
+  ko: 기타
+  it: Altro
+  tr: Diğer
+  vi: Khác
+  id: Lainnya
+  pl: Inne
+  nl: Overig
+  ar: أخرى
+  hi: अन्य
+  th: อื่นๆ
+  cs: Jiný
+  sv: Annat
+  he: אחר
+  verified_by_human: []
+import_source_other_description:
+  context: Account import source option description
+  en: Generic role/content JSON shown as AI assistant
+  de: Generisches Rollen-/Inhalt-JSON als KI-Assistent
+  zh: 显示为 AI 助手的通用角色/内容 JSON
+  es: JSON genérico de rol/contenido mostrado como asistente de IA
+  fr: JSON générique rôle/contenu affiché comme assistant IA
+  pt: JSON genérico de função/conteúdo exibido como assistente de IA
+  ru: Универсальный JSON (role/content), отображаемый как ИИ-ассистент
+  ja: AI アシスタントとして表示される汎用的な role/content JSON
+  ko: AI 어시스턴트로 표시되는 일반 role/content JSON
+  it: JSON generico ruolo/contenuto mostrato come assistente AI
+  tr: "Yapay zeka asistanı olarak gösterilen genel rol/içerik JSON'u"
+  vi: JSON vai trò/nội dung chung được hiển thị dưới dạng trợ lý AI
+  id: JSON peran/konten generik yang ditampilkan sebagai asisten AI
+  pl: Ogólny format JSON role/content wyświetlany jako asystent AI
+  nl: Generieke rol/inhoud JSON getoond als AI-assistent
+  ar: تنسيق JSON عام (الدور/المحتوى) يُعرض كمساعد ذكاء اصطناعي
+  hi: AI असिस्टेंट के रूप में दिखाया गया जेनेरिक रोल/कंटेंट JSON
+  th: JSON role/content ทั่วไปที่แสดงเป็นผู้ช่วย AI
+  cs: Obecný JSON s rolemi/obsahem zobrazený jako AI asistent
+  sv: Generisk roll/innehåll-JSON som visas som AI-assistent
+  he: JSON גנרי של תפקיד/תוכן המוצג כעוזר בינה מלאכותית
+  verified_by_human: []
+import_gemini_generic_note:
+  context: Explicit limitation shown after selecting Gemini import
+  en: Use the documented generic role/content JSON format. Raw Gemini Takeout exports are not supported yet.
+  de: Verwende das dokumentierte generische Rollen-/Inhalt-JSON. Rohe Gemini Takeout-Exporte werden noch nicht unterstützt.
+  zh: 请使用文档中说明的通用角色/内容 JSON 格式。目前尚不支持原始 Gemini Takeout 导出文件。
+  es: Usa el formato JSON genérico de rol/contenido documentado. Las exportaciones directas de Gemini Takeout aún no son compatibles.
+  fr: Utilise le format JSON générique rôle/contenu documenté. Les exportations brutes Gemini Takeout ne sont pas encore prises en charge.
+  pt: Usa o formato JSON genérico de função/conteúdo documentado. Exportações brutas do Gemini Takeout ainda não são suportadas.
+  ru: Используй документированный универсальный формат JSON (role/content). Прямой экспорт из Gemini Takeout пока не поддерживается.
+  ja: ドキュメント化されている汎用的な role/content JSON 形式を使用してください。Gemini Takeout の未加工エクスポートはまだサポートされていません。
+  ko: 문서화된 일반 role/content JSON 형식을 사용하세요. 원본 Gemini Takeout 내보내기는 아직 지원되지 않습니다.
+  it: Usa il formato JSON generico ruolo/contenuto documentato. Le esportazioni grezze di Gemini Takeout non sono ancora supportate.
+  tr: Belgelenmiş genel rol/içerik JSON formatını kullan. Ham Gemini Takeout dışa aktarımları henüz desteklenmiyor.
+  vi: Sử dụng định dạng JSON vai trò/nội dung chung đã được tài liệu hóa. Các tệp xuất Gemini Takeout thô chưa được hỗ trợ.
+  id: Gunakan format JSON peran/konten generik yang didokumentasikan. Ekspor Gemini Takeout mentah belum didukung.
+  pl: Użyj udokumentowanego ogólnego formatu JSON role/content. Surowe eksporty Gemini Takeout nie są jeszcze obsługiwane.
+  nl: Gebruik het gedocumenteerde generieke JSON-formaat voor rol/inhoud. Ruwe Gemini Takeout-exports worden nog niet ondersteund.
+  ar: استخدم تنسيق JSON العام الموثق (الدور/المحتوى). عمليات تصدير Gemini Takeout الخام غير مدعومة بعد.
+  hi: डॉक्यूमेंट किए गए जेनेरिक रोल/कंटेंट JSON फॉर्मेट का उपयोग करें। रॉ Gemini Takeout एक्सपोर्ट अभी समर्थित नहीं हैं।
+  th: ใช้รูปแบบ JSON role/content ทั่วไปตามที่ระบุไว้ในเอกสาร ยังไม่รองรับไฟล์ส่งออก Gemini Takeout โดยตรงในขณะนี้
+  cs: Použij dokumentovaný obecný formát JSON s rolemi/obsahem. Přímé exporty z Gemini Takeout zatím nejsou podporovány.
+  sv: Använd det dokumenterade generiska JSON-formatet för roll/innehåll. Råa Gemini Takeout-exporter stöds inte ännu.
+  he: יש להשתמש בפורמט JSON הגנרי המתועד (role/content). ייצוא גולמי מ-Gemini Takeout עדיין אינו נתמך.
+  verified_by_human: []
+import_other_generic_note:
+  context: Format guidance shown after selecting Other import
+  en: Use the documented generic JSON format with a messages array containing role and content strings.
+  de: Verwende das dokumentierte generische JSON mit einem messages-Array aus role- und content-Zeichenfolgen.
+  zh: 请使用文档中说明的通用 JSON 格式，其中包含一个包含角色 (role) 和内容 (content) 字符串的消息数组。
+  es: Usa el formato JSON genérico documentado con un array de mensajes que contenga cadenas de rol y contenido.
+  fr: Utilise le format JSON générique documenté avec un tableau de messages contenant des chaînes de caractères pour le rôle et le contenu.
+  pt: Usa o formato JSON genérico documentado com uma matriz de mensagens contendo strings de função e conteúdo.
+  ru: Используй документированный универсальный формат JSON с массивом сообщений, содержащим строки role и content.
+  ja: role と content の文字列を含む messages 配列を持つ、ドキュメント化された汎用 JSON 形式を使用してください。
+  ko: role 및 content 문자열이 포함된 메시지 배열이 있는 문서화된 일반 JSON 형식을 사용하세요.
+  it: Usa il formato JSON generico documentato con un array di messaggi contenente stringhe per ruolo e contenuto.
+  tr: Rol ve içerik dizeleri içeren bir mesaj dizisine sahip belgelenmiş genel JSON formatını kullan.
+  vi: Sử dụng định dạng JSON chung đã được tài liệu hóa với một mảng tin nhắn chứa các chuỗi vai trò (role) và nội dung (content).
+  id: Gunakan format JSON generik yang didokumentasikan dengan array pesan yang berisi string peran dan konten.
+  pl: Użyj udokumentowanego ogólnego formatu JSON z tablicą wiadomości zawierającą ciągi znaków role i content.
+  nl: Gebruik het gedocumenteerde generieke JSON-formaat met een berichten-array die rol- en inhoudsstrings bevat.
+  ar: استخدم تنسيق JSON العام الموثق مع مصفوفة رسائل تحتوي على سلاسل نصية للدور والمحتوى.
+  hi: डॉक्यूमेंट किए गए जेनेरिक JSON फॉर्मेट का उपयोग करें जिसमें रोल और कंटेंट स्ट्रिंग्स वाला मैसेज ऐरे हो।
+  th: ใช้รูปแบบ JSON ทั่วไปตามที่ระบุไว้ในเอกสาร โดยมีอาร์เรย์ messages ที่ประกอบด้วยสตริง role และ content
+  cs: Použij dokumentovaný obecný formát JSON s polem zpráv obsahujícím řetězce role a obsahu.
+  sv: Använd det dokumenterade generiska JSON-formatet med en meddelandematris som innehåller strängar för roll och innehåll.
+  he: יש להשתמש בפורמט JSON הגנרי המתועד עם מערך הודעות (messages) המכיל מחרוזות של תפקיד (role) ותוכן (content).
+  verified_by_human: []
+import_file_label:
+  context: Import file picker label after a source is selected
+  en: Select a supported ZIP or JSON transcript
+  de: Unterstütztes ZIP- oder JSON-Transkript auswählen
+  zh: 选择支持的 ZIP 或 JSON 记录文件
+  es: Selecciona una transcripción ZIP o JSON compatible
+  fr: Sélectionne une transcription ZIP ou JSON prise en charge
+  pt: Seleciona uma transcrição ZIP ou JSON suportada
+  ru: Выбери поддерживаемую стенограмму в формате ZIP или JSON
+  ja: 対応している ZIP または JSON 形式の履歴ファイルを選択してください
+  ko: 지원되는 ZIP 또는 JSON 대화 기록 선택
+  it: Seleziona una trascrizione ZIP o JSON supportata
+  tr: Desteklenen bir ZIP veya JSON dökümü seç
+  vi: Chọn tệp bản ghi ZIP hoặc JSON được hỗ trợ
+  id: Pilih transkrip ZIP atau JSON yang didukung
+  pl: Wybierz obsługiwaną transkrypcję ZIP lub JSON
+  nl: Selecteer een ondersteund ZIP- of JSON-transcript
+  ar: اختر ملف نصي مدعوم بصيغة ZIP أو JSON
+  hi: एक समर्थित ZIP या JSON ट्रांसक्रिप्ट चुनें
+  th: เลือกไฟล์ ZIP หรือ JSON ที่รองรับ
+  cs: Vyber podporovaný přepis ve formátu ZIP nebo JSON
+  sv: Välj en ZIP- eller JSON-fil som stöds
+  he: "בחירת קובץ ZIP או JSON נתמך של תמליל הצ'אט"
+  verified_by_human: []
+import_insufficient_credits:
+  context: Error when import allowance and credits are insufficient
+  en: You do not have enough free allowance or credits for this import.
+  de: Dein kostenloses Kontingent oder Guthaben reicht für diesen Import nicht aus.
+  zh: 你的免费额度或积分不足以进行此次导入。
+  es: No tienes suficiente cupo gratuito o créditos para esta importación.
+  fr: "Tu n'as pas assez de quota gratuit ou de crédits pour cet import."
+  pt: Não tens limite gratuito ou créditos suficientes para esta importação.
+  ru: У тебя недостаточно бесплатного лимита или кредитов для этого импорта.
+  ja: このインポートに必要な無料枠またはクレジットが不足しています。
+  ko: 이 가져오기 작업을 수행하기 위한 무료 할당량이나 크레딧이 부족합니다.
+  it: Non hai abbastanza quota gratuita o crediti per questa importazione.
+  tr: Bu içe aktarma için yeterli ücretsiz kullanım hakkın veya kredin yok.
+  vi: Bạn không có đủ hạn mức miễn phí hoặc tín dụng cho lần nhập này.
+  id: Kamu tidak memiliki cukup kuota gratis atau kredit untuk impor ini.
+  pl: Nie masz wystarczającego bezpłatnego limitu ani kredytów na ten import.
+  nl: Je hebt niet genoeg gratis tegoed of credits voor deze import.
+  ar: ليس لديك رصيد مجاني أو اعتمادات كافية لهذا الاستيراد.
+  hi: इस इंपोर्ट के लिए तुम्हारे पास पर्याप्त फ्री अलाउंस या क्रेडिट नहीं है।
+  th: คุณมีโควตาฟรีหรือเครดิตไม่เพียงพอสำหรับการนำเข้านี้
+  cs: Nemáš dostatek volných limitů ani kreditů pro tento import.
+  sv: Du har inte tillräcklig gratispott eller tillräckligt med krediter för denna import.
+  he: אין לך מספיק מכסה חינמית או קרדיטים עבור ייבוא זה.
+  verified_by_human: []
+import_unavailable:
+  context: Generic account import availability error; reason is a server reason code
+  en: "Import is not available: {reason}"
+  de: "Import ist nicht verfügbar: {reason}"
+  zh: "导入不可用：{reason}"
+  es: "La importación no está disponible: {reason}"
+  fr: "L'importation n'est pas disponible : {reason}"
+  pt: "A importação não está disponível: {reason}"
+  ru: "Импорт недоступен: {reason}"
+  ja: "インポートを利用できません: {reason}"
+  ko: "가져오기를 사용할 수 없음: {reason}"
+  it: "L'importazione non è disponibile: {reason}"
+  tr: "İçe aktarma kullanılamıyor: {reason}"
+  vi: "Tính năng nhập không khả dụng: {reason}"
+  id: "Impor tidak tersedia: {reason}"
+  pl: "Import jest niedostępny: {reason}"
+  nl: "Import is niet beschikbaar: {reason}"
+  ar: "الاستيراد غير متاح: {reason}"
+  hi: "इंपोर्ट उपलब्ध नहीं है: {reason}"
+  th: "ไม่สามารถนำเข้าได้: {reason}"
+  cs: "Import není k dispozici: {reason}"
+  sv: "Import är inte tillgänglig: {reason}"
+  he: "הייבוא אינו זמין: {reason}"
+  verified_by_human: []
+import_batch_limit_error:
+  context: Error when too many chats are selected
+  en: Select {count} chats or fewer for this import.
+  de: Wähle höchstens {count} Chats für diesen Import aus.
+  zh: "请为此导入选择不超过 {count} 个对话。"
+  es: "Selecciona {count} chats o menos para esta importación."
+  fr: "Sélectionne {count} discussions ou moins pour cet import."
+  pt: "Seleciona {count} conversas ou menos para esta importação."
+  ru: "Выбери не более {count} чатов для этого импорта."
+  ja: "このインポートでは、チャットの選択数を {count} 件以下にしてください。"
+  ko: "이 가져오기 작업에는 {count}개 이하의 채팅을 선택해 주세요."
+  it: "Seleziona al massimo {count} chat per questa importazione."
+  tr: "Bu içe aktarma için {count} veya daha az sohbet seç."
+  vi: "Chọn tối đa {count} cuộc trò chuyện cho lần nhập này."
+  id: "Pilih {count} obrolan atau kurang untuk impor ini."
+  pl: "Wybierz maksymalnie {count} czatów dla tego importu."
+  nl: "Selecteer {count} chats of minder voor deze import."
+  ar: "اختر {count} من الدردشات أو أقل لهذا الاستيراد."
+  hi: "इस इंपोर्ट के लिए {count} या उससे कम चैट चुनें।"
+  th: "เลือกไม่เกิน {count} แชทสำหรับการนำเข้านี้"
+  cs: "Pro tento import vyber maximálně {count} chatů."
+  sv: "Välj {count} chattar eller färre för denna import."
+  he: "יש לבחור {count} צ'אטים או פחות עבור ייבוא זה."
+  verified_by_human: []
+import_preview:
+  context: Accessible label for import preview card
+  en: Import preview
+  de: Importvorschau
+  zh: 导入预览
+  es: Vista previa de la importación
+  fr: "Aperçu de l'importation"
+  pt: Pré-visualização da importação
+  ru: Предпросмотр импорта
+  ja: インポートのプレビュー
+  ko: 가져오기 미리보기
+  it: Anteprima importazione
+  tr: İçe aktarma önizlemesi
+  vi: Xem trước bản nhập
+  id: Pratinjau impor
+  pl: Podgląd importu
+  nl: Voorvertoning import
+  ar: معاينة الاستيراد
+  hi: इंपोर्ट प्रीव्यू
+  th: ตัวอย่างการนำเข้า
+  cs: Náhled importu
+  sv: Förhandsgranskning av import
+  he: תצוגה מקדימה של הייבוא
+  verified_by_human: []
+import_chats_found:
+  context: Import preview row label
+  en: Chats found
+  de: Gefundene Chats
+  zh: 找到的对话数
+  es: Chats encontrados
+  fr: Discussions trouvées
+  pt: Conversas encontradas
+  ru: Найдено чатов
+  ja: 見つかったチャット数
+  ko: 찾은 채팅 수
+  it: Chat trovate
+  tr: Bulunan sohbetler
+  vi: Số cuộc trò chuyện tìm thấy
+  id: Obrolan ditemukan
+  pl: Znalezione czaty
+  nl: Gevonden chats
+  ar: الدردشات التي تم العثور عليها
+  hi: चैट मिले
+  th: พบแชทแล้ว
+  cs: Nalezené chaty
+  sv: Hittade chattar
+  he: "צ'אטים שנמצאו"
+  verified_by_human: []
+import_default_selection:
+  context: Import preview row label
+  en: Default selection
+  de: Standardauswahl
+  zh: 默认选择内容
+  es: Selección predeterminada
+  fr: Sélection par défaut
+  pt: Seleção padrão
+  ru: Выбор по умолчанию
+  ja: デフォルトの選択数
+  ko: 기본 선택 항목
+  it: Selezione predefinita
+  tr: Varsayılan seçim
+  vi: Lựa chọn mặc định
+  id: Pilihan default
+  pl: Domyślny wybór
+  nl: Standaardselectie
+  ar: التحديد الافتراضي
+  hi: डिफ़ॉल्ट चयन
+  th: การเลือกเริ่มต้น
+  cs: Výchozí výběr
+  sv: Standardval
+  he: בחירת ברירת מחדל
+  verified_by_human: []
+import_batch_limit:
+  context: Import preview row label
+  en: Batch limit
+  de: Stapellimit
+  zh: 批量限制
+  es: Límite por lote
+  fr: Limite par lot
+  pt: Limite do lote
+  ru: Лимит пакета
+  ja: バッチ制限
+  ko: 배치 제한
+  it: Limite del lotto
+  tr: Toplu işlem sınırı
+  vi: Giới hạn đợt nhập
+  id: Batas batch
+  pl: Limit partii
+  nl: Batchlimiet
+  ar: حد الدفعة
+  hi: बैच सीमा
+  th: ขีดจำกัดต่อชุด
+  cs: Limit dávky
+  sv: Batchgräns
+  he: מגבלת סבב (Batch)
+  verified_by_human: []
+import_free_remaining:
+  context: Import preview row label
+  en: Free allowance remaining
+  de: Verbleibendes kostenloses Kontingent
+  zh: 剩余免费额度
+  es: Cupo gratuito restante
+  fr: Quota gratuit restant
+  pt: Limite gratuito restante
+  ru: Остаток бесплатного лимита
+  ja: 残りの無料枠
+  ko: 남은 무료 할당량
+  it: Quota gratuita rimanente
+  tr: Kalan ücretsiz kullanım hakkı
+  vi: Hạn mức miễn phí còn lại
+  id: Sisa kuota gratis
+  pl: Pozostały bezpłatny limit
+  nl: Resterend gratis tegoed
+  ar: الرصيد المجاني المتبقي
+  hi: शेष फ्री अलाउंस
+  th: โควตาฟรีที่เหลืออยู่
+  cs: Zbývající volný limit
+  sv: Återstående gratispott
+  he: יתרת מכסה חינמית
+  verified_by_human: []
+import_skipped_domains:
+  context: OpenMates archive import explanation; domains is a comma-separated list
+  en: "This OpenMates archive also contains {domains}. Account Import V1 imports chats, referenced embeds, and uploads only. Other domains are tracked in OPE-588."
+  de: "Dieses OpenMates-Archiv enthält auch {domains}. Account Import V1 importiert nur Chats, referenzierte Einbettungen und Uploads. Andere Bereiche werden in OPE-588 verfolgt."
+  zh: "此 OpenMates 存档还包含 {domains}。账户导入 V1 仅导入对话、引用的嵌入内容和上传文件。其他领域正在 OPE-588 中跟踪。"
+  es: "Este archivo de OpenMates también contiene {domains}. La versión 1 de importación de cuentas solo importa chats, incrustaciones referenciadas y archivos subidos. Otros dominios se siguen en OPE-588."
+  fr: "Cette archive OpenMates contient également {domains}. L'importation de compte V1 importe uniquement les discussions, les intégrations référencées et les fichiers téléchargés. Les autres domaines sont suivis dans OPE-588."
+  pt: "Este arquivo do OpenMates também contém {domains}. A Importação de Conta V1 importa apenas conversas, embeds referenciados e uploads. Outros domínios são acompanhados em OPE-588."
+  ru: "Этот архив OpenMates также содержит {domains}. Импорт аккаунта V1 импортирует только чаты, связанные вложения и загрузки. Другие домены отслеживаются в OPE-588."
+  ja: "この OpenMates アーカイブには {domains} も含まれています。アカウントインポート V1 では、チャット、参照されている埋め込み、およびアップロードのみをインポートします。その他のドメインについては OPE-588 で追跡されています。"
+  ko: "이 OpenMates 아카이브에는 {domains}도 포함되어 있습니다. 계정 가져오기 V1은 채팅, 참조된 임베드 및 업로드만 가져옵니다. 다른 도메인은 OPE-588에서 추적됩니다."
+  it: "Questo archivio OpenMates contiene anche {domains}. Account Import V1 importa solo chat, embed di riferimento e caricamenti. Altri domini sono tracciati in OPE-588."
+  tr: "Bu OpenMates arşivi ayrıca {domains} içeriyor. Hesap İçe Aktarma V1 yalnızca sohbetleri, referans verilen gömülü öğeleri ve yüklemeleri içe aktarır. Diğer alan adları OPE-588'de takip edilmektedir."
+  vi: "Kho lưu trữ OpenMates này cũng chứa {domains}. Nhập Tài khoản V1 chỉ nhập các cuộc trò chuyện, các nội dung nhúng được tham chiếu và các tệp tải lên. Các miền khác đang được theo dõi trong OPE-588."
+  id: "Arsip OpenMates ini juga berisi {domains}. Impor Akun V1 hanya mengimpor obrolan, sematan yang dirujuk, dan unggahan. Domain lain dilacak di OPE-588."
+  pl: "To archiwum OpenMates zawiera również {domains}. Account Import V1 importuje tylko czaty, powiązane osadzone elementy i przesłane pliki. Inne domeny są śledzone w OPE-588."
+  nl: "Dit OpenMates-archief bevat ook {domains}. Account Import V1 importeert alleen chats, gerefereerde embeds en uploads. Andere domeinen worden bijgehouden in OPE-588."
+  ar: "يحتوي أرشيف OpenMates هذا أيضًا على {domains}. يستورد \"استيراد الحساب V1\" الدردشات، والتضمينات المشار إليها، والتحميلات فقط. يتم تتبع النطاقات الأخرى في OPE-588."
+  hi: "इस OpenMates आर्काइव में {domains} भी शामिल हैं। अकाउंट इंपोर्ट V1 केवल चैट, रेफरेन्स्ड एम्बेड और अपलोड इंपोर्ट करता है। अन्य डोमेन को OPE-588 में ट्रैक किया जाता है।"
+  th: "ไฟล์เก็บถาวร OpenMates นี้ยังมี {domains} อยู่ด้วย การนำเข้าบัญชี V1 จะนำเข้าเฉพาะแชท, สิ่งที่ฝังที่อ้างอิง และไฟล์ที่อัปโหลดเท่านั้น ส่วนโดเมนอื่นๆ กำลังอยู่ระหว่างการดำเนินการใน OPE-588"
+  cs: "Tento archiv OpenMates obsahuje také {domains}. Import účtu V1 importuje pouze chaty, odkazované vložené objekty a nahrané soubory. Ostatní domény jsou sledovány v OPE-588."
+  sv: "Detta OpenMates-arkiv innehåller även {domains}. Kontoimport V1 importerar endast chattar, refererade inbäddningar och uppladdningar. Övriga domäner spåras i OPE-588."
+  he: "ארכיון OpenMates זה מכיל גם את {domains}. ייבוא חשבון V1 מייבא צ'אטים, הטמעות (embeds) מקושרות והעלאות קבצים בלבד. תחומים אחרים נמצאים במעקב ב-OPE-588."
+  verified_by_human: []
+import_duplicate_warning:
+  context: Warning for likely duplicate imported chats
+  en: "{count} selected chat(s) may already have been imported. Continuing will create new chats and will never merge or overwrite existing chats."
+  de: "{count} ausgewählte Chats wurden möglicherweise bereits importiert. Beim Fortfahren werden neue Chats erstellt; bestehende Chats werden nie zusammengeführt oder überschrieben."
+  zh: "选中的 {count} 个对话可能已经导入过。继续操作将创建新对话，且绝不会合并或覆盖现有对话。"
+  es: "Es posible que {count} chat(s) seleccionado(s) ya se hayan importado. Si continúas, se crearán chats nuevos y nunca se fusionarán ni sobrescribirán los chats existentes."
+  fr: "{count} discussion(s) sélectionnée(s) pourrai(en)t déjà avoir été importée(s). Continuer créera de nouvelles discussions et ne fusionnera ni n'écrasera jamais les discussions existantes."
+  pt: "{count} conversa(s) selecionada(s) podem já ter sido importadas. Continuar criará novas conversas e nunca irá fundir ou substituir conversas existentes."
+  ru: "{count} выбранных чатов, возможно, уже были импортированы. Продолжение создаст новые чаты и никогда не объединит и не перезапишет существующие."
+  ja: "選択されたチャットのうち {count} 件は、すでにインポートされている可能性があります。続行すると新しいチャットが作成されます。既存のチャットが統合されたり上書きされたりすることはありません。"
+  ko: "선택한 {count}개의 채팅이 이미 가져오기되었을 수 있습니다. 계속하면 기존 채팅을 병합하거나 덮어쓰지 않고 새 채팅을 생성합니다."
+  it: "{count} chat selezionate potrebbero essere già state importate. Continuando verranno create nuove chat e non verranno mai unite o sovrascritte quelle esistenti."
+  tr: "Seçilen {count} sohbet zaten içe aktarılmış olabilir. Devam etmek yeni sohbetler oluşturur ve mevcut sohbetleri asla birleştirmez veya üzerine yazmaz."
+  vi: "{count} cuộc trò chuyện được chọn có thể đã được nhập trước đó. Tiếp tục sẽ tạo các cuộc trò chuyện mới và sẽ không bao giờ hợp nhất hoặc ghi đè lên các cuộc trò chuyện hiện có."
+  id: "{count} obrolan yang dipilih mungkin sudah pernah diimpor. Melanjutkan akan membuat obrolan baru dan tidak akan pernah menggabungkan atau menimpa obrolan yang sudah ada."
+  pl: "{count} wybranych czatów mogło już zostać zaimportowanych. Kontynuowanie spowoduje utworzenie nowych czatów i nigdy nie połączy ani nie zastąpi istniejących czatów."
+  nl: "{count} geselecteerde chat(s) zijn mogelijk al geïmporteerd. Doorgaan zal nieuwe chats aanmaken en zal nooit bestaande chats samenvoegen of overschrijven."
+  ar: "قد يكون قد تم استيراد {count} من الدردشات المختارة بالفعل. سيؤدي الاستمرار إلى إنشاء دردشات جديدة ولن يتم دمج أو استبدال الدردشات الموجودة أبدًا."
+  hi: "{count} चुनी गई चैट पहले ही इंपोर्ट की जा चुकी हो सकती हैं। जारी रखने से नई चैट बनेंगी और मौजूदा चैट कभी मर्ज या ओवरराइट नहीं होंगी।"
+  th: "แชทที่เลือก {count} รายการอาจถูกนำเข้าแล้ว การดำเนินการต่อจะสร้างแชทใหม่และจะไม่รวมหรือเขียนทับแชทที่มีอยู่เดิม"
+  cs: "Je možné, že {count} vybraných chatů již bylo importováno. Pokračováním vytvoříš nové chaty; stávající chaty nebudou nikdy sloučeny ani přepsány."
+  sv: "{count} valda chattar kan redan ha importerats. Om du fortsätter skapas nya chattar; befintliga chattar slås aldrig ihop eller skrivs över."
+  he: "ייתכן ש-{count} צ'אטים שנבחרו כבר יובאו בעבר. המשך הפעולה ייצור צ'אטים חדשים ולא ימזג או יחליף צ'אטים קיימים."
+  verified_by_human: []
+import_select_default:
+  context: Button restoring the default import chat selection
+  en: Select default
+  de: Standard auswählen
+  zh: 选择默认内容
+  es: Seleccionar predeterminado
+  fr: Sélectionner par défaut
+  pt: Selecionar padrão
+  ru: Выбрать по умолчанию
+  ja: デフォルトを選択
+  ko: 기본값 선택
+  it: Seleziona predefinite
+  tr: Varsayılanı seç
+  vi: Chọn mặc định
+  id: Pilih default
+  pl: Wybierz domyślne
+  nl: Standaard selecteren
+  ar: تحديد الافتراضي
+  hi: डिफ़ॉल्ट चुनें
+  th: เลือกค่าเริ่มต้น
+  cs: Vybrat výchozí
+  sv: Välj standardval
+  he: בחירת ברירת מחדל
+  verified_by_human: []
+import_possible_duplicate:
+  context: Label for a likely duplicate import chat; title is the chat title
+  en: "{title} (possible duplicate)"
+  de: "{title} (mögliches Duplikat)"
+  zh: "{title} (可能重复)"
+  es: "{title} (posible duplicado)"
+  fr: "{title} (doublon possible)"
+  pt: "{title} (possível duplicado)"
+  ru: "{title} (возможный дубликат)"
+  ja: "{title} (重複の可能性あり)"
+  ko: "{title} (중복 가능성 있음)"
+  it: "{title} (possibile duplicato)"
+  tr: "{title} (olası kopya)"
+  vi: "{title} (có thể bị trùng)"
+  id: "{title} (kemungkinan duplikat)"
+  pl: "{title} (możliwy duplikat)"
+  nl: "{title} (mogelijke kopie)"
+  ar: "{title} (احتمال تكرار)"
+  hi: "{title} (संभावित डुप्लीकेट)"
+  th: "{title} (อาจซ้ำ)"
+  cs: "{title} (možný duplikát)"
+  sv: "{title} (möjlig dubblett)"
+  he: "{title} (ייתכן שזהו כפל)"
+  verified_by_human: []
+import_results:
+  context: Accessible label for imported chat results card
+  en: Imported chats
+  de: Importierte Chats
+  zh: 已导入对话
+  es: Chats importados
+  fr: Discussions importées
+  pt: Conversas importadas
+  ru: Импортированные чаты
+  ja: インポートされたチャット
+  ko: 가져온 채팅 목록
+  it: Chat importate
+  tr: İçe aktarılan sohbetler
+  vi: Các cuộc trò chuyện đã nhập
+  id: Obrolan yang diimpor
+  pl: Zaimportowane czaty
+  nl: Geïmporteerde chats
+  ar: الدردشات المستوردة
+  hi: इंपोर्ट की गई चैट
+  th: แชทที่นำเข้าแล้ว
+  cs: Importované chaty
+  sv: Importerade chattar
+  he: "צ'אטים שיובאו"
+  verified_by_human: []
+import_result:
+  context: Accessible label for one imported chat result
+  en: Imported chat result
+  de: Ergebnis des importierten Chats
+  zh: 已导入对话结果
+  es: Resultado del chat importado
+  fr: Résultat de la discussion importée
+  pt: Resultado da conversa importada
+  ru: Результат импорта чата
+  ja: インポートされたチャットの結果
+  ko: 가져온 채팅 결과
+  it: Risultato chat importata
+  tr: İçe aktarılan sohbet sonucu
+  vi: Kết quả cuộc trò chuyện đã nhập
+  id: Hasil obrolan yang diimpor
+  pl: Wynik zaimportowanego czatu
+  nl: Resultaat geïmporteerde chat
+  ar: نتيجة الدردشة المستوردة
+  hi: इंपोर्ट की गई चैट का परिणाम
+  th: ผลลัพธ์การนำเข้าแชท
+  cs: Výsledek importu chatu
+  sv: Resultat för importerad chatt
+  he: "תוצאת צ'אט שיובא"
+  verified_by_human: []
+import_progress_parsing:
+  context: Account import progress phase
+  en: Reading and validating the import file...
+  de: Importdatei wird gelesen und geprüft...
+  zh: 正在读取并验证导入文件...
+  es: Leyendo y validando el archivo de importación...
+  fr: "Lecture et validation du fichier d'importation..."
+  pt: Lendo e validando o arquivo de importação...
+  ru: Чтение и проверка файла импорта...
+  ja: インポートファイルを読み込み、検証しています...
+  ko: 가져오기 파일 읽기 및 유효성 검사 중...
+  it: Lettura e convalida del file di importazione...
+  tr: İçe aktarma dosyası okunuyor ve doğrulanıyor...
+  vi: Đang đọc và xác thực tệp nhập...
+  id: Membaca dan memvalidasi berkas impor...
+  pl: Odczytywanie i sprawdzanie poprawności pliku importu...
+  nl: Importbestand lezen en valideren...
+  ar: قراءة ملف الاستيراد والتحقق من صحته...
+  hi: इंपोर्ट फ़ाइल को पढ़ा और वैलिडेट किया जा रहा है...
+  th: กำลังอ่านและตรวจสอบความถูกต้องของไฟล์นำเข้า...
+  cs: Čtení a ověřování importovaného souboru...
+  sv: Läser och validerar importfilen...
+  he: קורא ומאמת את קובץ הייבוא...
+  verified_by_human: []
+import_progress_previewing:
+  context: Account import progress phase
+  en: Checking import limits and estimated cost...
+  de: Importlimits und geschätzte Kosten werden geprüft...
+  zh: 正在检查导入限制和预估费用...
+  es: Comprobando los límites de importación y el coste estimado...
+  fr: "Vérification des limites d'importation et du coût estimé..."
+  pt: Verificando limites de importação e custo estimado...
+  ru: Проверка лимитов импорта и расчетной стоимости...
+  ja: インポート制限と推定コストを確認しています...
+  ko: 가져오기 제한 및 예상 비용 확인 중...
+  it: Verifica dei limiti di importazione e del costo stimato...
+  tr: İçe aktarma sınırları ve tahmini maliyet kontrol ediliyor...
+  vi: Đang kiểm tra giới hạn nhập và chi phí ước tính...
+  id: Memeriksa batas impor dan perkiraan biaya...
+  pl: Sprawdzanie limitów importu i szacowanego kosztu...
+  nl: Importlimieten en geschatte kosten controleren...
+  ar: التحقق من حدود الاستيراد والتكلفة التقديرية...
+  hi: इंपोर्ट की सीमा और अनुमानित लागत की जाँच की जा रही है...
+  th: กำลังตรวจสอบขีดจำกัดการนำเข้าและค่าใช้จ่ายโดยประมาณ...
+  cs: Kontrola limitů importu a odhadované ceny...
+  sv: Kontrollerar importgränser och beräknad kostnad...
+  he: בודק מגבלות ייבוא ועלות משוערת...
+  verified_by_human: []
+import_progress_confirming:
+  context: Account import progress phase
+  en: Confirming the selected chats...
+  de: Ausgewählte Chats werden bestätigt...
+  zh: 正在确认选定的聊天...
+  es: Confirmando los chats seleccionados...
+  fr: Confirmation des discussions sélectionnées...
+  pt: Confirmando as conversas selecionadas...
+  ru: Подтверждение выбранных чатов...
+  ja: 選択されたチャットを確認しています...
+  ko: 선택한 채팅 확인 중...
+  it: Conferma delle chat selezionate...
+  tr: Seçilen sohbetler onaylanıyor...
+  vi: Đang xác nhận các cuộc trò chuyện đã chọn...
+  id: Mengonfirmasi obrolan yang dipilih...
+  pl: Potwierdzanie wybranych czatów...
+  nl: Geselecteerde chats bevestigen...
+  ar: تأكيد الدردشات المختارة...
+  hi: चुने गए चैट्स की पुष्टि की जा रही है...
+  th: กำลังยืนยันแชทที่เลือก...
+  cs: Potvrzování vybraných chatů...
+  sv: Bekräftar de valda chattarna...
+  he: "מאשר את הצ'אטים שנבחרו..."
+  verified_by_human: []
+import_progress_scanning:
+  context: Account import progress phase
+  en: Safety-scanning imported messages...
+  de: Importierte Nachrichten werden auf Sicherheit geprüft...
+  zh: 正在对导入的消息进行安全扫描...
+  es: Analizando la seguridad de los mensajes importados...
+  fr: Analyse de sécurité des messages importés...
+  pt: Verificando a segurança das mensagens importadas...
+  ru: Проверка безопасности импортированных сообщений...
+  ja: インポートされたメッセージの安全性をスキャンしています...
+  ko: 가져온 메시지 보안 검사 중...
+  it: Scansione di sicurezza dei messaggi importati...
+  tr: İçe aktarılan mesajlar güvenlik taramasından geçiriliyor...
+  vi: Đang quét an toàn các tin nhắn đã nhập...
+  id: Memindai keamanan pesan yang diimpor...
+  pl: Skanowanie bezpieczeństwa zaimportowanych wiadomości...
+  nl: Geïmporteerde berichten scannen op veiligheid...
+  ar: فحص أمان الرسائل المستوردة...
+  hi: इंपोर्ट किए गए मैसेज की सुरक्षा जाँच की जा रही है...
+  th: กำลังสแกนความปลอดภัยของข้อความที่นำเข้า...
+  cs: Bezpečnostní kontrola importovaných zpráv...
+  sv: Säkerhetsskannar importerade meddelanden...
+  he: סורק הודעות מיובאות לבדיקת בטיחות...
+  verified_by_human: []
+import_progress_compressing:
+  context: Account import progress phase
+  en: Compressing sanitized imported messages...
+  de: Bereinigte importierte Nachrichten werden komprimiert...
+  zh: 正在压缩已清理的导入消息...
+  es: Comprimiendo los mensajes importados depurados...
+  fr: Compression des messages importés et nettoyés...
+  pt: Compactando mensagens importadas higienizadas...
+  ru: Сжатие очищенных импортированных сообщений...
+  ja: クリーンアップされたインポートメッセージを圧縮しています...
+  ko: 정리된 가져온 메시지 압축 중...
+  it: Compressione dei messaggi importati e ripuliti...
+  tr: Ayıklanan içe aktarılmış mesajlar sıkıştırılıyor...
+  vi: Đang nén các tin nhắn đã nhập đã được làm sạch...
+  id: Mengompresi pesan impor yang telah dibersihkan...
+  pl: Kompresowanie oczyszczonych wiadomości...
+  nl: Opgeschoonde geïmporteerde berichten comprimeren...
+  ar: ضغط الرسائل المستوردة المعالجة...
+  hi: साफ़ किए गए इंपोर्टेड मैसेज को कंप्रेस किया जा रहा है...
+  th: กำลังบีบอัดข้อความที่นำเข้าซึ่งผ่านการตรวจสอบแล้ว...
+  cs: Komprimace vyčištěných importovaných zpráv...
+  sv: Komprimerar rensade importerade meddelanden...
+  he: דוחס הודעות מיובאות שעברו ניקוי...
+  verified_by_human: []
+import_progress_encrypting:
+  context: Account import progress phase
+  en: Encrypting imported chats on this device...
+  de: Importierte Chats werden auf diesem Gerät verschlüsselt...
+  zh: 正在此设备上加密导入的聊天...
+  es: Cifrando los chats importados en este dispositivo...
+  fr: Chiffrement des discussions importées sur cet appareil...
+  pt: Criptografando conversas importadas neste dispositivo...
+  ru: Шифрование импортированных чатов на этом устройстве...
+  ja: このデバイスでインポートされたチャットを暗号化しています...
+  ko: 이 기기에서 가져온 채팅 암호화 중...
+  it: Criptazione delle chat importate su questo dispositivo...
+  tr: İçe aktarılan sohbetler bu cihazda şifreleniyor...
+  vi: Đang mã hóa các cuộc trò chuyện đã nhập trên thiết bị này...
+  id: Mengenkripsi obrolan impor di perangkat ini...
+  pl: Szyfrowanie zaimportowanych czatów na tym urządzeniu...
+  nl: Geïmporteerde chats versleutelen op dit apparaat...
+  ar: تشفير الدردشات المستوردة على هذا الجهاز...
+  hi: इस डिवाइस पर इंपोर्टेड चैट्स को एन्क्रिप्ट किया जा रहा है...
+  th: กำลังเข้ารหัสแชทที่นำเข้าบนอุปกรณ์นี้...
+  cs: Šifrování importovaných chatů v tomto zařízení...
+  sv: Krypterar importerade chattar på den här enheten...
+  he: "מצפין צ'אטים מיובאים במכשיר זה..."
+  verified_by_human: []
+import_progress_persisting:
+  context: Account import progress phase
+  en: Saving encrypted imported chats...
+  de: Verschlüsselte importierte Chats werden gespeichert...
+  zh: 正在保存加密的导入聊天...
+  es: Guardando los chats importados cifrados...
+  fr: Enregistrement des discussions importées et chiffrées...
+  pt: Salvando conversas importadas criptografadas...
+  ru: Сохранение зашифрованных импортированных чатов...
+  ja: 暗号化されたインポートチャットを保存しています...
+  ko: 암호화된 가져온 채팅 저장 중...
+  it: Salvataggio delle chat importate criptate...
+  tr: Şifrelenmiş içe aktarılan sohbetler kaydediliyor...
+  vi: Đang lưu các cuộc trò chuyện đã nhập đã được mã hóa...
+  id: Menyimpan obrolan impor yang terenkripsi...
+  pl: Zapisywanie zaszyfrowanych zaimportowanych czatów...
+  nl: Versleutelde geïmporteerde chats opslaan...
+  ar: حفظ الدردشات المستوردة المشفرة...
+  hi: एन्क्रिप्टेड इंपोर्टेड चैट्स को सेव किया जा रहा है...
+  th: กำลังบันทึกแชทที่นำเข้าซึ่งเข้ารหัสแล้ว...
+  cs: Ukládání zašifrovaných importovaných chatů...
+  sv: Sparar krypterade importerade chattar...
+  he: "שומר צ'אטים מיובאים מוצפנים..."
+  verified_by_human: []
+import_progress_completing:
+  context: Account import progress phase
+  en: Finalizing the import...
+  de: Import wird abgeschlossen...
+  zh: 正在完成导入...
+  es: Finalizando la importación...
+  fr: "Finalisation de l'importation..."
+  pt: Finalizando a importação...
+  ru: Завершение импорта...
+  ja: インポートを完了しています...
+  ko: 가져오기 완료 중...
+  it: "Finalizzazione dell'importazione..."
+  tr: İçe aktarma tamamlanıyor...
+  vi: Đang hoàn tất quá trình nhập...
+  id: Menyelesaikan impor...
+  pl: Finalizowanie importu...
+  nl: Import afronden...
+  ar: إنهاء عملية الاستيراد...
+  hi: इंपोर्ट को अंतिम रूप दिया जा रहा है...
+  th: กำลังดำเนินการนำเข้าให้เสร็จสิ้น...
+  cs: Dokončování importu...
+  sv: Slutför importen...
+  he: משלים את הייבוא...
+  verified_by_human: []
+import_progress_done:
+  context: Account import progress phase
+  en: Import complete.
+  de: Import abgeschlossen.
+  zh: 导入完成。
+  es: Importación completada.
+  fr: Importation terminée.
+  pt: Importação concluída.
+  ru: Импорт завершен.
+  ja: インポートが完了しました。
+  ko: 가져오기 완료.
+  it: Importazione completata.
+  tr: İçe aktarma tamamlandı.
+  vi: Đã nhập xong.
+  id: Impor selesai.
+  pl: Import zakończony.
+  nl: Import voltooid.
+  ar: اكتمل الاستيراد.
+  hi: इंपोर्ट पूरा हुआ।
+  th: นำเข้าเสร็จสมบูรณ์
+  cs: Import dokončen.
+  sv: Importen är klar.
+  he: הייבוא הושלם.
   verified_by_human: []
 import_select_chats:
   context: Header for the chat selection list on the import page

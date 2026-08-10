@@ -58,3 +58,39 @@ extension AnyCodable: Encodable {
         }
     }
 }
+
+extension AnyCodable: Equatable {
+    static func == (lhs: AnyCodable, rhs: AnyCodable) -> Bool {
+        valuesEqual(lhs.value, rhs.value)
+    }
+
+    private static func valuesEqual(_ lhs: Any, _ rhs: Any) -> Bool {
+        switch (lhs, rhs) {
+        case (_ as NSNull, _ as NSNull):
+            return true
+        case let (lhs as Bool, rhs as Bool):
+            return lhs == rhs
+        case let (lhs as Int, rhs as Int):
+            return lhs == rhs
+        case let (lhs as Double, rhs as Double):
+            return lhs == rhs
+        case let (lhs as Int, rhs as Double):
+            return Double(lhs) == rhs
+        case let (lhs as Double, rhs as Int):
+            return lhs == Double(rhs)
+        case let (lhs as String, rhs as String):
+            return lhs == rhs
+        case let (lhs as [Any], rhs as [Any]):
+            guard lhs.count == rhs.count else { return false }
+            return zip(lhs, rhs).allSatisfy(valuesEqual)
+        case let (lhs as [String: Any], rhs as [String: Any]):
+            guard lhs.keys == rhs.keys else { return false }
+            return lhs.allSatisfy { key, value in
+                guard let rhsValue = rhs[key] else { return false }
+                return valuesEqual(value, rhsValue)
+            }
+        default:
+            return false
+        }
+    }
+}

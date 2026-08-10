@@ -24,13 +24,21 @@ scope:
     - Two-mode Project write policy for future remote writes: Always ask before writes, or Auto approve safe writes with deterministic high-risk file protections.
     - Code app automated check settings with first-use prompt, supporting isolated E2B checks or remote-machine checks as separate consent from write permission.
     - Project-scoped Rules area that imports AGENTS.md, CLAUDE.md, .cursor/rules, and similar repository instruction files as AI Instructions, shows them as Rules embeds in the Project browser, and keeps them loaded whenever the Project/folder/source is referenced in chat.
+    - Repo-connection instruction audit that detects whether agent instructions exist, suggests creating one if missing, follows explicitly linked local instruction documents, marks them as linked AI Instructions, runs separate contradiction and length/cost checks, and proposes rewrites.
     - Rules processing that suggests prebuilt deterministic Checks from imported AI Instructions, including protected paths, maximum file line count, forbidden commands, required checks, generated-file guards, secret scans, and approval-required path patterns.
     - A clear separation between AI Instructions, prebuilt parameterized Checks, and Workflows for custom or multi-step automation, while presenting them together under one Project Rules mental model.
     - User review before activating checks or workflow suggestions extracted from instruction text; built-in OpenMates safety checks are visible in the same Rules UI as active system checks.
     - Zero-knowledge storage for Project metadata and remote-source metadata in OpenMates backend, with remote search/read executed by the client or CLI bridge.
+    - Foreground-only `openmates remote-access` as the canonical bridge command, exposing the current working directory by default and stopping when the process/session exits.
+    - Optional multi-root remote access with explicit `--path` values, where every file operation is constrained to approved realpath-resolved roots unless the local user grants a separate exact outside-root exception.
+    - Strong startup warnings for broad roots such as `$HOME`, filesystem root, or other user-directory roots, including guidance to run the foreground process inside zellij, tmux, or screen for SSH persistence.
+    - Git-backed Project description sync where root `README.md` is the Project description source of truth, description edits create proposed diffs, and creating a Project description proposes creating `README.md`.
+    - Agentic read, write, create, delete, rename, and undo planning for Project files with PII detection, explicit approval receipts, protected-path checks, and source-root boundary enforcement.
+    - OpenMates-stored Project file versioning through the existing encrypted embed diff/version model for uploaded text/code/markdown files, with S3 used for encrypted large snapshots or patch-ineligible blobs when needed.
+    - Remote-machine Project undo/version journals stored on the remote machine outside the source root under `~/.openmates/remote-cache/<source-id>/change-journal/`, with Git strongly recommended but not required.
     - Later-phase architecture placeholders for applying remote patches and running commands without implementing remote-source mutations in V1.
   out:
-    - Applying assistant patches, shell commands, package installs, git mutations, or any remote-source filesystem mutation in V1.
+    - Shell commands, package installs, test execution, git commits, git pushes, or other arbitrary remote command execution in V1.
     - Folder upload, background sync, bidirectional sync, or automatic mirror upload of repositories to OpenMates in V1.
     - Creating real OpenMates embeds for every remote file by default.
     - Sending raw recursive file trees, entire repositories, or unlimited file contents to the assistant.
@@ -39,6 +47,8 @@ scope:
     - Arbitrary user-authored enforcement scripts as Checks in V1; custom enforcement beyond the prebuilt Check registry must be modeled as a Workflow with explicit permissions and sandboxing.
     - Automatically activating LLM-extracted checks or workflow automations from AGENTS.md, CLAUDE.md, or similar instruction files without user review.
     - Sharing remote-source runtime access, CLI bridge credentials, local/private paths, execution grants, repository remotes, or any permission to search/read/mutate the recipient's or sender's filesystem.
+    - Background daemon/service mode for remote access without a separate explicit feature, expiry model, status UI, notifications, and revocation controls.
+    - Using Git as the only undo/versioning mechanism for remote folders; OpenMates must keep its own local remote-machine journal for approved mutations.
 
 context_discovery:
   github_issues:
@@ -144,6 +154,89 @@ clarification:
         become hard enforcement, and the user must review the conversion before
         activation. Existing built-in OpenMates safety checks should also be
         visible in this same Rules UI so users have one mental model.
+    - question: What should be the canonical remote-access command and process lifetime?
+      answer: >
+        Use `openmates remote-access` as the canonical command. It should run in
+        the foreground, expose only the current working directory by default, and
+        stop when the shell or SSH session exits. Startup copy should recommend
+        zellij, tmux, or screen for users who want SSH persistence. Do not keep
+        `openmates remote-access start` as a compatibility alias in the target CLI.
+    - question: How should remote access roots and outside-root paths be bounded?
+      answer: >
+        Default access is the current working directory. Users may add multiple
+        explicit `--path` roots. Every operation must compare canonical realpaths,
+        including symlink resolution, against approved roots. Outside-root access
+        requires a separate exact local-user approval that the server or assistant
+        cannot broaden. Broad roots such as `$HOME`, `/`, and `/Users/<name>` need
+        strong warnings before continuing.
+    - question: How should Project descriptions sync with Git-backed folders?
+      answer: >
+        For Git-linked Projects, root README.md is the Project description source
+        of truth. Editing the Project description proposes a README.md diff and
+        requires explicit approval before writing. Creating a description for a
+        Project that lacks README.md proposes creating README.md.
+    - question: How should remote file edits, deletes, undo, and PII checks work?
+      answer: >
+        Git is strongly recommended but not required. OpenMates may support
+        agentic read/write/create/delete/rename/undo for approved Project files in
+        a later implementation slice, but must keep its own undo/version journal on
+        the remote machine outside the source root at
+        `~/.openmates/remote-cache/<source-id>/change-journal/`. The journal needs
+        pre/post hashes, forward and inverse patches, deleted/binary snapshots,
+        PII scan results, approval receipts, timestamps, source/project IDs, path,
+        size/line counts, and optional Git metadata.
+    - question: How should OpenMates-stored Project files be versioned?
+      answer: >
+        Files uploaded or created inside OpenMates should use the existing
+        encrypted embed diff/version model for text/code/markdown. Large snapshots,
+        deleted binaries, or patch-ineligible blobs can be stored as encrypted S3
+        objects referenced from version records.
+    - question: How should OpenMates handle missing, long, linked, or contradictory agent instructions when connecting a repository?
+      answer: >
+        On remote-access startup for a repo, OpenMates should automatically detect
+        repo-local agent instruction files, including nested AGENTS.md-style files,
+        and prompt to run the recommended billable instruction audit. If no agent
+        instruction exists, suggest creating root AGENTS.md. If instructions exist,
+        detect explicitly linked repo-local instruction documents, mark those files
+        as AI Instructions too, then run two separate LLM checks: one for
+        contradictory instructions and one for excessive length/cost. OpenMates
+        should suggest rewrites or improvements, and if the user declines, warn
+        that result quality may suffer and context costs may increase.
+    - question: How should nested agent instruction files be selected for billable audit?
+      answer: >
+        Scan all nested repo-local AGENTS.md/CLAUDE.md-style files locally and show
+        a grouped scope summary before billable analysis. Select root and relevant
+        nested scopes by default up to a clear size/cost cap. If many files are
+        found, select the highest-priority scopes by default and make the rest
+        expandable/selectable before the audit runs.
+    - question: How should remote-access handle different folder structures and Project recommendations?
+      answer: >
+        When `openmates remote-access` starts, inspect the approved root locally and
+        use OpenMates metadata under `.openmates` or the remote cache to detect
+        whether that folder structure was already processed. If not processed,
+        preserve the approved folder as one browsable source tree and recommend
+        Project candidates as an overlay on that tree. Require user confirmation
+        before creating or attaching anything. If the user starts inside one repo,
+        recommend one Project for that repo. If the user starts in a parent folder
+        containing many repos, recommend creating or using a parent `projects`
+        folder workflow and show editable Project candidates for detected repos or
+        groups without silently creating them.
+    - question: How should OpenMates protect users from accidentally creating many Projects?
+      answer: >
+        Bulk Project creation must always go through an explicit review screen in
+        CLI flow. The detected source tree remains visible, and Project
+        candidates are shown as a selected-by-default list that the user can modify
+        with keyboard navigation. Users can move up/down, select/unselect
+        candidates, rename candidates, group folders into one Project, choose
+        browse-only/local-only, or cancel before any Project is created.
+    - question: Where should local `.openmates` metadata be created when users approve repo/workspace-local metadata?
+      answer: >
+        Create local `.openmates` metadata only after explicit approval. Prefer one
+        `.openmates` folder in a dedicated parent `projects` folder when managing
+        multiple repos, or one `.openmates` folder at a single Project root when
+        the user starts from one repo. Avoid duplicating metadata in every child
+        repo when parent metadata already tracks them. If local metadata is not
+        approved, use `~/.openmates/remote-cache/<source-id>/metadata.json`.
   vision_summary: >
     Projects should become the privacy-preserving workspace boundary for code and
     document context. Attaching a folder or repository should not upload it by
@@ -159,6 +252,12 @@ clarification:
     rather than an implicit part of read or write access. Project Rules unify AI
     instruction files, deterministic checks, and workflow suggestions in one UI so
     users do not need to understand internal policy versus workflow boundaries.
+    Remote access is deliberately foreground and root-bounded; future file
+    mutations use explicit approval, PII scans, and OpenMates-owned encrypted or
+    remote-local version journals rather than relying only on Git. Repository
+    connection also audits agent instructions and linked instruction documents so
+    users can shorten, deduplicate, and resolve conflicting guidance before it
+    silently harms quality or cost.
   approved_by_user: true
 
 v1_product_model:
@@ -178,6 +277,111 @@ v1_product_model:
       - offline
       - permission_required
       - revoked
+  remote_access_session:
+    canonical_command: openmates remote-access
+    default_root: current_working_directory
+    lifetime: >
+      Foreground process lifetime only. The bridge is connected while the command
+      is running and becomes offline when the process, shell, SSH session, or
+      terminal multiplexer session exits. V1 must not install a hidden daemon,
+      background service, launch agent, or systemd unit.
+    startup_guidance:
+      - Recommend running inside zellij, tmux, or screen when the user wants the bridge to survive an SSH client disconnect.
+      - Print the approved roots, redacted when appropriate, plus the cache/journal base path.
+      - Warn that OpenMates can access files only while the foreground bridge is online.
+      - If started inside a single repo, recommend creating or attaching one Project for that repo unless OpenMates metadata shows it was already processed.
+      - If started inside a parent folder that contains multiple repos, recommend running from a dedicated `projects` folder and present a grouped Project recommendation before any creation.
+    roots:
+      default_behavior: Only the process current working directory is approved by default.
+      multi_root_behavior: Additional roots require explicit repeated `--path <path>` arguments.
+      path_boundary: >
+        All read, search, preview, upload, write, delete, rename, and undo
+        operations resolve the requested path and approved roots through realpath
+        before comparison, so symlinks cannot escape the approved boundary.
+      outside_root_exception: >
+        Access to an exact path outside approved roots requires a separate local
+        user consent prompt on the machine running the CLI bridge. The server,
+        assistant, remote chat message, or Project setting cannot broaden an
+        outside-root exception into parent-directory or sibling access.
+      broad_root_warning:
+        triggers:
+          - /
+          - $HOME
+          - /Users/<name>
+          - /home/<name>
+          - Windows user profile roots
+        behavior: >
+          The CLI blocks for an explicit confirmation and explains that a narrower
+          project folder is strongly recommended before starting with broad roots.
+    processed_root_metadata:
+      storage: >
+        OpenMates processing state for a local folder/repo is stored in OpenMates
+        metadata. By default, store it under
+        `~/.openmates/remote-cache/<source-id>/metadata.json`. If the user
+        explicitly approves repo/workspace-local metadata, prefer exactly one
+        `.openmates/metadata.json` at the dedicated parent `projects` folder for
+        multi-repo workspaces, or at the single Project root for one-repo work. Do
+        not create duplicate `.openmates` metadata folders in every child repo when
+        parent metadata already tracks them. The metadata records source id,
+        Project id links, processed root realpath hash, detected repo fingerprints,
+        instruction-audit state, export settings, and last processed timestamp. It
+        must not store secrets or plaintext private paths in backend metadata.
+      behavior: >
+        If processed-root metadata indicates the folder was already attached or
+        intentionally skipped, startup should not repeatedly recommend creating the
+        same Project. It can show the existing Project/source association and ask
+        whether to refresh, reconnect, or re-run audits.
+    folder_structure_recommendations:
+      source_tree_rule: >
+        Starting `openmates remote-access` in a folder creates one approved root
+        source tree for browsing. All folders and subfolders under that root appear
+        under the root in OpenMates, preserving the user's folder structure. Git
+        repositories, nested instruction scopes, and recommended Project candidates
+        are overlays/badges on the tree, not replacements for the tree.
+      examples:
+        - structure: single_git_repo
+          example: /work/openmates
+          recommendation: Create or attach one Project named from the repo folder or README, then audit root and nested instructions.
+        - structure: parent_projects_folder
+          example: /work/projects/openmates + /work/projects/marketing-site + /work/projects/docs
+          recommendation: Recommend starting from `/work/projects`; detect child repos; suggest one Project per child repo by default.
+        - structure: monorepo_with_apps
+          example: /work/company/apps/web + /work/company/packages/ui under one Git root
+          recommendation: Prefer one Project for the Git root with nested folder scopes unless the user selects subfolders as separate Projects.
+        - structure: mixed_repo_and_notes
+          example: /work/client-a/repo + /work/client-a/notes + /work/client-a/assets
+          recommendation: Suggest one parent Project with repo, notes, and assets as sources if they clearly belong together.
+        - structure: broad_home_folder
+          example: /home/alice
+          recommendation: Warn strongly and recommend creating/using a narrower `/home/alice/projects` folder instead of exposing home.
+      creation_rule: >
+        Project creation is recommended automatically from folder structure only
+        when OpenMates metadata does not show prior processing. Creation is never
+        silent: the user reviews a selectable candidate list before any Project is
+        created. The user can Create selected Projects, Attach selected folders to
+        existing Projects, Browse only / run local-only, or Cancel.
+      cli_selection_behavior: >
+        The CLI review step supports keyboard navigation. Up/down moves through
+        candidates, Space toggles selected/unselected, Enter continues, and a rename
+        or group action lets the user edit the proposed Project list before
+        confirmation. The final confirmation prints the exact number and names of
+        Projects that will be created.
+  project_description_sync:
+    git_backed_source_of_truth: README.md at the attached Git source root.
+    read_behavior: >
+      When a Git-backed source has a root README.md, the Project description UI can
+      show it as the synced Project description after client-side decryption or
+      bridge read approval. The backend never receives plaintext README content
+      except as already-approved assistant context or encrypted Project metadata.
+    edit_behavior: >
+      Editing the Project description for a Git-backed Project creates a proposed
+      README.md diff against the current base hash. The user must approve the diff
+      before any file write occurs. If README.md does not exist, creating a Project
+      description proposes creating README.md with that content.
+    non_git_behavior: >
+      Non-Git Project descriptions remain encrypted Project metadata unless the
+      user explicitly chooses a source file to sync. Git is recommended before
+      write/delete operations but is not required.
   virtual_remote_preview:
     description: >
       A virtual preview is embed-compatible UI data for a file or folder that has
@@ -220,6 +424,28 @@ v1_product_model:
       - full file contents by default
       - ignored files unless explicitly included by user approval
       - secrets, env files, and binary blobs unless explicitly uploaded or approved
+  project_linked_objects:
+    tasks: >
+      Every user task can link to zero or more Projects. Inside a Project, linked
+      tasks appear in the reusable Kanban board with backlog, todo, in_progress,
+      blocked, and done columns. Tasks are not organized inside Project folders by
+      default because status and assignee are the primary task navigation model.
+    plans: >
+      Every user plan can link to zero or more Projects. Inside a Project, plans
+      can be organized in Project folders/subfolders as durable project artifacts.
+      Tasks generated from a Project-linked plan inherit the Project link unless
+      the user removes it.
+    chats: >
+      Chats can be added to Projects and optionally placed in Project folders.
+      Adding a chat to a remote-access Project can ask whether to create a remote
+      machine copy, but OpenMates-only encrypted storage remains the default.
+    workflows: >
+      Workflows can be added to Projects and optionally placed in Project folders.
+      Remote-machine workflow copies default to YAML only when the user explicitly
+      chooses a remote copy for repo/team reuse.
+    project_view: >
+      Project detail surfaces should show folder-organized files, chats, workflows,
+      and plans, plus a separate Project task Kanban board for all linked tasks.
   privacy_modes:
     always_ask:
       behavior: >
@@ -296,8 +522,8 @@ v1_product_model:
           users, or escalating failed checks.
     imported_sources:
       auto_detect:
-        - AGENTS.md
-        - CLAUDE.md
+        - AGENTS.md at repo root and nested folders
+        - CLAUDE.md at repo root and nested folders
         - .cursor/rules/**
         - .github/copilot-instructions.md
         - .openmates/rules.md
@@ -307,9 +533,114 @@ v1_product_model:
         sync user-created rules to AGENTS.md or .openmates/rules.md, but writing
         those files follows the Project write policy and remains a later-phase
         remote mutation until patch apply is implemented.
+    connection_audit:
+      startup_trigger: >
+        `openmates remote-access` automatically scans approved repo roots for
+        supported instruction files during startup. The local scan is not a
+        separate user command. If candidate files or missing-instruction state are
+        found, the CLI shows the recommended audit prompt immediately as part of
+        startup. Billable LLM analysis still requires explicit user permission.
+      billable_behavior: >
+        Repo connection should recommend a billable instruction audit before it
+        runs, because resolving conflicting or oversized instructions can improve
+        output quality and reduce later context/model costs. CLI and later UI
+        surfaces must ask permission first, show that the audit uses credits or
+        metered model calls, and label the audit as recommended. The audit should
+        not be hidden behind a generic indexing label.
+      audit_state_storage: >
+        Audit status such as skipped, pending, completed, declined suggestions,
+        and last audit summary is stored in OpenMates metadata, not in the source
+        repository. For remote bridge state, use `~/.openmates/remote-cache/<source-id>/`
+        metadata or encrypted Project/source metadata; do not write status markers
+        into the connected repo unless the user explicitly approves a repo file
+        change.
+      missing_instruction_behavior: >
+        If no supported instruction file is found, OpenMates suggests creating a
+        root AGENTS.md file as the default Project AI Instruction. It can draft
+        starter content after user approval and should show concrete bullet-point
+        improvement suggestions, selected by default, before creating the file.
+        `.openmates/rules.md` is not the default; reserve it for users who
+        explicitly want OpenMates-specific repo rules.
+      linked_instruction_discovery: >
+        Imported instruction files may explicitly reference local documentation or
+        rule files. By default, V1 follows only explicit links to files that are
+        part of the connected repository and inside approved roots. The bridge
+        resolves repo-local relative links by realpath, applies file size/type
+        caps, and marks accepted linked files as linked AI Instructions. Remote
+        URLs, inferred-but-unlinked documents, outside-root links, binaries, and
+        oversized files require separate user review before inclusion.
+      nested_scope_behavior: >
+        Nested AGENTS.md/CLAUDE.md-style files are treated as scoped AI
+        Instructions for their containing folder subtree. The audit can process all
+        detected scopes in one run, but findings and rewrite suggestions must name
+        the relevant folder scope so users understand which parts of the repo are
+        affected.
+      nested_scope_selection: >
+        The startup scan lists all detected instruction scopes in a grouped summary
+        before metered model calls. Root-level instructions and relevant nested
+        scopes are selected by default up to an explicit size/cost cap. If the repo
+        has more instruction scopes than the cap, OpenMates selects the
+        highest-priority scopes by default, shows how many were omitted from the
+        default selection, and lets the user expand/select additional scopes before
+        approving the billable audit.
+      status_copy:
+        title: Checking agent instructions...
+        detail: >
+          Local AGENTS.md, CLAUDE.md, and similar files are checked together with
+          linked repository documents to detect conflicts and evaluate length.
+      checks:
+        - id: contradiction_check
+          prompt_boundary: >
+            Run as a separate LLM prompt over the instruction set and accepted
+            linked instruction documents. It identifies conflicting directives,
+            names the source files/spans, explains the impact, and suggests a
+            resolution without editing files automatically.
+        - id: length_and_cost_check
+          prompt_boundary: >
+            Run as a separate LLM prompt that estimates context length/cost risk,
+            identifies duplicate or low-value sections, and suggests a shorter
+            equivalent instruction set.
+      improvement_suggestions: >
+        OpenMates can propose rewrites, merges, or new instruction files as
+        concrete machine-readable suggestion records. Each suggestion includes a
+        selected-by-default flag, short bullet summary, expandable description,
+        affected paths, base hashes, and an actual diff or create-file patch. CLI
+        and later first-party clients can apply approved suggestions directly from this JSON
+        without making another LLM request. Applying suggestions follows normal
+        Project write policy, README/rules file base-hash checks, PII/secret scans,
+        and approval cards. Suggestions should edit existing repo instruction files
+        first; when no instruction file exists, the default create-file suggestion
+        targets root AGENTS.md.
+      suggestion_json_contract:
+        fields:
+          - id
+          - selected_by_default
+          - summary
+          - description
+          - rationale
+          - affected_paths
+          - source_spans
+          - base_hashes
+          - risk_flags
+          - estimated_token_savings
+          - estimated_quality_impact
+          - diff
+          - creates_new_file
+          - requires_explicit_approval
+      decline_warning: >
+        If the user declines suggested rewrites after contradictions or excessive
+        length are found, OpenMates should warn that the unresolved instructions
+        may reduce answer quality, cause inconsistent agent behavior, and increase
+        context/model costs.
     extraction_pipeline:
       - step: import_instruction
         behavior: The original instruction file is stored/rendered as an AI Instruction Rules embed.
+      - step: discover_linked_instruction_docs
+        behavior: Explicitly linked repo-local instruction documents are resolved inside approved roots, capped, and imported as linked AI Instructions after user-visible audit handling; inferred references and external URLs are excluded by default.
+      - step: run_contradiction_check
+        behavior: A dedicated prompt checks imported and linked AI Instructions for contradictions and produces source-linked findings and rewrite suggestions.
+      - step: run_length_and_cost_check
+        behavior: A dedicated prompt checks imported and linked AI Instructions for excessive length, duplicated guidance, and context-cost risk.
       - step: propose_structured_items
         behavior: An LLM may identify candidate Checks or Workflow suggestions and link each candidate back to the source text span.
       - step: template_match
@@ -434,6 +765,160 @@ v1_product_model:
       Project high-risk rules, grant command execution, or weaken user settings.
       Importing broader permissions from repo config requires explicit user
       approval.
+  project_file_mutations:
+    status: reserved_later_slice
+    allowed_operations:
+      - read
+      - create_text_file
+      - update_text_file
+      - delete_file
+      - rename_or_move_file
+      - undo_approved_change
+    excluded_operations:
+      - shell_command_execution
+      - package_install
+      - test_command_execution
+      - git_commit
+      - git_push
+      - chmod_or_executable_bit_change_without_explicit_high_risk_approval
+    approval_flow: >
+      Every mutation plan shows the source, root, canonical path, operation,
+      before/after summary, PII/secret findings, high-risk flags, base hash, patch
+      size, undo availability, and whether Git metadata is present. Always ask
+      Projects require explicit approval for every mutation. Auto approve safe
+      writes can apply only low-risk text updates inside approved roots after all
+      deterministic checks pass.
+    pii_detection: >
+      Proposed file contents and diffs are scanned for PII-like and secret-like
+      data before approval or auto-apply. Findings are surfaced in the approval
+      card and stored in the relevant encrypted or remote-local version record.
+      PII/secret findings prevent auto-approval unless the user explicitly
+      confirms the exact action.
+    git_policy: >
+      Git is strongly recommended before writes, deletes, and renames because it
+      provides an additional recovery path and user-visible review. Git is not a
+      hard requirement; OpenMates still must create its own undo/version record
+      before applying an approved mutation.
+  versioning:
+    openmates_stored_files: >
+      Uploaded or OpenMates-created text/code/markdown Project files use the
+      existing encrypted embed diff/version model for edits and restore. Large
+      snapshots, deleted binaries, and patch-ineligible blobs may be stored as
+      encrypted S3 objects referenced by encrypted version metadata.
+    remote_machine_journal:
+      path: ~/.openmates/remote-cache/<source-id>/change-journal/
+      storage_boundary: >
+        The journal is stored on the machine running the bridge and outside the
+        source root by default, so OpenMates does not mutate the repository with
+        hidden state. Repo-local journals remain out of scope unless separately
+        approved.
+      required_fields:
+        - journal_entry_id
+        - project_id
+        - source_id
+        - approved_root_realpath_hash
+        - canonical_path_realpath_hash
+        - display_path
+        - operation
+        - timestamp
+        - approval_receipt
+        - pre_hash
+        - post_hash
+        - forward_patch_or_snapshot_ref
+        - inverse_patch_or_snapshot_ref
+        - deleted_file_snapshot_ref
+        - binary_snapshot_ref
+        - pii_scan_result
+        - secret_scan_result
+        - size_bytes_before
+        - size_bytes_after
+        - line_count_before
+        - line_count_after
+        - optional_git_branch
+        - optional_git_commit_before
+        - optional_git_status_before
+      undo_behavior: >
+        Undo verifies the current file hash against the journal's expected post
+        hash before applying the inverse patch or restoring a snapshot. Hash
+        mismatch, missing snapshot, outside-root path, or high-risk reversal
+        requires explicit user review and cannot silently overwrite local changes.
+  project_item_add_to_project:
+    status: implemented_cli_sdk_first_slice
+    canonical_storage: >
+      Adding a chat, workflow, task, plan, or other OpenMates object to a Project
+      stores the Project link in encrypted OpenMates records by default. A linked
+      Git source does not automatically receive a file copy and no repo file is
+      written unless the user chooses remote-machine storage during the add flow.
+      Users should not need a generic export command; they add the object from its
+      own namespace, such as chats, workflows, tasks, or plans.
+    add_commands:
+      - openmates chats <chat-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy]
+      - openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy]
+      - openmates plans <plan-id|short-id> add-to-project <project-id>
+      - openmates tasks <task-id|short-id> add-to-project <project-id>
+    remote_storage_prompt: >
+      When adding an object to a Project that has a remote source and the object is
+      meaningful as a repo/remote-machine file, CLI can ask whether to also
+      store a copy on the remote machine. For chats, the prompt is required when
+      the target is a remote-access Project because chats may contain private
+      conversation content, tool results, file paths, secrets, or PII. The prompt
+      must clearly recommend OpenMates-only storage unless the user explicitly
+      wants a remote copy.
+    git_inclusion_choice:
+      choices:
+        - save_only_in_openmates
+        - store_on_remote_machine_and_include_in_git
+        - store_local_only_on_remote_machine
+      recommended_defaults:
+        chat: save_only_in_openmates
+        workflow: store_on_remote_machine_and_include_in_git_when_user_intends_team_or_repo_reuse
+        plan: save_only_in_openmates
+        task: save_only_in_openmates
+      behavior: >
+        If the user stores a copy in the repo, ask whether the file should be
+        intended for Git tracking. For Git-tracked copies, create normal proposal
+        diffs for the target file and avoid touching `.gitignore`. For local-only
+        remote-machine copies, prefer storing outside the repo under
+        `~/.openmates/remote-cache/<source-id>/exports/` so the repository is not
+        mutated. If the user explicitly wants a local-only file inside the repo,
+        propose a `.gitignore` diff for the chosen path and require separate
+        high-risk approval before changing `.gitignore`. The prompt must remind
+        users that Git-tracked chats in public/open-source repos can be visible to
+        everyone with repo access and should usually be gitignored or kept in
+        OpenMates only.
+    default_paths:
+      workflows_tracked: .openmates/workflows/<workflow-slug>.yml
+      chats_tracked: docs/openmates/chats/<chat-slug>.md
+      local_only_remote_cache: ~/.openmates/remote-cache/<source-id>/exports/<kind>/<slug>
+    default_formats:
+      workflow: yml
+      chat: markdown_summary_or_redacted_markdown
+    add_record_fields:
+      - project_id
+      - source_id
+      - object_type
+      - object_id
+      - target_mode
+      - target_path
+      - git_tracking_intent
+      - selected_by_user
+      - pii_scan_result
+      - secret_scan_result
+      - base_hash
+      - diff_or_create_file_patch
+      - gitignore_diff_if_needed
+      - approval_receipt
+    privacy_behavior: >
+      Remote-machine file proposals for chats, workflows, plans, and tasks run
+      PII/secret scans before writing. Findings block auto-approval and must be
+      shown in CLI output. Chat remote copies should default to a summarized or
+      redacted Markdown transcript unless the user explicitly asks for the full
+      conversation copy.
+    implementation_notes:
+      - CLI creates encrypted OpenMates Project item links for chats and workflows before returning optional non-mutating create-file proposal payloads.
+      - npm SDK and pip SDK create encrypted OpenMates-only Project links for chats and workflows and do not expose remote-copy proposal payloads or source attachment APIs.
+      - CLI currently supports chat Markdown and workflow YAML remote-copy proposals with writes_files=false; tasks and plans remain encrypted Project links only.
+      - Proposal apply/write execution remains out of scope for V1.
   remote_diff_virtual_artifact:
     description: >
       A non-mutating diff artifact for an existing remote file. It is serialized
@@ -503,21 +988,80 @@ v1_product_model:
 
 contracts:
   cli:
-    - command: openmates remote-access start
+    - command: openmates remote-access
       behavior: >
-        Starts an authenticated local bridge, lets the user select folders or
-        repositories, attach each source to an existing or new Project, and choose
-        session-only or persistent bridge metadata. It prints redacted source
-        status and never prints sensitive file content.
-    - command: openmates remote-access status
+        Starts an authenticated foreground local bridge for the current working
+        directory by default. The user may pass repeated `--path <path>` values to
+        expose additional roots. The bridge can attach each approved source to an
+        existing or new Project and choose session-only or persistent local bridge
+        metadata. It prints redacted source status, root-scope warnings, cache and
+        journal locations, terminal-multiplexer guidance, live connection state,
+        and automatically detected instruction-audit recommendation, but never
+        prints sensitive file content. The foreground process itself is the status;
+        there is no target public `status`, `search`, `start`, or `stop` subcommand.
+    - command: openmates remote-access --path <path> --path <path>
       behavior: >
-        Lists attached source aliases, Project names, connection state, cache
-        location, and last index time without printing raw private paths unless
-        the local user explicitly asks for verbose local diagnostics.
-    - command: openmates remote-access stop
+        Starts the foreground bridge with multiple explicit approved roots. Each
+        root is realpath-resolved and broad roots require explicit confirmation
+        before the bridge accepts them.
+    - command: openmates remote-access --skip-instruction-audit
       behavior: >
-        Stops the bridge and marks sources offline for assistant access without
-        deleting encrypted Project metadata.
+        Optional startup flag for users who explicitly want to skip the automatic
+        recommended instruction-audit prompt for this session. Skipped state is
+        stored in OpenMates metadata, not in the repo. Users should not need a
+        separate command to analyze instructions; startup detects candidates and
+        prompts automatically.
+    - command: openmates chats <chat-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy]
+      status: implemented_cli_sdk_first_slice
+      behavior: >
+        Adds a chat to a Project and optional Project folder in encrypted
+        OpenMates storage. If the Project has a remote source, asks whether to also
+        store a summarized/redacted or full chat copy on the remote machine and
+        whether that file should be included in Git. It warns that Git-tracked
+        chats in public/open-source repos may be visible to everyone.
+    - command: openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy]
+      status: implemented_cli_sdk_first_slice
+      behavior: >
+        Adds a workflow to a Project and optional folder in encrypted OpenMates
+        storage. If the Project has a remote source, can ask whether to also store
+        a YAML workflow file on the remote machine, with Git-tracking choice and
+        concrete diff/create-file proposal.
+    - command: openmates plans <plan-id|short-id> add-to-project <project-id>
+      status: implemented_cli_sdk_first_slice
+      behavior: >
+        Links an existing plan to a Project. Plan data remains encrypted OpenMates
+        storage by default; remote-machine file storage is out of scope for plans
+        in the current slice.
+    - command: openmates tasks <task-id|short-id> add-to-project <project-id>
+      status: implemented_cli_sdk_first_slice
+      behavior: >
+        Links an existing task to a Project so it appears in the Project Kanban
+        board. Tasks are operational board items and are not folder-organized by
+        default.
+  sdk:
+    cleartext_contract: >
+      Public npm and pip SDK Project-linking methods must not expose `encrypted_*`
+      fields to users. SDK callers can list Projects and link OpenMates-owned
+      chats, workflows, plans, and tasks to encrypted Projects, with encryption,
+      decryption, key wrapping, and encrypted REST payload construction handled
+      automatically inside the SDK/client layer. Remote bridge/source attachment,
+      remote-copy proposal generation, and instruction-audit control remain CLI or
+      later first-party client responsibilities, not SDK methods in this slice.
+    methods:
+      - method: projects.list(options)
+        behavior: Returns Project records available to the authenticated user without creating or attaching sources.
+      - method: chats.addToProject(chatId, projectId, options) / chats.add_to_project(chat_id, project_id, **options)
+        status: implemented_cli_sdk_first_slice
+        behavior: Adds a chat to a Project/folder as an encrypted OpenMates-only Project item and does not expose remote-copy options or proposal payloads.
+      - method: workflows.addToProject(workflowId, projectId, options) / workflows.add_to_project(workflow_id, project_id, **options)
+        status: implemented_cli_sdk_first_slice
+        behavior: Adds a workflow to a Project/folder as an encrypted OpenMates-only Project item and does not expose remote-copy options or proposal payloads.
+      - method: plans.addToProject(planId, projectId) / plans.add_to_project(plan_id, project_id)
+        status: implemented_cli_sdk_first_slice
+        behavior: Links a plan to a Project with encrypted storage handled internally.
+      - method: tasks.addToProject(taskId, projectId, options) / tasks.add_to_project(task_id, project_id, **filters)
+        status: implemented_cli_sdk_first_slice
+        behavior: Links a task to a Project so it appears in Project task boards, with filters used only to resolve the task.
   api:
     - route: POST /v1/projects/{project_id}/sources
       request: "encrypted source metadata, source type, opaque source id, capabilities"
@@ -557,6 +1101,29 @@ contracts:
       notes:
         - The backend stores or serves only encrypted payloads and server-visible expiration metadata.
         - The URL fragment key, optional password, raw Project key, and decrypted Project fields are never sent to the backend.
+    - route: POST /v1/projects/{project_id}/file-actions/proposals
+      status: reserved_later_slice
+      access_model: first-party client surface only
+      request: "encrypted mutation proposal metadata or message-local virtual artifact reference; no plaintext paths or contents"
+      response: "proposal id, required approval state, encrypted audit metadata"
+      errors:
+        - 401 when unauthenticated.
+        - 403 when the user cannot edit the Project.
+        - 400 when the proposal requests command execution, git mutation, unsupported chmod, or weakened root-boundary checks.
+      notes:
+        - File proposals are encrypted coordination records only; actual remote filesystem mutation is performed by the foreground CLI bridge after local root and approval validation.
+        - The route must not accept raw decrypted file content, local private paths, CLI credentials, remote journal data, or command execution grants.
+    - route: POST /v1/projects/{project_id}/description-sync/proposals
+      status: reserved_later_slice
+      access_model: first-party client surface only
+      request: "encrypted README.md diff proposal metadata with base hash and source reference"
+      response: "proposal id, approval state"
+      errors:
+        - 401 when unauthenticated.
+        - 403 when the user cannot edit the Project.
+        - 409 when README.md base hash is stale.
+      notes:
+        - Git-backed description writes are mediated as README.md diffs or README.md creation proposals and require explicit user approval before CLI bridge mutation.
   frontend:
     - surface: Projects page
       behavior: >
@@ -590,6 +1157,44 @@ contracts:
         original AI Instruction text plus extracted Checks and Workflow
         suggestions, with review/activation controls for anything not already a
         built-in OpenMates safety default.
+    - surface: Repository connection instruction audit
+      status: later_web_expansion_memory
+      behavior: >
+        During repo connection or from the Project Rules section, checks for
+        missing instruction files, shows billable audit cost/credit disclosure,
+        imports accepted explicit repo-local linked instruction documents, displays
+        separate contradiction and length/cost findings, and offers concrete
+        rewrite suggestions as selected checkbox bullet points. Each bullet can
+        expand to show the full suggestion and diff. Clicking Apply applies the
+        already-generated diffs from the audit JSON/tool output rather than making
+        another LLM request. If the user declines, show a clear quality/cost
+        warning. The loading state title should be "Checking agent instructions..."
+        with smaller explanatory text such as "Local AGENTS.md, CLAUDE.md, and
+        similar files are checked together with linked repository documents to
+        detect conflicts and evaluate length." This UI detail is recorded for later
+        web expansion; current implementation focus is CLI and SDK.
+    - surface: Project description editor
+      behavior: >
+        For Git-backed Projects, shows README.md as the synced description source
+        and turns edits into an explicit README.md diff or creation proposal. The
+        user can review the diff, PII/secret findings, base hash, and undo status
+        before approving the bridge write.
+    - surface: Project file action approval cards
+      behavior: >
+        Shows create/update/delete/rename/undo proposals with path, operation,
+        root, PII/secret scan, high-risk classification, base hash, patch size,
+        Git recommendation/status, and undo availability before applying or
+        rejecting the action.
+    - surface: Add resource to Project with optional remote copy
+      status: later_web_expansion_memory
+      behavior: >
+        When a chat, workflow, plan, or task is added to a Project, later web UI can
+        offer folder placement for chats/workflows/plans and show Project task-board
+        placement for tasks. For remote-access Projects, it can ask whether to also
+        store a remote-machine copy and whether that copy should be intended for Git
+        tracking. The default remains encrypted OpenMates-only storage, especially
+        for chats. This UI detail is recorded for later web expansion; current
+        implementation focus is CLI and SDK.
   assistant_context:
     - name: project_map
       behavior: Bounded structure and ranking context for a Project or folder mention.
@@ -603,6 +1208,12 @@ contracts:
       behavior: Non-mutating unified diff proposal for an existing remote file, stored inside the encrypted assistant message, rendered like an embed preview/fullscreen diff, and never applied to the remote filesystem in V1.
     - name: project_rules_context
       behavior: Active AI Instructions and summaries of active Checks/Workflow links for the referenced Project/folder/source, bounded and loaded into assistant context whenever that Project context is granted.
+    - name: project_instruction_audit_context
+      behavior: Source-linked contradiction and length/cost findings for imported and linked AI Instructions; suggestions are advisory until the user approves a rewrite or Check activation.
+    - name: readme_description_sync_context
+      behavior: Git-backed Project description context references README.md base hash and approved snippets only; description edits are represented as README.md diff proposals.
+    - name: project_file_action_proposal
+      behavior: Reserved later-slice encrypted proposal for approved file create/update/delete/rename/undo, including deterministic safety results and never including shell command execution authority.
   privacy_security:
     - Backend stores remote-source metadata, preview metadata, and Project item metadata only as encrypted blobs or opaque hashes.
     - Raw private paths, file contents, git remotes, environment variable values, and ignored file contents are not logged or sent to the LLM by default.
@@ -613,6 +1224,13 @@ contracts:
     - Automated E2B checks for private Project code require explicit first-use or Project-level consent because relevant code/config leaves the user's machine.
     - LLM-extracted Checks and Workflow suggestions from instruction files require user review before activation and cannot weaken built-in OpenMates safety checks.
     - Prebuilt Checks may add restrictions, warnings, approvals, or required verification, but arbitrary user-authored scripts are not executed as Checks in V1.
+    - Instruction audit linked-document discovery resolves only approved-root local files by realpath; outside-root links, remote URLs, binaries, and oversized files require separate user review before inclusion.
+    - Billable instruction audits must disclose credit or metered model-call impact before running and should not be presented as free background indexing.
+    - Remote bridge file operations must use realpath-resolved approved roots; symlink escapes and path traversal outside roots are denied unless the local user approves an exact outside-root path exception.
+    - Remote mutation journals stay on the bridge machine under `~/.openmates/remote-cache/<source-id>/change-journal/` and are not uploaded to OpenMates unless the user explicitly exports or shares encrypted evidence.
+    - PII/secret scan results are shown before approval and stored only in encrypted OpenMates metadata for uploaded files or local remote-machine journals for remote files.
+    - Adding chats/workflows/plans/tasks to OpenMates Projects is encrypted OpenMates storage by default; remote-machine file copies for linked repos require explicit user choice, PII/secret scan results, and a separate Git-tracking intent.
+    - Local-only remote copies should prefer the remote cache outside the repo. If the user chooses a local-only file inside the repo, `.gitignore` changes require a separate high-risk approval.
 
 scenarios:
   - id: S-1
@@ -621,7 +1239,7 @@ scenarios:
       - Alice is logged into OpenMates CLI.
       - Alice has a local or remote repository reachable from the machine running CLI.
     when:
-      - Alice runs `openmates remote-access start` and chooses the repository.
+      - Alice runs `openmates remote-access` and chooses the repository.
       - Alice attaches it to an existing Project or creates a new Project.
     then:
       - OpenMates stores encrypted source metadata linked to the Project.
@@ -799,10 +1417,138 @@ scenarios:
       - Alice must review and activate suggested Checks or Workflow drafts before they enforce or run.
       - Built-in OpenMates safety checks, such as high-risk file protection and secret-like file handling, are visible in the same Rules UI as active system checks.
 
+  - id: S-15
+    title: User starts foreground remote access with narrow roots
+    given:
+      - Alice is SSHed into a development machine in `/srv/app`.
+      - Alice wants OpenMates to browse only that repository while she keeps the SSH session open.
+    when:
+      - Alice runs `openmates remote-access` from `/srv/app`.
+    then:
+      - The CLI starts a foreground bridge scoped to the realpath of `/srv/app`.
+      - The CLI explains that access stops when the command, shell, SSH session, or terminal multiplexer exits.
+      - The CLI recommends zellij, tmux, or screen if Alice wants the foreground process to persist across SSH reconnects.
+      - The CLI does not expose `$HOME`, `/srv`, or `/` unless Alice explicitly passes and confirms those roots.
+
+  - id: S-16
+    title: Broad and outside-root access requires local confirmation
+    given:
+      - Alice starts the bridge with `openmates remote-access --path $HOME`.
+      - A symlink inside `$HOME/project` points to `/etc`.
+    when:
+      - The assistant requests `/etc/hosts` through the symlink or asks to broaden access to `/etc`.
+    then:
+      - The CLI shows a strong broad-root warning before accepting `$HOME`.
+      - Every requested path is compared by realpath against approved roots.
+      - Symlink traversal outside the approved root is blocked by default.
+      - Access to `/etc/hosts` requires an exact local prompt on the bridge machine and cannot be broadened remotely by the assistant or backend.
+
+  - id: S-17
+    title: Git-backed Project description syncs through README proposal
+    given:
+      - Alice has a Git-backed Project whose root contains README.md.
+      - Alice edits the Project description in OpenMates.
+    when:
+      - OpenMates prepares the description update.
+    then:
+      - The UI shows a README.md diff proposal with base hash, PII/secret scan results, and undo availability.
+      - Alice must approve the diff before the bridge writes README.md.
+      - If README.md is missing, OpenMates proposes creating README.md instead of silently storing the text only as a Git-backed description.
+      - If README.md changed since preview, the write is blocked as stale and Alice must review a refreshed diff.
+
+  - id: S-18
+    title: Approved remote file mutation creates local undo journal
+    given:
+      - Alice has a connected remote Project source with no Git repository.
+      - Alice approves an assistant proposal to update `docs/api.md`.
+    when:
+      - The foreground CLI bridge applies the text patch.
+    then:
+      - The bridge verifies the file is inside an approved realpath root and that the base hash matches.
+      - The bridge scans the proposed patch for PII and secret-like data before applying.
+      - The bridge writes a journal record under `~/.openmates/remote-cache/<source-id>/change-journal/` before or atomically with the mutation.
+      - The journal includes approval receipt, pre/post hashes, forward and inverse patches, PII/secret scan result, path metadata, size/line counts, and optional Git metadata when available.
+      - Undo verifies the current post hash before applying the inverse patch and refuses to silently overwrite unrelated local edits.
+
+  - id: S-19
+    title: OpenMates-stored Project file edits use encrypted embed versions
+    given:
+      - Alice uploaded `notes.md` from a Project source into OpenMates as an encrypted embed.
+      - Alice later asks the assistant to update that uploaded file inside OpenMates.
+    when:
+      - OpenMates stores the approved edit.
+    then:
+      - The edit uses the existing encrypted embed diff/version path for text/code/markdown files.
+      - Deleted binaries, large snapshots, or patch-ineligible blobs are stored as encrypted S3-backed snapshot references when needed.
+      - Restore/undo uses encrypted version metadata and does not require the original remote source to be online.
+
+  - id: S-20
+    title: Repository connection audits missing, linked, long, and contradictory instructions
+    given:
+      - Alice connects a repository to a Project.
+      - The repository contains AGENTS.md that links to `docs/assistant-rules.md` and `.cursor/rules/style.md`.
+      - The repository also contains `frontend/AGENTS.md`, `backend/AGENTS.md`, and many package-level instruction files.
+    when:
+      - OpenMates recommends the repository instruction audit and asks Alice for permission after showing the billable credit/model-call disclosure.
+      - Alice approves the audit.
+    then:
+      - The UI shows "Checking agent instructions..." with smaller explanatory text that local AGENTS.md, CLAUDE.md, and similar files are checked together with linked repository documents to detect conflicts and evaluate length.
+      - If Alice skips the audit, the skipped/not-run state is stored in OpenMates metadata under the remote cache or encrypted Project/source metadata, not as a marker file inside the repository.
+      - If no supported instruction file exists, OpenMates suggests creating an agent instruction file instead of silently proceeding with no Project Rules.
+      - Existing AGENTS.md is imported as an AI Instruction Rules card.
+      - Nested instruction files are grouped by folder scope, with root and relevant nested scopes selected by default up to a visible size/cost cap.
+      - If the repo has more scopes than the cap, OpenMates shows how many were omitted from the default selection and lets Alice expand/select more before approving billable analysis.
+      - The explicitly linked repo-local instruction files are resolved inside approved roots, capped, and marked as linked AI Instructions.
+      - Inferred references, external URLs, and files outside the connected repository are excluded by default unless the user separately reviews and approves them.
+      - OpenMates runs one contradiction-check prompt and one separate length/cost-check prompt.
+      - The findings name source files/spans, explain expected quality or cost impact, and suggest rewrites or merges.
+      - Each improvement suggestion includes a selected-by-default flag, short bullet summary, expandable description, affected paths, base hashes, and concrete diff/create-file patch.
+      - Applying selected suggestions uses the stored diffs from the audit result without making another LLM request.
+      - Applying a rewrite follows Project write policy; declining a rewrite leaves the original instructions active but warns that quality may be worse and model/context costs may be higher.
+
+  - id: S-21
+    title: Chats, workflows, plans, and tasks are added to Projects from their own commands
+    given:
+      - Alice has a Project linked to a Git repository source.
+      - Alice has an existing workflow, chat, plan, and task in OpenMates.
+    when:
+      - Alice runs resource-specific add commands such as `openmates workflows <workflow-id> add-to-project <project-id> --folder Automation` and `openmates chats <chat-id> add-to-project <project-id> --folder Research`.
+    then:
+      - Each object is linked to the Project in encrypted OpenMates storage without requiring a generic Project export command.
+      - Workflows, plans, and chats can be placed in Project folders or subfolders; tasks link to the Project task board and are not folder-organized by default.
+      - If the Project has remote access, adding a chat asks whether to also store a summarized/redacted or full chat copy on the remote machine.
+      - If Alice chooses remote-machine chat storage, OpenMates asks whether the file should be included in Git and warns that Git-tracked chats in public/open-source repos may be visible to everyone.
+      - OpenMates recommends keeping chats OpenMates-only or using a gitignored/local-only remote copy unless Alice explicitly wants repo-visible chat content.
+      - Workflow remote-machine storage, when chosen, defaults to YAML and can propose `.openmates/workflows/<workflow-slug>.yml` when Alice wants repo/team reuse.
+      - Local-only remote copies default to `~/.openmates/remote-cache/<source-id>/exports/` outside the repo.
+      - If Alice explicitly chooses a local-only file inside the repo, OpenMates proposes a separate `.gitignore` diff for that path and treats the `.gitignore` change as high-risk.
+      - Remote-machine storage proposals include PII/secret scan results, target path, Git tracking intent, base hash, and concrete create-file/diff content before any bridge write.
+
+  - id: S-22
+    title: Remote access recommends Projects from folder structure only once
+    given:
+      - Alice runs `openmates remote-access` inside `/work/projects`.
+      - "`/work/projects` contains child Git repos `client-app`, `marketing-site`, and `docs-site`."
+      - No OpenMates processed-root metadata exists for this parent folder or child repos.
+    when:
+      - The CLI scans the approved root before starting billable audits or Project creation.
+    then:
+      - The CLI recommends using `/work/projects` as a dedicated Projects parent folder.
+      - The approved root appears as one preserved browsable source tree with `client-app`, `marketing-site`, and `docs-site` shown under it.
+      - Git repo boundaries and Project recommendations appear as badges/overlays on the source tree rather than replacing the tree.
+      - The CLI suggests one Project per child repo by default and offers grouping related repos into one Project.
+      - Before creation, Alice sees a keyboard-navigable candidate list where she can use up/down to move, Space to select/unselect, rename candidates, group folders, or cancel.
+      - Alice can choose Create selected Projects, Attach selected folders to existing Projects, Browse only / Run local-only, or Cancel.
+      - The final confirmation prints the exact count and names of Projects to create.
+      - No Project is created silently.
+      - After Alice chooses, OpenMates stores processed-root metadata in the remote cache by default, or in one approved `.openmates/metadata.json` at `/work/projects` if Alice explicitly approves workspace-local metadata.
+      - OpenMates does not also create duplicate `.openmates` metadata folders in every child repo when the parent metadata tracks them.
+      - If Alice later runs `openmates remote-access` inside a single child repo with existing metadata, the CLI shows the existing Project/source association and offers refresh, reconnect, or re-run audits instead of recommending duplicate Project creation.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
-    text: CLI remote-access start can attach a folder or repository source to an encrypted Project without uploading repository files by default.
+    text: CLI `openmates remote-access` can attach a folder or repository source to an encrypted Project without uploading repository files by default, with no `start` compatibility alias in the target CLI.
   - id: AC-2
     scenario: S-2
     text: Projects UI can browse and preview remote files as virtual embed-compatible previews, and Upload to OpenMates creates encrypted embeds only for selected files.
@@ -842,6 +1588,30 @@ acceptance_criteria:
   - id: AC-14
     scenario: S-14
     text: Project Rules import AGENTS.md, CLAUDE.md, and similar files as AI Instructions, propose only prebuilt parameterized Checks or Workflow drafts from enforceable text, require user review before activation, and show built-in OpenMates safety checks in the same Rules UI.
+  - id: AC-15
+    scenario: S-15
+    text: "`openmates remote-access` is the only target foreground bridge command, defaults to the current working directory, shows live status while running, gives terminal-multiplexer guidance, automatically prompts for recommended instruction audit when relevant, and does not install or start a hidden daemon."
+  - id: AC-16
+    scenario: S-16
+    text: Remote access roots are realpath-resolved, multi-root access requires explicit `--path` values, broad roots show strong warnings, and symlink/outside-root access requires exact local approval that cannot be broadened remotely.
+  - id: AC-17
+    scenario: S-17
+    text: Git-backed Project descriptions use root README.md as the source of truth, with description edits represented as approved README.md diff or creation proposals guarded by base-hash and PII/secret checks.
+  - id: AC-18
+    scenario: S-18
+    text: Approved remote file create/update/delete/rename/undo operations are reserved for a later slice but must use approved-root enforcement, PII/secret checks, approval receipts, and a remote-machine undo journal independent of Git.
+  - id: AC-19
+    scenario: S-19
+    text: Uploaded or OpenMates-created Project files use existing encrypted embed diff/versioning for text/code/markdown edits, with encrypted S3 snapshot references for large, binary, deleted, or patch-ineligible data.
+  - id: AC-20
+    scenario: S-20
+    text: Repository connection instruction audit is recommended but permission-gated before billable work, stores skipped/not-run state in OpenMates metadata outside the repo, detects missing and nested instruction files, shows grouped scope selection with a visible size/cost cap, shows clear "Checking agent instructions..." copy, imports only explicit repo-local linked instruction documents by default, runs separate contradiction and length/cost prompts, returns selected-by-default rewrite suggestions with summaries, descriptions, and concrete diffs, applies accepted diffs without another LLM request, and warns when declined rewrites may reduce quality or increase cost.
+  - id: AC-21
+    scenario: S-21
+    text: Chats, workflows, plans, and tasks are added to Projects through their own resource-specific add-to-project commands or SDK methods, store encrypted OpenMates Project links by default, support Project folder placement for CLI and SDK chat/workflow links while tasks appear in Project Kanban boards, keep SDK links OpenMates-only without remote-copy proposal APIs, ask about optional remote-machine storage only in the CLI remote-access flow, require a separate Git-tracking decision and public-repo visibility warning for CLI chat copies, use YAML by default for CLI workflow remote copies, include PII/secret scan results and concrete diffs/create-file patches before remote writes, default local-only remote copies to remote cache, and require separate high-risk approval for any `.gitignore` mutation.
+  - id: AC-22
+    scenario: S-22
+    text: Remote-access startup preserves the approved root as one browsable source tree, inspects common folder structures, recommends Project creation only when processed-root metadata does not show prior handling, shows Project candidates as editable overlays on the tree, supports keyboard selection/unselection, renaming, grouping, browse-only/local-only, and cancel before creation, prints a final exact confirmation, never creates Projects silently, stores metadata in remote cache by default, creates local `.openmates/metadata.json` only after explicit approval at the parent Projects folder or single Project root, and avoids duplicate child-repo metadata when parent metadata tracks them.
 
 tests:
   - id: T-UNIT-CLI-REMOTE-SOURCES
@@ -854,6 +1624,12 @@ tests:
       - AC-7
       - AC-11
       - AC-14
+      - AC-15
+      - AC-16
+      - AC-18
+      - AC-20
+      - AC-21
+      - AC-22
     assertions:
       - remote-access source attachment stores local source metadata and default cache path without uploading files
       - bridge search shells out to an injectable rg runner with approved root and cap enforcement
@@ -864,6 +1640,15 @@ tests:
       - missing source roots and corrupt local source metadata fail visibly
       - rg no-match exit code returns an empty search result instead of a bridge failure
       - real rg output stops after the requested match cap before buffering unbounded stdout
+      - canonical `openmates remote-access` starts a foreground bridge scoped to the current working directory by default
+      - repeated `--path` roots are realpath-resolved and broad roots require explicit confirmation
+      - symlink escapes and outside-root paths are denied unless an exact local exception is approved
+      - remote mutation journal helpers persist approval receipt, pre/post hashes, forward/inverse patch or snapshot refs, PII/secret scan results, and path metadata before later-slice writes
+      - instruction audit detects missing instruction files, resolves approved linked local instruction docs, and separates contradiction from length/cost prompt inputs
+      - instruction audit requires explicit consent before billable model calls and stores skipped/not-run state in OpenMates metadata outside the repo
+      - instruction audit suggestion JSON includes selected-by-default bullets, expandable descriptions, affected paths, base hashes, and concrete diffs usable without another LLM request
+      - add-to-project flows keep encrypted OpenMates storage as default and produce remote-cache or repo-file proposals only after explicit user choice for remote-access Projects
+      - startup folder-structure scan preserves the approved root source tree, recommends Projects only for unprocessed roots, and records processed-root metadata outside backend plaintext paths
     red_phase:
       required: true
       expected: fail
@@ -888,13 +1673,21 @@ tests:
       - AC-6
       - AC-7
       - AC-11
+      - AC-15
+      - AC-16
+      - AC-21
+      - AC-22
     assertions:
-      - top-level CLI help lists remote-access and contextual help documents start/status/search
-      - remote-access start persists a local source under a temp HOME without network access
-      - remote-access start fails visibly when Project registration is requested without encrypted metadata or --local-only
-      - remote-access status lists persisted local source metadata
-      - remote-access search runs through rg and returns filtered JSON matches for the selected source
-      - remote-access search rejects invalid limits before reading source contents
+      - top-level CLI help lists `openmates remote-access` as the only target foreground bridge command
+      - remote-access persists a local source under a temp HOME without network access when explicitly run in local-only test mode
+      - remote-access fails visibly when Project registration is requested without required cleartext SDK/client metadata or --local-only
+      - no target help output documents public `start`, `status`, `search`, or `stop` subcommands
+      - foreground startup output shows live connection status instead of requiring a separate status command
+      - internal bridge search operations still run through rg and validate limits before reading source contents, but are not exposed as a required public CLI command
+      - startup output warns for broad roots and explains foreground lifetime plus zellij/tmux/screen persistence guidance
+      - startup detects instruction files, labels the audit as recommended, asks permission before billable work, and never writes audit marker files into the connected repo
+      - startup detects parent folders with child repos, preserves the folder tree, recommends Project candidates only when not already processed, and offers keyboard selection/unselection plus local-only/cancel choices without silent creation
+      - resource-specific add-to-project commands ask OpenMates-only/remote-copy and Git-tracking questions before producing concrete create-file/diff proposals
     red_phase:
       required: true
       expected: fail
@@ -937,15 +1730,19 @@ tests:
         run_id: "cd frontend/packages/ui && npm run test:unit:project-remote-sources"
         timestamp: "2026-06-30"
 
-  - id: T-UNIT-SDK-PROJECT-SOURCES
+  - id: T-UNIT-SDK-PROJECT-LINKS
     type: unit
     file: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
     command: cd frontend/packages/openmates-cli && npm run test:unit:sdk-projects
     covers:
       - AC-1
+      - AC-20
+      - AC-21
     assertions:
-      - npm SDK exposes Project source create/list methods for encrypted source metadata.
-      - npm SDK uses /v1/projects/{project_id}/sources without plaintext source metadata.
+      - npm SDK lists Projects without creating or attaching remote sources.
+      - npm SDK links chats and workflows to encrypted OpenMates Project item records without calling /v1/projects/{project_id}/sources.
+      - npm SDK add-to-project results do not expose targetMode or remoteCopyProposal payloads.
+      - npm SDK encrypts Project item target IDs, display names, notes, and metadata internally.
     red_phase:
       required: true
       expected: fail
@@ -959,17 +1756,21 @@ tests:
       evidence:
         status: passed
         run_id: "cd frontend/packages/openmates-cli && npm run test:unit:sdk-projects"
-        timestamp: "2026-06-30"
+        timestamp: "2026-07-25"
 
-  - id: T-PYTEST-PIP-PROJECT-SOURCES
+  - id: T-PYTEST-PIP-PROJECT-LINKS
     type: pytest
     file: packages/openmates-python/tests/test_projects.py
     command: python3 -m pytest packages/openmates-python/tests/test_projects.py
     covers:
       - AC-1
+      - AC-20
+      - AC-21
     assertions:
-      - pip SDK exposes Project source create/list methods for encrypted source metadata.
-      - pip SDK uses /v1/projects/{project_id}/sources without plaintext source metadata.
+      - pip SDK lists Projects without creating or attaching remote sources.
+      - pip SDK links chats and workflows to encrypted OpenMates Project item records without calling /v1/projects/{project_id}/sources.
+      - pip SDK add-to-project results do not expose targetMode or remoteCopyProposal payloads.
+      - pip SDK encrypts Project item target IDs, display names, notes, and metadata internally.
     red_phase:
       required: true
       expected: fail
@@ -982,8 +1783,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "python3 -m pytest packages/openmates-python/tests/test_projects.py"
-        timestamp: "2026-06-30"
+        run_id: "python3 -m pytest packages/openmates-python/tests/test_projects.py packages/openmates-python/tests/test_tasks.py packages/openmates-python/tests/test_plans.py"
+        timestamp: "2026-07-25"
 
   - id: T-PYTEST-PROJECT-SOURCES
     type: pytest
@@ -998,6 +1799,12 @@ tests:
       - AC-11
       - AC-13
       - AC-14
+      - AC-17
+      - AC-18
+      - AC-19
+      - AC-20
+      - AC-21
+      - AC-21
     assertions:
       - project source routes require auth and Project edit access
       - source and preview metadata size caps are enforced
@@ -1009,25 +1816,34 @@ tests:
       - Project share bundle creation rejects plaintext paths, source runtime grants, connected-device credentials, and server-readable raw keys
       - imported Project instruction files create AI Instruction rule records and suggested Checks/Workflow drafts without auto-activating them
       - unsupported subjective instructions remain AI-only and do not become deterministic Checks
+      - reserved file-action proposal routes reject command execution, git mutation, plaintext paths, and weakened root-boundary checks
+      - reserved description-sync proposal routes require Project edit access and reject stale README.md base hashes
+      - OpenMates-stored Project file version metadata reuses encrypted embed diff/version records rather than creating server-readable file history
+      - Project instruction audit records require user-visible billable cost disclosure before running and do not auto-activate rewrites or extracted checks
+      - Instruction audit result records can store selected suggestion metadata and diffs as encrypted OpenMates metadata without writing status into the source repository
+      - Project add-to-project remote-copy proposal records reject implicit repo writes, include PII/secret scan metadata, and require separate high-risk approval metadata for `.gitignore` changes
     red_phase:
       required: true
       expected: fail
       evidence:
-        status: pending
+        status: skipped_with_reason
+        reason: Historical red phase was not captured for this previously implemented backend route slice; this continuation verified green behavior before spec completion.
         run_id: ""
-        timestamp: ""
+        timestamp: "2026-07-24"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed
+        command: docker exec api python -m pytest /app/backend/tests/test_project_remote_sources.py
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_project_remote_sources.py (14 passed)"
+        subject_commit: fc4ba62a0
+        timestamp: "2026-07-24T16:36:00Z"
 
   - id: T-E2E-PROJECT-REMOTE-SOURCES
     type: playwright
     file: frontend/apps/web_app/tests/projects-remote-sources.spec.ts
-    command: python3 scripts/tests.py run -- --spec projects-remote-sources.spec.ts
+    command: python3 scripts/tests.py run --spec projects-remote-sources.spec.ts
     target: app.dev.openmates.org
     covers:
       - AC-2
@@ -1041,6 +1857,12 @@ tests:
       - AC-12
       - AC-13
       - AC-14
+      - AC-15
+      - AC-16
+      - AC-17
+      - AC-18
+      - AC-19
+      - AC-20
     assertions:
       - Projects UI shows attached remote source status and virtual remote previews
       - selected remote files can be uploaded while unselected files remain virtual
@@ -1053,20 +1875,32 @@ tests:
       - automated checks first-use prompt offers Not now, isolated cloud sandbox, and remote machine choices
       - Project share link opens selected encrypted Project records read-only without exposing remote-source runtime access
       - Rules section shows imported AGENTS.md/CLAUDE.md cards, extracted Check suggestions, AI-only instructions, and built-in OpenMates safety checks
+      - remote-access setup copy uses the canonical command, explains foreground lifetime, and warns for broad roots
+      - Project description editor shows README.md diff/create proposals for Git-backed Projects with PII/secret scan and base-hash status
+      - Project file action approval cards show operation, path, root, high-risk status, PII/secret scan, Git recommendation, and undo availability
+      - OpenMates-stored uploaded file history opens through existing encrypted embed version/restore UI without requiring the remote bridge to be online
+      - repository connection flow shows instruction audit cost disclosure, missing-instruction suggestion, linked-instruction imports, contradiction findings, length/cost findings, rewrite suggestions, and decline warning
+      - future web audit suggestion list renders selected checkbox bullet points with expandable full suggestion/diff and Apply uses the stored diff output
+      - future web add-to-project flow distinguishes OpenMates-only links, repo-tracked remote copies, and remote-cache local-only copies
     red_phase:
       required: true
       expected: fail
       evidence:
-        status: pending
+        status: skipped_with_reason
+        reason: Historical red phase was not captured for this previously implemented Playwright spec; this continuation verified the deployed green flow after commit fc4ba62a0.
         run_id: ""
-        timestamp: ""
+        timestamp: "2026-07-24"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec projects-remote-sources.spec.ts
+        run_id: "30109549368"
+        subject_commit: fc4ba62a0
+        target: app.dev.openmates.org
+        deployment_reference: dpl_G2CqwLnXsTWk6VgzekUbcgyXiARW
+        timestamp: "2026-07-24T16:35:57Z"
     progress_evidence:
       - status: partial_passed
         timestamp: "2026-06-30"
@@ -1160,11 +1994,16 @@ implementation_plan:
     create non-mutating, message-local remote diff virtual artifacts for existing
     remote files. Applying those diffs and running commands remain later-phase capabilities guarded by
     Project write mode, high-risk file classification, source-root/base-hash
-    checks, and explicit approval.
+    checks, and explicit approval. Later file mutations are still not command
+    execution: they are root-bounded bridge file operations with PII/secret scans,
+    approval receipts, and OpenMates-owned undo/version records.
   data_flow:
-    - User starts CLI bridge and attaches source to Project.
+    - User starts the foreground CLI bridge with canonical `openmates remote-access`, optionally adding repeated `--path` roots, and attaches source to Project.
+    - CLI resolves every approved root through realpath, warns for broad roots, and keeps the source online only while the foreground process remains alive.
     - CLI indexes bounded source metadata and writes local cache under the default remote cache path.
     - CLI or client detects Project instruction files such as AGENTS.md and CLAUDE.md and surfaces them as Rules source candidates.
+    - CLI or later first-party clients recommend the billable instruction audit, ask permission before metered model calls, and store skipped/not-run/completed audit status in OpenMates metadata outside the source repository.
+    - Instruction audit results include contradiction findings, length/cost findings, and selected-by-default improvement suggestions with concrete diffs so approved suggestions can apply without another LLM call.
     - Client stores encrypted Project source metadata through Projects API.
     - Project Rules processing imports instruction files as AI Instructions, proposes prebuilt Checks or Workflow drafts, and waits for user review before activation.
     - Projects UI requests virtual previews from the bridge and renders them with existing embed preview components.
@@ -1176,6 +2015,9 @@ implementation_plan:
     - First remote write intent prompts for Project write mode and persists the choice under Settings > Projects > project name.
     - Mention chips expose Read and Read & Write access. Defaults follow Project write mode, while protected files stay always-ask.
     - First assistant code creation/update prompts for automated checks and persists the choice in Code app settings with Project override.
+    - For Git-backed Projects, Project description reads/writes map to root README.md; writes become README.md diff/create proposals with base-hash, PII/secret scan, and approval state.
+    - Later approved remote mutations are applied only by the foreground bridge after approved-root, base-hash, high-risk, and PII/secret checks pass, with a remote-machine journal record stored outside the source root.
+    - Uploaded or OpenMates-created Project file edits use encrypted embed diff/version records, with encrypted S3 snapshot references for large, binary, deleted, or patch-ineligible data.
   affected_files:
     - path: backend/core/directus/schemas/project_sources.yml
       reason: New encrypted Project remote source records.
@@ -1223,17 +2065,34 @@ implementation_plan:
       reason: Remote access bridge server.
     - path: frontend/packages/openmates-cli/src/client.ts
       reason: Remote access bridge client/API calls.
+    - path: frontend/packages/openmates-cli/src/sdk.ts
+      reason: npm SDK encrypted Project listing and OpenMates-only Project link methods.
+    - path: packages/openmates-python/openmates/sdk.py
+      reason: pip SDK encrypted Project listing and OpenMates-only Project link methods.
     - path: frontend/packages/openmates-cli/src/cli.ts
       reason: remote-access commands.
     - path: frontend/packages/openmates-cli/src/projectFileRisk.ts
       reason: CLI-side high-risk file/path classification and allowed-check-command enforcement.
+    - path: frontend/packages/openmates-cli/src/remoteChangeJournal.ts
+      reason: Future remote-machine undo/version journal helpers for approved bridge file mutations.
+    - path: frontend/packages/openmates-cli/src/remotePathSafety.ts
+      reason: Shared CLI realpath root-boundary, broad-root warning, and outside-root exception helpers.
     - path: frontend/packages/openmates-cli/src/projectRules.ts
       reason: Future CLI-side instruction-file discovery and Check template suggestion helpers.
+    - path: frontend/packages/ui/src/components/projects/ProjectDescriptionEditor.svelte
+      reason: Future Git-backed README.md description sync proposal UI.
+    - path: frontend/packages/ui/src/components/projects/ProjectFileActionApprovalCard.svelte
+      reason: Future create/update/delete/rename/undo proposal approval card with PII/secret and undo status.
+    - path: backend/core/api/app/routes/projects.py
+      reason: Reserved later-slice file-action and description-sync proposal API validation.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/projects-remote-sources/spec.yml
     - cd frontend/packages/openmates-cli && npm run test:unit:remote-access
+    - cd frontend/packages/openmates-cli && npm run test:unit:sdk-projects
+    - python3 -m pytest packages/openmates-python/tests/test_projects.py
     - cd frontend/packages/ui && npm run test:unit:project-remote-sources
     - docker exec api python -m pytest /app/backend/tests/test_project_remote_sources.py
+    - cd frontend/packages/openmates-cli && npm run test:unit:remote-change-journal when file mutation slice begins
     - python3 scripts/tests.py run --spec projects-remote-sources.spec.ts after deploy for green phase
     - python3 scripts/apple_remote.py status plus build-ios or test-ios if Apple parity work is included in the implementation slice
   verification_order:
@@ -1292,6 +2151,9 @@ tasks:
         - S-8
         - S-11
         - S-12
+        - S-20
+        - S-21
+        - S-22
       acceptance_criteria:
         - AC-1
         - AC-6
@@ -1299,19 +2161,29 @@ tasks:
         - AC-8
         - AC-11
         - AC-12
+        - AC-15
+        - AC-16
+        - AC-18
+        - AC-20
+        - AC-21
+        - AC-22
     expected_files:
       - frontend/packages/openmates-cli/src/cli.ts
       - frontend/packages/openmates-cli/src/remoteAccess.ts
       - frontend/packages/openmates-cli/src/server.ts
       - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - packages/openmates-python/openmates/sdk.py
       - frontend/packages/openmates-cli/src/projectFileRisk.ts
+      - frontend/packages/openmates-cli/src/remotePathSafety.ts
+      - frontend/packages/openmates-cli/src/remoteChangeJournal.ts
       - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
       - frontend/packages/openmates-cli/tests/cli.test.ts
     verification:
       - T-UNIT-CLI-REMOTE-SOURCES
       - T-UNIT-CLI-REMOTE-ACCESS-COMMANDS
-      - T-UNIT-SDK-PROJECT-SOURCES
-      - T-PYTEST-PIP-PROJECT-SOURCES
+      - T-UNIT-SDK-PROJECT-LINKS
+      - T-PYTEST-PIP-PROJECT-LINKS
     progress_evidence:
       - status: passed
         timestamp: "2026-06-30"
@@ -1323,16 +2195,43 @@ tasks:
           - "python3 -m pytest packages/openmates-python/tests/test_projects.py"
           - "python3 scripts/audit_sdk_cli_parity.py"
           - "python3 -m pytest scripts/tests/test_sdk_parity_instructions.py"
-        result: "CLI remote-access command tests passed; CLI source contract passed; npm SDK source contract passed; pip SDK source contract passed; SDK/CLI parity audit passed."
+        result: "Historical pre-clarification run; CLI remote-access/source checks passed, while SDK source-management assumptions were later removed from the active SDK contract."
         covered:
-          - CLI client, npm SDK, and pip SDK can list and create encrypted Project source records through /v1/projects/{project_id}/sources.
+          - CLI client can list and create encrypted Project source records through /v1/projects/{project_id}/sources.
           - CLI remote-access primitives resolve default cache paths under ~/.openmates/remote-cache/<source-id>.
-          - CLI remote-access search runs injected rg inside the approved source root, passes deny globs before scanning, caps results, and excludes high-risk files.
-          - CLI remote-access start/status/search persist and read local source metadata under temp HOME without network access.
+          - Internal CLI remote-access search runs injected rg inside the approved source root, passes deny globs before scanning, caps results, and excludes high-risk files.
+          - CLI remote-access local source metadata is persisted under temp HOME without network access in tests.
           - CLI remote-access validates source IDs, persisted records, search limits, and store permissions before using local source metadata.
           - CLI TypeScript high-risk policy matches the backend narrow always-ask defaults for built-in and user-protected paths.
+      - status: passed
+        timestamp: "2026-07-24"
+        commands:
+          - "cd frontend/packages/openmates-cli && npm run build"
+          - "cd frontend/packages/openmates-cli && npm run test:unit:cli"
+          - "cd frontend/packages/openmates-cli && npm run test:unit:sdk-projects"
+          - "cd frontend/packages/openmates-cli && npm run test:unit:remote-access"
+          - "python3 -m pytest packages/openmates-python/tests/test_projects.py packages/openmates-python/tests/test_tasks.py packages/openmates-python/tests/test_plans.py"
+          - "python3 scripts/spec_validate.py docs/specs/projects-remote-sources/spec.yml"
+        result: "Historical pre-clarification CLI/SDK parity run; superseded by the 2026-07-25 decision that remote access/source attachment and remote-copy proposals are CLI-only."
+        covered:
+          - Earlier SDK source/proposal/audit assumptions were tested before product clarification and are no longer part of the active SDK contract.
         remaining:
           - Interactive remote-access bridge read/stop commands, ignored-file detection from real git state, binary probing beyond extension filtering, and automated check consent.
+      - status: passed
+        timestamp: "2026-07-25"
+        commands:
+          - "cd frontend/packages/openmates-cli && npm run build"
+          - "cd frontend/packages/openmates-cli && npm run test:unit:sdk-projects"
+          - "python3 -m pytest packages/openmates-python/tests/test_projects.py packages/openmates-python/tests/test_tasks.py packages/openmates-python/tests/test_plans.py"
+          - "python3 scripts/audit_sdk_cli_parity.py"
+          - "python3 scripts/spec_validate.py docs/specs/projects-remote-sources/spec.yml"
+        result: "SDK Project-linking contract passed after removing remote source, remote-copy proposal, raw item creation, and instruction-audit SDK surfaces."
+        covered:
+          - npm SDK and pip SDK list Projects without creating or attaching remote sources.
+          - npm SDK and pip SDK link chats/workflows as encrypted OpenMates-only Project item records and do not call /v1/projects/{project_id}/sources.
+          - npm SDK and pip SDK add-to-project results no longer expose targetMode or remoteCopyProposal payloads.
+          - npm SDK and pip SDK retain encrypted task and plan Project linking.
+          - npm package build and generated declarations pass with the reduced SDK surface.
     independently_deployable: false
   - id: TASK-3
     title: Add virtual remote previews and upload-selected file flow
@@ -1343,12 +2242,16 @@ tasks:
         - S-8
         - S-9
         - S-12
+        - S-17
+        - S-19
       acceptance_criteria:
         - AC-2
         - AC-7
         - AC-8
         - AC-9
         - AC-12
+        - AC-17
+        - AC-19
     expected_files:
       - frontend/packages/ui/src/services/projectService.ts
       - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
@@ -1357,6 +2260,7 @@ tasks:
       - frontend/packages/ui/src/components/settings/privacy/**
       - frontend/packages/ui/src/components/settings/apps/code/**
       - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+      - frontend/packages/ui/src/components/projects/ProjectDescriptionEditor.svelte
     verification:
       - T-UNIT-PROJECT-SERVICE
       - T-E2E-PROJECT-REMOTE-SOURCES
@@ -1411,10 +2315,12 @@ tasks:
         - S-14
         - S-11
         - S-12
+        - S-20
       acceptance_criteria:
         - AC-14
         - AC-11
         - AC-12
+        - AC-20
     expected_files:
       - backend/shared/python_utils/project_rules.py
       - backend/tests/test_project_remote_sources.py
@@ -1427,4 +2333,42 @@ tasks:
       - T-UNIT-CLI-REMOTE-SOURCES
       - T-PYTEST-PROJECT-SOURCES
       - T-E2E-PROJECT-REMOTE-SOURCES
+    independently_deployable: false
+  - id: TASK-6
+    title: Reserve Project file mutation, README sync, and undo/versioning slice
+    covers:
+      scenarios:
+        - S-15
+        - S-16
+        - S-17
+        - S-18
+        - S-19
+        - S-21
+      acceptance_criteria:
+        - AC-15
+        - AC-16
+        - AC-17
+        - AC-18
+        - AC-19
+        - AC-21
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/remoteAccess.ts
+      - frontend/packages/openmates-cli/src/remotePathSafety.ts
+      - frontend/packages/openmates-cli/src/remoteChangeJournal.ts
+      - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+      - frontend/packages/openmates-cli/tests/remoteChangeJournal.test.ts
+      - frontend/packages/ui/src/components/projects/ProjectDescriptionEditor.svelte
+      - frontend/packages/ui/src/components/projects/ProjectFileActionApprovalCard.svelte
+      - frontend/packages/ui/src/services/projectService.ts
+      - backend/core/api/app/routes/projects.py
+      - backend/tests/test_project_remote_sources.py
+    verification:
+      - T-UNIT-CLI-REMOTE-SOURCES
+      - T-UNIT-CLI-REMOTE-ACCESS-COMMANDS
+      - T-PYTEST-PROJECT-SOURCES
+      - T-E2E-PROJECT-REMOTE-SOURCES
+    notes:
+      - This task is a reserved later implementation slice, not a claim that remote mutation exists in current V1 code.
+      - Shell commands, package installs, test execution, git commits, and git pushes remain out of scope for this task.
     independently_deployable: false

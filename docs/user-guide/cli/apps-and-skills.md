@@ -8,7 +8,7 @@ last_verified: 2026-06-11
 claims:
   - id: cli-apps-code-run-uses-app-skill-endpoint
     type: unit
-    claim: CLI app skill execution uses the canonical app-skill run endpoint for Code Run.
+    claim: The Code Run convenience command uses the canonical app-skill run endpoint.
     source:
       - frontend/packages/openmates-cli/src/cli.ts
       - frontend/packages/openmates-cli/src/client.ts
@@ -40,11 +40,22 @@ claims:
       command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
       assertion: cli-apps-docs-cover-code-run-commands
     verified: '2026-06-11'
+  - id: cli-apps-images-detect-ai-command
+    type: unit
+    claim: The Images AI detection CLI command uploads a local image through the authenticated upload pipeline and summarizes Sightengine metadata.
+    source:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/uploadService.ts
+    test:
+      file: frontend/packages/openmates-cli/tests/imagesDetectAi.test.ts
+      command: cd frontend/packages/openmates-cli && npm run build && node --test tests/imagesDetectAi.test.ts
+      assertion: cli-apps-images-detect-ai-command
+    verified: '2026-08-10'
 ---
 
 # Apps & Skills
 
-List available apps, inspect skill schemas, and execute skills directly from the terminal. Skills can also be invoked via @mentions in chat messages.
+List available apps, inspect skill schemas, and use dedicated typed app commands from the terminal. Skills can also be invoked via @mentions in chat messages.
 
 ## Listing Apps
 
@@ -69,29 +80,44 @@ Both `openmates apps <app-id>` and `openmates apps info <app-id>` display detail
 
 ```
 openmates apps skill-info web search
-openmates apps web search --help
 openmates apps skill-info web search --json
 ```
 
-Shows the skill's description, required parameters, and input schema. Use this to understand what a skill expects before running it.
+Shows the skill's description, required parameters, input schema, and any public example chats linked to that app skill. Use this to understand what a skill expects before invoking it through chat, SDKs, or a dedicated typed CLI command.
 
-## Running a Skill
-
-For single-parameter skills (most common), pass the query as inline text:
+## Skill Example Chats
 
 ```
-openmates apps web search "latest AI news"
-openmates apps news search "climate change"
-openmates apps ai ask "Summarise this: ..."
+openmates apps examples travel search_connections
+openmates apps examples travel search_connections --json
+openmates apps examples travel
 ```
 
-Inline text is wrapped as `{ requests: [{ query: text }] }`, which matches the convention used by most query-based skills.
+Lists public example chats connected to an app skill via the same curated example metadata used by the web app store. The command works without login because example chats are bundled public content. Use the printed `openmates chats show ...` command to read the transcript in the terminal, or `openmates chats open ...` to open the web example page.
 
-For multi-parameter skills, use `--input` with a JSON payload:
+## Typed App Commands
+
+Generic `openmates apps <app-id> <skill-id>` execution is not supported. Use app-specific typed commands with command-specific help, validation, and examples instead.
 
 ```
-openmates apps travel search_connections --input '{"requests":[{"legs":[{"origin":"BER","destination":"LHR","date":"2026-04-15"}]}]}'
+openmates tasks create --title "Draft launch checklist"
+openmates tasks list
+openmates workflows list
+openmates apps images detect-ai --file ./image.png
 ```
+
+Use `openmates <command> --help` for each typed command's accepted flags and examples.
+
+### Images AI Detection
+
+The Images app has a dedicated command for checking whether a local image is likely AI-generated. It reuses the authenticated upload pipeline, so the image is uploaded, scanned by Sightengine, stored like a normal upload, and returned with detection metadata.
+
+```
+openmates apps images detect-ai --file ./image.png
+openmates apps images detect-ai ./image.webp --json
+```
+
+The JSON output includes `ai_generated` as a `0.0` to `1.0` probability, the `sightengine` provider metadata, and a stable `classification` value.
 
 ### Travel Booking Links
 
@@ -102,7 +128,7 @@ openmates apps travel booking-link --token "<booking_token>"
 openmates apps travel booking-link --token "<booking_token>" --context '{"currency":"EUR"}'
 ```
 
-The `booking_token` is included in the output of `openmates apps travel search_connections`.
+The `booking_token` is included in travel search results returned by the app or SDK.
 
 ## Code Run
 
@@ -116,12 +142,24 @@ openmates apps code run --entry main.py --dir ./project --exclude node_modules
 
 Use inline `--code` for short snippets, repeated `--file` flags for a small set of files, or `--dir` plus `--entry` for a project folder. The command streams status/output when available and falls back to polling the execution status endpoint.
 
+## 3D Model Search
+
+The 3D Models app has a dedicated search command that returns provider link-out cards. It does not download, cache, or convert model files.
+
+```
+openmates apps models3d search --query benchy
+openmates apps models3d search --query benchy --count 2 --providers Printables --json
+openmates apps models3d search --query "phone stand" --sort newest --free-only
+```
+
+Use `--providers` with a comma-separated list or repeated `--provider` flags. Supported sort values are `best_match`, `popular`, `downloads`, and `newest`.
+
 ## Authentication
 
 Skills use your logged-in session by default. Alternatively, pass an API key:
 
 ```
-openmates apps web search "query" --api-key <key>
+openmates workflows list --api-key <key>
 ```
 
 Or set the `OPENMATES_API_KEY` environment variable.

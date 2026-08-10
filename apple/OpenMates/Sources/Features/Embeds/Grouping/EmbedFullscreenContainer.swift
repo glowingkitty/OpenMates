@@ -24,14 +24,13 @@ struct EmbedFullscreenContainer: View {
     let initialEmbedId: String
     let allEmbedRecords: [String: EmbedRecord]
     let chatId: String?
+    var onOpenEmbed: (EmbedRecord, EmbedRecord) -> Void = { _, _ in }
     var onClose: () -> Void = {}
 
     @State private var currentIndex: Int = 0
-    @State private var selectedChildEmbed: EmbedRecord?
-    @State private var showChildFullscreen = false
     @State private var isPresented = false
     @State private var codePreviewActive = false
-    @State private var shareTarget: EmbedRecord?
+    @State private var shareContext: AppleShareContext?
     @State private var selectedVersionNumber: Int?
     @State private var restoreConfirmVersion: Int?
     @StateObject private var codeRunViewModel = CodeRunViewModel()
@@ -108,8 +107,7 @@ struct EmbedFullscreenContainer: View {
                                 codeRunViewModel: codeRunViewModel,
                                 chatId: chatId,
                                 onOpenEmbed: { child in
-                                    selectedChildEmbed = child
-                                    showChildFullscreen = true
+                                    onOpenEmbed(child, embed)
                                 }
                             )
                                 .padding(.horizontal, usesEdgeToEdgeContent ? 0 : .spacing8)
@@ -146,17 +144,37 @@ struct EmbedFullscreenContainer: View {
                     )
                 }
 
-                if showChildFullscreen, let child = selectedChildEmbed {
-                    EmbedFullscreenContainer(
-                        embeds: [child],
-                        initialEmbedId: child.id,
-                        allEmbedRecords: allEmbedRecords,
-                        chatId: chatId,
-                        onClose: {
-                            showChildFullscreen = false
-                            selectedChildEmbed = nil
+                if let shareContext {
+                    Color.black.opacity(0.35)
+                        .ignoresSafeArea()
+                        .onTapGesture { self.shareContext = nil }
+
+                    VStack(spacing: 0) {
+                        HStack {
+                            Text(AppStrings.share)
+                                .font(.omH3.weight(.semibold))
+                                .foregroundStyle(Color.fontPrimary)
+                            Spacer()
+                            OMIconButton(icon: "close", label: AppStrings.close, size: 34) {
+                                self.shareContext = nil
+                            }
                         }
-                    )
+                        .padding(.spacing6)
+                        .background(Color.grey0)
+
+                        ShareEmbedView(
+                            context: shareContext,
+                            onClose: { self.shareContext = nil },
+                            onGenerated: updateEmbedShareMetadata
+                        )
+                    }
+                    .frame(maxWidth: 620, maxHeight: 760)
+                    .background(Color.grey0)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                    .overlay(RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20, lineWidth: 1))
+                    .shadow(color: .black.opacity(0.18), radius: 24, x: 0, y: 12)
+                    .padding(.spacing8)
+                    .accessibilityIdentifier("embed-share-panel")
                 }
             }
             .offset(y: isPresented ? 0 : proxy.size.height)
@@ -169,9 +187,6 @@ struct EmbedFullscreenContainer: View {
         }
         .onDisappear {
             codeRunViewModel.cleanup()
-        }
-        .sheet(item: $shareTarget) { embed in
-            ShareEmbedView(embedId: embed.id, chatId: chatId ?? "")
         }
     }
 
@@ -187,7 +202,7 @@ struct EmbedFullscreenContainer: View {
             }
         }
 
-        guard let type = EmbedType(rawValue: embed.type),
+        guard let type = EmbedType.normalized(rawValue: embed.type),
               let data = rawData(for: embed) else {
             return nil
         }
@@ -247,6 +262,12 @@ struct EmbedFullscreenContainer: View {
         case .travelStay:
             guard let url = firstString(["link", "url", "booking_url"], in: data) else { return nil }
             return EmbedHeaderCTA(title: AppStrings.viewOnGoogleHotels) {
+                openExternalURL(url)
+            }
+
+        case .businessCompanyFinancialResult:
+            guard let url = firstString(["source_url"], in: data) else { return nil }
+            return EmbedHeaderCTA(title: AppStrings.businessFinancialOpenFiling, accessibilityIdentifier: "business-open-sec-filing") {
                 openExternalURL(url)
             }
 
@@ -436,8 +457,9 @@ struct EmbedFullscreenContainer: View {
             let groups = EmbedGrouper.group(childEmbeds)
             ForEach(groups) { group in
                 GroupedEmbedView(group: group, allEmbedRecords: allEmbedRecords) { embed in
-                    selectedChildEmbed = embed
-                    showChildFullscreen = true
+                    if let currentEmbed {
+                        onOpenEmbed(embed, currentEmbed)
+                    }
                 }
                 .padding(.horizontal, .spacing6)
             }
@@ -446,19 +468,43 @@ struct EmbedFullscreenContainer: View {
     }
 
     private func shareEmbed(_ embed: EmbedRecord) {
-        if chatId?.isEmpty == false {
-            shareTarget = embed
-            return
-        }
         Task {
-            let url = await APIClient.shared.webAppURL.appendingPathComponent("embed/\(embed.id)")
-            #if os(iOS)
-            let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-               let rootVC = scene.windows.first?.rootViewController {
-                rootVC.present(activityVC, animated: true)
+            guard let chatId, !chatId.isEmpty,
+                  let key = await EmbedKeyManager.shared.key(
+                    for: embed,
+                    chatId: chatId,
+                    allEmbeds: allEmbedRecords
+                  ) else {
+                ToastManager.shared.show(AppStrings.error, type: .error)
+                return
             }
-            #endif
+            shareContext = AppleShareContext(
+                contentType: .embed,
+                id: embed.id,
+                title: embed.type,
+                summary: nil,
+                key: key,
+                chatId: chatId
+            )
+        }
+    }
+
+    private func updateEmbedShareMetadata(_ url: URL, _ usedLongFallback: Bool, _ duration: ShareDuration) async {
+        guard let shareContext else { return }
+        do {
+            let body: [String: Any] = [
+                "embed_id": shareContext.id,
+                "title": shareContext.title,
+                "description": NSNull(),
+                "is_shared": true
+            ]
+            let _: Data = try await APIClient.shared.request(.post, path: "/v1/share/embed/metadata", body: body)
+            NativeDiagnostics.info(
+                "Embed share metadata synced kind=\(usedLongFallback ? "long" : "short") duration=\(duration.rawValue)",
+                category: "sharing"
+            )
+        } catch {
+            NativeDiagnostics.warning("Embed share metadata sync failed", category: "sharing")
         }
     }
 

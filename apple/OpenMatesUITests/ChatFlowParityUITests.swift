@@ -64,7 +64,7 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-plans"].waitForExistence(timeout: 5))
 
         openWorkspace("workflows", in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-workflows"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["workflows-home"].waitForExistence(timeout: 5))
 
         openWorkspace("chats", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 5))
@@ -221,6 +221,13 @@ final class ChatFlowParityUITests: XCTestCase {
             focusedWebComposerMaxHeight,
             "Focused welcome composer must match the web bottom composer height instead of stretching into a full-screen panel"
         )
+        messageEditor.typeText("a")
+        waitForFrameHeight(atLeast: focusedWebComposerMinHeight, element: messageField, timeout: 5)
+        XCTAssertLessThanOrEqual(
+            messageField.frame.height,
+            focusedWebComposerMaxHeight,
+            "Typing the first character must not remove the web composer's height cap"
+        )
         let keyboard = app.keyboards.firstMatch
         if keyboard.exists {
             XCTAssertLessThanOrEqual(
@@ -237,6 +244,33 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
         attachScreenshot(name: "Guest default suggestions before interest selection")
+    }
+
+    func testGuestComposerKeepsHeightCapAfterFirstCharacter() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+        ]
+        app.launch()
+
+        XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
+        let messageEditor = waitForMessageEditor(in: app)
+        messageEditor.tap()
+
+        let messageField = app.descendants(matching: .any)["message-field"]
+        XCTAssertTrue(messageField.waitForExistence(timeout: 5))
+        waitForFrameHeight(atLeast: focusedWebComposerMinHeight, element: messageField, timeout: 5)
+        XCTAssertLessThanOrEqual(messageField.frame.height, focusedWebComposerMaxHeight)
+
+        messageEditor.tap()
+        messageEditor.typeText("a")
+
+        XCTAssertLessThanOrEqual(
+            messageField.frame.height,
+            focusedWebComposerMaxHeight,
+            "Typing the first character must not remove the web composer's height cap"
+        )
     }
 
     func testWelcomeRecentOverflowUsesCompactHeightOnPhone() throws {
@@ -273,6 +307,56 @@ final class ChatFlowParityUITests: XCTestCase {
         )
 
         attachScreenshot(name: "Welcome compact recent overflow height")
+    }
+
+    func testWelcomeCompactRecentCardMatchesWebAndOpensActionsOnLongPress() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+            "--ui-test-welcome-recent-overflow"
+        ]
+        app.launch()
+
+        let compactCard = app.buttons["welcome-chat-compact-card-ui-test-welcome-recent-0"]
+        XCTAssertTrue(compactCard.waitForExistence(timeout: 15))
+        XCTAssertFalse(
+            app.staticTexts["Seeded compact recent card"].exists,
+            "Short-height web cards render the title only"
+        )
+
+        compactCard.press(forDuration: 0.8)
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["chat-actions-menu"].waitForExistence(timeout: 5),
+            "Long-pressing a recent-chat preview must open the custom chat actions"
+        )
+    }
+
+    func testTextDraftBlursIntoCompactPreviewWithoutLosingContent() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
+        app.launch()
+
+        let editor = waitForMessageEditor(in: app)
+        editor.tap()
+        editor.typeText("Keep this draft")
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25)).tap()
+
+        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+        XCTAssertEqual(editor.value as? String, "Keep this draft")
+        let messageField = app.descendants(matching: .any)["message-field"]
+        XCTAssertLessThanOrEqual(
+            messageField.frame.height,
+            64,
+            "A blurred text-only draft must return to the compact web preview height"
+        )
+        XCTAssertFalse(
+            app.descendants(matching: .any)["action-buttons"].exists,
+            "Draft preview mode hides CTA and attachment actions until the field is focused again"
+        )
     }
 
     private func tapVisibleInterestTags(count: Int, in app: XCUIApplication) {

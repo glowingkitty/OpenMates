@@ -2,8 +2,9 @@
 // Enables full offline access to previously loaded conversations.
 // Syncs with the in-memory ChatStore and resolves conflicts on reconnection.
 
-import SwiftData
+import CryptoKit
 import Foundation
+import SwiftData
 
 // MARK: - SwiftData Models
 
@@ -110,9 +111,18 @@ final class PersistedMessage {
     var updatedAt: String?
     var appId: String?
     var modelName: String?
+    var senderName: String?
+    var category: String?
+    var encryptedSenderName: String?
+    var encryptedCategory: String?
+    var encryptedModelName: String?
     var embedRefsJSON: Data?
+    var renderDocumentJSON: Data?
     var piiMappingsJSON: Data?
     var encryptedPIIMappings: String?
+    var encryptedThinkingContent: String?
+    var encryptedThinkingSignature: String?
+    var thinkingTokenCount: Int?
 
     var chat: PersistedChat?
 
@@ -126,14 +136,26 @@ final class PersistedMessage {
         self.updatedAt = message.updatedAt
         self.appId = message.appId
         self.modelName = message.modelName
+        self.senderName = message.senderName
+        self.category = message.category
+        self.encryptedSenderName = message.encryptedSenderName
+        self.encryptedCategory = message.encryptedCategory
+        self.encryptedModelName = message.encryptedModelName
         self.embedRefsJSON = try? JSONEncoder().encode(message.embedRefs)
+        self.renderDocumentJSON = try? JSONEncoder().encode(message.renderDocumentForDisplay)
         self.piiMappingsJSON = try? JSONEncoder().encode(message.piiMappings)
         self.encryptedPIIMappings = message.encryptedPIIMappings
+        self.encryptedThinkingContent = message.encryptedThinkingContent
+        self.encryptedThinkingSignature = message.encryptedThinkingSignature
+        self.thinkingTokenCount = message.thinkingTokenCount
     }
 
     func toMessage() -> Message {
         let embedRefs = embedRefsJSON.flatMap { try? JSONDecoder().decode([EmbedRef].self, from: $0) }
         let piiMappings = piiMappingsJSON.flatMap { try? JSONDecoder().decode([PIIMapping].self, from: $0) }
+        let renderDocument = renderDocumentJSON.flatMap {
+            try? JSONDecoder().decode(ChatHistoryRenderDocument.self, from: $0)
+        }
         return Message(
             id: id, chatId: chatId,
             role: MessageRole(rawValue: role) ?? .user,
@@ -142,8 +164,17 @@ final class PersistedMessage {
             updatedAt: updatedAt, appId: appId,
             isStreaming: false, embedRefs: embedRefs,
             modelName: modelName,
+            senderName: senderName,
+            category: category,
+            encryptedSenderName: encryptedSenderName,
+            encryptedCategory: encryptedCategory,
+            encryptedModelName: encryptedModelName,
             piiMappings: piiMappings,
-            encryptedPIIMappings: encryptedPIIMappings
+            encryptedPIIMappings: encryptedPIIMappings,
+            encryptedThinkingContent: encryptedThinkingContent,
+            encryptedThinkingSignature: encryptedThinkingSignature,
+            thinkingTokenCount: thinkingTokenCount,
+            renderDocument: renderDocument
         )
     }
 }
@@ -316,6 +347,7 @@ final class OfflineStore: ObservableObject {
                 PersistedMessage.self,
                 PersistedEmbed.self,
                 PersistedEmbedKey.self,
+                PersistedComposerDraft.self,
                 PendingOfflineAction.self,
             ])
             let config = ModelConfiguration(
@@ -326,8 +358,16 @@ final class OfflineStore: ObservableObject {
             modelContainer = try ModelContainer(for: schema, configurations: [config])
             modelContext = modelContainer?.mainContext
         } catch {
-            print("[Offline] Failed to create SwiftData container: \(error)")
+            NativeDiagnostics.error(
+                "phase=swiftDataContainer.failed errorType=\(type(of: error))",
+                category: "offline_store"
+            )
         }
+    }
+
+    init(modelContainer: ModelContainer) {
+        self.modelContainer = modelContainer
+        self.modelContext = modelContainer.mainContext
     }
 
     // MARK: - Save chats from sync
@@ -406,7 +446,13 @@ final class OfflineStore: ObservableObject {
                     existing.updatedAt = message.updatedAt
                     existing.appId = message.appId
                     existing.modelName = message.modelName
+                    existing.senderName = message.senderName
+                    existing.category = message.category
+                    existing.encryptedSenderName = message.encryptedSenderName
+                    existing.encryptedCategory = message.encryptedCategory
+                    existing.encryptedModelName = message.encryptedModelName
                     existing.embedRefsJSON = try? encoder.encode(message.embedRefs)
+                    existing.renderDocumentJSON = try? encoder.encode(message.renderDocumentForDisplay)
                 } else {
                     let persisted = PersistedMessage(from: message)
                     persisted.chat = persistedChat
@@ -588,7 +634,36 @@ final class OfflineStore: ObservableObject {
         for msg in (try? context.fetch(msgDescriptor)) ?? [] {
             context.delete(msg)
         }
+        let embedDescriptor = FetchDescriptor<PersistedEmbed>(
+            predicate: #Predicate { $0.chatId == targetChatId }
+        )
+        for embed in (try? context.fetch(embedDescriptor)) ?? [] {
+            context.delete(embed)
+        }
+        let draftDescriptor = FetchDescriptor<PersistedComposerDraft>(
+            predicate: #Predicate { $0.chatId == targetChatId }
+        )
+        for draft in (try? context.fetch(draftDescriptor)) ?? [] {
+            context.delete(draft)
+        }
+        let hashedChatId = SHA256.hash(data: Data(chatId.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        let keyDescriptor = FetchDescriptor<PersistedEmbedKey>(
+            predicate: #Predicate { $0.hashedChatId == hashedChatId }
+        )
+        for key in (try? context.fetch(keyDescriptor)) ?? [] {
+            context.delete(key)
+        }
+        let actionDescriptor = FetchDescriptor<PendingOfflineAction>()
+        for action in (try? context.fetch(actionDescriptor)) ?? [] {
+            guard let data = action.payloadJSON,
+                  let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  payload["chat_id"] as? String == chatId else { continue }
+            context.delete(action)
+        }
         try? context.save()
+        updatePendingCount()
     }
 
     func clearAll() {
@@ -597,6 +672,7 @@ final class OfflineStore: ObservableObject {
         try? context.delete(model: PersistedMessage.self)
         try? context.delete(model: PersistedEmbed.self)
         try? context.delete(model: PersistedEmbedKey.self)
+        try? context.delete(model: PersistedComposerDraft.self)
         try? context.delete(model: PendingOfflineAction.self)
         try? context.save()
     }
@@ -654,5 +730,68 @@ final class OfflineStore: ObservableObject {
         if !offline {
             updatePendingCount()
         }
+    }
+}
+
+enum OfflineStoreDraftError: Error {
+    case persistenceUnavailable
+}
+
+extension OfflineStore: ComposerDraftRepository {
+    func upsert(_ record: ComposerDraftRecord) async throws {
+        guard let context = modelContext else {
+            throw OfflineStoreDraftError.persistenceUnavailable
+        }
+        let targetChatId = record.chatId
+        let descriptor = FetchDescriptor<PersistedComposerDraft>(
+            predicate: #Predicate { $0.chatId == targetChatId }
+        )
+        if let existing = try context.fetch(descriptor).first {
+            existing.update(from: record)
+        } else {
+            context.insert(PersistedComposerDraft(record: record))
+        }
+        try context.save()
+    }
+
+    func record(chatId: String) async throws -> ComposerDraftRecord? {
+        guard let context = modelContext else {
+            throw OfflineStoreDraftError.persistenceUnavailable
+        }
+        let targetChatId = chatId
+        let descriptor = FetchDescriptor<PersistedComposerDraft>(
+            predicate: #Predicate { $0.chatId == targetChatId }
+        )
+        return try context.fetch(descriptor).first?.toRecord()
+    }
+
+    func remove(chatId: String) async throws {
+        guard let context = modelContext else {
+            throw OfflineStoreDraftError.persistenceUnavailable
+        }
+        let targetChatId = chatId
+        let descriptor = FetchDescriptor<PersistedComposerDraft>(
+            predicate: #Predicate { $0.chatId == targetChatId }
+        )
+        if let record = try context.fetch(descriptor).first {
+            context.delete(record)
+            try context.save()
+        }
+    }
+
+    func removeAll() async throws {
+        guard let context = modelContext else {
+            throw OfflineStoreDraftError.persistenceUnavailable
+        }
+        try context.delete(model: PersistedComposerDraft.self)
+        try context.save()
+    }
+
+    func allRecords() async throws -> [ComposerDraftRecord] {
+        guard let context = modelContext else {
+            throw OfflineStoreDraftError.persistenceUnavailable
+        }
+        let descriptor = FetchDescriptor<PersistedComposerDraft>()
+        return try context.fetch(descriptor).map { $0.toRecord() }
     }
 }

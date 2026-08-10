@@ -7,15 +7,15 @@
   - During countdown: "Cancel" (rejects the activation) + "Details"
   - After activation: "Stop Focus Mode" (deactivates) + "Details"
   
-  Follows the same patterns as EmbedContextMenu:
+  Follows the same visual patterns as EmbedContextMenu:
   - Fixed positioning with arrow indicator
-  - Body-appended to escape stacking contexts
-  - Callback props (not Svelte events) due to body-level rendering
+  - Rendered at ActiveChat's root so Svelte retains DOM ownership
+  - Callback props for menu actions
   - iOS-compatible touch handling
 -->
 
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount } from 'svelte';
   import { text } from '@repo/ui';
 
   interface Props {
@@ -187,23 +187,7 @@
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
       document.removeEventListener('scroll', handleScroll, true);
-      if (menuElement && menuElement.parentNode === document.body) {
-        document.body.removeChild(menuElement);
-      }
     };
-  });
-
-  // Move to body to escape stacking contexts
-  $effect(() => {
-    if (show && menuElement) {
-      tick().then(() => {
-        if (menuElement && menuElement.parentNode && menuElement.parentNode !== document.body) {
-          document.body.appendChild(menuElement);
-        }
-      });
-    } else if (!show && menuElement && menuElement.parentNode === document.body) {
-      document.body.removeChild(menuElement);
-    }
   });
 </script>
 

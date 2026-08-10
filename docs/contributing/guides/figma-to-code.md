@@ -1,11 +1,11 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-07-10
 ---
 
 # Figma-to-Code — Reference
 
-Full phase-by-phase guide, component patterns, design token mapping, and validation checklist.
+Full phase-by-phase guide for locating, interpreting, implementing, and validating Figma-referenced UI.
 
 ---
 
@@ -17,11 +17,60 @@ Instructions for implementing UI components from Figma designs. **Load this docu
 
 ## Overview
 
-This workflow ensures high-fidelity translation of Figma designs into Svelte 5 components that follow OpenMates design system conventions. It is split into three sequential phases — never skip a phase.
+This workflow turns Figma concepts into Svelte 5 components that follow OpenMates
+design system conventions. The Figma board is not automatically at parity with
+the current web app or Apple app: it may contain future concepts, incomplete
+states, or older decisions. Establish which aspects are intended to change before
+using it as an implementation target.
 
 ---
 
 ## Phase 1: Design Interpretation (Before Writing Any Code)
+
+Do not start implementation from a mental impression of the Figma board. First
+produce a compact design brief and, when visual alignment is in scope, a local
+evidence bundle with the reference frame PNGs that will be used for comparison.
+
+### Step 0 — Locate The Artboard
+
+When the user names a design instead of supplying a node URL, search the private
+local index before fetching the large Figma document:
+
+```bash
+python3 scripts/figma_index.py ensure --max-age-hours 168
+python3 scripts/figma_index.py search "check the workflows UI in Figma"
+```
+
+The index contains root sections/artboards, node IDs, hierarchy paths, dimensions,
+and the beginning of every descendant text node. It is stored at
+`scripts/.figma-index.json`, mode `600`, and ignored by git because the private
+design copy may include unreleased product concepts. If several results are
+credible, ask the user to select one rather than guessing.
+
+The weekly on-demand freshness window avoids wasteful polling and respects Figma
+API limits. Force a rebuild with `python3 scripts/figma_index.py refresh` when the
+user says the design changed recently.
+
+Local authentication lives in the gitignored `.env.figma.local` file:
+
+```dotenv
+FIGMA_ACCESS_TOKEN=<PERSONAL_ACCESS_TOKEN>
+```
+
+The local OpenCode configuration starts the pinned Figma MCP through
+`scripts/run_figma_mcp.sh`, which reads this file without putting the token in
+configuration or command arguments. This private MCP registration belongs in the
+user's OpenCode configuration, not committed project configuration. Restart
+OpenCode after changing the token or MCP configuration because MCP processes are
+created at startup.
+
+When access is uncertain, after a plan/seat change, or after a `429`, run the
+safe access doctor. It prints only status codes and rate-limit headers, never the
+token or private design JSON:
+
+```bash
+python3 scripts/figma_access_doctor.py --node-id 4944:31418
+```
 
 ### Step 1 — Extract Design Data
 
@@ -34,6 +83,11 @@ Use the **Figma MCP** to get structured design data from the provided Figma link
 1. Call get_figma_data with fileKey (and nodeId if provided)
 2. Call download_figma_images to capture PNG screenshots of target frames
 ```
+
+If structured node inspection returns `429 Too Many Requests`, do not invent
+layer details. Run `python3 scripts/figma_access_doctor.py --node-id <node-id>`,
+record the blocked endpoint and `Retry-After` value, and continue only from the
+cached index plus exported PNGs or user-provided screenshots.
 
 Extract and document:
 - **Layout**: flex direction, gap, padding, alignment, sizing constraints
@@ -60,9 +114,35 @@ Build a comparison table documenting what changes between breakpoints:
 
 If only one breakpoint is provided in Figma, **note this explicitly** — it will be asked about in Step 5.
 
-### Step 3 — Map to Existing Design System
+### Step 3 — Write The Design Brief
 
-Compare extracted Figma values against the OpenMates design system. Map every value to existing tokens before considering new ones.
+Before editing code, capture the design contract in the session, issue, or
+`docs/specs/<slug>/spec.yml` for Tier 2 work:
+
+- Figma file key, node IDs, frame names, dimensions, and file version.
+- Whether each frame is an exact target, directional reference, future concept,
+  or partial exploration.
+- The scoped visual aspects to match: hierarchy, grouping, layout direction,
+  spacing rhythm, typography hierarchy, color roles, states, and breakpoints.
+- The explicit non-goals and accepted differences from Figma, especially token
+  drift, current product behavior, unavailable states, and platform chrome.
+- Existing components to reuse or extend, with file paths.
+- Evidence paths for reference PNGs and planned rendered screenshots.
+
+For Figma-referenced UI work, final completion must cite the reference PNGs,
+rendered web screenshots or Playwright artifact, and accepted differences. This
+is a blocking guard: claiming Figma/design alignment while changing UI source
+requires all three evidence classes, or an explicit `figma-visual-proof:
+not-required` reason. Do not treat intentional carousel clipping, viewport crops,
+or token drift as defects unless the task's approved design brief says they are
+in scope.
+
+### Step 4 — Map to Existing Design System
+
+Compare approved Figma intent against the current implementation and the
+OpenMates design system. Use existing implementation tokens where appropriate,
+but do not expect Figma styles and code tokens to match one-to-one. Token drift
+between Figma and code is not itself a defect.
 
 #### Color Mapping
 
@@ -80,7 +160,9 @@ Reference: `frontend/packages/ui/src/styles/theme.css`
 | Placeholder | `--color-font-field-placeholder` (#9e9e9e) |
 | App-specific | `--color-app-{name}` with `-start`/`-end` for gradients |
 
-**NEVER hardcode hex colors.** If a Figma color does not match any existing token within a reasonable tolerance (±5 on each RGB channel), flag it in the clarifying questions.
+**NEVER hardcode hex colors in product code.** If an approved redesign needs a
+color that has no suitable implementation token, flag that product decision
+instead of automatically creating a token to mirror Figma.
 
 #### Typography Mapping
 
@@ -88,7 +170,10 @@ The project uses **Lexend Deca** (variable font, loaded dynamically) and **Work 
 
 #### Spacing Mapping
 
-No formal spacing scale exists — spacing is component-specific. Check similar existing components for consistent patterns (common values: 4px, 8px, 12px, 16px, 24px, 32px, 48px).
+Use the token scale in `frontend/packages/ui/src/tokens/sources/spacing.yml`
+where a token exists, then check similar existing components for component-level
+rhythm. Common tokens include `--spacing-4` (8px), `--spacing-6` (12px),
+`--spacing-8` (16px), `--spacing-12` (24px), and `--spacing-24` (48px).
 
 #### CSS File Reference
 
@@ -104,7 +189,7 @@ No formal spacing scale exists — spacing is component-specific. Check similar 
 
 All at: `frontend/packages/ui/src/styles/`
 
-### Step 4 — Search for Reusable Components
+### Step 5 — Search for Reusable Components
 
 Before creating anything new, search the existing 273+ components:
 
@@ -133,9 +218,11 @@ Identify which existing components can be:
 3. **Composed** (combine existing components into a new layout)
 4. **Created new** (nothing similar exists — document why)
 
-### Step 5 — Ask Clarifying Questions
+### Step 6 — Ask Clarifying Questions
 
-**ALWAYS ask the user these questions before proceeding.** Do not assume answers.
+Ask only unresolved blocking questions before proceeding. Do not ask for facts
+already answered by the repository, selected Figma frame, existing component, or
+approved spec. Ask one question at a time and wait for the user's answer.
 
 #### Required Questions
 
@@ -161,7 +248,7 @@ Identify which existing components can be:
 - **If new icons appear**: "The design includes an icon that doesn't exist in `static/icons/`. Should I create a new SVG icon, or is there an existing one I should use?"
 - **If animations are present**: "I see [animation/transition] in the design. What is the expected behavior? Should I use CSS transitions or the existing animation patterns?"
 
-### Step 6 — Present Implementation Plan
+### Step 7 — Present Implementation Plan
 
 After receiving answers, present a brief implementation plan:
 
@@ -269,6 +356,23 @@ Fix all linting errors before Phase 3.
 
 ## Phase 3: Visual Validation
 
+### Required Figma Evidence Bundle
+
+For visual Figma alignment, create or cite a local evidence bundle under
+`test-results/figma/<slug>/` before final review. The folder is gitignored and
+may contain private design screenshots, so do not commit it.
+
+Recommended contents:
+
+- `figma-<surface>-<state>.png` reference exports from Figma.
+- `web-<surface>-<state>-<viewport>.png` rendered app or `/dev/preview` screenshots.
+- `notes.md` or spec evidence that lists node IDs, file version, viewport sizes,
+  inspected states, accepted differences, and blocked Figma endpoints.
+
+If the work uses a full executable spec, record a `kind: artifact_review`
+verification such as `V-FIGMA-ARTIFACT-REVIEW`. If the work is a smaller inline
+task, include the same evidence summary in the final response.
+
 ### Using the Component Preview System
 
 OpenMates includes a built-in component preview system at `/dev/preview/`.
@@ -280,7 +384,7 @@ blocked on production.
 
 1. Navigate to the preview URL to browse all components
 2. Find the component you implemented in the component tree
-3. Use the preview to visually compare against the Figma screenshot
+3. Compare the approved design aspects against the Figma screenshot and preserve unrelated current behavior
 
 ### Using Playwright MCP for Automated Validation
 
@@ -290,7 +394,7 @@ For precise validation, use the **Playwright MCP** browser tools:
 1. Navigate to the component preview URL or the page containing the component
 2. Resize to match Figma frame dimensions (browser_resize)
 3. Take a screenshot (browser_take_screenshot)
-4. Compare against the Figma screenshot from Phase 1
+4. Compare the task's approved design aspects against the Figma screenshot from Phase 1
 5. Use browser_evaluate to verify computed CSS properties:
 ```
 
@@ -299,7 +403,7 @@ Example computed style verification:
 ```javascript
 // browser_evaluate function:
 () => {
-  const el = document.querySelector('.your-component');
+  const el = document.querySelector('[data-testid="your-component"]');
   const computed = window.getComputedStyle(el);
   return {
     display: computed.display,
@@ -313,16 +417,18 @@ Example computed style verification:
 }
 ```
 
-Compare these computed values against the Figma design context values from Phase 1.
+Compare these computed values only where the approved task uses the Figma node as
+an implementation target. For Apple parity, the rendered web result remains the
+source of truth after the web change is approved.
 
 ### Validation Checklist
 
 For each breakpoint (desktop 1440px, tablet 768px, mobile 375px):
 
-- [ ] Layout direction and alignment match Figma
-- [ ] Spacing (gap, padding, margin) matches within 1px
-- [ ] Typography (font size, weight, line height) matches
-- [ ] Colors match design tokens (not hardcoded)
+- [ ] Approved layout direction and alignment follow the selected Figma concept
+- [ ] Approved spacing and sizing are implemented consistently across required breakpoints
+- [ ] Typography uses the implementation design system while preserving the approved visual hierarchy
+- [ ] Colors use implementation design tokens rather than hardcoded Figma values
 - [ ] Interactive states work (hover, focus, active, disabled)
 - [ ] Dark mode renders correctly (if applicable)
 - [ ] Component is accessible (proper semantic HTML, ARIA attributes)

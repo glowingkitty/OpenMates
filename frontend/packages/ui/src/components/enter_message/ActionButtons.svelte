@@ -4,20 +4,10 @@
 
   Normal state:
     Left: [Files] [Maps]
-    Right: [Camera]  "Press & hold to record" [Mic]  [Send?]
+    Right: [Camera] [Mic] [Send?]
 
-  The "Press & hold to record" label is shown inline to the left of the mic icon
-  (matching the Figma messagefield/singlepress_record design) ONLY when:
-    - The user single-tapped the mic button (highlightPressHold=true, ~1.5s window)
-    - AND mic permission is already granted
-
-  It is NOT shown by default — only as direct feedback after a single tap.
-  When mic permission is denied the label is never shown.
-
-  Single-tap feedback (highlightPressHold):
-    When the user taps (but does not hold) the mic button, the parent sets
-    highlightPressHold=true for ~1.5s after confirming mic is granted.
-    This shows and briefly animates the label so the user notices "Press & hold".
+  Audio recording starts on press/click. The recording overlay owns completion
+  and cancellation through Finish/Cancel buttons plus Enter/Escape shortcuts.
 -->
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
@@ -36,12 +26,9 @@
          * The send button is replaced with a "Buy credits" button.
          */
         hasNoCredits?: boolean;
-        /** Mic permission state — controls whether "Press & hold to record" label is shown */
+        /** Mic permission state — used by the parent for direct recording feedback. */
         micPermissionState?: 'unknown' | 'granted' | 'prompt' | 'denied';
-        /**
-         * When true, briefly highlight the "Press & hold to record" label (and force
-         * it visible even when showSendButton is true). Set by parent on a short tap.
-         */
+        /** Deprecated hold-reminder flag kept for call-site compatibility. */
         highlightPressHold?: boolean;
         /** Whether the sketch overlay is currently open (highlights the sketch button). */
         isSketchOpen?: boolean;
@@ -49,6 +36,8 @@
         unauthenticatedCtaLabel?: string;
         /** Show the auth CTA even when the editor only has a blocked pending upload. */
         forceUnauthenticatedCta?: boolean;
+        /** Reserve the bottom-right stop/pause slot so mic/camera do not sit under it. */
+        reserveTrailingControlSpace?: boolean;
     }
     let {
         showSendButton = false,
@@ -56,11 +45,10 @@
         isAuthenticated = true,
         allowAnonymousTextSend = false,
         hasNoCredits = false,
-        micPermissionState = 'unknown',
-        highlightPressHold = false,
         isSketchOpen = false,
         unauthenticatedCtaLabel = $text('signup.sign_up'),
-        forceUnauthenticatedCta = false
+        forceUnauthenticatedCta = false,
+        reserveTrailingControlSpace = false
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
@@ -86,19 +74,6 @@
     }
     function handleRecordTouchEnd(event: TouchEvent) { dispatch('recordTouchEnd', { originalEvent: event }); }
 
-    /**
-     * Show the "Press & hold to record" inline label only when:
-     *  - The user single-tapped the mic button (highlightPressHold=true, set by parent)
-     *  - AND mic is already granted (not denied/prompt/unknown)
-     *
-     * We intentionally do NOT show it by default (even when no send button is visible),
-     * because it is distracting before the user has interacted with the mic button.
-     * The parent sets highlightPressHold=true for ~1.5s after a short tap so the hint
-     * appears only as direct feedback to the tap.
-     */
-    let showPressHoldLabel = $derived(
-        highlightPressHold && micPermissionState === 'granted'
-    );
     let canSendMessage = $derived(isAuthenticated || allowAnonymousTextSend);
 </script>
 
@@ -123,7 +98,7 @@
             use:tooltip
         ></button>
     </div>
-    <div class="right-buttons">
+    <div class="right-buttons {reserveTrailingControlSpace ? 'reserve-trailing-control-space' : ''}">
         <button
             class="clickable-icon icon_camera"
             onclick={handleCameraClick}
@@ -131,15 +106,7 @@
             use:tooltip
         ></button>
 
-        <!-- "Press & hold to record" inline label — hidden when send button is visible or mic blocked.
-             When highlightPressHold is true the label is force-shown and briefly flashes. -->
-        {#if showPressHoldLabel}
-            <span class="press-hold-label {highlightPressHold ? 'highlighted' : ''}" data-testid="press-hold-label" aria-hidden="true">
-                {$text('enter_message.record_audio.press_and_hold_reminder')}
-            </span>
-        {/if}
-
-        <!-- Audio recording: press-and-hold to record, release to transcribe via Mistral Voxtral -->
+        <!-- Audio recording: press to start, then Finish/Cancel in the recording overlay. -->
         <button
             class="clickable-icon icon_recordaudio {isRecordButtonPressed ? 'recording' : ''}"
             data-testid="record-audio-button"
@@ -218,38 +185,12 @@
         gap: 1rem;
         flex-wrap: nowrap;
         /* Smooth shift when send button appears/disappears */
-        transition: gap 200ms ease;
+        padding-right: 0;
+        transition: gap 200ms ease, padding-right 220ms ease;
     }
 
-    /* "Press & hold to record" inline label — muted, sits left of the mic icon */
-    .press-hold-label {
-        color: var(--color-font-tertiary, rgba(0, 0, 0, 0.4));
-        font-size: var(--font-size-xs);
-        font-weight: 400;
-        white-space: nowrap;
-        pointer-events: none;
-        user-select: none;
-        /* Subtle fade-in when it appears */
-        animation: label-fade-in 0.2s ease;
-    }
-
-    /* Brief highlight when the user taps (but does not hold) the mic button.
-       Pulses to a more visible colour then fades back to the muted default. */
-    .press-hold-label.highlighted {
-        animation: label-highlight 1.4s ease forwards;
-        font-weight: 600;
-    }
-
-    @keyframes label-fade-in {
-        from { opacity: 0; }
-        to   { opacity: 1; }
-    }
-
-    @keyframes label-highlight {
-        0%   { color: var(--color-font-tertiary, rgba(0, 0, 0, 0.4)); font-weight: 400; }
-        15%  { color: var(--color-font-primary,  rgba(0, 0, 0, 0.85)); font-weight: 600; }
-        60%  { color: var(--color-font-primary,  rgba(0, 0, 0, 0.85)); font-weight: 600; }
-        100% { color: var(--color-font-tertiary, rgba(0, 0, 0, 0.4)); font-weight: 400; }
+    .right-buttons.reserve-trailing-control-space {
+        padding-right: 48px;
     }
 
     /* Highlight sketch button when the sketch overlay is open */
@@ -257,7 +198,7 @@
         color: var(--color-accent, #007AFF);
     }
 
-    /* Prevent page scroll during the press-and-hold recording gesture.
+    /* Prevent page scroll during the recording start gesture.
        We rely on CSS instead of event.preventDefault() so that Firefox iOS
        retains the user-gesture token needed for getUserMedia(). */
     .icon_recordaudio {

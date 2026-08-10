@@ -123,7 +123,7 @@
       {:else if status === 'finished'}
         <div class="repo-search-count" data-testid="code-repo-search-count">
           {#if resultCount === 0}
-            {$text('embeds.search_no_results_for_query').replace('{query}', query)}
+            {$text('embeds.search_no_results')}
           {:else}
             {resultCount} {resultCount === 1 ? 'repository' : 'repositories'}
           {/if}
@@ -143,7 +143,7 @@
   }
 
   .repo-search-query {
-    font-size: 15px;
+    font-size: var(--font-size-small);
     font-weight: 650;
     color: var(--color-text-primary);
     overflow: hidden;
@@ -153,12 +153,12 @@
 
   .repo-search-provider,
   .repo-search-count {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-text-secondary);
   }
 
   .repo-search-error {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-error, #ef4444);
   }
 

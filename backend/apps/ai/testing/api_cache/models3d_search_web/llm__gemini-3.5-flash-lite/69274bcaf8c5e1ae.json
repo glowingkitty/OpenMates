@@ -1,0 +1,56 @@
+{
+  "fingerprint": "69274bcaf8c5e1ae",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "models3d_search_web",
+  "recorded_at": "2026-07-28T21:16:22.356889+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 3,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Find 3D printable benchy models"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "models3d-search-9bba373b",
+          "function_name": "models3d-search",
+          "function_arguments_raw": "{\"requests\": [{\"query\": \"3D benchy calibration boat\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "query": "3D benchy calibration boat"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "EjQKMgERTTIP/9PxHO0g+RAq2GByE0h9OMCwjxC53wlXMYAJt/09Nq2aV39TOId0z8ookIhM"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 12740,
+          "candidates_token_count": 26,
+          "total_token_count": 12766,
+          "user_input_tokens": 10,
+          "system_prompt_tokens": 11885
+        }
+      }
+    ]
+  }
+}

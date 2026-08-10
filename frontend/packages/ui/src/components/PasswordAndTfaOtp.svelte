@@ -13,7 +13,10 @@
     import * as cryptoService from '../services/cryptoService';
     import { updateProfile } from '../stores/userProfile';
     import { getSessionId } from '../utils/sessionId';
-    import { notificationStore } from '../stores/notificationStore';
+    import {
+        notificationStore,
+        SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY,
+    } from '../stores/notificationStore';
     import AccountRecovery from './AccountRecovery.svelte';
 
     const dispatch = createEventDispatcher();
@@ -631,6 +634,7 @@
                         },
                         duration: 0,
                         dismissible: true,
+                        dedupeKey: SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY,
                     });
                 } catch (notifError) {
                     console.warn('[PasswordAndTfaOtp] Failed to show 2FA reminder notification:', notifError);
@@ -822,6 +826,7 @@
                 <span class="clickable-icon icon_password"></span>
                 <input
                     id="login-password-input"
+                    data-testid="login-password-input"
                     bind:this={passwordInput}
                     type="password"
                     bind:value={password}
@@ -865,6 +870,7 @@
                         <span class="clickable-icon icon_text"></span>
                         <input
                             id="login-otp-input"
+                            data-testid="login-backup-code-input"
                             bind:this={tfaInput}
                             type="text"
                             bind:value={tfaCode}
@@ -880,6 +886,7 @@
                         <span class="clickable-icon icon_2fa"></span>
                         <input
                             id="login-otp-input"
+                            data-testid="login-otp-input"
                             bind:this={tfaInput}
                             type="text"
                             bind:value={tfaCode}
@@ -904,6 +911,7 @@
 
         <button
             id="login-submit-button"
+            data-testid={isBackupMode ? 'login-backup-code-submit-button' : 'login-submit-button'}
             type="submit"
             class="login-button"
             disabled={isLoading || !isFormValid}
@@ -921,7 +929,7 @@
     <div class="login-options-container">
         <!-- Back to email button -->
         <div id="login-with-another-account" style={getStyle('login-with-another-account')}>
-            <button class="login-option-button" onclick={handleBackToEmail}>
+            <button class="login-option-button" data-testid="login-with-another-account" onclick={handleBackToEmail}>
                 <span class="clickable-icon icon_user"></span>
                 <mark>{$text('login.login_with_another_account')}</mark>
             </button>
@@ -930,7 +938,7 @@
         <!-- Toggle Button - only if TFA is required and not in account recovery mode -->
         {#if tfaRequiredState && !showAccountRecovery}
         <div id="login-with-backup-code" style={getStyle('login-with-backup-code')}>
-            <button class="login-option-button" onclick={toggleBackupMode} disabled={isLoading}>
+            <button class="login-option-button" data-testid="login-with-backup-code" onclick={toggleBackupMode} disabled={isLoading}>
                 {#if isBackupMode}
                 <span class="clickable-icon icon_2fa"></span>
                 {:else}
@@ -943,7 +951,7 @@
 
         <!-- Login with recovery key -->
         <div id="login-with-recoverykey" style={getStyle('login-with-recoverykey')}>
-            <button class="login-option-button" onclick={handleSwitchToRecoveryKey}>
+            <button class="login-option-button" data-testid="login-with-recovery-key" onclick={handleSwitchToRecoveryKey}>
                 <span class="clickable-icon icon_warning"></span>
                 <mark>{$text('login.login_with_recovery_key')}</mark>
             </button>

@@ -27,7 +27,13 @@
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from './UnifiedEmbedFullscreen.svelte';
   import ChildEmbedOverlay from './ChildEmbedOverlay.svelte';
   import { text } from '@repo/ui';
+  import { onDestroy } from 'svelte';
   import { activeEmbedStore } from '../../stores/activeEmbedStore';
+  import {
+    restorePreviousFullscreenRoute,
+    setCanonicalFullscreenRoute,
+    setChildFullscreenRouteFromParent,
+  } from '../../services/embedFullscreenController';
   import type { Snippet } from 'svelte';
 
   /**
@@ -95,11 +101,7 @@
     emptyTestId?: string;
     /** Current status for error state display */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
-    /**
-     * Original search query string. When provided, the empty-results state
-     * shows "No results found for '<query>'" instead of a generic message.
-     * Introduced for OPE-405 (zero-result web search UX).
-     */
+    /** Original search query string. Kept for callers that also display it elsewhere. */
     query?: string;
 
     // ── Consumer snippets ──
@@ -148,7 +150,6 @@
     errorMessage: errorMessageProp,
     emptyTestId = 'search-template-empty',
     status = 'finished',
-    query,
 
     // Snippets
     resultCard,
@@ -161,7 +162,7 @@
   let selectedIndex = $state(-1);
   /** All loaded results for sibling navigation */
   let allResults = $state<T[]>([]);
-  let selectedResult = $state<T | null>(null);
+  let selectedResult = $derived(selectedIndex >= 0 ? allResults[selectedIndex] ?? null : null);
 
   let initialChildLookupComplete = $state(false);
   let isOpeningInitialChild = $derived(
@@ -176,23 +177,39 @@
     const index = results.findIndex((result) => result.embed_id === initialChildEmbedId);
     if (index < 0) return false;
 
+    allResults = results;
     selectedIndex = index;
-    selectedResult = results[index] ?? null;
     initialChildLookupComplete = true;
     return true;
   }
 
   function updateLoadedResults(results: T[]): void {
     allResults = results;
-    if (selectedIndex >= 0) {
-      selectedResult = results[selectedIndex] ?? null;
-    }
     onResultsLoaded?.(results);
 
     if (initialChildEmbedId && !selectInitialChildFromResults(results)) {
       initialChildLookupComplete = true;
     }
   }
+
+  const unsubscribeActiveEmbed = activeEmbedStore.subscribe((activeEmbedId) => {
+    if (!currentEmbedId || allResults.length === 0) return;
+
+    if (activeEmbedId === currentEmbedId && selectedIndex >= 0) {
+      selectedIndex = -1;
+      return;
+    }
+
+    const childIndex = activeEmbedId
+      ? allResults.findIndex((result) => result.embed_id === activeEmbedId)
+      : -1;
+    if (childIndex >= 0 && childIndex !== selectedIndex) {
+      selectedIndex = childIndex;
+      initialChildLookupComplete = true;
+    }
+  });
+
+  onDestroy(unsubscribeActiveEmbed);
 
   /**
    * Fallback population for consumers that only supply `legacyResults`
@@ -225,11 +242,18 @@
   function handleResultSelect(index: number, resultsForClick: T[] = allResults) {
     allResults = resultsForClick;
     selectedIndex = index;
-    // Update URL hash to reflect the child embed ID for shareable deep links
     const result = resultsForClick[index];
-    selectedResult = result ?? null;
-    if (result?.embed_id) {
-      activeEmbedStore.setActiveEmbed(result.embed_id, null);
+
+    // Real child embeds are shareable deep links. Legacy fallback results use
+    // synthetic IDs that are only valid inside this mounted fullscreen; publishing
+    // them to the global hash makes the app-level resolver chase an unresolvable
+    // embed and can hide the nested child overlay.
+    if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
+      if (currentEmbedId) {
+        setChildFullscreenRouteFromParent(result.embed_id, currentEmbedId);
+      } else {
+        setCanonicalFullscreenRoute(result.embed_id);
+      }
     }
   }
 
@@ -239,18 +263,13 @@
       onClose();
     } else {
       selectedIndex = -1;
-      selectedResult = null;
-      // Restore parent embed ID in URL hash
-      if (currentEmbedId) {
-        activeEmbedStore.setActiveEmbed(currentEmbedId, null);
-      }
+      restorePreviousFullscreenRoute(currentEmbedId ?? null);
     }
   }
 
   function handleMainClose() {
     if (selectedIndex >= 0 && !initialChildEmbedId) {
       selectedIndex = -1;
-      selectedResult = null;
     } else {
       onClose();
     }
@@ -260,8 +279,10 @@
     if (selectedIndex > 0) {
       selectedIndex -= 1;
       const result = allResults[selectedIndex];
-      selectedResult = result ?? null;
-      if (result?.embed_id) activeEmbedStore.setActiveEmbed(result.embed_id, null);
+      if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
+        if (currentEmbedId) setChildFullscreenRouteFromParent(result.embed_id, currentEmbedId);
+        else setCanonicalFullscreenRoute(result.embed_id);
+      }
     }
   }
 
@@ -269,9 +290,15 @@
     if (selectedIndex < allResults.length - 1) {
       selectedIndex += 1;
       const result = allResults[selectedIndex];
-      selectedResult = result ?? null;
-      if (result?.embed_id) activeEmbedStore.setActiveEmbed(result.embed_id, null);
+      if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
+        if (currentEmbedId) setChildFullscreenRouteFromParent(result.embed_id, currentEmbedId);
+        else setCanonicalFullscreenRoute(result.embed_id);
+      }
     }
+  }
+
+  function isSyntheticLegacyEmbedId(embedId: string): boolean {
+    return embedId.startsWith('legacy-');
   }
 
   /**
@@ -317,12 +344,15 @@
   embedIds={embedIdsForFullscreen}
   {childEmbedTransformer}
   {legacyResults}
-  onChildrenLoaded={(children) => updateLoadedResults(children as T[])}
+  onChildrenLoaded={(children) => {
+    const typedChildren = children as T[];
+    updateLoadedResults(typedChildren);
+    selectInitialChildFromResults(typedChildren);
+  }}
   {initialChildEmbedId}
   onAutoOpenChild={(index, children) => {
     updateLoadedResults(children as T[]);
     selectedIndex = index;
-    selectedResult = (children as T[])[index] ?? null;
     initialChildLookupComplete = true;
   }}
   {onEmbedDataUpdated}
@@ -351,11 +381,7 @@
       {:else}
         <div class="search-template-empty" data-testid={emptyTestId}>
           <p data-testid="search-no-results-message">
-            {#if query}
-              {$text('embeds.search_no_results_for_query').replace('{query}', query)}
-            {:else}
-              {$text('embeds.search_no_results')}
-            {/if}
+            {$text('embeds.search_no_results')}
           </p>
         </div>
       {/if}
@@ -416,7 +442,7 @@
   .search-template-initial-child-shield {
     position: absolute;
     inset: 0;
-    z-index: 101;
+    z-index: var(--z-index-dropdown);
     background: var(--color-grey-20);
     border-radius: 17px;
   }
@@ -457,7 +483,7 @@
   .skeleton-body {
     width: 100%;
     height: 180px;
-    background: var(--color-grey-15, #ebebeb);
+    background: var(--color-grey-20, #ebebeb);
     animation: search-skeleton-pulse 1.5s ease-in-out infinite;
   }
 

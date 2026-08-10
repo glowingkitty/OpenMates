@@ -178,6 +178,27 @@ async def _trigger_continuation_without_focus(
             "is_incognito": is_incognito,
             "mate_id": mate_id,
             "active_focus_id": None,  # Explicitly NO focus mode
+            "recovery_inference_task_id": pending_context.get("recovery_inference_task_id"),
+            "recovery_preflight_id": pending_context.get("recovery_preflight_id"),
+            "recovery_turn_id": pending_context.get("recovery_turn_id"),
+            "recovery_public_key": pending_context.get("recovery_public_key"),
+            "chat_key_version": pending_context.get("chat_key_version"),
+            "parent_id": pending_context.get("parent_id"),
+            "is_sub_chat": bool(pending_context.get("is_sub_chat")),
+            "orchestration_id": pending_context.get("orchestration_id"),
+            "root_chat_id": pending_context.get("root_chat_id"),
+            "root_turn_id": pending_context.get("root_turn_id"),
+            "sub_chat_depth": pending_context.get("sub_chat_depth", 0),
+            "orchestration_dispatch_token": pending_context.get("orchestration_dispatch_token"),
+            "orchestration_descendant_limit": pending_context.get("orchestration_descendant_limit", 3),
+            "orchestration_credit_limit": pending_context.get("orchestration_credit_limit", 2_000),
+            "orchestration_approved": bool(pending_context.get("orchestration_approved")),
+            "budget_limit": pending_context.get("budget_limit"),
+            "budget_spent": pending_context.get("budget_spent", 0),
+            "team_id": pending_context.get("team_id"),
+            "team_id_hash": pending_context.get("team_id_hash"),
+            "team_workspace_type": pending_context.get("team_workspace_type", "chat"),
+            "team_object_id_hash": pending_context.get("team_object_id_hash"),
             # Signal that this is a continuation after focus mode rejection
             "is_focus_mode_continuation": True,
             # Continuation creates its own assistant message. Client merges for display when previous was focus activation.
@@ -224,7 +245,7 @@ async def handle_focus_mode_rejected(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("focus_mode_rejected", user_id, payload, user_otel_attrs)
     except Exception:
         pass

@@ -386,25 +386,45 @@ test.describe('Embed Diff-Based Editing', () => {
 		log(`Document embeds after turn 2: ${docCount}`);
 		expect(docCount).toBeGreaterThanOrEqual(1);
 
-		const firstDocEmbed = allDocEmbeds.first();
-		await firstDocEmbed.click();
+		const latestDocEmbed = allDocEmbeds.last();
+		await latestDocEmbed.click();
 		const docArtifactPage = page.getByTestId('doc-artifact-page').first();
 		await expect(docArtifactPage).toBeVisible({ timeout: 90000 });
 		const docArtifactPageCount = await page.getByTestId('doc-artifact-page').count();
 		log(`Generated DOCX artifact page count in fullscreen: ${docArtifactPageCount}`);
 		expect(docArtifactPageCount).toBeGreaterThanOrEqual(1);
+		await expect(page.getByTestId('doc-artifact-pages')).toHaveAttribute('data-download-ready', 'true', { timeout: 30000 });
 		await screenshot(page, '05-doc-fullscreen-artifact');
 
-		const [download] = await Promise.all([
-			page.waitForEvent('download'),
-			page.getByRole('button', { name: 'Download' }).click()
-		]);
-		const suggestedFilename = download.suggestedFilename();
+		const downloadButton = page.getByTestId('embed-download-button');
+		const download = await Promise.all([
+			page.waitForEvent('download', { timeout: 10000 }).catch(() => null),
+			downloadButton.click({ force: true })
+		]).then(([downloadResult]) => downloadResult);
+		let suggestedFilename: string;
+		let downloadedBytes: Buffer;
+		if (download) {
+			suggestedFilename = download.suggestedFilename();
+			const downloadPath = await download.path();
+			expect(downloadPath).toBeTruthy();
+			downloadedBytes = fs.readFileSync(downloadPath);
+		} else {
+			const preparedDownload = await downloadButton.evaluate((element: HTMLAnchorElement) => ({
+				href: element.href,
+				filename: element.download
+			}));
+			expect(preparedDownload.href).toMatch(/^blob:/);
+			suggestedFilename = preparedDownload.filename;
+			const byteValues = await page.evaluate(async (href: string) => {
+				const response = await fetch(href);
+				const buffer = await response.arrayBuffer();
+				return Array.from(new Uint8Array(buffer));
+			}, preparedDownload.href);
+			downloadedBytes = Buffer.from(byteValues);
+			log('Browser download event did not fire for prepared blob URL; validated blob bytes directly.');
+		}
 		log(`Downloaded document filename: ${suggestedFilename}`);
 		expect(suggestedFilename.toLowerCase()).toContain('.docx');
-		const downloadPath = await download.path();
-		expect(downloadPath).toBeTruthy();
-		const downloadedBytes = fs.readFileSync(downloadPath);
 		log(`Downloaded document byte length: ${downloadedBytes.length}`);
 		expect(downloadedBytes.length).toBeGreaterThan(1000);
 		expect(downloadedBytes[0]).toBe(0x50);

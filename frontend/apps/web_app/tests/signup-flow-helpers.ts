@@ -170,15 +170,17 @@ function createStepScreenshotter(
 	logStep: (message: string, metadata?: Record<string, unknown>) => void,
 	{
 		filenamePrefix = '',
-		artifactsDirname = ARTIFACTS_DIRNAME
+		artifactsDirname = ARTIFACTS_DIRNAME,
+		fullPage = true
 	}: {
 		filenamePrefix?: string;
 		artifactsDirname?: string;
+		fullPage?: boolean;
 	} = {}
-): (page: any, label: string) => Promise<void> {
+): (page: any, label: string, options?: { fullPage?: boolean }) => Promise<void> {
 	_ensureStepLogInit(artifactsDirname);
 	let screenshotIndex = 1;
-	return async (page: any, label: string): Promise<void> => {
+	return async (page: any, label: string, options?: { fullPage?: boolean }): Promise<void> => {
 		const safeLabel = label
 			.toLowerCase()
 			.replace(/[^a-z0-9-]+/g, '-')
@@ -191,7 +193,7 @@ function createStepScreenshotter(
 		try {
 			await page.screenshot({
 				path: `${artifactsDirname}/${filename}`,
-				fullPage: true,
+				fullPage: options?.fullPage ?? fullPage,
 				timeout: STEP_SCREENSHOT_TIMEOUT_MS
 			});
 		} catch (error) {
@@ -237,6 +239,27 @@ async function setToggleChecked(toggleLocator: any, shouldBeChecked: boolean): P
 			element.dispatchEvent(new Event('change', { bubbles: true }));
 		}, shouldBeChecked);
 	}
+}
+
+async function validateSignupInviteIfRequired(
+	page: any,
+	logStep: (message: string, metadata?: Record<string, unknown>) => void = () => undefined
+): Promise<void> {
+	const inviteCodeInput = page.getByTestId('signup-invite-code-input');
+	if (!(await inviteCodeInput.isVisible().catch(() => false))) return;
+
+	const inviteCode = process.env.E2E_SIGNUP_INVITE_CODE;
+	if (!inviteCode) {
+		throw new Error('E2E_SIGNUP_INVITE_CODE is required when dev signup requires an invite code.');
+	}
+
+	// Keep the invite code out of automatic failure screenshots and videos.
+	await inviteCodeInput.evaluate((input: HTMLInputElement) => {
+		input.type = 'password';
+	});
+	await inviteCodeInput.fill(inviteCode);
+	await page.locator('input[autocomplete="username"]').waitFor({ state: 'visible', timeout: 10000 });
+	logStep('Validated the configured invite code.');
 }
 
 /**
@@ -392,6 +415,85 @@ function buildSignupEmail(domain: string): string {
 	}
 
 	return `${timePart}@${domain}`;
+}
+
+function deriveSignupCleanupApiUrl(): string {
+	const explicitApiUrl = process.env.OPENMATES_E2E_API_URL || process.env.PLAYWRIGHT_TEST_API_URL;
+	if (explicitApiUrl) return explicitApiUrl.replace(/\/$/, '');
+
+	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
+	return baseUrl
+		.replace('://app.', '://api.')
+		.replace('://www.', '://api.')
+		.replace('://openmates.org', '://api.openmates.org')
+		.replace(/\/$/, '');
+}
+
+function sha256Base64(value: string): string {
+	return nodeCrypto.createHash('sha256').update(value).digest('base64');
+}
+
+async function cleanupFailedSignupAccount(
+	signupEmail: string | null | undefined,
+	logStep: (message: string, metadata?: Record<string, unknown>) => void = () => undefined,
+	{ testFile = 'unknown signup spec' }: { testFile?: string } = {}
+): Promise<boolean> {
+	if (!signupEmail) {
+		logStep('Skipped failed signup cleanup because no signup email was generated.');
+		return false;
+	}
+
+	const adminApiKey = process.env.OPENMATES_TEST_ACCOUNT_API_KEY;
+	if (!adminApiKey) {
+		logStep('Skipped failed signup cleanup because OPENMATES_TEST_ACCOUNT_API_KEY is unavailable.');
+		return false;
+	}
+
+	const apiUrl = deriveSignupCleanupApiUrl();
+	const hashedEmail = sha256Base64(signupEmail.trim().toLowerCase());
+	try {
+		const response = await fetch(`${apiUrl}/v1/auth/cleanup_failed_signup`, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${adminApiKey}`,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				hashed_email: hashedEmail,
+				test_file: testFile,
+				reason: 'Playwright signup spec failed before normal account deletion'
+			})
+		});
+
+		const bodyText = await response.text();
+		let body: any = null;
+		try {
+			body = bodyText ? JSON.parse(bodyText) : null;
+		} catch {
+			body = null;
+		}
+
+		if (!response.ok) {
+			logStep('Failed signup cleanup request was rejected.', {
+				status: response.status,
+				hashedEmailPrefix: hashedEmail.slice(0, 12)
+			});
+			return false;
+		}
+
+		logStep('Queued failed signup account cleanup.', {
+			hashedEmailPrefix: hashedEmail.slice(0, 12),
+			queued: Boolean(body?.queued),
+			deleted: Boolean(body?.deleted)
+		});
+		return true;
+	} catch (error) {
+		logStep('Failed signup cleanup request errored.', {
+			error: error instanceof Error ? error.message : String(error),
+			hashedEmailPrefix: hashedEmail.slice(0, 12)
+		});
+		return false;
+	}
 }
 
 /**
@@ -1337,16 +1439,16 @@ async function assertNoMissingTranslations(page: any): Promise<void> {
 }
 
 /**
- * Retrieve test account credentials for a given worker slot (1-5).
+ * Retrieve test account credentials for a given worker slot.
  *
- * The runner passes PLAYWRIGHT_WORKER_SLOT=1..5 to each container so that
+ * The runner passes PLAYWRIGHT_WORKER_SLOT to each container so that
  * parallel Playwright workers use separate accounts and avoid test collisions.
  *
  * Env var naming convention:
  *   Slot 1: OPENMATES_TEST_ACCOUNT_1_EMAIL  (or fallback: OPENMATES_TEST_ACCOUNT_EMAIL)
  *   Slot 2: OPENMATES_TEST_ACCOUNT_2_EMAIL
  *   ...
- *   Slot 20: OPENMATES_TEST_ACCOUNT_20_EMAIL
+ *   Slot 27: OPENMATES_TEST_ACCOUNT_27_EMAIL
  *
  * When the numbered slot vars are not set (e.g. running a single test manually),
  * we fall back to the base OPENMATES_TEST_ACCOUNT_* vars for backward compatibility.
@@ -1605,6 +1707,8 @@ module.exports = {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
+	validateSignupInviteIfRequired,
+	cleanupFailedSignupAccount,
 	fillStripeCardDetails,
 	getSignupTestDomain,
 	getMailosaurServerId,

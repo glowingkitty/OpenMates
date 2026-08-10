@@ -21,12 +21,16 @@ struct WebSearchIntent: AppIntent {
         }
     }
 
-    func perform() async throws -> some IntentResult & ReturnsValue<String> {
-        let body: [String: Any] = [
+    static func requestBody(query: String, maxResults: Int) -> [String: Any] {
+        [
             "requests": [
-                ["id": 1, "query": query, "max_results": maxResults]
+                ["id": 1, "query": query, "count": maxResults]
             ]
         ]
+    }
+
+    func perform() async throws -> some IntentResult & ReturnsValue<String> {
+        let body = Self.requestBody(query: query, maxResults: maxResults)
 
         let response = try await SkillExecutor.execute(
             appId: "web", skillId: "search", body: body

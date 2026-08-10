@@ -37,6 +37,29 @@
         handlePermissionDialogExclude
     } from '../services/chatSyncServiceHandlersAppSettings';
     import { chatSyncService } from '../services/chatSyncService';
+
+    interface PermissionPreviewEntry {
+        id: string;
+        title: string;
+        subtitle?: string;
+        selected: boolean;
+    }
+
+    interface PermissionPreviewCategory {
+        key: string;
+        appId: string;
+        displayName: string;
+        entryCount: number;
+        selected: boolean;
+        entries?: PermissionPreviewEntry[];
+    }
+
+    interface Props {
+        previewMode?: boolean;
+        previewCategories?: PermissionPreviewCategory[];
+    }
+
+    let { previewMode = false, previewCategories = [] }: Props = $props();
     
     // --- State ---
     // Track which categories are expanded to show individual entries
@@ -44,11 +67,13 @@
     
     // Toggle selection for a category
     function toggleCategory(key: string) {
+        if (previewMode) return;
         appSettingsMemoriesPermissionStore.toggleCategory(key);
     }
     
     // Toggle selection for an individual entry
     function toggleEntry(categoryKey: string, entryId: string) {
+        if (previewMode) return;
         appSettingsMemoriesPermissionStore.toggleEntry(categoryKey, entryId);
     }
     
@@ -65,6 +90,7 @@
     
     // Handle "Include" button click - send selected categories and entries
     async function handleConfirm() {
+        if (previewMode) return;
         const requestId = appSettingsMemoriesPermissionStore.getCurrentRequestId();
         const selectedKeys = appSettingsMemoriesPermissionStore.getSelectedKeys();
         const selectedEntryIds = appSettingsMemoriesPermissionStore.getSelectedEntryIdsByCategory();
@@ -100,6 +126,7 @@
     
     // Handle "Exclude" button click - reject all
     async function handleExclude() {
+        if (previewMode) return;
         const requestId = appSettingsMemoriesPermissionStore.getCurrentRequestId();
         if (requestId) {
             await handlePermissionDialogExclude(chatSyncService, requestId);
@@ -109,7 +136,11 @@
     }
     
     // Check if any category is selected
-    let hasSelection = $derived($currentPermissionRequest?.categories.some(cat => cat.selected) ?? false);
+    let displayedRequest = $derived(previewMode
+        ? { requestId: 'landing-preview', categories: previewCategories }
+        : $currentPermissionRequest);
+    let dialogVisible = $derived(previewMode || $isPermissionDialogVisible);
+    let hasSelection = $derived(displayedRequest?.categories.some(cat => cat.selected) ?? false);
 
     /**
      * Get the count of selected entries for a category.
@@ -132,12 +163,14 @@
 
 <!-- Non-blocking dialog - rendered inside ActiveChat above the message input -->
 <!-- Users can still scroll/interact with the chat while this is visible -->
-{#if $isPermissionDialogVisible && $currentPermissionRequest}
+{#if dialogVisible && displayedRequest}
     <div 
         class="permission-dialog-container" 
-        data-testid="app-settings-memories-permission-dialog"
-        role="dialog" 
-        aria-labelledby="permission-dialog-title"
+        class:preview-mode={previewMode}
+        data-testid={previewMode ? 'app-settings-memories-permission-card' : 'app-settings-memories-permission-dialog'}
+        role={previewMode ? 'presentation' : 'dialog'}
+        aria-labelledby={previewMode ? undefined : 'permission-dialog-title'}
+        inert={previewMode}
         transition:fade={{ duration: 200 }}
     >
         <!-- Header -->
@@ -153,7 +186,7 @@
         
         <!-- Categories list -->
         <div class="categories-list">
-            {#each $currentPermissionRequest.categories as category (category.key)}
+            {#each displayedRequest.categories as category (category.key)}
                 <div class="category-wrapper">
                     <div class="category-item" class:selected={category.selected}>
                         <Toggle 
@@ -172,7 +205,7 @@
                         </div>
                         
                         <div class="category-info">
-                            <span class="category-name">{category.displayName}</span>
+                            <span class="category-name" data-testid={previewMode ? 'landing-memory-category-name' : undefined}>{category.displayName}</span>
                             <span class="category-count">
                                 {getSelectedEntryCount(category)}/{category.entryCount} {category.entryCount === 1 
                                     ? $text('chat.permissions.entry_singular') 
@@ -253,9 +286,15 @@
         padding: var(--spacing-8);
         width: 100%;
         max-width: 629px; /* Match message input max-width */
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        box-shadow: var(--shadow-lg);
         margin-bottom: var(--spacing-6);
         border: 1px solid var(--color-grey-25, #e5e5e5);
+    }
+
+    .permission-dialog-container.preview-mode {
+        margin-bottom: 0;
+        transform: scale(var(--permission-preview-scale, 0.82));
+        transform-origin: top center;
     }
     
     .dialog-header {
@@ -312,7 +351,7 @@
         align-items: center;
         gap: var(--spacing-5);
         padding: var(--spacing-5) var(--spacing-6);
-        background: var(--color-grey-15, #f5f5f5);
+        background: var(--color-grey-20);
         border-radius: var(--radius-5);
         transition: background var(--duration-normal) var(--easing-default);
     }
@@ -398,7 +437,7 @@
     }
     
     .entry-item.selected {
-        background: var(--color-grey-15, #f5f5f5);
+        background: var(--color-grey-20);
     }
     
     .entry-info {
@@ -504,7 +543,7 @@
         }
         
         .entry-item {
-            background: var(--color-grey-15, #222);
+            background: var(--color-grey-20);
         }
         
         .entry-item.selected {

@@ -10,7 +10,7 @@ Runtime behavior is exercised by the E2E account preflight spec.
 import base64
 import hashlib
 
-from backend.scripts.reset_test_2fa import _get_test_account_env, _hash_email
+from backend.scripts.reset_test_2fa import _get_test_account_env, _hash_email, _redacted
 
 
 def test_get_test_account_env_prefers_numbered_slot(monkeypatch):
@@ -35,3 +35,9 @@ def test_hash_email_matches_backend_normalization():
     expected = base64.b64encode(hashlib.sha256(normalized.encode()).digest()).decode()
 
     assert _hash_email("  User@Example.Test  ") == expected
+
+
+def test_redacted_only_masks_when_enabled():
+    assert _redacted("secret", True, "<redacted>") == "<redacted>"
+    assert _redacted("secret", False, "<redacted>") == "secret"
+    assert _redacted(None, True, "<redacted>") is None

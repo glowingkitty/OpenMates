@@ -13,6 +13,7 @@ import type { Chat, Message } from "../types/chat";
 import {
   convertChatToYaml,
   generateChatFilename,
+  hydrateChatForExport,
   type PIIExportOptions,
 } from "./chatExportService";
 import {
@@ -24,13 +25,19 @@ import { tipTapToCanonicalMarkdown, tipTapToReadableMarkdown } from "../message_
 import { parseCodeEmbedContent } from "../components/embeds/code/codeEmbedContent";
 import { restorePIIInText } from "../components/enter_message/services/piiDetectionService";
 import { fetchAndDecryptImage } from "../components/embeds/images/imageEmbedCrypto";
+import { hasMediaEncryptionMetadata } from "./encryption/mediaEncryption";
 import {
   generateImageFilename,
   embedPngMetadata,
 } from "../components/embeds/images/imageDownloadUtils";
 
 type DecodedEmbedContent = Record<string, unknown>;
-type ImageFileEntry = { s3_key?: string; format?: string };
+type ImageFileEntry = {
+  s3_key?: string;
+  format?: string;
+  aes_nonce?: string;
+  encryption?: string;
+};
 
 function isRecord(value: unknown): value is DecodedEmbedContent {
   return !!value && typeof value === "object";
@@ -591,6 +598,7 @@ async function loadImageEmbedsRecursively(
     s3_key: string;
     aes_key: string;
     aes_nonce: string;
+    variant: ImageFileEntry;
     format: string;
   }>
 > {
@@ -606,6 +614,7 @@ async function loadImageEmbedsRecursively(
     s3_key: string;
     aes_key: string;
     aes_nonce: string;
+    variant: ImageFileEntry;
     format: string;
   }> = [];
 
@@ -709,12 +718,13 @@ async function loadImageEmbedsRecursively(
             s3_key: "",
             aes_key: "",
             aes_nonce: "",
+            variant: fileEntry || {},
             format: fileEntry?.format || "png",
           });
         } else if (
           decodedContent.aes_key &&
-          decodedContent.aes_nonce &&
-          fileEntry?.s3_key
+          fileEntry?.s3_key &&
+          hasMediaEncryptionMetadata(fileEntry, stringValue(decodedContent.aes_nonce))
         ) {
           const isUpload = decodedContent.skill_id === "upload";
           imageEmbeds.push({
@@ -732,6 +742,7 @@ async function loadImageEmbedsRecursively(
             s3_key: fileEntry.s3_key,
             aes_key: stringValue(decodedContent.aes_key) || "",
             aes_nonce: stringValue(decodedContent.aes_nonce) || "",
+            variant: fileEntry,
             format: fileEntry.format || "png",
           });
         }
@@ -889,6 +900,7 @@ export async function getImageEmbedsForChat(messages: Message[]): Promise<
               imageInfo.s3_key,
               imageInfo.aes_key,
               imageInfo.aes_nonce,
+              imageInfo.variant,
             );
 
         // For PNG images, embed metadata (prompt, model, etc.)
@@ -992,7 +1004,11 @@ async function fetchAndDecryptBlob(
   }
 
   const keyBytes = b64ToBuffer(aesKeyB64);
-  const nonceBytes = b64ToBuffer(nonceB64);
+  const NONCE_BYTES = 12;
+  const nonceBytes = nonceB64
+    ? b64ToBuffer(nonceB64)
+    : encryptedData.slice(0, NONCE_BYTES);
+  const ciphertext = nonceB64 ? encryptedData : encryptedData.slice(NONCE_BYTES);
 
   // Import and apply AES-256-GCM decryption
   const cryptoKey = await crypto.subtle.importKey(
@@ -1005,7 +1021,7 @@ async function fetchAndDecryptBlob(
   const decrypted = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: nonceBytes },
     cryptoKey,
-    encryptedData,
+    ciphertext,
   );
 
   return new Blob([decrypted], { type: mimeType });
@@ -1023,7 +1039,7 @@ async function fetchAndDecryptBlob(
  *
  * Audio TOON content shape (audio-recording type):
  *   { app_id: "audio", skill_id: "transcribe", files: { original: { s3_key, size_bytes } },
- *     aes_key, aes_nonce, transcript, filename, mime_type, duration }
+ *     aes_key, aes_nonce, title, transcript, filename, mime_type, duration }
  */
 export async function getAudioRecordingsForChat(messages: Message[]): Promise<
   Array<{
@@ -1087,7 +1103,7 @@ export async function getAudioRecordingsForChat(messages: Message[]): Promise<
         const aesKey = decoded.aes_key as string | undefined;
         const aesNonce = decoded.aes_nonce as string | undefined;
 
-        if (!originalS3Key || !aesKey || !aesNonce) {
+        if (!originalS3Key || !aesKey || aesNonce == null) {
           console.warn(
             "[ZipExportService] Audio embed missing S3/AES fields:",
             embed.embed_id,
@@ -1366,12 +1382,20 @@ export async function downloadChatAsZip(
     const filename = await generateChatFilename(chat, "");
     const filenameWithoutExt = filename.replace(/\.[^.]+$/, "");
 
+    const hydrated = await hydrateChatForExport(chat, messages);
+    messages = hydrated.messages;
+    if (hydrated.completeness.status === "partial") {
+      console.warn("[ZipExportService] Export is partial:", hydrated.completeness.warnings);
+    }
+    zip.file("export-metadata.json", JSON.stringify(hydrated.completeness, null, 2));
+
     // Add YAML file, respecting PII visibility
     const yamlContent = await convertChatToYaml(
       chat,
       messages,
       false,
       piiOptions,
+      hydrated,
     );
     zip.file(`${filenameWithoutExt}.yml`, yamlContent);
 

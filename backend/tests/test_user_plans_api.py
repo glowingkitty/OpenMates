@@ -62,6 +62,21 @@ def verification_payload(**overrides):
     return base
 
 
+def learning_payload(**overrides):
+    base = {
+        "learning_id": "LRN-1",
+        "type": "workflow_improvement",
+        "target_kind": "workflow",
+        "status": "accepted",
+        "encrypted_title": "cipher-learning-title",
+        "encrypted_task_draft": "cipher-task-draft",
+        "created_at": 100,
+        "updated_at": 100,
+    }
+    base.update(overrides)
+    return base
+
+
 @pytest.mark.asyncio
 async def test_create_plan_hashes_owner_and_projects_without_plaintext_content() -> None:
     directus = SimpleNamespace()
@@ -203,7 +218,7 @@ async def test_replace_plan_key_wrappers_creates_new_set_then_deletes_old_wrappe
 async def test_update_rejects_stale_plan_version() -> None:
     directus = SimpleNamespace()
     directus.get_items = AsyncMock(return_value=[{"id": "row-1", "version": 3, "plan_id": "plan-1"}])
-    directus.update_item = AsyncMock()
+    directus.update_item = AsyncMock(return_value={"id": "row-1", "version": 4, "plan_id": "plan-1"})
 
     service = UserPlanService(UserPlanMethods(directus))
 
@@ -325,6 +340,9 @@ async def test_completion_blocks_missing_required_verification() -> None:
         [{"id": "row-1", "version": 1, **plan_payload(status="active")}],
         [criterion_payload(status="satisfied")],
         [verification_payload(status="pending")],
+        [],
+        [],
+        [learning_payload()],
     ])
     directus.update_item = AsyncMock()
 
@@ -343,6 +361,9 @@ async def test_red_phase_passed_unexpectedly_does_not_block_completion() -> None
         [{"id": "row-1", "version": 1, **plan_payload(status="active")}],
         [criterion_payload(status="satisfied")],
         [verification_payload(phase="red", status="passed_unexpectedly", required_for_done=False)],
+        [],
+        [],
+        [learning_payload()],
         [{"id": "row-1", "version": 1, **plan_payload(status="active")}],
     ])
     directus.update_item = AsyncMock(return_value={"id": "row-1", "status": "completed"})
@@ -381,6 +402,7 @@ async def test_create_verification_can_create_linked_verification_task() -> None
     assert result["verification"]["linked_task_id"] == "task-1"
     task_service.create_task.assert_awaited_once()
     task_payload = task_service.create_task.await_args.args[1]
+    assert task_payload["version"] == 1
     assert task_payload["plan_id"] == "plan-1"
     assert task_payload["task_type"] == "verification"
     assert task_payload["verification_id"] == "V-1"

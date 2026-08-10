@@ -6,6 +6,8 @@ endpoint reads from the auth-session user cache. These tests keep the cached
 is_admin flag aligned so self-hosted users can be promoted without logging out.
 """
 
+# contract-test-file: infrastructure
+
 import asyncio
 import hashlib
 
@@ -95,6 +97,21 @@ def test_make_user_admin_updates_auth_session_cache_for_existing_admin():
     success = asyncio.run(AdminMethods(directus_service).make_user_admin("user-1"))
 
     assert success is True
+    assert directus_service.created_items == []
+    assert directus_service.user_updates == [("user-1", {"is_admin": True})]
+    assert directus_service.cache.updated_users == [("user-1", {"is_admin": True})]
+
+
+def test_repair_cached_admin_status_updates_stale_false_cache_for_existing_admin():
+    directus_service = DummyDirectusService(existing_admin=True)
+    cached_user = {"user_id": "user-1", "is_admin": False}
+
+    is_admin = asyncio.run(
+        AdminMethods(directus_service).repair_cached_admin_status("user-1", cached_user)
+    )
+
+    assert is_admin is True
+    assert cached_user["is_admin"] is True
     assert directus_service.created_items == []
     assert directus_service.user_updates == [("user-1", {"is_admin": True})]
     assert directus_service.cache.updated_users == [("user-1", {"is_admin": True})]

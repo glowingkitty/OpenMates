@@ -1,0 +1,1489 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-30'
+generated_at: '2026-07-09T15:50:57+00:00'
+range:
+  since: '2026-06-30T00:00:00+00:00'
+  until: '2026-06-30T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 28
+  section_counts:
+    features: 8
+    bug_fixes: 3
+    improvements: 0
+    docs: 5
+    tests: 12
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 2
+  user_facing_items: 9
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add Project mention access chips'
+    section: features
+    commits:
+    - 91e5c534e
+    authored_at: '2026-06-30T17:20:24+00:00'
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: persist Project write mode'
+    section: features
+    commits:
+    - d0e0cd626
+    authored_at: '2026-06-30T16:43:04+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/projects.py
+    - backend/tests/test_project_remote_sources.py
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsProjects.svelte
+    - frontend/packages/ui/src/services/projectService.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
+  - title: 'feat: add Project settings route'
+    section: features
+    commits:
+    - bee305ac4
+    authored_at: '2026-06-30T16:22:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/SettingsProjects.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
+  - title: 'feat: add Projects remote access bridge'
+    section: features
+    commits:
+    - 805ce5dd6
+    authored_at: '2026-06-30T15:45:26+00:00'
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    - docs/user-guide/cli/README.md
+    - docs/user-guide/cli/remote-access.md
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/projectFileRisk.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - scripts/audit_sdk_cli_parity.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
+  - title: 'feat: add Project remote source client contracts'
+    section: features
+    commits:
+    - 2affe8242
+    authored_at: '2026-06-30T12:53:34+00:00'
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/projectFileRisk.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/openmates-cli/tests/remoteSources.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-projects.test.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - packages/openmates-python/tests/test_projects.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
+  - title: 'feat: add encrypted user plans'
+    section: features
+    commits:
+    - e35498859
+    authored_at: '2026-06-30T12:31:42+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/plan_focus_routing.py
+    - backend/apps/openmates/app.yml
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/core/api/app/utils/override_parser.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/user_plans.yml
+    - backend/tests/test_plan_anti_drift.py
+    - backend/tests/test_plan_focus_routing.py
+    - backend/tests/test_user_plans_api.py
+    - docs/specs/plans-v1/spec.yml
+    - frontend/apps/web_app/tests/plans-flow.spec.ts
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/i18n/sources/focus_modes/openmates_plan.yml
+    - frontend/packages/ui/src/services/userPlanService.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:plans, platform:tasks'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:plans, platform:tasks'
+  - title: 'feat: add Project remote source backend contract'
+    section: features
+    commits:
+    - 0ffcafaa0
+    authored_at: '2026-06-30T12:09:05+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/directus/schemas/project_settings.yml
+    - backend/core/directus/schemas/project_sources.yml
+    - backend/shared/python_utils/project_file_risk.py
+    - backend/tests/test_project_remote_sources.py
+    - backend/tests/test_projects.py
+    - docs/specs/projects-remote-sources/spec.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
+  - title: 'feat: add encrypted user tasks'
+    section: features
+    commits:
+    - 94a793c79
+    authored_at: '2026-06-30T12:00:12+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/task_proposals.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/services/directus/__init__.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/feature_availability_guards.py
+    - backend/core/api/app/services/user_task_scheduler_service.py
+    - backend/core/api/app/services/user_task_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/user_task_scheduler.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_task_proposals.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_tasks_scheduler.py
+    - docs/specs/tasks-v1/spec.yml
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/tests/tasks-flow.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/ChatDetailsSettingsPage.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+    - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskProposalReview.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_tasks.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects, platform:tasks'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects, platform:tasks'
+  bug_fixes:
+  - title: 'fix: deploy Project mention chip implementation'
+    section: bug_fixes
+    commits:
+    - d789325c6
+    authored_at: '2026-06-30T17:23:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/GenericMentionNode.ts
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow task routes through caddy'
+    section: bug_fixes
+    commits:
+    - 7392f6b47
+    authored_at: '2026-06-30T12:56:52+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: route user plans web API'
+    section: bug_fixes
+    commits:
+    - 0e5a5ad6a
+    authored_at: '2026-06-30T12:53:12+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:plans'
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: record Project write mode evidence'
+    section: docs
+    commits:
+    - d06d68bbc
+    authored_at: '2026-06-30T17:04:14+00:00'
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Project settings route evidence'
+    section: docs
+    commits:
+    - f74eeb83f
+    authored_at: '2026-06-30T16:32:06+00:00'
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record tasks v1 verification evidence'
+    section: docs
+    commits:
+    - ed2fe0751
+    authored_at: '2026-06-30T13:32:15+00:00'
+    changed_paths:
+    - docs/specs/tasks-v1/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Plans V1 verification'
+    section: docs
+    commits:
+    - 9c6844bdb
+    authored_at: '2026-06-30T13:27:07+00:00'
+    changed_paths:
+    - docs/specs/plans-v1/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Projects remote source web evidence'
+    section: docs
+    commits:
+    - d44a931bc
+    authored_at: '2026-06-30T13:25:02+00:00'
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+  tests:
+  - title: 'test: use stable Project mention prefix'
+    section: tests
+    commits:
+    - cc9c491bc
+    authored_at: '2026-06-30T19:03:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: select Project context mention result'
+    section: tests
+    commits:
+    - 551bbfdec
+    authored_at: '2026-06-30T18:57:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use shorter Project mention query'
+    section: tests
+    commits:
+    - d68d43dfe
+    authored_at: '2026-06-30T18:50:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: open new chat before Project mention'
+    section: tests
+    commits:
+    - 56b63a94f
+    authored_at: '2026-06-30T18:44:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: refocus after Project mention trigger'
+    section: tests
+    commits:
+    - 351475a82
+    authored_at: '2026-06-30T18:37:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fill Project mention query'
+    section: tests
+    commits:
+    - dd6349ac4
+    authored_at: '2026-06-30T18:31:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: target TipTap editable for Project mention typing'
+    section: tests
+    commits:
+    - 45978b131
+    authored_at: '2026-06-30T18:22:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: type Project mention query reliably'
+    section: tests
+    commits:
+    - 171f5c784
+    authored_at: '2026-06-30T18:11:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: extend Projects remote sources timeout'
+    section: tests
+    commits:
+    - da41e7bff
+    authored_at: '2026-06-30T17:54:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+  - title: 'test: navigate to chat before Project mention assertion'
+    section: tests
+    commits:
+    - 11d9859f0
+    authored_at: '2026-06-30T17:39:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for task persistence before reload'
+    section: tests
+    commits:
+    - 32da6bdc0
+    authored_at: '2026-06-30T13:21:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/tasks-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: route Projects remote source setup through API origin'
+    section: tests
+    commits:
+    - d8f43c38d
+    authored_at: '2026-06-30T13:16:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add encrypted user plans'
+    commits:
+    - e35498859
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: add encrypted user tasks'
+    commits:
+    - 94a793c79
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+marketing_candidates:
+  newsletter:
+  - title: 'fix: deploy Project mention chip implementation'
+    commits:
+    - d789325c6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Project mention access chips'
+    commits:
+    - 91e5c534e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: deploy Project mention chip implementation'
+    commits:
+    - d789325c6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Project mention access chips'
+    commits:
+    - 91e5c534e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: persist Project write mode'
+    commits:
+    - d0e0cd626
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add Project settings route'
+    commits:
+    - bee305ac4
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add Projects remote access bridge'
+    commits:
+    - 805ce5dd6
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add Project remote source client contracts'
+    commits:
+    - 2affe8242
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add encrypted user plans'
+    commits:
+    - e35498859
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add Project remote source backend contract'
+    commits:
+    - 0ffcafaa0
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add encrypted user tasks'
+    commits:
+    - 94a793c79
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: cc9c491bcb4211db055e44a2bddf72158b7d3e7c
+    short_sha: cc9c491bc
+    authored_at: '2026-06-30T19:03:57+00:00'
+    subject: 'test: use stable Project mention prefix'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: 551bbfdec2eb8b555f742023a815723f0ae5374a
+    short_sha: 551bbfdec
+    authored_at: '2026-06-30T18:57:05+00:00'
+    subject: 'test: select Project context mention result'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: d68d43dfe79a007f31b7465131987198d487eeb5
+    short_sha: d68d43dfe
+    authored_at: '2026-06-30T18:50:16+00:00'
+    subject: 'test: use shorter Project mention query'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: 56b63a94fe9780703683f56a4c8f35a11e6efddc
+    short_sha: 56b63a94f
+    authored_at: '2026-06-30T18:44:25+00:00'
+    subject: 'test: open new chat before Project mention'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: 351475a822afb46fb233f4bc15fc6cd4ce865b1c
+    short_sha: 351475a82
+    authored_at: '2026-06-30T18:37:52+00:00'
+    subject: 'test: refocus after Project mention trigger'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: dd6349ac45e45c39596b84c1703f4104649b9cdc
+    short_sha: dd6349ac4
+    authored_at: '2026-06-30T18:31:14+00:00'
+    subject: 'test: fill Project mention query'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: 45978b1312734d62e999bbf75c1534d38c1cdda8
+    short_sha: 45978b131
+    authored_at: '2026-06-30T18:22:42+00:00'
+    subject: 'test: target TipTap editable for Project mention typing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: 171f5c784b4eb7823107605afef4d0db96ac8706
+    short_sha: 171f5c784
+    authored_at: '2026-06-30T18:11:32+00:00'
+    subject: 'test: type Project mention query reliably'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: da41e7bff95fa2cb3a8bcff9303fd0b79327d46b
+    short_sha: da41e7bff
+    authored_at: '2026-06-30T17:54:23+00:00'
+    subject: 'test: extend Projects remote sources timeout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids:
+    - platform:projects
+  - sha: 11d9859f0938492745b7eb9e28bd3bba4c0bcd00
+    short_sha: 11d9859f0
+    authored_at: '2026-06-30T17:39:27+00:00'
+    subject: 'test: navigate to chat before Project mention assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: d789325c6b7e646e0ed3619c5b6b7e053afb4d4b
+    short_sha: d789325c6
+    authored_at: '2026-06-30T17:23:18+00:00'
+    subject: 'fix: deploy Project mention chip implementation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/GenericMentionNode.ts
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    related_feature_ids: []
+  - sha: 91e5c534e8dd81e6ec94c88ed77c1622e0fc073f
+    short_sha: 91e5c534e
+    authored_at: '2026-06-30T17:20:24+00:00'
+    subject: 'feat: add Project mention access chips'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids: []
+  - sha: d06d68bbc8254f35970222f45eceb94c28ae4f0d
+    short_sha: d06d68bbc
+    authored_at: '2026-06-30T17:04:14+00:00'
+    subject: 'docs: record Project write mode evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    related_feature_ids: []
+  - sha: d0e0cd626e3a6dcc65bb0e0265250359a424df35
+    short_sha: d0e0cd626
+    authored_at: '2026-06-30T16:43:04+00:00'
+    subject: 'feat: persist Project write mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/projects.py
+    - backend/tests/test_project_remote_sources.py
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsProjects.svelte
+    - frontend/packages/ui/src/services/projectService.ts
+    related_feature_ids:
+    - platform:projects
+  - sha: f74eeb83f2063fd3012db2b8bf3b49c2505a4c9d
+    short_sha: f74eeb83f
+    authored_at: '2026-06-30T16:32:06+00:00'
+    subject: 'docs: record Project settings route evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    related_feature_ids: []
+  - sha: bee305ac4c9aa55a1f1f4168ba4e2cb48a43ad92
+    short_sha: bee305ac4
+    authored_at: '2026-06-30T16:22:24+00:00'
+    subject: 'feat: add Project settings route'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/SettingsProjects.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    related_feature_ids:
+    - platform:projects
+  - sha: 805ce5dd60f467610d5fb354d6e52d997874a669
+    short_sha: 805ce5dd6
+    authored_at: '2026-06-30T15:45:26+00:00'
+    subject: 'feat: add Projects remote access bridge'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    - docs/user-guide/cli/README.md
+    - docs/user-guide/cli/remote-access.md
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/projectFileRisk.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - scripts/audit_sdk_cli_parity.py
+    related_feature_ids:
+    - platform:projects
+  - sha: ed2fe075153052ea16d11f5db5792bb76e3faa83
+    short_sha: ed2fe0751
+    authored_at: '2026-06-30T13:32:15+00:00'
+    subject: 'docs: record tasks v1 verification evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/tasks-v1/spec.yml
+    related_feature_ids: []
+  - sha: 9c6844bdbaf05c0f26fc33df3a2cfb8d059c6560
+    short_sha: 9c6844bdb
+    authored_at: '2026-06-30T13:27:07+00:00'
+    subject: 'docs: record Plans V1 verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/plans-v1/spec.yml
+    related_feature_ids: []
+  - sha: d44a931bc27dc8b1246e0a5d36dcfa891ac98549
+    short_sha: d44a931bc
+    authored_at: '2026-06-30T13:25:02+00:00'
+    subject: 'docs: record Projects remote source web evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    related_feature_ids:
+    - platform:projects
+  - sha: 32da6bdc0d2f3060caef07d7af150c03de731c79
+    short_sha: 32da6bdc0
+    authored_at: '2026-06-30T13:21:19+00:00'
+    subject: 'test: wait for task persistence before reload'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/tasks-flow.spec.ts
+    related_feature_ids: []
+  - sha: d8f43c38d1a3a468011fb39ae201133f77fa4d86
+    short_sha: d8f43c38d
+    authored_at: '2026-06-30T13:16:41+00:00'
+    subject: 'test: route Projects remote source setup through API origin'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    related_feature_ids:
+    - platform:projects
+  - sha: 7392f6b47696cf298882d4f4f6f504c9e2e9701b
+    short_sha: 7392f6b47
+    authored_at: '2026-06-30T12:56:52+00:00'
+    subject: 'fix: allow task routes through caddy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    related_feature_ids: []
+  - sha: 2affe82427255270855df0d38373cc71c8b018c0
+    short_sha: 2affe8242
+    authored_at: '2026-06-30T12:53:34+00:00'
+    subject: 'feat: add Project remote source client contracts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/projectFileRisk.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/openmates-cli/tests/remoteSources.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-projects.test.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - packages/openmates-python/tests/test_projects.py
+    related_feature_ids:
+    - platform:projects
+  - sha: 0e5a5ad6a72680930a2c95da062562f560109702
+    short_sha: 0e5a5ad6a
+    authored_at: '2026-06-30T12:53:12+00:00'
+    subject: 'fix: route user plans web API'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    related_feature_ids:
+    - platform:plans
+  - sha: e3549885937c140f5ac366df69f081e0dcb16d9c
+    short_sha: e35498859
+    authored_at: '2026-06-30T12:31:42+00:00'
+    subject: 'feat: add encrypted user plans'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/plan_focus_routing.py
+    - backend/apps/openmates/app.yml
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/core/api/app/utils/override_parser.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/user_plans.yml
+    - backend/tests/test_plan_anti_drift.py
+    - backend/tests/test_plan_focus_routing.py
+    - backend/tests/test_user_plans_api.py
+    - docs/specs/plans-v1/spec.yml
+    - frontend/apps/web_app/tests/plans-flow.spec.ts
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/i18n/sources/focus_modes/openmates_plan.yml
+    - frontend/packages/ui/src/services/userPlanService.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    related_feature_ids:
+    - platform:plans
+    - platform:tasks
+  - sha: 0ffcafaa09d09151fa86b733d8aef478f9f20aa0
+    short_sha: 0ffcafaa0
+    authored_at: '2026-06-30T12:09:05+00:00'
+    subject: 'feat: add Project remote source backend contract'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/directus/schemas/project_settings.yml
+    - backend/core/directus/schemas/project_sources.yml
+    - backend/shared/python_utils/project_file_risk.py
+    - backend/tests/test_project_remote_sources.py
+    - backend/tests/test_projects.py
+    - docs/specs/projects-remote-sources/spec.yml
+    related_feature_ids:
+    - platform:projects
+  - sha: 94a793c79e6b9232eba7c9f450612fcd71741a41
+    short_sha: 94a793c79
+    authored_at: '2026-06-30T12:00:12+00:00'
+    subject: 'feat: add encrypted user tasks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/task_proposals.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/services/directus/__init__.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/feature_availability_guards.py
+    - backend/core/api/app/services/user_task_scheduler_service.py
+    - backend/core/api/app/services/user_task_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/user_task_scheduler.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_task_proposals.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_tasks_scheduler.py
+    - docs/specs/tasks-v1/spec.yml
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/tests/tasks-flow.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/ChatDetailsSettingsPage.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+    - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskProposalReview.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_tasks.py
+    related_feature_ids:
+    - platform:projects
+    - platform:tasks
+llm_summary:
+  overview: OpenMates introduced Project mention chips to the chat interface, allowing for better context integration within
+    messages. Significant architectural progress was also made on encrypted Tasks and Plans, alongside expanded backend support
+    for Project remote sources, though these features remain disabled for the general public.
+  released_changes:
+  - text: Added Project mention access chips to the chat interface to facilitate linking project context in conversations.
+    evidence:
+      commits:
+      - 91e5c534e
+    release_status: released_main
+  bug_fixes:
+  - text: Deployed the implementation for Project mention chips, including UI components, styling, and search services.
+    evidence:
+      commits:
+      - d789325c6
+    release_status: released_main
+  unreleased_progress:
+  - text: Implemented encrypted user tasks and plans, including backend routes, AI processing logic, and SDK support.
+    evidence:
+      commits:
+      - 94a793c79
+      - e35498859
+    release_status: released_main
+  - text: Developed backend and client contracts for Project remote sources, including a new remote access bridge in the CLI.
+    evidence:
+      commits:
+      - 0ffcafaa0
+      - 2affe8242
+      - 805ce5dd6
+    release_status: released_main
+  - text: Added a Project settings route and persistence for Project write modes.
+    evidence:
+      commits:
+      - bee305ac4
+      - d0e0cd626
+    release_status: released_main
+  - text: Configured Caddy routing to support upcoming task and plan web APIs.
+    evidence:
+      commits:
+      - 7392f6b47
+      - 0e5a5ad6a
+    release_status: released_main
+  internal_progress:
+  - text: Established a comprehensive test suite for Project mentions, focusing on query reliability, focus management, and
+      UI interaction stability.
+    evidence:
+      commits:
+      - cc9c491bc
+      - 551bbfdec
+      - d68d43dfe
+      - 56b63a94f
+      - 351475a82
+      - dd6349ac4
+      - 45978b131
+      - 171f5c784
+      - 11d9859f0
+      - da41e7bff
+    release_status: released_main
+  - text: Updated technical specifications and verification records for Projects, Tasks, and Plans.
+    evidence:
+      commits:
+      - d06d68bbc
+      - f74eeb83f
+      - ed2fe0751
+      - 9c6844bdb
+      - d44a931bc
+    release_status: released_main
+  - text: Refined test procedures for task persistence and remote source API routing.
+    evidence:
+      commits:
+      - 32da6bdc0
+      - d8f43c38d
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Project mention chips in the chat interface.
+      evidence:
+        commits:
+        - 91e5c534e
+        - d789325c6
+      reason: The Project mention system is fully implemented and marked ready for public communication.
+    exclude:
+    - text: Core Projects, Tasks, and Plans infrastructure work.
+      evidence:
+        commits:
+        - 94a793c79
+        - e35498859
+        - 0ffcafaa0
+        - 2affe8242
+        - 805ce5dd6
+        - bee305ac4
+        - d0e0cd626
+        - 7392f6b47
+        - 0e5a5ad6a
+      reason: These items relate to Projects, Tasks, and Plans features which are currently listed as disabled in the platform
+        configuration.
+    rationale: The primary user-facing update ready for promotion is the new Project mention system. Other significant work
+      on Tasks and Plans remains behind feature flags and is not yet ready for public announcement.
+  social_video_recommendations:
+  - idea: A short demonstration of the new '@' mention workflow, showing how Project chips appear and behave within the message
+      input.
+    priority: medium
+    reason: This is a concrete UI improvement that enhances the chat experience and is ready for public view.
+    evidence:
+      commits:
+      - 91e5c534e
+      - d789325c6
+  quality_notes:
+  - The Project mention feature was released with over 10 dedicated integration tests to ensure reliable UI behavior across
+    different typing scenarios.
+  validation_warnings: []

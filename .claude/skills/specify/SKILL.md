@@ -19,16 +19,20 @@ updating a spec.
 
 Classify the task before creating files:
 
-| Level | Use when | Artifact |
+| Risk tier | Use when | Artifact |
 | --- | --- | --- |
-| No spec | Trivial/mechanical work | Session notes only |
-| Inline spec | Small behavior change | Issue or session brief |
-| Full spec | Complex, risky, multi-session work | `docs/specs/<slug>/spec.yml` |
+| Tier 0 | Trivial/mechanical work | No spec |
+| Tier 1 | Ordinary non-trivial work with clear behavior | Issue or session contract |
+| Tier 2 | High-risk or durable multi-session work | `docs/specs/<slug>/spec.yml` |
 
-Full specs are required for auth, encryption, billing, privacy, teams, sharing,
+Tier 2 full specs are required for auth, encryption, billing, privacy, teams, sharing,
 permissions, sync, AI pipeline, provider integrations, migrations, new API
 routes, app skills, embed types, background jobs, cron jobs, and Directus schema
 changes.
+
+Use Tier 1 for most multi-file and user-facing work when goal, acceptance
+criteria, test path, and implementation order are already clear. Multi-file
+scope alone is not a reason to create a full YAML ledger.
 
 If a full spec is unnecessary, explain why and produce the inline spec in the
 current response or session task instead of creating files.
@@ -36,6 +40,12 @@ current response or session task instead of creating files.
 ### Step 2: Gather Existing Context
 
 Before asking questions or drafting:
+
+0. Discover the governing approved contract bundle. For a new feature or
+   semantic behavior change, run `define-contract`, show the required full
+   contract/diff in chat, wait for approval, and record the exact bundle hash
+   before creating the full spec. Implementation-only work references the
+   current approved contract without changing it.
 
 1. Search existing GitHub Issues by default if this is tracker work.
 2. Search relevant Linear tasks only when the work is Linear-only or a Linear ID
@@ -52,16 +62,21 @@ write only sanitized product behavior.
 Ask up to five clarifying questions before writing a full spec. Ask exactly one
 question per message, then wait for the user's response before deciding whether
 another question is needed. Questions must be based on discovered context and
-focus on decisions that block a useful product contract. Prefer concrete example
-questions:
+focus on decisions that block a useful product contract. Every question must
+include `Recommendation:` with the evidence-based preferred answer and brief
+rationale, plus `Examples:` with 1-3 concrete, task-specific options, flows, or
+outcomes. These are supporting context, not extra questions. If evidence is
+incomplete, recommend the safest reversible default and state the uncertainty.
+Prefer concrete example questions:
 
 - "Can you give one example of the user flow that must work?"
 - "What should happen in the failure or unauthorized case?"
 - "What is explicitly out of scope for this first slice?"
 
-After the questions, summarize your understanding of the user's vision, scope,
-non-goals, and unresolved decisions in 2-3 sentences. Wait for user confirmation
-before writing a full `spec.yml`.
+After the questions, summarize verified facts, uncertainties, the user's vision,
+scope, non-goals, and unresolved decisions in 2-3 sentences. Wait for user
+confirmation before writing a full `spec.yml`. Do not present unverified
+inferences as repository facts.
 
 If enough context exists for a small inline spec, do not force the full five
 questions.
@@ -77,6 +92,8 @@ docs/specs/<slug>/spec.yml
 Use the template from `docs/contributing/guides/spec-driven-development.md`.
 Every full spec must include:
 
+- `schema_version: 3` for new contract-aware specs, preserving every Schema V2 ledger field
+- `contract_refs`, `contract_impact`, affected stable assertion IDs, per-criterion assertion links, and `documentation_impact`
 - Goal
 - Scope and non-goals
 - Context discovery and clarification summary
@@ -93,8 +110,39 @@ Every full spec must include:
 - Optional top-level `verifications` records for checks that need Plan-like
   status, evidence, blockers, waivers, or user-confirmation tracking beyond a
   simple test entry
+- For shared product surfaces, explicit phase gates in this order: REST
+  API/WebSocket contract and dev-server proof first, CLI implementation/testing
+  against the dev server second, npm SDK and pip SDK parity/testing locally
+  against the dev server third, GitHub Actions CI/daily-test reproduction only
+  after local REST/API, CLI, and SDK success, web implementation/testing fourth,
+  deployed Playwright visual smoke fifth for larger web UI in both laptop and
+  mobile viewports, user confirmation of deployed dev web behavior and visual
+  quality sixth, then Apple parity/testing last.
+- For larger user-visible web/UI work, include a required final
+  `V-UI-VISUAL-SMOKE` artifact-review verification that records the
+  deployed `app.dev.openmates.org` route(s), `viewports: [laptop, mobile]`,
+  Playwright run/screenshot paths, obvious rendering defects, implementation-related
+  error text, long loading/spinner states, and basic responsiveness/unresponsiveness
+  of primary controls where practical. The implementation task is not complete
+  until objective issues are fixed, redeployed, and the smoke is rerun or
+  explicitly skipped for Tier 0/non-visual scope with a reason. Use Firecrawl
+  only as a recorded fallback when Playwright is impractical or blocked.
+- The REST/API gate must classify every changed endpoint as unauthenticated
+  public REST API, developer API-key REST API, first-party client surface only,
+  or internal-only, and must state auth, rate limits, credit/budget limits, and
+  whether client-side encrypted data or decrypted plaintext is handled.
+- The CLI and SDK gates must use real commands/SDK calls against the real dev
+  API/WebSocket path with real auth/test-account state. Mocked OpenMates API
+  calls, mocked SDK clients, stubbed servers, direct function calls, and fixture
+  replay are supplemental only and do not satisfy the phase gate.
 - Implementation plan and tasks placeholders or initial entries
+- `implementation_state`, `approvals`, `decisions`, `attempts`, and `handoff`
 - Risks, open questions, and privacy/security requirements
+- A demonstration eligibility record for every new or materially resumed Tier 2
+  spec. Required demonstrations define a narration outline with purpose, expected
+  proof, scenario IDs, and acceptance criteria before implementation. Only
+  concretely non-visual work may use `not_applicable`; browser, CLI, and native
+  behavior cannot.
 
 Scenarios must use concrete examples. Avoid abstract placeholders except for
 private values such as `<USER_EMAIL>` or `<CHAT_ID>`.
@@ -105,6 +153,17 @@ set `coverage_status: ambiguous` and ask the user or infer concrete scoped
 checks before implementation. Do not mark required criteria satisfied until they
 are covered by verification_ids, user confirmation, a waiver, or an accepted
 blocker.
+
+For app skills, focus modes, embeds, memory types, provider-backed behavior, or
+other cross-client features, do not write a spec that starts with web or Apple
+implementation unless the earlier CLI/SDK phases are explicitly waived or
+externally blocked. `*.spec.ts` evidence is not a substitute for user
+confirmation before Apple parity.
+
+Schema V2 is the full durable work ledger. Automated evidence records command,
+run ID, timestamp, and subject commit. A manual check, skip, waiver, or blocker
+records its reason, actor when known, and next action. Do not create a separate
+task file that duplicates a full spec.
 
 Run validation before presenting the spec:
 
@@ -123,7 +182,7 @@ Why this size: <one sentence>
 Key scenarios: S-1, S-2, ...
 Open questions: <none or list>
 Validation: <spec_validate result>
-Next: approve the spec, then run `plan-from-spec docs/specs/<slug>/spec.yml`
+Next: approve the product contract, then run `plan-from-spec docs/specs/<slug>/spec.yml`
 ```
 
 Do not implement code during this skill.

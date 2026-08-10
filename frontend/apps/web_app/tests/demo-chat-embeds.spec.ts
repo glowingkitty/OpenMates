@@ -19,6 +19,7 @@
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const { closeFullscreen, openFullscreen } = require('./helpers/embed-test-helpers');
 
 test.describe('Demo chat embed rendering', () => {
 	test('embeds inside demo chats render for unauthenticated users', async ({ page }) => {
@@ -137,7 +138,7 @@ test.describe('Demo chat embed rendering', () => {
 		await expect(authenticityBadge).toContainText('human judgment');
 	});
 
-	test('Urban Sports inline location link opens Fitness result fullscreen', async ({ page }) => {
+	test('Urban Sports inline location link opens fitness result fullscreen', async ({ page }) => {
 		test.setTimeout(90000);
 
 		await page.goto(getE2EDebugUrl('/#chat-id=example-urban-sports-fitness-studios'), { waitUntil: 'domcontentloaded' });
@@ -150,8 +151,164 @@ test.describe('Demo chat embed rendering', () => {
 		await expect(fenrizInlineLink).toBeVisible({ timeout: 30000 });
 		await fenrizInlineLink.click();
 
-		const fitnessFullscreen = page.getByTestId('fitness-result-fullscreen');
-		await expect(fitnessFullscreen).toBeVisible({ timeout: 10000 });
-		await expect(fitnessFullscreen.getByText('Fenriz Gym', { exact: true })).toBeVisible({ timeout: 10000 });
+		const fitnessResultFullscreen = page.getByTestId('fitness-result-fullscreen');
+		await expect(fitnessResultFullscreen).toBeVisible({ timeout: 10000 });
+		await expect(fitnessResultFullscreen.getByText('Fenriz Gym', { exact: true })).toBeVisible({ timeout: 10000 });
+	});
+
+	test('flight inline links render with spaced large previews', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-flights-berlin-bangkok'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		const assistantMessage = page.getByTestId('message-assistant').first();
+		await expect(assistantMessage).toBeVisible({ timeout: 30000 });
+		await expect(assistantMessage.getByRole('link', { name: /morning departure at 10:00/i })).toBeVisible({ timeout: 30000 });
+
+		const largePreview = assistantMessage.getByTestId('embed-preview-large').first();
+		await expect(largePreview).toBeVisible({ timeout: 30000 });
+		await expect(largePreview).toHaveCSS('margin-top', '8px');
+	});
+
+	test('Deutschlandticket app skill preview stays compact in the public example chat', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-deutschlandticket-train-fare-breakdown'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		const assistantMessage = page.getByTestId('message-assistant').first();
+		await expect(assistantMessage).toBeVisible({ timeout: 30000 });
+
+		const travelSearchPreview = page.locator(
+			'[data-testid="embed-preview"][data-app-id="travel"][data-skill-id="search_connections"][data-status="finished"]'
+		).first();
+		await expect(travelSearchPreview).toBeVisible({ timeout: 30000 });
+
+		const largeAppSkillNodes = page
+			.locator('[data-type="embed-preview-large"]')
+			.filter({
+				has: page.locator('[data-testid="embed-preview"][data-app-id="travel"][data-skill-id="search_connections"]'),
+			});
+		expect(await largeAppSkillNodes.count()).toBe(0);
+	});
+
+	test('Berlin Mitte app skill previews stay compact in one horizontal group', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-berlin-mitte-work-friendly'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		const assistantMessage = page.getByTestId('message-assistant').first();
+		await expect(assistantMessage).toBeVisible({ timeout: 30000 });
+
+		const mapsSearchPreviews = assistantMessage.locator(
+			'[data-testid="embed-preview"][data-app-id="maps"][data-skill-id="search"][data-status="finished"]'
+		);
+		await expect(mapsSearchPreviews.first()).toBeVisible({ timeout: 30000 });
+		expect(await mapsSearchPreviews.count()).toBe(2);
+
+		await expect(assistantMessage.getByText('2 app skills used:')).toBeVisible();
+		const appSkillGroup = assistantMessage.getByTestId('app-skill-embed-group');
+		await expect(appSkillGroup).toHaveCount(1);
+		expect(await appSkillGroup.locator('[data-testid="embed-preview"][data-app-id="maps"][data-skill-id="search"]').count()).toBe(2);
+		await expect(appSkillGroup.getByTestId('app-skill-embed-group-scroll')).toHaveCSS('overflow-x', /auto|scroll/);
+	});
+
+	test('public Habit Garden application example renders without starting a live preview', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-habit-garden-web-application'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		const applicationEmbed = page.locator(
+			'[data-testid="embed-preview"][data-app-id="code"][data-skill-id="application"][data-status="finished"]'
+		).first();
+		await expect(applicationEmbed).toBeVisible({ timeout: 30000 });
+		await expect(applicationEmbed).toContainText('Habit Garden');
+		await expect(applicationEmbed.getByTestId('application-preview-screenshot')).toBeVisible({ timeout: 10000 });
+		await expect(applicationEmbed.getByTestId('application-preview-play-overlay')).toBeVisible({ timeout: 10000 });
+
+		const fullscreenOverlay = await openFullscreen(page, applicationEmbed);
+		await expect(fullscreenOverlay.getByTestId('application-preview-panel')).toBeVisible({ timeout: 10000 });
+		await expect(fullscreenOverlay.getByTestId('application-preview-files')).toBeVisible({ timeout: 10000 });
+		await expect(fullscreenOverlay.getByText('src/App.svelte')).toBeVisible({ timeout: 10000 });
+		await expect(fullscreenOverlay.getByTestId('application-preview-status')).toContainText(/not started|idle/i);
+		await expect(fullscreenOverlay.getByTestId('application-preview-iframe')).toHaveCount(0);
+
+		const previewStartAttempt = page.waitForResponse(
+			(response) => response.url().includes('/v1/applications/') && response.url().includes('/preview/start'),
+			{ timeout: 3000 }
+		).then(() => 'started').catch(() => 'not-started');
+		await fullscreenOverlay.getByTestId('application-start-preview').click();
+		await expect(page.getByTestId('tab-login')).toBeVisible({ timeout: 10000 });
+		expect(await previewStartAttempt).toBe('not-started');
+	});
+
+	test('generated video example opens generated-video fullscreen instead of YouTube fullscreen', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(
+			getE2EDebugUrl(
+				'/#chat-id=example-private-workspace-demo-video&embed-id=57274061-04d4-43a4-958f-fd56bc22f20a'
+			),
+			{ waitUntil: 'domcontentloaded' }
+		);
+		await page.waitForLoadState('networkidle');
+
+		const generatedPreview = page.locator(
+			'[data-testid="embed-preview"][data-app-id="videos"][data-skill-id="generate"][data-status="finished"]'
+		).first();
+		await expect(generatedPreview).toBeVisible({ timeout: 30000 });
+		await expect(generatedPreview.getByTestId('video-generate-video')).toHaveAttribute(
+			'src',
+			/\/store-examples\/video-generate-1\.mp4$/,
+			{ timeout: 10000 }
+		);
+		await expect(generatedPreview.getByTestId('video-generate-video')).toHaveAttribute(
+			'poster',
+			/\/store-examples\/video-generate-1-poster\.webp$/,
+			{ timeout: 10000 }
+		);
+
+		const fullscreenOverlay = page.getByTestId('embed-fullscreen-container');
+		await expect(fullscreenOverlay.getByTestId('video-generate-fullscreen')).toBeVisible({ timeout: 30000 });
+		await expect(fullscreenOverlay.getByTestId('video-generate-fullscreen-video')).toHaveAttribute(
+			'src',
+			/\/store-examples\/video-generate-1\.mp4$/,
+			{ timeout: 10000 }
+		);
+		await expect(fullscreenOverlay.getByTestId('video-generate-fullscreen-video')).toHaveAttribute(
+			'poster',
+			/\/store-examples\/video-generate-1-poster\.webp$/,
+			{ timeout: 10000 }
+		);
+		await expect(fullscreenOverlay.getByRole('link', { name: /open on youtube/i })).toHaveCount(0);
+	});
+
+	test('public screenshot-to-html example opens generated code fullscreen from app skill card', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/example/screenshot-to-html-pricing-card'), { waitUntil: 'domcontentloaded' });
+		await expect(page).toHaveURL(/#chat-id=example-screenshot-to-html-pricing$/, { timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').first()).toBeVisible({ timeout: 30000 });
+
+		const appSkillEmbed = page.locator(
+			'[data-testid="embed-preview"][data-app-id="code"][data-skill-id="image_to_html"][data-status="finished"]'
+		).first();
+		await expect(appSkillEmbed).toBeVisible({ timeout: 30000 });
+		await expect(appSkillEmbed.getByTestId('generic-app-skill-thumbnail')).toBeVisible({ timeout: 10000 });
+		await expect(appSkillEmbed).toContainText('Screenshot to HTML');
+
+		const fullscreenOverlay = await openFullscreen(page, appSkillEmbed);
+		const appSkillFallback = page.locator('.embed-fullscreen-fallback').filter({ hasText: 'Fullscreen view not available for embed type: app-skill-use' }).first();
+		if (await appSkillFallback.isVisible({ timeout: 5000 }).catch(() => false)) {
+			const debug = await page.getByTestId('embed-fullscreen-debug').first().textContent().catch(() => null);
+			throw new Error(`Screenshot-to-HTML fullscreen used app-skill fallback. Debug: ${debug ?? 'missing'}`);
+		}
+
+		await expect(fullscreenOverlay.getByTestId('code-fullscreen-code')).toBeVisible({ timeout: 15000 });
+		await expect(fullscreenOverlay).toContainText(/Pricing|Starter|Professional|Enterprise|HTML/i, { timeout: 15000 });
+		await closeFullscreen(page, fullscreenOverlay);
 	});
 });

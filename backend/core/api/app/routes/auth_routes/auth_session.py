@@ -186,6 +186,7 @@ async def get_session(
                 # Return minimal user info needed for the re-auth screen
                 minimal_user_info = UserResponse(
                     id=user_id,
+                    account_id=user_data.get("account_id"),
                     username=user_data.get("username"), # Send username if available
                     is_admin=user_data.get("is_admin", False),
                     credits=user_data.get("credits", 0),
@@ -231,6 +232,7 @@ async def get_session(
                 logger.warning(f"Re-auth triggered for user {user_id[:6]} (reason: {re_auth_reason}, passkeys configured).")
                 minimal_user_info = UserResponse(
                     id=user_id,
+                    account_id=user_data.get("account_id"),
                     username=user_data.get("username"),
                     is_admin=user_data.get("is_admin", False),
                     credits=user_data.get("credits", 0),
@@ -432,6 +434,7 @@ async def get_session(
             message="Session valid",
             user=UserResponse( # Map from user_data dictionary
                 id=user_id,
+                account_id=user_data.get("account_id"),
                 username=user_data.get("username"),
                 is_admin=user_data.get("is_admin", False),
                 credits=user_data.get("credits", 0),

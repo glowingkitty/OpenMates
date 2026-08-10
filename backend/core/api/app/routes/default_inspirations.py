@@ -8,7 +8,7 @@
 # daily from the inspiration pool by the Celery task (see default_inspiration_tasks.py).
 #
 # Data source: daily_inspiration_defaults table (denormalized, pre-populated daily).
-# Results are cached in Redis for 1 hour (key: public:default_inspirations:v8:{lang}).
+# Results are cached in Redis for 1 hour (key: public:default_inspirations:v11:{lang}).
 # Cache is invalidated when the daily selection task runs.
 #
 # Authentication: NOT required — this endpoint is public so the banner works for
@@ -28,9 +28,11 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
 from backend.apps.ai.daily_inspiration.generator import AVAILABLE_CATEGORIES
 from backend.apps.ai.daily_inspiration.feature_suggestions import (
+    GUEST_ONBOARDING_FEATURE_IDS,
     build_feature_inspirations,
     feature_requires_authentication,
 )
+from backend.apps.ai.daily_inspiration.media_coherence import is_inspiration_media_coherent
 from backend.apps.ai.daily_inspiration.wiki_suggestions import build_wiki_inspirations
 
 logger = logging.getLogger(__name__)
@@ -41,7 +43,7 @@ router = APIRouter(
 )
 
 # Redis cache key prefix and TTL (must match default_inspiration_tasks.py)
-_CACHE_KEY_PREFIX = "public:default_inspirations:v8:"
+_CACHE_KEY_PREFIX = "public:default_inspirations:v11:"
 _CACHE_TTL = 3600  # 1 hour
 _DEFAULT_INSPIRATION_COUNT = 10
 _DEFAULT_WIKI_COUNT = 3
@@ -82,6 +84,9 @@ def _is_public_feature_item(item: Dict[str, Any]) -> bool:
 
     feature = item.get("feature")
     if not isinstance(feature, dict):
+        return False
+
+    if feature.get("feature_id") in GUEST_ONBOARDING_FEATURE_IDS:
         return False
 
     if "requires_authentication" in feature:
@@ -133,6 +138,24 @@ def _reserve_default_slots(
             return
         result.pop(removable_index)
         slots_to_remove -= 1
+
+
+def _limit_default_type(
+    result: List[Dict[str, Any]],
+    *,
+    content_type: str,
+    target_count: int,
+) -> None:
+    """Drop stale excess quota items while preserving their stored order."""
+    seen = 0
+    limited: List[Dict[str, Any]] = []
+    for item in result:
+        if item.get("content_type") == content_type:
+            seen += 1
+            if seen > target_count:
+                continue
+        limited.append(item)
+    result[:] = limited
 
 
 # ---- Endpoint ------------------------------------------------------------
@@ -257,19 +280,10 @@ async def get_default_inspirations(
         result.extend(
             insp.model_dump()
             for insp in build_feature_inspirations(
-                _DEFAULT_INSPIRATION_COUNT - len(result),
+                _DEFAULT_FEATURE_COUNT,
                 include_authenticated_only=False,
             )
         )
-        if len(result) < _DEFAULT_INSPIRATION_COUNT:
-            existing_wiki_titles = {_get_wiki_title(item) for item in result}
-            for wiki_inspiration in build_wiki_inspirations(_DEFAULT_INSPIRATION_COUNT):
-                wiki_title = wiki_inspiration.wiki.wiki_title if wiki_inspiration.wiki else None
-                if wiki_title in existing_wiki_titles:
-                    continue
-                result.append(wiki_inspiration.model_dump())
-                if len(result) >= _DEFAULT_INSPIRATION_COUNT:
-                    break
         result = result[:_DEFAULT_INSPIRATION_COUNT]
         _shuffle_daily_defaults(result, date_str=today_str, lang=lang)
         return {"inspirations": result}
@@ -278,6 +292,17 @@ async def get_default_inspirations(
     result: List[Dict[str, Any]] = []
 
     for record in defaults:
+        is_video_default = (record.get("content_type") or "video") == "video"
+        if is_video_default and not is_inspiration_media_coherent(record):
+            logger.warning(
+                "[DefaultInspirations] Skipping media-mismatched default %s "
+                "(title=%r, video=%r)",
+                record.get("id"),
+                record.get("title"),
+                record.get("video_title"),
+            )
+            continue
+
         youtube_id = record.get("youtube_id") or ""
         thumbnail_url = record.get("video_thumbnail_url") or (
             f"https://img.youtube.com/vi/{youtube_id}/hqdefault.jpg"
@@ -332,6 +357,12 @@ async def get_default_inspirations(
                 inspiration_obj[response_field] = raw_metadata
         if _is_public_feature_item(inspiration_obj):
             result.append(inspiration_obj)
+
+    _limit_default_type(
+        result,
+        content_type="feature",
+        target_count=_DEFAULT_FEATURE_COUNT,
+    )
 
     wiki_count = sum(1 for item in result if item.get("content_type") == "wiki")
     if wiki_count < _DEFAULT_WIKI_COUNT:

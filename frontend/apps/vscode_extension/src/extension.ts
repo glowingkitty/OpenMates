@@ -331,7 +331,7 @@ function isFileNotFound(error: unknown): boolean {
 
 function showRemoteAccessSetup(): void {
   vscode.window.showInformationMessage(
-    "Install and start the OpenMates CLI on the machine that has the project files: openmates login && openmates remote-access start --path ./my-project",
+    "Install and run the OpenMates CLI in the foreground on the machine that has the project files: openmates login && openmates remote-access --path ./my-project",
   );
 }
 

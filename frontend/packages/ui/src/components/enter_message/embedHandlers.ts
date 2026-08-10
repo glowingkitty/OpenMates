@@ -1,4 +1,5 @@
 import type { Editor } from "@tiptap/core";
+import type { AudioWaveformData } from "../../utils/audioWaveform";
 import { getLanguageFromFilename } from "./utils"; // Assuming utils are accessible
 import { extractEpubCover, getEpubMetadata } from "./utils";
 import { resizeImage, resizeForUpload } from "./utils";
@@ -62,6 +63,75 @@ function ensureLeadingParagraph(editor: Editor): void {
 // Entries are cleaned up automatically after upload completes or is cancelled.
 // ---------------------------------------------------------------------------
 const _uploadControllers = new Map<string, AbortController>();
+
+export type FileEmbedNodeContent = {
+  type: "embed";
+  attrs: Record<string, unknown>;
+};
+
+function getMarkdownTableDimensions(tableMarkdown: string): {
+  rowCount: number;
+  colCount: number;
+  cellCount: number;
+} {
+  const rows = tableMarkdown
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("|") && line.endsWith("|"));
+  const headerLine = rows[0] || "";
+  const colCount = Math.max(0, (headerLine.match(/\|/g) || []).length - 1);
+  const rowCount = Math.max(0, rows.length - 2);
+  return { rowCount, colCount, cellCount: rowCount * colCount };
+}
+
+export function createPdfFileEmbedNode(file: File): FileEmbedNodeContent {
+  const embedId = generateUUID();
+  return {
+    type: "embed",
+    attrs: {
+      id: embedId,
+      type: "pdf",
+      status: "finished",
+      contentRef: null,
+      filename: file.name,
+      uploadEmbedId: null,
+      pageCount: null,
+      needsSignup: true,
+    },
+  };
+}
+
+function dispatchEmbedFinished(embedId: string): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("embedUploadFinished", {
+      detail: { embedId, status: "finished" },
+    }),
+  );
+}
+
+export function insertFileEmbedNodes(
+  editor: Editor,
+  nodes: FileEmbedNodeContent[],
+): void {
+  if (!nodes.length) return;
+
+  ensureLeadingParagraph(editor);
+  let chain = editor.chain().focus();
+  for (const node of nodes) {
+    chain = chain.insertContent(node).insertContent(" ");
+  }
+  chain.run();
+
+  setTimeout(() => {
+    editor.commands.focus("end");
+  }, 50);
+
+  for (const node of nodes) {
+    const embedId = node.attrs.id;
+    if (typeof embedId === "string") dispatchEmbedFinished(embedId);
+  }
+}
 
 /**
  * Cancel an in-flight image upload by embed ID.
@@ -155,6 +225,7 @@ export async function insertVideo(
   setTimeout(() => {
     editor.commands.focus("end");
   }, 50);
+
 }
 
 /**
@@ -211,31 +282,6 @@ export async function insertImage(
   // Step 2: Generate a stable embed ID to reference the node after insertion
   const embedId = generateUUID();
 
-  // Step 2b: Resize the image to 2K max before uploading.
-  // This runs client-side to cap the upload file size regardless of camera resolution,
-  // improving upload speed and reducing server storage — without affecting the local
-  // preview (which uses the already-resized thumbnail from resizeImage() above).
-  // Only applies to authenticated uploads; demo mode skips the server entirely.
-  let uploadFile = file;
-  if (isAuthenticated) {
-    try {
-      const { resizedBlob } = await resizeForUpload(file, 1280);
-      // Preserve the original filename and MIME type so the server stores it correctly.
-      // Use the resized blob's type (may differ from file.type if HEIC was decoded).
-      const uploadMime = resizedBlob.type || file.type;
-      uploadFile = new File([resizedBlob], file.name, { type: uploadMime });
-      console.debug(
-        `[EmbedHandlers] Camera/image resized for upload: ${file.size} → ${uploadFile.size} bytes`,
-      );
-    } catch (resizeErr) {
-      // Non-fatal: log and fall back to the original file so the upload still works.
-      console.error(
-        "[EmbedHandlers] resizeForUpload failed — uploading original file:",
-        resizeErr,
-      );
-    }
-  }
-
   if (!isAuthenticated) {
     // Demo mode: insert with status 'finished' immediately — no server upload.
     // The image is local-only; it lets unauthenticated users draft a message
@@ -257,6 +303,7 @@ export async function insertImage(
           originalFile: file,
           filename: file.name,
           isRecording,
+          needsSignup: true,
           uploadEmbedId: null,
           s3Files: null,
           s3BaseUrl: null,
@@ -318,11 +365,30 @@ export async function insertImage(
   }, 50);
 
   // Step 4: Upload in the background — non-blocking.
-  // uploadFile is the 2K-capped version (or original if resize failed / unauthenticated).
+  // Resize after insertion so preview optimization can never block the editor embed.
   // Register an AbortController so the upload can be cancelled via cancelUpload().
   const controller = new AbortController();
   _uploadControllers.set(embedId, controller);
-  _performUpload(editor, embedId, uploadFile, controller.signal).catch(
+  (async () => {
+    let uploadFile = file;
+    try {
+      const { resizedBlob } = await resizeForUpload(file, 1280);
+      // Preserve the original filename and MIME type so the server stores it correctly.
+      // Use the resized blob's type (may differ from file.type if HEIC was decoded).
+      const uploadMime = resizedBlob.type || file.type;
+      uploadFile = new File([resizedBlob], file.name, { type: uploadMime });
+      console.debug(
+        `[EmbedHandlers] Camera/image resized for upload: ${file.size} → ${uploadFile.size} bytes`,
+      );
+    } catch (resizeErr) {
+      // Non-fatal: log and fall back to the original file so the upload still works.
+      console.error(
+        "[EmbedHandlers] resizeForUpload failed — uploading original file:",
+        resizeErr,
+      );
+    }
+    await _performUpload(editor, embedId, uploadFile, controller.signal);
+  })().catch(
     (err) => {
       console.error("[EmbedHandlers] Unhandled error in _performUpload:", err);
     },
@@ -558,17 +624,27 @@ async function _performUpload(
 /**
  * Inserts a PDF embed into the editor and triggers the server upload + OCR pipeline.
  *
- * Upload flow (authenticated users only — no demo mode for PDFs):
+ * Upload flow (authenticated users):
  *  1. Insert the embed node immediately with status: 'uploading' and the filename.
  *  2. Upload the PDF to the server in the background.
  *  3. On success: update the embed node with S3 keys, AES metadata, page_count,
  *     and status: 'processing' (background OCR will update to 'finished' via WebSocket).
  *  4. On failure: update the embed node with status: 'error'.
  *
+ * Signed-out users receive a local-only placeholder card with no server upload.
  * The server triggers background OCR processing (Mistral + pymupdf) after the upload
  * and delivers the final embed content via WebSocket embed_update event.
  */
-export async function insertPDF(editor: Editor, file: File): Promise<void> {
+export async function insertPDF(
+  editor: Editor,
+  file: File,
+  isAuthenticated: boolean = true,
+): Promise<void> {
+  if (!isAuthenticated) {
+    insertFileEmbedNodes(editor, [createPdfFileEmbedNode(file)]);
+    return;
+  }
+
   // Generate a stable embed ID to reference the node after insertion
   const embedId = generateUUID();
 
@@ -727,7 +803,12 @@ async function _performPdfUpload(
     if (typeof window !== "undefined") {
       window.dispatchEvent(
         new CustomEvent("embedUploadFinished", {
-          detail: { embedId: localEmbedId, status: uploadedStatus },
+          detail: {
+            embedId: localEmbedId,
+            uploadEmbedId,
+            filename: file.name,
+            status: uploadedStatus,
+          },
         }),
       );
     }
@@ -797,6 +878,7 @@ export async function insertFile(
   setTimeout(() => {
     editor.commands.focus("end");
   }, 50);
+
 }
 
 /**
@@ -829,6 +911,7 @@ export async function insertAudio(editor: Editor, file: File): Promise<void> {
   setTimeout(() => {
     editor.commands.focus("end");
   }, 50);
+
 }
 
 /**
@@ -854,8 +937,14 @@ export async function insertCodeFile(
   file: File,
   isAuthenticated: boolean = true,
 ): Promise<void> {
-  ensureLeadingParagraph(editor);
+  const node = await createCodeFileEmbedNode(file, isAuthenticated);
+  if (node) insertFileEmbedNodes(editor, [node]);
+}
 
+export async function createCodeFileEmbedNode(
+  file: File,
+  isAuthenticated: boolean = true,
+): Promise<FileEmbedNodeContent | null> {
   // Read the file content as text
   let fileContent: string;
   try {
@@ -864,25 +953,19 @@ export async function insertCodeFile(
     console.error("[EmbedHandlers] Failed to read code file content:", error);
     // Fall back to a minimal embed with just filename/language info if reading fails
     const language = getLanguageFromFilename(file.name);
-    editor
-      .chain()
-      .focus()
-      .insertContent({
-        type: "embed",
-        attrs: {
-          id: generateUUID(),
-          type: "code-code",
-          status: "error",
-          contentRef: null,
-          src: URL.createObjectURL(file),
-          filename: file.name,
-          language: language,
-        },
-      })
-      .insertContent(" ")
-      .run();
-    setTimeout(() => editor.commands.focus("end"), 50);
-    return;
+    return {
+      type: "embed",
+      attrs: {
+        id: generateUUID(),
+        type: "code-code",
+        status: "error",
+        contentRef: null,
+        src: URL.createObjectURL(file),
+        filename: file.name,
+        needsSignup: !isAuthenticated,
+        language: language,
+      },
+    };
   }
 
   // Detect language: prefer filename extension, fall back to content heuristics
@@ -905,33 +988,26 @@ export async function insertCodeFile(
       { filename: file.name, language, lineCount, embedId },
     );
 
-    editor
-      .chain()
-      .focus()
-      .insertContent({
-        type: "embed",
-        attrs: {
-          id: embedId,
-          type: "code-code",
-          status: "finished",
-          // Use "preview:code:" prefix so GroupRenderer reads code from `item.code` attr
-          contentRef: `preview:code:${embedId}`,
-          code: redactedContent,
-          filename: file.name,
-          language: language,
-          lineCount: lineCount,
-        },
-      })
-      .insertContent(" ")
-      .run();
-
-    setTimeout(() => editor.commands.focus("end"), 50);
     if (piiMappings.length > 0) {
       console.info(
         `[EmbedHandlers] Demo code file embed redacted ${piiMappings.length} PII item(s)`,
       );
     }
-    return;
+    return {
+      type: "embed",
+      attrs: {
+        id: embedId,
+        type: "code-code",
+        status: "finished",
+        // Use "preview:code:" prefix so GroupRenderer reads code from `item.code` attr
+        contentRef: `preview:code:${embedId}`,
+        code: redactedContent,
+        filename: file.name,
+        language: language,
+        lineCount: lineCount,
+        needsSignup: true,
+      },
+    };
   }
 
   // Authenticated path: create a proper TOON embed with PII detection and redaction.
@@ -948,29 +1024,20 @@ export async function insertCodeFile(
 
   const lineCount = fileContent.split("\n").length;
 
-  // Insert a real embed node in the editor. The serializer will still emit the
-  // canonical JSON reference on send because contentRef uses the embed:<id> form.
-  editor
-    .chain()
-    .focus()
-    .insertContent({
-      type: "embed",
-      attrs: {
-        id: result.embed_id,
-        type: "code-code",
-        status: "finished",
-        contentRef: `embed:${result.embed_id}`,
-        filename: file.name,
-        language,
-        lineCount,
-      },
-    })
-    .insertContent(" ")
-    .run();
-
-  setTimeout(() => {
-    editor.commands.focus("end");
-  }, 50);
+  // The serializer will still emit the canonical JSON reference on send because
+  // contentRef uses the embed:<id> form.
+  return {
+    type: "embed",
+    attrs: {
+      id: result.embed_id,
+      type: "code-code",
+      status: "finished",
+      contentRef: `embed:${result.embed_id}`,
+      filename: file.name,
+      language,
+      lineCount,
+    },
+  };
 }
 
 export async function insertMindMapFile(
@@ -989,7 +1056,7 @@ export async function insertMindMapFile(
   }
 
   const classification = classifyMindMapUploadSource(file.name, fileContent, file.size);
-  if (!classification.accepted) {
+  if (classification.accepted === false) {
     console.warn("[EmbedHandlers] Rejected mind map upload:", {
       filename: file.name,
       reason: classification.reason,
@@ -1031,155 +1098,236 @@ export async function insertDelimitedTableFile(
   editor: Editor,
   file: File,
 ): Promise<void> {
-  ensureLeadingParagraph(editor);
+  const node = await createDelimitedTableFileEmbedNode(file);
+  if (node) insertFileEmbedNodes(editor, [node]);
+}
 
+export async function createDelimitedTableFileEmbedNode(
+  file: File,
+  isAuthenticated: boolean = true,
+): Promise<FileEmbedNodeContent | null> {
   let fileContent: string;
   try {
     fileContent = await file.text();
   } catch (error) {
     console.error("[EmbedHandlers] Failed to read table file content:", error);
-    return;
+    return null;
   }
 
   const delimiter = file.name.toLowerCase().endsWith(".tsv") ? "\t" : ",";
   const tableMarkdown = delimitedTextToMarkdownTable(fileContent, delimiter);
   if (!tableMarkdown) {
     console.warn("[EmbedHandlers] Empty table file skipped:", file.name);
-    return;
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    const embedId = generateUUID();
+    const { redactedContent } = redactEmbedContent(tableMarkdown);
+    const { rowCount, colCount, cellCount } = getMarkdownTableDimensions(redactedContent);
+    return {
+      type: "embed",
+      attrs: {
+        id: embedId,
+        type: "sheets-sheet",
+        status: "finished",
+        contentRef: `preview:sheets-sheet:${embedId}`,
+        title: file.name,
+        code: redactedContent,
+        rows: rowCount,
+        cols: colCount,
+        cellCount,
+        needsSignup: true,
+      },
+    };
   }
 
   const result = await createSheetEmbed(tableMarkdown, file.name);
-  editor
-    .chain()
-    .focus()
-    .insertContent({
-      type: "embed",
-      attrs: {
-        id: result.embed_id,
-        type: "sheets-sheet",
-        status: "finished",
-        contentRef: `embed:${result.embed_id}`,
-        title: file.name,
-      },
-    })
-    .insertContent(" ")
-    .run();
-
-  setTimeout(() => editor.commands.focus("end"), 50);
+  return {
+    type: "embed",
+    attrs: {
+      id: result.embed_id,
+      type: "sheets-sheet",
+      status: "finished",
+      contentRef: `embed:${result.embed_id}`,
+      title: file.name,
+    },
+  };
 }
 
 export async function insertEmailFile(
   editor: Editor,
   file: File,
 ): Promise<void> {
-  ensureLeadingParagraph(editor);
+  const node = await createEmailFileEmbedNode(file);
+  if (node) insertFileEmbedNodes(editor, [node]);
+}
 
+export async function createEmailFileEmbedNode(
+  file: File,
+  isAuthenticated: boolean = true,
+): Promise<FileEmbedNodeContent | null> {
   let fileContent: string;
   try {
     fileContent = await file.text();
   } catch (error) {
     console.error("[EmbedHandlers] Failed to read email file content:", error);
-    return;
+    return null;
   }
 
   const parsedEmail = parseEmlText(fileContent);
-  const result = await createMailEmbed(parsedEmail, file.name);
-  editor
-    .chain()
-    .focus()
-    .insertContent({
+  if (!isAuthenticated) {
+    const embedId = generateUUID();
+    const receiver = redactEmbedContent(parsedEmail.receiver || "").redactedContent;
+    const subject = redactEmbedContent(parsedEmail.subject || "").redactedContent;
+    const content = redactEmbedContent(parsedEmail.content || "").redactedContent;
+    const footer = redactEmbedContent(parsedEmail.footer || "").redactedContent;
+    return {
       type: "embed",
       attrs: {
-        id: result.embed_id,
+        id: embedId,
         type: "mail-email",
         status: "finished",
-        contentRef: `embed:${result.embed_id}`,
-        subject: parsedEmail.subject,
+        contentRef: `preview:mail-email:${embedId}`,
+        receiver,
+        subject,
+        content,
+        footer,
+        filename: file.name,
+        needsSignup: true,
       },
-    })
-    .insertContent(" ")
-    .run();
+    };
+  }
 
-  setTimeout(() => editor.commands.focus("end"), 50);
+  const result = await createMailEmbed(parsedEmail, file.name);
+  return {
+    type: "embed",
+    attrs: {
+      id: result.embed_id,
+      type: "mail-email",
+      status: "finished",
+      contentRef: `embed:${result.embed_id}`,
+      subject: parsedEmail.subject,
+    },
+  };
 }
 
 export async function insertOfficeDocumentFile(
   editor: Editor,
   file: File,
 ): Promise<void> {
-  ensureLeadingParagraph(editor);
+  const node = await createOfficeDocumentFileEmbedNode(file);
+  if (node) insertFileEmbedNodes(editor, [node]);
+}
 
+export async function createOfficeDocumentFileEmbedNode(
+  file: File,
+  isAuthenticated: boolean = true,
+): Promise<FileEmbedNodeContent | null> {
   let html: string;
   try {
     html = await docxArrayBufferToHtml(await file.arrayBuffer());
   } catch (error) {
     console.error("[EmbedHandlers] Failed to parse DOCX file content:", error);
-    return;
+    return null;
   }
 
   if (!html) {
     console.warn("[EmbedHandlers] Empty DOCX file skipped:", file.name);
-    return;
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    const embedId = generateUUID();
+    const { redactedContent } = redactEmbedContent(html);
+    const wordCount = redactedContent.split(/\s+/).filter((word) => word.trim()).length;
+    return {
+      type: "embed",
+      attrs: {
+        id: embedId,
+        type: "docs-doc",
+        status: "finished",
+        contentRef: `preview:docs-doc:${embedId}`,
+        title: file.name,
+        filename: file.name,
+        code: redactedContent,
+        wordCount,
+        needsSignup: true,
+      },
+    };
   }
 
   const result = await createDocEmbed(html, file.name, file.name);
-  editor
-    .chain()
-    .focus()
-    .insertContent({
-      type: "embed",
-      attrs: {
-        id: result.embed_id,
-        type: "docs-doc",
-        status: "finished",
-        contentRef: `embed:${result.embed_id}`,
-        title: file.name,
-        filename: file.name,
-      },
-    })
-    .insertContent(" ")
-    .run();
-
-  setTimeout(() => editor.commands.focus("end"), 50);
+  return {
+    type: "embed",
+    attrs: {
+      id: result.embed_id,
+      type: "docs-doc",
+      status: "finished",
+      contentRef: `embed:${result.embed_id}`,
+      title: file.name,
+      filename: file.name,
+    },
+  };
 }
 
 export async function insertOfficeSpreadsheetFile(
   editor: Editor,
   file: File,
 ): Promise<void> {
-  ensureLeadingParagraph(editor);
+  const node = await createOfficeSpreadsheetFileEmbedNode(file);
+  if (node) insertFileEmbedNodes(editor, [node]);
+}
 
+export async function createOfficeSpreadsheetFileEmbedNode(
+  file: File,
+  isAuthenticated: boolean = true,
+): Promise<FileEmbedNodeContent | null> {
   let tableMarkdown: string;
   try {
     tableMarkdown = await xlsxArrayBufferToMarkdownTable(await file.arrayBuffer());
   } catch (error) {
     console.error("[EmbedHandlers] Failed to parse XLSX file content:", error);
-    return;
+    return null;
   }
 
   if (!tableMarkdown) {
     console.warn("[EmbedHandlers] Empty XLSX file skipped:", file.name);
-    return;
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    const embedId = generateUUID();
+    const { redactedContent } = redactEmbedContent(tableMarkdown);
+    const { rowCount, colCount, cellCount } = getMarkdownTableDimensions(redactedContent);
+    return {
+      type: "embed",
+      attrs: {
+        id: embedId,
+        type: "sheets-sheet",
+        status: "finished",
+        contentRef: `preview:sheets-sheet:${embedId}`,
+        title: file.name,
+        code: redactedContent,
+        rows: rowCount,
+        cols: colCount,
+        cellCount,
+        needsSignup: true,
+      },
+    };
   }
 
   const result = await createSheetEmbed(tableMarkdown, file.name);
-  editor
-    .chain()
-    .focus()
-    .insertContent({
-      type: "embed",
-      attrs: {
-        id: result.embed_id,
-        type: "sheets-sheet",
-        status: "finished",
-        contentRef: `embed:${result.embed_id}`,
-        title: file.name,
-      },
-    })
-    .insertContent(" ")
-    .run();
-
-  setTimeout(() => editor.commands.focus("end"), 50);
+  return {
+    type: "embed",
+    attrs: {
+      id: result.embed_id,
+      type: "sheets-sheet",
+      status: "finished",
+      contentRef: `embed:${result.embed_id}`,
+      title: file.name,
+    },
+  };
 }
 
 /**
@@ -1257,6 +1405,7 @@ export async function insertRecording(
   duration: string,
   isAuthenticated: boolean = true,
   chatId?: string,
+  waveform?: AudioWaveformData,
 ): Promise<void> {
   const timestamp = Date.now();
   // Derive a sensible filename from the MIME type (e.g. audio/webm → .webm)
@@ -1288,6 +1437,7 @@ export async function insertRecording(
           blobUrl,
           filename,
           duration,
+          waveform: waveform ?? null,
           mimeType,
           uploadEmbedId: null,
           transcript: null,
@@ -1320,6 +1470,7 @@ export async function insertRecording(
         blobUrl,
         filename,
         duration,
+        waveform: waveform ?? null,
         mimeType,
         // Populated after server response:
         uploadEmbedId: null,
@@ -1345,8 +1496,10 @@ export async function insertRecording(
     embedId,
     file,
     mimeType,
+    duration,
     controller.signal,
     chatId,
+    waveform,
   ).catch((err) => {
     console.error(
       "[EmbedHandlers] Unhandled error in _performRecordingUpload:",
@@ -1518,24 +1671,28 @@ export async function retryTranscription(
   // Parse transcript and update embed to 'finished'
   // Response shape: SkillResponse wrapper from apps_api.py:
   // { success: true, data: { results: [{ id: request_id, results: [{ transcript, model, s3_key, ... }] }] } }
-  let transcriptText: string | undefined;
-  let modelFromResponse: string | undefined;
+    let transcriptText: string | undefined;
+    let titleFromResponse: string | undefined;
+    let modelFromResponse: string | undefined;
   let transcriptOriginal: string | undefined;
   let transcriptCorrected: string | undefined;
   let useCorrected: boolean | undefined;
   let correctionModel: string | undefined;
+  let responseWaveform: AudioWaveformData | undefined;
   try {
     const responseData = await transcribeResponse.json();
     const group = responseData?.data?.results?.find(
       (r: { id: string }) => r.id === embedId,
     );
     const resultObj = group?.results?.[0];
+    titleFromResponse = resultObj?.title ?? undefined;
     transcriptText = resultObj?.transcript ?? undefined;
     modelFromResponse = resultObj?.model ?? undefined;
     transcriptOriginal = resultObj?.transcript_original ?? undefined;
     transcriptCorrected = resultObj?.transcript_corrected ?? undefined;
     useCorrected = resultObj?.use_corrected ?? undefined;
     correctionModel = resultObj?.correction_model ?? undefined;
+    responseWaveform = resultObj?.waveform ?? undefined;
   } catch (parseError) {
     console.error(
       "[EmbedHandlers] retryTranscription: failed to parse response:",
@@ -1545,12 +1702,14 @@ export async function retryTranscription(
 
   updateEmbedNode({
     status: "finished",
+    title: titleFromResponse ?? null,
     transcript: transcriptText ?? null,
     transcriptOriginal: transcriptOriginal ?? null,
     transcriptCorrected: transcriptCorrected ?? null,
     useCorrected: useCorrected ?? null,
     correctionModel: correctionModel ?? null,
     model: modelFromResponse ?? null,
+    waveform: responseWaveform ?? null,
     uploadError: null,
   });
 
@@ -1576,8 +1735,10 @@ async function _performRecordingUpload(
   localEmbedId: string,
   file: File,
   mimeType: string,
+  duration: string,
   signal?: AbortSignal,
   chatId?: string,
+  waveform?: AudioWaveformData,
 ): Promise<void> {
   // Helper: update embed node attrs via a ProseMirror transaction.
   function updateEmbedNode(updates: Record<string, unknown>): void {
@@ -1754,12 +1915,14 @@ async function _performRecordingUpload(
     // -----------------------------------------------------------------------
     // Step 4: Parse transcript and update embed to 'finished'
     // -----------------------------------------------------------------------
-    let transcriptText: string | undefined;
-    let modelFromResponse: string | undefined;
+  let transcriptText: string | undefined;
+  let titleFromResponse: string | undefined;
+  let modelFromResponse: string | undefined;
     let transcriptOriginal: string | undefined;
     let transcriptCorrected: string | undefined;
     let useCorrected: boolean | undefined;
     let correctionModel: string | undefined;
+    let responseWaveform: AudioWaveformData | undefined;
     try {
       const responseData = await transcribeResponse.json();
       // Response shape: SkillResponse wrapper from apps_api.py:
@@ -1768,6 +1931,7 @@ async function _performRecordingUpload(
         (r: { id: string }) => r.id === localEmbedId,
       );
       const resultObj = group?.results?.[0];
+      titleFromResponse = resultObj?.title ?? undefined;
       transcriptText = resultObj?.transcript ?? undefined;
       // Read model from API response — backend includes the model ID in result_entry
       // so the frontend never needs to hardcode it after the response arrives.
@@ -1776,6 +1940,7 @@ async function _performRecordingUpload(
       transcriptCorrected = resultObj?.transcript_corrected ?? undefined;
       useCorrected = resultObj?.use_corrected ?? undefined;
       correctionModel = resultObj?.correction_model ?? undefined;
+      responseWaveform = resultObj?.waveform ?? undefined;
     } catch (parseError) {
       console.error(
         "[EmbedHandlers] Failed to parse transcription response:",
@@ -1789,12 +1954,14 @@ async function _performRecordingUpload(
 
     updateEmbedNode({
       status: "finished",
+      title: titleFromResponse ?? null,
       transcript: transcriptText ?? null,
       transcriptOriginal: transcriptOriginal ?? null,
       transcriptCorrected: transcriptCorrected ?? null,
       useCorrected: useCorrected ?? null,
       correctionModel: correctionModel ?? null,
       model: modelFromResponse ?? null,
+      waveform: waveform ?? responseWaveform ?? null,
       uploadError: null,
     });
 
@@ -1811,8 +1978,10 @@ async function _performRecordingUpload(
         skill_id: "transcribe",
         type: "audio-recording",
         status: "finished",
+        title: titleFromResponse ?? null,
         filename: file.name || null,
-        duration: null, // Duration is tracked on the TipTap node, not available here
+        duration: duration || null,
+        waveform: waveform ?? responseWaveform ?? null,
         mime_type: mimeType || null,
         transcript: transcriptText ?? null,
         transcript_original: transcriptOriginal ?? null,
@@ -1842,7 +2011,7 @@ async function _performRecordingUpload(
           type: "audio-recording",
           status: "finished",
           content: toonRecContent,
-          text_preview: transcriptText || file.name || "Voice note",
+          text_preview: titleFromResponse || transcriptText || file.name || "Voice note",
           createdAt: nowRec,
           updatedAt: nowRec,
         },

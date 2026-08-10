@@ -1,39 +1,96 @@
 # Test Orchestration
 
 Status: active
-Last verified: 2026-06-19
+Last verified: 2026-08-03
 
-OpenMates uses `scripts/tests.py` as the deterministic test control plane and
-`scripts/run_tests.py` as the execution engine for GitHub Actions-backed test
-runs. New workflows should call `scripts/tests.py run ...` rather than calling
-the runner directly so status, history, and running-state bookkeeping stay in
-sync.
+OpenMates uses `scripts/tests.py` as the deterministic test control plane,
+Directus as the canonical coordination store, and `scripts/run_tests.py` as the
+execution engine for GitHub Actions-backed test runs. New workflows should call
+`scripts/tests.py run ...` rather than calling the runner directly so status,
+history, claims, and running-state bookkeeping stay in sync.
 
 ## Responsibilities
 
 - `scripts/tests.py` owns current test state, append-only history, failure
-  triage, linked-file hints, and parallel-safe failure leases.
+  triage, linked-file hints, and parallel-safe failure claims in Directus.
+- Directus collections `test_catalog`, `test_runs`, `test_results`,
+  `test_current_state`, and `test_claims` are the shared source of truth across
+  assistant chats, dev-server-triggered GitHub Actions, external GitHub Actions
+  runs, and Apple tests.
 - `scripts/run_tests.py` owns the existing test execution machinery, including
   pytest/vitest GitHub Actions dispatch, Playwright workflow dispatch, artifact
   downloads, screenshots, Markdown reports, and notifications.
 - `scripts/auto_fix_failed_tests.py` consumes deterministic triage groups from
   `scripts/tests.py` and verifies through `scripts/tests.py run`.
 
-## State Files
+## Release Core Journeys
 
-- `test-results/tests-state.json`: latest known status for each test.
-- `test-results/tests-history.jsonl`: append-only started/passed/failed/skipped
-  events for timeline views.
-- `test-results/failed-test-leases.json`: active, completed, and released debug
-  leases so parallel workers do not pick the same root-cause group.
-- `test-results/test-failure-triage.json`: latest deterministic failure ranking.
-- `test-results/test-file-index.json`: deterministic test-to-source hints.
-- `test-results/runs/*.json`: normalized run archives.
+`.github/workflows/release-core-journeys.yml` is the deliberate exception to the
+local `scripts/tests.py` entry point. A required PR status must belong directly
+to the pull request, while GitHub-hosted runners cannot use the dev host's Docker
+and Directus control plane. The workflow therefore reads the canonical matrix
+from `scripts/run_tests.py`, calls the reusable single-spec workflow, and emits
+one aggregate `Release Gate / Core Journeys` result.
+
+The Docker-backed backend remains under dev-host control. An operator runs
+`scripts/prepare_release_candidate.py` under the sessions.py Docker lock; only
+after core services are recreated and healthy does that command publish the
+`Dev Release Candidate / Prepared` status on the exact commit. The preparation
+command uses the existing local Vercel API gate to prove the exact dev SHA is
+Ready before it recreates Docker services with the root `.env` interpolation
+contract. It then runs the cloud-overlay boot check so disabled billing routes or
+missing worker markers fail before success is published. GitHub reads this
+attestation and the Vercel commit status before browser jobs start; it receives
+neither credential.
+
+The release workflow uses accounts 1-4 and the reusable Playwright workflow
+serializes all runs by account number. This prevents release, hourly, nightly,
+and manual jobs from using the same persistent account concurrently.
+
+## State Storage
+
+- `test_current_state`: latest stable status plus any active queued/running run
+  for each test. A failed test can show `stable_status=failed` and
+  `active_status=running` while a rerun is in progress.
+- `test_runs`: one row per dispatched or discovered GitHub Actions/Apple run.
+- `test_results`: per-test result events used for history and triage.
+- `test_claims`: active, completed, released, and expired debug claims so
+  parallel workers do not pick the same root-cause group.
+- `test_debug_campaigns`: durable selected scope, lifecycle, blockers, and
+  completion summaries for failed-test work across OpenCode sessions.
+- `test_debug_groups`: complete group membership, expected behavior,
+  acceptance criteria, root-cause attempts, child relationships, and red/green
+  evidence. Claims reference these records but do not replace them.
+- `test_catalog`: canonical suite/test inventory, including Apple tests.
+- `test-results/*.json`: non-authoritative import/export and artifact files only.
+  Do not read them as the source of truth for current failures or claims.
 
 ## Debugging Flow
 
-1. Inspect status with `python3 scripts/tests.py status`.
-2. Lease the next failure with `python3 scripts/tests.py next --lease --session <id> --json`.
-3. Read only the leased failure details and linked files before editing.
-4. Verify through the returned `verification_command`.
-5. Mark the lease completed or released after deploy or blocker discovery.
+1. Create or resume scope with `python3 scripts/tests.py campaign start --session <id> --json`.
+2. Inspect the durable campaign with `python3 scripts/tests.py campaign status --campaign <id> --json`.
+3. Lease one complete group with `python3 scripts/tests.py campaign next --campaign <id> --lease --session <id> --json`.
+4. Read every member test and persist expected behavior plus concrete acceptance criteria with `campaign prepare` before source edits.
+5. Persist every failed, rejected, blocked, or successful approach with `campaign attempt`.
+6. Verify exact Directus-backed membership with `python3 scripts/tests.py run --campaign <id> --group <id>`.
+7. Complete the group only after every member has passing run/result evidence, then continue until all selected and child groups are green.
+
+For explicitly requested parallel work, `campaign dispatch` selects only narrow
+groups whose deterministic linked-file boundaries do not overlap, atomically
+leases each group, and launches one visible OpenCode chat per group. Worker chats
+investigate and edit in isolated session worktrees but do not deploy; the
+coordinator reviews and integrates the resulting patches before commit-scoped
+verification. `campaign status` exposes every active worker and lease.
+
+New failures exposed by a campaign-bound verification become explicit child
+groups. A required human or external decision leaves the campaign `blocked`
+with a question and exact next action; there is no partially-successful terminal
+state. Campaign completion uses individual group evidence and does not require
+an additional combined selected-set run.
+
+## Importing Runs
+
+- `scripts/sync-test-results.sh --latest` downloads the latest aggregated GitHub
+  Actions artifact and imports it into Directus through `scripts/tests.py import-run`.
+- For local/dev backfills, authenticate with a valid Directus access token and run
+  `CMS_URL=http://127.0.0.1:8055 DIRECTUS_TOKEN=<token> python3 scripts/tests.py import-run test-results/last-run.json --source github_actions`.

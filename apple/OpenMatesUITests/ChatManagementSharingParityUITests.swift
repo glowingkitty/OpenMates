@@ -73,6 +73,71 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         attachScreenshot(name: "Native chat share sheet")
     }
 
+    func testChatShareConfigurationMatchesWebContract() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "chat-share"]
+        app.launchEnvironment["DEV_PREVIEW"] = "chat-share"
+        app.launch()
+
+        XCTAssertTrue(
+            accessibilityElement(in: app, identifier: "share-chat-preview").waitForExistence(timeout: 10),
+            "Expected the custom chat preview shown by the web share configuration. Visible UI: \(visibleStateLabels(in: app))"
+        )
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-options-section").exists)
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-community-toggle").exists)
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-highlights-toggle").exists)
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-password-toggle").exists)
+        XCTAssertEqual(
+            app.descendants(matching: .any)
+                .matching(NSPredicate(format: "identifier == %@", "duration-option"))
+                .count,
+            8,
+            "Expected every web expiration choice, including no expiration and one minute."
+        )
+        XCTAssertFalse(app.tables.firstMatch.exists, "Share configuration must use custom OpenMates product UI, not Form/List chrome")
+
+        attachScreenshot(name: "Chat share configuration")
+    }
+
+    func testEmbedShareConfigurationMatchesWebContract() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embed-share"]
+        app.launchEnvironment["DEV_PREVIEW"] = "embed-share"
+        app.launch()
+
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-embed-preview").waitForExistence(timeout: 10))
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-options-section").exists)
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-password-toggle").exists)
+        XCTAssertEqual(
+            app.descendants(matching: .any)
+                .matching(NSPredicate(format: "identifier == %@", "duration-option"))
+                .count,
+            8
+        )
+        XCTAssertFalse(accessibilityElement(in: app, identifier: "share-community-toggle").exists)
+        XCTAssertFalse(accessibilityElement(in: app, identifier: "share-highlights-toggle").exists)
+        XCTAssertFalse(app.tables.firstMatch.exists, "Share embed must not render default Form/List chrome")
+
+        attachScreenshot(name: "Embed share configuration")
+    }
+
+    func testChatShareSettingsOpenAsNestedSettingsDestination() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-share-settings-chat",
+        ]
+        app.launchEnvironment["UI_TEST_CHAT_SHARE_URL"] = fixtureShareURL
+        app.launch()
+
+        XCTAssertTrue(
+            accessibilityElement(in: app, identifier: "settings-shared-share-settings").waitForExistence(timeout: 15),
+            "Sharing a chat must open the nested Shared settings destination, not an app overlay."
+        )
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "settings-destination-back").exists)
+        XCTAssertFalse(app.tables.firstMatch.exists, "Share settings must not render default List/table chrome")
+    }
+
     func testSafariShareSheetSendsURLThroughOpenMatesExtension() throws {
         let credentials = try RealAccountTestCredentials.fromEnvironment()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)

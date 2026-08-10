@@ -30,6 +30,7 @@ import { isAnonymousChatId } from "../anonymousChatIds";
 export interface ChatVersionEntry {
   messages_v: number;
   title_v: number;
+  metadata_v?: number;
   draft_v: number;
 }
 
@@ -241,6 +242,7 @@ export async function loadChatKeysFromDatabase(
           cachedChatVersionMap.set(chat.chat_id, {
             messages_v: chat.messages_v || 0,
             title_v: chat.title_v || 0,
+            metadata_v: chat.metadata_v,
             draft_v: chat.draft_v || 0,
           });
           // Continue cursor synchronously (transaction must stay alive)
@@ -712,7 +714,7 @@ export async function decryptMessageFields(
   // Skip decryption when WebSocket is in error state (auth failures, etc.)
   // This prevents unnecessary decryption attempts when the user is being logged out
   const wsStatus = get(websocketStatus);
-  if (wsStatus.status === "error") {
+  if (wsStatus.status === "error" && !isAnonymousChatId(chatId)) {
     console.debug(
       `[ChatDatabase] Skipping message decryption due to WebSocket error state for chat: ${chatId}`,
     );

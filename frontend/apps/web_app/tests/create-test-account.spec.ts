@@ -2,12 +2,12 @@
 /**
  * Create a persistent test account via the real signup flow.
  *
- * Runs the full signup (email verification, password, 2FA, Stripe payment)
- * but does NOT delete the account. The created account is fully usable
- * (has credits, can send messages) and intended for reuse across E2E tests.
+ * Runs the real signup flow (email verification and password setup) but does
+ * NOT delete the account. The created account is intended for reuse across E2E
+ * tests. Current product signup finishes before post-account 2FA/payment setup.
  *
  * Environment:
- *   CREATE_ACCOUNT_SLOT  — slot number (1-20), determines email/password
+ *   CREATE_ACCOUNT_SLOT  — slot number (1-27), determines email/password
  *   SIGNUP_TEST_EMAIL_DOMAINS — Mailosaur test domain
  *   GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN — Gmail API credentials (preferred)
  *   MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID — Mailosaur credentials (fallback)
@@ -16,11 +16,8 @@
  *   gh workflow run playwright-spec.yml -f spec=create-test-account.spec.ts \
  *     -f create_account_slot=1
  *
- * After the run, parse logs for the ===ACCOUNT_CREDENTIALS=== block and set
- * GitHub secrets:
- *   gh secret set OPENMATES_TEST_ACCOUNT_{SLOT}_EMAIL --body "..."
- *   gh secret set OPENMATES_TEST_ACCOUNT_{SLOT}_PASSWORD --body "..."
- *   gh secret set OPENMATES_TEST_ACCOUNT_{SLOT}_OTP_KEY --body "..."
+ * After the run, the GitHub Actions workflow updates the slot-scoped secrets
+ * from a temporary credential artifact that is deleted before artifact upload.
  *
  * Architecture: docs/architecture/e2e-testing.md
  * Test reference: python3 scripts/run_tests.py --spec create-test-account.spec.ts
@@ -28,6 +25,8 @@
 export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
@@ -46,9 +45,10 @@ const {
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const CREATE_ACCOUNT_SLOT = process.env.CREATE_ACCOUNT_SLOT;
 const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
+const NO_2FA_OTP_KEY_PLACEHOLDER = 'NO_2FA_REQUIRED';
 
 test.describe('Create persistent test account', () => {
-	test('completes full signup flow with payment for a reusable test account', async ({
+	test('creates a reusable persistent test account through signup', async ({
 		page,
 		context
 	}: {
@@ -56,7 +56,10 @@ test.describe('Create persistent test account', () => {
 		context: any;
 	}) => {
 		const slot = parseInt(CREATE_ACCOUNT_SLOT || '', 10);
-		test.skip(!CREATE_ACCOUNT_SLOT || isNaN(slot), 'CREATE_ACCOUNT_SLOT env var is required (1-20).');
+		test.skip(
+			!CREATE_ACCOUNT_SLOT || isNaN(slot) || slot < 1 || slot > 27,
+			'CREATE_ACCOUNT_SLOT env var is required (1-27).'
+		);
 		test.skip(!SIGNUP_TEST_EMAIL_DOMAINS, 'SIGNUP_TEST_EMAIL_DOMAINS is required.');
 
 		const emailClient = createEmailClient();
@@ -65,7 +68,7 @@ test.describe('Create persistent test account', () => {
 		const quota = await checkEmailQuota();
 		test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
 
-		// Allow generous time for full signup + payment flow.
+		// Allow generous time for signup, email polling, and legacy payment flow.
 		test.setTimeout(240000);
 
 		const logCheckpoint = createSignupLogger('CREATE_ACCOUNT');
@@ -88,8 +91,26 @@ test.describe('Create persistent test account', () => {
 		const accountEmail = buildTestAccountEmail(slot, signupDomain, accountSlug);
 		const accountUsername = accountSlug;
 		const accountPassword = `TestAcct!2026pw${slot}`;
+		const writeCredentialArtifact = (otpKey: string) => {
+			const credentialArtifactDir = path.resolve(process.cwd(), 'artifacts');
+			fs.mkdirSync(credentialArtifactDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(credentialArtifactDir, 'test_account_credentials.json'),
+				JSON.stringify(
+					{
+						slot,
+						email: accountEmail,
+						password: accountPassword,
+						otpKey
+					},
+					null,
+					2
+				),
+				{ mode: 0o600 }
+			);
+		};
 
-		logCheckpoint(`Creating test account for slot ${slot}.`, { accountEmail });
+		logCheckpoint(`Creating test account for slot ${slot}.`);
 
 		// ─── Open signup dialog ───────────────────────────────────────────
 		await page.goto(getE2EDebugUrl('/'));
@@ -158,11 +179,30 @@ test.describe('Create persistent test account', () => {
 		logCheckpoint('Password fields completed.');
 
 		await page.locator('#signup-password-continue').click();
-		logCheckpoint('Reached one-time codes step.');
+		logCheckpoint('Submitted password setup.');
 
 		// ─── 2FA setup ────────────────────────────────────────────────────
+		// Current product signup can finish immediately after password setup.
+		// Keep legacy 2FA support for older deployments and write a non-empty
+		// placeholder when login succeeds without an OTP prompt so account-policy
+		// guards still treat the provisioned slot as configured.
+		const copySecretButton = page.getByTestId('signup-2fa-copy-secret');
+		const authSignal = page.locator('[data-authenticated="true"]');
+		const setupPath = await Promise.race([
+			copySecretButton.waitFor({ state: 'visible', timeout: 15000 }).then(() => '2fa' as const),
+			authSignal.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'authenticated' as const)
+		]);
+
+		if (setupPath === 'authenticated') {
+			writeCredentialArtifact(NO_2FA_OTP_KEY_PLACEHOLDER);
+			logCheckpoint(`Account slot ${slot} created successfully without signup-time 2FA.`, {
+				username: accountUsername
+			});
+			await assertNoMissingTranslations(page);
+			return;
+		}
+
 		// Copy the 2FA secret
-		const copySecretButton = page.locator('#signup-2fa-copy-secret');
 		await copySecretButton.click();
 
 		const secretInput = page.locator('input[aria-label="2FA Secret Key"]');
@@ -253,17 +293,11 @@ test.describe('Create persistent test account', () => {
 		await page.waitForURL(/chat/);
 		logCheckpoint('Arrived in chat after signup.');
 
-		// ─── Output credentials immediately ───────────────────────────────
-		// Output BEFORE any optional verifications so credentials are always captured.
-		console.log('===ACCOUNT_CREDENTIALS===');
-		console.log(`SLOT=${slot}`);
-		console.log(`EMAIL=${accountEmail}`);
-		console.log(`PASSWORD=${accountPassword}`);
-		console.log(`OTP_KEY=${tfaSecret}`);
-		console.log('===END_CREDENTIALS===');
+		// ─── Persist credentials for the workflow secret-update step ───────
+		// Write BEFORE optional verifications so a completed signup can be reused.
+		writeCredentialArtifact(tfaSecret);
 
 		logCheckpoint(`Account slot ${slot} created successfully.`, {
-			email: accountEmail,
 			username: accountUsername
 		});
 

@@ -1,6 +1,7 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+import hashlib
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from fastapi import WebSocket
 
@@ -9,12 +10,42 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.tasks.persistence_tasks import (
+    _async_persist_ai_response_to_directus,
+)
+from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from backend.shared.python_utils.chat_ciphertext_fingerprint import (
     authoritative_chat_fingerprint,
     validate_message_matches_authoritative_fingerprint,
 )
 
 logger = logging.getLogger(__name__)
+
+LEGACY_COMPLETION_REJECTION_CODES = {
+    "legacy_completion_expired",
+    "legacy_completion_not_found",
+    "legacy_completion_not_ready",
+}
+SERVER_TRIGGER_TASK_IDENTITY_PREFIX = "server-trigger:"
+DURABLE_PERSISTENCE_TASK_ID = "websocket-direct"
+
+
+def _legacy_completion_task_identities(
+    *,
+    user_id: str,
+    chat_id: str,
+    assistant_message_id: str,
+    user_message_id: Optional[str],
+) -> list[str]:
+    identities = [assistant_message_id]
+    if user_message_id:
+        user_turn_identity = hashlib.sha256(
+            f"{user_id}:{chat_id}:{user_message_id}".encode()
+        ).hexdigest()
+        identities.append(user_turn_identity)
+        identities.append(f"{SERVER_TRIGGER_TASK_IDENTITY_PREFIX}{user_turn_identity}")
+    return list(dict.fromkeys(identities))
 
 
 async def handle_ai_response_completed(
@@ -44,6 +75,17 @@ async def handle_ai_response_completed(
         pass
     try:
         try:
+            if not isinstance(payload, dict):
+                logger.error("Invalid AI response payload structure")
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {"message": "Invalid AI response payload structure"},
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
             chat_id = payload.get("chat_id")
             message_payload_from_client = payload.get("message")
             versions = payload.get("versions")  # Get version info for multi-device sync
@@ -191,6 +233,44 @@ async def handle_ai_response_completed(
                 )
                 return
 
+            # Epoch one normally persists assistant completions through fenced
+            # recovery jobs. A bounded, authoritative legacy identity may finish
+            # the client-encrypted persistence it started before activation.
+            cutover_controller = ChatRecoveryCutoverController(
+                cache_service, directus_service
+            )
+            if await cutover_controller.get_epoch(authoritative=True) >= 1:
+                authorization = {"authorized": False}
+                for task_identity in _legacy_completion_task_identities(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    assistant_message_id=message_id,
+                    user_message_id=user_message_id,
+                ):
+                    try:
+                        authorization = await cutover_controller.authorize_legacy_completion(
+                            task_identity
+                        )
+                    except ChatRecoveryProtocolError as exc:
+                        if exc.code not in LEGACY_COMPLETION_REJECTION_CODES:
+                            raise
+                        authorization = {"authorized": False}
+                    if authorization.get("authorized") is True:
+                        break
+                if authorization.get("authorized") is not True:
+                    await manager.send_personal_message(
+                        {
+                            "type": "error",
+                            "payload": {
+                                "code": "recovery_persistence_required",
+                                "message": "This saved-chat completion must use encrypted recovery persistence.",
+                            },
+                        },
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
+
             # CRITICAL: Check if this specific response ID was already processed or is being processed
             # This prevents duplicate confirmations and redundant Celery tasks
             lock_key = f"lock:ai_response_processed:{message_id}"
@@ -243,16 +323,45 @@ async def handle_ai_response_completed(
 
             # user_id_hash is already provided from the WebSocket context
 
-            # Send task to Celery to persist encrypted AI response to Directus
-            # CRITICAL: Server never encrypts AI responses - client sends pre-encrypted content
-            # Pass versions for multi-device deduplication
-            task_result = celery_app.send_task(
-                name="app.tasks.persistence_tasks.persist_ai_response_to_directus",
-                args=[user_id, user_id_hash, message_data_for_directus, versions],
-                queue="persistence"
-            )
+            # This confirmation is a cross-session durability boundary. Persist the
+            # client-encrypted message before allowing the client to drop its only copy.
+            try:
+                persisted = await _async_persist_ai_response_to_directus(
+                    user_id,
+                    user_id_hash,
+                    message_data_for_directus,
+                    DURABLE_PERSISTENCE_TASK_ID,
+                    versions,
+                )
+                if persisted is not True:
+                    raise RuntimeError("AI response persistence did not report success")
+            except Exception as persistence_error:
+                logger.error(
+                    f"Direct AI response persistence failed for {message_id}; scheduling retry",
+                    exc_info=persistence_error,
+                )
+                task_result = celery_app.send_task(
+                    name="app.tasks.persistence_tasks.persist_ai_response_to_directus",
+                    args=[user_id, user_id_hash, message_data_for_directus, versions],
+                    queue="persistence",
+                )
+                await manager.send_personal_message(
+                    {
+                        "type": "ai_response_storage_failed",
+                        "payload": {
+                            "message_id": message_id,
+                            "chat_id": chat_id,
+                            "task_id": task_result.id,
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
 
-            logger.info(f"Queued AI response persistence task {task_result.id} for message {message_id} in chat {chat_id}")
+            logger.info(
+                f"Durably persisted AI response {message_id} for chat {chat_id}"
+            )
 
             # Send confirmation to client
             await manager.send_personal_message(
@@ -261,7 +370,7 @@ async def handle_ai_response_completed(
                     "payload": {
                         "message_id": message_id,
                         "chat_id": chat_id,
-                        "task_id": task_result.id
+                        "task_id": DURABLE_PERSISTENCE_TASK_ID
                     }
                 },
                 user_id,

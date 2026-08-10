@@ -106,7 +106,8 @@ def generate_ts(skills: list[dict[str, Any]]) -> str:
         " * Regenerate with: python3 scripts/generate_sdk_app_skills.py",
         " */",
         "",
-        "export type AppSkillRunner = <T = unknown>(appId: string, skillId: string, input: unknown) => Promise<T>;",
+        "export type AppSkillRunOptions = { promptInjectionProtection?: boolean };",
+        "export type AppSkillRunner = <T = unknown>(appId: string, skillId: string, input: unknown, options?: AppSkillRunOptions) => Promise<T>;",
         "export type SkillInput = Record<string, unknown>;",
         "",
         "export const APP_SKILL_METADATA = " + json.dumps(skills, indent=2) + " as const;",
@@ -129,8 +130,8 @@ def generate_ts(skills: list[dict[str, Any]]) -> str:
                 lines.append(f"   * Description key: {key}")
             lines.append(f"   * Skill: {skill['app_id']}/{skill['skill_id']}")
             lines.append("   */")
-            lines.append(f"  async {method}<T = unknown>(input: SkillInput): Promise<T> {{")
-            lines.append(f"    return this.runSkill<T>({json.dumps(skill['app_id'])}, {json.dumps(skill['skill_id'])}, input);")
+            lines.append(f"  async {method}<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {{")
+            lines.append(f"    return this.runSkill<T>({json.dumps(skill['app_id'])}, {json.dumps(skill['skill_id'])}, input, options);")
             lines.append("  }")
         lines.append("}")
         lines.append("")
@@ -167,7 +168,7 @@ def generate_py(skills: list[dict[str, Any]]) -> str:
         "",
         f"APP_SKILL_METADATA = {pprint.pformat(skills, width=100)}",
         "",
-        "SkillRunner = Callable[[str, str, dict[str, Any]], dict[str, Any]]",
+        "SkillRunner = Callable[..., dict[str, Any]]",
         "",
     ]
     for namespace, namespace_skills in sorted(grouped.items()):
@@ -180,14 +181,14 @@ def generate_py(skills: list[dict[str, Any]]) -> str:
             description = skill["description"].replace('"""', '\"\"\"')
             key = skill["description_key"]
             lines.append("")
-            lines.append(f"    def {method}(self, input_data: dict[str, Any]) -> dict[str, Any]:")
+            lines.append(f"    def {method}(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:")
             lines.append(f"        \"\"\"{description}")
             if key:
                 lines.append("")
                 lines.append(f"        Description key: {key}")
             lines.append(f"        Skill: {skill['app_id']}/{skill['skill_id']}")
             lines.append("        \"\"\"")
-            lines.append(f"        return self._run_skill({json.dumps(skill['app_id'])}, {json.dumps(skill['skill_id'])}, input_data)")
+            lines.append(f"        return self._run_skill({json.dumps(skill['app_id'])}, {json.dumps(skill['skill_id'])}, input_data, prompt_injection_protection=prompt_injection_protection)")
         lines.append("")
 
     lines.append("class GeneratedAppSkills:")

@@ -1,12 +1,8 @@
 <!--
-  Import Account Settings — Chat Import from ZIP or YAML
-  Allows users to import chats exported via Settings → Account → Export.
-  Accepts OpenMates export ZIP files (primary) and YAML files (secondary).
-  Each message is safety-scanned by the backend (gpt-oss-safeguard-20b via
-  OpenRouter) before storage. The user is shown a credit cost estimate before
-  confirming, and charged only for successfully imported chats.
-
-  See docs/architecture/account-backup.md for the export/import model.
+    Import Account Settings - Account Import V1
+    Requires an explicit source identity before local parser validation. The
+    server transiently scans and compresses bounded sanitized batches, while the
+    browser encrypts chats, provider identity, and checkpoints before persistence.
 -->
 
 <script lang="ts">
@@ -14,721 +10,380 @@
     import { authStore } from '../../../stores/authStore';
     import {
         parseImportFile,
+        previewImport,
         estimateImportCost,
         importChats,
-        type ParsedImportChat,
+        clearImportResumeState,
+        type ParsedAccountImport,
         type ImportCostEstimate,
+        type ImportPreviewResponse,
         type ImportedChatResult,
-        type ImportFileType,
         type ImportProgressCallback,
+        type AccountImportSource,
     } from '../../../services/chatImportService';
+    import SettingsButton from '../elements/SettingsButton.svelte';
+    import SettingsButtonGroup from '../elements/SettingsButtonGroup.svelte';
+    import SettingsCard from '../elements/SettingsCard.svelte';
+    import SettingsCheckboxList from '../elements/SettingsCheckboxList.svelte';
+    import SettingsDetailRow from '../elements/SettingsDetailRow.svelte';
+    import SettingsDropdown from '../elements/SettingsDropdown.svelte';
+    import SettingsFileUpload from '../elements/SettingsFileUpload.svelte';
+    import SettingsInfoBox from '../elements/SettingsInfoBox.svelte';
+    import SettingsProgressBar from '../elements/SettingsProgressBar.svelte';
+    import SettingsSectionHeading from '../elements/SettingsSectionHeading.svelte';
 
-    // ========================================================================
-    // STATE
-    // ========================================================================
+    type ChatOption = {
+        id: string;
+        label: string;
+        description?: string;
+        icon?: string;
+        checked: boolean;
+    };
 
-    /** File chosen by the user via the file picker */
+    type SourceOption = {
+        value: AccountImportSource;
+        label: string;
+    };
+
     let selectedFile = $state<File | null>(null);
-
-    /** Detected file type (zip or yaml) */
-    let fileType = $state<ImportFileType | null>(null);
-
-    /** Parsed chats from the file (before submission) */
-    let parsedChats = $state<ParsedImportChat[]>([]);
-
-    /** Which chats the user has checked for import */
+    let selectedSource = $state<AccountImportSource | null>(null);
+    let parsedImport = $state<ParsedAccountImport | null>(null);
+    let preview = $state<ImportPreviewResponse | null>(null);
     let selectedIndices = $state<Set<number>>(new Set());
-
-    /** Cost estimate for the selected chats */
     let costEstimate = $state<ImportCostEstimate | null>(null);
-
-    /** Parse error displayed to the user */
-    let parseError = $state<string | null>(null);
-
-    /** Whether the import is currently running */
     let isImporting = $state(false);
-
-    /** Live status message during import */
-    let importStatus = $state<string>('');
-
-    /** Import results after completion */
+    let importStatus = $state('');
+    let importProgress = $state(0);
     let importResults = $state<ImportedChatResult[] | null>(null);
-
-    /** Total credits charged in the last run */
     let totalCreditsCharged = $state(0);
-
-    /** Error message if import fails */
     let errorMessage = $state<string | null>(null);
 
-    // ========================================================================
-    // DERIVED
-    // ========================================================================
-
     let selectedChats = $derived(
-        parsedChats.filter((_, i) => selectedIndices.has(i))
+        parsedImport ? parsedImport.chats.filter((_, index) => selectedIndices.has(index)) : []
+    );
+    let hasSelection = $derived(selectedChats.length > 0);
+    let duplicateFingerprints = $derived(new Set(preview?.duplicate_fingerprints ?? []));
+    let chatOptions = $derived<ChatOption[]>(
+        parsedImport?.chats.map((chat, index) => {
+            const messageCount = chat.messages.length;
+            const duplicate = duplicateFingerprints.has(chat.source_fingerprint);
+            const title = chat.title || $text('settings.account.import_untitled');
+            return {
+                id: String(index),
+                label: duplicate ? $text('settings.account.import_possible_duplicate', { values: { title } }) : title,
+                description: `${messageCount} ${$text('settings.account.import_messages_count')}`,
+                icon: chat.provider === 'claude' || chat.provider === 'chatgpt' || chat.provider === 'opencode' ? 'icon_ai' : 'icon_chat',
+                checked: selectedIndices.has(index),
+            };
+        }) ?? []
+    );
+    let sourceOptions = $derived<SourceOption[]>(
+        (['openmates', 'chatgpt', 'claude', 'gemini', 'opencode', 'other'] as AccountImportSource[]).map((source) => ({
+            value: source,
+            label: $text(`settings.account.import_source_${source}`),
+        }))
+    );
+    let selectedSourceDescription = $derived(
+        selectedSource ? $text(`settings.account.import_source_${selectedSource}_description`) : ''
     );
 
-    let hasSelection = $derived(selectedChats.length > 0);
+    const progressCallback: ImportProgressCallback = (phase) => {
+        importStatus = $text(`settings.account.import_progress_${phase}`);
+        importProgress = phase === 'parsing'
+            ? 10
+            : phase === 'previewing'
+                ? 20
+                : phase === 'confirming'
+                    ? 30
+                : phase === 'scanning'
+                    ? 45
+                    : phase === 'compressing'
+                        ? 58
+                    : phase === 'encrypting'
+                        ? 65
+                        : phase === 'persisting'
+                            ? 82
+                            : phase === 'completing'
+                                ? 94
+                                : 100;
+    };
 
-    // ========================================================================
-    // FILE HANDLING
-    // ========================================================================
-
-    async function handleFileChange(event: Event): Promise<void> {
-        const input = event.target as HTMLInputElement;
-        const file = input.files?.[0] ?? null;
+    async function handleFileSelected(file: File): Promise<void> {
+        if (!selectedSource) return;
+        clearImportData();
         selectedFile = file;
-        fileType = null;
-        parsedChats = [];
-        selectedIndices = new Set();
-        costEstimate = null;
-        parseError = null;
-        importResults = null;
-        errorMessage = null;
-
-        if (!file) return;
-
+        importStatus = $text('settings.account.import_scanning');
         try {
-            const result = await parseImportFile(file);
-            fileType = result.fileType;
-            parsedChats = result.chats;
-            // Select all by default
-            selectedIndices = new Set(result.chats.map((_, i) => i));
-            costEstimate = estimateImportCost(result.chats);
-        } catch (e) {
-            parseError = e instanceof Error ? e.message : String(e);
+            const parsed = await parseImportFile(file, selectedSource, progressCallback);
+            const previewResult = await previewImport(parsed, progressCallback);
+            parsedImport = parsed;
+            preview = previewResult;
+            const defaultCount = Math.min(
+                previewResult.default_selection_count,
+                previewResult.max_batch_count,
+                parsed.chats.length
+            );
+            selectedIndices = new Set(parsed.chats.slice(0, defaultCount).map((_, index) => index));
+            costEstimate = estimateImportCost(parsed.chats.slice(0, defaultCount));
+            if (!previewResult.can_import) {
+                errorMessage = previewResult.reason === 'insufficient_credits'
+                    ? $text('settings.account.import_insufficient_credits')
+                    : $text('settings.account.import_unavailable', { values: { reason: previewResult.reason } });
+            }
+        } catch (error) {
+            errorMessage = error instanceof Error ? error.message : String(error);
+        } finally {
+            importStatus = '';
+            importProgress = 0;
         }
     }
 
-    function toggleChat(index: number): void {
+    function updateChatSelection(id: string, checked: boolean): void {
+        if (!parsedImport || !preview) return;
+        const index = Number(id);
+        if (!Number.isInteger(index)) return;
         const next = new Set(selectedIndices);
-        if (next.has(index)) {
-            next.delete(index);
-        } else {
+        if (checked) {
+            if (!next.has(index) && next.size >= preview.max_batch_count) {
+                errorMessage = $text('settings.account.import_batch_limit_error', { values: { count: preview.max_batch_count } });
+                return;
+            }
             next.add(index);
+        } else {
+            next.delete(index);
         }
         selectedIndices = next;
-        costEstimate = estimateImportCost(parsedChats.filter((_, i) => next.has(i)));
+        costEstimate = estimateImportCost(parsedImport.chats.filter((_, chatIndex) => next.has(chatIndex)));
+        errorMessage = null;
     }
 
-    function selectAll(): void {
-        selectedIndices = new Set(parsedChats.map((_, i) => i));
-        costEstimate = estimateImportCost(parsedChats);
+    function selectDefault(): void {
+        if (!parsedImport || !preview) return;
+        const count = Math.min(
+            preview.default_selection_count,
+            preview.max_batch_count,
+            parsedImport.chats.length
+        );
+        selectedIndices = new Set(parsedImport.chats.slice(0, count).map((_, index) => index));
+        costEstimate = estimateImportCost(parsedImport.chats.slice(0, count));
+        errorMessage = null;
     }
 
     function deselectAll(): void {
         selectedIndices = new Set();
         costEstimate = null;
+        errorMessage = null;
     }
 
-    // ========================================================================
-    // IMPORT
-    // ========================================================================
-
     async function startImport(): Promise<void> {
-        if (!$authStore.isAuthenticated || !hasSelection) return;
+        if (!$authStore.isAuthenticated || !parsedImport || !preview || !hasSelection) return;
 
         isImporting = true;
         errorMessage = null;
         importResults = null;
         importStatus = '';
-
-        const progressCallback: ImportProgressCallback = (_phase, detail) => {
-            importStatus = detail;
-        };
+        importProgress = 0;
 
         try {
-            const response = await importChats(selectedChats, progressCallback);
+            const response = await importChats(parsedImport, selectedChats, preview, progressCallback);
             importResults = response.imported;
             totalCreditsCharged = response.total_credits_charged;
-        } catch (e) {
-            errorMessage = e instanceof Error ? e.message : String(e);
+        } catch (error) {
+            errorMessage = error instanceof Error ? error.message : String(error);
         } finally {
             isImporting = false;
         }
     }
 
-    function resetState(): void {
+    function selectSource(id: string): void {
+        if (!id) return;
+        clearImportData();
+        selectedSource = id as AccountImportSource;
+    }
+
+    function clearImportData(): void {
+        clearImportResumeState(preview?.import_id);
         selectedFile = null;
-        fileType = null;
-        parsedChats = [];
+        parsedImport = null;
+        preview = null;
         selectedIndices = new Set();
         costEstimate = null;
-        parseError = null;
-        importResults = null;
-        errorMessage = null;
+        isImporting = false;
         importStatus = '';
-        // Reset the file input
-        const input = document.getElementById('import-file-input') as HTMLInputElement | null;
-        if (input) input.value = '';
+        importProgress = 0;
+        importResults = null;
+        totalCreditsCharged = 0;
+        errorMessage = null;
+    }
+
+    function resetState(): void {
+        selectedSource = null;
+        clearImportData();
     }
 </script>
 
-<div class="import-account-container">
-    <!-- Header -->
-    <div class="import-header">
-        <h2>{$text('settings.account.import_title')}</h2>
-        <p class="description">{$text('settings.account.import_description')}</p>
-    </div>
+<SettingsInfoBox type="info" icon="icon_info">
+    <p>{$text('settings.account.import_description')}</p>
+</SettingsInfoBox>
 
     {#if importResults}
-        <!-- ── Success State ─────────────────────────────────────────────── -->
-        <div class="results-container" data-testid="import-results-container">
-            <div class="success-banner">
-                <div class="icon icon_check"></div>
-                <span>{$text('settings.account.import_success')}</span>
-            </div>
+        <SettingsInfoBox type="success" icon="icon_check">
+            <span>{$text('settings.account.import_success')}</span>
+        </SettingsInfoBox>
 
-            <ul class="results-list">
+        <SettingsCard padding="sm" ariaLabel={$text('settings.account.import_results')}>
+            <div data-testid="import-results-container">
                 {#each importResults as result}
-                    <li class="result-item" data-testid="import-result-item">
-                        <div class="result-title">{result.title || $text('common.untitled_chat')}</div>
-                        <div class="result-stats">
-                            <span>{result.messages_imported} {$text('settings.account.import_messages_imported')}</span>
-                            {#if result.messages_blocked > 0}
-                                <span class="blocked-badge">
-                                    {result.messages_blocked} {$text('settings.account.import_messages_blocked')}
-                                </span>
-                            {/if}
-                        </div>
-                    </li>
+                    <SettingsDetailRow
+                        label={result.title || $text('settings.account.import_untitled')}
+                        value={`${result.messages_imported} ${$text('settings.account.import_messages_imported')}${result.messages_blocked > 0 ? ` / ${result.messages_blocked} ${$text('settings.account.import_messages_blocked')}` : ''}`}
+                        ariaLabel={$text('settings.account.import_result')}
+                    />
                 {/each}
-            </ul>
-
+            </div>
             {#if totalCreditsCharged > 0}
-                <p class="credits-charged">
-                    {$text('settings.account.import_credits_charged')}: <strong>{totalCreditsCharged}</strong>
-                </p>
-            {/if}
-        </div>
-
-        <div class="action-buttons">
-            <button class="btn btn-secondary" onclick={resetState} type="button">
-                {$text('settings.account.import_another')}
-            </button>
-        </div>
-
-    {:else}
-        <!-- ── File Picker ────────────────────────────────────────────────── -->
-        {#if !isImporting}
-            <div class="file-section">
-                <label class="file-label" for="import-file-input">
-                    <div class="icon icon_upload"></div>
-                    <span>
-                        {selectedFile ? selectedFile.name : $text('settings.account.import_choose_file')}
-                    </span>
-                    {#if fileType}
-                        <span class="file-type-badge file-type-badge--{fileType}">{fileType.toUpperCase()}</span>
-                    {/if}
-                </label>
-                <input
-                    id="import-file-input"
-                    type="file"
-                    accept=".zip,.yml,.yaml"
-                    class="file-input-hidden"
-                    onchange={handleFileChange}
+                <SettingsDetailRow
+                    label={$text('settings.account.import_credits_charged')}
+                    value={String(totalCreditsCharged)}
+                    highlight={true}
                 />
-            </div>
-        {/if}
+            {/if}
+        </SettingsCard>
 
-        <!-- ── Parse Error ────────────────────────────────────────────────── -->
-        {#if parseError}
-            <div class="error-message">
-                <div class="icon icon_error"></div>
-                <span>{parseError}</span>
-            </div>
-        {/if}
-
-        <!-- ── Chat Selection ─────────────────────────────────────────────── -->
-        {#if parsedChats.length > 0 && !isImporting}
-            <div class="select-section" data-testid="import-select-section">
-                <div class="select-header">
-                    <h3>{$text('settings.account.import_select_chats')}</h3>
-                    <div class="select-all-controls">
-                        <button class="btn-link" onclick={selectAll} type="button">
-                            {$text('common.select_all')}
-                        </button>
-                        <span class="separator">·</span>
-                        <button class="btn-link" onclick={deselectAll} type="button">
-                            {$text('settings.account.import_deselect_all')}
-                        </button>
-                    </div>
-                </div>
-
-                <ul class="chat-list">
-                    {#each parsedChats as chat, i}
-                        <li class="chat-item" data-testid="chat-item">
-                            <label class="chat-label">
-                                <input
-                                    type="checkbox"
-                                    class="chat-checkbox"
-                                    checked={selectedIndices.has(i)}
-                                    onchange={() => toggleChat(i)}
-                                />
-                                <div class="chat-info">
-                                    <span class="chat-title" data-testid="chat-title">{chat.title || $text('common.untitled_chat')}</span>
-                                    <span class="chat-meta" data-testid="chat-meta">
-                                        {chat.messages.length} {$text('settings.account.import_messages_count')}
-                                    </span>
-                                </div>
-                            </label>
-                        </li>
-                    {/each}
-                </ul>
-            </div>
-
-            <!-- ── Cost Estimate ────────────────────────────────────────────── -->
-            {#if costEstimate && hasSelection}
-                <div class="cost-estimate">
-                    <div class="icon icon_credits"></div>
-                    <div class="cost-text">
-                        <span class="cost-label">{$text('settings.account.import_estimated_cost')}</span>
-                        <strong class="cost-value">~{costEstimate.estimatedCredits} {$text('common.credits')}</strong>
-                        <span class="cost-detail">
-                            ({costEstimate.chatCount} {$text('settings.account.import_chats_selected')},
-                            {costEstimate.messageCount} {$text('settings.account.import_messages_count')})
-                        </span>
-                    </div>
-                </div>
+        <SettingsButtonGroup align="left">
+            <SettingsButton variant="secondary" onClick={resetState} dataTestid="account-import-another">
+                {$text('settings.account.import_another')}
+            </SettingsButton>
+        </SettingsButtonGroup>
+    {:else}
+        {#if !isImporting}
+            <SettingsSectionHeading title={$text('settings.account.import_title')} icon="download" />
+            <SettingsDropdown
+                value={selectedSource ?? ''}
+                options={sourceOptions}
+                placeholder={$text('settings.account.import_source_heading')}
+                ariaLabel={$text('settings.account.import_source_heading')}
+                dataTestid="account-import-source"
+                onChange={selectSource}
+            />
+            {#if selectedSource}
+                <SettingsInfoBox type="info" icon="icon_info">
+                    <p data-testid="account-import-source-description">{selectedSourceDescription}</p>
+                </SettingsInfoBox>
+            {/if}
+            {#if selectedSource === 'gemini' || selectedSource === 'other'}
+                <SettingsInfoBox type="info" icon="icon_info">
+                    <p data-testid={selectedSource === 'gemini' ? 'account-import-gemini-generic-note' : 'account-import-other-generic-note'}>
+                        {selectedSource === 'gemini'
+                            ? $text('settings.account.import_gemini_generic_note')
+                            : $text('settings.account.import_other_generic_note')}
+                    </p>
+                </SettingsInfoBox>
+            {/if}
+            {#if selectedSource}
+                <SettingsFileUpload
+                    accept=".zip,.json"
+                    label={selectedFile ? selectedFile.name : $text('settings.account.import_file_label')}
+                    disabled={!$authStore.isAuthenticated}
+                    ariaLabel={$text('settings.account.import_choose_file')}
+                    dataTestid="account-import-file-upload"
+                    onFileSelected={handleFileSelected}
+                />
             {/if}
         {/if}
 
-        <!-- ── Import Progress ────────────────────────────────────────────── -->
+        {#if parsedImport && preview && !isImporting}
+            <SettingsCard padding="sm" ariaLabel={$text('settings.account.import_preview')}>
+                <div data-testid="import-preview-summary">
+                    <SettingsDetailRow label={$text('settings.account.import_chats_found')} value={String(parsedImport.chats.length)} />
+                    <SettingsDetailRow label={$text('settings.account.import_default_selection')} value={String(preview.default_selection_count)} />
+                    <SettingsDetailRow label={$text('settings.account.import_batch_limit')} value={String(preview.max_batch_count)} />
+                    {#if preview.free_remaining !== undefined}
+                        <SettingsDetailRow label={$text('settings.account.import_free_remaining')} value={String(preview.free_remaining)} />
+                    {/if}
+                </div>
+            </SettingsCard>
+
+            {#if parsedImport.skippedDomains.length > 0}
+                <SettingsInfoBox type="info" icon="icon_info">
+                    <p>
+                        {$text('settings.account.import_skipped_domains', { values: { domains: parsedImport.skippedDomains.join(', ') } })}
+                    </p>
+                </SettingsInfoBox>
+            {/if}
+
+            {#if preview.duplicate_fingerprints.length > 0}
+                <SettingsInfoBox type="warning" icon="icon_warning">
+                    <p>
+                        {$text('settings.account.import_duplicate_warning', { values: { count: preview.duplicate_fingerprints.length } })}
+                    </p>
+                </SettingsInfoBox>
+            {/if}
+
+            <SettingsSectionHeading title={$text('settings.account.import_select_chats')} icon="chat" />
+            <SettingsCard padding="sm">
+                <SettingsButtonGroup align="space-between">
+                    <SettingsButton variant="ghost" size="sm" onClick={selectDefault} dataTestid="account-import-select-default">
+                        {$text('settings.account.import_select_default')}
+                    </SettingsButton>
+                    <SettingsButton variant="ghost" size="sm" onClick={deselectAll} dataTestid="account-import-deselect-all">
+                        {$text('settings.account.import_deselect_all')}
+                    </SettingsButton>
+                </SettingsButtonGroup>
+                <div data-testid="import-select-section">
+                    <SettingsCheckboxList
+                        options={chatOptions}
+                        onChange={updateChatSelection}
+                        dataTestid="import-chat-list"
+                    />
+                </div>
+            </SettingsCard>
+
+            {#if costEstimate && hasSelection}
+                <SettingsInfoBox type="info" icon="icon_credits">
+                    <p>
+                        {$text('settings.account.import_estimated_cost')}: ~{preview.estimated_credits} {$text('settings.account.import_credits')}
+                        ({costEstimate.chatCount} {$text('settings.account.import_chats_selected')}, {costEstimate.messageCount} {$text('settings.account.import_messages_count')}).
+                    </p>
+                </SettingsInfoBox>
+            {/if}
+        {/if}
+
         {#if isImporting}
-            <div class="progress-container">
-                <div class="loading-spinner-large"></div>
-                <p class="progress-message">{importStatus || $text('settings.account.import_scanning')}</p>
-                <p class="progress-note">{$text('settings.account.import_scanning_note')}</p>
-            </div>
+            <SettingsCard>
+                <SettingsProgressBar value={importProgress} label={importStatus || $text('settings.account.import_scanning')} showPercent={true} />
+            </SettingsCard>
+            <SettingsInfoBox type="info" icon="icon_info">
+                <p>{$text('settings.account.import_scanning_note')}</p>
+            </SettingsInfoBox>
         {/if}
 
-        <!-- ── Error ─────────────────────────────────────────────────────── -->
         {#if errorMessage}
-            <div class="error-message">
-                <div class="icon icon_error"></div>
+            <SettingsInfoBox type="error" icon="icon_warning">
                 <span>{errorMessage}</span>
-            </div>
+            </SettingsInfoBox>
         {/if}
 
-        <!-- ── Info Notice ────────────────────────────────────────────────── -->
-        {#if !isImporting}
-            <div class="info-notice">
-                <div class="icon icon_info"></div>
-                <p>{$text('settings.account.import_safety_notice')}</p>
-            </div>
-        {/if}
+        <SettingsInfoBox type="info" icon="icon_info">
+            <p>{$text('settings.account.import_safety_notice')}</p>
+        </SettingsInfoBox>
 
-        <!-- ── Action Buttons ─────────────────────────────────────────────── -->
-        <div class="action-buttons">
-            <button
-                class="btn btn-primary"
-                onclick={startImport}
-                disabled={isImporting || !$authStore.isAuthenticated || !hasSelection}
-                type="button"
+        <SettingsButtonGroup align="left">
+            <SettingsButton
+                variant="primary"
+                fullWidth={true}
+                onClick={startImport}
+                disabled={isImporting || !$authStore.isAuthenticated || !hasSelection || preview?.can_import === false}
+                loading={isImporting}
+                dataTestid="account-import-start"
             >
-                {#if isImporting}
-                    <span class="loading-spinner"></span>
-                    {$text('settings.account.import_importing')}
-                {:else}
-                    <div class="icon icon_upload"></div>
-                    {$text('settings.account.import_button')}
-                {/if}
-            </button>
-        </div>
+                {$text('settings.account.import_button')}
+            </SettingsButton>
+        </SettingsButtonGroup>
 
         {#if !$authStore.isAuthenticated}
-            <div class="login-notice">
+            <SettingsInfoBox type="warning" icon="icon_warning">
                 <p>{$text('settings.account.import_login_required')}</p>
-            </div>
+            </SettingsInfoBox>
         {/if}
     {/if}
-</div>
-
-<style>
-    .import-account-container {
-        max-width: 640px;
-        padding-bottom: 2rem;
-    }
-
-    .import-header {
-        margin-bottom: 1.5rem;
-    }
-
-    .import-header h2 {
-        font-size: var(--font-size-h2);
-        font-weight: 700;
-        color: var(--color-font-primary);
-        margin: 0 0 0.5rem 0;
-    }
-
-    .description {
-        color: var(--color-font-secondary);
-        font-size: var(--font-size-p);
-        line-height: 1.5;
-        margin: 0;
-    }
-
-    /* ── File picker ─────────────────────────────────────────────────────── */
-    .file-section {
-        margin-bottom: 1.25rem;
-    }
-
-    .file-label {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1rem;
-        border: 1.5px dashed var(--color-grey-35);
-        border-radius: var(--radius-4);
-        cursor: pointer;
-        color: var(--color-font-secondary);
-        font-size: var(--font-size-p);
-        transition: border-color var(--duration-fast), background var(--duration-fast);
-    }
-
-    .file-label:hover {
-        border-color: var(--color-accent);
-        background: var(--color-grey-10);
-    }
-
-    .file-input-hidden {
-        display: none;
-    }
-
-    /* ── Chat selection ──────────────────────────────────────────────────── */
-    .select-section {
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-25);
-        border-radius: var(--radius-5);
-        padding: 1.25rem;
-        margin-bottom: 1.25rem;
-    }
-
-    .select-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1rem;
-    }
-
-    .select-header h3 {
-        font-size: var(--font-size-p);
-        font-weight: 600;
-        color: var(--color-font-primary);
-        margin: 0;
-    }
-
-    .select-all-controls {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
-    .separator {
-        color: var(--color-grey-40);
-        font-size: 0.85rem;
-    }
-
-    .btn-link {
-        background: none;
-        border: none;
-        color: var(--color-accent);
-        cursor: pointer;
-        font-size: 0.8rem;
-        padding: 0;
-    }
-
-    .chat-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .chat-item {
-        border-radius: var(--radius-3);
-        overflow: hidden;
-    }
-
-    .chat-label {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.6rem 0.75rem;
-        cursor: pointer;
-        border-radius: var(--radius-3);
-        transition: background 0.1s;
-    }
-
-    .chat-label:hover {
-        background: var(--color-grey-20);
-    }
-
-    .chat-checkbox {
-        width: 1rem;
-        height: 1rem;
-        flex-shrink: 0;
-        accent-color: var(--color-accent);
-    }
-
-    .chat-info {
-        display: flex;
-        flex-direction: column;
-        gap: 0.1rem;
-    }
-
-    .chat-title {
-        font-size: var(--font-size-p);
-        font-weight: 500;
-        color: var(--color-font-primary);
-    }
-
-    .chat-meta {
-        font-size: 0.78rem;
-        color: var(--color-font-secondary);
-    }
-
-    /* ── Cost estimate ───────────────────────────────────────────────────── */
-    .cost-estimate {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.6rem;
-        padding: 0.9rem 1rem;
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-25);
-        border-radius: var(--radius-4);
-        margin-bottom: 1.25rem;
-    }
-
-    .cost-text {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: baseline;
-        gap: 0.35rem;
-        font-size: var(--font-size-p);
-    }
-
-    .cost-label {
-        color: var(--color-font-secondary);
-    }
-
-    .cost-value {
-        color: var(--color-font-primary);
-    }
-
-    .cost-detail {
-        color: var(--color-font-secondary);
-        font-size: 0.8rem;
-    }
-
-    /* ── Progress ────────────────────────────────────────────────────────── */
-    .progress-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 2rem 1rem;
-        text-align: center;
-    }
-
-    .loading-spinner-large {
-        width: 2.5rem;
-        height: 2.5rem;
-        border: 3px solid var(--color-grey-25);
-        border-top-color: var(--color-accent);
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-
-    .progress-message {
-        color: var(--color-font-primary);
-        font-size: var(--font-size-p);
-        margin: 0;
-    }
-
-    .progress-note {
-        color: var(--color-font-secondary);
-        font-size: 0.8rem;
-        margin: 0;
-    }
-
-    /* ── Results ─────────────────────────────────────────────────────────── */
-    .results-container {
-        margin-bottom: 1.5rem;
-    }
-
-    .success-banner {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1rem;
-        background: var(--color-success-bg, #ecfdf5);
-        border: 1px solid var(--color-success-border, #a7f3d0);
-        border-radius: var(--radius-4);
-        color: var(--color-success-text, #065f46);
-        margin-bottom: 1rem;
-        font-size: var(--font-size-p);
-    }
-
-    .results-list {
-        list-style: none;
-        padding: 0;
-        margin: 0 0 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .result-item {
-        padding: 0.6rem 0.75rem;
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-25);
-        border-radius: var(--radius-3);
-    }
-
-    .result-title {
-        font-size: var(--font-size-p);
-        font-weight: 500;
-        color: var(--color-font-primary);
-        margin-bottom: 0.15rem;
-    }
-
-    .result-stats {
-        display: flex;
-        gap: 0.75rem;
-        font-size: 0.78rem;
-        color: var(--color-font-secondary);
-    }
-
-    .blocked-badge {
-        color: var(--color-warning-text, #92400e);
-    }
-
-    .credits-charged {
-        font-size: 0.85rem;
-        color: var(--color-font-secondary);
-        margin: 0;
-    }
-
-    /* ── Messages ────────────────────────────────────────────────────────── */
-    .error-message {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1rem;
-        background: var(--color-error-bg, #fef2f2);
-        border: 1px solid var(--color-error-border, #fecaca);
-        border-radius: var(--radius-4);
-        color: var(--color-error-text, #991b1b);
-        font-size: var(--font-size-p);
-        margin-bottom: 1rem;
-    }
-
-    .info-notice {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.5rem;
-        padding: 0.75rem 1rem;
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-25);
-        border-radius: var(--radius-4);
-        margin-bottom: 1.25rem;
-    }
-
-    .info-notice p {
-        margin: 0;
-        font-size: 0.82rem;
-        color: var(--color-font-secondary);
-        line-height: 1.5;
-    }
-
-    .login-notice {
-        font-size: 0.82rem;
-        color: var(--color-font-secondary);
-        text-align: center;
-        margin-top: 0.75rem;
-    }
-
-    /* ── Buttons ─────────────────────────────────────────────────────────── */
-    .action-buttons {
-        display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-    }
-
-    .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.6rem 1.2rem;
-        border-radius: var(--radius-3);
-        font-size: var(--font-size-p);
-        font-weight: 500;
-        cursor: pointer;
-        border: 1.5px solid transparent;
-        transition: opacity var(--duration-fast), background var(--duration-fast);
-    }
-
-    .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    .btn-primary {
-        background: var(--color-accent);
-        color: var(--color-accent-contrast, #fff);
-        border-color: var(--color-accent);
-    }
-
-    .btn-primary:not(:disabled):hover {
-        opacity: 0.85;
-    }
-
-    .btn-secondary {
-        background: var(--color-grey-15);
-        color: var(--color-font-primary);
-        border-color: var(--color-grey-30);
-    }
-
-    .btn-secondary:not(:disabled):hover {
-        background: var(--color-grey-20);
-    }
-
-    .loading-spinner {
-        display: inline-block;
-        width: 1rem;
-        height: 1rem;
-        border: 2px solid rgba(255, 255, 255, 0.4);
-        border-top-color: #fff;
-        border-radius: 50%;
-        animation: spin 0.7s linear infinite;
-    }
-
-    /* ── File type badge ─────────────────────────────────────────────────── */
-    .file-type-badge {
-        margin-left: auto;
-        padding: 0.1rem 0.45rem;
-        border-radius: var(--radius-1);
-        font-size: 0.7rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        line-height: 1.4;
-        flex-shrink: 0;
-    }
-
-    .file-type-badge--zip {
-        background: var(--color-accent-soft, #e0e7ff);
-        color: var(--color-accent, #4f46e5);
-    }
-
-    .file-type-badge--yaml {
-        background: var(--color-grey-20);
-        color: var(--color-font-secondary);
-    }
-</style>

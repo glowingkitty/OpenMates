@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import base64
 import importlib.util
+import subprocess
 import sys
 from argparse import Namespace
 from pathlib import Path
@@ -84,12 +85,119 @@ def test_deploy_latest_testflight_syncs_then_uploads_ios_and_macos() -> None:
         api_issuer_id="ISSUER123",
     )
 
-    assert command.index("git fetch origin dev") < command.index("APP_STORE_CONNECT_API_KEY_PATH=/private/key.p8")
-    assert command.count("python3 -c") == 2
+    sync_index = command.index("git fetch origin dev")
+    build_number_index = command.index("OPENMATES_UNIFIED_BUILD_NUMBER")
+    ios_upload_index = command.index("APP_STORE_CONNECT_API_KEY_PATH=/private/key.p8", build_number_index)
+    macos_upload_index = command.index("macos", ios_upload_index)
+
+    assert sync_index < build_number_index < ios_upload_index < macos_upload_index
+    assert command.count("python3 -c") == 6
     assert "APP_STORE_CONNECT_API_KEY_ID=KEY123" in command
     assert "APP_STORE_CONNECT_API_ISSUER_ID=ISSUER123" in command
+    assert "buildNumber=" in command
     assert " watchos " not in command
     assert "macos" in command
+
+
+def test_unified_deploy_stamps_the_same_build_number_into_all_archive_targets() -> None:
+    apple_remote = load_apple_remote()
+    script = apple_remote.TESTFLIGHT_IOS_SCRIPT
+
+    assert 'requested_build_number = os.environ.get("OPENMATES_UNIFIED_BUILD_NUMBER")' in script
+    assert 'export_options["manageAppVersionAndBuildNumber"] = requested_build_number is None' in script
+    assert 'archive_cmd.insert(-1, f"CURRENT_PROJECT_VERSION={requested_build_number}")' in script
+    assert "assert_ios_archive_embeds_watch_companion()" in script
+
+
+@pytest.mark.parametrize("app_count", [None, 0])
+def test_unified_build_number_selection_requires_one_app(app_count: int | None) -> None:
+    apple_remote = load_apple_remote()
+    app_line = "" if app_count is None else f"apps={app_count}\n"
+
+    result = subprocess.run(
+        [sys.executable, "-c", apple_remote.NEXT_UNIFIED_BUILD_NUMBER_SCRIPT],
+        input=f"{app_line}builds=0\nbuild_scan=complete\n",
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "app lookup failed" in result.stderr
+
+
+def test_unified_build_number_selection_uses_the_highest_build_across_platforms() -> None:
+    apple_remote = load_apple_remote()
+    output = """apps=1
+builds=3
+build_scan=complete
+build=mac appVersion=0.14.0 buildNumber=13 platform=MAC_OS
+build=ios-latest appVersion=0.14.0 buildNumber=20 platform=IOS
+build=ios-older appVersion=0.14.0 buildNumber=18 platform=IOS
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", apple_remote.NEXT_UNIFIED_BUILD_NUMBER_SCRIPT],
+        input=output,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "21"
+
+
+@pytest.mark.parametrize("build_number", ["21.1", "9999"])
+def test_unified_build_number_selection_rejects_unsafe_values(build_number: str) -> None:
+    apple_remote = load_apple_remote()
+    output = f"apps=1\nbuilds=1\nbuild_scan=complete\nbuild=x buildNumber={build_number}\n"
+
+    result = subprocess.run(
+        [sys.executable, "-c", apple_remote.NEXT_UNIFIED_BUILD_NUMBER_SCRIPT],
+        input=output,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+
+
+def test_release_archive_preflight_is_non_mutating_release_archive() -> None:
+    apple_remote = load_apple_remote()
+
+    command = apple_remote.release_archive_preflight_command("ios")
+
+    assert "Release" in command
+    assert "xcodebuild" in command
+    assert "archive" in command
+    assert "CODE_SIGNING_ALLOWED=NO" in command
+    assert "CODE_SIGNING_REQUIRED=NO" in command
+    assert "release_archive_preflight=passed:" in command
+    assert "assert_ios_archive_passkey_entitlements()" in command
+    assert "OpenMatesPasskey.entitlements" in command
+    assert "assert_ios_archive_embeds_watch_companion()" in command
+    for forbidden in (
+        "-allowProvisioningUpdates",
+        "build:translations",
+        "clean_openmates_provisioning_profiles",
+        "create_or_download_app_store_profiles",
+        "sync_bundle_capabilities",
+        "-exportArchive",
+        "upsert_testflight_whats_new",
+        "--upload-package",
+    ):
+        assert forbidden not in command
+
+
+def test_upload_testflight_preflights_immediately_before_upload() -> None:
+    apple_remote = load_apple_remote()
+
+    command = apple_remote.upload_testflight_ios_command(True, whats_new=VALID_WHATS_NEW)
+
+    assert command.index("release_archive_preflight=passed:") < command.index("upload_status=started")
+    assert " && " in command
 
 
 def test_upload_testflight_ios_can_attach_whats_new_text() -> None:
@@ -106,8 +214,10 @@ def test_upload_testflight_ios_can_attach_whats_new_text() -> None:
     assert encoded in command
     assert "en-US" in command
     assert "upsert_testflight_whats_new()" in script
+    assert "previous_testflight_build_ids" in script
+    assert "excluded_build_ids=previous_testflight_build_ids" in script
     assert "betaBuildLocalizations" in script
-    assert "whats_new_previous_build=" in script
+    assert "whats_new_previous_build_count=" in script
     assert script.index('print("upload_status=passed")') < script.rindex("upsert_testflight_whats_new()")
 
 
@@ -324,7 +434,7 @@ def test_app_store_builds_command_can_require_valid_testflight_changelogs() -> N
     )
     script = apple_remote.APP_STORE_BUILDS_SCRIPT
 
-    assert command.endswith(" org.openmates.app 5 1 en-US")
+    assert command.endswith(" org.openmates.app 5 1 en-US 0")
     assert "builds/{build_id}/betaBuildLocalizations?limit=200" in script
     assert "MIN_TESTFLIGHT_WHATS_NEW_LINES = 5" in script
     assert "changelog_status=failed" in script

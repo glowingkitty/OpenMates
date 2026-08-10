@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
-  import { isDesktop } from '../utils/platform';
+  import { isDesktop, isMacPlatform } from '../utils/platform';
   import { panelState } from '../stores/panelStateStore';
   import { openSearch } from '../stores/searchStore';
 
@@ -10,12 +10,20 @@
 
   const dispatch = createEventDispatcher();
 
+  function setRecordingShortcutFocusState(active: boolean): void {
+    if (active) {
+      document.documentElement.dataset.recordingShortcutActive = 'true';
+    } else {
+      delete document.documentElement.dataset.recordingShortcutActive;
+    }
+  }
+
   // Track if this is the first instance to register global listener
   // This prevents multiple KeyboardShortcuts instances from registering duplicate listeners
   let _isGlobalListenerRegistered = false;
 
-  let spaceRecordingShortcutActive = false;
-  let suppressSpaceUntilKeyUp = false;
+  let keyboardRecordingShortcutActive = false;
+  let recordingShortcutStartFallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
   onMount(() => {
     const _desktop = isDesktop();
@@ -27,7 +35,7 @@
      * preventDefault() to try to override them, but success depends on the browser.
      */
     const handleKeyDown = (event: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const isMac = isMacPlatform();
       // Improved check for focused input: look for textarea, contenteditable, or ProseMirror class
       // This catches TipTap editors which create contenteditable divs
       const activeElement = document.activeElement;
@@ -35,38 +43,50 @@
                             activeElement?.getAttribute('contenteditable') === 'true' ||
                             activeElement?.classList.contains('ProseMirror');
 
-      // Hold Space from the chat surface to record audio without first focusing
-      // MessageInput. When the editor is focused, Space must remain normal text input.
-      if (_desktop && event.code === 'Space' && (spaceRecordingShortcutActive || suppressSpaceUntilKeyUp)) {
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-      }
-
       if (
         _desktop &&
-        event.code === 'Space' &&
+        (event.metaKey || event.ctrlKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === 'm' &&
         !event.repeat &&
-        !event.metaKey &&
-        !event.ctrlKey &&
-        !event.altKey &&
-        !event.shiftKey &&
-        !isInputFocused
+        !event.altKey
       ) {
         event.preventDefault();
         event.stopPropagation();
-        spaceRecordingShortcutActive = true;
-        suppressSpaceUntilKeyUp = true;
-        window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'start', source: 'keyboard' } }));
+        event.stopImmediatePropagation();
+        const action = keyboardRecordingShortcutActive ? 'stop' : 'start';
+        keyboardRecordingShortcutActive = action === 'start';
+        setRecordingShortcutFocusState(action === 'start');
+        clearTimeout(recordingShortcutStartFallbackTimer ?? undefined);
+        recordingShortcutStartFallbackTimer = null;
+        if (action === 'start') {
+          recordingShortcutStartFallbackTimer = setTimeout(() => {
+            recordingShortcutStartFallbackTimer = null;
+            if (!document.querySelector('[data-testid="record-overlay"]')) {
+              keyboardRecordingShortcutActive = false;
+              setRecordingShortcutFocusState(false);
+            }
+          }, 750);
+        }
+        window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action, source: 'keyboard' } }));
         return;
       }
 
-      if (_desktop && event.key === 'Escape' && spaceRecordingShortcutActive) {
+      if (_desktop && event.key === 'Escape' && keyboardRecordingShortcutActive) {
         event.preventDefault();
         event.stopPropagation();
-        spaceRecordingShortcutActive = false;
-        suppressSpaceUntilKeyUp = true;
+        event.stopImmediatePropagation();
+        keyboardRecordingShortcutActive = false;
         window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'cancel' } }));
+        return;
+      }
+
+      if (_desktop && event.key === 'Enter' && !event.shiftKey && keyboardRecordingShortcutActive) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        keyboardRecordingShortcutActive = false;
+        window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'stop' } }));
         return;
       }
 
@@ -241,17 +261,11 @@
       }
     };
 
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (_desktop && event.code === 'Space' && (spaceRecordingShortcutActive || suppressSpaceUntilKeyUp)) {
-        event.preventDefault();
-        event.stopPropagation();
-        const shouldStopRecording = spaceRecordingShortcutActive;
-        spaceRecordingShortcutActive = false;
-        suppressSpaceUntilKeyUp = false;
-        if (shouldStopRecording) {
-          window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'stop' } }));
-        }
-      }
+    const handleRecordingShortcutFinished = () => {
+      keyboardRecordingShortcutActive = false;
+      clearTimeout(recordingShortcutStartFallbackTimer ?? undefined);
+      recordingShortcutStartFallbackTimer = null;
+      setRecordingShortcutFocusState(false);
     };
 
     // IMPORTANT: Only register the global listener ONCE, even if multiple KeyboardShortcuts components exist
@@ -260,14 +274,17 @@
     if (!windowWithKeyboardShortcutsFlag.__keyboardShortcutsListenerRegistered) {
       console.info('[KeyboardShortcuts] Registering global keyboard listener (first instance)');
       window.addEventListener('keydown', handleKeyDown, true);
-      window.addEventListener('keyup', handleKeyUp, true);
+      window.addEventListener('recordingShortcutFinished', handleRecordingShortcutFinished);
       windowWithKeyboardShortcutsFlag.__keyboardShortcutsListenerRegistered = true;
       
       return () => {
         // Only remove listener if this was the registering instance
         console.info('[KeyboardShortcuts] Removing global keyboard listener');
         window.removeEventListener('keydown', handleKeyDown, true);
-        window.removeEventListener('keyup', handleKeyUp, true);
+        window.removeEventListener('recordingShortcutFinished', handleRecordingShortcutFinished);
+        clearTimeout(recordingShortcutStartFallbackTimer ?? undefined);
+        recordingShortcutStartFallbackTimer = null;
+        setRecordingShortcutFocusState(false);
         windowWithKeyboardShortcutsFlag.__keyboardShortcutsListenerRegistered = false;
       };
     } else {

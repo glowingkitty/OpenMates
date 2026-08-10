@@ -179,6 +179,76 @@ async def test_anonymous_chat_dispatches_ai_and_finalizes_actual_credits(monkeyp
 
 
 @pytest.mark.asyncio
+async def test_anonymous_sse_keeps_successful_answer_when_finalization_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    async def failing_finalize(self: AnonymousFreeUsageService, request_id: str, *, actual_credits: int) -> None:
+        raise ValueError("reservation not found")
+
+    class FakeRegistry:
+        async def dispatch_skill(self, app_id: str, skill_id: str, request_body: dict) -> dict:
+            assert request_body["stream"] is True
+            return {
+                "model": "test-model",
+                "category": "general_knowledge",
+                "choices": [{"message": {"content": "anonymous inference ok"}}],
+                "usage": {"total_credits": 7},
+            }
+
+    directus = FakeDirectus()
+    service = AnonymousFreeUsageService(directus_service=directus, hmac_secret="test-secret")
+    await service.save_budget(
+        enabled=True,
+        monthly_budget_credits=2_000,
+        daily_hard_cap_percent=5,
+        weekly_cap_percent=25,
+        per_identity_daily_cap_credits=400,
+        admin_user_id="admin-1",
+    )
+    fake_skill_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    fake_skill_registry_module.get_global_registry = lambda: FakeRegistry()
+    monkeypatch.setattr(anonymous_routes, "validate_request_domain", lambda _request: ("api.dev.openmates.org", False, "development"))
+    monkeypatch.setattr(AnonymousFreeUsageService, "finalize_reservation", failing_finalize)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_skill_registry_module)
+
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/v1/anonymous/chat/stream",
+            "headers": [(b"host", b"api.dev.openmates.org"), (b"accept", b"text/event-stream")],
+            "client": ("198.51.100.7", 443),
+        }
+    )
+    payload = AnonymousChatStreamRequest(
+        anonymous_id="anon-1",
+        client_chat_id="chat-1",
+        client_message_id="message-1",
+        plaintext_message="Reply with exactly: anonymous inference ok",
+    )
+
+    with caplog.at_level("ERROR"):
+        response = await anonymous_chat_stream(request=request, payload=payload, directus_service=directus)
+        body = ""
+        async for chunk in response.body_iterator:
+            body += chunk.decode() if isinstance(chunk, bytes) else str(chunk)
+
+    events = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: ")]
+    assert [event["type"] for event in events] == [
+        "ai_task_initiated",
+        "ai_typing_started",
+        "ai_message_chunk",
+        "ai_task_ended",
+        "post_processing_completed",
+    ]
+    assert events[2]["full_content_so_far"] == "anonymous inference ok"
+    assert events[3]["status"] == "completed"
+    assert "reservation not found" not in body
+    assert "Anonymous free usage reservation finalization failed" in caplog.text
+
+
+@pytest.mark.asyncio
 async def test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation(monkeypatch: pytest.MonkeyPatch) -> None:
     reserve_started = asyncio.Event()
     release_reservation = asyncio.Event()
@@ -303,3 +373,63 @@ async def test_anonymous_chat_keeps_json_response_for_native_clients(monkeypatch
     assert response.status == "completed"
     assert response.assistant == "anonymous json ok"
     assert response.creditsCharged == 5
+
+
+@pytest.mark.asyncio
+async def test_anonymous_json_keeps_successful_answer_when_finalization_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    async def failing_finalize(self: AnonymousFreeUsageService, request_id: str, *, actual_credits: int) -> None:
+        raise ValueError("reservation not found")
+
+    directus = FakeDirectus()
+    service = AnonymousFreeUsageService(directus_service=directus, hmac_secret="test-secret")
+    await service.save_budget(
+        enabled=True,
+        monthly_budget_credits=2_000,
+        daily_hard_cap_percent=5,
+        weekly_cap_percent=25,
+        per_identity_daily_cap_credits=400,
+        admin_user_id="admin-1",
+    )
+
+    class FakeRegistry:
+        async def dispatch_skill(self, app_id: str, skill_id: str, request_body: dict) -> dict:
+            assert request_body["stream"] is False
+            return {
+                "model": "test-model",
+                "category": "general_knowledge",
+                "choices": [{"message": {"content": "anonymous json ok"}}],
+                "usage": {"total_credits": 5},
+            }
+
+    fake_skill_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    fake_skill_registry_module.get_global_registry = lambda: FakeRegistry()
+    monkeypatch.setattr(anonymous_routes, "validate_request_domain", lambda _request: ("api.dev.openmates.org", False, "development"))
+    monkeypatch.setattr(AnonymousFreeUsageService, "finalize_reservation", failing_finalize)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_skill_registry_module)
+
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/v1/anonymous/chat/stream",
+            "headers": [(b"host", b"api.dev.openmates.org")],
+            "client": ("198.51.100.7", 443),
+        }
+    )
+    payload = AnonymousChatStreamRequest(
+        anonymous_id="anon-1",
+        client_chat_id="chat-1",
+        client_message_id="message-1",
+        plaintext_message="Reply with exactly: anonymous json ok",
+    )
+
+    with caplog.at_level("ERROR"):
+        response = await anonymous_chat_stream(request=request, payload=payload, directus_service=directus)
+
+    assert response.status == "completed"
+    assert response.assistant == "anonymous json ok"
+    assert response.creditsCharged == 5
+    assert "Anonymous free usage reservation finalization failed" in caplog.text

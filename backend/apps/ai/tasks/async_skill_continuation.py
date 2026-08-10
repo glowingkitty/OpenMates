@@ -23,6 +23,7 @@ except ImportError:  # pragma: no cover - test environments may not install opti
         return json.dumps(value, ensure_ascii=False)
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.apps.ai.utils.embeds_map_view import EMBEDS_MAP_VIEW_INSTRUCTION
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
 
@@ -34,7 +35,8 @@ ASYNC_SKILL_COMPLETION_KEY_PREFIX = "async_skill_completion"
 ASYNC_EMBED_REFERENCE_INSTRUCTION = (
     "When referencing a specific completed result that has an embed_ref field, "
     "link it with Markdown like [human-readable title](embed:the_embed_ref). "
-    "Use the result title or a short description as the link text; never use the embed_ref itself as the visible text."
+    "Use the result title or a short description as the link text; never use the embed_ref itself as the visible text.\n\n"
+    f"{EMBEDS_MAP_VIEW_INSTRUCTION}"
 )
 celery_app = None
 
@@ -159,11 +161,29 @@ async def dispatch_async_skill_continuation(
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,
         active_focus_id=original_request.active_focus_id,
+        continuation_message_id=original_request.continuation_message_id,
         user_preferences=original_request.user_preferences,
         app_settings_memories_metadata=original_request.app_settings_memories_metadata,
         mentioned_settings_memories_cleartext=original_request.mentioned_settings_memories_cleartext,
         embed_file_path_index=original_request.embed_file_path_index,
+        has_image_upload_embed=getattr(original_request, "has_image_upload_embed", False),
         is_sub_chat_continuation=original_request.is_sub_chat_continuation,
+        parent_id=original_request.parent_id,
+        is_sub_chat=original_request.is_sub_chat,
+        orchestration_id=original_request.orchestration_id,
+        root_chat_id=original_request.root_chat_id,
+        root_turn_id=original_request.root_turn_id,
+        sub_chat_depth=original_request.sub_chat_depth,
+        orchestration_dispatch_token=original_request.orchestration_dispatch_token,
+        orchestration_descendant_limit=original_request.orchestration_descendant_limit,
+        orchestration_credit_limit=original_request.orchestration_credit_limit,
+        orchestration_approved=original_request.orchestration_approved,
+        budget_limit=original_request.budget_limit,
+        budget_spent=original_request.budget_spent,
+        team_id=original_request.team_id,
+        team_id_hash=original_request.team_id_hash,
+        team_workspace_type=original_request.team_workspace_type,
+        team_object_id_hash=original_request.team_object_id_hash,
     )
 
     app = _get_celery_app()

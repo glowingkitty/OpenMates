@@ -75,6 +75,7 @@ struct WebSearchEmbedFullscreenContent: View {
             EmbedPreviewCard(embed: result.embed, variant: .compact) {
                 onOpenEmbed(result.embed)
             }
+            .accessibilityIdentifier("embed-preview-\(result.embed.id)")
         }
     }
 

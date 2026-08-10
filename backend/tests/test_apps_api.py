@@ -1,4 +1,5 @@
 # backend/tests/test_apps_api.py
+# contract-test-file: infrastructure
 #
 # Focused tests for custom app-skill routes registered by apps_api.py. These
 # verify route wiring and auth/dependency integration without starting external
@@ -9,12 +10,15 @@ from __future__ import annotations
 import base64
 import hashlib
 import importlib
+import inspect
 import re
 import sys
 import types
+from pathlib import Path
 
 import pytest
-from fastapi import FastAPI, HTTPException, Response
+import yaml
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, Field
 
@@ -150,9 +154,14 @@ code_execution.start_code_run_execution = start_code_run_execution
 
 User = importlib.import_module("backend.core.api.app.models.user").User
 apps_api = importlib.import_module("backend.core.api.app.routes.apps_api")
+AppYAML = importlib.import_module("backend.shared.python_schemas.app_metadata_schemas").AppYAML
+AppSkillDefinition = importlib.import_module("backend.shared.python_schemas.app_metadata_schemas").AppSkillDefinition
+ProviderRef = importlib.import_module("backend.shared.python_schemas.app_metadata_schemas").ProviderRef
 get_current_user_or_api_key = importlib.import_module(
     "backend.core.api.app.routes.auth_routes.auth_dependencies"
 ).get_current_user_or_api_key
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 for module_name, stub in (
     ("backend.core.api.app.services.limiter", limiter_stub),
@@ -171,6 +180,45 @@ for module_name, stub in (
 
 def _b64(value: str) -> str:
     return base64.b64encode(value.encode("utf-8")).decode("ascii")
+
+
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
+def test_image_to_html_processing_response_defers_billing_to_worker() -> None:
+    credits = apps_api.get_variable_result_credits(
+        "code",
+        "image_to_html",
+        {"results": [{"task_id": "task-1", "embed_id": "embed-1", "status": "processing"}]},
+    )
+
+    assert credits == 0
+
+
+@pytest.mark.asyncio
+async def test_skill_provider_pricing_uses_provider_ref_display_name(monkeypatch) -> None:
+    class FakeConfigManager:
+        def get_provider_config(self, provider_id: str):
+            assert provider_id == "google"
+            return {"name": "Google Vertex AI", "description": "Google provider metadata"}
+
+    async def fake_fetch_provider_pricing(provider_id: str):
+        assert provider_id == "google"
+        return {"tokens": {"input": {"per_credit_unit": 200}}}
+
+    monkeypatch.setattr(apps_api, "fetch_provider_pricing", fake_fetch_provider_pricing)
+
+    providers = await apps_api.get_skill_providers_with_pricing(
+        AppSkillDefinition(
+            id="image_to_html",
+            name_translation_key="app_skills.code.image_to_html",
+            description_translation_key="app_skills.code.image_to_html.description",
+            providers=[ProviderRef(name="google", display_name="Google")],
+        ),
+        "code",
+        FakeConfigManager(),
+    )
+
+    assert providers[0].provider == "google"
+    assert providers[0].name == "Google"
 
 
 @pytest.mark.asyncio
@@ -204,6 +252,7 @@ async def test_session_or_api_key_auth_preserves_device_approval_errors(monkeypa
 
 
 @pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.surface.semantic-parity
 async def test_session_auth_tags_apple_client_with_device_hash(monkeypatch) -> None:
     user = User(id="user-apple", username="alice", vault_key_id="vault-1", credits=10)
 
@@ -236,6 +285,7 @@ async def test_session_auth_tags_apple_client_with_device_hash(monkeypatch) -> N
 
 
 @pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.surface.semantic-parity
 async def test_usage_summaries_use_apple_device_identifier(monkeypatch) -> None:
     usage_module = importlib.import_module("backend.core.api.app.services.directus.usage")
     usage = usage_module.UsageMethods(sdk=object(), encryption_service=object())
@@ -282,6 +332,7 @@ async def test_usage_summaries_use_apple_device_identifier(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.surface.semantic-parity
 async def test_usage_details_filter_apple_device_identifier() -> None:
     usage_module = importlib.import_module("backend.core.api.app.services.directus.usage")
     captured_params: dict[str, object] = {}
@@ -290,7 +341,16 @@ async def test_usage_details_filter_apple_device_identifier() -> None:
     class FakeSDK:
         async def get_items(self, collection_name, params, no_cache=False):
             if collection_name == "usage_monthly_api_key_summaries":
-                return [{"id": "summary-1", "is_archived": False, "archive_s3_key": None}]
+                return [{
+                    "id": "summary-1",
+                    "user_id_hash": "user-hash",
+                    "api_key_hash": device_hash,
+                    "year_month": "2024-07",
+                    "total_credits": 0,
+                    "entry_count": 1,
+                    "is_archived": False,
+                    "archive_s3_key": None,
+                }]
             captured_params.update(params)
             return []
 
@@ -363,3 +423,289 @@ def test_code_run_app_skill_route_starts_direct_run(monkeypatch) -> None:
     assert captured["target_embed_id"] is None
     assert captured["target_path"] == "main.py"
     assert captured["enable_internet"] is True
+
+
+# contract-test: direct surface=rest_api assertions=billing.access.authenticated-first-party,billing.credits.idempotent-charge
+def test_code_run_app_skill_route_preserves_api_key_attribution(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    user = User(id="user-1", username="alice", vault_key_id="vault-1", credits=10)
+    user_info = {
+        "auth_source": "api_key",
+        "user_id": user.id,
+        "api_key_encrypted_name": "key-name",
+        "api_key_hash": "api-key-hash",
+        "api_key_metadata": {
+            "full_access": False,
+            "scopes": {"apps": {"mode": "selected", "allowed_skills": ["code:run"]}},
+        },
+        "device_hash": "device-hash",
+    }
+
+    async def fake_auth(request: Request):
+        request.state.auth_info = user_info
+        request.state.auth_source = "api_key"
+        request.state.api_key_metadata = user_info["api_key_metadata"]
+        return user
+
+    async def fake_start_code_run_execution(**kwargs):
+        captured["start"] = kwargs
+        return code_execution.CodeRunStartResponse(
+            execution_id="exec-1",
+            status="queued",
+            target_filename="main.py",
+            files=["main.py"],
+        )
+
+    async def fake_require_api_key_budget_for_charge(_directus_service, *, user_info, requested_credits):
+        captured["budget"] = {"user_info": user_info, "requested_credits": requested_credits}
+
+    app = FastAPI()
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.code_execution", code_execution)
+    app.dependency_overrides[get_current_user_or_api_key] = fake_auth
+    app.dependency_overrides[apps_api.get_cache_service] = lambda: object()
+    app.dependency_overrides[apps_api.get_directus_service] = lambda: object()
+    app.dependency_overrides[apps_api.get_encryption_service] = lambda: object()
+
+    monkeypatch.setattr(code_execution, "start_code_run_execution", fake_start_code_run_execution)
+    monkeypatch.setattr(apps_api, "require_api_key_budget_for_charge", fake_require_api_key_budget_for_charge)
+    apps_api._register_code_custom_routes(app, "code")
+
+    response = TestClient(app).post(
+        "/v1/apps/code/skills/run",
+        json={
+            "requests": [{
+                "entry_path": "main.py",
+                "files": [{"path": "main.py", "content_base64": _b64("print('ok')\n"), "language": "python"}],
+            }]
+        },
+    )
+
+    assert response.status_code == 200
+    budget = captured["budget"]
+    assert budget["requested_credits"] == code_execution.RUN_CREDITS_PER_MINUTE
+    assert budget["user_info"]["api_key_hash"] == "api-key-hash"
+    assert budget["user_info"]["api_key_metadata"] == user_info["api_key_metadata"]
+    assert budget["user_info"]["device_hash"] == "device-hash"
+    assert captured["start"]["api_key_hash"] == "api-key-hash"
+    assert captured["start"]["device_hash"] == "device-hash"
+
+
+def test_internal_skill_omits_generic_rest_routes() -> None:
+    app_yml = AppYAML.model_validate({
+        "id": "workflows",
+        "name_translation_key": "apps.workflows",
+        "description_translation_key": "apps.workflows.description",
+        "skills": [{
+            "id": "run",
+            "name_translation_key": "app_skills.workflows.run",
+            "description_translation_key": "app_skills.workflows.run.description",
+            "internal": True,
+            "tool_schema": {
+                "type": "object",
+                "properties": {"workflow_id": {"type": "string"}},
+                "required": ["workflow_id"],
+            },
+        }],
+    })
+    app = FastAPI()
+
+    apps_api.register_app_and_skill_routes(app, {"workflows": app_yml})
+
+    internal_skill_routes = [route for route in app.routes if route.path == "/v1/apps/workflows/skills/run"]
+    assert internal_skill_routes == []
+
+
+def test_internal_skill_policy_blocks_direct_rest_dispatch() -> None:
+    registry = types.SimpleNamespace(
+        get_metadata=lambda _app_id: types.SimpleNamespace(
+            skills=[types.SimpleNamespace(id="run", internal=True, api_config=None)]
+        )
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        apps_api.assert_rest_skill_execution_allowed(registry, "workflows", "run")
+
+    assert exc_info.value.status_code == 403
+
+
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
+def test_apps_api_uses_image_to_html_result_declared_credits() -> None:
+    result = {
+        "results": [
+            {"usage": {"model": "gemini", "credits_charged": 31, "e2b_render_seconds": 12.5}},
+            {"usage": {"model": "gemini", "credits_charged": 42, "e2b_render_seconds": 61.0}},
+        ]
+    }
+
+    assert apps_api.get_variable_result_credits("code", "image_to_html", result) == 73
+    assert apps_api.get_variable_result_credits("code", "run", result) is None
+    assert apps_api.get_variable_result_usage_details("code", "image_to_html", result, 1) == {
+        "image_to_html_model": "gemini",
+        "image_to_html_credits_charged": 42,
+        "image_to_html_e2b_render_seconds": 61.0,
+        "model_used": "gemini",
+        "duration_second": 61.0,
+    }
+
+
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
+def test_apps_api_calculates_image_to_html_preflight_reservation() -> None:
+    assert apps_api.get_variable_preflight_reserved_credits(
+        "code",
+        "image_to_html",
+        {"requests": [{"max_correction_passes": 0}, {"max_correction_passes": 2}]},
+    ) == 2_000
+    assert apps_api.get_variable_preflight_reserved_credits(
+        "code",
+        "run",
+        {"requests": [{"max_correction_passes": 2}]},
+    ) == 0
+
+
+# contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
+def test_generated_image_to_html_route_preserves_base64_request(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    user_info = {
+        "user_id": "user-1",
+        "api_key_encrypted_name": "key-name",
+        "api_key_hash": "api-key-hash",
+        "api_key_metadata": {"allowed_app_skills": ["code.image_to_html"]},
+        "device_hash": "device-hash",
+    }
+
+    async def fake_call_app_skill(**kwargs):
+        captured.update(kwargs)
+        return {"results": [{"task_id": "task-1", "embed_id": "embed-1", "status": "processing"}], "task_id": "task-1", "embed_id": "embed-1"}
+
+    async def fake_require_api_key_budget_for_charge(_directus_service, *, user_info, requested_credits):
+        captured["budget"] = {"user_info": user_info, "requested_credits": requested_credits}
+
+    app_yml_data = yaml.safe_load((REPO_ROOT / "apps/code/app.yml").read_text(encoding="utf-8"))
+    app_yml_data["icon_image"] = app_yml_data["icon_image"].strip()
+    app_yml = AppYAML.model_validate(app_yml_data)
+    app = FastAPI()
+    app.state.config_manager = types.SimpleNamespace(get_model_pricing=lambda *_args, **_kwargs: None)
+    app.dependency_overrides[apps_api.get_session_or_api_key_info] = lambda: user_info
+    app.dependency_overrides[apps_api.get_cache_service] = lambda: object()
+    app.dependency_overrides[apps_api.get_directus_service] = lambda: object()
+    monkeypatch.setattr(apps_api, "call_app_skill", fake_call_app_skill)
+    monkeypatch.setattr(apps_api, "require_api_key_budget_for_charge", fake_require_api_key_budget_for_charge)
+    monkeypatch.setattr(apps_api, "_register_code_custom_routes", lambda *_args, **_kwargs: None)
+    apps_api.register_app_and_skill_routes(app, {"code": app_yml})
+
+    encoded = _b64("png-bytes")
+    response = TestClient(app).post(
+        "/v1/apps/code/skills/image_to_html",
+        json={
+            "requests": [{
+                "image_base64": encoded,
+                "mime_type": "image/png",
+                "filename": "fixture.png",
+                "max_correction_passes": 0,
+            }]
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["input_data"] == {
+        "requests": [{
+            "image_base64": encoded,
+            "mime_type": "image/png",
+            "filename": "fixture.png",
+            "max_correction_passes": 0,
+            "source_image": None,
+            "id": None,
+        }]
+    }
+    assert captured["budget"] == {"user_info": user_info, "requested_credits": 500}
+
+
+def test_models3d_custom_route_resolves_only_the_callers_uploaded_image(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    user = User(id="user-1", username="alice", vault_key_id="vault-1", credits=10)
+    expected_user_hash = hashlib.sha256(user.id.encode()).hexdigest()
+    user_info = {
+        "user_id": user.id,
+        "api_key_encrypted_name": "",
+        "api_key_hash": "api-key-hash",
+        "api_key_metadata": {"allowed_app_skills": ["models3d.generate"]},
+        "device_hash": None,
+    }
+
+    class FakeCache:
+        async def get_user_vault_key_id(self, user_id):
+            assert user_id == user.id
+            return "vault-1"
+
+        async def get_embed_from_cache(self, embed_id):
+            assert embed_id == "embed-chair"
+            return {
+                "embed_id": embed_id,
+                "user_id": user.id,
+                "vault_wrapped_aes_key": "wrapped-aes-key",
+                "aes_nonce": "nonce-b64",
+                "aes_key": "plaintext-must-not-forward",
+                "files": {"original": {"s3_key": "inputs/chair.png", "format": "png"}},
+            }
+
+    class FakeEmbedService:
+        called = False
+
+        async def get_embed_by_id(self, embed_id):
+            self.called = True
+            assert embed_id == "embed-chair"
+            return {"embed_id": embed_id, "hashed_user_id": expected_user_hash}
+
+    async def fake_call_app_skill(**kwargs):
+        captured.update(kwargs)
+        return {"task_id": "task-model-1", "status": "processing"}
+
+    async def fake_require_api_key_budget_for_charge(directus_service, *, user_info, requested_credits):
+        captured["budget"] = {
+            "directus_service": directus_service,
+            "user_info": user_info,
+            "requested_credits": requested_credits,
+        }
+
+    fake_embed_service = FakeEmbedService()
+    app = FastAPI()
+    app.dependency_overrides[apps_api.get_session_or_api_key_info] = lambda: user_info
+    app.dependency_overrides[apps_api.get_cache_service] = lambda: FakeCache()
+    app.dependency_overrides[apps_api.get_directus_service] = lambda: types.SimpleNamespace(embed=fake_embed_service)
+    monkeypatch.setattr(apps_api, "call_app_skill", fake_call_app_skill)
+    monkeypatch.setattr(apps_api, "require_api_key_budget_for_charge", fake_require_api_key_budget_for_charge)
+    apps_api._register_models3d_custom_routes(app, "models3d")
+    route = next(route for route in app.routes if route.path == "/v1/apps/models3d/skills/generate")
+    assert "request" in inspect.signature(route.endpoint).parameters
+
+    response = TestClient(app).post(
+        "/v1/apps/models3d/skills/generate",
+        json={"image_embed_refs": ["embed-chair"]},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "data": {"task_id": "task-model-1", "status": "processing"},
+        "error": None,
+        "credits_charged": None,
+    }
+    assert captured["input_data"] == {
+        "image_embed_refs": ["embed-chair"],
+        "_file_path_index": {"embed-chair": "embed-chair"},
+        "_user_vault_key_id": "vault-1",
+        "input_embed_records": {
+            "embed-chair": {
+                "embed_id": "embed-chair",
+                "vault_wrapped_aes_key": "wrapped-aes-key",
+                "aes_nonce": "nonce-b64",
+                "files": {"original": {"s3_key": "inputs/chair.png", "format": "png"}},
+            }
+        },
+    }
+    assert "plaintext-must-not-forward" not in str(captured["input_data"])
+    assert captured["enforce_rest_exposure_policy"] is False
+    assert captured["user_info"] is user_info
+    assert captured["budget"]["user_info"] is user_info
+    assert captured["budget"]["requested_credits"] == 25
+    assert fake_embed_service.called is False

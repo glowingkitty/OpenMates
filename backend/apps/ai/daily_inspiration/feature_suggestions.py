@@ -9,7 +9,8 @@
 import os
 import time
 import uuid
-from typing import List
+from collections import Counter
+from typing import Any, List, Mapping, Sequence
 
 from backend.apps.ai.daily_inspiration.schemas import (
     DailyInspiration,
@@ -24,6 +25,29 @@ DEFAULT_PRODUCT_VIDEO_BASE_URL = (
     "daily-inspiration/product-videos/v1"
 )
 TEASER_ASSET_BASE_PATH = "/daily-inspiration-videos"
+GUEST_ONBOARDING_FEATURE_IDS = frozenset(
+    {
+        "openmates-intro",
+        "openmates-actionable-events",
+        "openmates-privacy-safety",
+        "openmates-mates-focus",
+        "openmates-provider-cross-platform",
+        "openmates-signup-cta",
+    }
+)
+DAILY_INSPIRATION_TYPE_QUOTAS = {"video": 3, "wiki": 3, "feature": 4}
+
+
+def has_complete_daily_inspiration_set(
+    inspirations: Sequence[Mapping[str, Any]],
+) -> bool:
+    if len(inspirations) != sum(DAILY_INSPIRATION_TYPE_QUOTAS.values()):
+        return False
+    counts = Counter(item.get("content_type") for item in inspirations)
+    return all(
+        counts[content_type] == count
+        for content_type, count in DAILY_INSPIRATION_TYPE_QUOTAS.items()
+    )
 
 
 FEATURE_TIPS = [
@@ -33,7 +57,7 @@ FEATURE_TIPS = [
         "title": "Export your OpenMates data",
         "description": "Back up chats, settings, memories, and more whenever you need them.",
         "settings_path": "account/export",
-        "phrase": "Having a backup matters. OpenMates can export your data from settings.",
+        "phrase": "Keep your own backup. Export your OpenMates data whenever you need it.",
         "category": "openmates_official",
         "requires_authentication": True,
     },
@@ -43,7 +67,7 @@ FEATURE_TIPS = [
         "title": "Custom PII detection",
         "description": "Teach OpenMates which personal details should be hidden before model calls.",
         "settings_path": "privacy/hide-personal-data",
-        "phrase": "Want stronger privacy controls? Add custom data to PII detection.",
+        "phrase": "Want stronger privacy controls? Add personal details that OpenMates should hide.",
         "category": "openmates_official",
         "requires_authentication": False,
         "direct_video_filename": "custom-pii-detection.mp4",
@@ -65,7 +89,7 @@ FEATURE_TIPS = [
         "title": "Trusted source quotes",
         "description": "Ask mates to inspect sources and quote the exact lines that support an answer.",
         "settings_path": "apps/all/skills",
-        "phrase": "Need an answer you can verify? OpenMates can quote the source it used.",
+        "phrase": "Need an answer you can verify? Ask OpenMates to quote the supporting source.",
         "category": "openmates_official",
         "requires_authentication": False,
         "direct_video_filename": "web-video-skills.mp4",
@@ -87,7 +111,7 @@ FEATURE_TIPS = [
         "title": "Focus modes",
         "description": "Temporarily guide a chat toward a specific goal for more useful answers.",
         "settings_path": "apps/all/focus_modes",
-        "phrase": "Need a more focused answer? Try an OpenMates focus mode.",
+        "phrase": "Need a more focused answer? Give your mate a specific job.",
         "category": "openmates_official",
         "requires_authentication": False,
     },
@@ -97,7 +121,7 @@ FEATURE_TIPS = [
         "title": "Memories",
         "description": "Save preferences and memories so mates can help without repeated context.",
         "settings_path": "settings_memories",
-        "phrase": "Repeating yourself gets old. Memories help OpenMates remember what matters.",
+        "phrase": "Repeating yourself gets old. Save context your mates should remember.",
         "category": "openmates_official",
         "requires_authentication": False,
     },
@@ -107,7 +131,7 @@ FEATURE_TIPS = [
         "title": "Incognito chats",
         "description": "Start temporary chats when you do not want them saved to history.",
         "settings_path": "incognito/info",
-        "phrase": "Need a throwaway conversation? Incognito mode keeps it out of history.",
+        "phrase": "Need a temporary conversation? Keep it out of your saved chat history.",
         "category": "openmates_official",
         "requires_authentication": True,
     },
@@ -115,9 +139,9 @@ FEATURE_TIPS = [
         "feature_id": "privacy-dashboard",
         "icon": "lock",
         "title": "Privacy controls",
-        "description": "Tune encryption, personal-data hiding, and privacy preferences in one place.",
+        "description": "Tune personal-data hiding, connected accounts, and automatic deletion in one place.",
         "settings_path": "privacy",
-        "phrase": "OpenMates gives you privacy controls worth reviewing before you need them.",
+        "phrase": "Review what OpenMates protects before you urgently need the controls.",
         "category": "openmates_official",
         "requires_authentication": False,
     },

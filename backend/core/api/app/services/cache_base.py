@@ -28,6 +28,20 @@ def _safe_cache_payload_summary(payload: object) -> str:
 class CacheServiceBase:
     """Base service for caching data using Dragonfly (Redis-compatible)"""
 
+    _UPDATE_DRAFT_IF_CURRENT_LUA = """
+    local current = redis.call('HGET', KEYS[1], 'draft_v')
+    if current and tonumber(current) and tonumber(current) > tonumber(ARGV[3]) then
+        return 0
+    end
+    redis.call('HSET', KEYS[1],
+        'encrypted_draft_md', ARGV[1],
+        'encrypted_draft_preview', ARGV[2],
+        'draft_v', ARGV[3]
+    )
+    redis.call('EXPIRE', KEYS[1], ARGV[4])
+    return 1
+    """
+
     _CONNECTION_RETRY_COOLDOWN_SECONDS = 30.0
     _PUBSUB_RECONNECT_DELAY_SECONDS = 1.0
     _next_connection_retry_at = 0.0
@@ -38,6 +52,7 @@ class CacheServiceBase:
         self.redis_url = os.getenv("DRAGONFLY_URL", "cache:6379")
         self.DRAGONFLY_PASSWORD = os.getenv("DRAGONFLY_PASSWORD", "openmates_cache")
         self._client = None
+        self._client_loop = None
         self._connection_error = False
 
         # Extract host and port from DRAGONFLY_URL
@@ -84,6 +99,12 @@ class CacheServiceBase:
     @property
     async def client(self) -> Optional[redis.Redis]:
         """Get async Redis client, creating it if needed"""
+        current_loop = asyncio.get_running_loop()
+        if self._client is not None and self._client_loop is not None and self._client_loop is not current_loop:
+            logger.info("Cache client was bound to a stale event loop; recreating for current loop")
+            self._client = None
+            self._client_loop = None
+
         if self._client is None:
             now = time.monotonic()
             if now < type(self)._next_connection_retry_at:
@@ -101,6 +122,7 @@ class CacheServiceBase:
                     decode_responses=False
                 )
                 pong = await self._client.ping()
+                self._client_loop = current_loop
                 self._connection_error = False
                 type(self)._next_connection_retry_at = 0.0
                 type(self)._last_connection_warning_at = 0.0
@@ -120,6 +142,7 @@ class CacheServiceBase:
                     logger.debug(f"Cache connection retry suppressed during cooldown: {str(e)}")
                 self._connection_error = True
                 self._client = None
+                self._client_loop = None
         return self._client
 
     async def get_key_ttl(self, key: str) -> int:
@@ -157,6 +180,23 @@ class CacheServiceBase:
             return None
         except Exception as e:
             logger.error(f"Cache GET error for key '{key}': {str(e)}")
+            return None
+
+    async def get_and_delete(self, key: str) -> Any:
+        """Atomically consume a cache value with Redis GETDEL."""
+        try:
+            client = await self.client
+            if not client:
+                return None
+            value = await client.getdel(key)
+            if value is None:
+                return None
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                return value.decode("utf-8") if isinstance(value, bytes) else value
+        except Exception as e:
+            logger.error("Cache GETDEL error for key '%s': %s", key, e)
             return None
 
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
@@ -213,6 +253,7 @@ class CacheServiceBase:
                 # Reset client reference so next task creates a fresh client
                 # bound to its own event loop
                 self._client = None
+                self._client_loop = None
                 self._connection_error = False
 
     async def delete(self, key: str) -> bool:
@@ -444,13 +485,16 @@ class CacheServiceBase:
                 elif method_name == 'update_user_draft_in_cache':
                     user_id, chat_id, content, version = args
                     key = self._get_user_chat_draft_key(user_id, chat_id)
-                    pipe.hset(key, mapping={
-                        "encrypted_draft_md": content if content is not None else "null",
-                        "encrypted_draft_preview": "null",
-                        "draft_v": version
-                    })
-                    pipe.expire(key, self.USER_DRAFT_TTL)
-                    queued_operations += 2
+                    pipe.eval(
+                        self._UPDATE_DRAFT_IF_CURRENT_LUA,
+                        1,
+                        key,
+                        content if content is not None else "null",
+                        "null",
+                        version,
+                        self.USER_DRAFT_TTL,
+                    )
+                    queued_operations += 1
 
                 else:
                     logger.warning(f"Unknown pipeline operation: {method_name}")

@@ -7,6 +7,7 @@ import CryptoKit
 
 actor S3MediaClient {
     static let shared = S3MediaClient()
+    static let noncePrefixedEncryption = "aes-gcm-nonce-prefixed-v1"
 
     private var cache: [String: Data] = [:]
     private var inFlight: [String: Task<Data, Error>] = [:]
@@ -17,7 +18,8 @@ actor S3MediaClient {
     func fetchAndDecrypt(
         s3Url: String,
         aesKeyHex: String,
-        aesNonceHex: String,
+        aesNonceHex: String?,
+        encryption: String? = nil,
         s3Key: String? = nil
     ) async throws -> Data {
         let cacheKey = s3Key ?? s3Url
@@ -39,7 +41,8 @@ actor S3MediaClient {
             return try Self.decryptAESGCM(
                 data: encryptedData,
                 encodedKey: aesKeyHex,
-                encodedNonce: aesNonceHex
+                encodedNonce: aesNonceHex,
+                encryption: encryption
             )
         }
 
@@ -88,8 +91,13 @@ actor S3MediaClient {
 
     // MARK: - Decrypt
 
-    private static func decryptAESGCM(data: Data, encodedKey: String, encodedNonce: String) throws -> Data {
-        let keyData = decodeKeyMaterial(encodedKey)
+    static func decryptAESGCM(
+        data: Data,
+        encodedKey: String,
+        encodedNonce: String?,
+        encryption: String?
+    ) throws -> Data {
+        let keyData = decodeKeyMaterial(encodedKey, expectedByteCount: 32)
 
         guard keyData.count == 32 else { throw S3Error.invalidKey }
 
@@ -101,12 +109,15 @@ actor S3MediaClient {
 
         let nonceData: Data
         let encryptedBody: Data.SubSequence
-        if encodedNonce.isEmpty {
+        if let encryption, encryption != noncePrefixedEncryption {
+            throw S3Error.unsupportedEncryptionMarker
+        }
+        if encryption == noncePrefixedEncryption || encodedNonce?.isEmpty != false {
             guard data.count > nonceLength + tagLength else { throw S3Error.dataTooShort }
             nonceData = data.prefix(nonceLength)
             encryptedBody = data.dropFirst(nonceLength)
         } else {
-            nonceData = decodeKeyMaterial(encodedNonce)
+            nonceData = decodeKeyMaterial(encodedNonce!, expectedByteCount: nonceLength)
             guard nonceData.count == nonceLength else { throw S3Error.invalidNonce }
             encryptedBody = data[...]
         }
@@ -120,7 +131,13 @@ actor S3MediaClient {
         return try AES.GCM.open(sealedBox, using: key)
     }
 
-    private static func decodeKeyMaterial(_ value: String) -> Data {
+    private static func decodeKeyMaterial(_ value: String, expectedByteCount: Int) -> Data {
+        if value.count == expectedByteCount * 2,
+           value.utf8.allSatisfy({ byte in
+               (48...57).contains(byte) || (65...70).contains(byte) || (97...102).contains(byte)
+           }) {
+            return Data(hexString: value)
+        }
         if let base64 = Data(base64Encoded: value), !base64.isEmpty {
             return base64
         }
@@ -150,6 +167,11 @@ enum EmbedMediaPayload {
         return base.hasSuffix("/") ? "\(base)\(key)" : "\(base)/\(key)"
     }
 
+    static func encryption(from raw: [String: AnyCodable]?) -> String? {
+        if let direct = string(raw, keys: ["encryption"]) { return direct }
+        return originalVariant(from: raw)?["encryption"] as? String
+    }
+
     static func string(_ raw: [String: AnyCodable]?, keys: [String]) -> String? {
         guard let raw else { return nil }
         return string(raw, keys: keys)
@@ -165,14 +187,17 @@ enum EmbedMediaPayload {
     }
 
     private static func originalS3Key(from raw: [String: AnyCodable]) -> String? {
-        guard let files = raw["files"]?.value as? [String: Any] else { return nil }
-        if let original = files["original"] as? [String: Any], let key = original["s3_key"] as? String {
-            return key
+        originalVariant(from: raw)?["s3_key"] as? String
+    }
+
+    private static func originalVariant(from raw: [String: AnyCodable]?) -> [String: Any]? {
+        guard let raw,
+              let files = raw["files"]?.value as? [String: Any] else { return nil }
+        if let original = files["original"] as? [String: Any] {
+            return original
         }
         for value in files.values {
-            if let variant = value as? [String: Any], let key = variant["s3_key"] as? String {
-                return key
-            }
+            if let variant = value as? [String: Any] { return variant }
         }
         return nil
     }
@@ -296,13 +321,16 @@ struct EmbedMediaOfflineCache {
         for embed in embeds {
             guard let raw = embed.rawData else { continue }
             remoteURLs.append(contentsOf: remoteImageURLs(from: raw))
+            let aesNonce = firstString(in: raw, keys: ["aes_nonce"])
+            let encryption = EmbedMediaPayload.encryption(from: raw)
             if let s3URL = EmbedMediaPayload.s3URL(from: raw),
                let aesKey = firstString(in: raw, keys: ["aes_key"]),
-               let aesNonce = firstString(in: raw, keys: ["aes_nonce"]) {
+               aesNonce != nil || encryption != nil {
                 _ = try? await S3MediaClient.shared.fetchAndDecrypt(
                     s3Url: s3URL,
                     aesKeyHex: aesKey,
-                    aesNonceHex: aesNonce
+                    aesNonceHex: aesNonce,
+                    encryption: encryption
                 )
             }
         }
@@ -374,6 +402,7 @@ enum S3Error: LocalizedError {
     case invalidNonce
     case dataTooShort
     case decryptionFailed
+    case unsupportedEncryptionMarker
 
     var errorDescription: String? {
         switch self {
@@ -383,6 +412,7 @@ enum S3Error: LocalizedError {
         case .invalidNonce: return "Invalid encryption nonce"
         case .dataTooShort: return "Encrypted data too short"
         case .decryptionFailed: return "Media decryption failed"
+        case .unsupportedEncryptionMarker: return "Unsupported media encryption marker"
         }
     }
 }

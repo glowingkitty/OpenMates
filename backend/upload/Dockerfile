@@ -14,11 +14,13 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# Install system dependencies required by Pillow, python-magic, and cairosvg.
+# Install system dependencies required by the startup script, Pillow,
+# python-magic, and cairosvg.
 # cairosvg needs: libcairo2, libpango-1.0-0, libpangocairo-1.0-0, libgdk-pixbuf-2.0-0
 # (these are the Cairo/Pango/GDK-Pixbuf rendering stack used to rasterize SVGs).
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+        curl \
         git \
         libmagic1 \
         libjpeg-dev \
@@ -47,12 +49,19 @@ RUN mkdir -p /app/apps && touch /app/apps/__init__.py
 # Copy shared Python schemas and utilities
 COPY backend/shared/python_schemas /app/backend_shared/python_schemas
 COPY backend/shared/python_utils /app/backend_shared/python_utils
+COPY config/media_encryption_rollout.yml /app/config/media_encryption_rollout.yml
 
 # Copy the uploads app code
 # Must live at /app/backend/upload/ so that `from backend.upload.*` imports resolve
 # with PYTHONPATH=/app.
 RUN mkdir -p /app/backend && touch /app/backend/__init__.py
+RUN mkdir -p /app/backend/shared/python_utils && touch /app/backend/shared/__init__.py /app/backend/shared/python_utils/__init__.py
+COPY backend/shared/python_utils/media_encryption.py /app/backend/shared/python_utils/media_encryption.py
 COPY backend/upload/ /app/backend/upload/
+RUN mkdir -p /app/backend/scripts /app/backend/core/api/app/utils
+COPY backend/scripts/runtime_health_verifier.py /app/backend/scripts/runtime_health_verifier.py
+COPY backend/core/api/app/utils/server_mode.py /app/backend/core/api/app/utils/server_mode.py
+RUN touch /app/backend/scripts/__init__.py /app/backend/core/__init__.py /app/backend/core/api/__init__.py /app/backend/core/api/app/__init__.py /app/backend/core/api/app/utils/__init__.py
 
 # Copy the startup script that waits for the Vault API token before starting uvicorn.
 # Mirrors the wait-for-vault.sh pattern used by the core API.

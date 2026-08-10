@@ -15,8 +15,12 @@ x-openmates-worker-base: &openmates-worker-base
     VAULT_URL: http://vault:8200
     PROVIDER_CONFIG_DIR: /app_config/providers
     BACKEND_CONFIG_FILE: /app_config/backend_config.yml
+    OPENMATES_CLOUD_OVERLAY_ENABLED: "false"
+    OPENMATES_CLOUD_OVERLAY_PACKAGE: ""
+    OPENMATES_DEPLOYMENT_MODE: "self_host"
     LOG_LEVEL: ${LOG_LEVEL:-info}
     SERVER_ENVIRONMENT: ${SERVER_ENVIRONMENT}
+    MOCK_EXTERNAL_APIS: ${MOCK_EXTERNAL_APIS:-false}
   volumes:
     - ../../config:/app_config
     - vault-setup-data:/vault-data
@@ -49,6 +53,11 @@ services:
       INTERNAL_API_SHARED_TOKEN: ${INTERNAL_API_SHARED_TOKEN}
       PROVIDER_CONFIG_DIR: /app_config/providers
       BACKEND_CONFIG_FILE: /app_config/backend_config.yml
+      OPENMATES_CLOUD_OVERLAY_ENABLED: "false"
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: ""
+      OPENMATES_DEPLOYMENT_MODE: "self_host"
+      SERVER_ENVIRONMENT: ${SERVER_ENVIRONMENT}
+      MOCK_EXTERNAL_APIS: ${MOCK_EXTERNAL_APIS:-false}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
@@ -72,7 +81,7 @@ services:
       retries: 3
 
   cms:
-    image: directus/directus:11.5
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-directus:${OPENMATES_IMAGE_TAG:-dev}
     container_name: cms
     restart: unless-stopped
     env_file: ../../.env
@@ -87,13 +96,13 @@ services:
       DB_DATABASE: ${DATABASE_NAME}
       DB_USER: ${DATABASE_USERNAME}
       DB_PASSWORD: ${DATABASE_PASSWORD}
+      INTERNAL_API_SHARED_TOKEN: ${INTERNAL_API_SHARED_TOKEN}
       CACHE_ENABLED: "true"
       CACHE_STORE: redis
       REDIS_HOST: cache
       REDIS_PASSWORD: ${DRAGONFLY_PASSWORD}
     volumes:
       - directus-uploads:/directus/uploads
-      - directus-extensions:/directus/extensions
     networks: [openmates]
     depends_on:
       cms-database:
@@ -101,10 +110,11 @@ services:
       cache:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8055/server/ping"]
+      test: ["CMD", "/usr/local/bin/openmates-directus-health"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 8s
+      start_period: 60s
+      retries: 12
 
   cms-database:
     image: postgres:13-alpine
@@ -132,6 +142,9 @@ services:
       ADMIN_EMAIL: ${DATABASE_ADMIN_EMAIL}
       ADMIN_PASSWORD: ${DATABASE_ADMIN_PASSWORD}
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      INTERNAL_API_SHARED_TOKEN: ${INTERNAL_API_SHARED_TOKEN}
+      CHAT_RECOVERY_MIGRATION_PATH: /usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql
+      WORKFLOW_RUNTIME_MIGRATION_PATH: /usr/src/app/migrations/migrate_workflow_runtime_indexes.sql
     networks: [openmates]
     depends_on: [cms]
     restart: "no"
@@ -181,25 +194,66 @@ services:
     restart: on-failure
 
   task-worker:
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-dev}
+    <<: *openmates-worker-base
     container_name: task-worker
-    restart: unless-stopped
     mem_limit: ${TASK_WORKER_MEMORY_LIMIT:-3g}
-    env_file: ../../.env
-    command: python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email,user_init,persistence,health_check,server_stats,demo,reminder,push --concurrency=${TASK_WORKER_CONCURRENCY:-3} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1
-    networks: [openmates]
-    depends_on: [api]
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: email
+      CELERY_AUTOSCALE_MAX: ${TASK_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-3}}
+      CELERY_AUTOSCALE_MIN: ${CELERY_AUTOSCALE_MIN:-1}
+      CELERY_METRICS_PORT: "9101"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  user-init-worker:
+    <<: *openmates-worker-base
+    container_name: user-init-worker
+    mem_limit: ${USER_INIT_WORKER_MEMORY_LIMIT:-1536m}
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: user_init
+      CELERY_AUTOSCALE_MAX: ${USER_INIT_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-2}}
+      CELERY_AUTOSCALE_MIN: ${CELERY_AUTOSCALE_MIN:-1}
+      CELERY_METRICS_PORT: "9110"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=user_init --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  core-worker:
+    <<: *openmates-worker-base
+    container_name: core-worker
+    mem_limit: ${CORE_WORKER_MEMORY_LIMIT:-3g}
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: persistence,health_check,server_stats,demo,e2e_tests,reminder,push
+      CELERY_AUTOSCALE_MAX: ${CORE_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-3}}
+      CELERY_AUTOSCALE_MIN: ${CELERY_AUTOSCALE_MIN:-1}
+      CELERY_METRICS_PORT: "9109"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=persistence,health_check,server_stats,demo,e2e_tests,reminder,push --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  workflow-worker:
+    <<: *openmates-worker-base
+    container_name: workflow-worker
+    mem_limit: ${WORKFLOW_WORKER_MEMORY_LIMIT:-1536m}
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: workflow
+      CELERY_AUTOSCALE_MAX: ${WORKFLOW_WORKER_CONCURRENCY:-2}
+      CELERY_AUTOSCALE_MIN: ${CELERY_AUTOSCALE_MIN:-1}
+      CELERY_METRICS_PORT: "9108"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=workflow --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   task-scheduler:
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-dev}
+    <<: *openmates-worker-base
     container_name: task-scheduler
-    restart: unless-stopped
-    env_file: ../../.env
     command: python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule
     volumes:
+      - ../../config:/app_config
+      - vault-setup-data:/vault-data
+      - api-logs:/app/logs
       - celerybeat-schedule-data:/celerybeat-data
-    networks: [openmates]
-    depends_on: [api]
 
   app-ai-worker:
     <<: *openmates-worker-base
@@ -332,7 +386,16 @@ services:
     image: grafana/promtail:3.2.1
     container_name: promtail
     restart: unless-stopped
-    command: -config.file=/etc/promtail/config.yml
+    env_file: ../../.env
+    volumes:
+      - ./monitoring/promtail:/etc/promtail:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - api-logs:/var/log/api:ro
+    command:
+      - "-config.file=/etc/promtail/promtail-config.yaml"
+      - "-config.expand-env=true"
+    depends_on:
+      - openobserve
     networks: [openmates]
 
   prometheus:
@@ -370,8 +433,6 @@ volumes:
     name: openmates-postgres-data
   directus-uploads:
     name: openmates-directus-uploads
-  directus-extensions:
-    name: openmates-directus-extensions
   cache-data:
     name: openmates-cache-data
   openobserve-data:

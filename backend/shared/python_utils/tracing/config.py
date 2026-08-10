@@ -24,12 +24,27 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
-from opentelemetry.instrumentation.redis import RedisInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 
 from backend.shared.python_utils.tracing.privacy_filter import TracePrivacyFilter
 
 logger = logging.getLogger(__name__)
+
+_REDIS_INSTRUMENTATION_IMPORT_ERROR = ""
+
+try:
+    from opentelemetry.instrumentation.redis import RedisInstrumentor
+except Exception as redis_import_error:  # pragma: no cover - depends on installed redis package
+    _REDIS_INSTRUMENTATION_IMPORT_ERROR = str(redis_import_error)
+
+    class RedisInstrumentor:  # type: ignore[no-redef]
+        """No-op Redis instrumentor used when the optional integration cannot import."""
+
+        def instrument(self) -> None:
+            logger.warning(
+                "Redis OpenTelemetry instrumentation unavailable: %s",
+                _REDIS_INSTRUMENTATION_IMPORT_ERROR,
+            )
 
 # OTLP endpoint for OpenObserve traces ingestion
 OTLP_ENDPOINT = "http://openobserve:5080/api/default/v1/traces"

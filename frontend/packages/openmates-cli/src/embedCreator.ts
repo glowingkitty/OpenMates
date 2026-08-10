@@ -186,6 +186,13 @@ export function createEmbedReferenceBlock(embedRef: string): string {
 }
 
 /**
+ * Create the canonical JSON embed reference parsed by write-mode drafts.
+ */
+export function createEmbedJsonReferenceBlock(type: string, embedId: string): string {
+  return `\`\`\`json\n${JSON.stringify({ type, embed_id: embedId })}\n\`\`\``;
+}
+
+/**
  * Encrypt a prepared embed and generate wrapped keys.
  *
  * Mirrors: chatSyncServiceSenders.ts encrypted_embeds construction
@@ -195,7 +202,7 @@ export function createEmbedReferenceBlock(embedRef: string): string {
  * @param chatKey The chat's AES key (raw bytes) — null for new chats
  * @param chatId The chat UUID
  * @param messageId The message UUID
- * @param userId The user's hashed email
+ * @param userId The authenticated user's UUID
  * @returns Fully encrypted embed ready for WebSocket payload
  */
 export async function encryptEmbed(

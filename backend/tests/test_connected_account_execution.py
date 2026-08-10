@@ -27,7 +27,7 @@ async def test_prepare_connected_account_execution_injects_handles_and_cleans_up
     async def exchange(refresh_token: str, _scope: dict[str, Any]) -> dict[str, Any]:
         return {"access_token": f"access-for-{refresh_token}", "expires_in": 3600}
 
-    monkeypatch.setattr(connected_account_execution, "exchange_google_refresh_token", exchange)
+    monkeypatch.setattr(connected_account_execution, "exchange_refresh_token_for_provider", lambda _provider_id: exchange)
 
     cache = FakeCache()
     broker = TokenBrokerService(
@@ -96,6 +96,7 @@ async def test_prepare_connected_account_execution_injects_handles_and_cleans_up
             "access_token_handle": handle,
             "connected_account_id": "acct-1",
             "app_id": "calendar",
+            "provider_id": "google",
             "action": "read",
             "action_scope": {
                 "calendar_id": "primary",
@@ -124,7 +125,7 @@ async def test_prepare_connected_account_execution_accepts_legacy_calendar_token
     async def exchange(refresh_token: str, _scope: dict[str, Any]) -> dict[str, Any]:
         return {"access_token": f"access-for-{refresh_token}", "expires_in": 3600}
 
-    monkeypatch.setattr(connected_account_execution, "exchange_google_refresh_token", exchange)
+    monkeypatch.setattr(connected_account_execution, "exchange_refresh_token_for_provider", lambda _provider_id: exchange)
 
     cache = FakeCache()
     broker = TokenBrokerService(
@@ -195,7 +196,7 @@ async def test_prepare_connected_account_execution_requires_exact_mutation_scope
     async def exchange(refresh_token: str, _scope: dict[str, Any]) -> dict[str, Any]:
         return {"access_token": f"access-for-{refresh_token}", "expires_in": 3600}
 
-    monkeypatch.setattr(connected_account_execution, "exchange_google_refresh_token", exchange)
+    monkeypatch.setattr(connected_account_execution, "exchange_refresh_token_for_provider", lambda _provider_id: exchange)
 
     cache = FakeCache()
     broker = TokenBrokerService(

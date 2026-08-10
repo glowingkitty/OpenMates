@@ -3,8 +3,12 @@ import test from 'node:test';
 
 import {
   annotateChatWithUsage,
+  formatTs,
+  inlineEmbedsMapViewCodeEmbeds,
+  removeInternalTaskEventMessages,
   sanitizeEmbedContent,
   sanitizeExampleMessageContent,
+  withPromotedAppSkillUseMessages,
 } from '../create-example-chat-from-share.mjs';
 
 test('normalizes compact weather rain radar embeds for public example rendering', () => {
@@ -52,6 +56,148 @@ After!`);
   assert.equal(sanitized, 'Before\n\nAfter!');
 });
 
+test('removes internal task event system messages from public examples', () => {
+  const chat = removeInternalTaskEventMessages({
+    chat_id: 'source-chat',
+    messages: [
+      { message_id: 'user-1', role: 'user', content: 'Create tasks' },
+      { message_id: 'task-event-task-update-job-1', role: 'system', content: 'task-id created "Draft note" (todo)' },
+      { message_id: 'system-json-1', role: 'system', content: '{"kept":true}' },
+      { message_id: 'assistant-1', role: 'assistant', content: 'Done' },
+    ],
+    embeds: [],
+    sub_chats: [
+      {
+        chat_id: 'sub-chat',
+        messages: [
+          { message_id: 'task-event-task-update-job-2', role: 'system', content: 'task-id created "Sub" (todo)' },
+          { message_id: 'sub-assistant-1', role: 'assistant', content: 'Sub done' },
+        ],
+      },
+    ],
+  });
+
+  assert.deepEqual(chat.messages.map((message) => message.message_id), ['user-1', 'system-json-1', 'assistant-1']);
+  assert.deepEqual(chat.sub_chats[0].messages.map((message) => message.message_id), ['sub-assistant-1']);
+});
+
+test('inlines embeds_map_view code embeds as message-level map-view fences', () => {
+  const chat = inlineEmbedsMapViewCodeEmbeds({
+    chat_id: 'source-chat',
+    messages: [
+      {
+        message_id: 'assistant-1',
+        role: 'assistant',
+        content: [
+          'Before',
+          '',
+          '```json',
+          '{"type":"code","embed_id":"map-code-1"}',
+          '```',
+          '',
+          'After',
+        ].join('\n'),
+      },
+    ],
+    embeds: [
+      {
+        embed_id: 'map-code-1',
+        type: 'code',
+        content: 'type: code\nlanguage: embeds_map_view\ncode: "title: Places\\nembeds: place-a, place-b\\n"\nembed_ref: code-map\nstatus: finished',
+      },
+      {
+        embed_id: 'place-a-id',
+        type: 'event',
+        content: 'embed_ref: place-a\ntitle: Place A',
+      },
+    ],
+  });
+
+  assert.match(chat.messages[0].content, /```embeds_map_view\ntitle: Places\nembeds: place-a, place-b\n```/);
+  assert.doesNotMatch(chat.messages[0].content, /"type":"code"|Code snippet/);
+  assert.deepEqual(chat.embeds.map((embed) => embed.embed_id), ['place-a-id']);
+});
+
+test('promotes parent app-skill embeds as markdown when child embeds are already visible', () => {
+  const content = 'Routes: [08:27](embed:route-a) and [08:56](embed:route-b)';
+  const chat = withPromotedAppSkillUseMessages({
+    chat_id: 'source-chat',
+    messages: [
+      {
+        message_id: 'assistant-1',
+        role: 'assistant',
+        content,
+      },
+    ],
+    embeds: [
+      {
+        embed_id: 'parent-skill-use',
+        type: 'app_skill_use',
+        content: 'app_id: travel\nskill_id: search_connections\nstatus: finished\nembed_ids: child-a|child-b',
+        embed_ids: ['child-a', 'child-b'],
+      },
+      {
+        embed_id: 'child-a',
+        type: 'connection',
+        content: 'type: connection\nembed_ref: route-a',
+        parent_embed_id: 'parent-skill-use',
+      },
+      {
+        embed_id: 'child-b',
+        type: 'connection',
+        content: 'type: connection\nembed_ref: route-b',
+        parent_embed_id: 'parent-skill-use',
+      },
+    ],
+  });
+
+  assert.equal(chat.messages[0].content, `[!](embed:parent-skill-use)\n\n${content}`);
+});
+
+test('promotes unreferenced parent app-skill embeds as markdown references', () => {
+  const chat = withPromotedAppSkillUseMessages({
+    chat_id: 'source-chat',
+    messages: [
+      {
+        message_id: 'assistant-1',
+        role: 'assistant',
+        content: 'No visible result embeds yet.',
+      },
+    ],
+    embeds: [
+      {
+        embed_id: 'parent-skill-use',
+        type: 'app_skill_use',
+        content: 'app_id: travel\nskill_id: search_connections\nstatus: finished',
+      },
+    ],
+  });
+
+  assert.equal(chat.messages[0].content, '[!](embed:parent-skill-use)\n\nNo visible result embeds yet.');
+});
+
+test('keeps code image-to-html app-skill promotion as JSON for audit compatibility', () => {
+  const chat = withPromotedAppSkillUseMessages({
+    chat_id: 'source-chat',
+    messages: [
+      {
+        message_id: 'assistant-1',
+        role: 'assistant',
+        content: 'Generated the HTML.',
+      },
+    ],
+    embeds: [
+      {
+        embed_id: 'parent-skill-use',
+        type: 'app_skill_use',
+        content: 'app_id: code\nskill_id: image_to_html\nstatus: finished',
+      },
+    ],
+  });
+
+  assert.match(chat.messages[0].content, /^```json\n\{"type":"app_skill_use","embed_id":"parent-skill-use"/);
+});
+
 test('continues to strip private encrypted storage fields', () => {
   const sanitized = sanitizeEmbedContent(`app_id: weather
 skill_id: rain_radar
@@ -68,7 +214,23 @@ summary:
   assert.match(sanitized, /^summary:\n  in_10_min: No rain$/m);
 });
 
-test('annotates assistant responses with summed source usage credits', () => {
+test('strips transient task persistence fields from static task embeds', () => {
+  const sanitized = sanitizeEmbedContent(`type: task
+parent_app_skill_type: app_skill_use
+task_id: 00000000-0000-0000-0000-000000000000
+short_id: null
+title: Review transcript
+status: todo
+task_update_job_id: task-update-job-1
+pending_client_persistence: true
+embed_ref: review-transcript`);
+
+  assert.doesNotMatch(sanitized, /task_id|short_id|task_update_job_id|pending_client_persistence/);
+  assert.match(sanitized, /^title: Review transcript$/m);
+  assert.match(sanitized, /^status: todo$/m);
+});
+
+test('annotates example chats with full usage entries and summed response credits', () => {
   const chat = {
     chat_id: 'source-chat',
     messages: [
@@ -111,6 +273,71 @@ test('annotates assistant responses with summed source usage credits', () => {
   assert.equal(annotated.messages[1].response_credits, 27);
   assert.equal(annotated.messages[3].user_message_id, 'user-2');
   assert.equal(annotated.messages[3].response_credits, undefined);
+  assert.deepEqual(annotated.usage_entries.map((entry) => entry.id), ['source-chat-usage-1', 'source-chat-usage-2', 'source-chat-usage-3']);
+  assert.equal(annotated.usage_entries[0].app_id, 'ai');
+  assert.equal(annotated.usage_entries[0].credits, 17);
   assert.equal(annotated.sub_chats[0].messages[1].user_message_id, 'sub-user-1');
   assert.equal(annotated.sub_chats[0].messages[1].response_credits, 4);
+  assert.deepEqual(annotated.sub_chats[0].usage_entries.map((entry) => entry.id), ['source-sub-chat-usage-1']);
+});
+
+test('serializes full usage entries into generated example chat data', () => {
+  const chat = annotateChatWithUsage({
+    chat_id: 'source-chat',
+    title: 'Priced example',
+    summary: 'Shows usage costs.',
+    category: 'general_knowledge',
+    messages: [
+      { message_id: 'user-1', role: 'user', content: 'Forecast please', created_at: 1 },
+      { message_id: 'assistant-1', role: 'assistant', content: 'Forecast ready', created_at: 2 },
+    ],
+    embeds: [],
+  }, {
+    entries: [
+      {
+        id: 'directus-usage-id',
+        chat_id: 'source-chat',
+        message_id: 'user-1',
+        credits: 25,
+        app_id: 'weather',
+        skill_id: 'forecast',
+        model_used: 'weather-forecast-v1',
+        server_provider: 'DWD + Open-Meteo',
+        server_region: 'DE',
+        input_tokens: 10,
+        output_tokens: 20,
+        api_key_hash: 'private-api-key-hash',
+        device_hash: 'private-device-hash',
+        created_at: '2026-06-18T08:00:00Z',
+      },
+    ],
+  });
+
+  const source = formatTs(chat, {
+    slug: 'priced-example',
+    snake: 'priced_example',
+    chatId: 'example-priced-example',
+    title: 'Priced example',
+    icon: 'cloud-sun',
+    category: 'general_knowledge',
+    keywords: [],
+    followUps: [],
+    featured: true,
+    order: 1,
+    appSkillExamples: [],
+    appFocusModeExamples: [],
+    appSettingsMemoryExamples: [],
+    contentEmbedExamples: [],
+    activeFocusId: null,
+  });
+
+  assert.match(source, /"user_message_id": "user-1"/);
+  assert.match(source, /"response_credits": 25/);
+  assert.match(source, /usage_entries: \[/);
+  assert.match(source, /"id": "example-priced-example-usage-1"/);
+  assert.match(source, /"chat_id": "example-priced-example"/);
+  assert.match(source, /"message_id": "user-1"/);
+  assert.match(source, /"server_provider": "DWD \+ Open-Meteo"/);
+  assert.match(source, /"input_tokens": 10/);
+  assert.doesNotMatch(source, /private-api-key-hash|private-device-hash|directus-usage-id/);
 });

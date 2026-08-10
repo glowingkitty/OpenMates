@@ -1,0 +1,648 @@
+title:
+  context: "Title of example chat: Berlin Weekend Bike Weather Notebook"
+  en: "Berlin Weekend Bike Weather Notebook"
+  de: "Berlin-Wochenendradwetter-Notebook"
+  zh: "Berlin Weekend Bike Weather Notebook"
+  es: "Berlin Weekend Bike Weather Notebook"
+  fr: "Berlin Weekend Bike Weather Notebook"
+  pt: "Berlin Weekend Bike Weather Notebook"
+  ru: "Berlin Weekend Bike Weather Notebook"
+  ja: "Berlin Weekend Bike Weather Notebook"
+  ko: "Berlin Weekend Bike Weather Notebook"
+  it: "Berlin Weekend Bike Weather Notebook"
+  tr: "Berlin Weekend Bike Weather Notebook"
+  vi: "Berlin Weekend Bike Weather Notebook"
+  id: "Berlin Weekend Bike Weather Notebook"
+  pl: "Berlin Weekend Bike Weather Notebook"
+  nl: "Berlin Weekend Bike Weather Notebook"
+  ar: "Berlin Weekend Bike Weather Notebook"
+  hi: "Berlin Weekend Bike Weather Notebook"
+  th: "Berlin Weekend Bike Weather Notebook"
+  cs: "Berlin Weekend Bike Weather Notebook"
+  sv: "Berlin Weekend Bike Weather Notebook"
+  he: "Berlin Weekend Bike Weather Notebook"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Berlin Weekend Bike Weather Notebook"
+  en: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  de: "Erstelle ein Jupyter-Notebook, das Open-Meteo-Vorhersagedaten nutzt, um zu analysieren, ob das Berliner Wetter fuer eine Wochenend-Radtour geeignet ist."
+  zh: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  es: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  fr: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  pt: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  ru: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  ja: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  ko: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  it: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  tr: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  vi: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  id: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  pl: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  nl: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  ar: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  hi: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  th: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  cs: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  sv: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  he: "Create a Jupyter notebook that uses Open-Meteo forecast data to analyze whether Berlin weather is suitable for a weekend bike ride."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Berlin Weekend Bike Weather Notebook. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  de: "Kannst du mir ein Jupyter-Notebook erstellen, mit dem ich pruefen kann, ob die kommende Woche in Berlin gut fuer eine Wochenend-Radtour aussieht? Es soll die kostenlose Open-Meteo-Vorhersage nutzen, stuendliche Temperatur, Regen, Wind und Bewoelkung abrufen, daraus eine kleine Pandas-Analyse mit Tageszusammenfassungen machen und ein paar Diagramme plus eine kurze Empfehlung enthalten."
+  zh: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  es: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  fr: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  pt: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  ru: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  ja: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  ko: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  it: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  tr: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  vi: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  id: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  pl: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  nl: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  ar: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  hi: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  th: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  cs: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  sv: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  he: "Could you make me a Jupyter notebook for checking whether the next week in Berlin looks good for a weekend bike ride? I want it to use the free Open-Meteo forecast, pull hourly temperature, rain, wind, and cloud cover, turn that into a small pandas analysis with daily summaries, and include a couple of plots plus a short recommendation."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Berlin Weekend Bike Weather Notebook. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  de: |
+    Ich habe ein vollstaendiges Jupyter-Notebook erstellt, das die Berliner Wettervorhersage fuer Wochenend-Radtouren analysiert.
+
+    Das Notebook nutzt die kostenlose Open-Meteo-API (kein API-Schluessel erforderlich), extrahiert stuendliche Temperatur, Regen, Windgeschwindigkeit und Bewoelkung, berechnet Tageszusammenfassungen fuer die typischen Radfahrzeiten am Tag (08:00-20:00), zeichnet Trends mit zwei Achsen und bewertet automatisch die Eignung fuer Samstag und Sonntag.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Wichtige Funktionen dieses Notebooks:
+    1. **API-Integration**: Ruft Echtzeit-Vorhersagedaten ohne API-Schluessel direkt fuer die Berliner Koordinaten (`52.52`, `13.405`) ab.
+    2. **Filterung**: Konzentriert sich auf Berechnungen zwischen 08:00 und 20:00, also auf die Zeiten, in denen du wahrscheinlich tatsaechlich faehrst.
+    3. **Bewertungslogik**: Nutzt eine anpassbare Heuristik, die Regen, starke Winde und extreme Temperaturen bestraft.
+    4. **Visualisierungen**: Erstellt zwei Diagramme mit zwei Achsen (Temperatur vs. Regen und Wind vs. Bewoelkung) und markiert das Wochenende im Hintergrund.
+
+    ---
+
+    ### Moegliche naechste Schritte
+    - Moechtest du Windrichtung (in Grad/Kardinalrichtungen) ergaenzen, um eine Route mit oder gegen den Wind besser auszuwaehlen?
+    - Wir koennten beliebte Radrouten in und um Berlin (z. B. Wannsee-Runde, Tempelhofer Feld, Brandenburger Seen) mit den Wetterbedingungen abgleichen.
+  zh: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  es: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  fr: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  pt: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  ru: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  ja: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  ko: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  it: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  tr: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  vi: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  id: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  pl: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  nl: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  ar: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  hi: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  th: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  cs: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  sv: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  he: |
+    I've generated a complete Jupyter notebook for analyzing Berlin's weather forecast for weekend bike rides. 
+
+    The notebook uses the free Open-Meteo API (no API key required), extracts hourly temperature, rain, wind speed, and cloud cover, computes daily summaries filtered to daytime cycling hours (08:00–20:00), plots dual-axis trends, and automatically rates the ride suitability for Saturday and Sunday.
+
+    ```json
+    {"type": "notebook", "embed_id": "b7ea93b1-e497-41bc-b952-bb7495610e5f"}
+    ```
+
+    ### Key features of this notebook:
+    1. **API Integration**: Fetches real-time, non-API-key forecast data directly for Berlin coordinates (`52.52`, `13.405`).
+    2. **Filtering**: Focuses daytime calculations specifically on 08:00–20:00, when you are actually most likely to ride.
+    3. **Scoring Logic**: Implements a customizable scoring heuristic penalizing rainfall, high wind speeds, and extreme temperatures.
+    4. **Visualizations**: Plots two dual-axis charts (Temp vs. Rain and Wind vs. Cloud Cover) with shaded weekend backgrounds.
+
+    ---
+
+    ### Potential Next Steps
+    - Would you like to add wind direction (in degrees/cardinal points) to help choose a route heading into or away from headwinds?
+    - We could add popular cycling routes in/around Berlin (e.g., Wannsee loop, Tempelhofer Feld, Brandenburg Lakes) matched to the weather conditions.
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Add wind direction data to the Jupyter notebook"
+  de: "Windrichtungsdaten zum Jupyter-Notebook hinzufuegen"
+  zh: "Add wind direction data to the Jupyter notebook"
+  es: "Add wind direction data to the Jupyter notebook"
+  fr: "Add wind direction data to the Jupyter notebook"
+  pt: "Add wind direction data to the Jupyter notebook"
+  ru: "Add wind direction data to the Jupyter notebook"
+  ja: "Add wind direction data to the Jupyter notebook"
+  ko: "Add wind direction data to the Jupyter notebook"
+  it: "Add wind direction data to the Jupyter notebook"
+  tr: "Add wind direction data to the Jupyter notebook"
+  vi: "Add wind direction data to the Jupyter notebook"
+  id: "Add wind direction data to the Jupyter notebook"
+  pl: "Add wind direction data to the Jupyter notebook"
+  nl: "Add wind direction data to the Jupyter notebook"
+  ar: "Add wind direction data to the Jupyter notebook"
+  hi: "Add wind direction data to the Jupyter notebook"
+  th: "Add wind direction data to the Jupyter notebook"
+  cs: "Add wind direction data to the Jupyter notebook"
+  sv: "Add wind direction data to the Jupyter notebook"
+  he: "Add wind direction data to the Jupyter notebook"
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how to adjust the ride score thresholds for personal preferences"
+  de: "Erklaeren, wie sich die Schwellenwerte des Radtour-Scores an persoenliche Vorlieben anpassen lassen"
+  zh: "Explain how to adjust the ride score thresholds for personal preferences"
+  es: "Explain how to adjust the ride score thresholds for personal preferences"
+  fr: "Explain how to adjust the ride score thresholds for personal preferences"
+  pt: "Explain how to adjust the ride score thresholds for personal preferences"
+  ru: "Explain how to adjust the ride score thresholds for personal preferences"
+  ja: "Explain how to adjust the ride score thresholds for personal preferences"
+  ko: "Explain how to adjust the ride score thresholds for personal preferences"
+  it: "Explain how to adjust the ride score thresholds for personal preferences"
+  tr: "Explain how to adjust the ride score thresholds for personal preferences"
+  vi: "Explain how to adjust the ride score thresholds for personal preferences"
+  id: "Explain how to adjust the ride score thresholds for personal preferences"
+  pl: "Explain how to adjust the ride score thresholds for personal preferences"
+  nl: "Explain how to adjust the ride score thresholds for personal preferences"
+  ar: "Explain how to adjust the ride score thresholds for personal preferences"
+  hi: "Explain how to adjust the ride score thresholds for personal preferences"
+  th: "Explain how to adjust the ride score thresholds for personal preferences"
+  cs: "Explain how to adjust the ride score thresholds for personal preferences"
+  sv: "Explain how to adjust the ride score thresholds for personal preferences"
+  he: "Explain how to adjust the ride score thresholds for personal preferences"
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Search for popular Berlin bike routes near Wannsee"
+  de: "Nach beliebten Berliner Radrouten in der Naehe des Wannsees suchen"
+  zh: "Search for popular Berlin bike routes near Wannsee"
+  es: "Search for popular Berlin bike routes near Wannsee"
+  fr: "Search for popular Berlin bike routes near Wannsee"
+  pt: "Search for popular Berlin bike routes near Wannsee"
+  ru: "Search for popular Berlin bike routes near Wannsee"
+  ja: "Search for popular Berlin bike routes near Wannsee"
+  ko: "Search for popular Berlin bike routes near Wannsee"
+  it: "Search for popular Berlin bike routes near Wannsee"
+  tr: "Search for popular Berlin bike routes near Wannsee"
+  vi: "Search for popular Berlin bike routes near Wannsee"
+  id: "Search for popular Berlin bike routes near Wannsee"
+  pl: "Search for popular Berlin bike routes near Wannsee"
+  nl: "Search for popular Berlin bike routes near Wannsee"
+  ar: "Search for popular Berlin bike routes near Wannsee"
+  hi: "Search for popular Berlin bike routes near Wannsee"
+  th: "Search for popular Berlin bike routes near Wannsee"
+  cs: "Search for popular Berlin bike routes near Wannsee"
+  sv: "Search for popular Berlin bike routes near Wannsee"
+  he: "Search for popular Berlin bike routes near Wannsee"
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Describe the best times of day for bike rides in Berlin summers"
+  de: "Die besten Tageszeiten fuer Radtouren im Berliner Sommer beschreiben"
+  zh: "Describe the best times of day for bike rides in Berlin summers"
+  es: "Describe the best times of day for bike rides in Berlin summers"
+  fr: "Describe the best times of day for bike rides in Berlin summers"
+  pt: "Describe the best times of day for bike rides in Berlin summers"
+  ru: "Describe the best times of day for bike rides in Berlin summers"
+  ja: "Describe the best times of day for bike rides in Berlin summers"
+  ko: "Describe the best times of day for bike rides in Berlin summers"
+  it: "Describe the best times of day for bike rides in Berlin summers"
+  tr: "Describe the best times of day for bike rides in Berlin summers"
+  vi: "Describe the best times of day for bike rides in Berlin summers"
+  id: "Describe the best times of day for bike rides in Berlin summers"
+  pl: "Describe the best times of day for bike rides in Berlin summers"
+  nl: "Describe the best times of day for bike rides in Berlin summers"
+  ar: "Describe the best times of day for bike rides in Berlin summers"
+  hi: "Describe the best times of day for bike rides in Berlin summers"
+  th: "Describe the best times of day for bike rides in Berlin summers"
+  cs: "Describe the best times of day for bike rides in Berlin summers"
+  sv: "Describe the best times of day for bike rides in Berlin summers"
+  he: "Describe the best times of day for bike rides in Berlin summers"
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Find real-time Berlin rain radar with hourly forecasts"
+  de: "Einen Berliner Echtzeit-Regenradar mit stuendlichen Vorhersagen finden"
+  zh: "Find real-time Berlin rain radar with hourly forecasts"
+  es: "Find real-time Berlin rain radar with hourly forecasts"
+  fr: "Find real-time Berlin rain radar with hourly forecasts"
+  pt: "Find real-time Berlin rain radar with hourly forecasts"
+  ru: "Find real-time Berlin rain radar with hourly forecasts"
+  ja: "Find real-time Berlin rain radar with hourly forecasts"
+  ko: "Find real-time Berlin rain radar with hourly forecasts"
+  it: "Find real-time Berlin rain radar with hourly forecasts"
+  tr: "Find real-time Berlin rain radar with hourly forecasts"
+  vi: "Find real-time Berlin rain radar with hourly forecasts"
+  id: "Find real-time Berlin rain radar with hourly forecasts"
+  pl: "Find real-time Berlin rain radar with hourly forecasts"
+  nl: "Find real-time Berlin rain radar with hourly forecasts"
+  ar: "Find real-time Berlin rain radar with hourly forecasts"
+  hi: "Find real-time Berlin rain radar with hourly forecasts"
+  th: "Find real-time Berlin rain radar with hourly forecasts"
+  cs: "Find real-time Berlin rain radar with hourly forecasts"
+  sv: "Find real-time Berlin rain radar with hourly forecasts"
+  he: "Find real-time Berlin rain radar with hourly forecasts"
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "List essential items to pack for variable weather bike rides"
+  de: "Wichtige Dinge zum Einpacken fuer Radtouren bei wechselhaftem Wetter auflisten"
+  zh: "List essential items to pack for variable weather bike rides"
+  es: "List essential items to pack for variable weather bike rides"
+  fr: "List essential items to pack for variable weather bike rides"
+  pt: "List essential items to pack for variable weather bike rides"
+  ru: "List essential items to pack for variable weather bike rides"
+  ja: "List essential items to pack for variable weather bike rides"
+  ko: "List essential items to pack for variable weather bike rides"
+  it: "List essential items to pack for variable weather bike rides"
+  tr: "List essential items to pack for variable weather bike rides"
+  vi: "List essential items to pack for variable weather bike rides"
+  id: "List essential items to pack for variable weather bike rides"
+  pl: "List essential items to pack for variable weather bike rides"
+  nl: "List essential items to pack for variable weather bike rides"
+  ar: "List essential items to pack for variable weather bike rides"
+  hi: "List essential items to pack for variable weather bike rides"
+  th: "List essential items to pack for variable weather bike rides"
+  cs: "List essential items to pack for variable weather bike rides"
+  sv: "List essential items to pack for variable weather bike rides"
+  he: "List essential items to pack for variable weather bike rides"
+  verified_by_human: []

@@ -56,6 +56,13 @@ from backend.apps.ai.processing.rate_limiting import (  # noqa: E402
 )
 from backend.apps.ai.processing.celery_helpers import execute_skill_via_celery, get_celery_task_status  # noqa: E402
 from backend.apps.ai.processing.content_sanitization import sanitize_external_content  # noqa: E402
+from backend.apps.ai.processing.task_tool_executor import should_keep_tasks_create_payload_as_single_request  # noqa: E402
+from backend.shared.python_utils.app_skill_output_safety import (  # noqa: E402
+    AppSkillOutputSafetyContext,
+    APP_SKILL_SURFACE_ASSISTANT,
+    is_external_data_skill,
+    sanitize_app_skill_output,
+)
 
 # Re-export helper functions and exceptions for backward compatibility
 # TODO(audit-2026-03-19): Move check_rate_limit, wait_for_rate_limit, sanitize_external_content, execute_skill_via_celery
@@ -177,7 +184,8 @@ async def execute_skill(
     user_id: Optional[str] = None,
     skill_task_id: Optional[str] = None,
     cache_service: Optional[Any] = None,
-    max_retries: int = DEFAULT_SKILL_MAX_RETRIES
+    max_retries: int = DEFAULT_SKILL_MAX_RETRIES,
+    encryption_service: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Execute a skill in-process via the SkillRegistry, with retry logic for
@@ -234,6 +242,10 @@ async def execute_skill(
         request_body["_message_id"] = message_id
     if user_id:
         request_body["_user_id"] = user_id
+    if cache_service:
+        request_body["_cache_service"] = cache_service
+    if encryption_service:
+        request_body["_encryption_service"] = encryption_service
 
     registry = get_global_registry()
     if not registry.has_app(app_id) or not registry.is_skill_available(app_id, skill_id):
@@ -309,7 +321,18 @@ async def execute_skill(
                 logger.info(f"[SkillRetry] Skill '{app_id}.{skill_id}' succeeded on retry attempt {attempt + 1}/{total_attempts}")
             else:
                 logger.debug(f"Skill '{app_id}.{skill_id}' executed successfully")
-            return result
+            return await sanitize_app_skill_output(
+                result,
+                AppSkillOutputSafetyContext(
+                    app_id=app_id,
+                    skill_id=skill_id,
+                    surface=APP_SKILL_SURFACE_ASSISTANT,
+                    request_body=arguments,
+                    external_data=is_external_data_skill(registry.get_metadata(app_id), app_id, skill_id),
+                    cache_service=cache_service,
+                    log_prefix=f"[SkillExecutor {app_id}.{skill_id}] ",
+                ),
+            )
 
         except SkillCancelledException:
             raise
@@ -388,7 +411,8 @@ async def execute_skill_with_multiple_requests(
     user_id: Optional[str] = None,
     skill_task_id: Optional[str] = None,
     cache_service: Optional[Any] = None,
-    max_retries: int = DEFAULT_SKILL_MAX_RETRIES
+    max_retries: int = DEFAULT_SKILL_MAX_RETRIES,
+    encryption_service: Optional[Any] = None,
 ) -> List[Dict[str, Any]]:
     """
     Executes a skill with support for multiple parallel requests and retry logic.
@@ -447,7 +471,8 @@ async def execute_skill_with_multiple_requests(
             result = await execute_skill(
                 app_id, skill_id, arguments, timeout, 
                 extracted_chat_id, extracted_message_id, extracted_user_id,
-                skill_task_id, cache_service, max_retries
+                skill_task_id, cache_service, max_retries,
+                encryption_service=encryption_service,
             )
             # Skills return a response with a "results" array - return as list for consistency
             return [result]
@@ -456,13 +481,23 @@ async def execute_skill_with_multiple_requests(
             result = await execute_skill(
                 app_id, skill_id, arguments, timeout, 
                 extracted_chat_id, extracted_message_id, extracted_user_id,
-                skill_task_id, cache_service, max_retries
+                skill_task_id, cache_service, max_retries,
+                encryption_service=encryption_service,
             )
             return [result]
         else:
             # Empty requests array
             return [{"error": "Empty requests array"}]
-    
+
+    if should_keep_tasks_create_payload_as_single_request(app_id, skill_id, arguments):
+        result = await execute_skill(
+            app_id, skill_id, arguments, timeout,
+            extracted_chat_id, extracted_message_id, extracted_user_id,
+            skill_task_id, cache_service, max_retries,
+            encryption_service=encryption_service,
+        )
+        return [result]
+
     # Check for legacy pattern: a parameter with a list of values
     # Example: {"query": ["search1", "search2", "search3"]}
     # This is for backward compatibility - convert to standard format
@@ -485,7 +520,8 @@ async def execute_skill_with_multiple_requests(
         result = await execute_skill(
             app_id, skill_id, standard_arguments, timeout, 
             extracted_chat_id, extracted_message_id, extracted_user_id,
-            skill_task_id, cache_service, max_retries
+            skill_task_id, cache_service, max_retries,
+            encryption_service=encryption_service,
         )
         return [result]
     
@@ -493,7 +529,8 @@ async def execute_skill_with_multiple_requests(
     result = await execute_skill(
         app_id, skill_id, arguments, timeout, 
         extracted_chat_id, extracted_message_id, extracted_user_id,
-        skill_task_id, cache_service, max_retries
+        skill_task_id, cache_service, max_retries,
+        encryption_service=encryption_service,
     )
     return [result]
 
@@ -549,4 +586,3 @@ def _extract_multiple_requests(arguments: Dict[str, Any]) -> Optional[List[Dict[
     
     # If no multiple requests pattern found, return None to indicate single request
     return None
-

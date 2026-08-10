@@ -64,8 +64,8 @@
         iconColor = undefined,
         iconBackground = undefined,
         lucideIcon = undefined,
-        rightActionIcon = undefined,
         creditsDisplay = undefined,
+        'data-testid': testid = 'menu-item',
         children
     }: {
         /** Icon name — resolved to --icon-url-{name} CSS variable. See ICON_NAME_MAP for aliases. */
@@ -108,15 +108,11 @@
          */
         lucideIcon?: Component<{ size?: number; color?: string }> | undefined;
         /**
-         * Optional right-side action button icon name (e.g. 'download' shows a download button).
-         * Renders a gradient circle button identical to ModifyButton but with a different icon.
-         */
-        rightActionIcon?: string | undefined;
-        /**
          * Credits display on the right side (usage entries).
          * Shows "{creditsDisplay} [coins icon]" in var(--color-grey-50).
          */
         creditsDisplay?: string | undefined;
+        'data-testid'?: string | undefined;
         children?: Snippet | undefined;
     } = $props();
 
@@ -149,6 +145,9 @@
         (hasIconBg
             ? ` --si-bg: ${iconColor ?? 'var(--color-primary)'};`
             : ` --si-color: ${resolvedColor};`)
+    );
+    let lucideIconStyle = $derived(
+        hasIconBg ? `--si-bg: ${resolvedColor};` : `--si-color: ${resolvedColor};`
     );
 
     // Computed values
@@ -205,7 +204,7 @@
                     <div
                         class="settings-icon lucide-icon"
                         class:has-bg={hasIconBg}
-                        style={hasIconBg ? `--si-bg: ${resolvedColor};` : `background: linear-gradient(135deg, var(--color-grey-20), var(--color-grey-30));`}
+                        style={lucideIconStyle}
                     >
                         <LucideComp size={hasIconBg ? 20 : 22} color={hasIconBg ? 'white' : resolvedColor} />
                     </div>
@@ -301,15 +300,9 @@
                     role="button"
                     tabindex="0"
                     class="modify-button-container"
+                    data-testid={`${testid}-modify-button`}
                 >
                     <ModifyButton />
-                </div>
-            {/if}
-
-            <!-- Right-side action icon button (e.g. download) -->
-            {#if rightActionIcon}
-                <div class="right-action-button" aria-label={rightActionIcon}>
-                    <div class="right-action-icon" style="--right-action-icon-url: var(--icon-url-{resolveIconName(rightActionIcon)});"></div>
                 </div>
             {/if}
 
@@ -317,6 +310,7 @@
             {#if creditsDisplay}
                 <div class="credits-display">
                     <span class="credits-display-text">{creditsDisplay}</span>
+                    <span class="sr-only">credits</span>
                     <div class="credits-display-coins" aria-hidden="true"></div>
                 </div>
             {/if}
@@ -328,7 +322,7 @@
 {#if isClickable}
 <div
     class="menu-item settings-item clickable"
-    data-testid="menu-item"
+    data-testid={testid}
     class:disabled={disabled}
     class:heading={type === 'heading'}
     class:submenu={type === 'submenu'}
@@ -339,6 +333,7 @@
     onclick={handleItemClick}
     onkeydown={(e) => !disabled && handleKeydown(e, () => onClick?.())}
     role="menuitem"
+    aria-disabled={disabled || undefined}
     tabindex={disabled ? -1 : 0}
 >
     {@render menuItemContent()}
@@ -347,7 +342,7 @@
 <!-- Non-clickable variant: presentation role, no tabindex -->
 <div
     class="menu-item settings-item"
-    data-testid="menu-item"
+    data-testid={testid}
     class:disabled={disabled}
     class:heading={type === 'heading'}
     class:submenu={type === 'submenu'}
@@ -383,6 +378,18 @@
     .menu-item.disabled {
         opacity: 0.5;
         cursor: not-allowed;
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
     }
 
     .menu-item-content {
@@ -526,7 +533,7 @@
 
     /* Brighter gradient for dark mode readability */
     :global([data-theme="dark"]) .menu-title.gradient-text {
-        background: linear-gradient(135deg, #6387ff 9.04%, #7ea4ff 90.06%);
+        background: linear-gradient(135deg, var(--color-primary-start) 9.04%, var(--color-primary-end) 90.06%);
         -webkit-background-clip: text;
         background-clip: text;
     }
@@ -614,37 +621,6 @@
         display: flex;
         align-items: center;
         cursor: pointer;
-    }
-
-    /* Right-side action button (e.g. download) — same circle style as ModifyButton */
-    .right-action-button {
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background: var(--color-primary);
-        cursor: pointer;
-        position: relative;
-        box-shadow: var(--shadow-sm);
-        flex-shrink: 0;
-        transition: transform var(--duration-normal) var(--easing-default);
-    }
-
-    .right-action-button:hover {
-        transform: scale(1.1);
-    }
-
-    .right-action-icon {
-        position: absolute;
-        inset: 0;
-        background-color: var(--color-grey-0);
-        -webkit-mask-image: var(--right-action-icon-url);
-        -webkit-mask-size: 50%;
-        -webkit-mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-image: var(--right-action-icon-url);
-        mask-size: 50%;
-        mask-position: center;
-        mask-repeat: no-repeat;
     }
 
     /* Credits display (coin icon + amount) for usage entries */

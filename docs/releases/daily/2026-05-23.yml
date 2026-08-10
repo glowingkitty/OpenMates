@@ -1,0 +1,698 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-23'
+generated_at: '2026-07-09T15:23:59+00:00'
+range:
+  since: '2026-05-23T00:00:00+00:00'
+  until: '2026-05-23T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 8
+  section_counts:
+    features: 3
+    bug_fixes: 0
+    improvements: 1
+    docs: 0
+    tests: 4
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 4
+  user_facing_items: 4
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: show furry mate prompts in settings'
+    section: features
+    commits:
+    - 0a047a57f
+    authored_at: '2026-05-23T09:34:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/furry-mode-settings.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/MateDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMates.svelte
+    - frontend/packages/ui/src/utils/furryModeMates.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add electronics component search'
+    section: features
+    commits:
+    - 181e5d10f
+    authored_at: '2026-05-23T08:53:25+00:00'
+    changed_paths:
+    - backend/apps/electronics/app.yml
+    - backend/apps/electronics/skills/__init__.py
+    - backend/apps/electronics/skills/search_components.py
+    - backend/apps/pcb_design/app.yml
+    - backend/config/backend_config.yml
+    - backend/shared/providers/ti_webench/__init__.py
+    - backend/shared/providers/ti_webench/client.py
+    - backend/shared/providers/ti_webench/models.py
+    - docs/apis/ti-webench.md
+    - frontend/apps/web_app/tests/skill-electronics-search-components.spec.ts
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/electronicsEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/electronics.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - scripts/api_tests/test_ti_webench_api.py
+    - shared/docs/privacy_policy.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add furry mode'
+    section: features
+    commits:
+    - b779facad
+    authored_at: '2026-05-23T08:37:20+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/api/app/schemas/user.py
+    - backend/core/api/app/services/directus/user/user_profile.py
+    - backend/core/directus/schemas/users.yml
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/tests/furry-mode-settings.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/settings/SettingsInterface.svelte
+    - frontend/packages/ui/src/components/settings/interface/SettingsCustomization.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/sources/settings/interface.yml
+    - frontend/packages/ui/src/services/searchSettingsCatalog.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/furryModeStore.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    - frontend/packages/ui/src/styles/mates.css
+    - frontend/packages/ui/static/images/mates/furry/activism.jpeg
+    - frontend/packages/ui/static/images/mates/furry/business_development.jpeg
+    - frontend/packages/ui/static/images/mates/furry/cooking_food.jpeg
+    - frontend/packages/ui/static/images/mates/furry/design.jpeg
+    - frontend/packages/ui/static/images/mates/furry/electrical_engineering.jpeg
+    - frontend/packages/ui/static/images/mates/furry/finance.jpeg
+    - frontend/packages/ui/static/images/mates/furry/general_knowledge.jpeg
+    - frontend/packages/ui/static/images/mates/furry/history.jpeg
+    - frontend/packages/ui/static/images/mates/furry/legal_law.jpeg
+    - frontend/packages/ui/static/images/mates/furry/life_coach_psychology.jpeg
+    - frontend/packages/ui/static/images/mates/furry/maker_prototyping.jpeg
+    - frontend/packages/ui/static/images/mates/furry/marketing_sales.jpeg
+    - frontend/packages/ui/static/images/mates/furry/medical_health.jpeg
+    - frontend/packages/ui/static/images/mates/furry/movies_tv.jpeg
+    - frontend/packages/ui/static/images/mates/furry/onboarding_support.jpeg
+    - frontend/packages/ui/static/images/mates/furry/science.jpeg
+    - frontend/packages/ui/static/images/mates/furry/software_development.jpeg
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes: []
+  improvements:
+  - title: 'refactor: disable furry mode'
+    section: improvements
+    commits:
+    - 9e069ebe6
+    authored_at: '2026-05-23T10:07:31+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/api/app/schemas/user.py
+    - backend/core/api/app/services/directus/user/user_profile.py
+    - backend/core/directus/schemas/users.yml
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/tests/furry-mode-settings.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/settings/MateDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsInterface.svelte
+    - frontend/packages/ui/src/components/settings/interface/SettingsCustomization.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/sources/settings/interface.yml
+    - frontend/packages/ui/src/services/searchSettingsCatalog.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/furryModeStore.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    - frontend/packages/ui/src/styles/mates.css
+    - frontend/packages/ui/src/utils/furryModeMates.ts
+    - frontend/packages/ui/static/images/mates/furry/activism.jpeg
+    - frontend/packages/ui/static/images/mates/furry/business_development.jpeg
+    - frontend/packages/ui/static/images/mates/furry/cooking_food.jpeg
+    - frontend/packages/ui/static/images/mates/furry/design.jpeg
+    - frontend/packages/ui/static/images/mates/furry/electrical_engineering.jpeg
+    - frontend/packages/ui/static/images/mates/furry/finance.jpeg
+    - frontend/packages/ui/static/images/mates/furry/general_knowledge.jpeg
+    - frontend/packages/ui/static/images/mates/furry/history.jpeg
+    - frontend/packages/ui/static/images/mates/furry/legal_law.jpeg
+    - frontend/packages/ui/static/images/mates/furry/life_coach_psychology.jpeg
+    - frontend/packages/ui/static/images/mates/furry/maker_prototyping.jpeg
+    - frontend/packages/ui/static/images/mates/furry/marketing_sales.jpeg
+    - frontend/packages/ui/static/images/mates/furry/medical_health.jpeg
+    - frontend/packages/ui/static/images/mates/furry/movies_tv.jpeg
+    - frontend/packages/ui/static/images/mates/furry/onboarding_support.jpeg
+    - frontend/packages/ui/static/images/mates/furry/science.jpeg
+    - frontend/packages/ui/static/images/mates/furry/software_development.jpeg
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  docs: []
+  tests:
+  - title: 'test: fix furry mode mates navigation'
+    section: tests
+    commits:
+    - e2f101e83
+    authored_at: '2026-05-23T09:46:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/furry-mode-settings.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add electronics embed preview coverage'
+    section: tests
+    commits:
+    - 3a4c5ca91
+    authored_at: '2026-05-23T09:13:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedPreview.preview.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: harden furry mode CSS assertion'
+    section: tests
+    commits:
+    - 921a7d3ba
+    authored_at: '2026-05-23T09:00:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/furry-mode-settings.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix furry mode spec API origin'
+    section: tests
+    commits:
+    - ff6894095
+    authored_at: '2026-05-23T08:46:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/furry-mode-settings.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add electronics component search'
+    commits:
+    - 181e5d10f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'refactor: disable furry mode'
+    commits:
+    - 9e069ebe6
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: show furry mate prompts in settings'
+    commits:
+    - 0a047a57f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add electronics component search'
+    commits:
+    - 181e5d10f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add furry mode'
+    commits:
+    - b779facad
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'refactor: disable furry mode'
+    commits:
+    - 9e069ebe6
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: show furry mate prompts in settings'
+    commits:
+    - 0a047a57f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add electronics component search'
+    commits:
+    - 181e5d10f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add furry mode'
+    commits:
+    - b779facad
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 9e069ebe6a26ccbf1ffdc9af54f295f2612f1c69
+    short_sha: 9e069ebe6
+    authored_at: '2026-05-23T10:07:31+00:00'
+    subject: 'refactor: disable furry mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/api/app/schemas/user.py
+    - backend/core/api/app/services/directus/user/user_profile.py
+    - backend/core/directus/schemas/users.yml
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/tests/furry-mode-settings.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/settings/MateDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsInterface.svelte
+    - frontend/packages/ui/src/components/settings/interface/SettingsCustomization.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/sources/settings/interface.yml
+    - frontend/packages/ui/src/services/searchSettingsCatalog.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/furryModeStore.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    - frontend/packages/ui/src/styles/mates.css
+    - frontend/packages/ui/src/utils/furryModeMates.ts
+    - frontend/packages/ui/static/images/mates/furry/activism.jpeg
+    - frontend/packages/ui/static/images/mates/furry/business_development.jpeg
+    - frontend/packages/ui/static/images/mates/furry/cooking_food.jpeg
+    - frontend/packages/ui/static/images/mates/furry/design.jpeg
+    - frontend/packages/ui/static/images/mates/furry/electrical_engineering.jpeg
+    - frontend/packages/ui/static/images/mates/furry/finance.jpeg
+    - frontend/packages/ui/static/images/mates/furry/general_knowledge.jpeg
+    - frontend/packages/ui/static/images/mates/furry/history.jpeg
+    - frontend/packages/ui/static/images/mates/furry/legal_law.jpeg
+    - frontend/packages/ui/static/images/mates/furry/life_coach_psychology.jpeg
+    - frontend/packages/ui/static/images/mates/furry/maker_prototyping.jpeg
+    - frontend/packages/ui/static/images/mates/furry/marketing_sales.jpeg
+    - frontend/packages/ui/static/images/mates/furry/medical_health.jpeg
+    - frontend/packages/ui/static/images/mates/furry/movies_tv.jpeg
+    - frontend/packages/ui/static/images/mates/furry/onboarding_support.jpeg
+    - frontend/packages/ui/static/images/mates/furry/science.jpeg
+    - frontend/packages/ui/static/images/mates/furry/software_development.jpeg
+    related_feature_ids: []
+  - sha: e2f101e837d9ecb48189cdf9188b93cb75bbba4a
+    short_sha: e2f101e83
+    authored_at: '2026-05-23T09:46:18+00:00'
+    subject: 'test: fix furry mode mates navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/furry-mode-settings.spec.ts
+    related_feature_ids: []
+  - sha: 0a047a57f9c6e7bbf9e3faac62cc44dc1e7a8f65
+    short_sha: 0a047a57f
+    authored_at: '2026-05-23T09:34:23+00:00'
+    subject: 'feat: show furry mate prompts in settings'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/furry-mode-settings.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/MateDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMates.svelte
+    - frontend/packages/ui/src/utils/furryModeMates.ts
+    related_feature_ids: []
+  - sha: 3a4c5ca9102fb61663b9642dd202a84daaa3444a
+    short_sha: 3a4c5ca91
+    authored_at: '2026-05-23T09:13:16+00:00'
+    subject: 'test: add electronics embed preview coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedPreview.preview.ts
+    related_feature_ids: []
+  - sha: 921a7d3ba2120113e87422397be1bd42bb104ce4
+    short_sha: 921a7d3ba
+    authored_at: '2026-05-23T09:00:18+00:00'
+    subject: 'test: harden furry mode CSS assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/furry-mode-settings.spec.ts
+    related_feature_ids: []
+  - sha: 181e5d10f7b1c2ba9de5c62435def0d2011bc62a
+    short_sha: 181e5d10f
+    authored_at: '2026-05-23T08:53:25+00:00'
+    subject: 'feat: add electronics component search'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/electronics/app.yml
+    - backend/apps/electronics/skills/__init__.py
+    - backend/apps/electronics/skills/search_components.py
+    - backend/apps/pcb_design/app.yml
+    - backend/config/backend_config.yml
+    - backend/shared/providers/ti_webench/__init__.py
+    - backend/shared/providers/ti_webench/client.py
+    - backend/shared/providers/ti_webench/models.py
+    - docs/apis/ti-webench.md
+    - frontend/apps/web_app/tests/skill-electronics-search-components.spec.ts
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/electronicsEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/electronics.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - scripts/api_tests/test_ti_webench_api.py
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+  - sha: ff6894095ddb1ff677ccd197429f8512909df6dc
+    short_sha: ff6894095
+    authored_at: '2026-05-23T08:46:21+00:00'
+    subject: 'test: fix furry mode spec API origin'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/furry-mode-settings.spec.ts
+    related_feature_ids: []
+  - sha: b779facad0a46980898b90aeb082ec043fe3cd4b
+    short_sha: b779facad
+    authored_at: '2026-05-23T08:37:20+00:00'
+    subject: 'feat: add furry mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/api/app/schemas/user.py
+    - backend/core/api/app/services/directus/user/user_profile.py
+    - backend/core/directus/schemas/users.yml
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/tests/furry-mode-settings.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/settings/SettingsInterface.svelte
+    - frontend/packages/ui/src/components/settings/interface/SettingsCustomization.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/sources/settings/interface.yml
+    - frontend/packages/ui/src/services/searchSettingsCatalog.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/furryModeStore.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    - frontend/packages/ui/src/styles/mates.css
+    - frontend/packages/ui/static/images/mates/furry/activism.jpeg
+    - frontend/packages/ui/static/images/mates/furry/business_development.jpeg
+    - frontend/packages/ui/static/images/mates/furry/cooking_food.jpeg
+    - frontend/packages/ui/static/images/mates/furry/design.jpeg
+    - frontend/packages/ui/static/images/mates/furry/electrical_engineering.jpeg
+    - frontend/packages/ui/static/images/mates/furry/finance.jpeg
+    - frontend/packages/ui/static/images/mates/furry/general_knowledge.jpeg
+    - frontend/packages/ui/static/images/mates/furry/history.jpeg
+    - frontend/packages/ui/static/images/mates/furry/legal_law.jpeg
+    - frontend/packages/ui/static/images/mates/furry/life_coach_psychology.jpeg
+    - frontend/packages/ui/static/images/mates/furry/maker_prototyping.jpeg
+    - frontend/packages/ui/static/images/mates/furry/marketing_sales.jpeg
+    - frontend/packages/ui/static/images/mates/furry/medical_health.jpeg
+    - frontend/packages/ui/static/images/mates/furry/movies_tv.jpeg
+    - frontend/packages/ui/static/images/mates/furry/onboarding_support.jpeg
+    - frontend/packages/ui/static/images/mates/furry/science.jpeg
+    - frontend/packages/ui/static/images/mates/furry/software_development.jpeg
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced a new electronics component search tool and implemented a furry mode customization suite,
+    though the latter was disabled shortly after release.
+  released_changes:
+  - text: OpenMates added an electronics component search feature, integrating TI Webench data into new search and component
+      embeds.
+    evidence:
+      commits:
+      - 181e5d10f
+    release_status: released_main
+  - text: A furry mode was implemented, providing custom mate avatars and specialized prompts within the settings interface.
+    evidence:
+      commits:
+      - b779facad
+      - 0a047a57f
+    release_status: released_main
+  - text: The project subsequently disabled the furry mode customization feature.
+    evidence:
+      commits:
+      - 9e069ebe6
+    release_status: released_main
+  bug_fixes: []
+  unreleased_progress:
+  - text: Metadata for the electronics component search was updated to support backend configuration.
+    evidence:
+      commits:
+      - 181e5d10f
+    release_status: released_main
+  internal_progress:
+  - text: Test coverage was expanded for electronics embed previews, including fullscreen and preview components.
+    evidence:
+      commits:
+      - 3a4c5ca91
+    release_status: released_main
+  - text: Automated tests for furry mode were refined to harden CSS assertions, fix navigation, and correct API origins.
+    evidence:
+      commits:
+      - e2f101e83
+      - 921a7d3ba
+      - ff6894095
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Electronics component search integration with TI Webench.
+      evidence:
+        commits:
+        - 181e5d10f
+      reason: This adds a significant new functional capability for electronics engineering workflows.
+    exclude:
+    - text: Furry mode customization and avatars.
+      evidence:
+        commits:
+        - b779facad
+        - 0a047a57f
+        - 9e069ebe6
+      reason: The furry mode feature was disabled shortly after its initial introduction.
+    rationale: The electronics search tool is a stable and useful addition for technical users, whereas the furry mode was
+      disabled in the same release cycle.
+  social_video_recommendations:
+  - idea: A demo showing a user searching for electronics components and viewing the detailed embeds within the OpenMates
+      interface.
+    priority: high
+    reason: The electronics search tool is a concrete, visual feature that demonstrates the platform's utility for specialized
+      engineering tasks.
+    evidence:
+      commits:
+      - 181e5d10f
+  quality_notes:
+  - Furry mode was added and then disabled within the same day, indicating a pivot or temporary suspension of the feature.
+  - Electronics integration includes comprehensive UI embeds and privacy policy updates.
+  validation_warnings: []

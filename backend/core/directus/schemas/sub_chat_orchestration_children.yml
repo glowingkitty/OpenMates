@@ -1,0 +1,52 @@
+# Durable child identities reserved by a root orchestration transaction.
+# Dispatch token hashes are stored for authorization; plaintext prompts, titles,
+# summaries, keys, and reports are forbidden from this collection.
+sub_chat_orchestration_children:
+  type: collection
+  note: "Internal sub-chat child reservations and lifecycle state"
+  fields:
+    id:
+      type: uuid
+      primary: true
+    orchestration_id:
+      type: uuid
+      required: true
+    batch_id:
+      type: uuid
+      required: true
+    child_chat_id:
+      type: uuid
+      required: true
+    parent_chat_id:
+      type: uuid
+      required: true
+    user_message_id:
+      type: string
+      length: 255
+      required: true
+    depth:
+      type: integer
+      required: true
+    dispatch_token_hash:
+      type: string
+      length: 64
+      required: true
+    inference_task_id:
+      type: uuid
+      nullable: true
+    state:
+      type: string
+      length: 24
+      required: true
+    created_at:
+      type: datetime
+      required: true
+    updated_at:
+      type: datetime
+      required: true
+    dispatched_at:
+      type: datetime
+      nullable: true
+    terminal_at:
+      type: datetime
+      nullable: true

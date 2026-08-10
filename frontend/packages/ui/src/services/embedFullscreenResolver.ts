@@ -10,14 +10,23 @@
 
 import type { Component } from 'svelte';
 import {
+	EMBED_CHILD_TYPE_MAP,
 	EMBED_FULLSCREEN_COMPONENTS,
 	normalizeEmbedType
 } from '../data/embedRegistry.generated';
+import BusinessCompanyFinancialsEmbedFullscreen from '../components/embeds/business/BusinessCompanyFinancialsEmbedFullscreen.svelte';
+import Model3DResultEmbedFullscreen from '../components/embeds/models3d/Model3DResultEmbedFullscreen.svelte';
 import {
 	forcePageReload,
 	isChunkLoadError,
 	logChunkLoadError
 } from '../utils/chunkErrorHandler';
+
+function extractToonScalar(content: unknown, key: string): string | undefined {
+	if (typeof content !== 'string') return undefined;
+	const match = content.match(new RegExp(`(?:^|\\n)${key}:\\s*"?([^\\n"]+)"?`));
+	return match?.[1]?.trim();
+}
 
 /**
  * Resolve an embed type + decoded content to a registry key.
@@ -36,14 +45,21 @@ export function resolveRegistryKey(
 	decodedContent?: Record<string, unknown>
 ): string | null {
 	const normalized = normalizeEmbedType(embedType);
+	const appId = decodedContent?.app_id ?? extractToonScalar(decodedContent?.content, 'app_id');
+	const skillId = decodedContent?.skill_id ?? extractToonScalar(decodedContent?.content, 'skill_id');
 
 	if (normalized === 'app-skill-use') {
-		const appId = decodedContent?.app_id;
-		const skillId = decodedContent?.skill_id;
 		if (typeof appId === 'string' && typeof skillId === 'string') {
 			return `app:${appId}:${skillId}`;
 		}
 		return null;
+	}
+
+	if (typeof appId === 'string' && typeof skillId === 'string') {
+		const childKey = EMBED_CHILD_TYPE_MAP[`${appId}:${skillId}`];
+		if (childKey && childKey in EMBED_FULLSCREEN_COMPONENTS) {
+			return childKey;
+		}
 	}
 	return normalized;
 }
@@ -52,7 +68,7 @@ export function resolveRegistryKey(
  * Check if the registry has a fullscreen component for a given key.
  */
 export function hasFullscreenComponent(key: string): boolean {
-	return key in EMBED_FULLSCREEN_COMPONENTS;
+	return key in STATIC_FULLSCREEN_COMPONENTS || key in EMBED_FULLSCREEN_COMPONENTS;
 }
 
 /**
@@ -63,6 +79,14 @@ const modules = import.meta.glob<{ default: Component }>(
 	'../components/embeds/**/*EmbedFullscreen.svelte'
 );
 
+const fullscreenComponentPromises = new Map<string, Promise<Component | null>>();
+
+const STATIC_FULLSCREEN_COMPONENTS: Record<string, Component> = {
+	'app:business:company_financials': BusinessCompanyFinancialsEmbedFullscreen,
+	// Avoid a blank/pending shell for the public Models3D example's direct child route.
+	'models3d-model-result': Model3DResultEmbedFullscreen,
+};
+
 /**
  * Dynamically load a fullscreen component by registry key.
  *
@@ -72,6 +96,20 @@ const modules = import.meta.glob<{ default: Component }>(
  * @returns The Svelte component constructor, or null if not found
  */
 export async function loadFullscreenComponent(
+	key: string
+): Promise<Component | null> {
+	const staticComponent = STATIC_FULLSCREEN_COMPONENTS[key];
+	if (staticComponent) return staticComponent;
+
+	const cached = fullscreenComponentPromises.get(key);
+	if (cached) return cached;
+
+	const promise = loadFullscreenComponentUncached(key);
+	fullscreenComponentPromises.set(key, promise);
+	return promise;
+}
+
+async function loadFullscreenComponentUncached(
 	key: string
 ): Promise<Component | null> {
 	const path = EMBED_FULLSCREEN_COMPONENTS[key];
@@ -91,14 +129,15 @@ export async function loadFullscreenComponent(
 		const module = await loader();
 		return module.default;
 	} catch (error) {
+		if (isChunkLoadError(error)) {
+			logChunkLoadError('embedFullscreenResolver', error);
+			forcePageReload();
+			return null;
+		}
 		console.error(
 			`[embedFullscreenResolver] Failed to load fullscreen component for key="${key}", path="${importPath}"`,
 			error
 		);
-		if (isChunkLoadError(error)) {
-			logChunkLoadError('embedFullscreenResolver', error);
-			forcePageReload();
-		}
 		return null;
 	}
 }

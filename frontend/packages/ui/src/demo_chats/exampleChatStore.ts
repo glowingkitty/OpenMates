@@ -7,12 +7,16 @@
 // They include full message content and embed data, and require NO backend loading.
 // Each chat has a natural-language slug for SEO-friendly URLs.
 
-import type { Chat, Message } from "../types/chat";
+import type { Chat, ChatCompressionCheckpoint, ChatUsageEntry, Message } from "../types/chat";
 import type { ExampleChat, ExampleChatEmbed, ExampleSubChat } from "./types";
 import { get } from "svelte/store";
 import { text } from "../i18n/translations";
 import { embedStore } from "../services/embedStore";
 import { ALL_EXAMPLE_CHATS, INTERNAL_EXAMPLE_CHATS } from "./exampleChatData";
+import {
+  EMBED_FULLSCREEN_COMPONENTS,
+  normalizeEmbedType,
+} from "../data/embedRegistry.generated";
 
 const FOCUS_ACTIVATION_EMBED_TYPE = "focus-mode-activation";
 
@@ -78,6 +82,24 @@ function focusActivationContent(embed: ExampleChatEmbed): string | null {
   })}\n\`\`\``;
 }
 
+function subChatBatchContent(example: ExampleChatRecord): string | null {
+  if (isExampleSubChatRecord(example) || !example.sub_chats || example.sub_chats.length === 0) {
+    return null;
+  }
+
+  const subChatIds = example.sub_chats.map((subChat) => subChat.chat_id).filter(Boolean);
+  if (subChatIds.length === 0) return null;
+
+  return `\`\`\`json\n${JSON.stringify({
+    type: "sub_chat_batch",
+    batch_id: `${example.chat_id}-sub-chat-batch-1`,
+    chat_id: example.chat_id,
+    status: "finished",
+    execution_mode: "parallel",
+    sub_chat_ids: subChatIds,
+  })}\n\`\`\``;
+}
+
 // ============================================================================
 // CONVERSION — ExampleChat → Chat/Message format used by the app
 // ============================================================================
@@ -94,9 +116,13 @@ function exampleChatToChat(example: ExampleChatRecord, rootOrder = 0): Chat {
   const messageTimestamps = example.messages
     .map((message) => message.created_at)
     .filter((value) => Number.isFinite(value));
-  const timestamp = isExampleSubChatRecord(example)
-    ? (messageTimestamps.length > 0 ? Math.max(...messageTimestamps) * 1000 : sevenDaysAgo - rootOrder * 1000)
+  const fallbackTimestamp = sevenDaysAgo - rootOrder * 1000;
+  const firstMessageTimestamp = messageTimestamps.length > 0 ? Math.min(...messageTimestamps) * 1000 : fallbackTimestamp;
+  const lastMessageTimestamp = messageTimestamps.length > 0 ? Math.max(...messageTimestamps) * 1000 : fallbackTimestamp;
+  const createdAt = isExampleSubChatRecord(example)
+    ? firstMessageTimestamp
     : sevenDaysAgo - example.metadata.order * 1000;
+  const updatedAt = isExampleSubChatRecord(example) ? lastMessageTimestamp : createdAt;
 
   return {
     chat_id: example.chat_id,
@@ -112,10 +138,10 @@ function exampleChatToChat(example: ExampleChatRecord, rootOrder = 0): Chat {
     demo_chat_category: "for_everyone",
     messages_v: example.messages.length,
     title_v: 1,
-    last_edited_overall_timestamp: timestamp,
+    last_edited_overall_timestamp: updatedAt,
     unread_count: 0,
-    created_at: timestamp,
-    updated_at: timestamp,
+    created_at: createdAt,
+    updated_at: updatedAt,
     parent_id: isExampleSubChatRecord(example) ? example.parent_id : null,
     is_sub_chat: isExampleSubChatRecord(example) ? true : false,
     budget_limit: isExampleSubChatRecord(example) ? example.budget_limit ?? null : null,
@@ -139,26 +165,45 @@ function exampleMessagesToMessages(example: ExampleChatRecord): Message[] {
   }));
 
   const focusEmbed = getFocusActivationEmbed(example);
-  const content = focusEmbed ? focusActivationContent(focusEmbed) : null;
-  if (!focusEmbed || !content) return messages;
+  const activationContent = focusEmbed ? focusActivationContent(focusEmbed) : null;
+  const batchContent = subChatBatchContent(example);
+  if (!activationContent && !batchContent) return messages;
 
   // Keep checked-in public transcripts free of raw embed JSON while still
-  // rendering the historical focus activation card in the interactive chat.
+  // rendering historical activation/sub-chat affordances in the interactive chat.
   const firstAssistantIndex = messages.findIndex((message) => message.role === "assistant");
-  const insertAt = firstAssistantIndex >= 0 ? firstAssistantIndex : messages.length;
-  const priorTimestamp = messages[Math.max(0, insertAt - 1)]?.created_at ?? Date.now() / 1000;
+  const firstAssistantContent = firstAssistantIndex >= 0 && typeof messages[firstAssistantIndex].content === "string"
+    ? messages[firstAssistantIndex].content
+    : "";
+  const synthesizedBlocks = [
+    activationContent && !/"type"\s*:\s*"focus_mode_activation"/.test(firstAssistantContent) ? activationContent : null,
+    batchContent && !/"type"\s*:\s*"sub_chat_batch"/.test(firstAssistantContent) ? batchContent : null,
+  ].filter((block): block is string => Boolean(block));
+  if (synthesizedBlocks.length === 0) return messages;
+
+  if (firstAssistantIndex >= 0) {
+    return messages.map((message, index) => {
+      if (index !== firstAssistantIndex) return message;
+      return {
+        ...message,
+        content: `${synthesizedBlocks.join("\n\n")}\n\n${String(message.content || "")}`,
+      };
+    });
+  }
+
+  const priorTimestamp = messages[messages.length - 1]?.created_at ?? Date.now() / 1000;
   const activationMessage: Message = {
     message_id: `${example.chat_id}-focus-mode-activation`,
     chat_id: example.chat_id,
     role: "assistant",
-    content,
+    content: synthesizedBlocks.join("\n\n"),
     category: example.category,
     model_name: "OpenMates",
     created_at: priorTimestamp + 1,
     status: "synced",
   };
 
-  return [...messages.slice(0, insertAt), activationMessage, ...messages.slice(insertAt)];
+  return [...messages, activationMessage];
 }
 
 // ============================================================================
@@ -205,7 +250,7 @@ for (const example of LOOKUP_EXAMPLE_CHATS) {
 }
 
 // ============================================================================
-// EMBED REGISTRATION — register embed_ref → embed_id mappings
+// EMBED REGISTRATION — register message embed refs → embed_id mappings
 // ============================================================================
 
 /** Regex to extract embed_ref from TOON content */
@@ -226,7 +271,7 @@ function extractChildEmbedIds(content: string): string[] {
 }
 
 /**
- * Register all example chat embed_ref → embed_id mappings in the embedStore.
+ * Register all example chat embed message refs → embed_id mappings in the embedStore.
  * This must be called once so inline embed references in messages
  * (e.g. [!](embed:popularmechanics.com-kIm)) can be resolved to embed UUIDs.
  */
@@ -250,6 +295,16 @@ export function registerExampleChatEmbedRefs(): void {
         appId,
         skillId,
       });
+      const embedId = normalizeEmbedId(embed.embed_id);
+      embedStore.registerEmbedRef(embedId, embedId, appId);
+      registered++;
+      if (embed.pii_mappings?.length) {
+        embedStore.setInMemoryOnly(`embed_pii:${embedId}`, {
+          embed_id: embedId,
+          pii_mappings: embed.pii_mappings,
+          created_at: Date.now(),
+        });
+      }
 
       const refMatch = embed.content.match(EMBED_REF_RE);
       if (!refMatch) continue;
@@ -263,7 +318,7 @@ export function registerExampleChatEmbedRefs(): void {
   }
   if (registered > 0) {
     console.debug(
-      `[exampleChatStore] Registered ${registered} embed_ref mappings for example chats`,
+      `[exampleChatStore] Registered ${registered} embed ref mappings for example chats`,
     );
   }
 }
@@ -290,8 +345,24 @@ export function getExampleChatBySlug(slug: string): ExampleChat | undefined {
 
 /** Get messages for an example chat */
 export function getExampleChatMessages(chatId: string): Message[] {
+  registerExampleChatEmbedRefs();
   const record = chatRecordById.get(chatId);
   return record ? exampleMessagesToMessages(record.example) : [];
+}
+
+/** Get sanitized static usage entries for an example chat. */
+export function getExampleChatUsageEntries(chatId: string): ChatUsageEntry[] {
+  const record = chatRecordById.get(chatId);
+  return record?.example.usage_entries?.map((entry) => ({
+    ...entry,
+    code_run_filenames: entry.code_run_filenames ? [...entry.code_run_filenames] : entry.code_run_filenames,
+  })) ?? [];
+}
+
+/** Get compression checkpoints for a static example chat. */
+export function getExampleChatCompressionCheckpoints(chatId: string): ChatCompressionCheckpoint[] {
+  const record = chatRecordById.get(chatId);
+  return record?.example.compression_checkpoints?.map((checkpoint) => ({ ...checkpoint })) ?? [];
 }
 
 /** Get embeds for an example chat */
@@ -312,13 +383,19 @@ export function getExampleChatEmbed(embedId: string): ExampleChatEmbed | null {
   return embedById.get(normalizeEmbedId(embedId))?.embed ?? null;
 }
 
-/** Resolve a child result embed to its parent search embed for fullscreen deep links. */
+/** Resolve example fullscreen target; registered child fullscreens open directly. */
 export function resolveExampleFullscreenTarget(embedId: string): {
   targetEmbedId: string;
   focusChildEmbedId?: string;
 } | null {
   const normalizedEmbedId = normalizeEmbedId(embedId);
-  if (!embedById.has(normalizedEmbedId)) return null;
+  const exampleEmbed = embedById.get(normalizedEmbedId)?.embed;
+  if (!exampleEmbed) return null;
+
+  const ownRegistryKey = normalizeEmbedType(exampleEmbed.type);
+  if (ownRegistryKey in EMBED_FULLSCREEN_COMPONENTS) {
+    return { targetEmbedId: normalizedEmbedId };
+  }
 
   const structuredParentEmbedId = parentEmbedIdByChildId.get(normalizedEmbedId);
   if (structuredParentEmbedId && embedById.has(structuredParentEmbedId)) {

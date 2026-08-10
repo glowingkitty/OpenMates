@@ -6,6 +6,9 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from backend.shared.providers.e2b_application_preview import (
@@ -20,6 +23,22 @@ from backend.shared.providers.e2b_application_preview import (
     _write_vite_allowed_hosts_config,
     plan_application_preview_startup,
 )
+
+
+def test_application_preview_fixture_uses_deterministic_svelte5_runtime() -> None:
+    fixture_path = Path(__file__).resolve().parents[1] / "apps/ai/testing/fixtures/application_preview.json"
+    fixture = json.loads(fixture_path.read_text())
+    files = fixture["embeds"]["11111111-1111-4111-8111-111111111111"]["files"]
+    by_path = {file["path"]: file for file in files}
+
+    package_json = by_path["package.json"]["content"]
+    main_ts = by_path["src/main.ts"]["content"]
+
+    assert "latest" not in package_json
+    assert '"vite":"^5.4.21"' in package_json
+    assert '"svelte":"^5.55.7"' in package_json
+    assert "import { mount } from 'svelte';" in main_ts
+    assert "new App" not in main_ts
 
 
 def test_preview_planning_normalizes_files_and_frontend_commands() -> None:
@@ -140,6 +159,9 @@ def test_preview_writes_generated_vite_allowed_hosts_config() -> None:
     written = sandbox.files.payloads[0][0]
     assert written["path"] == "vite.config.openmates.mjs"
     assert "allowedHosts: ['5173-izr5goe7od08cvlqzemo8.e2b.app']" in written["data"]
+    assert "hmr: false" in written["data"]
+    assert "openmatesStaticPreview()" in written["data"]
+    assert "@vite\\/client" in written["data"]
 
 
 def test_preview_writes_svelte_plugin_when_generated_svelte_app_has_no_vite_config() -> None:
@@ -171,11 +193,13 @@ def test_preview_writes_svelte_plugin_when_generated_svelte_app_has_no_vite_conf
     assert path == "vite.config.openmates.mjs"
     written = sandbox.files.payloads[0][0]
     assert "import { svelte } from '@sveltejs/vite-plugin-svelte';" in written["data"]
-    assert "plugins: [svelte()]" in written["data"]
+    assert "plugins: [svelte(), openmatesStaticPreview()]" in written["data"]
     assert "allowedHosts: ['5173-izr5goe7od08cvlqzemo8.e2b.app']" in written["data"]
+    assert "hmr: false" in written["data"]
+    assert "@vite\\/client" in written["data"]
 
 
-def test_preview_keeps_existing_vite_config_for_framework_plugins() -> None:
+def test_preview_writes_openmates_vite_config_even_when_app_has_existing_vite_config() -> None:
     class FakeFiles:
         def __init__(self) -> None:
             self.payloads = []
@@ -198,8 +222,12 @@ def test_preview_keeps_existing_vite_config_for_framework_plugins() -> None:
         ["5173-izr5goe7od08cvlqzemo8.e2b.app"],
     )
 
-    assert path is None
-    assert sandbox.files.payloads == []
+    assert path == "vite.config.openmates.mjs"
+    written = sandbox.files.payloads[0][0]
+    assert written["path"] == "vite.config.openmates.mjs"
+    assert "import { svelte } from '@sveltejs/vite-plugin-svelte';" in written["data"]
+    assert "plugins: [svelte(), openmatesStaticPreview()]" in written["data"]
+    assert "allowedHosts: ['5173-izr5goe7od08cvlqzemo8.e2b.app']" in written["data"]
 
 
 def test_preview_reads_real_screenshot_bytes_from_sandbox_hook() -> None:

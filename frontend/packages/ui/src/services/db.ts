@@ -141,11 +141,17 @@ class ChatDatabase {
   // Version 29: schema-healing bump for clients whose DB reached v28 without
   //             chat_compression_checkpoints; opening the same version cannot
   //             trigger onupgradeneeded, so affected browsers need a new bump.
-  private readonly VERSION = 29;
+  // Version 30: message_window_pages store — encrypted page-cache metadata for
+  //             bounded chat viewing windows, explicitly separate from messages_v.
+  // Version 31: notebook_run_outputs store — encrypted sidecar rows for Jupyter
+  //             notebook cell outputs, separate from canonical notebook source.
+  private readonly VERSION = 31;
   public readonly MESSAGE_HIGHLIGHTS_STORE_NAME = "message_highlights";
   public readonly EMBED_DIFFS_STORE_NAME = "embed_diffs";
   public readonly CODE_RUN_OUTPUTS_STORE_NAME = "code_run_outputs";
+  public readonly NOTEBOOK_RUN_OUTPUTS_STORE_NAME = "notebook_run_outputs";
   public readonly DAILY_INSPIRATIONS_STORE_NAME = "daily_inspirations";
+  public readonly MESSAGE_WINDOW_PAGES_STORE_NAME = "message_window_pages";
   private readonly REQUIRED_STORE_NAMES = [
     this.CHATS_STORE_NAME,
     this.MESSAGES_STORE_NAME,
@@ -160,8 +166,10 @@ class ChatDatabase {
     this.MESSAGE_HIGHLIGHTS_STORE_NAME,
     this.EMBED_DIFFS_STORE_NAME,
     this.CODE_RUN_OUTPUTS_STORE_NAME,
+    this.NOTEBOOK_RUN_OUTPUTS_STORE_NAME,
     this.DAILY_INSPIRATIONS_STORE_NAME,
     this.CHAT_COMPRESSION_CHECKPOINTS_STORE_NAME,
+    this.MESSAGE_WINDOW_PAGES_STORE_NAME,
   ];
   private readonly DATA_BEARING_STORE_NAMES = [
     ...this.REQUIRED_STORE_NAMES,
@@ -1285,6 +1293,52 @@ class ChatDatabase {
       }
     }
 
+    if (!db.objectStoreNames.contains(this.MESSAGE_WINDOW_PAGES_STORE_NAME)) {
+      const windowPagesStore = db.createObjectStore(
+        this.MESSAGE_WINDOW_PAGES_STORE_NAME,
+        { keyPath: "id" },
+      );
+      windowPagesStore.createIndex("chat_id", "chat_id", { unique: false });
+      windowPagesStore.createIndex(
+        "chat_id_last_accessed_at",
+        ["chat_id", "last_accessed_at"],
+        { unique: false },
+      );
+      windowPagesStore.createIndex(
+        "chat_id_page_kind",
+        ["chat_id", "page_kind"],
+        { unique: false },
+      );
+      windowPagesStore.createIndex("cache_generation", "cache_generation", {
+        unique: false,
+      });
+      console.warn("[ChatDatabase] Created message_window_pages store (v30)");
+    } else if (transaction) {
+      const windowPagesStore = transaction.objectStore(this.MESSAGE_WINDOW_PAGES_STORE_NAME);
+      if (!windowPagesStore.indexNames.contains("chat_id")) {
+        windowPagesStore.createIndex("chat_id", "chat_id", { unique: false });
+      }
+      if (!windowPagesStore.indexNames.contains("chat_id_last_accessed_at")) {
+        windowPagesStore.createIndex(
+          "chat_id_last_accessed_at",
+          ["chat_id", "last_accessed_at"],
+          { unique: false },
+        );
+      }
+      if (!windowPagesStore.indexNames.contains("chat_id_page_kind")) {
+        windowPagesStore.createIndex(
+          "chat_id_page_kind",
+          ["chat_id", "page_kind"],
+          { unique: false },
+        );
+      }
+      if (!windowPagesStore.indexNames.contains("cache_generation")) {
+        windowPagesStore.createIndex("cache_generation", "cache_generation", {
+          unique: false,
+        });
+      }
+    }
+
     // Data migrations for messages
     if (transaction && oldVersion < 6) {
       this.migrateMessagesFromChats(transaction);
@@ -1485,6 +1539,22 @@ class ChatDatabase {
         { unique: false },
       );
       console.warn("[ChatDatabase] Created code_run_outputs store (v26)");
+    }
+
+    // Notebook Run outputs store (v31) — sidecar persistence for cell outputs.
+    if (!db.objectStoreNames.contains(this.NOTEBOOK_RUN_OUTPUTS_STORE_NAME)) {
+      const notebookRunOutputsStore = db.createObjectStore(
+        this.NOTEBOOK_RUN_OUTPUTS_STORE_NAME,
+        { keyPath: "id" },
+      );
+      notebookRunOutputsStore.createIndex("chat_id", "chat_id", { unique: false });
+      notebookRunOutputsStore.createIndex("notebook_embed_id", "notebook_embed_id", { unique: false });
+      notebookRunOutputsStore.createIndex(
+        "chat_id_notebook_embed_id",
+        ["chat_id", "notebook_embed_id"],
+        { unique: false },
+      );
+      console.warn("[ChatDatabase] Created notebook_run_outputs store (v31)");
     }
 
     // Daily inspirations store (v20) - client-side persistence for personalised inspiration carousel.
@@ -1746,6 +1816,24 @@ class ChatDatabase {
     storeNames: string | string[],
     mode: IDBTransactionMode,
   ): Promise<IDBTransaction> {
+    const requestedStores = Array.isArray(storeNames)
+      ? storeNames
+      : [storeNames];
+    const existingMissingStores = this.getMissingRequiredStores(this.db);
+    const requestedMissingStores = requestedStores.filter(
+      (storeName) => !this.db?.objectStoreNames.contains(storeName),
+    );
+    if (
+      this.db &&
+      existingMissingStores.length === 0 &&
+      requestedMissingStores.length === 0 &&
+      !this.isDeleting &&
+      !get(forcedLogoutInProgress) &&
+      !get(isLoggingOut)
+    ) {
+      return this.db.transaction(storeNames, mode);
+    }
+
     await this.init();
     if (!this.db) {
       console.error(
@@ -1753,9 +1841,6 @@ class ChatDatabase {
       );
       throw new Error("Database not initialized despite awaiting init()");
     }
-    const requestedStores = Array.isArray(storeNames)
-      ? storeNames
-      : [storeNames];
     let missingStores = requestedStores.filter(
       (storeName) => !this.db?.objectStoreNames.contains(storeName),
     );
@@ -1781,6 +1866,11 @@ class ChatDatabase {
   }
 
   public async ensureReadyForSend(): Promise<void> {
+    const existingMissingStores = this.getMissingRequiredStores(this.db);
+    if (this.db && existingMissingStores.length === 0) {
+      return;
+    }
+
     await this.init();
     const missingStores = this.getMissingRequiredStores(this.db);
     if (missingStores.length > 0) {
@@ -1814,6 +1904,20 @@ class ChatDatabase {
     transaction?: IDBTransaction,
   ): Promise<Chat | null> {
     return chatCrudOps.getChat(this, chat_id, transaction);
+  }
+
+  async getRawChat(
+    chat_id: string,
+    transaction?: IDBTransaction,
+  ): Promise<Chat | null> {
+    return chatCrudOps.getRawChat(this, chat_id, transaction);
+  }
+
+  async upsertRawChat(
+    chat: Chat,
+    transaction?: IDBTransaction,
+  ): Promise<void> {
+    return chatCrudOps.upsertRawChat(this, chat, transaction);
   }
 
   async saveCurrentUserChatDraft(
@@ -1953,6 +2057,27 @@ class ChatDatabase {
     transaction?: IDBTransaction,
   ): Promise<messageOps.MessageWindowResult> {
     return messageOps.getMessageWindowForChat(this, chat_id, options, transaction);
+  }
+
+  async recordMessageWindowPage(
+    chat_id: string,
+    result: messageOps.MessageWindowResult,
+    options: messageOps.RecordMessageWindowPageOptions = {},
+  ): Promise<messageOps.MessageWindowPageCacheRecord | null> {
+    return messageOps.recordMessageWindowPage(this, chat_id, result, options);
+  }
+
+  async getMessageWindowPagesForChat(
+    chat_id: string,
+  ): Promise<messageOps.MessageWindowPageCacheRecord[]> {
+    return messageOps.getMessageWindowPagesForChat(this, chat_id);
+  }
+
+  async evictStaleMessageWindowPages(
+    chat_id: string,
+    options: messageOps.EvictMessageWindowPagesOptions = {},
+  ): Promise<messageOps.EvictMessageWindowPagesResult> {
+    return messageOps.evictStaleMessageWindowPages(this, chat_id, options);
   }
 
   async getMessage(
@@ -2335,14 +2460,12 @@ class ChatDatabase {
             event,
           );
           // Reset isDeleting so init() is not permanently blocked if the deletion
-          // gets stuck (e.g. another tab holds an open connection). The browser will
-          // keep retrying the deletion in the background, but we cannot leave the
-          // singleton in a permanently unusable state across a re-login.
+          // gets stuck (e.g. another tab holds an open connection). Reject so
+          // callers leave cleanup retry markers intact instead of treating private
+          // local data as safely deleted.
           this.isDeleting = false;
           this.deletionPromise = null;
-          // Resolve instead of leaving the promise hanging — callers (init()) waiting
-          // on this promise need to unblock so the app can recover.
-          resolve();
+          reject(new Error(`Deletion of database ${this.DB_NAME} is blocked`));
         };
       }, 100);
     });

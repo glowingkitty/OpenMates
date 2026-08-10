@@ -8,6 +8,16 @@ description: "DeepSeek AI - High-performance reasoning and agent models"
 logo_svg: "logos/deepseek.svg"
 privacy_policy: "https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html"
 
+optional_keys:
+  - env_key: "SECRET__TOGETHER__API_KEY"
+    vault_path: "kv/data/providers/together"
+    vault_key: "api_key"
+    description: "Optional Together AI gateway key for DeepSeek model hosting."
+  - env_key: "SECRET__OPENROUTER__API_KEY"
+    vault_path: "kv/data/providers/openrouter"
+    vault_key: "api_key"
+    description: "Optional OpenRouter fallback key for DeepSeek model hosting."
+
 models:
   - id: "deepseek-v4-pro"
     name: "DeepSeek V4 Pro"

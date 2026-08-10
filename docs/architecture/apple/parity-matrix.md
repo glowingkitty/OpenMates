@@ -1,6 +1,6 @@
 # Apple/Web Parity Matrix
 
-Status: initial audit scaffold  
+Status: program inventory active  
 Created: 2026-06-01  
 Owner: Apple/web parity work
 
@@ -81,6 +81,20 @@ Current Apple accessibility identifiers:
 - The web test selector inventory is a strong input for behavior parity, but not enough for visual parity. Screenshot comparison and token/style checks are required separately.
 - Apple needs a testability pass before reliable Apple UI tests can mirror web flows. Important controls should expose stable `.accessibilityIdentifier(...)` values, preferably aligned with web `data-testid` names when the product concept is the same.
 
+## Apple UI Parity Program
+
+Executable spec: `docs/specs/apple-ui-parity-program/spec.yml`
+
+Program inventory source: `test-results/apple-parity-inventory.json` under `programs.apple_ui_parity_program`.
+
+The first rollout is chat-first. The program uses a hybrid gate:
+
+- Blocking from the start: missing mappings, missing required identifiers, missing fixtures, stale fixtures, missing native tests, missing known renderers, forbidden generic fallbacks, broken behavior, and structural order drift.
+- Warning from the start: unpromoted visual/style drift from typography, spacing, color, radius, shadow, animation, or rasterization.
+- Promotable to blocking: reviewed visual/style checks with an explicit surface, state, tolerance, artifact source, and native-difference rule.
+
+The inventory ranks chat gaps before non-chat surfaces so Apple work starts with app shell, chat list, transcript/message bubbles, composer, chat management, search, and offline/sync resilience. Settings, auth, billing, and broader embed parity remain the next queue after chat gates are established.
+
 ## Parity Workflow
 
 Use this workflow for each product surface.
@@ -158,9 +172,9 @@ Verification:
 - Run/add Apple UI test for equivalent flow
 ```
 
-## Next Automation
+## Automation
 
-Create a script that regenerates this inventory and writes machine-readable output, for example `scripts/apple_parity_audit.py` producing `test-results/apple-parity-inventory.json`. The script should extract:
+`scripts/apple_parity_audit.py` regenerates this inventory and writes machine-readable output to `test-results/apple-parity-inventory.json`. The script extracts:
 
 - Unique web test IDs by spec file
 - Unique Apple accessibility identifiers by Swift file
@@ -170,5 +184,6 @@ Create a script that regenerates this inventory and writes machine-readable outp
 - Svelte files listed in `apple/SVELTE_SWIFT_COUNTERPARTS.md`
 - Swift files listed in `apple/SVELTE_SWIFT_COUNTERPARTS.md`
 - Counterpart paths that no longer exist
+- Chat-first program surfaces, expected web/native files, expected identifiers, native test coverage, gap types, and ranked follow-up order
 
-The script should not decide product priority. It should only produce facts for this matrix.
+The script should not invent product priority. It reports against the priority order approved in the matrix and executable specs.

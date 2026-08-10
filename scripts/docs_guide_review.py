@@ -28,6 +28,8 @@ from docs_guide_verify import REPO_ROOT, USER_GUIDE_ROOT, GuideMetadata, parse_g
 
 TMP_DIR = REPO_ROOT / "scripts" / ".tmp" / "docs-guide-review"
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+OPENCODE_REVIEW_TIMEOUT_SECONDS = 1800
+OPENCODE_AUTOMATION_RISK_CLASSIFICATION = "low-risk docs freshness review; scoped prompt file, result JSON, and timeout"
 
 
 @dataclass(frozen=True)
@@ -233,6 +235,7 @@ def run_direct_review(prompt_path: Path) -> None:
             "--dangerously-skip-permissions",
         ],
         cwd=REPO_ROOT,
+        timeout=OPENCODE_REVIEW_TIMEOUT_SECONDS,
         check=True,
     )
 
@@ -467,7 +470,7 @@ def main() -> int:
         "--execute-mode",
         choices=("spawn", "direct"),
         default="spawn",
-        help="Execution backend. spawn opens a Zellij session; direct waits for opencode run.",
+        help="Execution backend. spawn creates a persisted OpenCode Web chat; direct waits for opencode run.",
     )
     parser.add_argument(
         "--result-file",

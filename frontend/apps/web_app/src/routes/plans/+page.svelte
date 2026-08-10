@@ -1,18 +1,18 @@
 <!--
   Plans route for the authenticated web app.
-  Reuses the encrypted TasksPage workspace because Plans V1 keeps plans and
-  verification tasks together while giving the header switcher a first-class
-  Plans destination. The route shell mirrors Tasks so sidebar/settings behavior
-  stays consistent across workspace sections.
+  Renders the encrypted Plans workspace while preserving the same authenticated
+  route shell, sidebar, settings, and notification behavior as Tasks.
 -->
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { page } from '$app/state';
   import {
     Header,
     Notification,
     Settings,
-    TasksPage,
+    PlanDetailPage,
+    PlansWorkspacePage,
     authStore,
     featureAvailabilityStore,
     initialize,
@@ -24,6 +24,7 @@
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
   let plansEnabled = $derived(isWorkspaceFeatureAvailable('platform:plans', $featureAvailabilityStore.disabledById));
+  let routePlanId = $derived(page.params.plan_id ?? null);
 
   onMount(() => {
     initialize().catch((error) => {
@@ -49,7 +50,7 @@
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="plans-container" class:menu-open={$panelState.isSettingsOpen}>
       <div class="plans-wrapper" id="main-plans" tabindex="-1">
-        <TasksPage focus="plans" />
+        {#if routePlanId}<PlanDetailPage planId={routePlanId} />{:else}<PlansWorkspacePage />{/if}
       </div>
       <div class="settings-wrapper">
         <Settings isLoggedIn={$authStore.isAuthenticated} />

@@ -1,0 +1,121 @@
+{
+  "fingerprint": "259f46c19324dad7",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "events_search_web",
+  "recorded_at": "2026-08-02T13:58:49.916454+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 3,
+    "temperature": 0.0,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[10]:\n  - id: \"2461466\"\n    provider: resident_advisor\n    title: khisdapaze Open Air\n    description: \"Lineup: Christa K, Cristalyne, Ini Lamborghini, Meta Chrom, Mimimosa\\nGenres: Techno, Hou..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "```embeds_results_view\ntitle: Tech Events in Berlin (June 20–21 & June 27–28, 2026)\nembeds: khisdapaze-open-air-Eoi, oxi-groove-affair-me3, hardsleeper-4v4, else-x-home-riY, free-entry-dayrave-RlM, salon-x-vollkommen-upO, woman-of-house-GG2, vollkommen-the-loft-ExK, kater-x-blurry-fxj, senso-nacht-jnE\n```\n\nHere are the search results for the two date ranges requested in Berlin. Although the general query \"tech\" retrieved electronic music events (such as tech-house and techno events) given the active platform providers, these cover the requested dates:\n\n### Weekend 1: June 20–21, 2026\n- [khisdapaze Open Air](embed:khisdapaze-open-air-Eoi) at frachtkante\n- [OXI GROOVE AFFAIR](embed:oxi-groove-affair-me3) at OXI\n- [HardSleeper](embed:hardsleeper-4v4) at Sensorium\n\n### Weekend 2: June 27–28, 2026\n- [Else x Home Again & Junction 2](embed:else-x-home-riY) at Else\n- [BUENA VISTA VINYL CLUB](embed:free-entry-dayrave-RlM) at Crack Bellmer\n- [Salon X VOLLKOMMEN - Sunset Boat Session](embed:salon-x-vollkommen-upO) on MS Lex\n- [Woman of House](embed:woman-of-house-GG2) at Tausend\n- [VOLLKOMMEN - The Loft](embed:vollkommen-the-loft-ExK) at Atelier Rooftop\n- [Kater x Blurry Vision](embed:kater-x-blurry-fxj) at Kater\n- [SENSO NACHT](embed:senso-nacht-jnE) at Sensorium\n\nWould you like to narrow down these searches specifically to professional technology conferences or developer meetups instead of electronic music events?",
+    "chunk_count": 22,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "```embed"
+      },
+      {
+        "kind": "text",
+        "value": "s_results_view\ntitle: Tech Events in Berlin (June 20–2"
+      },
+      {
+        "kind": "text",
+        "value": "1 & June 27–28, 2026)\nembeds: khisdapaze-open"
+      },
+      {
+        "kind": "text",
+        "value": "-air-Eoi, oxi-groove-affair-me3, hardsleeper-4v"
+      },
+      {
+        "kind": "text",
+        "value": "4, else-x-home-riY, free-entry-dayrave-RlM, salon-x-vollkommen-up"
+      },
+      {
+        "kind": "text",
+        "value": "O, woman-of-house-GG2, vollkommen-the-loft-ExK, kater-x-blurry-fx"
+      },
+      {
+        "kind": "text",
+        "value": "j, senso-nacht-jnE\n```\n\nHere are the search results for the two date ranges requested in Berlin. Although"
+      },
+      {
+        "kind": "text",
+        "value": " the general query \"tech\" retrieved electronic music events (such as tech-house and techno events) given the active platform providers, these"
+      },
+      {
+        "kind": "text",
+        "value": " cover the requested dates:\n\n### Weekend 1: June 20–21, 2026\n-"
+      },
+      {
+        "kind": "text",
+        "value": " [khisdapaze Open Air](embed:khisdapaze-open-air-Eoi)"
+      },
+      {
+        "kind": "text",
+        "value": " at frachtkante\n- [OXI GROOVE AFFAIR](embed:oxi-groove-affair-me3"
+      },
+      {
+        "kind": "text",
+        "value": ") at OXI\n- [HardSleeper](embed:hardsleeper-4v4) at Sensorium\n\n###"
+      },
+      {
+        "kind": "text",
+        "value": " Weekend 2: June 27–28, 2026\n-"
+      },
+      {
+        "kind": "text",
+        "value": " [Else x Home Again & Junction 2](embed:else-x-home-riY) at Else\n-"
+      },
+      {
+        "kind": "text",
+        "value": " [BUENA VISTA VINYL CLUB](embed:free-entry-dayrave-RlM) at Crack Bellmer\n-"
+      },
+      {
+        "kind": "text",
+        "value": " [Salon X VOLLKOMMEN - Sunset Boat Session](embed:salon-x-vollkommen-upO) on MS Lex\n-"
+      },
+      {
+        "kind": "text",
+        "value": " [Woman of House](embed:woman-of-house-GG2) at Tausend\n-"
+      },
+      {
+        "kind": "text",
+        "value": " [VOLLKOMMEN - The Loft](embed:vollkommen-the-loft-ExK) at Atelier Rooftop\n-"
+      },
+      {
+        "kind": "text",
+        "value": " [Kater x Blurry Vision](embed:kater-x-blurry-fxj) at Kater\n-"
+      },
+      {
+        "kind": "text",
+        "value": " [SENSO NACHT](embed:senso-nacht-jnE) at Sensorium\n\nWould you like to narrow down these"
+      },
+      {
+        "kind": "text",
+        "value": " searches specifically to professional technology conferences or developer meetups instead of electronic music events?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 20648,
+          "candidates_token_count": 506,
+          "total_token_count": 21154,
+          "user_input_tokens": 5355,
+          "system_prompt_tokens": 13337
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,777 @@
+schema_version: 2
+id: directus-test-control-plane
+title: Directus Test Control Plane
+status: verified
+
+goal: >
+  Make Directus the shared source of truth for OpenMates test catalog,
+  runs, results, current status, and debugging claims so every assistant chat,
+  dev-server-triggered GitHub Actions run, external GitHub Actions run, and
+  Apple test run sees the same coordinated test state without relying on local
+  JSON files for persistence.
+
+scope:
+  in:
+    - Add Directus-backed test catalog, run, result, current-state, and claim collections.
+    - Migrate `scripts/tests.py` current status, history, triage inputs, run archives, and failure leases to Directus as canonical state.
+    - Keep JSON files only as transient import/export, artifact, or offline debugging formats.
+    - Mark dev-server-triggered requested tests as running immediately before GitHub Actions completes.
+    - Poll GitHub Actions for external or still-running test runs about every five minutes and ingest their latest status.
+    - Represent previous stable status separately from an active rerun status for the same test.
+    - Include Apple tests as first-class catalog, run, result, current-state, and claim records.
+    - Update backend status-page test readers to consume Directus-backed state or the shared adapter, not local JSON state files.
+  out:
+    - Replacing GitHub Actions as the execution backend.
+    - Rewriting Playwright, Vitest, pytest, or Apple test suites themselves except for control-plane tests.
+    - Adding a user-facing web UI for editing test claims.
+    - Storing raw screenshots, traces, private logs, credentials, or unredacted user data in Directus.
+    - Maintaining local JSON files as an authoritative fallback after Directus is reachable.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP returned 401 Bad Credentials.
+    - "`gh issue list --repo glowingkitty/OpenMates --search \"test control plane Directus\" --limit 10` returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/test-orchestration.md
+    - docs/architecture/infrastructure/status-page.md
+  code_patterns:
+    - scripts/tests.py
+    - scripts/run_tests.py
+    - scripts/sync-test-results.sh
+    - backend/core/api/app/services/test_results_service.py
+    - backend/core/directus/schemas/workflow_runs.yml
+    - backend/core/directus/schemas/issues.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/api/app/services/directus/directus.py
+  tests:
+    - scripts/tests/test_tests_control.py
+  external_research:
+    - none
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - The Apple product app is not changed by this developer-tooling work.
+    - Apple test executions must still be represented as first-class test-control-plane records.
+  verification:
+    - Apple app build/test verification is not required for product parity.
+    - Control-plane tests must include Apple suite/test records in catalog, current-state, and claim flows.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should Directus become the canonical storage for test status, claims, and history instead of local JSON files?
+      answer: Yes. Move completely to the Directus-backed setup; JSON should not remain the persistent coordination state.
+    - question: Which Directus collections should anchor the model?
+      answer: Use `test_catalog`, `test_runs`, `test_results`, `test_current_state`, and `test_claims`.
+    - question: Should a rerun overwrite the previous status immediately?
+      answer: No. Show both previous stable status and active rerun status, such as failed but currently running.
+    - question: How should tests not started by the dev server be updated?
+      answer: Poll GitHub Actions about every five minutes and ingest external run status.
+    - question: Are Apple tests part of this model?
+      answer: Yes. Apple tests are first-class suite/test records.
+  vision_summary: >
+    Directus is the source of truth for shared test coordination. `scripts/tests.py`
+    continues to be the operator entrypoint, but status, claims, history, and
+    triage read/write through Directus so parallel sessions and GitHub Actions
+    agree on what is running, failed, claimed, completed, or released. JSON output
+    remains useful as an artifact/export format only.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 8fca1d96918c0d231b090ca37e2091f4f382a951
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-17T00:00:00Z"
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-17T00:00:00Z"
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Directus is canonical for test-control-plane persistence.
+    reason: Local JSON files cannot coordinate test claims and run status across assistant sessions, dev-server-triggered runs, external GitHub Actions runs, and Apple tests.
+    decided_at: "2026-07-17T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Store previous stable status separately from active run status in `test_current_state`.
+    reason: Operators need to see that a failed test is currently rerunning without losing the last known stable failure details.
+    decided_at: "2026-07-17T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: JSON files are allowed only as import/export or artifact formats after the Directus adapter is active.
+    reason: Keeping JSON as a persistent fallback would preserve the split-brain behavior this change removes.
+    decided_at: "2026-07-17T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Draft the Directus-backed control-plane contract before schema or script changes.
+    outcome: planned
+    recorded_at: "2026-07-17T00:00:00Z"
+
+handoff:
+  current_task_id: TASK-5
+  next_action: Deploy through the standard sessions.py deploy flow when ready.
+  command: python3 scripts/sessions.py deploy
+  expected_outcome: Directus-backed test control-plane changes are pushed to dev and schemas can be applied in the configured environment.
+  blocker: null
+  last_verified_commit: 8fca1d96918c0d231b090ca37e2091f4f382a951
+
+scenarios:
+  - id: S-1
+    title: Operator sees shared current test status from Directus
+    given:
+      - "`test_current_state` contains `playwright::chat-flow.spec.ts` with stable status `failed` from run `gha-100`."
+      - No local `test-results/tests-state.json` file exists.
+    when:
+      - An operator runs `python3 scripts/tests.py status --json` from any assistant session.
+    then:
+      - The command returns the Directus-backed failed status.
+      - The command does not recreate local JSON as the authoritative state file.
+      - The status payload includes the Directus run/result identifiers needed for follow-up debugging.
+  - id: S-2
+    title: Dev-server-triggered run marks requested tests running immediately
+    given:
+      - "`playwright::chat-flow.spec.ts` has stable status `failed` in Directus."
+    when:
+      - An operator runs `python3 scripts/tests.py run --spec chat-flow.spec.ts`.
+    then:
+      - "`test_runs` records the dispatched run request."
+      - "`test_current_state` keeps stable status `failed` and sets active status `running` for the requested test."
+      - Other sessions see the running state before GitHub Actions artifacts finish syncing.
+  - id: S-3
+    title: GitHub Actions polling ingests external runs
+    given:
+      - A GitHub Actions test run starts outside `scripts/tests.py run`.
+      - The run has no corresponding Directus `test_runs` record yet.
+    when:
+      - The poller runs on its five-minute cadence.
+    then:
+      - A `test_runs` record is created or updated with the GitHub run metadata.
+      - Completed test results are upserted into `test_results`.
+      - "`test_current_state` reflects the latest stable status and clears active running state for completed tests."
+  - id: S-4
+    title: Parallel workers claim different failed root-cause groups
+    given:
+      - Directus current state contains two failed Playwright tests in different triage groups.
+      - No active non-expired claims exist for either group.
+    when:
+      - Worker A and Worker B both call `python3 scripts/tests.py next --lease --session <id> --json`.
+    then:
+      - Each worker receives a different active `test_claims` record.
+      - Completing or releasing a claim updates Directus and is visible to later workers.
+      - Local `failed-test-leases.json` is not used as the persistent claim source.
+  - id: S-5
+    title: Apple tests participate in the same catalog and claim flow
+    given:
+      - An Apple test named `apple::ChatStreamingParity` is known to the catalog.
+      - Its latest stable status is `failed`.
+    when:
+      - An operator requests the next leased failure.
+    then:
+      - The Apple failure can be returned with suite `apple`, its verification command, and linked files when known.
+      - Running or completing the Apple verification updates the same Directus collections as web and backend tests.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: "`scripts/tests.py status`, `failed`, `history`, and `triage` read current state, result history, and triage inputs from Directus instead of persistent local JSON state."
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-CONTROL
+  - id: AC-2
+    scenario: S-2
+    text: A dispatched test run creates Directus run metadata and marks only requested tests active `running` while preserving each test's previous stable status and failure details.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-CONTROL
+  - id: AC-3
+    scenario: S-3
+    text: The GitHub Actions sync path discovers external or unfinished runs, upserts normalized runs/results, and updates current state idempotently.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-GHA-SYNC
+  - id: AC-4
+    scenario: S-4
+    text: Failure claims are stored in Directus with active, completed, released, and expired states so parallel workers do not claim the same triage group.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-CONTROL
+  - id: AC-5
+    scenario: S-5
+    text: Apple tests use the same catalog, result, current-state, and claim records as Playwright, Vitest, pytest, and CLI tests.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-APPLE
+  - id: AC-6
+    scenario: S-1
+    text: The backend status-page test results service no longer depends on local JSON state files for canonical status.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-STATUS-SERVICE
+  - id: AC-7
+    scenario: S-1
+    text: Directus schema definitions create the five required collections with unique keys and indexes that support idempotent run/result/current-state/claim upserts.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-SCHEMA-AUDIT
+
+assumptions:
+  - id: A-1
+    text: "`scripts/tests.py` can use Directus admin/service credentials in the same environments where it currently dispatches and inspects test runs."
+    category: directus
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: scripts/tests.py
+        summary: DirectusTestControlStore uses CMS_URL and DIRECTUS_TOKEN, failing visibly when DIRECTUS_TOKEN is missing.
+      - source: backend/core/api/app/services/directus/directus.py
+        summary: Existing backend Directus integration uses CMS_URL and DIRECTUS_TOKEN/admin credentials in the same deployed environment.
+  - id: A-2
+    text: The existing Directus schema setup process can create additional YAML-defined collections without a separate migration framework.
+    category: directus_schema
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/directus/schemas/workflow_runs.yml
+        summary: Existing Directus collections are defined as YAML schema files.
+      - source: backend/core/directus/setup/setup_schemas.py
+        summary: Existing setup code applies YAML-defined Directus schemas.
+  - id: A-3
+    text: Apple test runs can be normalized to the same suite/test/result model even when their execution happens through remote Mac tooling.
+    category: apple
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: scripts/tests/test_tests_control_apple.py
+        summary: Apple suite records normalize into catalog/current-state records and can be claimed through the same claim API.
+
+contracts:
+  data:
+    - collection: test_catalog
+      purpose: Stable inventory of suites and test identities.
+      required_fields:
+        - "test_key: Unique canonical key such as `playwright::chat-flow.spec.ts` or `apple::ChatStreamingParity`."
+        - "suite: `playwright`, `vitest`, `pytest`, `cli`, `apple`, or future suite key."
+        - "test_name: Human-readable test name."
+        - "file_path: Nullable source path."
+        - "verification_command: Nullable command used to rerun this test."
+        - "metadata: JSON for linked files, tags, owner hints, and suite-specific fields."
+    - collection: test_runs
+      purpose: One execution request or discovered GitHub/Apple run.
+      required_fields:
+        - "run_key: Unique normalized run key."
+        - "source: `scripts_tests`, `github_actions`, `apple_remote`, or `import`."
+        - "external_run_id: Nullable GitHub Actions or Apple run identifier."
+        - "status: queued, running, completed, failed, cancelled, or skipped."
+        - "requested_tests: JSON list of requested canonical test keys."
+        - "summary: JSON aggregate counts."
+    - collection: test_results
+      purpose: Per-test result events for history and triage.
+      required_fields:
+        - "result_key: Unique idempotency key combining run key, suite, test key, and attempt."
+        - "run_key: Link or lookup key to `test_runs`."
+        - "test_key: Link or lookup key to `test_catalog`."
+        - "status: passed, failed, skipped, running, cancelled, or unknown."
+        - "error_summary: Redacted failure summary."
+        - "metadata: JSON for retries, flake state, artifacts, and external URLs."
+    - collection: test_current_state
+      purpose: One latest state row per canonical test key.
+      required_fields:
+        - "test_key: Unique canonical key."
+        - "stable_status: Latest completed status."
+        - "stable_result_key: Latest completed result key."
+        - "active_status: Nullable active state such as running or queued."
+        - "active_run_key: Nullable active run key."
+        - "triage_group_id: Nullable deterministic triage group."
+        - "updated_at_unix: Last control-plane update time."
+    - collection: test_claims
+      purpose: Parallel-safe debug leases for failed tests or triage groups.
+      required_fields:
+        - "claim_key: Unique claim id."
+        - "group_id: Claimed deterministic triage group."
+        - "status: active, completed, released, or expired."
+        - "session_id: Claiming assistant/session id."
+        - "worker_id: Optional worker id."
+        - "expires_at_unix: Claim expiry time."
+        - "completed_commit: Nullable commit that resolved the claim."
+  api:
+    - No new public user API route is required for the first slice.
+    - Backend status-page internals may expose the same response shape they already return, but the source is Directus-backed state.
+  cli:
+    - "`python3 scripts/tests.py status --json` returns Directus-backed current state."
+    - "`python3 scripts/tests.py next --lease --session <id> --json` writes a Directus `test_claims` row."
+    - "`python3 scripts/tests.py complete <claim-id> --commit <sha>` completes the Directus claim."
+    - "`python3 scripts/tests.py release <claim-id> --reason <reason>` releases the Directus claim."
+    - "`python3 scripts/tests.py run ...` marks requested tests active before dispatch waits for completion."
+  privacy_security:
+    - Store redacted error summaries and artifact references, not raw private logs, screenshots, traces, cookies, API keys, or user data.
+    - Directus writes must be idempotent; retries cannot duplicate run or result history.
+    - If Directus is unreachable, commands must fail visibly unless explicitly invoked in an import/export-only mode.
+
+tests:
+  - id: T-SCHEMA-AUDIT
+    type: pytest
+    file: scripts/tests/test_tests_control_directus_schema.py
+    command: python3 -m pytest scripts/tests/test_tests_control_directus_schema.py
+    covers:
+      - AC-7
+    assertions:
+      - Directus schema YAML files exist for the five required test collections.
+      - Required unique keys and status fields are present for idempotent upserts.
+      - Schema field names match the control-plane adapter contract.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_tests_control_directus_schema.py
+        run_id: local-pytest-red-schema
+        subject_commit: 8fca1d96918c0d231b090ca37e2091f4f382a951
+        timestamp: "2026-07-17T09:41:46Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control_directus_schema.py
+        run_id: local-pytest-green-schema
+        subject_commit: 8fca1d96918c0d231b090ca37e2091f4f382a951
+        timestamp: "2026-07-17T09:41:46Z"
+  - id: T-PYTEST-CONTROL
+    type: pytest
+    file: scripts/tests/test_tests_control.py
+    command: python3 -m pytest scripts/tests/test_tests_control.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+    assertions:
+      - Recording a completed run writes run/result/current-state records through the Directus adapter.
+      - Marking requested tests running preserves previous stable status while setting active run state.
+      - Parallel leases create distinct Directus claims and complete/release update claim status.
+      - Persistent local JSON state/lease files are not required for status or claims.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_tests_control.py
+        run_id: local-pytest-red-control
+        subject_commit: 8fca1d96918c0d231b090ca37e2091f4f382a951
+        timestamp: "2026-07-17T09:41:46Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_github_sync.py scripts/tests/test_tests_control_apple.py
+        run_id: local-pytest-green-control
+        subject_commit: 8fca1d96918c0d231b090ca37e2091f4f382a951
+        timestamp: "2026-07-17T09:41:46Z"
+  - id: T-PYTEST-GHA-SYNC
+    type: pytest
+    file: scripts/tests/test_tests_control_github_sync.py
+    command: python3 -m pytest scripts/tests/test_tests_control_github_sync.py
+    covers:
+      - AC-3
+    assertions:
+      - External GitHub Actions runs are discovered and upserted when absent from Directus.
+      - Polling is idempotent for repeated run metadata and result artifacts.
+      - Completed runs clear active running state for their requested tests.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_tests_control_github_sync.py
+        run_id: local-pytest-red-gha-sync
+        subject_commit: 8fca1d96918c0d231b090ca37e2091f4f382a951
+        timestamp: "2026-07-17T09:41:46Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_github_sync.py scripts/tests/test_tests_control_apple.py
+        run_id: local-pytest-green-gha-sync
+        subject_commit: 8fca1d96918c0d231b090ca37e2091f4f382a951
+        timestamp: "2026-07-17T09:41:46Z"
+  - id: T-PYTEST-APPLE
+    type: pytest
+    file: scripts/tests/test_tests_control_apple.py
+    command: python3 -m pytest scripts/tests/test_tests_control_apple.py
+    covers:
+      - AC-5
+    assertions:
+      - Apple suite records normalize into the same catalog/current-state model.
+      - Apple failures can be claimed and completed with the same claim API.
+      - Apple verification commands are preserved when available.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_tests_control_apple.py
+        run_id: local-pytest-red-apple
+        subject_commit: 8fca1d96918c0d231b090ca37e2091f4f382a951
+        timestamp: "2026-07-17T09:41:46Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_github_sync.py scripts/tests/test_tests_control_apple.py
+        run_id: local-pytest-green-apple
+        subject_commit: 8fca1d96918c0d231b090ca37e2091f4f382a951
+        timestamp: "2026-07-17T09:41:46Z"
+  - id: T-PYTEST-STATUS-SERVICE
+    type: pytest
+    file: backend/tests/test_test_results_service.py
+    command: python3 -m pytest backend/tests/test_test_results_service.py
+    covers:
+      - AC-6
+    assertions:
+      - Status-page service reads test current state from the shared Directus adapter or Directus service.
+      - Missing local JSON files do not make the status page report empty or stale state when Directus has data.
+      - Directus errors are logged and surfaced visibly instead of silently falling back to stale JSON.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_test_results_service.py
+        run_id: local-pytest-red-status-service
+        subject_commit: 8fca1d96918c0d231b090ca37e2091f4f382a951
+        timestamp: "2026-07-17T09:41:46Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_test_results_service.py
+        run_id: local-pytest-green-status-service
+        subject_commit: 8fca1d96918c0d231b090ca37e2091f4f382a951
+        timestamp: "2026-07-17T09:41:46Z"
+
+verifications:
+  - id: V-SPEC-VALIDATE
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/spec_validate.py docs/specs/directus-test-control-plane/spec.yml
+      run_id: local-spec-validate
+      subject_commit: 8fca1d96918c0d231b090ca37e2091f4f382a951
+      timestamp: "2026-07-17T09:41:46Z"
+
+implementation_plan:
+  spec_path: docs/specs/directus-test-control-plane/spec.yml
+  existing_patterns:
+    - scripts/tests.py owns the current CLI control-plane entrypoint.
+    - scripts/run_tests.py owns GitHub Actions dispatch, polling, artifact download, and normalized run summaries.
+    - backend/core/directus/schemas/*.yml define Directus collections.
+    - backend/core/api/app/services/directus/directus.py provides generic Directus item operations.
+    - backend/core/api/app/services/test_results_service.py currently reads local JSON test-result state for the status page.
+  architecture: >
+    Introduce a small Directus-backed test-control-plane adapter used by
+    `scripts/tests.py`, the GitHub Actions sync path, and the backend status-page
+    reader. Directus stores canonical catalog, runs, per-test results, current
+    state, and claims. The adapter exposes the existing script-level operations
+    so command behavior changes minimally while persistence moves out of local
+    files.
+  data_flow:
+    - "`scripts/tests.py run` normalizes requested test keys, creates or updates a `test_runs` row, and sets active current-state rows before dispatching GitHub Actions."
+    - GitHub Actions completion or poller ingestion upserts `test_results` rows and refreshes stable current-state fields.
+    - "`scripts/tests.py next --lease` reads Directus-backed triage groups and creates one active `test_claims` record per group."
+    - Status-page code reads current state from the shared adapter or Directus service.
+    - Optional JSON import/export commands serialize Directus state for artifacts without becoming source of truth.
+  affected_files:
+    - path: docs/specs/directus-test-control-plane/spec.yml
+      reason: Executable product contract and work ledger.
+    - path: backend/core/directus/schemas/test_catalog.yml
+      reason: Directus test catalog schema.
+    - path: backend/core/directus/schemas/test_runs.yml
+      reason: Directus run schema.
+    - path: backend/core/directus/schemas/test_results.yml
+      reason: Directus per-test result schema.
+    - path: backend/core/directus/schemas/test_current_state.yml
+      reason: Directus latest current-state schema.
+    - path: backend/core/directus/schemas/test_claims.yml
+      reason: Directus debug claim schema.
+    - path: scripts/tests.py
+      reason: CLI control-plane behavior and Directus-backed operations.
+    - path: scripts/run_tests.py
+      reason: Reuse or expose GitHub Actions run metadata/artifact ingestion for the Directus sync path.
+    - path: scripts/sync-test-results.sh
+      reason: Replace or route local result syncing through Directus-backed ingestion.
+    - path: backend/core/api/app/services/test_results_service.py
+      reason: Status page test results reader must stop depending on local JSON state.
+    - path: scripts/tests/test_tests_control.py
+      reason: Existing control-plane regression tests need Directus adapter coverage.
+    - path: scripts/tests/test_tests_control_directus_schema.py
+      reason: Schema contract regression coverage.
+    - path: scripts/tests/test_tests_control_github_sync.py
+      reason: GitHub Actions sync regression coverage.
+    - path: scripts/tests/test_tests_control_apple.py
+      reason: Apple suite normalization regression coverage.
+    - path: backend/tests/test_test_results_service.py
+      reason: Status-page service regression coverage.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/directus-test-control-plane/spec.yml
+    - python3 -m pytest scripts/tests/test_tests_control_directus_schema.py
+    - python3 -m pytest scripts/tests/test_tests_control.py
+    - python3 -m pytest scripts/tests/test_tests_control_github_sync.py
+    - python3 -m pytest scripts/tests/test_tests_control_apple.py
+    - python3 -m pytest backend/tests/test_test_results_service.py
+    - python3 scripts/tests.py status --json
+  verification_order:
+    - Validate the spec before implementation.
+    - Run red-phase pytest coverage for schema, adapter, GitHub sync, Apple normalization, and status service before feature code.
+    - Implement Directus schemas and adapter behind existing `scripts/tests.py` operations.
+    - Run green-phase targeted pytest coverage.
+    - Run `python3 scripts/tests.py status --json` against the configured environment to prove operator command behavior.
+    - Run `python3 scripts/spec_verify.py docs/specs/directus-test-control-plane/spec.yml` before completion.
+
+tasks:
+  - id: TASK-1
+    title: Approve executable Directus test-control-plane contract
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - docs/specs/directus-test-control-plane/spec.yml
+    verification_ids:
+      - V-SPEC-VALIDATE
+    dependencies: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-2
+    ownership:
+      files:
+        - docs/specs/directus-test-control-plane/spec.yml
+      shared_files: []
+  - id: TASK-2
+    title: Add red-phase control-plane and schema tests
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - scripts/tests/test_tests_control.py
+      - scripts/tests/test_tests_control_directus_schema.py
+      - scripts/tests/test_tests_control_github_sync.py
+      - scripts/tests/test_tests_control_apple.py
+      - backend/tests/test_test_results_service.py
+    verification_ids:
+      - T-SCHEMA-AUDIT
+      - T-PYTEST-CONTROL
+      - T-PYTEST-GHA-SYNC
+      - T-PYTEST-APPLE
+      - T-PYTEST-STATUS-SERVICE
+    dependencies:
+      - TASK-1
+    blockers: []
+    follow_up_tasks:
+      - TASK-3
+    ownership:
+      files:
+        - scripts/tests/test_tests_control.py
+        - scripts/tests/test_tests_control_directus_schema.py
+        - scripts/tests/test_tests_control_github_sync.py
+        - scripts/tests/test_tests_control_apple.py
+        - backend/tests/test_test_results_service.py
+      shared_files: []
+  - id: TASK-3
+    title: Implement Directus schemas and test-control-plane adapter
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+        - AC-5
+        - AC-7
+    expected_files:
+      - backend/core/directus/schemas/test_catalog.yml
+      - backend/core/directus/schemas/test_runs.yml
+      - backend/core/directus/schemas/test_results.yml
+      - backend/core/directus/schemas/test_current_state.yml
+      - backend/core/directus/schemas/test_claims.yml
+      - scripts/tests.py
+    verification_ids:
+      - T-SCHEMA-AUDIT
+      - T-PYTEST-CONTROL
+      - T-PYTEST-APPLE
+    dependencies:
+      - TASK-2
+    blockers: []
+    follow_up_tasks:
+      - TASK-4
+    ownership:
+      files:
+        - backend/core/directus/schemas/test_catalog.yml
+        - backend/core/directus/schemas/test_runs.yml
+        - backend/core/directus/schemas/test_results.yml
+        - backend/core/directus/schemas/test_current_state.yml
+        - backend/core/directus/schemas/test_claims.yml
+        - scripts/tests.py
+      shared_files: []
+  - id: TASK-4
+    title: Implement GitHub Actions polling ingestion and status-page reader
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-3
+      acceptance_criteria:
+        - AC-3
+        - AC-6
+    expected_files:
+      - scripts/run_tests.py
+      - scripts/sync-test-results.sh
+      - backend/core/api/app/services/test_results_service.py
+    verification_ids:
+      - T-PYTEST-GHA-SYNC
+      - T-PYTEST-STATUS-SERVICE
+    dependencies:
+      - TASK-3
+    blockers: []
+    follow_up_tasks:
+      - TASK-5
+    ownership:
+      files:
+        - scripts/run_tests.py
+        - scripts/sync-test-results.sh
+        - backend/core/api/app/services/test_results_service.py
+      shared_files:
+        - scripts/tests.py
+  - id: TASK-5
+    title: Run green verification and update evidence
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - docs/specs/directus-test-control-plane/spec.yml
+    verification_ids:
+      - T-SCHEMA-AUDIT
+      - T-PYTEST-CONTROL
+      - T-PYTEST-GHA-SYNC
+      - T-PYTEST-APPLE
+      - T-PYTEST-STATUS-SERVICE
+      - V-SPEC-VALIDATE
+    dependencies:
+      - TASK-4
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/specs/directus-test-control-plane/spec.yml
+      shared_files:
+        - scripts/tests.py
+        - backend/core/api/app/services/test_results_service.py
+
+risks:
+  - id: R-1
+    risk: Directus downtime could block test coordination commands.
+    mitigation: Fail visibly with actionable errors; keep JSON export/import as an artifact tool, not silent fallback.
+  - id: R-2
+    risk: GitHub Actions polling may duplicate results when artifacts are reprocessed.
+    mitigation: Use deterministic run/result idempotency keys and tests for repeated ingestion.
+  - id: R-3
+    risk: Raw test artifacts may contain private data.
+    mitigation: Store only redacted summaries and artifact references in Directus.
+
+open_questions:
+  - id: OQ-1
+    question: Which deployed environment should host the first Directus schema rollout for operator verification?
+    status: non_blocking_until_deploy
+  - id: OQ-2
+    question: Should historical JSON records be bulk-imported once or only imported on demand?
+    status: non_blocking_until_migration_slice

@@ -1,0 +1,49 @@
+check_accounts:
+  context: Skill name for Finance Check accounts
+  en: Check accounts
+  de: Konten prüfen
+  zh: Check accounts
+  es: Check accounts
+  fr: Check accounts
+  pt: Check accounts
+  ru: Check accounts
+  ja: Check accounts
+  ko: Check accounts
+  it: Check accounts
+  tr: Check accounts
+  vi: Check accounts
+  id: Check accounts
+  pl: Check accounts
+  nl: Check accounts
+  ar: Check accounts
+  hi: Check accounts
+  th: Check accounts
+  cs: Check accounts
+  sv: Check accounts
+  he: Check accounts
+  verified_by_human: [en, de]
+
+check_accounts.description:
+  context: Description for Finance Check accounts skill
+  en: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  de: Verbundene Konten und CSV-Auszüge lesen, um Salden, Ausgaben und Prognosen zusammenzufassen.
+  zh: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  es: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  fr: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  pt: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  ru: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  ja: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  ko: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  it: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  tr: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  vi: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  id: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  pl: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  nl: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  ar: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  hi: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  th: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  cs: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  sv: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  he: Read connected accounts and CSV statements to summarize balances, spending, and projections.
+  verified_by_human: [en, de]

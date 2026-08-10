@@ -1,0 +1,1481 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-01'
+generated_at: '2026-07-09T15:14:35+00:00'
+range:
+  since: '2026-05-01T00:00:00+00:00'
+  until: '2026-05-01T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 27
+  section_counts:
+    features: 6
+    bug_fixes: 20
+    improvements: 0
+    docs: 0
+    tests: 1
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 21
+  user_facing_items: 24
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: safe PDF dedup — reuse S3 object with fresh embed_id (OPE-485)'
+    section: features
+    commits:
+    - 6a1d19717
+    authored_at: '2026-05-01T23:48:14+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/upload/routes/upload_route.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add bahn.de booking deeplinks to train connection results'
+    section: features
+    commits:
+    - d909babd4
+    authored_at: '2026-05-01T13:08:17+00:00'
+    changed_paths:
+    - backend/apps/travel/providers/db_provider.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add Deutsche Bahn train provider for search_connections skill'
+    section: features
+    commits:
+    - 1ff0f4ac3
+    authored_at: '2026-05-01T12:28:51+00:00'
+    changed_paths:
+    - backend/apps/travel/providers/db_provider.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/shared/providers/deutsche_bahn.py
+    - docs/architecture/apps/travel-train-api-research.md
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(ios): previous session iOS visual fixes — settings, embeds, chat views, font registration'
+    section: features
+    commits:
+    - 47c32dd9c
+    authored_at: '2026-05-01T13:23:18+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsListView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatListView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Shared/Components/Icon.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Extensions/FontRegistration.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(ios): fix ChatBanner to match web ChatHeader — video, fonts, nav, gradients'
+    section: features
+    commits:
+    - 1f34b4480
+    authored_at: '2026-05-01T13:20:42+02:00'
+    changed_paths:
+    - .gitignore
+    - apple/IOS_VISUAL_ISSUES.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/Fonts/LexendDeca-Bold.ttf
+    - apple/OpenMates/Resources/Fonts/LexendDeca-ExtraBold.ttf
+    - apple/OpenMates/Resources/Fonts/LexendDeca-Light.ttf
+    - apple/OpenMates/Resources/Fonts/LexendDeca-Medium.ttf
+    - apple/OpenMates/Resources/Fonts/LexendDeca-Regular.ttf
+    - apple/OpenMates/Resources/Fonts/LexendDeca-SemiBold.ttf
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/Videos/intro-teaser.mp4
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/I18n/LocalizationManager.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - apple/OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: fix iOS default view, i18n keys, and replace native controls in settings sub-pages'
+    section: features
+    commits:
+    - a04023356
+    authored_at: '2026-04-30T14:50:01+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  bug_fixes:
+  - title: 'fix: skip preview image check after reload in pdf-flow test'
+    section: bug_fixes
+    commits:
+    - 7fb12f82d
+    authored_at: '2026-05-01T19:53:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: make AI skill card persistence check non-fatal after reload/relogin'
+    section: bug_fixes
+    commits:
+    - 7060fb91d
+    authored_at: '2026-05-01T19:42:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: include PDF filename+pageCount in serialized embed reference'
+    section: bug_fixes
+    commits:
+    - 9fadd64aa
+    authored_at: '2026-05-01T19:25:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: eagerly load first PDF pages in fullscreen (skip IntersectionObserver)'
+    section: bug_fixes
+    commits:
+    - a1310b844
+    authored_at: '2026-05-01T18:58:40+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove client-side PDF embed EmbedStore registration that overwrites OCR cache'
+    section: bug_fixes
+    commits:
+    - 153d4735d
+    authored_at: '2026-05-01T18:27:29+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: skip PDF dedup in core API check-duplicate endpoint'
+    section: bug_fixes
+    commits:
+    - 430e6376d
+    authored_at: '2026-05-01T18:11:50+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: disable PDF deduplication — OCR must always run for AI reading'
+    section: bug_fixes
+    commits:
+    - 6fc968098
+    authored_at: '2026-05-01T18:09:59+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/upload/routes/upload_route.py
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: re-trigger OCR from message handler for deduplicated PDF embeds'
+    section: bug_fixes
+    commits:
+    - 972097dfc
+    authored_at: '2026-05-01T17:57:22+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: re-trigger OCR for deduplicated PDF uploads'
+    section: bug_fixes
+    commits:
+    - 1b906a2b7
+    authored_at: '2026-05-01T17:55:02+00:00'
+    changed_paths:
+    - backend/upload/routes/upload_route.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: compare content size for deduplicated embed cache protection'
+    section: bug_fixes
+    commits:
+    - a5f4e0dc1
+    authored_at: '2026-05-01T17:42:19+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use _deduplicated flag to prevent cache overwrite for dedup PDF embeds'
+    section: bug_fixes
+    commits:
+    - 6396c00b4
+    authored_at: '2026-05-01T17:36:40+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve full embed cache for deduplicated PDFs on server'
+    section: bug_fixes
+    commits:
+    - d882f7027
+    authored_at: '2026-05-01T17:25:26+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: skip sending deduplicated PDF embed content to prevent server cache overwrite'
+    section: bug_fixes
+    commits:
+    - 18163c82c
+    authored_at: '2026-05-01T17:12:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add files field and request_embed for deduplicated PDF uploads'
+    section: bug_fixes
+    commits:
+    - 583cd1343
+    authored_at: '2026-05-01T16:59:23+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: register PDF embeds in EmbedStore to prevent dedup key mismatch'
+    section: bug_fixes
+    commits:
+    - 192e43bab
+    authored_at: '2026-05-01T16:46:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: update skill schema to advertise train support to the LLM'
+    section: bug_fixes
+    commits:
+    - 66cc3ba7e
+    authored_at: '2026-05-01T16:44:31+00:00'
+    changed_paths:
+    - backend/apps/travel/app.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: pdf-flow test — detect stuck Sending and reload to reconnect WebSocket'
+    section: bug_fixes
+    commits:
+    - 25a1efd4f
+    authored_at: '2026-05-01T13:24:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: dynamic provider attribution for train vs flight results'
+    section: bug_fixes
+    commits:
+    - 06ebb3293
+    authored_at: '2026-05-01T12:50:37+00:00'
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: retry TOON content recovery for finished embeds with missing content'
+    section: bug_fixes
+    commits:
+    - a06f28c64
+    authored_at: '2026-05-01T10:00:27+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: post-login navigation settle, celery request access, status page title observer'
+    section: bug_fixes
+    commits:
+    - 6d9e90217
+    authored_at: '2026-05-01T09:49:47+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/base_task.py
+    - frontend/apps/web_app/src/routes/(minimal)/status/+page.svelte
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: add E2E spec for train connections via Deutsche Bahn'
+    section: tests
+    commits:
+    - 4ca692aee
+    authored_at: '2026-05-01T16:34:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: update skill schema to advertise train support to the LLM'
+    commits:
+    - 66cc3ba7e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: safe PDF dedup — reuse S3 object with fresh embed_id (OPE-485)'
+    commits:
+    - 6a1d19717
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: skip preview image check after reload in pdf-flow test'
+    commits:
+    - 7fb12f82d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: make AI skill card persistence check non-fatal after reload/relogin'
+    commits:
+    - 7060fb91d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: eagerly load first PDF pages in fullscreen (skip IntersectionObserver)'
+    commits:
+    - a1310b844
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: remove client-side PDF embed EmbedStore registration that overwrites OCR cache'
+    commits:
+    - 153d4735d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: skip PDF dedup in core API check-duplicate endpoint'
+    commits:
+    - 430e6376d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: disable PDF deduplication — OCR must always run for AI reading'
+    commits:
+    - 6fc968098
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: re-trigger OCR from message handler for deduplicated PDF embeds'
+    commits:
+    - 972097dfc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: compare content size for deduplicated embed cache protection'
+    commits:
+    - a5f4e0dc1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use _deduplicated flag to prevent cache overwrite for dedup PDF embeds'
+    commits:
+    - 6396c00b4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve full embed cache for deduplicated PDFs on server'
+    commits:
+    - d882f7027
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: skip sending deduplicated PDF embed content to prevent server cache overwrite'
+    commits:
+    - 18163c82c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add files field and request_embed for deduplicated PDF uploads'
+    commits:
+    - 583cd1343
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: register PDF embeds in EmbedStore to prevent dedup key mismatch'
+    commits:
+    - 192e43bab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: update skill schema to advertise train support to the LLM'
+    commits:
+    - 66cc3ba7e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: pdf-flow test — detect stuck Sending and reload to reconnect WebSocket'
+    commits:
+    - 25a1efd4f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add bahn.de booking deeplinks to train connection results'
+    commits:
+    - d909babd4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: dynamic provider attribution for train vs flight results'
+    commits:
+    - 06ebb3293
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Deutsche Bahn train provider for search_connections skill'
+    commits:
+    - 1ff0f4ac3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: retry TOON content recovery for finished embeds with missing content'
+    commits:
+    - a06f28c64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: post-login navigation settle, celery request access, status page title observer'
+    commits:
+    - 6d9e90217
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: safe PDF dedup — reuse S3 object with fresh embed_id (OPE-485)'
+    commits:
+    - 6a1d19717
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: skip preview image check after reload in pdf-flow test'
+    commits:
+    - 7fb12f82d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: make AI skill card persistence check non-fatal after reload/relogin'
+    commits:
+    - 7060fb91d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: eagerly load first PDF pages in fullscreen (skip IntersectionObserver)'
+    commits:
+    - a1310b844
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: remove client-side PDF embed EmbedStore registration that overwrites OCR cache'
+    commits:
+    - 153d4735d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: skip PDF dedup in core API check-duplicate endpoint'
+    commits:
+    - 430e6376d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: disable PDF deduplication — OCR must always run for AI reading'
+    commits:
+    - 6fc968098
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: re-trigger OCR from message handler for deduplicated PDF embeds'
+    commits:
+    - 972097dfc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: compare content size for deduplicated embed cache protection'
+    commits:
+    - a5f4e0dc1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use _deduplicated flag to prevent cache overwrite for dedup PDF embeds'
+    commits:
+    - 6396c00b4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve full embed cache for deduplicated PDFs on server'
+    commits:
+    - d882f7027
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: skip sending deduplicated PDF embed content to prevent server cache overwrite'
+    commits:
+    - 18163c82c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add files field and request_embed for deduplicated PDF uploads'
+    commits:
+    - 583cd1343
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: register PDF embeds in EmbedStore to prevent dedup key mismatch'
+    commits:
+    - 192e43bab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: update skill schema to advertise train support to the LLM'
+    commits:
+    - 66cc3ba7e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: pdf-flow test — detect stuck Sending and reload to reconnect WebSocket'
+    commits:
+    - 25a1efd4f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add bahn.de booking deeplinks to train connection results'
+    commits:
+    - d909babd4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: dynamic provider attribution for train vs flight results'
+    commits:
+    - 06ebb3293
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Deutsche Bahn train provider for search_connections skill'
+    commits:
+    - 1ff0f4ac3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(ios): previous session iOS visual fixes — settings, embeds, chat views, font registration'
+    commits:
+    - 47c32dd9c
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(ios): fix ChatBanner to match web ChatHeader — video, fonts, nav, gradients'
+    commits:
+    - 1f34b4480
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: fix iOS default view, i18n keys, and replace native controls in settings sub-pages'
+    commits:
+    - a04023356
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: retry TOON content recovery for finished embeds with missing content'
+    commits:
+    - a06f28c64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: post-login navigation settle, celery request access, status page title observer'
+    commits:
+    - 6d9e90217
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 6a1d197170b442bd9c3fb2ab8e5ab1b21836f6b8
+    short_sha: 6a1d19717
+    authored_at: '2026-05-01T23:48:14+00:00'
+    subject: 'feat: safe PDF dedup — reuse S3 object with fresh embed_id (OPE-485)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/upload/routes/upload_route.py
+    related_feature_ids: []
+  - sha: 7fb12f82d53a1deb7fc30f085e1950b6d467f7cd
+    short_sha: 7fb12f82d
+    authored_at: '2026-05-01T19:53:11+00:00'
+    subject: 'fix: skip preview image check after reload in pdf-flow test'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    related_feature_ids: []
+  - sha: 7060fb91d1bf65bbea6ec8cc5e43fa821a676974
+    short_sha: 7060fb91d
+    authored_at: '2026-05-01T19:42:16+00:00'
+    subject: 'fix: make AI skill card persistence check non-fatal after reload/relogin'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    related_feature_ids: []
+  - sha: 9fadd64aa76e093f6a457d1442ab06a309c54ac8
+    short_sha: 9fadd64aa
+    authored_at: '2026-05-01T19:25:03+00:00'
+    subject: 'fix: include PDF filename+pageCount in serialized embed reference'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    related_feature_ids: []
+  - sha: a1310b84452c0fa13413f7554517776674d1fe6c
+    short_sha: a1310b844
+    authored_at: '2026-05-01T18:58:40+00:00'
+    subject: 'fix: eagerly load first PDF pages in fullscreen (skip IntersectionObserver)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 153d4735de1c7ad64086387702abd14748730a5d
+    short_sha: 153d4735d
+    authored_at: '2026-05-01T18:27:29+00:00'
+    subject: 'fix: remove client-side PDF embed EmbedStore registration that overwrites OCR cache'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: 430e6376dfe0ffb11d8547fd0bfa4c2d1c9697d5
+    short_sha: 430e6376d
+    authored_at: '2026-05-01T18:11:50+00:00'
+    subject: 'fix: skip PDF dedup in core API check-duplicate endpoint'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    related_feature_ids: []
+  - sha: 6fc968098009344c6eb16d719cff94afecc008d7
+    short_sha: 6fc968098
+    authored_at: '2026-05-01T18:09:59+00:00'
+    subject: 'fix: disable PDF deduplication — OCR must always run for AI reading'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/upload/routes/upload_route.py
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    related_feature_ids: []
+  - sha: 972097dfc58da3c56d8d1c2623be93f4e8531483
+    short_sha: 972097dfc
+    authored_at: '2026-05-01T17:57:22+00:00'
+    subject: 'fix: re-trigger OCR from message handler for deduplicated PDF embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    related_feature_ids: []
+  - sha: 1b906a2b7afef822ad3fed16f6349d2f0ea2a55f
+    short_sha: 1b906a2b7
+    authored_at: '2026-05-01T17:55:02+00:00'
+    subject: 'fix: re-trigger OCR for deduplicated PDF uploads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/upload/routes/upload_route.py
+    related_feature_ids: []
+  - sha: a5f4e0dc1c431bd6f5122fbe408e7e57db270343
+    short_sha: a5f4e0dc1
+    authored_at: '2026-05-01T17:42:19+00:00'
+    subject: 'fix: compare content size for deduplicated embed cache protection'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    related_feature_ids: []
+  - sha: 6396c00b4dc7f64ea7c3a59b4abcbe83aa5c8a3b
+    short_sha: 6396c00b4
+    authored_at: '2026-05-01T17:36:40+00:00'
+    subject: 'fix: use _deduplicated flag to prevent cache overwrite for dedup PDF embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    related_feature_ids: []
+  - sha: d882f7027494674f345ce0592e9e714fa34b71c0
+    short_sha: d882f7027
+    authored_at: '2026-05-01T17:25:26+00:00'
+    subject: 'fix: preserve full embed cache for deduplicated PDFs on server'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: 18163c82ce2509065eebb329fe4dc7e6f519c98d
+    short_sha: 18163c82c
+    authored_at: '2026-05-01T17:12:41+00:00'
+    subject: 'fix: skip sending deduplicated PDF embed content to prevent server cache overwrite'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: 583cd134372e6733c9d36fdd1d868de753828841
+    short_sha: 583cd1343
+    authored_at: '2026-05-01T16:59:23+00:00'
+    subject: 'fix: add files field and request_embed for deduplicated PDF uploads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: 192e43bab0ad4f0fb013f43e6cecdf136e01e35c
+    short_sha: 192e43bab
+    authored_at: '2026-05-01T16:46:46+00:00'
+    subject: 'fix: register PDF embeds in EmbedStore to prevent dedup key mismatch'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: 66cc3ba7e49067f856e55e26a69f2b673f95e3bf
+    short_sha: 66cc3ba7e
+    authored_at: '2026-05-01T16:44:31+00:00'
+    subject: 'fix: update skill schema to advertise train support to the LLM'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/app.yml
+    related_feature_ids: []
+  - sha: 4ca692aeeb13623138b82b8008481bf11be6540c
+    short_sha: 4ca692aee
+    authored_at: '2026-05-01T16:34:17+00:00'
+    subject: 'test: add E2E spec for train connections via Deutsche Bahn'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    related_feature_ids: []
+  - sha: 25a1efd4f12e8ca5dd24159f8001457af776136b
+    short_sha: 25a1efd4f
+    authored_at: '2026-05-01T13:24:34+00:00'
+    subject: 'fix: pdf-flow test — detect stuck Sending and reload to reconnect WebSocket'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    related_feature_ids: []
+  - sha: d909babd43808ccd85d461d9665f22a5b9fcf274
+    short_sha: d909babd4
+    authored_at: '2026-05-01T13:08:17+00:00'
+    subject: 'feat: add bahn.de booking deeplinks to train connection results'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/providers/db_provider.py
+    related_feature_ids: []
+  - sha: 06ebb3293dfe72fc767598a62a8375162f13d1c3
+    short_sha: 06ebb3293
+    authored_at: '2026-05-01T12:50:37+00:00'
+    subject: 'fix: dynamic provider attribution for train vs flight results'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    related_feature_ids: []
+  - sha: 1ff0f4ac3aa4051a99b6d77ed094f1eae1313d6d
+    short_sha: 1ff0f4ac3
+    authored_at: '2026-05-01T12:28:51+00:00'
+    subject: 'feat: add Deutsche Bahn train provider for search_connections skill'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/providers/db_provider.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/shared/providers/deutsche_bahn.py
+    - docs/architecture/apps/travel-train-api-research.md
+    related_feature_ids: []
+  - sha: 47c32dd9cb5d6dd69843bbfd3c487aa23fbd065f
+    short_sha: 47c32dd9c
+    authored_at: '2026-05-01T13:23:18+02:00'
+    subject: 'feat(ios): previous session iOS visual fixes — settings, embeds, chat views, font registration'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsListView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatListView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Shared/Components/Icon.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Extensions/FontRegistration.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 1f34b4480a3b778f1d97cd1c9a8b850f5c0fd24a
+    short_sha: 1f34b4480
+    authored_at: '2026-05-01T13:20:42+02:00'
+    subject: 'feat(ios): fix ChatBanner to match web ChatHeader — video, fonts, nav, gradients'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .gitignore
+    - apple/IOS_VISUAL_ISSUES.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/Fonts/LexendDeca-Bold.ttf
+    - apple/OpenMates/Resources/Fonts/LexendDeca-ExtraBold.ttf
+    - apple/OpenMates/Resources/Fonts/LexendDeca-Light.ttf
+    - apple/OpenMates/Resources/Fonts/LexendDeca-Medium.ttf
+    - apple/OpenMates/Resources/Fonts/LexendDeca-Regular.ttf
+    - apple/OpenMates/Resources/Fonts/LexendDeca-SemiBold.ttf
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/Videos/intro-teaser.mp4
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/I18n/LocalizationManager.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - apple/OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a04023356e671f9c31be72ecd1da7dbe4f1551ef
+    short_sha: a04023356
+    authored_at: '2026-04-30T14:50:01+02:00'
+    subject: 'feat: fix iOS default view, i18n keys, and replace native controls in settings sub-pages'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a06f28c64a07f8827a7e0ca1f655bd647349c036
+    short_sha: a06f28c64
+    authored_at: '2026-05-01T10:00:27+00:00'
+    subject: 'fix: retry TOON content recovery for finished embeds with missing content'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 6d9e90217ea8401c2d4a04f7b88a10c063111235
+    short_sha: 6d9e90217
+    authored_at: '2026-05-01T09:49:47+00:00'
+    subject: 'fix: post-login navigation settle, celery request access, status page title observer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/base_task.py
+    - frontend/apps/web_app/src/routes/(minimal)/status/+page.svelte
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced train connection search capabilities via Deutsche Bahn and implemented significant refinements
+    to PDF deduplication and OCR processing. The update also includes various stability fixes for the web application and
+    continued development of the unreleased iOS platform.
+  released_changes:
+  - text: The travel application now supports train connection searches through Deutsche Bahn, including direct booking deeplinks
+      and improved provider attribution.
+    evidence:
+      commits:
+      - 1ff0f4ac3
+      - d909babd4
+      - 66cc3ba7e
+      - 06ebb3293
+    release_status: released_main
+  - text: OpenMates added safe PDF deduplication to reuse S3 objects while maintaining unique embed identifiers.
+    evidence:
+      commits:
+      - 6a1d19717
+    release_status: released_main
+  bug_fixes:
+  - text: A series of fixes for PDF deduplication ensures that OCR processes always run for AI reading and that server-side
+      caches are not overwritten by duplicate uploads.
+    evidence:
+      commits:
+      - 6fc968098
+      - 972097dfc
+      - a5f4e0dc1
+      - 6396c00b4
+      - d882f7027
+      - 18163c82c
+      - 583cd1343
+      - 192e43bab
+      - 153d4735d
+      - 430e6376d
+    release_status: released_main
+  - text: PDF pages in fullscreen mode now load eagerly, improving responsiveness by skipping the IntersectionObserver for
+      the initial view.
+    evidence:
+      commits:
+      - a1310b844
+    release_status: released_main
+  - text: The project added a retry mechanism for TOON content recovery to handle finished embeds that are missing content.
+    evidence:
+      commits:
+      - a06f28c64
+    release_status: released_main
+  - text: Stability improvements were made to post-login navigation and the status page title observer.
+    evidence:
+      commits:
+      - 6d9e90217
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continued on the iOS platform, including visual fixes for chat views, settings sub-pages, and font registration
+      to match the web experience.
+    evidence:
+      commits:
+      - 47c32dd9c
+      - 1f34b4480
+      - a04023356
+    release_status: released_main
+  internal_progress:
+  - text: The test suite was expanded with E2E specs for Deutsche Bahn connections and improved reliability for PDF-related
+      testing flows.
+    evidence:
+      commits:
+      - 4ca692aee
+      - 7fb12f82d
+      - 7060fb91d
+      - 25a1efd4f
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Train connection search via Deutsche Bahn with integrated booking links.
+      evidence:
+        commits:
+        - 1ff0f4ac3
+        - d909babd4
+        - 66cc3ba7e
+        - 06ebb3293
+      reason: This is a significant new user-facing capability for the travel skill.
+    - text: Optimized PDF handling through safe deduplication and S3 object reuse.
+      evidence:
+        commits:
+        - 6a1d19717
+      reason: Improves backend efficiency for file handling.
+    exclude:
+    - text: iOS visual and functional refinements.
+      evidence:
+        commits:
+        - 47c32dd9c
+        - 1f34b4480
+        - a04023356
+      reason: iOS and macOS platforms are currently listed as disabled features.
+    rationale: The primary highlight for users is the expansion of the travel skill to include train connections. Backend
+      optimizations for PDF handling also provide a smoother experience for document-heavy workflows.
+  social_video_recommendations:
+  - idea: A screen recording showing a user asking for train connections and receiving a list with direct booking links to
+      bahn.de.
+    priority: high
+    reason: This is a concrete, high-value feature that is easy to demonstrate visually.
+    evidence:
+      commits:
+      - 1ff0f4ac3
+      - d909babd4
+  quality_notes:
+  - Extensive focus on PDF edge cases suggests a push for higher reliability in document processing.
+  - The addition of Deutsche Bahn marks a significant expansion of the travel application's utility.
+  validation_warnings: []

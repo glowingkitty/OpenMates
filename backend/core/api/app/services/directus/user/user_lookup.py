@@ -111,8 +111,8 @@ async def get_completed_signups_count(self) -> int:
     """
     Get the count of users who have completed signup and payment processing.
     
-    This counts users where last_opened indicates they completed signup:
-    - last_opened starts with '/chat/' (includes '/chat/new' after payment/signup completion)
+    This counts users where last_opened indicates they created or opened a chat:
+    - last_opened starts with '/chat/<chat-id>'
     - last_opened is a UUID (chat ID format, indicating they opened a chat)
     
     This excludes:
@@ -121,7 +121,7 @@ async def get_completed_signups_count(self) -> int:
     - Users with special values like 'demo-for-everyone'
     
     This is more accurate than counting all registered users, as it excludes users who
-    abandoned signup before completing payment.
+    abandoned signup before creating any chat.
     
     Returns:
         The count of users who completed signup as an integer
@@ -158,10 +158,11 @@ async def get_completed_signups_count(self) -> int:
             users = data.get("data", [])
             
             # Filter users in Python to count only those who completed signup
-            # Count users where last_opened:
-            # - Starts with '/chat/' (includes '/chat/new')
-            # - OR is a UUID (chat ID format: 8-4-4-4-12 hex digits)
+            # Count users where last_opened is an actual chat id. `/chat/new`
+            # only means the user reached the empty composer and should not
+            # consume a public signup quota slot.
             uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+            chat_path_pattern = re.compile(r'^/chat/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
             
             completed_count = 0
             for user in users:
@@ -173,8 +174,7 @@ async def get_completed_signups_count(self) -> int:
                 if not last_opened:
                     continue
                 
-                # Count if it starts with '/chat/' or is a UUID
-                if last_opened.startswith("/chat/") or uuid_pattern.match(last_opened):
+                if chat_path_pattern.match(last_opened) or uuid_pattern.match(last_opened):
                     completed_count += 1
             
             logger.debug(f"Completed signups count: {completed_count}")
@@ -207,11 +207,11 @@ async def get_user_by_hashed_email(self, hashed_email: str) -> Tuple[bool, Optio
             users = data.get("data", [])
             
             if users and len(users) > 0:
-                logger.info(f"Found user with matching hashed email")
+                logger.info("Found user with matching hashed email")
                 user = users[0]
                 return True, user, "User found"
             else:
-                logger.info(f"No user found with matching hashed email")
+                logger.info("No user found with matching hashed email")
                 return False, None, "User not found"
         else:
             error_msg = f"Failed to query user by hashed email: {response.status_code} - {response.text}"
@@ -301,7 +301,7 @@ async def authenticate_user_by_lookup_hash(self, hashed_email: str, lookup_hash:
             users = data.get("data", [])
             
             if not users or len(users) == 0:
-                logger.info(f"No user found with matching hashed email")
+                logger.info("No user found with matching hashed email")
                 return False, None, "login.email_or_password_wrong"
                 
             user = users[0]

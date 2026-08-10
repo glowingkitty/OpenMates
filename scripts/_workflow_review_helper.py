@@ -1,509 +1,584 @@
 #!/usr/bin/env python3
-"""
-scripts/_workflow_review_helper.py
+"""Collect bounded OpenCode, git, and test evidence for explicit workflow review.
 
-Nightly workflow review — analyzes yesterday's Claude Code sessions to extract
-improvement suggestions for sessions.py, debug.py, and CLAUDE.md.
-
-Architecture context: See CLAUDE.md (Session Lifecycle section)
-
-Commands:
-    dry-run     Build and print the prompt without calling claude
-    run-review  Build prompt and run OpenCode analysis
-
-State file: scripts/.workflow-review-state.json
-Data source: Claude Code JSONL session files in ~/.claude/projects/<project-slug>/
-
-Extraction logic per session:
-  - text parts: all assistant/user prose
-  - bash tool calls to sessions.py: header lines only (first 12 lines of output)
-  - bash tool calls to sessions.py deploy: full output (small, high signal)
-  - bash tool calls to debug.py: full output (actual debugging signal)
-  - everything else dropped (Read/Edit/Write/Glob/Agent/file-history-snapshot/progress)
-
-Not intended to be called directly by users; use nightly-workflow-review.sh instead.
-Can be run manually for testing:
-    DRY_RUN=true python3 scripts/_workflow_review_helper.py dry-run
-    python3 scripts/_workflow_review_helper.py dry-run   # same as above
-    python3 scripts/_workflow_review_helper.py run-review
-
-Public API (importable by other helpers, e.g. _daily_meeting_helper.py):
-    build_session_digests(yesterday: str) → (digest_text, count, chars)
-    build_prompt(yesterday: str, state: dict) → str
-    load_state() → dict
+This collector never launches an agent, reads session prose, or runs on a
+schedule. A maintainer explicitly requests a UTC interval, then optionally uses
+the resulting report as input to a separate OpenCode conversation.
 """
 
+from __future__ import annotations
+
+import argparse
+import hashlib
 import json
-import os
-
-from _opencode_utils import run_opencode_session
-import sys
-from datetime import datetime, timezone, timedelta
+import sqlite3
+import subprocess
+from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 
-# ── Constants ────────────────────────────────────────────────────────────────
-
-PROJECT_ROOT = Path(__file__).parent.parent
-
-# Claude Code stores sessions as JSONL files per project, keyed by a slugified
-# absolute path (/ replaced with -). Top-level *.jsonl are main sessions;
-# {uuid}/subagents/*.jsonl are subagent conversations (skipped).
-SESSIONS_DIR = (
-    Path.home() / ".claude" / "projects"
-    / "-home-superdev-projects-OpenMates"
-)
-
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+OPENCODE_DB_PATH = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
+REPORTS_DIR = PROJECT_ROOT / "test-results" / "workflow-review"
 STATE_FILE = PROJECT_ROOT / "scripts" / ".workflow-review-state.json"
-PROMPT_TEMPLATE = PROJECT_ROOT / "scripts" / "prompts" / "workflow-review.md"
-
-# Max chars to include per session (head + tail truncation)
-PER_SESSION_BUDGET = 12_000
-HEAD_RATIO = 0.4
-TAIL_RATIO = 0.3
-
-# Title keywords that mark a session as workflow-relevant
-WORKFLOW_KEYWORDS = [
-    "session", "debug", "workflow", "audit", "cron", "issues", "backlog",
-    "test", "script", "cli", "plan", "improve", "helper", "nightly",
-    "dependabot", "concurrent", "deploy", "claude", "opencode",
-]
-
-# Bash commands worth extracting tool output for (beyond text parts)
-SESSIONS_TOOL_COMMANDS = ["sessions.py"]
-DEBUG_TOOL_COMMANDS = ["debug.py"]
-
-# Max lines to keep from sessions.py start output (skip boilerplate)
-SESSIONS_START_HEADER_LINES = 12
-
-# JSONL entry types to skip entirely (no useful content for review)
-_SKIP_TYPES = frozenset({
-    "progress", "system", "queue-operation", "file-history-snapshot",
-    "custom-title",
-})
-
-# User message prefixes that are system noise, not real user input
-_NOISE_PREFIXES = (
-    "<local-command-caveat>", "<command-name>", "<local-command-stdout>",
-    "<system-reminder>",
-)
+MIN_TRANSCRIPT_EVIDENCE_BYTES = 4_096
 
 
-# ── State helpers ─────────────────────────────────────────────────────────────
-
-def _empty_state() -> dict:
-    return {
-        "last_review_date": None,
-        "last_summary": "N/A (first run)",
-        "last_session_id": None,
-    }
+def _parse_timestamp(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        raise ValueError("workflow review timestamps must include a UTC offset")
+    return parsed.astimezone(timezone.utc)
 
 
-def load_state() -> dict:
-    state = _empty_state()
-    if STATE_FILE.is_file():
-        try:
-            data = json.loads(STATE_FILE.read_text())
-            for k in state:
-                state[k] = data.get(k, state[k])
-        except Exception as e:
-            print(f"[workflow-review] WARNING: could not load state: {e}", file=sys.stderr)
+def _epoch_ms(value: str) -> int:
+    return int(_parse_timestamp(value).timestamp() * 1000)
+
+
+def _empty_state() -> dict[str, Any]:
+    return {"schema_version": 2, "last_collection": None, "recommendation_fingerprints": {}}
+
+
+def load_state() -> dict[str, Any]:
+    try:
+        state = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return _empty_state()
+    if state.get("schema_version") != 2:
+        return _empty_state()
+    state.setdefault("recommendation_fingerprints", {})
     return state
 
 
-def _save_state(state: dict) -> None:
-    tmp = str(STATE_FILE) + ".tmp"
-    with open(tmp, "w") as f:
-        json.dump(state, f, indent=2)
-        f.write("\n")
-    os.replace(tmp, STATE_FILE)
-    print(f"[workflow-review] State saved: {STATE_FILE}")
+def _save_state(state: dict[str, Any]) -> None:
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temporary = STATE_FILE.with_suffix(".tmp")
+    temporary.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(STATE_FILE)
 
 
-# ── JSONL helpers ────────────────────────────────────────────────────────────
+def _readonly_connection() -> sqlite3.Connection:
+    connection = sqlite3.connect(f"{OPENCODE_DB_PATH.resolve().as_uri()}?mode=ro", uri=True)
+    connection.execute("PRAGMA query_only = ON")
+    return connection
 
-def _is_workflow_relevant(title: str) -> bool:
-    t = title.lower()
-    return any(k in t for k in WORKFLOW_KEYWORDS)
+
+def normalize_tool_failure(raw_error: str) -> str:
+    value = raw_error.lower()
+    if "timeout" in value:
+        return "timeout"
+    if "bad credentials" in value or "401" in value or "authentication" in value:
+        return "authentication"
+    if "file not found" in value or "no such file" in value:
+        return "missing_file"
+    if "apply_patch verification failed" in value:
+        return "stale_patch_context"
+    if "blocked:" in value or '"decision":"block"' in value:
+        return "policy_block"
+    return "other"
 
 
-def _extract_sessions_start_header(output: str) -> str:
-    """Keep only the first N lines of sessions.py start output (skip stale docs, project index, instruction docs)."""
-    lines = output.splitlines()
-    boilerplate_markers = [
-        "== STALE", "== PROJECT INDEX", "== INSTRUCTION DOCS",
-        "== BACKLOG", "Arch docs", "Project:", "Load:",
-        "== TASK COMPLETION", "== END",
+def _truncate_json(value: Any, max_chars: int, truncated: dict[str, bool]) -> Any:
+    if isinstance(value, str):
+        if len(value) > max_chars:
+            truncated["fields"] = True
+            return value[:max_chars] + "...[truncated]"
+        return value
+    if isinstance(value, list):
+        return [_truncate_json(item, max_chars, truncated) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _truncate_json(item, max_chars, truncated) for key, item in value.items()}
+    return value
+
+
+def _decode_bounded_json(raw: str, max_chars: int, truncated: dict[str, bool]) -> Any:
+    try:
+        value = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        value = str(raw)
+    return _truncate_json(value, max_chars, truncated)
+
+
+def _project_message_data(data: Any) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        return {"value": data}
+    projected = {
+        key: data[key]
+        for key in ("role", "agent", "mode", "modelID", "providerID", "finish")
+        if key in data
+    }
+    model = data.get("model")
+    if isinstance(model, dict):
+        projected["model"] = {
+            key: model[key]
+            for key in ("providerID", "modelID", "variant")
+            if key in model
+        }
+    return projected
+
+
+def _project_part_data(data: Any) -> dict[str, Any] | None:
+    if not isinstance(data, dict):
+        return {"type": "unknown", "value": data}
+    part_type = str(data.get("type") or "unknown")
+    if part_type in {"reasoning", "step-start", "step-finish", "snapshot"}:
+        return None
+    if part_type == "text":
+        return {"type": "text", "text": data.get("text", "")}
+    if part_type == "tool":
+        state = data.get("state") if isinstance(data.get("state"), dict) else {}
+        return {
+            "type": "tool",
+            "tool": data.get("tool", "unknown"),
+            "status": state.get("status", "unknown"),
+            "input": state.get("input"),
+            "output": state.get("output"),
+            "error": state.get("error"),
+        }
+    if part_type in {"file", "image", "attachment"}:
+        return {
+            "type": part_type,
+            "filename": data.get("filename") or data.get("name"),
+            "mime": data.get("mime") or data.get("mimeType"),
+            "content_omitted": True,
+        }
+    return {"type": part_type, "status": data.get("status")}
+
+
+def collect_transcript_evidence(
+    period_start: str,
+    period_end: str,
+    *,
+    project_directory: Path | None = None,
+    exclude_session_ids: set[str] | None = None,
+    exclude_title_prefixes: tuple[str, ...] = ("opencode improvement research ",),
+    max_sessions: int = 100,
+    max_messages: int = 2_000,
+    max_parts: int = 2_000,
+    max_field_chars: int = 4_000,
+    max_total_bytes: int = 500_000,
+    max_parts_per_message: int = 4,
+) -> dict[str, Any]:
+    """Collect bounded local transcript evidence for repository workflow research."""
+    if min(max_sessions, max_messages, max_parts, max_field_chars, max_parts_per_message) <= 0:
+        raise ValueError("transcript evidence limits must be positive")
+    if max_total_bytes < MIN_TRANSCRIPT_EVIDENCE_BYTES:
+        raise ValueError(f"max_total_bytes must be at least {MIN_TRANSCRIPT_EVIDENCE_BYTES}")
+    start_ms = _epoch_ms(period_start)
+    end_ms = _epoch_ms(period_end)
+    if start_ms >= end_ms:
+        raise ValueError("period_start must be earlier than period_end")
+
+    excluded = exclude_session_ids or set()
+    directory = str((project_directory or PROJECT_ROOT).resolve())
+    worktree_pattern = f"{directory}/.openmates-agent-worktrees/%"
+    exclusion_clauses: list[str] = []
+    exclusion_parameters: list[Any] = []
+    if excluded:
+        placeholders = ", ".join("?" for _ in excluded)
+        exclusion_clauses.append(f"id NOT IN ({placeholders})")
+        exclusion_parameters.extend(sorted(excluded))
+    normalized_prefixes = tuple(prefix.casefold() for prefix in exclude_title_prefixes)
+    for prefix in normalized_prefixes:
+        exclusion_clauses.append("LOWER(title) NOT LIKE ?")
+        exclusion_parameters.append(prefix.replace("%", "\\%").replace("_", "\\_") + "%")
+    exclusion_sql = "" if not exclusion_clauses else " AND " + " AND ".join(exclusion_clauses)
+    truncated = {"sessions": False, "messages": False, "parts": False, "fields": False, "total_bytes": False}
+    try:
+        with _readonly_connection() as connection:
+            query = (
+                """
+                SELECT id, parent_id, title, time_created, time_updated
+                FROM session
+                WHERE (directory = ? OR directory LIKE ?)
+                  AND time_created < ? AND time_updated >= ?
+                """
+                + exclusion_sql
+                + """
+                ORDER BY time_updated ASC, id ASC
+                LIMIT ?
+                """
+            )
+            session_rows = connection.execute(
+                query,
+                (directory, worktree_pattern, end_ms, start_ms, *exclusion_parameters, max_sessions + 1),
+            ).fetchall()
+    except (OSError, sqlite3.Error) as exc:
+        return {
+            "status": "unavailable",
+            "error": type(exc).__name__,
+            "session_count": 0,
+            "message_count": 0,
+            "part_count": 0,
+            "sessions": [],
+            "limits": {
+                "max_sessions": max_sessions,
+                "max_messages": max_messages,
+                "max_parts": max_parts,
+                "max_field_chars": max_field_chars,
+                "max_total_bytes": max_total_bytes,
+                "max_parts_per_message": max_parts_per_message,
+            },
+            "truncated": truncated,
+        }
+
+    if len(session_rows) > max_sessions:
+        truncated["sessions"] = True
+        session_rows = session_rows[:max_sessions]
+    parent_by_id = {
+        str(session_id): str(parent_id) if parent_id else None
+        for session_id, parent_id, _title, _created, _updated in session_rows
+    }
+    pending_parent_ids = {parent for parent in parent_by_id.values() if parent and parent not in parent_by_id}
+    with _readonly_connection() as connection:
+        while pending_parent_ids:
+            parent_id = pending_parent_ids.pop()
+            row = connection.execute("SELECT parent_id FROM session WHERE id = ?", (parent_id,)).fetchone()
+            parent = str(row[0]) if row and row[0] else None
+            parent_by_id[parent_id] = parent
+            if parent and parent not in parent_by_id:
+                pending_parent_ids.add(parent)
+
+    def root_session_id(session_id: str) -> str:
+        current = session_id
+        seen = {current}
+        while parent := parent_by_id.get(current):
+            if parent in seen:
+                break
+            current = parent
+            seen.add(current)
+        return current
+
+    def session_depth(session_id: str) -> int:
+        current = session_id
+        seen = {current}
+        depth = 0
+        while parent := parent_by_id.get(current):
+            if parent in seen:
+                break
+            current = parent
+            seen.add(current)
+            depth += 1
+        return depth
+
+    selected_rows = [
+        row
+        for row in session_rows
+        if str(row[0]) not in excluded
+        and not str(row[2]).casefold().startswith(normalized_prefixes)
     ]
-    keep = []
-    for line in lines:
-        if any(line.strip().startswith(m) for m in boilerplate_markers):
-            break
-        keep.append(line)
-        if len(keep) >= SESSIONS_START_HEADER_LINES:
-            break
-    return "\n".join(keep)
-
-
-def _parse_session_meta(jsonl_path: Path) -> dict | None:
-    """
-    Read the first ~20 lines of a JSONL file to extract session metadata.
-
-    Returns dict with keys: session_id, title, timestamp_iso, timestamp_dt
-    or None if the file can't be parsed.
-    """
-    title = None
-    first_timestamp = None
-    session_id = jsonl_path.stem  # UUID from filename
-
-    try:
-        with open(jsonl_path) as f:
-            for i, line in enumerate(f):
-                if i > 30:
+    selected_rows.sort(key=lambda row: (root_session_id(str(row[0])), session_depth(str(row[0])), int(row[4]), str(row[0])))
+    sessions: list[dict[str, Any]] = []
+    total_parts = 0
+    total_messages = 0
+    total_bytes = 0
+    session_byte_budget = max(1, max_total_bytes // max(len(selected_rows), 1))
+    session_message_budget = max(1, max_messages // max(len(selected_rows), 1))
+    with _readonly_connection() as connection:
+        for session_id, parent_id, title, time_created, time_updated in selected_rows:
+            session_id = str(session_id)
+            remaining_parts = max_parts - total_parts
+            if remaining_parts <= 0:
+                truncated["parts"] = True
+                break
+            message_rows = connection.execute(
+                """
+                SELECT id, time_created, data
+                FROM message
+                WHERE session_id = ? AND time_created < ? AND time_updated >= ?
+                ORDER BY time_created ASC, id ASC
+                LIMIT ?
+                """,
+                (session_id, end_ms, start_ms, session_message_budget + 1),
+            ).fetchall()
+            if len(message_rows) > session_message_budget:
+                truncated["messages"] = True
+                message_rows = message_rows[:session_message_budget]
+            if len(message_rows) > 1:
+                message_rows = [message_rows[0], *reversed(message_rows[1:])]
+            messages: list[dict[str, Any]] = []
+            session_bytes = 0
+            for message_id, message_created, message_data in message_rows:
+                part_rows = connection.execute(
+                    """
+                    SELECT time_created, data
+                    FROM part
+                    WHERE session_id = ? AND message_id = ? AND time_created < ? AND time_updated >= ?
+                    ORDER BY time_created ASC, id ASC
+                    LIMIT ?
+                    """,
+                    (
+                        session_id,
+                        str(message_id),
+                        end_ms,
+                        start_ms,
+                        max(min(remaining_parts, max_parts_per_message), 1),
+                    ),
+                ).fetchall()
+                parts = []
+                for part_created, part_data in part_rows:
+                    decoded_part = _decode_bounded_json(str(part_data), max_field_chars, truncated)
+                    projected_part = _project_part_data(decoded_part)
+                    if projected_part is not None:
+                        parts.append({"time_created": int(part_created), "data": projected_part})
+                decoded_message = _decode_bounded_json(str(message_data), max_field_chars, truncated)
+                message = {
+                    "time_created": int(message_created),
+                    "data": _project_message_data(decoded_message),
+                    "parts": parts,
+                }
+                candidate_bytes = len(json.dumps(message, ensure_ascii=False).encode("utf-8"))
+                if session_bytes + candidate_bytes > session_byte_budget:
+                    truncated["total_bytes"] = True
                     break
-                try:
-                    entry = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
+                messages.append(message)
+                session_bytes += candidate_bytes
+                total_bytes += candidate_bytes
+                total_parts += len(parts)
+                total_messages += 1
+                remaining_parts = max_parts - total_parts
+                if remaining_parts <= 0:
+                    truncated["parts"] = True
+                    break
+            sessions.append(
+                {
+                    "session_id": session_id,
+                    "parent_session_id": str(parent_id) if parent_id else None,
+                    "root_session_id": root_session_id(session_id),
+                    "title": _truncate_json(str(title), min(max_field_chars, 500), truncated),
+                    "time_created": int(time_created),
+                    "time_updated": int(time_updated),
+                    "messages": messages,
+                }
+            )
+            if truncated["parts"]:
+                break
 
-                etype = entry.get("type", "")
+    result = {
+        "status": "ok",
+        "period": {"start": period_start, "end": period_end},
+        "session_count": len(sessions),
+        "message_count": total_messages,
+        "part_count": total_parts,
+        "sessions": sessions,
+        "limits": {
+            "max_sessions": max_sessions,
+            "max_messages": max_messages,
+            "max_parts": max_parts,
+            "max_field_chars": max_field_chars,
+            "max_total_bytes": max_total_bytes,
+            "max_session_bytes": session_byte_budget,
+            "max_session_messages": session_message_budget,
+            "max_parts_per_message": max_parts_per_message,
+        },
+        "truncated": truncated,
+    }
+    while len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > max_total_bytes:
+        session_with_messages = max(sessions, key=lambda item: len(item["messages"]), default=None)
+        if session_with_messages and session_with_messages["messages"]:
+            removed = session_with_messages["messages"].pop()
+            total_messages -= 1
+            total_parts -= len(removed["parts"])
+            result["message_count"] = total_messages
+            result["part_count"] = total_parts
+            truncated["total_bytes"] = True
+            continue
+        if sessions:
+            sessions.pop()
+            result["session_count"] = len(sessions)
+            truncated["sessions"] = True
+            continue
+        break
+    if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > max_total_bytes:
+        raise ValueError("transcript evidence envelope exceeds max_total_bytes")
+    return result
 
-                # Custom title (set by --name flag or auto-generated)
-                if etype == "custom-title" and not title:
-                    title = entry.get("customTitle", "")
 
-                # Capture first timestamp from any entry
-                if not first_timestamp and entry.get("timestamp"):
-                    first_timestamp = entry["timestamp"]
-
-                # Fallback title: first real user message
-                if etype == "user" and not title:
-                    msg = entry.get("message", {})
-                    content = msg.get("content", "")
-                    if isinstance(content, str):
-                        # Skip system/command noise
-                        stripped = content.strip()
-                        if stripped and not any(stripped.startswith(p) for p in _NOISE_PREFIXES):
-                            title = stripped[:120]
-
-    except (OSError, UnicodeDecodeError):
-        return None
-
-    if not first_timestamp:
-        return None
-
+def collect_opencode_metadata(period_start: str, period_end: str) -> dict[str, Any]:
+    start_ms = _epoch_ms(period_start)
+    end_ms = _epoch_ms(period_end)
+    where = "session.directory = ? AND session.time_created < ? AND session.time_updated >= ?"
+    parameters = (str(PROJECT_ROOT), end_ms, start_ms)
     try:
-        # Claude Code uses ISO 8601 timestamps (e.g. "2026-03-24T19:04:54.004Z")
-        ts_dt = datetime.fromisoformat(first_timestamp.replace("Z", "+00:00"))
-    except (ValueError, AttributeError):
-        return None
+        with _readonly_connection() as connection:
+            top_level = connection.execute(
+                f"SELECT COUNT(*) FROM session WHERE {where} AND COALESCE(parent_id, '') = ''", parameters
+            ).fetchone()[0]
+            subagents = connection.execute(
+                f"SELECT COUNT(*) FROM session WHERE {where} AND COALESCE(parent_id, '') != ''", parameters
+            ).fetchone()[0]
+            rows = connection.execute(
+                f"""
+                SELECT part.data
+                FROM session
+                JOIN part ON part.session_id = session.id
+                WHERE {where}
+                  AND COALESCE(session.parent_id, '') = ''
+                """,
+                parameters,
+            ).fetchall()
+    except (OSError, sqlite3.Error):
+        return {"top_level_sessions": 0, "subagents_excluded": 0, "tool_failures": []}
+
+    failures: Counter[tuple[str, str]] = Counter()
+    for (raw_data,) in rows:
+        try:
+            data = json.loads(raw_data)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        state = data.get("state") if isinstance(data, dict) else None
+        if data.get("type") != "tool" or not isinstance(state, dict) or state.get("status") != "error":
+            continue
+        tool = str(data.get("tool") or "unknown")
+        failures[(tool, normalize_tool_failure(str(state.get("error") or "")))] += 1
 
     return {
-        "session_id": session_id,
-        "title": title or "(untitled)",
-        "timestamp_iso": first_timestamp,
-        "timestamp_dt": ts_dt,
-        "path": jsonl_path,
+        "top_level_sessions": int(top_level),
+        "subagents_excluded": int(subagents),
+        "tool_failures": [
+            {"tool": tool, "error_kind": error_kind, "count": count}
+            for (tool, error_kind), count in sorted(failures.items())
+        ],
     }
 
 
-def _extract_session_content(jsonl_path: Path) -> str:
-    """
-    Extract relevant content from a Claude Code JSONL session file.
+def collect_git_metadata(period_start: str, period_end: str) -> dict[str, Any]:
+    command = [
+        "git", "log", "HEAD", "--no-merges", "--format=%H%x09%ct", "--name-only",
+        f"--since={period_start}", f"--before={period_end}",
+    ]
+    result = subprocess.run(command, cwd=PROJECT_ROOT, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        return {"commits": [], "path_churn": []}
 
-    Reads user/assistant text + targeted Bash tool outputs for sessions.py
-    and debug.py. Skips everything else (Read, Edit, Glob, Agent, progress, etc.).
-
-    Returns a single string combining all extracted segments.
-    """
-    segments = []
-    # Track pending Bash tool_use calls that match our target commands,
-    # so we can capture their tool_result output from subsequent user messages.
-    pending_bash: dict[str, str] = {}  # tool_use_id → command string
-
-    try:
-        with open(jsonl_path) as f:
-            for line in f:
-                try:
-                    entry = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-
-                etype = entry.get("type", "")
-
-                if etype in _SKIP_TYPES:
-                    continue
-
-                # ── Assistant messages: text blocks + Bash tool_use blocks ──
-                if etype == "assistant":
-                    msg = entry.get("message", {})
-                    content = msg.get("content", [])
-                    if not isinstance(content, list):
-                        continue
-
-                    for block in content:
-                        btype = block.get("type", "")
-
-                        if btype == "text":
-                            text = (block.get("text") or "").strip()
-                            if text:
-                                segments.append(text)
-
-                        elif btype == "tool_use" and block.get("name") == "Bash":
-                            inp = block.get("input", {})
-                            cmd = inp.get("command", "")
-                            tool_id = block.get("id", "")
-
-                            is_sessions = any(k in cmd for k in SESSIONS_TOOL_COMMANDS)
-                            is_debug = any(k in cmd for k in DEBUG_TOOL_COMMANDS)
-
-                            if (is_sessions or is_debug) and tool_id:
-                                pending_bash[tool_id] = cmd
-
-                # ── User messages: plain text + tool_result blocks ──────────
-                elif etype == "user":
-                    msg = entry.get("message", {})
-                    content = msg.get("content", "")
-
-                    # Plain text user message
-                    if isinstance(content, str):
-                        stripped = content.strip()
-                        if stripped and not any(stripped.startswith(p) for p in _NOISE_PREFIXES):
-                            segments.append(stripped)
-
-                    # List of content blocks (may contain tool_result)
-                    elif isinstance(content, list):
-                        for block in content:
-                            btype = block.get("type", "")
-
-                            if btype == "tool_result":
-                                tool_id = block.get("tool_use_id", "")
-                                if tool_id not in pending_bash:
-                                    continue
-
-                                cmd = pending_bash.pop(tool_id)
-
-                                # Extract output text from tool_result content
-                                result_content = block.get("content", "")
-                                if isinstance(result_content, list):
-                                    # Content is a list of blocks
-                                    output_parts = []
-                                    for rb in result_content:
-                                        if rb.get("type") == "text":
-                                            output_parts.append(rb.get("text", ""))
-                                    output = "\n".join(output_parts)
-                                elif isinstance(result_content, str):
-                                    output = result_content
-                                else:
-                                    output = ""
-
-                                # Apply same filtering as the old SQLite reader
-                                is_sessions = any(k in cmd for k in SESSIONS_TOOL_COMMANDS)
-                                is_start = is_sessions and "sessions.py start" in cmd
-                                is_deploy = is_sessions and "sessions.py deploy" in cmd
-                                is_debug = any(k in cmd for k in DEBUG_TOOL_COMMANDS)
-
-                                if is_start:
-                                    trimmed = _extract_sessions_start_header(output)
-                                    segments.append(f"$ {cmd}\n{trimmed}")
-                                elif is_deploy or is_debug:
-                                    segments.append(f"$ {cmd}\n{output[:3000]}")
-                                else:
-                                    # Other sessions.py subcommands: command + first 20 lines
-                                    first_lines = "\n".join(output.splitlines()[:20])
-                                    segments.append(f"$ {cmd}\n{first_lines}")
-
-    except (OSError, UnicodeDecodeError) as e:
-        segments.append(f"(error reading session: {e})")
-
-    return "\n\n".join(segments)
+    commits: list[dict[str, Any]] = []
+    churn: Counter[str] = Counter()
+    current: dict[str, Any] | None = None
+    for line in result.stdout.splitlines():
+        if "\t" in line and len(line.split("\t", 1)[0]) >= 7:
+            if current is not None:
+                current["changed_file_count"] = len(current.pop("paths"))
+                commits.append(current)
+            sha, epoch = line.split("\t", 1)
+            current = {"sha": sha, "timestamp": int(epoch), "paths": []}
+        elif current is not None and line:
+            current["paths"].append(line)
+            churn[line] += 1
+    if current is not None:
+        current["changed_file_count"] = len(current.pop("paths"))
+        commits.append(current)
+    return {
+        "commits": commits,
+        "path_churn": [
+            {"path": path, "count": count}
+            for path, count in churn.most_common(30)
+        ],
+    }
 
 
-def _truncate(text: str, budget: int) -> tuple[str, bool]:
-    """Apply head+tail truncation to fit within budget chars."""
-    if len(text) <= budget:
-        return text, False
-    head = int(budget * HEAD_RATIO)
-    tail = int(budget * TAIL_RATIO)
-    omitted = len(text) - head - tail
-    return (
-        text[:head]
-        + f"\n\n[...{omitted:,} chars omitted (middle of session)...]\n\n"
-        + text[-tail:],
-        True,
-    )
+def collect_test_metadata(period_start: str, period_end: str) -> dict[str, Any]:
+    start = _parse_timestamp(period_start)
+    end = _parse_timestamp(period_end)
+    runs: list[dict[str, Any]] = []
+    for path in [*sorted((PROJECT_ROOT / "test-results").glob("daily-run-*.json")), PROJECT_ROOT / "test-results" / "last-run.json"]:
+        if not path.is_file():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            timestamp = _parse_timestamp(str(data.get("run_id", "")))
+        except (json.JSONDecodeError, OSError, ValueError):
+            continue
+        if not start <= timestamp < end:
+            continue
+        runs.append({
+            "git_sha": str(data.get("git_sha") or ""),
+            "status": "failed" if int((data.get("summary") or {}).get("failed", 0)) else "passed",
+        })
+    return {
+        "runs": runs,
+        "flake_history_available": (PROJECT_ROOT / "test-results" / "flaky-history.json").is_file(),
+    }
 
 
-# ── Main extraction ───────────────────────────────────────────────────────────
-
-def build_session_digests(yesterday: str, verbose: bool = False) -> tuple[str, int, int]:
-    """
-    Scan Claude Code JSONL session files and build digests for yesterday.
-
-    Returns (digest_text, relevant_count, total_chars)
-    """
-    if not SESSIONS_DIR.is_dir():
-        print(f"[workflow-review] ERROR: sessions dir not found at {SESSIONS_DIR}", file=sys.stderr)
-        sys.exit(1)
-
-    target_date = datetime.strptime(yesterday, "%Y-%m-%d").date()
-
-    # Pre-filter by file mtime (fast; avoids reading every JSONL)
-    # Use a 1-day buffer on each side to account for timezone differences
-    day_start_ts = datetime(
-        target_date.year, target_date.month, target_date.day,
-        tzinfo=timezone.utc,
-    ).timestamp()
-    day_end_ts = day_start_ts + 86400
-
-    candidates = []
-    for p in SESSIONS_DIR.glob("*.jsonl"):
-        mtime = p.stat().st_mtime
-        # Include files modified within ±24h of the target day
-        if mtime >= (day_start_ts - 86400) and mtime <= (day_end_ts + 86400):
-            candidates.append(p)
-
-    # Parse metadata and filter to exact date
-    sessions = []
-    for p in candidates:
-        meta = _parse_session_meta(p)
-        if meta and meta["timestamp_dt"].date() == target_date:
-            sessions.append(meta)
-
-    # Sort by timestamp
-    sessions.sort(key=lambda s: s["timestamp_dt"])
-
-    total = len(sessions)
-    relevant = [s for s in sessions if _is_workflow_relevant(s["title"])]
-    skipped = total - len(relevant)
-
-    if verbose:
-        print(f"[workflow-review] {total} sessions on {yesterday}: {len(relevant)} relevant, {skipped} skipped")
-
-    digests = []
-    grand_chars = 0
-
-    for s in relevant:
-        title = s["title"]
-        time_str = s["timestamp_dt"].strftime("%H:%M UTC")
-
-        content = _extract_session_content(s["path"])
-        trimmed, was_truncated = _truncate(content, PER_SESSION_BUDGET)
-        grand_chars += len(trimmed)
-
-        trunc_note = f" [truncated from {len(content):,} chars]" if was_truncated else ""
-        header = f"### Session: {title} ({time_str}){trunc_note}"
-
-        digests.append(f"{header}\n\n{trimmed}")
-
-        if verbose:
-            print(f"  {len(trimmed):>6,} chars | {title[:70]}")
-
-    digest_text = "\n\n---\n\n".join(digests) if digests else "(no relevant sessions found)"
-
-    if verbose:
-        print(f"[workflow-review] Total digest: {grand_chars:,} chars (~{grand_chars // 4:,} tokens)")
-
-    return digest_text, len(relevant), grand_chars
+def correlate_evidence(git: dict[str, Any], tests: dict[str, Any]) -> list[dict[str, Any]]:
+    test_counts = Counter(str(run.get("git_sha") or "") for run in tests.get("runs", []))
+    return [
+        {"git_sha": commit["sha"], "test_run_count": test_counts[commit["sha"]]}
+        for commit in git.get("commits", [])
+        if test_counts[commit["sha"]]
+    ]
 
 
-def build_prompt(yesterday: str, state: dict, verbose: bool = False) -> str:
-    """Build the full prompt by substituting into the template."""
-    if not PROMPT_TEMPLATE.is_file():
-        print(f"[workflow-review] ERROR: prompt template not found at {PROMPT_TEMPLATE}", file=sys.stderr)
-        sys.exit(1)
-
-    digests, count, chars = build_session_digests(yesterday, verbose=verbose)
-    last_summary = state.get("last_summary") or "N/A (first run)"
-
-    template = PROMPT_TEMPLATE.read_text()
-    prompt = (
-        template
-        .replace("{{DATE}}", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
-        .replace("{{YESTERDAY}}", yesterday)
-        .replace("{{LAST_SUMMARY}}", last_summary)
-        .replace("{{SESSION_DIGESTS}}", digests)
-    )
-
-    if verbose:
-        print(f"[workflow-review] Prompt: {len(prompt):,} chars (~{len(prompt) // 4:,} tokens) from {count} sessions")
-
-    return prompt
+def fingerprint_recommendation(rule_id: str, target: str) -> str:
+    canonical = f"{rule_id}\n{target}".encode("utf-8")
+    return f"sha256:{hashlib.sha256(canonical).hexdigest()}"
 
 
-# ── Commands ──────────────────────────────────────────────────────────────────
+def build_recommendations(tool_failures: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    recommendations = []
+    for failure in tool_failures:
+        target = f"{failure['tool']}:{failure['error_kind']}"
+        recommendations.append({
+            "fingerprint": fingerprint_recommendation("repeated_tool_failure", target),
+            "rule_id": "repeated_tool_failure",
+            "target": target,
+            "evidence": {"count": failure["count"]},
+        })
+    return recommendations
 
-def cmd_dry_run(yesterday: str) -> None:
-    """Build and print the prompt without calling claude."""
-    print(f"[workflow-review] DRY RUN for {yesterday}")
+
+def _report_path(period_start: str, period_end: str) -> Path:
+    return REPORTS_DIR / f"{period_start[:10]}_{period_end[:10]}.json"
+
+
+def collect(period_start: str, period_end: str) -> dict[str, Any]:
+    if _parse_timestamp(period_start) >= _parse_timestamp(period_end):
+        raise ValueError("--since must be earlier than --until")
+    opencode = collect_opencode_metadata(period_start, period_end)
+    git = collect_git_metadata(period_start, period_end)
+    tests = collect_test_metadata(period_start, period_end)
+    recommendations = build_recommendations(opencode["tool_failures"])
+    report = {
+        "schema_version": 1,
+        "period": {"start": period_start, "end": period_end},
+        "sources": {"opencode": {key: opencode[key] for key in ("top_level_sessions", "subagents_excluded")}, "git": git, "tests": tests},
+        "tool_failures": opencode["tool_failures"],
+        "correlations": correlate_evidence(git, tests),
+        "recommendations": recommendations,
+    }
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    report_path = _report_path(period_start, period_end)
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
     state = load_state()
-    prompt = build_prompt(yesterday, state, verbose=True)
-
-    print("\n" + "=" * 70)
-    print("PROMPT (first 6000 chars):")
-    print("=" * 70)
-    print(prompt[:6000])
-    if len(prompt) > 6000:
-        print(f"\n... ({len(prompt) - 6000:,} more chars) ...")
-    print("=" * 70)
-    print(f"\nTotal prompt: {len(prompt):,} chars (~{len(prompt) // 4:,} tokens)")
-
-
-def cmd_run_review(yesterday: str) -> None:
-    """Build prompt and run OpenCode analysis."""
-    state = load_state()
-    prompt = build_prompt(yesterday, state, verbose=True)
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    session_title = f"workflow-review {yesterday}"
-
-    print(f"[workflow-review] Starting OpenCode chat '{session_title}'...")
-
-    returncode, session_id = run_opencode_session(
-        prompt=prompt,
-        session_title=session_title,
-        project_root=str(PROJECT_ROOT),
-        log_prefix="[workflow-review]",
-        agent="plan",
-        timeout=900,
-        job_type="workflow-review",
-        linear_task=False,
-    )
-
-    if session_id:
-        # Emit parseable line for any caller capturing session ID
-        print(f"OPENCODE_SESSION_ID:{session_id}")
-
-    # Save state
-    state["last_review_date"] = today
-    state["last_summary"] = session_id or "(see log)"
-    state["last_session_id"] = session_id
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    for recommendation in recommendations:
+        existing = state["recommendation_fingerprints"].get(recommendation["fingerprint"], {})
+        state["recommendation_fingerprints"][recommendation["fingerprint"]] = {
+            "rule_id": recommendation["rule_id"], "target": recommendation["target"],
+            "first_seen": existing.get("first_seen", now), "last_seen": now,
+            "occurrences": int(existing.get("occurrences", 0)) + 1,
+        }
+    state["last_collection"] = {
+        "period_start": period_start, "period_end": period_end,
+        "report_path": str(report_path.relative_to(PROJECT_ROOT)) if report_path.is_relative_to(PROJECT_ROOT) else str(report_path),
+        "report_fingerprint": f"sha256:{hashlib.sha256(report_path.read_bytes()).hexdigest()}",
+    }
     _save_state(state)
+    return report
 
-    if returncode != 0:
-        sys.exit(returncode)
-
-
-# ── Entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
-    args = sys.argv[1:]
-
-    # Allow overriding the target date for testing
-    # e.g. REVIEW_DATE=2026-03-17 python3 _workflow_review_helper.py dry-run
-    override_date = os.environ.get("REVIEW_DATE", "")
-    if override_date:
-        yesterday = override_date
-    else:
-        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
-
-    if not args or args[0] == "dry-run":
-        cmd_dry_run(yesterday)
-    elif args[0] == "run-review":
-        cmd_run_review(yesterday)
-    else:
-        print(f"[workflow-review] Unknown command: {args[0]}", file=sys.stderr)
-        print("Usage: _workflow_review_helper.py [dry-run|run-review]", file=sys.stderr)
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Collect an explicit OpenCode-only workflow review report")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    collect_parser = subparsers.add_parser("collect", help="Collect a bounded workflow report without launching an agent")
+    collect_parser.add_argument("--since", required=True, help="Inclusive UTC ISO timestamp")
+    collect_parser.add_argument("--until", required=True, help="Exclusive UTC ISO timestamp")
+    args = parser.parse_args()
+    report = collect(args.since, args.until)
+    print(_report_path(report["period"]["start"], report["period"]["end"]))
 
 
 if __name__ == "__main__":

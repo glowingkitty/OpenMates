@@ -13,11 +13,15 @@
   - Configurable center, zoom, markers, and optional polyline path
   - Exposes the Leaflet map instance via onMapReady callback for advanced use
 
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Embeds/Renderers/EventEmbedRenderer.swift
+
   See docs/architecture/embeds.md
 -->
 
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { isDarkThemeActive, watchDarkThemeActive } from '../../utils/themeDetection';
 
   /** A single marker on the map */
   export interface MapMarker {
@@ -27,12 +31,24 @@
     label?: string;
     /** Optional custom CSS class for the marker icon */
     iconClass?: string;
+    /** Visual opacity, used for list-hover focus without refitting the map */
+    opacity?: number;
   }
 
   /** A point in a polyline path */
   export interface MapPathPoint {
     lat: number;
     lon: number;
+  }
+
+  /** A route polyline rendered on the map */
+  export interface MapRoutePath {
+    points: MapPathPoint[];
+    color?: string;
+    weight?: number;
+    opacity?: number;
+    ref?: string;
+    testId?: string;
   }
 
   interface Props {
@@ -44,6 +60,8 @@
     markers?: MapMarker[];
     /** Optional polyline path (e.g. for routes) */
     path?: MapPathPoint[];
+    /** Optional multiple route polylines */
+    paths?: MapRoutePath[];
     /** Path color (default: primary color) */
     pathColor?: string;
     /** Path weight in pixels (default: 3) */
@@ -69,6 +87,7 @@
     zoom = 15,
     markers = [],
     path = [],
+    paths = [],
     pathColor = '#6c63ff',
     pathWeight = 3,
     fitBounds: fitBoundsProp,
@@ -81,15 +100,162 @@
   }: Props = $props();
 
   let shouldFitBounds = $derived(
-    fitBoundsProp ?? (markers.length > 1 || path.length > 0)
+    fitBoundsProp ?? (markers.length > 1 || path.length > 0 || paths.length > 0)
+  );
+  let normalizedPaths = $derived(
+    [
+      ...(path.length > 1 ? [{ points: path, color: pathColor, weight: pathWeight }] : []),
+      ...paths,
+    ].filter((routePath) => routePath.points.length > 1)
   );
 
   let mapContainer = $state<HTMLDivElement | null>(null);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let leafletMap: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let leafletModule: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let tileLayer: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let markerLayerGroup: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let pathLayerGroup: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let markerLayers: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let pathLayers: any[] = [];
   let mapResizeObserver: ResizeObserver | null = null;
+  let stopWatchingMapTheme: (() => void) | null = null;
+  let resizeAnimationFrame: number | null = null;
   let appliedCenterPanX = 0;
+  let leafletReady = $state(false);
+  let lastFitGeometrySignature = '';
+  let lastLayerSignature = '';
+
+  function applyTileTheme(isDarkMode: boolean) {
+    const container = tileLayer?.getContainer?.();
+    container?.classList.toggle('dark-tiles', isDarkMode);
+  }
+
+  function geometrySignature(): string {
+    return JSON.stringify({
+      center,
+      markers: markers.map((marker) => [marker.lat, marker.lon]),
+      paths: normalizedPaths.map((routePath) => routePath.points.map((point) => [point.lat, point.lon])),
+      shouldFitBounds,
+      fitBoundsPadding,
+    });
+  }
+
+  function layerSignature(): string {
+    return JSON.stringify({
+      markers: markers.map((marker) => [marker.lat, marker.lon, marker.iconClass, marker.opacity, marker.label]),
+      paths: normalizedPaths.map((routePath) => [
+        routePath.color,
+        routePath.weight,
+        routePath.opacity,
+        routePath.points.map((point) => [point.lat, point.lon]),
+      ]),
+      pathColor,
+      pathWeight,
+    });
+  }
+
+  function renderLeafletLayers({ fitBoundsToGeometry = false } = {}) {
+    if (!leafletMap || !leafletModule) return;
+    const L = leafletModule;
+
+    markerLayerGroup?.remove?.();
+    pathLayerGroup?.remove?.();
+    markerLayerGroup = L.layerGroup().addTo(leafletMap);
+    pathLayerGroup = L.layerGroup().addTo(leafletMap);
+    markerLayers = [];
+    pathLayers = [];
+
+    for (const marker of markers) {
+      const customIcon = L.divIcon({
+        className: marker.iconClass || 'default-map-marker',
+        html: '<div class="marker-icon"></div>',
+        iconSize: [40, 40],
+        iconAnchor: [20, 40],
+      });
+
+      const m = L.marker([marker.lat, marker.lon], { icon: customIcon }).addTo(markerLayerGroup);
+      m.setOpacity(marker.opacity ?? 1);
+      if (marker.label) {
+        m.bindTooltip(marker.label, { permanent: false });
+      }
+      markerLayers.push(m);
+    }
+
+    for (const routePath of normalizedPaths) {
+      const line = L.polyline(
+        routePath.points.map(p => [p.lat, p.lon] as [number, number]),
+        {
+          color: routePath.color || pathColor,
+          weight: routePath.weight || pathWeight,
+          opacity: routePath.opacity ?? 0.8,
+        }
+      ).addTo(pathLayerGroup);
+      const element = line.getElement();
+      if (routePath.testId) element?.setAttribute('data-testid', routePath.testId);
+      if (routePath.ref) element?.setAttribute('data-route-ref', routePath.ref);
+      pathLayers.push(line);
+    }
+
+    if (fitBoundsToGeometry) {
+      if (shouldFitBounds) {
+        const allPoints: [number, number][] = [
+          ...markers.map(m => [m.lat, m.lon] as [number, number]),
+          ...normalizedPaths.flatMap(routePath => routePath.points.map(p => [p.lat, p.lon] as [number, number])),
+        ];
+        if (allPoints.length > 1) {
+          leafletMap.fitBounds(L.latLngBounds(allPoints), { padding: [fitBoundsPadding, fitBoundsPadding] });
+        } else {
+          leafletMap.setView([center.lat, center.lon], zoom, { animate: false });
+        }
+      } else {
+        leafletMap.setView([center.lat, center.lon], zoom, { animate: false });
+      }
+    }
+    applyCenterOffset();
+    lastLayerSignature = layerSignature();
+  }
+
+  function updateLeafletLayerStyles() {
+    if (!leafletModule) return;
+    const L = leafletModule;
+    markers.forEach((marker, index) => {
+      const markerLayer = markerLayers[index];
+      if (!markerLayer) return;
+      markerLayer.setOpacity?.(marker.opacity ?? 1);
+      markerLayer.setIcon?.(L.divIcon({
+        className: marker.iconClass || 'default-map-marker',
+        html: '<div class="marker-icon"></div>',
+        iconSize: [40, 40],
+        iconAnchor: [20, 40],
+      }));
+    });
+    normalizedPaths.forEach((routePath, index) => {
+      pathLayers[index]?.setStyle?.({
+        color: routePath.color || pathColor,
+        weight: routePath.weight || pathWeight,
+        opacity: routePath.opacity ?? 0.8,
+      });
+    });
+    lastLayerSignature = layerSignature();
+  }
+
+  function scheduleResizeInvalidation() {
+    if (!leafletMap || resizeAnimationFrame != null) return;
+    resizeAnimationFrame = requestAnimationFrame(() => {
+      resizeAnimationFrame = null;
+      if (!leafletMap) return;
+      leafletMap.invalidateSize();
+      applyCenterOffset();
+    });
+  }
 
   function getEffectiveCenterOffsetX(): number {
     if (!mapContainer) return 0;
@@ -114,12 +280,9 @@
     try {
       const L = (await import('leaflet')).default;
       await import('leaflet/dist/leaflet.css');
+      leafletModule = L;
 
-      const isDarkMode =
-        window.matchMedia('(prefers-color-scheme: dark)').matches ||
-        getComputedStyle(document.documentElement)
-          .getPropertyValue('--is-dark-mode')
-          .trim() === 'true';
+      const isDarkMode = isDarkThemeActive();
 
       leafletMap = L.map(mapContainer, {
         center: [center.lat, center.lon],
@@ -132,52 +295,19 @@
       // Add zoom control on the right side
       L.control.zoom({ position: 'topright' }).addTo(leafletMap);
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         className: isDarkMode ? 'dark-tiles' : '',
-      }).addTo(leafletMap);
-
-      for (const marker of markers) {
-        const iconClass = marker.iconClass || 'default-map-marker';
-        const customIcon = L.divIcon({
-          className: iconClass,
-          html: '<div class="marker-icon"></div>',
-          iconSize: [40, 40],
-          iconAnchor: [20, 40],
-        });
-
-        const m = L.marker([marker.lat, marker.lon], { icon: customIcon }).addTo(leafletMap);
-        if (marker.label) {
-          m.bindTooltip(marker.label, { permanent: false });
-        }
-      }
-
-      if (path.length > 1) {
-        L.polyline(
-          path.map(p => [p.lat, p.lon] as [number, number]),
-          { color: pathColor, weight: pathWeight, opacity: 0.8 }
-        ).addTo(leafletMap);
-      }
-
-      if (shouldFitBounds) {
-        const allPoints: [number, number][] = [
-          ...markers.map(m => [m.lat, m.lon] as [number, number]),
-          ...path.map(p => [p.lat, p.lon] as [number, number]),
-        ];
-        if (allPoints.length > 1) {
-          const bounds = L.latLngBounds(allPoints);
-          leafletMap.fitBounds(bounds, { padding: [fitBoundsPadding, fitBoundsPadding] });
-          applyCenterOffset();
-        }
-      } else {
-        applyCenterOffset();
-      }
+      });
+      tileLayer.addTo(leafletMap);
+      stopWatchingMapTheme = watchDarkThemeActive(applyTileTheme);
+      renderLeafletLayers({ fitBoundsToGeometry: true });
+      lastFitGeometrySignature = geometrySignature();
+      leafletReady = true;
 
       if (typeof ResizeObserver !== 'undefined') {
         mapResizeObserver = new ResizeObserver(() => {
-          if (!leafletMap) return;
-          leafletMap.invalidateSize();
-          applyCenterOffset();
+          scheduleResizeInvalidation();
         });
         mapResizeObserver.observe(mapContainer);
       }
@@ -205,11 +335,41 @@
       leafletMap = null;
       appliedCenterPanX = 0;
     }
+    if (resizeAnimationFrame != null) {
+      cancelAnimationFrame(resizeAnimationFrame);
+      resizeAnimationFrame = null;
+    }
+    markerLayerGroup = null;
+    pathLayerGroup = null;
+    markerLayers = [];
+    pathLayers = [];
+    stopWatchingMapTheme?.();
+    stopWatchingMapTheme = null;
+    tileLayer = null;
+    leafletModule = null;
+    leafletReady = false;
+    lastFitGeometrySignature = '';
+    lastLayerSignature = '';
+  });
+
+  $effect(() => {
+    const nextLayerSignature = layerSignature();
+    const nextGeometrySignature = geometrySignature();
+    if (!leafletReady) return;
+    if (nextLayerSignature === lastLayerSignature && nextGeometrySignature === lastFitGeometrySignature) return;
+    const shouldRefit = nextGeometrySignature !== lastFitGeometrySignature;
+    if (shouldRefit) {
+      renderLeafletLayers({ fitBoundsToGeometry: true });
+      lastFitGeometrySignature = nextGeometrySignature;
+      return;
+    }
+    updateLeafletLayerStyles();
   });
 </script>
 
 <div
   class="embed-leaflet-map"
+  data-testid="embed-leaflet-map"
   style="height: {height}; min-height: {minHeight};"
   bind:this={mapContainer}
 ></div>
@@ -237,6 +397,12 @@
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
+    transition: opacity var(--duration-fast, 0.15s) ease;
+  }
+
+  :global(.embed-leaflet-map .embeds-map-view-marker-active) {
+    background: none;
+    border: none;
   }
 
   :global(.embed-leaflet-map .dark-tiles) {

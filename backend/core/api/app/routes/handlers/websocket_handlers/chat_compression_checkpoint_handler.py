@@ -2,24 +2,22 @@
 # WebSocket handlers for client-encrypted chat compression checkpoints.
 # The server proposes summaries, but only the client may encrypt and persist
 # checkpoint content into Directus zero-knowledge storage.
+from __future__ import annotations
 
 import logging
 import json
+import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.tasks.persistence_tasks import _validate_client_encrypted_chat_payload
-from backend.shared.python_utils.tracing.ws_span_helper import (
-    end_ws_handler_span,
-    start_ws_handler_span,
-)
-
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from backend.core.api.app.services.directus import DirectusService
+
 CHECKPOINT_COLLECTION = "chat_compression_checkpoints"
-DEFAULT_OLD_MESSAGE_LIMIT = 100
+DEFAULT_OLD_MESSAGE_LIMIT = 30
 MAX_OLD_MESSAGE_LIMIT = 250
 
 
@@ -55,6 +53,8 @@ async def handle_store_chat_compression_checkpoint(
     payload: Dict[str, Any],
     user_otel_attrs: dict = None,
 ) -> None:
+    from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span, start_ws_handler_span
+
     _otel_span, _otel_token = start_ws_handler_span(
         "store_chat_compression_checkpoint",
         user_id,
@@ -99,6 +99,16 @@ async def _handle_store_chat_compression_checkpoint(
         )
         return
 
+    try:
+        checkpoint_id = str(uuid.UUID(str(checkpoint_id)))
+    except (TypeError, ValueError):
+        await manager.send_personal_message(
+            {"type": "error", "payload": {"message": "Compression checkpoint ID must be a UUID.", "chat_id": chat_id}},
+            user_id,
+            device_fingerprint_hash,
+        )
+        return
+
     if not await directus_service.chat.check_chat_ownership(chat_id, user_id):
         await manager.send_personal_message(
             {"type": "error", "payload": {"message": "You do not have permission to access this chat.", "chat_id": chat_id}},
@@ -106,6 +116,8 @@ async def _handle_store_chat_compression_checkpoint(
             device_fingerprint_hash,
         )
         return
+
+    from backend.core.api.app.tasks.persistence_tasks import _validate_client_encrypted_chat_payload
 
     _validate_client_encrypted_chat_payload(checkpoint_id, encrypted_summary)
 
@@ -163,6 +175,8 @@ async def handle_get_compressed_chat_old_messages(
     payload: Dict[str, Any],
     user_otel_attrs: dict = None,
 ) -> None:
+    from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span, start_ws_handler_span
+
     _otel_span, _otel_token = start_ws_handler_span(
         "get_compressed_chat_old_messages",
         user_id,
@@ -237,6 +251,8 @@ async def _handle_get_compressed_chat_old_messages(
             device_fingerprint_hash,
         )
         return
+    checkpoint = checkpoint_rows[0]
+    checkpoint_boundary_timestamp = int(checkpoint.get("compressed_up_to_timestamp") or 0)
 
     if target_message_id:
         target_message = await directus_service.chat.get_message_for_chat_by_client_id(
@@ -245,6 +261,8 @@ async def _handle_get_compressed_chat_old_messages(
         )
         if target_message:
             before_timestamp = min(int(before_timestamp), int(target_message.get("created_at") or before_timestamp))
+    if checkpoint_boundary_timestamp > 0:
+        before_timestamp = min(int(before_timestamp), checkpoint_boundary_timestamp)
 
     messages: List[str] = await directus_service.chat.get_messages_for_chat_before_timestamp(
         chat_id=chat_id,
@@ -276,6 +294,8 @@ async def _handle_get_compressed_chat_old_messages(
                 "next_before_timestamp": next_before_timestamp,
                 "next_before_message_id": next_before_message_id,
                 "target_message_id": target_message_id,
+                "checkpoint_boundary_timestamp": checkpoint_boundary_timestamp,
+                "is_forgotten_page": True,
             },
         },
         user_id,

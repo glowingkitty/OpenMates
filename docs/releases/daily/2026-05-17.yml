@@ -1,0 +1,1036 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-17'
+generated_at: '2026-07-09T15:20:45+00:00'
+range:
+  since: '2026-05-17T00:00:00+00:00'
+  until: '2026-05-17T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 19
+  section_counts:
+    features: 4
+    bug_fixes: 13
+    improvements: 0
+    docs: 0
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 2
+  newsletter_ready_items: 16
+  user_facing_items: 16
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feature: cycle chat header image bubbles'
+    section: features
+    commits:
+    - 6c4ed9181
+    authored_at: '2026-05-17T21:28:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feature: show image search bubbles in chat header'
+    section: features
+    commits:
+    - c4989e40e
+    authored_at: '2026-05-17T21:02:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feature: add image search chat header backgrounds'
+    section: features
+    commits:
+    - 599f4a712
+    authored_at: '2026-05-17T20:42:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feature: search synced uploaded files'
+    section: features
+    commits:
+    - ffa11b9e7
+    authored_at: '2026-05-17T20:01:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/groupHandlers.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/serializers.test.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: restrict file suggestions to uploads'
+    section: bug_fixes
+    commits:
+    - c4f9b701c
+    authored_at: '2026-05-17T22:00:52+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: stack image result fullscreen details'
+    section: bug_fixes
+    commits:
+    - bcc3efb0e
+    authored_at: '2026-05-17T21:43:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep file search tied to active input'
+    section: bug_fixes
+    commits:
+    - 9c05e9119
+    authored_at: '2026-05-17T21:12:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: search decrypted file names'
+    section: bug_fixes
+    commits:
+    - c2075fa85
+    authored_at: '2026-05-17T20:52:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: find encrypted code uploads in suggestions'
+    section: bug_fixes
+    commits:
+    - e09c08911
+    authored_at: '2026-05-17T20:31:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: show image source domains in embed previews'
+    section: bug_fixes
+    commits:
+    - 3c1715003
+    authored_at: '2026-05-17T20:25:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/utils/__tests__/embedSourceDomain.test.ts
+    - frontend/packages/ui/src/utils/embedSourceDomain.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: strip false source quotes'
+    section: bug_fixes
+    commits:
+    - 83d80fbbb
+    authored_at: '2026-05-17T18:59:19+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/fixtures/false_source_quote_stripped.json
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/tests/test_quote_verification.py
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    - frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep privacy demo embed stable'
+    section: bug_fixes
+    commits:
+    - c037f8e97
+    authored_at: '2026-05-17T11:06:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: retain inline mail embed fields'
+    section: bug_fixes
+    commits:
+    - 9be1db362
+    authored_at: '2026-05-17T11:00:27+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show privacy demo mail draft reliably'
+    section: bug_fixes
+    commits:
+    - a47c8aa89
+    authored_at: '2026-05-17T10:54:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve inline mail embed data'
+    section: bug_fixes
+    commits:
+    - 32f81f6a8
+    authored_at: '2026-05-17T10:47:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: refine privacy video demo'
+    section: bug_fixes
+    commits:
+    - d49bbf035
+    authored_at: '2026-05-17T10:39:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/privacy-video-recording.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+    - frontend/packages/ui/src/demoMode.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize privacy video recording'
+    section: bug_fixes
+    commits:
+    - 6b08021fa
+    authored_at: '2026-05-17T00:24:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/privacy-video-recording.spec.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'style: smooth chat header bubble cycling'
+    section: other
+    commits:
+    - 9d780084a
+    authored_at: '2026-05-17T21:48:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'style: enlarge chat header image bubbles'
+    section: other
+    commits:
+    - 022815bb2
+    authored_at: '2026-05-17T21:22:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'style: smooth chat header bubble cycling'
+    commits:
+    - 9d780084a
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stack image result fullscreen details'
+    commits:
+    - bcc3efb0e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: cycle chat header image bubbles'
+    commits:
+    - 6c4ed9181
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'style: enlarge chat header image bubbles'
+    commits:
+    - 022815bb2
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep file search tied to active input'
+    commits:
+    - 9c05e9119
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: show image search bubbles in chat header'
+    commits:
+    - c4989e40e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: add image search chat header backgrounds'
+    commits:
+    - 599f4a712
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show image source domains in embed previews'
+    commits:
+    - 3c1715003
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: search synced uploaded files'
+    commits:
+    - ffa11b9e7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: strip false source quotes'
+    commits:
+    - 83d80fbbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep privacy demo embed stable'
+    commits:
+    - c037f8e97
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: retain inline mail embed fields'
+    commits:
+    - 9be1db362
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show privacy demo mail draft reliably'
+    commits:
+    - a47c8aa89
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve inline mail embed data'
+    commits:
+    - 32f81f6a8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: refine privacy video demo'
+    commits:
+    - d49bbf035
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize privacy video recording'
+    commits:
+    - 6b08021fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'style: smooth chat header bubble cycling'
+    commits:
+    - 9d780084a
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stack image result fullscreen details'
+    commits:
+    - bcc3efb0e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feature: cycle chat header image bubbles'
+    commits:
+    - 6c4ed9181
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'style: enlarge chat header image bubbles'
+    commits:
+    - 022815bb2
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep file search tied to active input'
+    commits:
+    - 9c05e9119
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feature: show image search bubbles in chat header'
+    commits:
+    - c4989e40e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feature: add image search chat header backgrounds'
+    commits:
+    - 599f4a712
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show image source domains in embed previews'
+    commits:
+    - 3c1715003
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feature: search synced uploaded files'
+    commits:
+    - ffa11b9e7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: strip false source quotes'
+    commits:
+    - 83d80fbbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep privacy demo embed stable'
+    commits:
+    - c037f8e97
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: retain inline mail embed fields'
+    commits:
+    - 9be1db362
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show privacy demo mail draft reliably'
+    commits:
+    - a47c8aa89
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve inline mail embed data'
+    commits:
+    - 32f81f6a8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: refine privacy video demo'
+    commits:
+    - d49bbf035
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize privacy video recording'
+    commits:
+    - 6b08021fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: c4f9b701c228dc009b6877bc80f524e5028d6fa6
+    short_sha: c4f9b701c
+    authored_at: '2026-05-17T22:00:52+00:00'
+    subject: 'fix: restrict file suggestions to uploads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 9d780084a68d45fa8fa57f3eb140d071f289229e
+    short_sha: 9d780084a
+    authored_at: '2026-05-17T21:48:36+00:00'
+    subject: 'style: smooth chat header bubble cycling'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: bcc3efb0ecd9c2e91035c93c9c1f4bee9f92220f
+    short_sha: bcc3efb0e
+    authored_at: '2026-05-17T21:43:31+00:00'
+    subject: 'fix: stack image result fullscreen details'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 6c4ed9181309d7840d83379542797247161db259
+    short_sha: 6c4ed9181
+    authored_at: '2026-05-17T21:28:49+00:00'
+    subject: 'feature: cycle chat header image bubbles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 022815bb295ae35240b103725b308e114590e69b
+    short_sha: 022815bb2
+    authored_at: '2026-05-17T21:22:49+00:00'
+    subject: 'style: enlarge chat header image bubbles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 9c05e9119921a9ea813b08d2a9c237e007dbfdc4
+    short_sha: 9c05e9119
+    authored_at: '2026-05-17T21:12:24+00:00'
+    subject: 'fix: keep file search tied to active input'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: c4989e40e3adfae61e7871b272b6020f831cb7d9
+    short_sha: c4989e40e
+    authored_at: '2026-05-17T21:02:49+00:00'
+    subject: 'feature: show image search bubbles in chat header'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: c2075fa85eb9465c6920441bd738e4852465b026
+    short_sha: c2075fa85
+    authored_at: '2026-05-17T20:52:36+00:00'
+    subject: 'fix: search decrypted file names'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 599f4a7121edcef325aaf0b47f62613a31383283
+    short_sha: 599f4a712
+    authored_at: '2026-05-17T20:42:35+00:00'
+    subject: 'feature: add image search chat header backgrounds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: e09c08911234c04fd4bccfdeb12c68adfe27836a
+    short_sha: e09c08911
+    authored_at: '2026-05-17T20:31:16+00:00'
+    subject: 'fix: find encrypted code uploads in suggestions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 3c1715003d3bc4fdee976af4d59d6ec5bbaa10d3
+    short_sha: 3c1715003
+    authored_at: '2026-05-17T20:25:36+00:00'
+    subject: 'fix: show image source domains in embed previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/utils/__tests__/embedSourceDomain.test.ts
+    - frontend/packages/ui/src/utils/embedSourceDomain.ts
+    related_feature_ids: []
+  - sha: ffa11b9e7299b36502dd8563bb3f5dd23c9c5f61
+    short_sha: ffa11b9e7
+    authored_at: '2026-05-17T20:01:16+00:00'
+    subject: 'feature: search synced uploaded files'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/groupHandlers.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/serializers.test.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 83d80fbbb9a9a5bc04d802d999ed18c8f506e2ce
+    short_sha: 83d80fbbb
+    authored_at: '2026-05-17T18:59:19+00:00'
+    subject: 'fix: strip false source quotes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/fixtures/false_source_quote_stripped.json
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/tests/test_quote_verification.py
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    - frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
+    related_feature_ids: []
+  - sha: c037f8e977312b4cac8e4662fbd08c3203981438
+    short_sha: c037f8e97
+    authored_at: '2026-05-17T11:06:50+00:00'
+    subject: 'fix: keep privacy demo embed stable'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 9be1db362e28ed749142841fbaf7133f5b18e560
+    short_sha: 9be1db362
+    authored_at: '2026-05-17T11:00:27+00:00'
+    subject: 'fix: retain inline mail embed fields'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    related_feature_ids: []
+  - sha: a47c8aa898fbc26e7799485cadf70192a6b420e9
+    short_sha: a47c8aa89
+    authored_at: '2026-05-17T10:54:36+00:00'
+    subject: 'fix: show privacy demo mail draft reliably'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 32f81f6a895206fff9369d5e3ba39a18437b89cf
+    short_sha: 32f81f6a8
+    authored_at: '2026-05-17T10:47:56+00:00'
+    subject: 'fix: preserve inline mail embed data'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: d49bbf03544229b2515322f4c48b5bc2f37ad390
+    short_sha: d49bbf035
+    authored_at: '2026-05-17T10:39:44+00:00'
+    subject: 'fix: refine privacy video demo'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/privacy-video-recording.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+    - frontend/packages/ui/src/demoMode.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    related_feature_ids: []
+  - sha: 6b08021fa9bd9a2d2fbe1743f87af262e76c1dde
+    short_sha: 6b08021fa
+    authored_at: '2026-05-17T00:24:12+00:00'
+    subject: 'fix: stabilize privacy video recording'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/privacy-video-recording.spec.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced dynamic visual enhancements to the chat header and expanded search capabilities to include
+    synced file uploads. The update also focused on stabilizing the privacy demo experience and improving the accuracy of
+    AI-generated citations.
+  released_changes:
+  - text: The chat header now displays cycling image search bubbles and backgrounds, with improved sizing and transition smoothness.
+    evidence:
+      commits:
+      - 6c4ed9181
+      - c4989e40e
+      - 599f4a712
+      - 9d780084a
+      - 022815bb2
+    release_status: released_main
+  - text: Search functionality now includes synced uploaded files directly within the chat interface.
+    evidence:
+      commits:
+      - ffa11b9e7
+    release_status: released_main
+  bug_fixes:
+  - text: Image embeds now correctly stack details in fullscreen mode and display source domains in previews.
+    evidence:
+      commits:
+      - bcc3efb0e
+      - 3c1715003
+    release_status: released_main
+  - text: The AI processor now strips false source quotes to improve citation accuracy.
+    evidence:
+      commits:
+      - 83d80fbbb
+    release_status: released_main
+  - text: Stability and reliability improvements were made to the privacy video demo and mail draft previews.
+    evidence:
+      commits:
+      - c037f8e97
+      - a47c8aa89
+      - d49bbf035
+      - 6b08021fa
+    release_status: released_main
+  - text: Inline mail embed data and fields are now preserved more reliably during interaction.
+    evidence:
+      commits:
+      - 9be1db362
+      - 32f81f6a8
+    release_status: released_main
+  - text: File search results are now strictly tied to the active input field to prevent context mixing.
+    evidence:
+      commits:
+      - 9c05e9119
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: Internal refinements were made to the file suggestion logic, including handling for decrypted file names and encrypted
+      code uploads.
+    evidence:
+      commits:
+      - c4f9b701c
+      - c2075fa85
+      - e09c08911
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Dynamic chat header image bubbles and backgrounds.
+      evidence:
+        commits:
+        - 6c4ed9181
+        - c4989e40e
+        - 599f4a712
+      reason: This is a highly visible UI update that improves the aesthetic appeal of the chat interface.
+    - text: Search support for synced uploaded files.
+      evidence:
+        commits:
+        - ffa11b9e7
+      reason: This expands the core utility of the search feature to include user-uploaded content.
+    exclude:
+    - text: Internal search and encryption refinements.
+      evidence:
+        commits:
+        - c4f9b701c
+        - c2075fa85
+        - e09c08911
+      reason: These changes involve internal search logic and encryption handling that are not user-facing.
+    rationale: The update introduces significant visual polish to the chat interface and expands the utility of the search
+      system to include personal file uploads.
+  social_video_recommendations:
+  - idea: A short clip showing the chat header backgrounds and bubbles cycling as a user interacts with the search.
+    priority: medium
+    reason: The new cycling animations provide a visually engaging product story for social media.
+    evidence:
+      commits:
+      - 6c4ed9181
+      - c4989e40e
+      - 599f4a712
+      - 9d780084a
+  quality_notes:
+  - Significant focus on UI polish for the chat header.
+  - Improved stability for demo modes and video recording.
+  - Enhanced citation accuracy by filtering invalid source quotes.
+  validation_warnings: []

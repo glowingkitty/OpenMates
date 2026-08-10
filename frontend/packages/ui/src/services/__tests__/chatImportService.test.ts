@@ -1,0 +1,870 @@
+/**
+ * Account Import V1 browser service tests.
+ *
+ * These tests guard the Settings -> Account -> Import web path. They verify the
+ * browser uses the V1 preview/scan/encrypted-persist/complete contract and does
+ * not regress to the disabled plaintext settings import endpoint.
+ */
+
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import JSZip from "jszip";
+
+const mocks = vi.hoisted(() => ({
+  addChat: vi.fn(),
+  batchSaveMessages: vi.fn(),
+  createAndPersistKey: vi.fn(),
+  encryptWithChatKey: vi.fn(),
+}));
+
+vi.mock("../db", () => ({
+  chatDB: {
+    addChat: mocks.addChat,
+    batchSaveMessages: mocks.batchSaveMessages,
+  },
+}));
+
+vi.mock("../encryption/ChatKeyManager", () => ({
+  chatKeyManager: {
+    createAndPersistKey: mocks.createAndPersistKey,
+  },
+}));
+
+vi.mock("../encryption/MessageEncryptor", () => ({
+  encryptWithChatKey: mocks.encryptWithChatKey,
+}));
+
+function pathFromUrl(input: RequestInfo | URL): string {
+  return new URL(String(input)).pathname;
+}
+
+function resumableControlResponse(
+  path: string,
+  body: Record<string, unknown>,
+  requests: Array<{ path: string; body: Record<string, unknown> }>,
+): Response | null {
+  if (path.endsWith("/confirm")) return new Response(JSON.stringify({ status: "confirmed" }));
+  if (path.endsWith("/status")) {
+    return new Response(JSON.stringify({
+      last_scan_sequence: requests.filter((request) => request.path.endsWith("/scan")).length - 1,
+      last_compression_sequence: requests.filter((request) => request.path.endsWith("/compress")).length - 1,
+    }));
+  }
+  if (path.endsWith("/compress")) {
+    return new Response(JSON.stringify({
+      batch_id: body.batch_id,
+      sequence: body.sequence,
+      status: "acknowledged",
+      failures: [],
+    }));
+  }
+  return null;
+}
+
+function acknowledgedScan(body: Record<string, unknown>, values: Record<string, unknown>): Record<string, unknown> {
+  return { batch_id: body.batch_id, sequence: body.sequence, status: "acknowledged", ...values };
+}
+
+describe("chatImportService Account Import V1", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    let randomCounter = 0;
+    vi.stubGlobal("crypto", {
+      randomUUID: vi.fn(() => `uuid-${++randomCounter}`),
+      getRandomValues: (value: Uint8Array) => {
+        value.fill(7);
+        return value;
+      },
+      subtle: {
+        digest: vi.fn(async (_algorithm: string, data: ArrayBuffer) => {
+          const bytes = new Uint8Array(data);
+          const digest = new Uint8Array(32);
+          for (let index = 0; index < bytes.length; index++) {
+            digest[index % digest.length] ^= bytes[index];
+          }
+          return digest.buffer;
+        }),
+      },
+    });
+    mocks.createAndPersistKey.mockResolvedValue({
+      chatKey: new Uint8Array(32).fill(1),
+      encryptedChatKey: "encrypted-chat-key",
+    });
+    mocks.encryptWithChatKey.mockImplementation(async (value: string) =>
+      `encrypted:${Buffer.from(value).toString("base64")}`,
+    );
+    Object.defineProperty(window, "location", {
+      value: { hostname: "localhost" },
+      configurable: true,
+    });
+  });
+
+  it("parses, previews, scans, encrypts, persists, and completes without plaintext persistence", async () => {
+    const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = pathFromUrl(input);
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      requests.push({ path, body });
+      const control = resumableControlResponse(path, body, requests);
+      if (control) return control;
+      if (path === "/v1/account-imports/preview") {
+        return new Response(JSON.stringify({
+          import_id: "import-1",
+          default_selection_count: 1,
+          max_batch_count: 1,
+          duplicate_fingerprints: [],
+          estimated_credits: 1,
+          can_import: true,
+          reason: "paid_import_available",
+        }));
+      }
+      if (path === "/v1/account-imports/import-1/scan") {
+        const chats = body.chats as Array<{ messages: Array<Record<string, unknown>> }>;
+        return new Response(JSON.stringify(acknowledgedScan(body, {
+          chats: chats.map((chat) => ({
+            ...chat,
+            messages: chat.messages.map((message) => message.content === "Synthetic prompt injection payload"
+              ? { ...message, content: "[Prompt injection removed]" }
+              : message),
+          })),
+          credits_reserved: 1,
+          messages_blocked: [],
+          failures: [],
+        })));
+      }
+      if (path === "/v1/account-imports/import-1/persist-encrypted") {
+        return new Response(JSON.stringify({
+          status: "complete",
+          imported_chat_ids: ["uuid-1"],
+          encrypted_record_counts: { chats: 1, messages: 1 },
+          failures: [],
+        }));
+      }
+      if (path === "/v1/account-imports/import-1/complete") {
+        return new Response(JSON.stringify({
+          status: "complete",
+          imported_count: 1,
+          credits_charged: 0,
+          credits_released: 0,
+          failures: [],
+        }));
+      }
+      return new Response(JSON.stringify({ detail: "not found" }), { status: 404 });
+    }));
+
+    const service = await import("../chatImportService");
+    const claudeJson = JSON.stringify([
+        {
+          uuid: "claude-chat-1",
+          name: "Sensitive web import",
+          created_at: "2026-07-18T12:00:00Z",
+          updated_at: "2026-07-18T12:05:00Z",
+           chat_messages: [
+             {
+               uuid: "message-1",
+               sender: "human",
+               text: "Synthetic prompt injection payload",
+               created_at: "2026-07-18T12:01:00Z",
+             },
+             {
+               uuid: "message-2",
+               sender: "system",
+               text: "Synthetic system import instruction",
+               created_at: "2026-07-18T12:02:00Z",
+             },
+           ],
+        },
+      ]);
+    const file = {
+      name: "claude-export.json",
+      text: async () => claudeJson,
+    } as File;
+
+    const parsed = await service.parseImportFile(file);
+    const preview = await service.previewImport(parsed);
+    const result = await service.importChats(parsed, parsed.chats, preview);
+
+    expect(result.complete.status).toBe("complete");
+    expect(requests.map((request) => request.path)).toEqual([
+      "/v1/account-imports/preview",
+      "/v1/account-imports/import-1/confirm",
+      "/v1/account-imports/import-1/status",
+      "/v1/account-imports/import-1/scan",
+      "/v1/account-imports/import-1/status",
+      "/v1/account-imports/import-1/compress",
+      "/v1/account-imports/import-1/status",
+      "/v1/account-imports/import-1/persist-encrypted",
+      "/v1/account-imports/import-1/complete",
+    ]);
+    expect(requests.some((request) => request.path === "/v1/settings/import-chat")).toBe(false);
+
+    const persistBody = requests.find((request) => request.path.endsWith("/persist-encrypted"))!.body as { chats: Array<Record<string, unknown>> };
+    const persistedChat = persistBody.chats[0];
+    expect(String(persistedChat.encrypted_title)).not.toContain("Sensitive web import");
+    const persistedMessages = persistedChat.messages as Array<Record<string, unknown>>;
+    const scanBody = requests.find((request) => request.path.endsWith("/scan"))!.body as {
+      chats: Array<{ messages: Array<{ role: string; content: string }> }>;
+    };
+    expect(scanBody.chats[0].messages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: "system", content: "Synthetic system import instruction" }),
+      expect.objectContaining({ role: "user", content: "Synthetic prompt injection payload" }),
+    ]));
+    expect(persistedMessages[0].encrypted_content).toBe(
+      `encrypted:${Buffer.from("[Prompt injection removed]").toString("base64")}`,
+    );
+    expect(JSON.stringify(persistBody)).not.toContain("Synthetic prompt injection payload");
+    expect(JSON.stringify(persistBody)).not.toContain("Synthetic system import instruction");
+    expect(persistedChat).not.toHaveProperty("title");
+    expect(persistedMessages[0]).not.toHaveProperty("content");
+    expect(mocks.addChat).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Sensitive web import",
+      encrypted_title: `encrypted:${Buffer.from("Sensitive web import").toString("base64")}`,
+    }));
+    expect(mocks.batchSaveMessages).toHaveBeenCalledOnce();
+  });
+
+  it("fails closed when safety scan blocks every selected chat", async () => {
+    const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = pathFromUrl(input);
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      requests.push({ path, body });
+      const control = resumableControlResponse(path, body, requests);
+      if (control) return control;
+      if (path === "/v1/account-imports/import-1/scan") {
+        return new Response(JSON.stringify(acknowledgedScan(body, {
+          chats: [],
+          credits_reserved: 0,
+          messages_blocked: [{ source_chat_id: "source-chat-1", source_message_id: "message-1" }],
+          failures: [],
+        })));
+      }
+      return new Response(JSON.stringify({ detail: "unexpected request" }), { status: 500 });
+    }));
+
+    const service = await import("../chatImportService");
+    const parsed = {
+      source: "claude" as const,
+      fileType: "claude-json" as const,
+      skippedDomains: [],
+      chats: [{
+        provider: "claude" as const,
+        source_chat_id: "source-chat-1",
+        source_fingerprint: "fingerprint-1",
+        title: "Blocked chat",
+        created_at: null,
+        updated_at: null,
+        messages: [{
+          role: "user" as const,
+          content: "unsafe plaintext must never reach persistence",
+          created_at: null,
+          source_message_id: "message-1",
+          provider_metadata: {},
+        }],
+        embeds: [],
+        uploads: [],
+        provider_labels: ["claude"],
+        source_metadata: {},
+      }],
+    };
+
+    await expect(service.importChats(parsed, parsed.chats, {
+      import_id: "import-1",
+      default_selection_count: 1,
+      max_batch_count: 1,
+      duplicate_fingerprints: [],
+      estimated_credits: 1,
+      can_import: true,
+      reason: "paid_import_available",
+    })).rejects.toThrow("Import scan blocked all selected chats");
+
+    expect(requests.map((request) => request.path)).toEqual([
+      "/v1/account-imports/import-1/confirm",
+      "/v1/account-imports/import-1/status",
+      "/v1/account-imports/import-1/scan",
+      "/v1/account-imports/import-1/status",
+    ]);
+    expect(mocks.createAndPersistKey).not.toHaveBeenCalled();
+    expect(mocks.encryptWithChatKey).not.toHaveBeenCalled();
+    expect(mocks.addChat).not.toHaveBeenCalled();
+    expect(mocks.batchSaveMessages).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when safety scan returns failures with sanitized chats", async () => {
+    const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = pathFromUrl(input);
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      requests.push({ path, body });
+      const control = resumableControlResponse(path, body, requests);
+      if (control) return control;
+      if (path === "/v1/account-imports/import-1/scan") {
+        return new Response(JSON.stringify(acknowledgedScan(body, {
+          chats: body.chats,
+          credits_reserved: 1,
+          messages_blocked: [],
+          failures: [{ source_chat_id: "source-chat-1", reason: "scanner_timeout" }],
+        })));
+      }
+      if (path === "/v1/account-imports/import-1/complete") {
+        return new Response(JSON.stringify({
+          status: "partial",
+          imported_count: 0,
+          credits_charged: 0,
+          credits_released: 1,
+          failures: body.client_failures,
+        }));
+      }
+      return new Response(JSON.stringify({ detail: "unexpected request" }), { status: 500 });
+    }));
+
+    const service = await import("../chatImportService");
+    const parsed = {
+      source: "claude" as const,
+      fileType: "claude-json" as const,
+      skippedDomains: [],
+      chats: [{
+        provider: "claude" as const,
+        source_chat_id: "source-chat-1",
+        source_fingerprint: "fingerprint-1",
+        title: "Failed scan chat",
+        created_at: null,
+        updated_at: null,
+        messages: [{
+          role: "user" as const,
+          content: "sanitized but scan reported a failure",
+          created_at: null,
+          source_message_id: "message-1",
+          provider_metadata: {},
+        }],
+        embeds: [],
+        uploads: [],
+        provider_labels: ["claude"],
+        source_metadata: {},
+      }],
+    };
+
+    await expect(service.importChats(parsed, parsed.chats, {
+      import_id: "import-1",
+      default_selection_count: 1,
+      max_batch_count: 1,
+      duplicate_fingerprints: [],
+      estimated_credits: 1,
+      can_import: true,
+      reason: "paid_import_available",
+    })).rejects.toThrow("Import scan failed for one or more selected chats");
+
+    expect(requests.map((request) => request.path)).toEqual([
+      "/v1/account-imports/import-1/confirm",
+      "/v1/account-imports/import-1/status",
+      "/v1/account-imports/import-1/scan",
+      "/v1/account-imports/import-1/complete",
+    ]);
+    expect(requests.find((request) => request.path.endsWith("/complete"))!.body).toMatchObject({
+      imported_chat_ids: [],
+      source_fingerprints: [],
+      client_failures: [{ source_chat_id: "source-chat-1", reason: "scanner_timeout" }],
+    });
+    expect(requests.some((request) => request.path.endsWith("/persist-encrypted"))).toBe(false);
+    expect(requests.filter((request) => request.path.endsWith("/complete"))).toHaveLength(1);
+    expect(mocks.createAndPersistKey).not.toHaveBeenCalled();
+    expect(mocks.encryptWithChatKey).not.toHaveBeenCalled();
+    expect(mocks.addChat).not.toHaveBeenCalled();
+    expect(mocks.batchSaveMessages).not.toHaveBeenCalled();
+  });
+
+  it("does not cache messages that failed encrypted persistence", async () => {
+    const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
+    let failedMessageId = "";
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = pathFromUrl(input);
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      requests.push({ path, body });
+      const control = resumableControlResponse(path, body, requests);
+      if (control) return control;
+      if (path === "/v1/account-imports/import-1/scan") {
+        return new Response(JSON.stringify(acknowledgedScan(body, {
+          chats: body.chats,
+          credits_reserved: 1,
+          messages_blocked: [],
+          failures: [],
+        })));
+      }
+      if (path === "/v1/account-imports/import-1/persist-encrypted") {
+        const chats = body.chats as Array<{ messages: Array<{ message_id: string }> }>;
+        failedMessageId = chats[0].messages[1].message_id;
+        return new Response(JSON.stringify({
+          status: "partial",
+          imported_chat_ids: ["uuid-1"],
+          encrypted_record_counts: { chats: 1, messages: 1 },
+          failures: [{ chat_id: "uuid-1", message_id: failedMessageId, reason: "message_create_failed" }],
+        }));
+      }
+      if (path === "/v1/account-imports/import-1/complete") {
+        return new Response(JSON.stringify({
+          status: "partial",
+          imported_count: 1,
+          credits_charged: 0,
+          credits_released: 0,
+          failures: body.client_failures,
+        }));
+      }
+      return new Response(JSON.stringify({ detail: "unexpected request" }), { status: 500 });
+    }));
+
+    const service = await import("../chatImportService");
+    const parsed = {
+      source: "claude" as const,
+      fileType: "claude-json" as const,
+      skippedDomains: [],
+      chats: [{
+        provider: "claude" as const,
+        source_chat_id: "source-chat-1",
+        source_fingerprint: "fingerprint-1",
+        title: "Partially persisted chat",
+        created_at: null,
+        updated_at: null,
+        messages: [
+          {
+            role: "user" as const,
+            content: "persisted message",
+            created_at: null,
+            source_message_id: "message-1",
+            provider_metadata: {},
+          },
+          {
+            role: "assistant" as const,
+            content: "failed message",
+            created_at: null,
+            source_message_id: "message-2",
+            provider_metadata: {},
+          },
+        ],
+        embeds: [],
+        uploads: [],
+        provider_labels: ["claude"],
+        source_metadata: {},
+      }],
+    };
+
+    const result = await service.importChats(parsed, parsed.chats, {
+      import_id: "import-1",
+      default_selection_count: 1,
+      max_batch_count: 1,
+      duplicate_fingerprints: [],
+      estimated_credits: 1,
+      can_import: true,
+      reason: "paid_import_available",
+    });
+
+    expect(result.imported[0].messages_imported).toBe(1);
+    expect(result.imported[0].messages?.map((message) => message.content)).toEqual([
+      "persisted message",
+    ]);
+    expect(mocks.addChat).toHaveBeenCalledWith(expect.objectContaining({
+      chat_id: "uuid-1",
+      messages_v: 1,
+    }));
+    expect(requests.find((request) => request.path.endsWith("/complete"))!.body).toMatchObject({
+      imported_chat_ids: ["uuid-1"],
+      source_fingerprints: [],
+      encrypted_record_counts: { chats: 1, messages: 1 },
+      client_failures: [{ chat_id: "uuid-1", message_id: failedMessageId, reason: "message_create_failed" }],
+    });
+    expect(mocks.batchSaveMessages).toHaveBeenCalledWith([
+      expect.objectContaining({ message_id: "uuid-1-uuid-2", content: "persisted message" }),
+    ]);
+  });
+
+  it("does not report or cache chats with chat-level encrypted persistence failures", async () => {
+    const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = pathFromUrl(input);
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      requests.push({ path, body });
+      const control = resumableControlResponse(path, body, requests);
+      if (control) return control;
+      if (path === "/v1/account-imports/import-1/scan") {
+        return new Response(JSON.stringify(acknowledgedScan(body, {
+          chats: body.chats,
+          credits_reserved: 1,
+          messages_blocked: [],
+          failures: [],
+        })));
+      }
+      if (path === "/v1/account-imports/import-1/persist-encrypted") {
+        return new Response(JSON.stringify({
+          status: "partial",
+          imported_chat_ids: ["uuid-1"],
+          encrypted_record_counts: { chats: 0, messages: 0 },
+          failures: [{ chat_id: "uuid-1", reason: "chat_create_failed" }],
+        }));
+      }
+      if (path === "/v1/account-imports/import-1/complete") {
+        return new Response(JSON.stringify({
+          status: "partial",
+          imported_count: 0,
+          credits_charged: 0,
+          credits_released: 1,
+          failures: body.client_failures,
+        }));
+      }
+      return new Response(JSON.stringify({ detail: "unexpected request" }), { status: 500 });
+    }));
+
+    const service = await import("../chatImportService");
+    const parsed = {
+      source: "claude" as const,
+      fileType: "claude-json" as const,
+      skippedDomains: [],
+      chats: [{
+        provider: "claude" as const,
+        source_chat_id: "source-chat-1",
+        source_fingerprint: "fingerprint-1",
+        title: "Chat-level failure",
+        created_at: null,
+        updated_at: null,
+        messages: [{
+          role: "user" as const,
+          content: "should not be cached",
+          created_at: null,
+          source_message_id: "message-1",
+          provider_metadata: {},
+        }],
+        embeds: [],
+        uploads: [],
+        provider_labels: ["claude"],
+        source_metadata: {},
+      }],
+    };
+
+    const result = await service.importChats(parsed, parsed.chats, {
+      import_id: "import-1",
+      default_selection_count: 1,
+      max_batch_count: 1,
+      duplicate_fingerprints: [],
+      estimated_credits: 1,
+      can_import: true,
+      reason: "paid_import_available",
+    });
+
+    expect(result.imported).toEqual([]);
+    expect(requests.find((request) => request.path.endsWith("/complete"))!.body).toMatchObject({
+      imported_chat_ids: ["uuid-1"],
+      source_fingerprints: [],
+      encrypted_record_counts: { chats: 0, messages: 0 },
+      client_failures: [{ chat_id: "uuid-1", reason: "chat_create_failed" }],
+    });
+    expect(mocks.addChat).not.toHaveBeenCalled();
+    expect(mocks.batchSaveMessages).not.toHaveBeenCalled();
+  });
+
+  it("parses OpenMates Export V1 archives and reports skipped non-chat domains", async () => {
+    const service = await import("../chatImportService");
+    const zip = new JSZip();
+    zip.file("manifest.yml", [
+      "format: openmates-account-export",
+      "version: 1",
+      "domains:",
+      "  chats: {}",
+      "  embeds: {}",
+      "  uploads: {}",
+      "  projects: {}",
+    ].join("\n"));
+    zip.file("chats/chat-1.yml", [
+      "id: chat-1",
+      "title: Exported OpenMates chat",
+      "created_at: '2026-07-18T12:00:00Z'",
+      "updated_at: '2026-07-18T12:05:00Z'",
+      "messages:",
+      "  - id: msg-1",
+      "    role: user",
+      "    content: hello from export",
+    ].join("\n"));
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+    const file = {
+      name: "openmates-export.zip",
+      arrayBuffer: async () => bytes.buffer.slice(
+        bytes.byteOffset,
+        bytes.byteOffset + bytes.byteLength,
+      ),
+    } as File;
+
+    const parsed = await service.parseImportFile(file);
+
+    expect(parsed.source).toBe("openmates");
+    expect(parsed.skippedDomains).toEqual(["projects"]);
+    expect(parsed.chats[0].title).toBe("Exported OpenMates chat");
+    expect(parsed.chats[0].messages[0].content).toBe("hello from export");
+  });
+
+  it("parses nested ChatGPT official export ZIPs from the active message path", async () => {
+    const service = await import("../chatImportService");
+    const zip = new JSZip();
+    zip.file("ChatGPT Export/conversations.json", JSON.stringify([{
+      id: "chatgpt-chat-1",
+      conversation_id: "chatgpt-conversation-1",
+      title: "Synthetic ChatGPT chat",
+      create_time: 1785000000,
+      update_time: 1785000010,
+      current_node: "assistant-1",
+      mapping: {
+        root: { id: "root", message: null, parent: null },
+        "user-1": {
+          id: "user-1",
+          parent: "root",
+          message: {
+            id: "message-user-1",
+            author: { role: "user" },
+            create_time: 1785000001,
+            content: {
+              content_type: "multimodal_text",
+              parts: [
+                "Synthetic ChatGPT user text.",
+                { asset_pointer: "file-service://redacted", content_type: "image_asset_pointer" },
+              ],
+            },
+          },
+        },
+        "assistant-1": {
+          id: "assistant-1",
+          parent: "user-1",
+          message: {
+            id: "message-assistant-1",
+            author: { role: "assistant" },
+            create_time: 1785000002,
+            content: { content_type: "text", parts: ["Synthetic ChatGPT assistant text."] },
+          },
+        },
+        branch: {
+          id: "branch",
+          parent: "user-1",
+          message: {
+            id: "message-branch",
+            author: { role: "assistant" },
+            content: { content_type: "text", parts: ["This branch must not import."] },
+          },
+        },
+      },
+    }]));
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+    const file = {
+      name: "chatgpt-export.zip",
+      arrayBuffer: async () => bytes.buffer.slice(
+        bytes.byteOffset,
+        bytes.byteOffset + bytes.byteLength,
+      ),
+    } as File;
+
+    const parsed = await service.parseImportFile(file);
+
+    expect(parsed.source).toBe("chatgpt");
+    expect(parsed.fileType).toBe("chatgpt-zip");
+    expect(parsed.chats[0].provider).toBe("chatgpt");
+    expect(parsed.chats[0].messages.map((message) => message.role)).toEqual(["user", "assistant"]);
+    expect(parsed.chats[0].messages[0].content).toBe("Synthetic ChatGPT user text.");
+    expect(parsed.chats[0].messages[0].provider_metadata).toEqual({ content_type: "multimodal_text", asset_count: 1 });
+    expect(JSON.stringify(parsed)).not.toContain("This branch must not import");
+    expect(parsed.chats[0].uploads).toEqual([]);
+  });
+
+  it("parses OpenCode CLI transcript exports without importing reasoning or tool output", async () => {
+    const service = await import("../chatImportService");
+    const file = {
+      name: "opencode-session.json",
+      text: async () => JSON.stringify({
+        info: {
+          id: "ses_opencode_1",
+          title: "Synthetic OpenCode session",
+          time: { created: 1785000000000, updated: 1785000010000 },
+        },
+        messages: [
+          {
+            info: { id: "msg_user_1", role: "user", time: { created: 1785000001000 } },
+            parts: [
+              { id: "part_user_text", type: "text", text: "Synthetic OpenCode user text." },
+              { id: "part_file", type: "file", filename: "notes.txt", mime: "text/plain", url: "data:text/plain;base64,cHJpdmF0ZQ==" },
+            ],
+          },
+          {
+            info: { id: "msg_assistant_1", role: "assistant", time: { created: 1785000002000 } },
+            parts: [
+              { id: "part_reasoning", type: "reasoning", text: "Private reasoning must not import." },
+              { id: "part_assistant_text", type: "text", text: "Synthetic OpenCode assistant text." },
+              { id: "part_tool", type: "tool", state: { status: "completed", output: "Tool output must not import." } },
+            ],
+          },
+        ],
+      }),
+    } as File;
+
+    const parsed = await service.parseImportFile(file);
+
+    expect(parsed.source).toBe("opencode");
+    expect(parsed.fileType).toBe("opencode-json");
+    expect(parsed.chats[0].provider).toBe("opencode");
+    expect(parsed.chats[0].source_chat_id).toBe("ses_opencode_1");
+    expect(parsed.chats[0].title).toBe("Synthetic OpenCode session");
+    expect(parsed.chats[0].messages.map((message) => message.role)).toEqual(["user", "assistant"]);
+    expect(parsed.chats[0].messages.map((message) => message.content)).toEqual([
+      "Synthetic OpenCode user text.",
+      "Synthetic OpenCode assistant text.",
+    ]);
+    expect(parsed.chats[0].uploads).toEqual([]);
+    expect(JSON.stringify(parsed)).not.toContain("cHJpdmF0ZQ==");
+    expect(JSON.stringify(parsed)).not.toContain("Private reasoning must not import.");
+    expect(JSON.stringify(parsed)).not.toContain("Tool output must not import.");
+  });
+
+  it("strictly parses generic Gemini and Other transcripts independently from source identity", async () => {
+    const service = await import("../chatImportService");
+    const file = {
+      name: "generic-transcript.json",
+      text: async () => JSON.stringify({
+        title: "Synthetic generic transcript",
+        messages: [
+          { role: "user", content: "Synthetic generic question" },
+          { role: "assistant", content: "Synthetic generic answer", model: "synthetic-model" },
+        ],
+      }),
+    } as File;
+
+    const gemini = await service.parseImportFile(file, "gemini");
+    const other = await service.parseImportFile(file, "other");
+
+    expect(gemini.parserFormat).toBe("generic");
+    expect(gemini.source).toBe("gemini");
+    expect(gemini.chats[0].messages[1].imported_assistant_identity).toEqual({
+      category: "gemini",
+      sender_name: "Gemini",
+      model_name: "synthetic-model",
+    });
+    expect(other.chats[0].messages[1].imported_assistant_identity).toEqual({
+      category: "other",
+      sender_name: "AI assistant",
+      model_name: "synthetic-model",
+    });
+
+    await expect(service.parseImportFile({
+      name: "raw-gemini-takeout.json",
+      text: async () => JSON.stringify({ conversations: [{ turns: [] }] }),
+    } as File, "gemini")).rejects.toThrow("generic role/content JSON");
+    await expect(service.parseImportFile({
+      name: "ambiguous.json",
+      text: async () => JSON.stringify({ messages: [{ role: "assistant", text: "wrong key" }] }),
+    } as File, "other")).rejects.toThrow("role and content");
+  });
+
+  it("resumes acknowledged scan and compression batches in the same tab without duplicate work", async () => {
+    const requests: Array<{ path: string; method: string; body: Record<string, unknown> }> = [];
+    let scanCursor = -1;
+    let compressionCursor = -1;
+    let statusCalls = 0;
+    let compressionSequenceOneAttempts = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = pathFromUrl(input);
+      const method = init?.method ?? "GET";
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      requests.push({ path, method, body });
+      if (path.endsWith("/confirm")) return new Response(JSON.stringify({ status: "confirmed" }));
+      if (path.endsWith("/status")) {
+        statusCalls++;
+        if (statusCalls === 2) {
+          return new Response(JSON.stringify({ detail: "Synthetic status interruption", retryable: true }), { status: 503 });
+        }
+        return new Response(JSON.stringify({
+          last_scan_sequence: scanCursor,
+          last_compression_sequence: compressionCursor,
+        }));
+      }
+      if (path.endsWith("/scan")) {
+        scanCursor = Number(body.sequence);
+        return new Response(JSON.stringify({
+          batch_id: body.batch_id,
+          sequence: body.sequence,
+          status: "acknowledged",
+          chats: body.chats,
+          messages_blocked: [],
+          failures: [],
+        }));
+      }
+      if (path.endsWith("/compress")) {
+        if (Number(body.sequence) === 1 && compressionSequenceOneAttempts++ === 0) {
+          return new Response(JSON.stringify({ detail: "Synthetic compression interruption", retryable: true }), { status: 503 });
+        }
+        compressionCursor = Number(body.sequence);
+        return new Response(JSON.stringify({
+          batch_id: body.batch_id,
+          sequence: body.sequence,
+          status: "acknowledged",
+          summary: `sanitized summary ${Number(body.sequence) + 1}`,
+          failures: [],
+        }));
+      }
+      if (path.endsWith("/persist-encrypted")) {
+        const chats = body.chats as Array<{ chat_id: string }>;
+        return new Response(JSON.stringify({ status: "complete", imported_chat_ids: chats.map((chat) => chat.chat_id), encrypted_record_counts: { chats: 1, messages: 5 }, failures: [] }));
+      }
+      if (path.endsWith("/complete")) return new Response(JSON.stringify({ status: "complete", imported_count: 1, credits_charged: 1, credits_released: 1, failures: [] }));
+      return new Response(JSON.stringify({ detail: "unexpected request" }), { status: 500 });
+    }));
+
+    const service = await import("../chatImportService");
+    const parsed = await service.parseImportFile({
+      name: "generic-transcript.json",
+      text: async () => JSON.stringify({
+        title: "Long synthetic transcript",
+        messages: [
+          { role: "user", content: "Question one" },
+          { role: "assistant", content: "Answer one", model: "synthetic-model" },
+          { role: "user", content: "Question two" },
+          { role: "assistant", content: "Answer two", model: "synthetic-model" },
+        ],
+      }),
+    } as File, "gemini");
+
+    const preview = {
+      import_id: "import-resume",
+      default_selection_count: 1,
+      max_batch_count: 1,
+      duplicate_fingerprints: [],
+      estimated_credits: 2,
+      can_import: true,
+      reason: "paid_import_available",
+    };
+
+    await expect(service.importChats(parsed, parsed.chats, preview, undefined, { maxMessagesPerBatch: 2 }))
+      .rejects.toThrow("Synthetic status interruption");
+    await expect(service.importChats(parsed, parsed.chats, preview, undefined, { maxMessagesPerBatch: 2 }))
+      .rejects.toThrow("Synthetic compression interruption");
+    const result = await service.importChats(parsed, parsed.chats, preview, undefined, { maxMessagesPerBatch: 2 });
+
+    expect(result.complete.status).toBe("complete");
+
+    expect(requests.filter((request) => request.path.endsWith("/confirm"))).toHaveLength(1);
+    expect(requests.filter((request) => request.path.endsWith("/scan")).map((request) => request.body.sequence)).toEqual([0, 1]);
+    const compressionBodies = requests.filter((request) => request.path.endsWith("/compress")).map((request) => request.body);
+    expect(compressionBodies[0]).not.toHaveProperty("prior_summary");
+    expect(compressionBodies[1].prior_summary).toBe("sanitized summary 1");
+    expect(compressionBodies[2].prior_summary).toBe("sanitized summary 1");
+    expect(compressionBodies.map((body) => body.sequence)).toEqual([0, 1, 1]);
+    expect(requests.filter((request) => request.path.endsWith("/persist-encrypted"))).toHaveLength(1);
+    expect(requests.filter((request) => request.path.endsWith("/complete"))).toHaveLength(1);
+    const persistBody = requests.find((request) => request.path.endsWith("/persist-encrypted"))!.body;
+    expect(JSON.stringify(persistBody)).not.toContain("sanitized summary");
+    const messages = (persistBody.chats as Array<{ messages: Array<Record<string, unknown>> }>)[0].messages;
+    expect(messages[1]).toMatchObject({
+      encrypted_sender_name: expect.stringContaining("encrypted:"),
+      encrypted_category: expect.stringContaining("encrypted:"),
+      encrypted_model_name: expect.stringContaining("encrypted:"),
+    });
+    expect(messages.at(-1)).toMatchObject({
+      role: "system",
+      encrypted_content: `encrypted:${Buffer.from("sanitized summary 2").toString("base64")}`,
+      encrypted_category: `encrypted:${Buffer.from("compression_summary").toString("base64")}`,
+    });
+    expect(messages.at(-1)).not.toHaveProperty("content");
+    expect(messages.at(-1)).not.toHaveProperty("category");
+    expect(messages[1]).not.toHaveProperty("avatar_key");
+  });
+});

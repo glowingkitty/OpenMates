@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Unified 4-phase E2E test for maps/search skill.
@@ -18,11 +17,13 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
+	withMockMarker,
 	withLiveMockMarker
 } = require('./signup-flow-helpers');
 const {
 	loginToTestAccount,
 	startNewChat,
+	waitForChatReady,
 	sendMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
@@ -46,6 +47,13 @@ test.describe('App: Maps / Skill: search', () => {
 	test('Phase 1: embed preview renders at /dev/preview/embeds/maps', async ({ page }) => {
 		const log = (msg: string) => console.log(`[P1] ${msg}`);
 		await verifyEmbedPreviewPage(page, 'maps', log);
+
+		await page.getByRole('button', { name: 'noVerifiedAmenityMatches' }).last().click();
+		await expect(page.getByTestId('maps-enrichment-status').first()).toBeVisible();
+		await expect(page.getByTestId('maps-no-verified-results-title').first()).toContainText('No verified amenity matches');
+		await expect(page.getByTestId('maps-filter-summary').first()).toContainText('0 verified matches');
+		await expect(page.getByTestId('maps-required-amenities').first()).toContainText('air conditioning');
+		await expect(page.getByTestId('maps-enrichment-warning').first()).toContainText('No Geoapify/OSM-verified matches');
 	});
 
 	test('Phase 2: CLI apps maps search returns results', async () => {
@@ -98,10 +106,11 @@ test.describe('App: Maps / Skill: search', () => {
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);
+		await waitForChatReady(page, logCheckpoint, 90_000);
 
 		await sendMessage(
 			page,
-			withLiveMockMarker('Find cafes near me in Berlin Mitte', 'maps_search_web'),
+			withMockMarker('Find cafes near me in Berlin Mitte', 'maps_search_web'),
 			logCheckpoint, takeStepScreenshot, 'maps-search'
 		);
 

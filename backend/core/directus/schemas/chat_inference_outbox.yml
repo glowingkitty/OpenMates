@@ -1,0 +1,51 @@
+# Transactional publication record for one preflight-authorized inference.
+# Payload contains routing identifiers only; no user or assistant plaintext.
+chat_inference_outbox:
+  type: collection
+  note: "Internal duplicate-safe inference queue outbox"
+  fields:
+    id:
+      type: uuid
+      primary: true
+    event_key:
+      type: string
+      length: 255
+      required: true
+      unique: true
+    preflight_id:
+      type: uuid
+      required: true
+    hashed_user_id:
+      type: string
+      length: 64
+      required: true
+    chat_id:
+      type: uuid
+      required: true
+    turn_id:
+      type: uuid
+      required: true
+    inference_task_id:
+      type: uuid
+      required: true
+    billing_identity:
+      type: uuid
+      required: true
+    state:
+      type: string
+      length: 16
+      required: true
+    attempts:
+      type: integer
+      required: true
+      default: 0
+    created_at:
+      type: datetime
+      required: true
+    published_at:
+      type: datetime
+      nullable: true
+    last_error_category:
+      type: string
+      length: 64
+      nullable: true

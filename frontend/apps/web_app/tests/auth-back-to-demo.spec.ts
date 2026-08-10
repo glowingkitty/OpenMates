@@ -14,7 +14,10 @@ const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 async function expectNewChatWithClosedSidebar(page: any): Promise<void> {
 	await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 10000 });
-	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 10000 });
+	const messageField = page.getByTestId('message-field');
+	await expect(messageField).toBeVisible({ timeout: 10000 });
+	await messageField.click();
+	await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeFocused({ timeout: 5000 });
 	await expect(page.getByTestId('chat-item-wrapper').first()).toBeHidden({ timeout: 3000 });
 
 	const hash = await page.evaluate(() => window.location.hash);

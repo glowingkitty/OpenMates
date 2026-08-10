@@ -16,9 +16,10 @@
   import VideoTimeline from './VideoTimeline.svelte';
   import { parseRemotionTimeline } from '../../../utils/remotionTimelineParser';
   import { fetchAndDecryptAudio, releaseCachedAudio } from '../audio/audioEmbedCrypto';
+  import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
-  interface VideoFileVariant { s3_key: string; mime_type?: string; duration_seconds?: number; }
+  interface VideoFileVariant { s3_key: string; mime_type?: string; duration_seconds?: number; aes_nonce?: string; encryption?: string; }
   type ViewMode = 'video' | 'timeline' | 'code';
 
   interface Props {
@@ -69,7 +70,7 @@
   $effect(() => {
     if (!videoUrl && publicVideoUrl) {
       videoUrl = publicVideoUrl;
-    } else if (!videoUrl && files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) {
+    } else if (!videoUrl && files?.original?.s3_key && s3BaseUrl && aesKey && hasMediaEncryptionMetadata(files.original, aesNonce)) {
       void loadVideo();
     }
   });
@@ -80,7 +81,7 @@
     const file = files?.original;
     if (!file?.s3_key) return;
     try {
-      videoUrl = await fetchAndDecryptAudio(s3BaseUrl, file.s3_key, aesKey, aesNonce, file.mime_type || 'video/mp4');
+      videoUrl = await fetchAndDecryptAudio(s3BaseUrl, file.s3_key, aesKey, aesNonce, file.mime_type || 'video/mp4', file);
       retainedS3Key = file.s3_key;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load video';

@@ -40,6 +40,8 @@ const {
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const { dismissVisibleNotifications } = require('./helpers/embed-test-helpers');
+const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
@@ -149,6 +151,24 @@ async function waitForAssistantIdle(
 	logCheckpoint('Assistant stream idle and editor is visible.');
 }
 
+async function openFocusModeContextMenu(
+	page: any,
+	takeStepScreenshot: (page: any, label: string, options?: { fullPage?: boolean }) => Promise<void>,
+	stepLabel: string
+): Promise<void> {
+	const activatedEmbed = page.locator(SELECTORS.focusModeBarActivated).first();
+	await expect(activatedEmbed).toBeVisible({ timeout: 5000 });
+	const contextMenu = page.getByTestId('focus-mode-context-menu');
+	await expect(async () => {
+		if (await contextMenu.isVisible().catch(() => false)) return;
+		await dismissVisibleNotifications(page);
+		await activatedEmbed.scrollIntoViewIfNeeded();
+		await activatedEmbed.click();
+		await expect(contextMenu).toBeVisible({ timeout: 1500 });
+	}).toPass({ timeout: 10000 });
+	await takeStepScreenshot(page, stepLabel, { fullPage: false });
+}
+
 function setupPageListeners(page: any): void {
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
@@ -198,6 +218,7 @@ test('focus mode UI elements work correctly after activation', async ({
 	const careerMessage =
 		"I've been stuck in my career for years and need help deciding what to do next professionally. Can you help me?";
 
+	await dismissVisibleNotifications(page);
 	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_1'), logCheckpoint, takeStepScreenshot, 'ui-career');
 
 	logCheckpoint('Waiting for assistant response...');
@@ -331,6 +352,7 @@ test('focus mode UI elements work correctly after activation', async ({
 			"I'm particularly interested in transitioning to a product management role. " +
 			'What skills do I need and how should I prepare?';
 
+		await dismissVisibleNotifications(page);
 		await sendMessage(page, withMockMarker(followUpMessage, 'focus_career_followup'), logCheckpoint, takeStepScreenshot, 'ui-followup');
 
 		logCheckpoint('Waiting for follow-up assistant response...');
@@ -396,6 +418,7 @@ test('focus mode UI elements work correctly after activation', async ({
 		await expect(reloadedEmbed.first()).toBeVisible({ timeout: 30000 });
 		await expect(page.getByText('chat.an_error_occured')).not.toBeVisible({ timeout: 1000 });
 		await expect(page.getByText('chat.an_error_occurred')).not.toBeVisible({ timeout: 1000 });
+		await assertChatKeyInvariants(page, chatId, 'focus-after-reload', logCheckpoint);
 		logCheckpoint('Activation embed persisted after reload without raw error keys.');
 		await takeStepScreenshot(page, 'ui-reload-persisted-embed');
 
@@ -420,6 +443,7 @@ test('focus mode UI elements work correctly after activation', async ({
 		expect(persistedFocusId).toContain('career_insights');
 		await expect(page.getByText('chat.an_error_occured')).not.toBeVisible({ timeout: 1000 });
 		await expect(page.getByText('chat.an_error_occurred')).not.toBeVisible({ timeout: 1000 });
+		await assertChatKeyInvariants(page, chatId, 'focus-after-relogin', logCheckpoint);
 		logCheckpoint('Activation embed persisted after re-login without raw error keys.');
 		await takeStepScreenshot(page, 'ui-relogin-persisted-embed');
 	});
@@ -429,10 +453,7 @@ test('focus mode UI elements work correctly after activation', async ({
 	// ======================================================================
 	await test.step('Details link opens focus mode settings page', async () => {
 		logCheckpoint('Opening activated embed context menu for Details...');
-		const activatedEmbedNow = page.locator(SELECTORS.focusModeBarActivated);
-		await activatedEmbedNow.first().click({ button: 'right' });
-		await page.waitForTimeout(500);
-		await takeStepScreenshot(page, 'ui-details-context-menu');
+		await openFocusModeContextMenu(page, takeStepScreenshot, 'ui-details-context-menu');
 
 		const detailsButton = page.locator(SELECTORS.contextMenuDetails);
 		await expect(detailsButton).toBeVisible({ timeout: 5000 });
@@ -491,14 +512,7 @@ test('focus mode UI elements work correctly after activation', async ({
 	// ======================================================================
 	await test.step('Stop button deactivates focus mode', async () => {
 		logCheckpoint('Opening activated embed context menu for Stop...');
-		const activatedEmbedNow = page.locator(SELECTORS.focusModeBarActivated);
-		await activatedEmbedNow.first().click({ button: 'right' });
-		await page.waitForTimeout(500);
-		await takeStepScreenshot(page, 'ui-stop-context-menu');
-
-		const contextMenu = page.locator(SELECTORS.focusModeContextMenu);
-		const isContextMenuVisible = await contextMenu.isVisible({ timeout: 3000 }).catch(() => false);
-		logCheckpoint(`Context menu visible: ${isContextMenuVisible}`);
+		await openFocusModeContextMenu(page, takeStepScreenshot, 'ui-stop-context-menu');
 
 		const stopButton = page.locator(SELECTORS.contextMenuStop);
 		await expect(stopButton).toBeVisible({ timeout: 5000 });

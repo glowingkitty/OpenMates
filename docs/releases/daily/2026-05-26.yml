@@ -1,0 +1,1932 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-26'
+generated_at: '2026-07-09T15:24:58+00:00'
+range:
+  since: '2026-05-26T00:00:00+00:00'
+  until: '2026-05-26T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 42
+  section_counts:
+    features: 4
+    bug_fixes: 26
+    improvements: 0
+    docs: 0
+    tests: 11
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 25
+  user_facing_items: 25
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add quick tip suggestions'
+    section: features
+    commits:
+    - 60982450c
+    authored_at: '2026-05-26T16:59:24+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/quick_tips.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/schemas/chats.yml
+    - backend/shared/python_utils/chat_ciphertext_fingerprint.py
+    - backend/tests/test_postprocessor.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/QuickTipsCard.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
+    - frontend/packages/ui/src/data/quickTips.ts
+    - frontend/packages/ui/src/i18n/sources/chat/quick_tips.yml
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: expand daily inspirations'
+    section: features
+    commits:
+    - 1b76a6e82
+    authored_at: '2026-05-26T12:27:00+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/ai/daily_inspiration/schemas.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/core/api/app/routes/daily_inspirations_api.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/services/directus/daily_inspiration_defaults_methods.py
+    - backend/core/api/app/services/directus/daily_inspiration_pool_methods.py
+    - backend/core/api/app/services/directus/user_daily_inspiration_methods.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/core/directus/schemas/daily_inspiration_defaults.yml
+    - backend/core/directus/schemas/daily_inspiration_pool.yml
+    - backend/core/directus/schemas/user_daily_inspirations.yml
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/user-guide/daily-inspiration.md
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/services/dailyInspirationDB.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: restyle follow-up suggestions'
+    section: features
+    commits:
+    - 875df161a
+    authored_at: '2026-05-26T11:34:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/FollowUpSuggestions.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feature: add referral QR code'
+    section: features
+    commits:
+    - 63b45e1a1
+    authored_at: '2026-05-26T09:47:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsReferralCode.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: filter guest daily inspiration links'
+    section: bug_fixes
+    commits:
+    - fe975b411
+    authored_at: '2026-05-26T21:05:10+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/ai/daily_inspiration/schemas.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/apps/ai/daily_inspiration/wiki_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: increase follow-up suggestion tap spacing'
+    section: bug_fixes
+    commits:
+    - e158ee8c0
+    authored_at: '2026-05-26T20:26:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/FollowUpSuggestions.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: simplify wikipedia preview details'
+    section: bug_fixes
+    commits:
+    - 725ff3fbe
+    authored_at: '2026-05-26T19:04:29+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show memory examples to guests'
+    section: bug_fixes
+    commits:
+    - a5ac2a481
+    authored_at: '2026-05-26T18:21:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMemoriesHub.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render wiki inspiration embed previews'
+    section: bug_fixes
+    commits:
+    - 0e5d6de46
+    authored_at: '2026-05-26T18:15:40+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/wiki_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: update daily inspiration preview actions'
+    section: bug_fixes
+    commits:
+    - 6914ba0d5
+    authored_at: '2026-05-26T17:56:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/i18n/sources/daily_inspiration.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add wiki default inspirations'
+    section: bug_fixes
+    commits:
+    - dab2f5d1b
+    authored_at: '2026-05-26T17:39:58+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/ai/daily_inspiration/wiki_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: randomize public daily inspirations'
+    section: bug_fixes
+    commits:
+    - 4e6de91b7
+    authored_at: '2026-05-26T15:42:21+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show AI generated image badge'
+    section: bug_fixes
+    commits:
+    - 0c46b0abd
+    authored_at: '2026-05-26T13:18:28+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: top up public daily inspirations'
+    section: bug_fixes
+    commits:
+    - f332e4c0c
+    authored_at: '2026-05-26T13:07:58+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: fill public daily inspirations'
+    section: bug_fixes
+    commits:
+    - 209924ca5
+    authored_at: '2026-05-26T13:07:16+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: remove demo profile image override'
+    section: bug_fixes
+    commits:
+    - 6dd801619
+    authored_at: '2026-05-26T13:04:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: load chat content before header nav persistence'
+    section: bug_fixes
+    commits:
+    - dd2a282ce
+    authored_at: '2026-05-26T12:06:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: open signup from guest follow-ups'
+    section: bug_fixes
+    commits:
+    - 98e2e91b8
+    authored_at: '2026-05-26T11:59:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: refine follow-up suggestion layout'
+    section: bug_fixes
+    commits:
+    - 3f1c681d1
+    authored_at: '2026-05-26T11:48:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/FollowUpSuggestions.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: classify workflow dispatch errors'
+    section: bug_fixes
+    commits:
+    - b7bb00015
+    authored_at: '2026-05-26T11:26:28+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: add referral QR fullscreen'
+    section: bug_fixes
+    commits:
+    - 43b666f36
+    authored_at: '2026-05-26T10:49:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsReferralCode.svelte
+    - scripts/sync-dev-caddy.sh
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add dev Caddy sync script'
+    section: bug_fixes
+    commits:
+    - '609448696'
+    authored_at: '2026-05-26T10:31:30+00:00'
+    changed_paths:
+    - scripts/sync-dev-caddy.sh
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: restyle referral CTA'
+    section: bug_fixes
+    commits:
+    - d0b22a6b3
+    authored_at: '2026-05-26T08:56:40+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove dots from music app icon'
+    section: bug_fixes
+    commits:
+    - 9352a6f98
+    authored_at: '2026-05-26T08:55:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/static/icons/music.svg
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: map referral reward email subject'
+    section: bug_fixes
+    commits:
+    - 6dbf6658f
+    authored_at: '2026-05-26T01:27:41+00:00'
+    changed_paths:
+    - backend/core/api/app/services/email_template.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: backfill contact email on login'
+    section: bug_fixes
+    commits:
+    - cd6f94ff8
+    authored_at: '2026-05-26T01:16:06+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: do not block signup on missing autopay method'
+    section: bug_fixes
+    commits:
+    - ea556ae61
+    authored_at: '2026-05-26T00:57:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/payment/AutoTopUp.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show referral reward toast'
+    section: bug_fixes
+    commits:
+    - 3a31361f9
+    authored_at: '2026-05-26T00:28:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: surface referral reward on payment completion'
+    section: bug_fixes
+    commits:
+    - 7100e9ea5
+    authored_at: '2026-05-26T00:26:56+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: send referral emails from contact records'
+    section: bug_fixes
+    commits:
+    - d72690591
+    authored_at: '2026-05-26T00:16:03+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: update chat flow expected response'
+    section: tests
+    commits:
+    - 399a2a402
+    authored_at: '2026-05-26T21:22:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize follow-up suggestions flow'
+    section: tests
+    commits:
+    - 34f1c7bd4
+    authored_at: '2026-05-26T21:08:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: split quick tip flow coverage'
+    section: tests
+    commits:
+    - 1bd7d680c
+    authored_at: '2026-05-26T20:59:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert follow-up chip send readiness'
+    section: tests
+    commits:
+    - fbad65c97
+    authored_at: '2026-05-26T20:51:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: avoid quick tip copy assumption'
+    section: tests
+    commits:
+    - 421132bd3
+    authored_at: '2026-05-26T20:44:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use live quick tip prompt in e2e'
+    section: tests
+    commits:
+    - c380d1005
+    authored_at: '2026-05-26T20:37:40+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/quick_tip_travel_planning.json
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add quick tip e2e assertions'
+    section: tests
+    commits:
+    - 9c745f951
+    authored_at: '2026-05-26T20:28:10+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/quick_tip_travel_planning.json
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    - frontend/packages/ui/src/components/QuickTipsCard.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: harden example chat typing'
+    section: tests
+    commits:
+    - 69a10b236
+    authored_at: '2026-05-26T10:39:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chat-clone.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize newly failing e2e specs'
+    section: tests
+    commits:
+    - 1ea3e8c12
+    authored_at: '2026-05-26T10:18:15+00:00'
+    changed_paths:
+    - backend/apps/reminder/app.yml
+    - frontend/apps/web_app/tests/example-chat-clone.spec.ts
+    - frontend/apps/web_app/tests/mention-dropdown-settings-memory.spec.ts
+    - frontend/apps/web_app/tests/skill-shopping-search.spec.ts
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+    - frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: bound chat cleanup waits'
+    section: tests
+    commits:
+    - a648421f2
+    authored_at: '2026-05-26T09:54:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fill referral checkout address'
+    section: tests
+    commits:
+    - 4d63b4f8d
+    authored_at: '2026-05-26T00:03:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: bump alpha version to v0.11'
+    section: infrastructure
+    commits:
+    - 126928ab5
+    authored_at: '2026-05-26T17:11:51+00:00'
+    changed_paths:
+    - docs/architecture/apps/cli-package.md
+    - docs/contributing/guides/git-and-deployment.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - scripts/prepare_cli_publish_version.mjs
+    - shared/config/product_version.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add quick tip suggestions'
+    commits:
+    - 60982450c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'test: stabilize newly failing e2e specs'
+    commits:
+    - 1ea3e8c12
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: filter guest daily inspiration links'
+    commits:
+    - fe975b411
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: increase follow-up suggestion tap spacing'
+    commits:
+    - e158ee8c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: simplify wikipedia preview details'
+    commits:
+    - 725ff3fbe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show memory examples to guests'
+    commits:
+    - a5ac2a481
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render wiki inspiration embed previews'
+    commits:
+    - 0e5d6de46
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: update daily inspiration preview actions'
+    commits:
+    - 6914ba0d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add wiki default inspirations'
+    commits:
+    - dab2f5d1b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add quick tip suggestions'
+    commits:
+    - 60982450c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: randomize public daily inspirations'
+    commits:
+    - 4e6de91b7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show AI generated image badge'
+    commits:
+    - 0c46b0abd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: top up public daily inspirations'
+    commits:
+    - f332e4c0c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: remove demo profile image override'
+    commits:
+    - 6dd801619
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: expand daily inspirations'
+    commits:
+    - 1b76a6e82
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: load chat content before header nav persistence'
+    commits:
+    - dd2a282ce
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open signup from guest follow-ups'
+    commits:
+    - 98e2e91b8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: refine follow-up suggestion layout'
+    commits:
+    - 3f1c681d1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: restyle follow-up suggestions'
+    commits:
+    - 875df161a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add referral QR fullscreen'
+    commits:
+    - 43b666f36
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: add referral QR code'
+    commits:
+    - 63b45e1a1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restyle referral CTA'
+    commits:
+    - d0b22a6b3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: backfill contact email on login'
+    commits:
+    - cd6f94ff8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: do not block signup on missing autopay method'
+    commits:
+    - ea556ae61
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show referral reward toast'
+    commits:
+    - 3a31361f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: surface referral reward on payment completion'
+    commits:
+    - 7100e9ea5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: send referral emails from contact records'
+    commits:
+    - d72690591
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: filter guest daily inspiration links'
+    commits:
+    - fe975b411
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: increase follow-up suggestion tap spacing'
+    commits:
+    - e158ee8c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: simplify wikipedia preview details'
+    commits:
+    - 725ff3fbe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show memory examples to guests'
+    commits:
+    - a5ac2a481
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render wiki inspiration embed previews'
+    commits:
+    - 0e5d6de46
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: update daily inspiration preview actions'
+    commits:
+    - 6914ba0d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add wiki default inspirations'
+    commits:
+    - dab2f5d1b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add quick tip suggestions'
+    commits:
+    - 60982450c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: randomize public daily inspirations'
+    commits:
+    - 4e6de91b7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show AI generated image badge'
+    commits:
+    - 0c46b0abd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: top up public daily inspirations'
+    commits:
+    - f332e4c0c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: remove demo profile image override'
+    commits:
+    - 6dd801619
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: expand daily inspirations'
+    commits:
+    - 1b76a6e82
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: load chat content before header nav persistence'
+    commits:
+    - dd2a282ce
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open signup from guest follow-ups'
+    commits:
+    - 98e2e91b8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: refine follow-up suggestion layout'
+    commits:
+    - 3f1c681d1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: restyle follow-up suggestions'
+    commits:
+    - 875df161a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add referral QR fullscreen'
+    commits:
+    - 43b666f36
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feature: add referral QR code'
+    commits:
+    - 63b45e1a1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restyle referral CTA'
+    commits:
+    - d0b22a6b3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: backfill contact email on login'
+    commits:
+    - cd6f94ff8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: do not block signup on missing autopay method'
+    commits:
+    - ea556ae61
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show referral reward toast'
+    commits:
+    - 3a31361f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: surface referral reward on payment completion'
+    commits:
+    - 7100e9ea5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: send referral emails from contact records'
+    commits:
+    - d72690591
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 399a2a402f8af6997960a9525ab1f2eebc5fb49a
+    short_sha: 399a2a402
+    authored_at: '2026-05-26T21:22:21+00:00'
+    subject: 'test: update chat flow expected response'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 34f1c7bd40f1833390bfe8d7d4fb21530c2d2adc
+    short_sha: 34f1c7bd4
+    authored_at: '2026-05-26T21:08:18+00:00'
+    subject: 'test: stabilize follow-up suggestions flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    related_feature_ids: []
+  - sha: fe975b411a2067e6ebb6deeebb63f2d53c96b21f
+    short_sha: fe975b411
+    authored_at: '2026-05-26T21:05:10+00:00'
+    subject: 'fix: filter guest daily inspiration links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/ai/daily_inspiration/schemas.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/apps/ai/daily_inspiration/wiki_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    related_feature_ids: []
+  - sha: 1bd7d680c8cd27496ac4dda25c4539b0d2120226
+    short_sha: 1bd7d680c
+    authored_at: '2026-05-26T20:59:39+00:00'
+    subject: 'test: split quick tip flow coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    related_feature_ids: []
+  - sha: fbad65c97a8029e99cbbb0b1c7c901374a5f5911
+    short_sha: fbad65c97
+    authored_at: '2026-05-26T20:51:49+00:00'
+    subject: 'test: assert follow-up chip send readiness'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    related_feature_ids: []
+  - sha: 421132bd3cb18711ccea8261525ab5f9518a2e36
+    short_sha: 421132bd3
+    authored_at: '2026-05-26T20:44:44+00:00'
+    subject: 'test: avoid quick tip copy assumption'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    related_feature_ids: []
+  - sha: c380d1005078f1f3a6a0ec65422127e9ab6c5396
+    short_sha: c380d1005
+    authored_at: '2026-05-26T20:37:40+00:00'
+    subject: 'test: use live quick tip prompt in e2e'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/quick_tip_travel_planning.json
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    related_feature_ids: []
+  - sha: 9c745f9511c19fc68a2dc57b453a8500e670e150
+    short_sha: 9c745f951
+    authored_at: '2026-05-26T20:28:10+00:00'
+    subject: 'test: add quick tip e2e assertions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/quick_tip_travel_planning.json
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    - frontend/packages/ui/src/components/QuickTipsCard.svelte
+    related_feature_ids: []
+  - sha: e158ee8c0f7832dcf5a2459a939b467a2c837e30
+    short_sha: e158ee8c0
+    authored_at: '2026-05-26T20:26:41+00:00'
+    subject: 'fix: increase follow-up suggestion tap spacing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/FollowUpSuggestions.svelte
+    related_feature_ids: []
+  - sha: 725ff3fbebbac6cdc7b6c41d3c0d3ce73ea8d1db
+    short_sha: 725ff3fbe
+    authored_at: '2026-05-26T19:04:29+00:00'
+    subject: 'fix: simplify wikipedia preview details'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: a5ac2a481738e73b0418c55ab721884ffa383680
+    short_sha: a5ac2a481
+    authored_at: '2026-05-26T18:21:09+00:00'
+    subject: 'fix: show memory examples to guests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMemoriesHub.svelte
+    related_feature_ids: []
+  - sha: 0e5d6de468036e9238a2d2598d433c09a73830ac
+    short_sha: 0e5d6de46
+    authored_at: '2026-05-26T18:15:40+00:00'
+    subject: 'fix: render wiki inspiration embed previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/wiki_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    related_feature_ids: []
+  - sha: 6914ba0d55ee1880bb9500cdf594ac19e60fe50b
+    short_sha: 6914ba0d5
+    authored_at: '2026-05-26T17:56:35+00:00'
+    subject: 'fix: update daily inspiration preview actions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/i18n/sources/daily_inspiration.yml
+    related_feature_ids: []
+  - sha: dab2f5d1b3221d4cae498d4055592d222b354bfe
+    short_sha: dab2f5d1b
+    authored_at: '2026-05-26T17:39:58+00:00'
+    subject: 'fix: add wiki default inspirations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/ai/daily_inspiration/wiki_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 126928ab58c739b22da6c911fd18933c36fd6857
+    short_sha: 126928ab5
+    authored_at: '2026-05-26T17:11:51+00:00'
+    subject: 'chore: bump alpha version to v0.11'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/apps/cli-package.md
+    - docs/contributing/guides/git-and-deployment.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - scripts/prepare_cli_publish_version.mjs
+    - shared/config/product_version.json
+    related_feature_ids: []
+  - sha: 60982450cabbfd56b746dbf4e3fd7085d4f73ab5
+    short_sha: 60982450c
+    authored_at: '2026-05-26T16:59:24+00:00'
+    subject: 'feat: add quick tip suggestions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/quick_tips.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/schemas/chats.yml
+    - backend/shared/python_utils/chat_ciphertext_fingerprint.py
+    - backend/tests/test_postprocessor.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/QuickTipsCard.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
+    - frontend/packages/ui/src/data/quickTips.ts
+    - frontend/packages/ui/src/i18n/sources/chat/quick_tips.yml
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 4e6de91b7eeef21bec721f4a6ec8367f3fd64db5
+    short_sha: 4e6de91b7
+    authored_at: '2026-05-26T15:42:21+00:00'
+    subject: 'fix: randomize public daily inspirations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: 0c46b0abd337248d6edf5fdc11d8faed1d39238b
+    short_sha: 0c46b0abd
+    authored_at: '2026-05-26T13:18:28+00:00'
+    subject: 'fix: show AI generated image badge'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: f332e4c0c3c4353de123118de963be08f2092c58
+    short_sha: f332e4c0c
+    authored_at: '2026-05-26T13:07:58+00:00'
+    subject: 'fix: top up public daily inspirations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    related_feature_ids: []
+  - sha: 209924ca5fa2080c3ad70b7bfb7074e3cd099bbb
+    short_sha: 209924ca5
+    authored_at: '2026-05-26T13:07:16+00:00'
+    subject: 'fix: fill public daily inspirations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    related_feature_ids: []
+  - sha: 6dd80161958eeaeb26afd0ad89a45872524d12be
+    short_sha: 6dd801619
+    authored_at: '2026-05-26T13:04:50+00:00'
+    subject: 'fix: remove demo profile image override'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: 1b76a6e822b3cab151b339f935cf278a8b4b6e23
+    short_sha: 1b76a6e82
+    authored_at: '2026-05-26T12:27:00+00:00'
+    subject: 'feat: expand daily inspirations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/ai/daily_inspiration/schemas.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/core/api/app/routes/daily_inspirations_api.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/services/directus/daily_inspiration_defaults_methods.py
+    - backend/core/api/app/services/directus/daily_inspiration_pool_methods.py
+    - backend/core/api/app/services/directus/user_daily_inspiration_methods.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/core/directus/schemas/daily_inspiration_defaults.yml
+    - backend/core/directus/schemas/daily_inspiration_pool.yml
+    - backend/core/directus/schemas/user_daily_inspirations.yml
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/user-guide/daily-inspiration.md
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/services/dailyInspirationDB.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    related_feature_ids: []
+  - sha: dd2a282ce3694feb3fd88c9d4352e307b9e0c226
+    short_sha: dd2a282ce
+    authored_at: '2026-05-26T12:06:22+00:00'
+    subject: 'fix: load chat content before header nav persistence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts
+    related_feature_ids: []
+  - sha: 98e2e91b891931d8097dc862ca9c9794ad2d9c72
+    short_sha: 98e2e91b8
+    authored_at: '2026-05-26T11:59:25+00:00'
+    subject: 'fix: open signup from guest follow-ups'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 3f1c681d149c8a35cf12c9fb65940c9a7134809e
+    short_sha: 3f1c681d1
+    authored_at: '2026-05-26T11:48:44+00:00'
+    subject: 'fix: refine follow-up suggestion layout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/FollowUpSuggestions.svelte
+    related_feature_ids: []
+  - sha: 875df161ac3b9d9ce4c3026901599e381d6664e2
+    short_sha: 875df161a
+    authored_at: '2026-05-26T11:34:03+00:00'
+    subject: 'feat: restyle follow-up suggestions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/FollowUpSuggestions.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: b7bb000154f28f417bd7922e9c0cafdd48ea3215
+    short_sha: b7bb00015
+    authored_at: '2026-05-26T11:26:28+00:00'
+    subject: 'fix: classify workflow dispatch errors'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: 43b666f361c829ac55401e7161595199fe667a28
+    short_sha: 43b666f36
+    authored_at: '2026-05-26T10:49:59+00:00'
+    subject: 'fix: add referral QR fullscreen'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsReferralCode.svelte
+    - scripts/sync-dev-caddy.sh
+    related_feature_ids: []
+  - sha: 69a10b2365e28e773fee644b1e0815aa458f1ed1
+    short_sha: 69a10b236
+    authored_at: '2026-05-26T10:39:03+00:00'
+    subject: 'test: harden example chat typing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chat-clone.spec.ts
+    related_feature_ids: []
+  - sha: 609448696241a785e6f2329b6944332c82ec8efd
+    short_sha: '609448696'
+    authored_at: '2026-05-26T10:31:30+00:00'
+    subject: 'fix: add dev Caddy sync script'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/sync-dev-caddy.sh
+    related_feature_ids: []
+  - sha: 1ea3e8c12474d2b67785128b058e98b4440500e8
+    short_sha: 1ea3e8c12
+    authored_at: '2026-05-26T10:18:15+00:00'
+    subject: 'test: stabilize newly failing e2e specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/reminder/app.yml
+    - frontend/apps/web_app/tests/example-chat-clone.spec.ts
+    - frontend/apps/web_app/tests/mention-dropdown-settings-memory.spec.ts
+    - frontend/apps/web_app/tests/skill-shopping-search.spec.ts
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+    - frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+    related_feature_ids: []
+  - sha: a648421f28d868a8af102700794f9aff1c15f53a
+    short_sha: a648421f2
+    authored_at: '2026-05-26T09:54:41+00:00'
+    subject: 'test: bound chat cleanup waits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: 63b45e1a13c7392dc8a96038366a73fdb7880eb5
+    short_sha: 63b45e1a1
+    authored_at: '2026-05-26T09:47:31+00:00'
+    subject: 'feature: add referral QR code'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsReferralCode.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    related_feature_ids: []
+  - sha: d0b22a6b37db5817f71d3c9c2002ea9f2711d13c
+    short_sha: d0b22a6b3
+    authored_at: '2026-05-26T08:56:40+00:00'
+    subject: 'fix: restyle referral CTA'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: 9352a6f98df85ab9956c1cc8e51c0a1b138221be
+    short_sha: 9352a6f98
+    authored_at: '2026-05-26T08:55:01+00:00'
+    subject: 'fix: remove dots from music app icon'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/static/icons/music.svg
+    related_feature_ids: []
+  - sha: 6dbf6658ff865c6fbcd8c5e77dd089f3439af161
+    short_sha: 6dbf6658f
+    authored_at: '2026-05-26T01:27:41+00:00'
+    subject: 'fix: map referral reward email subject'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/email_template.py
+    related_feature_ids: []
+  - sha: cd6f94ff87b98a1da6e9958c5a29f4b675acd2b2
+    short_sha: cd6f94ff8
+    authored_at: '2026-05-26T01:16:06+00:00'
+    subject: 'fix: backfill contact email on login'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    related_feature_ids: []
+  - sha: ea556ae613c21ba38cb433d3615b2743227b3875
+    short_sha: ea556ae61
+    authored_at: '2026-05-26T00:57:41+00:00'
+    subject: 'fix: do not block signup on missing autopay method'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/payment/AutoTopUp.svelte
+    related_feature_ids: []
+  - sha: 3a31361f9b9f6df42067bea7fc22272620667257
+    short_sha: 3a31361f9
+    authored_at: '2026-05-26T00:28:17+00:00'
+    subject: 'fix: show referral reward toast'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    related_feature_ids: []
+  - sha: 7100e9ea566d8f01fb94db0bced15b5e608d7996
+    short_sha: 7100e9ea5
+    authored_at: '2026-05-26T00:26:56+00:00'
+    subject: 'fix: surface referral reward on payment completion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    related_feature_ids: []
+  - sha: d72690591be672cb32197e840b8fe26f7b822a16
+    short_sha: d72690591
+    authored_at: '2026-05-26T00:16:03+00:00'
+    subject: 'fix: send referral emails from contact records'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    related_feature_ids: []
+  - sha: 4d63b4f8d9389d1a343d2ebacea99d23b2f5333c
+    short_sha: 4d63b4f8d
+    authored_at: '2026-05-26T00:03:33+00:00'
+    subject: 'test: fill referral checkout address'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced quick tip suggestions and significantly expanded the daily inspiration system with Wikipedia
+    integration. The referral system was also enhanced with QR codes and improved reward visibility, while the chat interface
+    received several usability refinements.
+  released_changes:
+  - text: Quick tip suggestions were added to the chat interface to provide contextual actions.
+    evidence:
+      commits:
+      - 60982450c
+    release_status: released_main
+  - text: The daily inspiration system was expanded with Wikipedia-sourced content, randomized public suggestions, and improved
+      preview rendering.
+    evidence:
+      commits:
+      - 1b76a6e82
+      - 0e5d6de46
+      - dab2f5d1b
+      - 725ff3fbe
+      - 6914ba0d5
+      - 4e6de91b7
+      - f332e4c0c
+    release_status: released_main
+  - text: The referral system now includes QR codes, a restyled call-to-action, and improved reward notifications upon payment
+      completion.
+    evidence:
+      commits:
+      - 63b45e1a1
+      - 43b666f36
+      - d0b22a6b3
+      - 3a31361f9
+      - 7100e9ea5
+      - d72690591
+    release_status: released_main
+  - text: Follow-up suggestions received a visual restyle and increased tap spacing for better mobile usability.
+    evidence:
+      commits:
+      - 875df161a
+      - e158ee8c0
+      - 3f1c681d1
+    release_status: released_main
+  bug_fixes:
+  - text: Guest users now see memory examples and filtered daily inspiration links.
+    evidence:
+      commits:
+      - fe975b411
+      - a5ac2a481
+    release_status: released_main
+  - text: AI-generated images now display a specific badge in preview and fullscreen modes.
+    evidence:
+      commits:
+      - 0c46b0abd
+    release_status: released_main
+  - text: Chat content loading order was adjusted to ensure header navigation persists correctly.
+    evidence:
+      commits:
+      - dd2a282ce
+    release_status: released_main
+  - text: Billing and login flows were improved to prevent blocked signups and ensure contact data is backfilled.
+    evidence:
+      commits:
+      - ea556ae61
+      - cd6f94ff8
+    release_status: released_main
+  - text: Guest users are now prompted to sign up when interacting with follow-up suggestions.
+    evidence:
+      commits:
+      - 98e2e91b8
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: The project alpha version was bumped to v0.11.
+    evidence:
+      commits:
+      - 126928ab5
+    release_status: released_main
+  - text: Internal improvements were made to workflow error classification, public inspiration filling, and developer sync
+      scripts.
+    evidence:
+      commits:
+      - 209924ca5
+      - b7bb00015
+      - '609448696'
+    release_status: released_main
+  - text: Extensive updates to the end-to-end test suite were implemented to stabilize chat flows, referral signups, and quick
+      tip assertions.
+    evidence:
+      commits:
+      - 399a2a402
+      - 34f1c7bd4
+      - 1bd7d680c
+      - fbad65c97
+      - 421132bd3
+      - c380d1005
+      - 9c745f951
+      - 69a10b236
+      - 1ea3e8c12
+      - a648421f2
+      - 4d63b4f8d
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New quick tip suggestions in the chat interface.
+      evidence:
+        commits:
+        - 60982450c
+      reason: Quick tips provide immediate value by suggesting relevant actions within the chat interface.
+    - text: Expanded daily inspirations featuring Wikipedia integration and improved previews.
+      evidence:
+        commits:
+        - 1b76a6e82
+        - 0e5d6de46
+        - dab2f5d1b
+      reason: Significant expansion of the daily inspiration system with rich Wikipedia content.
+    - text: Referral QR codes for easier sharing and reward tracking.
+      evidence:
+        commits:
+        - 63b45e1a1
+        - 43b666f36
+      reason: Referral QR codes simplify the sharing process for users.
+    - text: Restyled follow-up suggestions with improved tap targets.
+      evidence:
+        commits:
+        - 875df161a
+        - e158ee8c0
+      reason: Visual and usability improvements to a core interaction component.
+    exclude:
+    - text: Alpha version bump to v0.11.
+      evidence:
+        commits:
+        - 126928ab5
+      reason: Infrastructure version bump is not a user-facing feature.
+    - text: Internal system and developer tool updates.
+      evidence:
+        commits:
+        - 209924ca5
+        - b7bb00015
+        - '609448696'
+      reason: Internal maintenance and developer scripts are not relevant for the general audience.
+    rationale: The focus for this update is on enhancing the core chat experience and expanding the discovery features like
+      daily inspirations and referrals.
+  social_video_recommendations:
+  - idea: A short clip showing how quick tips and follow-up suggestions help guide a conversation.
+    priority: high
+    reason: These features are highly visual and directly impact the core chat experience.
+    evidence:
+      commits:
+      - 60982450c
+      - 875df161a
+  - idea: Demonstrate the new referral QR code and the reward toast that appears after a successful referral.
+    priority: medium
+    reason: Encourages user growth by showing how easy it is to share and get rewarded.
+    evidence:
+      commits:
+      - 63b45e1a1
+      - 43b666f36
+      - 3a31361f9
+  quality_notes:
+  - Extensive test coverage was added for the new quick tips and follow-up suggestion flows.
+  - Several guest-facing bugs were addressed to improve the initial user experience.
+  validation_warnings: []

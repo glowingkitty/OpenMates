@@ -30,14 +30,18 @@ try:
         _format_relative_time,
         _build_compression_prompt,
         compress_chat_history,
+        get_admin_compression_threshold,
         CEREBRAS_COMPRESSION_FALLBACK_MODEL_ID,
+        COMPRESSION_MODEL_ID,
         DEFAULT_COMPRESSION_TRIGGER_THRESHOLD,
         ESTIMATED_SYSTEM_PROMPT_OVERHEAD,
         RECENT_WINDOW_TOKEN_BUDGET,
         RECENT_WINDOW_MIN_MESSAGES,
         AVG_CHARS_PER_TOKEN,
+        ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY as WORKER_THRESHOLD_CACHE_KEY,
         COMPRESSION_SUMMARY_CATEGORY,
     )
+    from backend.core.api.app.routes.admin import _compression_threshold_cache_key
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
 
@@ -45,6 +49,32 @@ except ImportError as _exc:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def test_admin_compression_threshold_key_matches_worker_reader():
+    """Admin overrides must be written to the exact Redis key the worker reads."""
+    assert _compression_threshold_cache_key("user-123") == f"{WORKER_THRESHOLD_CACHE_KEY}:user-123"
+
+
+def test_compression_model_uses_approved_gemini_flash_lite_path():
+    """Real long-chat validation must use the cheap Gemini compression path."""
+    assert COMPRESSION_MODEL_ID == "gemini-3.5-flash-lite"
+
+
+@pytest.mark.anyio
+async def test_get_admin_compression_threshold_uses_cache_client_property():
+    class FakeRedis:
+        async def get(self, key: str):
+            assert key == f"{WORKER_THRESHOLD_CACHE_KEY}:user-123"
+            return b"1000"
+
+    class FakeCache:
+        @property
+        async def client(self):
+            return FakeRedis()
+
+    assert await get_admin_compression_threshold(FakeCache(), "user-123") == 1000
+
 
 def _msg(content: str, role: str = "user", created_at: int = 0, **extra) -> dict:
     """Create a minimal message dict for testing."""
@@ -169,6 +199,10 @@ class TestShouldCompress:
         history = [_msg("hello world") for _ in range(5)]
         assert should_compress(history, compression_threshold=10) is True
 
+    def test_many_short_messages_do_not_trigger_by_count_only(self):
+        history = [_msg("short text", created_at=index) for index in range(500)]
+        assert should_compress(history) is False
+
     def test_custom_threshold_higher(self):
         # With a very high threshold, even big messages should not trigger
         big_msg = "x" * 100000
@@ -258,6 +292,57 @@ class TestSplitHistoryForCompression:
             oldest_recent = min(m["created_at"] for m in recent)
             newest_compressed = max(m["created_at"] for m in to_compress)
             assert newest_compressed <= oldest_recent
+
+    def test_keeps_latest_assistant_and_follow_up_even_when_tail_exceeds_budget(self):
+        history = _make_history(20, chars_per_msg=2000)
+        latest_assistant = _msg(
+            "latest assistant response " + "a" * ((RECENT_WINDOW_TOKEN_BUDGET + 1000) * 4),
+            role="assistant",
+            created_at=10_000,
+        )
+        follow_up = _msg(
+            "latest user follow up " + "u" * ((RECENT_WINDOW_TOKEN_BUDGET + 1000) * 4),
+            role="user",
+            created_at=10_001,
+        )
+        history.extend([latest_assistant, follow_up])
+
+        to_compress, recent = split_history_for_compression(history)
+
+        assert latest_assistant in recent
+        assert follow_up in recent
+        assert latest_assistant not in to_compress
+        assert follow_up not in to_compress
+
+    def test_forced_tail_split_keeps_latest_user_prompt_with_assistant_response(self):
+        history = _make_history(12, chars_per_msg=400)
+        latest_user = _msg("latest user prompt", role="user", created_at=10_000)
+        latest_assistant = _msg("latest assistant response", role="assistant", created_at=10_001)
+        history.extend([latest_user, latest_assistant])
+
+        to_compress, recent = split_history_for_compression(
+            history,
+            force_latest_assistant_tail_split=True,
+        )
+
+        assert latest_user in recent
+        assert latest_assistant in recent
+        assert latest_user not in to_compress
+        assert latest_assistant not in to_compress
+
+    def test_forced_tail_split_compresses_older_messages_when_all_fit_recent_budget(self):
+        history = _make_history(12, chars_per_msg=400)
+        latest_assistant = _msg("latest assistant", role="assistant", created_at=10_000)
+        follow_up = _msg("latest user follow up", role="user", created_at=10_001)
+        history.extend([latest_assistant, follow_up])
+
+        to_compress, recent = split_history_for_compression(
+            history,
+            force_latest_assistant_tail_split=True,
+        )
+
+        assert len(to_compress) == 12
+        assert recent == [latest_assistant, follow_up]
 
 
 # ===========================================================================
@@ -442,7 +527,7 @@ class TestCompressChatHistory:
             return mock_response
 
         monkeypatch.setattr(
-            "backend.apps.ai.processing.chat_compressor.invoke_google_ai_studio_chat_completions",
+            "backend.apps.ai.llm_providers.google_client.invoke_google_ai_studio_chat_completions",
             fake_google_llm,
         )
 
@@ -486,7 +571,7 @@ class TestCompressChatHistory:
             return fallback_response
 
         monkeypatch.setattr(
-            "backend.apps.ai.processing.chat_compressor.invoke_google_ai_studio_chat_completions",
+            "backend.apps.ai.llm_providers.google_client.invoke_google_ai_studio_chat_completions",
             fake_google_llm,
         )
         monkeypatch.setattr(
@@ -529,7 +614,7 @@ class TestCompressChatHistory:
             return fallback_response
 
         monkeypatch.setattr(
-            "backend.apps.ai.processing.chat_compressor.invoke_google_ai_studio_chat_completions",
+            "backend.apps.ai.llm_providers.google_client.invoke_google_ai_studio_chat_completions",
             fake_google_llm,
         )
         monkeypatch.setattr(
@@ -558,7 +643,7 @@ class TestCompressChatHistory:
             raise ConnectionError("Network failure")
 
         monkeypatch.setattr(
-            "backend.apps.ai.processing.chat_compressor.invoke_google_ai_studio_chat_completions",
+            "backend.apps.ai.llm_providers.google_client.invoke_google_ai_studio_chat_completions",
             fake_google_llm,
         )
 
@@ -574,22 +659,13 @@ class TestCompressChatHistory:
         assert "Network failure" in result.error
 
     @pytest.mark.anyio
-    async def test_no_formattable_messages(self, mock_secrets, monkeypatch):
+    async def test_no_formattable_messages(self, mock_secrets):
         """History exceeds threshold but all messages have non-string content."""
         # Create messages with list content (multimodal) that _build_compression_prompt skips
         history = [
             {"role": "user", "content": [{"type": "image"}], "created_at": 1000 + i}
             for i in range(20)
         ]
-
-        # Need to mock the google import since it happens inside the function
-        async def fake_google_llm(**kwargs):
-            raise AssertionError("Should not be called")
-
-        monkeypatch.setattr(
-            "backend.apps.ai.processing.chat_compressor.invoke_google_ai_studio_chat_completions",
-            fake_google_llm,
-        )
 
         result = await compress_chat_history(
             message_history=history,

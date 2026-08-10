@@ -39,7 +39,8 @@ test("webview HTML includes strict CSP", () => {
 
 test("webview HTML includes remote-access setup instructions", () => {
   assert.match(html, new RegExp(VSCODE_REMOTE_ACCESS_SETUP_COPY.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.match(html, /openmates remote-access start --path/);
+  assert.match(html, /openmates remote-access --path/);
+  assert.doesNotMatch(html, /remote-access (?:start|stop|status|search)/);
 });
 
 test("webview HTML embeds parseable runtime config JSON", () => {

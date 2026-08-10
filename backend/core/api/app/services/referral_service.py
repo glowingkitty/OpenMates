@@ -11,8 +11,6 @@ redemption policy. Campaign rows provide an explicit admin-controlled budget.
 
 import hashlib
 import logging
-import secrets
-import string
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
@@ -20,11 +18,12 @@ from typing import Any, Dict, Optional
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.shared.python_utils.security_random import HUMAN_CODE_ALPHABET, generate_random_string
 
 logger = logging.getLogger(__name__)
 
 REFERRAL_CODE_LENGTH = 8
-REFERRAL_CODE_ALPHABET = string.ascii_uppercase + string.digits
+REFERRAL_CODE_ALPHABET = HUMAN_CODE_ALPHABET
 REFERRAL_STATUS_PENDING = "pending"
 REFERRAL_STATUS_REWARDED = "rewarded"
 REFERRAL_STATUS_EXPIRED = "expired"
@@ -124,7 +123,7 @@ class ReferralService:
             return existing[0]
 
         for _ in range(8):
-            code = "".join(secrets.choice(REFERRAL_CODE_ALPHABET) for _ in range(REFERRAL_CODE_LENGTH))
+            code = generate_random_string(REFERRAL_CODE_LENGTH, REFERRAL_CODE_ALPHABET)
             success, created = await self.directus.create_item(
                 "referral_profiles",
                 {

@@ -3,20 +3,28 @@
  *
  * Purpose: verify source-root bounds, default cache layout, deterministic
  * high-risk path policy, and capped rg search before CLI bridge wiring.
- * Security: uses injected rg output only; no shell commands or repository files
- * are read by these tests.
+ * Security: temporary repositories prove both injected rg output and the
+ * bounded no-rg fallback without reading the real workspace.
  * Run: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/remoteAccess.test.ts
  */
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { classifyProjectFileRisk } from "../src/projectFileRisk.ts";
 import {
   listRemoteAccessSources,
+  projectRemoteAccessCryptoIdentity,
+  discoverRemoteAccessRepositories,
+  listRemoteAccessDirectory,
+  projectRemoteAccessLifecyclePayload,
+  readRemoteAccessTextFile,
+  remoteAccessSourceType,
+  resolveRemoteAccessRoots,
   resolveRemoteCachePath,
   runRgCommand,
   searchRemoteSource,
@@ -25,6 +33,87 @@ import {
 } from "../src/remoteAccess.ts";
 
 describe("Project remote-access bridge primitives", () => {
+  it("uses the authenticated owner for Personal frames even with stray Team routing identity", () => {
+    const frame = {
+      project_id: "project-1",
+      source_id: "source-1",
+      requesting_client_id: "requester-client",
+      key_epoch: 1,
+      routing_identity: {
+        context_type: "team",
+        context_id_hash: "stray-team-hash",
+        host_member_hash: "stray-host",
+        host_device_fingerprint_hash: "stray-host-device",
+        requester_member_hash: "stray-requester",
+        requester_device_fingerprint_hash: "stray-requester-device",
+      },
+    };
+
+    assert.deepEqual(
+      projectRemoteAccessCryptoIdentity("owner-1", "session-1", {}, frame as never),
+      {
+        ownerId: "owner-1",
+        projectId: "project-1",
+        sourceId: "source-1",
+        sourceSessionId: "session-1",
+        requestingClientId: "requester-client",
+        keyEpoch: 1,
+      },
+    );
+  });
+
+  it("uses scoped routing identity for Team v2 frames", () => {
+    const routingIdentity = {
+      context_type: "team",
+      context_id_hash: "team-hash",
+      host_member_hash: "host-hash",
+      host_device_fingerprint_hash: "host-device-hash",
+      requester_member_hash: "requester-hash",
+      requester_device_fingerprint_hash: "requester-device-hash",
+    };
+    const identity = projectRemoteAccessCryptoIdentity(
+      "owner-1",
+      "session-1",
+      { teamId: "team-1" },
+      {
+        project_id: "project-1",
+        source_id: "source-1",
+        requesting_client_id: "requester-client",
+        key_epoch: 2,
+        routing_identity: routingIdentity,
+      } as never,
+    );
+
+    assert.deepEqual(identity, {
+      ownerId: "team-hash",
+      contextType: "team",
+      contextId: "team-hash",
+      hostMemberId: "host-hash",
+      hostDeviceId: "host-device-hash",
+      requesterMemberId: "requester-hash",
+      requesterDeviceId: "requester-device-hash",
+      projectId: "project-1",
+      sourceId: "source-1",
+      sourceSessionId: "session-1",
+      requestingClientId: "requester-client",
+      keyEpoch: 2,
+    });
+  });
+
+  it("includes Team context on every source lifecycle message", () => {
+    const bindings = [{
+      source: { sourceId: "source-1", projectId: "project-1" },
+      projectKey: new Uint8Array(32),
+      keyEpoch: 1,
+      teamId: "team-1",
+    }];
+
+    assert.deepEqual(projectRemoteAccessLifecyclePayload("session-1", bindings), {
+      source_session_id: "session-1",
+      team_id: "team-1",
+    });
+  });
+
   it("stores preview cache under ~/.openmates/remote-cache/<source-id> by default", () => {
     assert.equal(
       resolveRemoteCachePath("source-1", "/home/alice"),
@@ -140,6 +229,28 @@ describe("Project remote-access bridge primitives", () => {
     }
   });
 
+  it("falls back to bounded safe text search when rg is unavailable", async () => {
+    const home = join(tmpdir(), `openmates-remote-access-no-rg-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const repo = join(home, "repo");
+    mkdirSync(join(repo, "src"), { recursive: true });
+    writeFileSync(join(repo, "src", "match.ts"), "first line\nremoteDemo value\n");
+    writeFileSync(join(repo, ".env"), "remoteDemo=secret\n");
+    try {
+      const missingExecutable = Object.assign(new Error("spawn rg ENOENT"), { code: "ENOENT" });
+      const result = await searchRemoteSource({
+        query: "remoteDemo",
+        sourceRoot: repo,
+        runRg: async () => { throw missingExecutable; },
+      });
+
+      assert.deepEqual(result.matches, [{ path: "src/match.ts", line: 2, snippet: "remoteDemo value\n" }]);
+      assert.equal(result.omitted, 0);
+      assert.ok(result.excluded >= 1);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
   it("stops real rg output after the requested match cap", async () => {
     const home = join(tmpdir(), `openmates-remote-access-rg-cap-${Date.now()}-${Math.random().toString(16).slice(2)}`);
     const repo = join(home, "repo");
@@ -175,7 +286,131 @@ const timer = setInterval(() => {
   it("rejects invalid search limits so caps cannot be bypassed", async () => {
     await assert.rejects(
       () => searchRemoteSource({ query: "Project", sourceRoot: "/workspace/repo", maxResults: Number.NaN, runRg: async () => "" }),
-      /positive integer/,
+      /between 1 and 20/,
     );
+    await assert.rejects(
+      () => searchRemoteSource({ query: "Project", sourceRoot: "/workspace/repo", maxResults: 21, runRg: async () => "" }),
+      /between 1 and 20/,
+    );
+  });
+
+  it("resolves repeated explicit roots as a replacement scope and deduplicates aliases", () => {
+    const home = join(tmpdir(), `openmates-remote-roots-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const cwd = join(home, "workspace");
+    const web = join(cwd, "web");
+    const api = join(home, "api");
+    mkdirSync(web, { recursive: true });
+    mkdirSync(api, { recursive: true });
+    try {
+      assert.deepEqual(resolveRemoteAccessRoots(undefined, cwd), [cwd]);
+      assert.deepEqual(resolveRemoteAccessRoots(`./web\n${api}\n./web`, cwd), [web, api]);
+      assert.throws(
+        () => resolveRemoteAccessRoots(Array.from({ length: 17 }, (_, index) => join(home, String(index))).join("\n"), cwd),
+        /at most 16/,
+      );
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("discovers nested and deeply nested repositories without following symlink directories", () => {
+    const home = join(tmpdir(), `openmates-remote-discovery-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const root = join(home, "workspace");
+    const outer = join(root, "outer");
+    const nested = join(outer, "packages", "nested");
+    const deep = join(root, "a", "b", "c", "d", "e", "f", "g", "deep");
+    mkdirSync(join(outer, ".git"), { recursive: true });
+    mkdirSync(join(nested, ".git"), { recursive: true });
+    mkdirSync(join(deep, ".git"), { recursive: true });
+    symlinkSync(home, join(root, "outside-link"), "dir");
+    try {
+      const discovered = discoverRemoteAccessRepositories([root]);
+      assert.deepEqual(discovered.repositories.map((item) => item.rootPath), [deep, nested, outer].sort());
+      assert.equal(discovered.permissionDenied.length, 0);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("classifies explicit ordinary folders separately from Git repositories", () => {
+    const home = join(tmpdir(), `openmates-remote-type-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const folder = join(home, "folder");
+    const repository = join(home, "repository");
+    mkdirSync(folder, { recursive: true });
+    mkdirSync(join(repository, ".git"), { recursive: true });
+    try {
+      assert.equal(remoteAccessSourceType(folder), "local_folder");
+      assert.equal(remoteAccessSourceType(repository), "local_git_repository");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("lists only bounded safe entries and reads bounded UTF-8 text", () => {
+    const home = join(tmpdir(), `openmates-remote-read-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const root = join(home, "repo");
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(join(root, "src", "safe.ts"), "export const safe = true;\n");
+    writeFileSync(join(root, ".env"), "SECRET=value\n");
+    writeFileSync(join(root, "binary.dat"), Buffer.from([0, 1, 2, 3]));
+    try {
+      const listing = listRemoteAccessDirectory({ sourceRoot: root, relativePath: ".", maxEntries: 10 });
+      assert.deepEqual(listing.entries.map((entry) => entry.path), ["src"]);
+      assert.equal(listing.excluded, 2);
+      const read = readRemoteAccessTextFile({ sourceRoot: root, relativePath: "src/safe.ts", maxBytes: 200_000, maxLines: 4_000 });
+      assert.equal(read.content, "export const safe = true;\n");
+      assert.throws(
+        () => readRemoteAccessTextFile({ sourceRoot: root, relativePath: "binary.dat" }),
+        /binary or unsupported/,
+      );
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("excludes Git-ignored files from listing and direct reads", () => {
+    const home = join(tmpdir(), `openmates-remote-ignore-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const root = join(home, "repo");
+    mkdirSync(root, { recursive: true });
+    const initialized = spawnSync("git", ["init", "--quiet", root]);
+    assert.equal(initialized.status, 0);
+    writeFileSync(join(root, ".gitignore"), "private-notes.txt\n");
+    writeFileSync(join(root, "private-notes.txt"), "ignored plaintext\n");
+    writeFileSync(join(root, "visible.txt"), "visible plaintext\n");
+    try {
+      const listing = listRemoteAccessDirectory({ sourceRoot: root, relativePath: "." });
+      assert.deepEqual(listing.entries.map((entry) => entry.path), ["visible.txt"]);
+      assert.throws(
+        () => readRemoteAccessTextFile({ sourceRoot: root, relativePath: "private-notes.txt" }),
+        /ignored/,
+      );
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a file swapped to an outside-root symlink before open", () => {
+    const home = join(tmpdir(), `openmates-remote-race-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const root = join(home, "repo");
+    const safePath = join(root, "safe.txt");
+    const outsidePath = join(home, "outside.txt");
+    mkdirSync(root, { recursive: true });
+    writeFileSync(safePath, "safe\n");
+    writeFileSync(outsidePath, "outside secret\n");
+    try {
+      assert.throws(
+        () => readRemoteAccessTextFile({
+          sourceRoot: root,
+          relativePath: "safe.txt",
+          beforeOpen: () => {
+            unlinkSync(safePath);
+            symlinkSync(outsidePath, safePath);
+          },
+        }),
+        /approved source root|symbolic link/,
+      );
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
   });
 });

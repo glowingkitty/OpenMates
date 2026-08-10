@@ -14,6 +14,7 @@
 // ────────────────────────────────────────────────────────────────────
 
 #if DEBUG
+import CryptoKit
 import SwiftUI
 
 struct DevPreviewRootView: View {
@@ -28,6 +29,8 @@ struct DevPreviewRootView: View {
             DevChatOpeningPreviewView(forceRecordingOverlay: true)
         case .chatShare:
             DevChatSharePreviewView()
+        case .embedShare:
+            DevEmbedSharePreviewView()
         case .quickCapture:
             #if os(macOS)
             MacMenuBarQuickCaptureView()
@@ -36,17 +39,98 @@ struct DevPreviewRootView: View {
             #else
             DevQuickCaptureAttachmentPreviewView()
             #endif
+        case .composerEmbeds:
+            DevNativeComposerEmbedGalleryView()
+        case .composerDraftEdit:
+            DevMessageEditFixtureView()
         case .embeds:
             DevEmbedPreviewGalleryView(initialApp: configuration.appSlug)
         }
     }
 }
 
+struct DevNativeComposerEmbedGalleryView: View {
+    private let registry = AppleComposerRendererRegistry.shared
+    private let actions = AppleComposerEmbedActions(
+        onOpen: { _ in },
+        onRetry: { _ in },
+        onRemove: { _ in }
+    )
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: .spacing10) {
+                lifecycleShowcase
+                ForEach(registry.registeredTypes, id: \.self) { embedType in
+                    if let descriptor = registry.descriptor(for: embedType) {
+                        AppleComposerEmbedPreview(
+                            descriptor: descriptor,
+                            node: fixtureNode(embedType: embedType, state: state(for: embedType)),
+                            lifecycle: state(for: embedType),
+                            embedRecord: nil,
+                            allEmbedRecords: [:],
+                            actions: actions
+                        )
+                    }
+                }
+            }
+            .padding(.spacing12)
+        }
+        .background(Color.grey0)
+        .accessibilityIdentifier("dev-native-composer-embed-gallery")
+        .accessibilityValue("\(registry.registeredTypes.count)")
+    }
+
+    private var lifecycleShowcase: some View {
+        Group {
+            if let descriptor = registry.descriptor(for: "recording") {
+                ForEach(AppleComposerEmbedLifecycleState.allCases, id: \.self) { state in
+                    AppleComposerEmbedPreview(
+                        descriptor: descriptor,
+                        node: fixtureNode(embedType: "recording", state: state),
+                        lifecycle: state,
+                        embedRecord: nil,
+                        allEmbedRecords: [:],
+                        actions: actions
+                    )
+                }
+            }
+        }
+    }
+
+    private func state(for embedType: String) -> AppleComposerEmbedLifecycleState {
+        switch embedType {
+        case "app-skill-use": .draft
+        case "electronics-pcb-schematic": .error
+        case "fitness-location": .uploading
+        case "code-repo-group": .cancelled
+        default: .finished
+        }
+    }
+
+    private func fixtureNode(
+        embedType: String,
+        state: AppleComposerEmbedLifecycleState
+    ) -> ComposerNodeV1 {
+        ComposerNodeV1.embed(
+            id: "composer:fixture:\(embedType):\(state.rawValue)",
+            embedType: embedType,
+            canonicalSource: "```json\n{}\n```",
+            referenceOnly: false,
+            display: ComposerEmbedDisplayV1(
+                title: EmbedType.normalized(rawValue: embedType)?.displayName
+                    ?? AppStrings.uploadProgressProcessing,
+                mediaKind: embedType
+            )
+        ).updatingStatus(state.rawValue)
+    }
+}
+
 #if !os(macOS)
 struct DevQuickCaptureAttachmentPreviewView: View {
     @State private var selectedTab = "chats"
-    @State private var messageText = ""
-    @FocusState private var inputFocused: Bool
+    @StateObject private var composerSession = NativeComposerSession()
+    @State private var inputFocused = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing6) {
@@ -86,7 +170,7 @@ struct DevQuickCaptureAttachmentPreviewView: View {
 
             VStack(spacing: 0) {
                 MessageComposerView(
-                    text: $messageText,
+                    session: composerSession,
                     isFocused: $inputFocused,
                     compact: false,
                     placeholder: AppStrings.whatDoYouNeedHelpWith,
@@ -132,9 +216,34 @@ struct DevQuickCaptureAttachmentPreviewView: View {
 #endif
 
 struct DevChatSharePreviewView: View {
+    private let context = AppleShareContext(
+        contentType: .chat,
+        id: "ui-test-chat-share",
+        title: "Share preview chat",
+        summary: "Synthetic chat share preview",
+        key: SymmetricKey(data: Data(repeating: 0, count: 32)),
+        chatId: "ui-test-chat-share"
+    )
+
     var body: some View {
-        ChatShareView(chatId: "ui-test-chat-share")
+        AppleSharePanel(context: context, onClose: {}, onGenerated: { _, _, _ in }, onStopSharing: nil)
             .accessibilityIdentifier("chat-share-preview")
+    }
+}
+
+struct DevEmbedSharePreviewView: View {
+    private let context = AppleShareContext(
+        contentType: .embed,
+        id: "ui-test-embed-share",
+        title: "Web search",
+        summary: "Synthetic embed share preview",
+        key: SymmetricKey(data: Data(repeating: 1, count: 32)),
+        chatId: "ui-test-chat-share"
+    )
+
+    var body: some View {
+        ShareEmbedView(context: context, onClose: {}, onGenerated: { _, _, _ in })
+            .accessibilityIdentifier("embed-share-preview")
     }
 }
 
@@ -245,6 +354,12 @@ private struct DevEmbedPreviewSkillSection: View {
                         .stroke(Color.grey30, lineWidth: 1)
                 }
             }
+
+            if !skill.childEmbeds.isEmpty {
+                DevEmbedDisplayBlock(title: "FULLSCREEN ROUTE HARNESS") {
+                    DevEmbedFullscreenRouteHarness(skill: skill)
+                }
+            }
         }
         .padding(.spacing6)
         .background(Color.grey10)
@@ -266,6 +381,82 @@ private struct DevEmbedPreviewSkillSection: View {
             ),
             allEmbedRecords: skill.allRecords
         ) { _ in }
+    }
+}
+
+private struct DevEmbedFullscreenRouteHarness: View {
+    let skill: DevEmbedPreviewSkill
+    @State private var activeEmbed: EmbedRecord?
+    @State private var previousEmbeds: [EmbedRecord] = []
+
+    init(skill: DevEmbedPreviewSkill) {
+        self.skill = skill
+        _activeEmbed = State(initialValue: skill.primaryEmbed)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            Text(activeRouteLabel)
+                .font(.omMicro.weight(.semibold))
+                .foregroundStyle(Color.fontSecondary)
+                .accessibilityIdentifier("dev-embed-active-route")
+
+            if let activeEmbed, activeEmbed.id == skill.primaryEmbed.id, let firstChild = skill.childEmbeds.first {
+                Button("Open first child from parent fullscreen") {
+                    openChild(firstChild, from: activeEmbed)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("dev-embed-route-open-first-child")
+            }
+
+            if let activeEmbed {
+                EmbedFullscreenContainer(
+                    embeds: [activeEmbed],
+                    initialEmbedId: activeEmbed.id,
+                    allEmbedRecords: skill.allRecords,
+                    chatId: nil,
+                    onOpenEmbed: { child, parent in
+                        openChild(child, from: parent)
+                    },
+                    onClose: closeRoute
+                )
+                .id(activeEmbed.id)
+                .frame(height: 560)
+                .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                .overlay {
+                    RoundedRectangle(cornerRadius: .radius8)
+                        .stroke(Color.grey30, lineWidth: 1)
+                }
+            } else {
+                Button("Reset fullscreen route") {
+                    previousEmbeds = []
+                    activeEmbed = skill.primaryEmbed
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("dev-embed-route-reset")
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("dev-embed-fullscreen-route-harness")
+    }
+
+    private var activeRouteLabel: String {
+        "Active embed: \(activeEmbed?.id ?? "none")"
+    }
+
+    private func openChild(_ child: EmbedRecord, from parent: EmbedRecord) {
+        if previousEmbeds.last?.id != parent.id {
+            previousEmbeds.append(parent)
+        }
+        activeEmbed = child
+    }
+
+    private func closeRoute() {
+        if let previous = previousEmbeds.popLast() {
+            activeEmbed = previous
+        } else {
+            activeEmbed = nil
+        }
     }
 }
 

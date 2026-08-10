@@ -4,6 +4,7 @@
  */
 
 import { str } from '../../../data/embedTextRenderers';
+import { renderNotebookText } from './notebookContent';
 
 /** code-code — code block embed */
 export function renderCode(c: Record<string, unknown>): string {
@@ -85,4 +86,9 @@ export function renderApplication(c: Record<string, unknown>): string {
     }
   }
   return lines.join('\n');
+}
+
+/** code-notebook — Jupyter notebook embed */
+export function renderNotebook(c: Record<string, unknown>): string {
+  return renderNotebookText(c);
 }

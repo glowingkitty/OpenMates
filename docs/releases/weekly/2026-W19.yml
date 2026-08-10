@@ -1,0 +1,2932 @@
+schema_version: 1
+cadence: weekly
+week_start: '2026-05-04'
+week_end: '2026-05-10'
+generated_at: '2026-07-09T15:57:58+00:00'
+summary:
+  daily_files: 7
+  total_items: 119
+  newsletter_ready_items: 51
+  user_facing_items: 58
+  dev_only_items: 0
+  unknown_release_items: 0
+  themes: 10
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+daily_summaries:
+- date: '2026-05-04'
+  total_commits: 13
+  newsletter_ready_items: 8
+  dev_only_items: 0
+- date: '2026-05-05'
+  total_commits: 27
+  newsletter_ready_items: 8
+  dev_only_items: 0
+- date: '2026-05-06'
+  total_commits: 32
+  newsletter_ready_items: 10
+  dev_only_items: 0
+- date: '2026-05-07'
+  total_commits: 17
+  newsletter_ready_items: 11
+  dev_only_items: 0
+- date: '2026-05-08'
+  total_commits: 11
+  newsletter_ready_items: 4
+  dev_only_items: 0
+- date: '2026-05-09'
+  total_commits: 16
+  newsletter_ready_items: 7
+  dev_only_items: 0
+- date: '2026-05-10'
+  total_commits: 3
+  newsletter_ready_items: 3
+  dev_only_items: 0
+themes:
+- theme: chat
+  item_count: 37
+  newsletter_ready_count: 13
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-04'
+    title: 'chore: remove temporary privacy and safety intro pages'
+    commits:
+    - 7dd06cfe2
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-04'
+    title: 'docs: update version references to v0.10'
+    commits:
+    - e36868110
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: center mobile welcome content'
+    commits:
+    - 90b3cee36
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: hide dates for public chat suggestions'
+    commits:
+    - f61184b39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: restore v0.9 announcement copy'
+    commits:
+    - fd3a912a9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: show new chat CTA for announcements'
+    commits:
+    - 428e55bbf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: show new chat button for drafted welcome input'
+    commits:
+    - 8a425abc6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: use chatDB in embed diff store (Vercel build)'
+    commits:
+    - a958543e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'feat: refine Apple app chat and settings'
+    commits:
+    - 8db8ac23a
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-05'
+    title: 'fix: guard chat encryption writes against mixed keys'
+    commits:
+    - 1d6fcf2fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: keep embed fullscreen recoverable after chunk load failure'
+    commits:
+    - 413418f13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: refresh Directus tokens for regular collection reads'
+    commits:
+    - dbf4ed4f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: stabilize macOS intro video playback'
+    commits:
+    - d7a59e735
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-05'
+    title: 'test: stabilize chat and signup e2e waits'
+    commits:
+    - 029390243
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'test: target multi-session encryption chats by id'
+    commits:
+    - f66e81c97
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'test: target multi-tab encryption chat by id'
+    commits:
+    - a2ce9853d
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'feat: refine Apple app embeds and auth'
+    commits:
+    - ff7639e29
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-06'
+    title: 'fix: recover stale fullscreen chunks'
+    commits:
+    - e700a636d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: reject stale shared chat links'
+    commits:
+    - 2911b6461
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: fix e2e chat readiness drift'
+    commits:
+    - beab095ef
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: harden final e2e flaky specs'
+    commits:
+    - 9b28ebe83
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: harden final playwright drift'
+    commits:
+    - 5a69d3cdb
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: narrow remaining e2e assertions'
+    commits:
+    - d93a168ff
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: refresh deterministic e2e expectations'
+    commits:
+    - 1f9d4fb58
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: relax chat readiness helper'
+    commits:
+    - bd26c485e
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: load native chat embeds with children'
+    commits:
+    - 5b3dfffb7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-08'
+    title: 'fix: improve saved embed reminders'
+    commits:
+    - f761ebdd7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-08'
+    title: 'test: assert reminder event payload'
+    commits:
+    - 8702b9c24
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-08'
+    title: 'test: assert reminder text in new chat'
+    commits:
+    - e91448011
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-08'
+    title: 'test: relax reminder generated text'
+    commits:
+    - fc944e92a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-08'
+    title: 'test: stabilize reminder login wait'
+    commits:
+    - fa8fb9c66
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-09'
+    title: 'feat: add GitHub repository embeds'
+    commits:
+    - 3fd120968
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'feat: add code repository search skill'
+    commits:
+    - 46dfb56f6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'feat: add native chat streaming sync parity'
+    commits:
+    - c422f3c92
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-09'
+    title: 'fix: improve native chat sync and settings parity'
+    commits:
+    - efffd19ba
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-10'
+    title: 'feat: add source-backed URL safety processing'
+    commits:
+    - 42241a5d4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-10'
+    title: 'fix: show target chat in reminder details'
+    commits:
+    - aa40ba1fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: other
+  item_count: 32
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-04'
+    title: 'test: fix daily inspiration touch event regression'
+    commits:
+    - 6a90c31b1
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'Merge pull request #386 from glowingkitty/dev'
+    commits:
+    - e1cf380be
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'Merge pull request #387 from glowingkitty/dev'
+    commits:
+    - 66ee7013c
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'Merge pull request #388 from glowingkitty/dev'
+    commits:
+    - 01c848fd3
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: repair user_db schema on reload'
+    commits:
+    - acc8a236b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'test: fix signup recovery assertion'
+    commits:
+    - 08da1b604
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'test: relax multi-tab encryption readiness'
+    commits:
+    - d85639271
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'test: stabilize multi-tab encryption navigation'
+    commits:
+    - bc7b711dd
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'test: use visible signup logout path'
+    commits:
+    - d3332abfe
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'test: use visible signup logout path'
+    commits:
+    - 3c926487f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: allow recovered users without usernames'
+    commits:
+    - 106de3d58
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: harden invoice backfill and delete cleanup'
+    commits:
+    - 29d9a2c18
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: reload when embed fullscreen chunk is stale'
+    commits:
+    - e2f8e977b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: accept signup deletion redirect'
+    commits:
+    - cc5faa61d
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: allow embed preview auth noise'
+    commits:
+    - 911a5657c
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: fix account recovery readiness wait'
+    commits:
+    - 12c3aae63
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: stabilize unauthenticated fullscreen coverage'
+    commits:
+    - fd0b61ca2
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: use api key device notification for approval'
+    commits:
+    - dd56ecbf9
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: wait for signup credit balance'
+    commits:
+    - c5473fb71
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: skip Sightengine health on quota exhaustion'
+    commits:
+    - d33b94471
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-07'
+    title: 'test: allow memories without embed previews'
+    commits:
+    - 7529ae2e9
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-07'
+    title: 'test: cover 2fa reconnect preview'
+    commits:
+    - 0339e7508
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-07'
+    title: 'test: handle resolved travel booking urls'
+    commits:
+    - d5e8302c3
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-07'
+    title: 'test: relax saved memory title matching'
+    commits:
+    - 6c7b2b4ea
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-08'
+    title: 'test: clarify saved memory reminder verification'
+    commits:
+    - fabf20081
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-08'
+    title: 'test: stabilize saved embed travel retry'
+    commits:
+    - 0e180bbde
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-08'
+    title: 'test: verify saved memory reminder creation'
+    commits:
+    - c799e9e94
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-09'
+    title: 'test: assert repo search fullscreen content'
+    commits:
+    - ebcf818b4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-09'
+    title: 'test: cover GitHub repo metadata embeds'
+    commits:
+    - 176413a3f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-09'
+    title: 'test: make repo search spec deterministic'
+    commits:
+    - cd1814d06
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-09'
+    title: 'test: scope embed diff sync noise allowance'
+    commits:
+    - 27826d823
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-09'
+    title: 'test: wait for embed diff updates before cleanup'
+    commits:
+    - e1be40a8a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: product
+  item_count: 24
+  newsletter_ready_count: 24
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-04'
+    title: 'feat: add announcement video to deletion reminders'
+    commits:
+    - '320255205'
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: add daily inspiration swipe navigation'
+    commits:
+    - 361adf95d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: always dispatch auto top-up completion'
+    commits:
+    - d671271b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: complete signup from payment success'
+    commits:
+    - a52081d32
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: prevent signup back navigation crash'
+    commits:
+    - 319890f0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: propagate auto top-up completion events'
+    commits:
+    - 487b632cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: sync Safari chrome with app theme'
+    commits:
+    - 209eccfc1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'feat: add GitHub repo button to header'
+    commits:
+    - 1b826f503
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: refetch incomplete login profile cache'
+    commits:
+    - 913babd5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: start passkey autofill before focusing login input'
+    commits:
+    - 347d120e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: derive saved embed ids from content refs'
+    commits:
+    - c318715a3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: restore 2fa reconnect verification'
+    commits:
+    - b5aaf7f73
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: save child embed ids in memories'
+    commits:
+    - 9c1c0ecde
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: save selected fullscreen memory title'
+    commits:
+    - f4dc649dd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: stabilize code fullscreen text sizing'
+    commits:
+    - 0543c5d86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: stabilize saved memory test signal'
+    commits:
+    - 51bf7288a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-08'
+    title: 'feat: add calendar downloads to event embeds'
+    commits:
+    - bff6c0589
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-08'
+    title: 'feat: show DB train realtime status'
+    commits:
+    - 1347f5710
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-08'
+    title: 'fix: make saved embed memory save reliable'
+    commits:
+    - 87ed0a7b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'feat: add touch swipes to grouped embeds'
+    commits:
+    - 96e1f7bc8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'fix: route GitHub repo searches to code skill'
+    commits:
+    - c0e7228d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'fix: route repository searches to code skill'
+    commits:
+    - b4ecc982f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'fix: use repo search translation namespace'
+    commits:
+    - 40aa81de5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-10'
+    title: 'fix: strip app skill placeholders from final text'
+    commits:
+    - a8070a931
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: settings
+  item_count: 8
+  newsletter_ready_count: 5
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-04'
+    title: 'fix: harden security-sensitive fulfillment and reauth'
+    commits:
+    - ec7f6b011
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: avoid duplicate delete 2fa verification'
+    commits:
+    - 0e30025c2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: reset settings menu in api key flow'
+    commits:
+    - e33487f46
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: scroll api key settings items into view'
+    commits:
+    - c0d54d486
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: use visible settings back button'
+    commits:
+    - a7cb784b9
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-07'
+    title: 'feat: save embed results to memories'
+    commits:
+    - 7c464aa37
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: expose memory entry test ids'
+    commits:
+    - 1f954d913
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: resolve saved child embed previews'
+    commits:
+    - 7811bb567
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: apple
+  item_count: 4
+  newsletter_ready_count: 1
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-05'
+    title: 'chore: refresh generated macOS icon outputs'
+    commits:
+    - d0b8b7c39
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'chore: refresh macOS app icon assets'
+    commits:
+    - 1357a7d1b
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: tint iOS Safari browser chrome'
+    commits:
+    - 88642c5a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: detect Apple external display scenes'
+    commits:
+    - '280607642'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+- theme: docs
+  item_count: 4
+  newsletter_ready_count: 1
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-06'
+    title: 'test: allow necessary payment cookies'
+    commits:
+    - 69d65dc93
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: reject made-for-kids inspiration videos'
+    commits:
+    - 2aae3ed90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'chore: update Obsidian test note automation'
+    commits:
+    - c1e4d339a
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-09'
+    title: 'test: verify generated DOCX embed artifacts'
+    commits:
+    - 9bfaead9d
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: cli_sdk
+  item_count: 3
+  newsletter_ready_count: 2
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-06'
+    title: 'fix: avoid cli memory export rate limits'
+    commits:
+    - 793011e15
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: retry cli settings rate limits'
+    commits:
+    - 8e6311305
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'test: harden remaining targeted e2e specs'
+    commits:
+    - 6caeed77f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: security
+  item_count: 3
+  newsletter_ready_count: 1
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-05'
+    title: 'fix: count invoice records for signup cleanup'
+    commits:
+    - 7d210a865
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: require credits to complete signup cleanup'
+    commits:
+    - 2d392d75a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: complete paid signups and add invoice remediation'
+    commits:
+    - 0b495aeeb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: infrastructure
+  item_count: 2
+  newsletter_ready_count: 2
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-04'
+    title: 'fix: resolve embed timeline import (Vercel build)'
+    commits:
+    - '767150815'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: serve Apple app site association'
+    commits:
+    - c55b08dde
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: self_hosting
+  item_count: 2
+  newsletter_ready_count: 2
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-07'
+    title: 'fix: validate Vault token before API startup'
+    commits:
+    - 6c3b6b0e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'feat: generate real DOCX docs artifacts'
+    commits:
+    - 8ced9d773
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - date: '2026-05-04'
+    title: 'feat: add announcement video to deletion reminders'
+    commits:
+    - '320255205'
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: add daily inspiration swipe navigation'
+    commits:
+    - 361adf95d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: center mobile welcome content'
+    commits:
+    - 90b3cee36
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: harden security-sensitive fulfillment and reauth'
+    commits:
+    - ec7f6b011
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: hide dates for public chat suggestions'
+    commits:
+    - f61184b39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: resolve embed timeline import (Vercel build)'
+    commits:
+    - '767150815'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: show new chat CTA for announcements'
+    commits:
+    - 428e55bbf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: show new chat button for drafted welcome input'
+    commits:
+    - 8a425abc6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: always dispatch auto top-up completion'
+    commits:
+    - d671271b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: complete signup from payment success'
+    commits:
+    - a52081d32
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: keep embed fullscreen recoverable after chunk load failure'
+    commits:
+    - 413418f13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: prevent signup back navigation crash'
+    commits:
+    - 319890f0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: propagate auto top-up completion events'
+    commits:
+    - 487b632cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: refresh Directus tokens for regular collection reads'
+    commits:
+    - dbf4ed4f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: sync Safari chrome with app theme'
+    commits:
+    - 209eccfc1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: tint iOS Safari browser chrome'
+    commits:
+    - 88642c5a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'feat: add GitHub repo button to header'
+    commits:
+    - 1b826f503
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: avoid cli memory export rate limits'
+    commits:
+    - 793011e15
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: avoid duplicate delete 2fa verification'
+    commits:
+    - 0e30025c2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: complete paid signups and add invoice remediation'
+    commits:
+    - 0b495aeeb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: recover stale fullscreen chunks'
+    commits:
+    - e700a636d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: refetch incomplete login profile cache'
+    commits:
+    - 913babd5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: reject stale shared chat links'
+    commits:
+    - 2911b6461
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: retry cli settings rate limits'
+    commits:
+    - 8e6311305
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: serve Apple app site association'
+    commits:
+    - c55b08dde
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: start passkey autofill before focusing login input'
+    commits:
+    - 347d120e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'feat: save embed results to memories'
+    commits:
+    - 7c464aa37
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: derive saved embed ids from content refs'
+    commits:
+    - c318715a3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: expose memory entry test ids'
+    commits:
+    - 1f954d913
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: reject made-for-kids inspiration videos'
+    commits:
+    - 2aae3ed90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: resolve saved child embed previews'
+    commits:
+    - 7811bb567
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: restore 2fa reconnect verification'
+    commits:
+    - b5aaf7f73
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: save child embed ids in memories'
+    commits:
+    - 9c1c0ecde
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: save selected fullscreen memory title'
+    commits:
+    - f4dc649dd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: stabilize code fullscreen text sizing'
+    commits:
+    - 0543c5d86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: stabilize saved memory test signal'
+    commits:
+    - 51bf7288a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: validate Vault token before API startup'
+    commits:
+    - 6c3b6b0e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-08'
+    title: 'feat: add calendar downloads to event embeds'
+    commits:
+    - bff6c0589
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-08'
+    title: 'feat: show DB train realtime status'
+    commits:
+    - 1347f5710
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-08'
+    title: 'fix: improve saved embed reminders'
+    commits:
+    - f761ebdd7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-08'
+    title: 'fix: make saved embed memory save reliable'
+    commits:
+    - 87ed0a7b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'feat: add GitHub repository embeds'
+    commits:
+    - 3fd120968
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'feat: add code repository search skill'
+    commits:
+    - 46dfb56f6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'feat: add touch swipes to grouped embeds'
+    commits:
+    - 96e1f7bc8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'feat: generate real DOCX docs artifacts'
+    commits:
+    - 8ced9d773
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'fix: route GitHub repo searches to code skill'
+    commits:
+    - c0e7228d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'fix: route repository searches to code skill'
+    commits:
+    - b4ecc982f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'fix: use repo search translation namespace'
+    commits:
+    - 40aa81de5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-10'
+    title: 'feat: add source-backed URL safety processing'
+    commits:
+    - 42241a5d4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-10'
+    title: 'fix: show target chat in reminder details'
+    commits:
+    - aa40ba1fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-10'
+    title: 'fix: strip app skill placeholders from final text'
+    commits:
+    - a8070a931
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  social_or_video:
+  - date: '2026-05-04'
+    title: 'feat: add announcement video to deletion reminders'
+    commits:
+    - '320255205'
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: add daily inspiration swipe navigation'
+    commits:
+    - 361adf95d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: center mobile welcome content'
+    commits:
+    - 90b3cee36
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: harden security-sensitive fulfillment and reauth'
+    commits:
+    - ec7f6b011
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: hide dates for public chat suggestions'
+    commits:
+    - f61184b39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: resolve embed timeline import (Vercel build)'
+    commits:
+    - '767150815'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: show new chat CTA for announcements'
+    commits:
+    - 428e55bbf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-04'
+    title: 'fix: show new chat button for drafted welcome input'
+    commits:
+    - 8a425abc6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'feat: refine Apple app chat and settings'
+    commits:
+    - 8db8ac23a
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-05'
+    title: 'fix: always dispatch auto top-up completion'
+    commits:
+    - d671271b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: complete signup from payment success'
+    commits:
+    - a52081d32
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: keep embed fullscreen recoverable after chunk load failure'
+    commits:
+    - 413418f13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: prevent signup back navigation crash'
+    commits:
+    - 319890f0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: propagate auto top-up completion events'
+    commits:
+    - 487b632cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: refresh Directus tokens for regular collection reads'
+    commits:
+    - dbf4ed4f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: stabilize macOS intro video playback'
+    commits:
+    - d7a59e735
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-05'
+    title: 'fix: sync Safari chrome with app theme'
+    commits:
+    - 209eccfc1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-05'
+    title: 'fix: tint iOS Safari browser chrome'
+    commits:
+    - 88642c5a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'feat: add GitHub repo button to header'
+    commits:
+    - 1b826f503
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'feat: refine Apple app embeds and auth'
+    commits:
+    - ff7639e29
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-06'
+    title: 'fix: avoid cli memory export rate limits'
+    commits:
+    - 793011e15
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: avoid duplicate delete 2fa verification'
+    commits:
+    - 0e30025c2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: complete paid signups and add invoice remediation'
+    commits:
+    - 0b495aeeb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: detect Apple external display scenes'
+    commits:
+    - '280607642'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-06'
+    title: 'fix: recover stale fullscreen chunks'
+    commits:
+    - e700a636d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: refetch incomplete login profile cache'
+    commits:
+    - 913babd5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: reject stale shared chat links'
+    commits:
+    - 2911b6461
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: retry cli settings rate limits'
+    commits:
+    - 8e6311305
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: serve Apple app site association'
+    commits:
+    - c55b08dde
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-06'
+    title: 'fix: start passkey autofill before focusing login input'
+    commits:
+    - 347d120e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'feat: save embed results to memories'
+    commits:
+    - 7c464aa37
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: derive saved embed ids from content refs'
+    commits:
+    - c318715a3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: expose memory entry test ids'
+    commits:
+    - 1f954d913
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: load native chat embeds with children'
+    commits:
+    - 5b3dfffb7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-07'
+    title: 'fix: reject made-for-kids inspiration videos'
+    commits:
+    - 2aae3ed90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: resolve saved child embed previews'
+    commits:
+    - 7811bb567
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: restore 2fa reconnect verification'
+    commits:
+    - b5aaf7f73
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: save child embed ids in memories'
+    commits:
+    - 9c1c0ecde
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: save selected fullscreen memory title'
+    commits:
+    - f4dc649dd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: stabilize code fullscreen text sizing'
+    commits:
+    - 0543c5d86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: stabilize saved memory test signal'
+    commits:
+    - 51bf7288a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-07'
+    title: 'fix: validate Vault token before API startup'
+    commits:
+    - 6c3b6b0e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-08'
+    title: 'feat: add calendar downloads to event embeds'
+    commits:
+    - bff6c0589
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-08'
+    title: 'feat: show DB train realtime status'
+    commits:
+    - 1347f5710
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-08'
+    title: 'fix: improve saved embed reminders'
+    commits:
+    - f761ebdd7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-08'
+    title: 'fix: make saved embed memory save reliable'
+    commits:
+    - 87ed0a7b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'feat: add GitHub repository embeds'
+    commits:
+    - 3fd120968
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'feat: add code repository search skill'
+    commits:
+    - 46dfb56f6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'feat: add native chat streaming sync parity'
+    commits:
+    - c422f3c92
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-09'
+    title: 'feat: add touch swipes to grouped embeds'
+    commits:
+    - 96e1f7bc8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'feat: generate real DOCX docs artifacts'
+    commits:
+    - 8ced9d773
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'fix: improve native chat sync and settings parity'
+    commits:
+    - efffd19ba
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-09'
+    title: 'fix: route GitHub repo searches to code skill'
+    commits:
+    - c0e7228d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'fix: route repository searches to code skill'
+    commits:
+    - b4ecc982f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-09'
+    title: 'fix: use repo search translation namespace'
+    commits:
+    - 40aa81de5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-10'
+    title: 'feat: add source-backed URL safety processing'
+    commits:
+    - 42241a5d4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-10'
+    title: 'fix: show target chat in reminder details'
+    commits:
+    - aa40ba1fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-10'
+    title: 'fix: strip app skill placeholders from final text'
+    commits:
+    - a8070a931
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+risks:
+  communication:
+  - Use weekly themes for PR/release/newsletter drafting; do not list every daily item one-by-one.
+  - Keep dev_only and unknown_release_status items out of public newsletters until released on main.
+sources:
+  daily_files:
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-04.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-05.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-06.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-07.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-08.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-09.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-10.yml
+llm_summary:
+  overview: OpenMates introduced a major expansion of its memory system, allowing users to save interactive results from various
+    apps directly to their personal knowledge base. The update also brought significant new integrations, including GitHub
+    repository searching, real-time travel status, and native DOCX document generation, alongside extensive security hardening
+    and mobile UI refinements.
+  released_changes:
+  - text: Users can now save interactive results from the Events, Health, Home, Reminder, and Travel apps directly into their
+      personal memories.
+    evidence:
+      commits:
+      - 7c464aa37
+    release_status: released_main
+  - text: A new code repository search skill and rich GitHub repository embeds allow for finding and previewing repositories
+      within the chat.
+    evidence:
+      commits:
+      - 46dfb56f6
+      - 3fd120968
+    release_status: released_main
+  - text: Travel connection and search embeds now display real-time train status for DB connections.
+    evidence:
+      commits:
+      - 1347f5710
+    release_status: released_main
+  - text: Event embeds now support calendar downloads, enabling users to export event details to personal calendars.
+    evidence:
+      commits:
+      - bff6c0589
+    release_status: released_main
+  - text: The document generation system now produces real DOCX artifacts instead of simple text representations.
+    evidence:
+      commits:
+      - 8ced9d773
+    release_status: released_main
+  - text: The web application now synchronizes the Safari browser chrome tint with the active app theme on iOS.
+    evidence:
+      commits:
+      - 88642c5a6
+      - 209eccfc1
+    release_status: released_main
+  - text: A GitHub repository button was added to the application header for easier access to the project source.
+    evidence:
+      commits:
+      - 1b826f503
+    release_status: released_main
+  - text: Grouped embeds now support touch swipes, improving navigation on mobile devices.
+    evidence:
+      commits:
+      - 96e1f7bc8
+    release_status: released_main
+  - text: Source-backed URL safety processing was added to the AI message pipeline, including normalization and updated safety
+      documentation.
+    evidence:
+      commits:
+      - 42241a5d4
+    release_status: released_main
+  - text: Account deletion reminder emails now include an announcement video.
+    evidence:
+      commits:
+      - '320255205'
+    release_status: released_main
+  bug_fixes:
+  - text: Security-sensitive fulfillment and reauthentication processes were hardened to improve account safety.
+    evidence:
+      commits:
+      - ec7f6b011
+    release_status: released_main
+  - text: Passkey autofill now triggers before focusing the login input for a smoother authentication experience.
+    evidence:
+      commits:
+      - 347d120e5
+    release_status: released_main
+  - text: The 2FA reconnection flow now correctly restores verification steps during account recovery.
+    evidence:
+      commits:
+      - b5aaf7f73
+    release_status: released_main
+  - text: A crash that occurred when using back navigation during the signup process was resolved.
+    evidence:
+      commits:
+      - 319890f0f
+    release_status: released_main
+  - text: The OpenMates CLI now handles rate limits more gracefully during settings updates and memory exports.
+    evidence:
+      commits:
+      - 8e6311305
+      - 793011e15
+    release_status: released_main
+  - text: The web application now correctly rejects and handles stale shared chat links.
+    evidence:
+      commits:
+      - 2911b6461
+    release_status: released_main
+  - text: Internal app skill placeholders are now stripped from final AI response text to ensure cleaner output.
+    evidence:
+      commits:
+      - a8070a931
+    release_status: released_main
+  - text: The reminder details view in settings now correctly displays the target chat associated with an active reminder.
+    evidence:
+      commits:
+      - aa40ba1fb
+    release_status: released_main
+  - text: Fullscreen embeds and content chunks are now recoverable following network or load failures.
+    evidence:
+      commits:
+      - 413418f13
+      - e700a636d
+    release_status: released_main
+  unreleased_progress:
+  - text: Refinements were made to the chat interface and settings views for the upcoming iOS and macOS applications.
+    evidence:
+      commits:
+      - 8db8ac23a
+    release_status: released_main
+  - text: Intro video playback was stabilized for the macOS application.
+    evidence:
+      commits:
+      - d7a59e735
+    release_status: released_main
+  - text: Development continued on native platform parity, including refinements to embeds and authentication views for Apple
+      platforms.
+    evidence:
+      commits:
+      - ff7639e29
+    release_status: released_main
+  - text: External display detection for Apple platform scenes was improved.
+    evidence:
+      commits:
+      - '280607642'
+    release_status: released_main
+  - text: Work continued on native chat embeds for iOS and macOS, focusing on loading child components within the chat view.
+    evidence:
+      commits:
+      - 5b3dfffb7
+    release_status: released_main
+  - text: Chat streaming synchronization was improved for native platforms.
+    evidence:
+      commits:
+      - c422f3c92
+    release_status: released_main
+  - text: Settings parity and synchronization were refined for the unreleased iOS and macOS clients.
+    evidence:
+      commits:
+      - efffd19ba
+    release_status: released_main
+  internal_progress:
+  - text: API startup reliability was improved by adding a validation step for Vault tokens before the service begins.
+    evidence:
+      commits:
+      - 6c3b6b0e5
+    release_status: released_main
+  - text: Extensive stabilization of the Playwright E2E test suite was performed to reduce flakiness in chat, encryption,
+      and authentication flows.
+    evidence:
+      commits:
+      - 08da1b604
+      - f66e81c97
+      - a2ce9853d
+      - d85639271
+      - bc7b711dd
+      - d3332abfe
+      - 3c926487f
+      - 029390243
+      - dd56ecbf9
+      - c0d54d486
+      - a7cb784b9
+      - e33487f46
+      - 12c3aae63
+      - 6caeed77f
+      - c5473fb71
+      - 69d65dc93
+      - cc5faa61d
+      - 911a5657c
+      - fd0b61ca2
+      - 5a69d3cdb
+      - 9b28ebe83
+      - d93a168ff
+      - 1f9d4fb58
+      - bd26c485e
+      - beab095ef
+    release_status: released_main
+  - text: Automation scripts for syncing test results and daily notes within Obsidian were updated.
+    evidence:
+      commits:
+      - c1e4d339a
+    release_status: released_main
+  - text: The system now skips Sightengine health checks when API quotas are exhausted to prevent unnecessary task failures.
+    evidence:
+      commits:
+      - d33b94471
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Save interactive embed results from Events, Health, Home, and Travel apps directly to memories.
+      evidence:
+        commits:
+        - 7c464aa37
+      reason: Major new capability for saving search and activity results to a personal knowledge base.
+    - text: GitHub repository search skill and rich repository embeds.
+      evidence:
+        commits:
+        - 46dfb56f6
+        - 3fd120968
+      reason: New developer-focused integration for searching and previewing GitHub repositories.
+    - text: Real-time train status for DB connections within travel embeds.
+      evidence:
+        commits:
+        - 1347f5710
+      reason: Introduces real-time utility for travel planning.
+    - text: Calendar download support for event embeds.
+      evidence:
+        commits:
+        - bff6c0589
+      reason: Practical productivity feature for event management.
+    - text: Native DOCX document artifact generation.
+      evidence:
+        commits:
+        - 8ced9d773
+      reason: Significant functional improvement to document generation capabilities.
+    - text: Synchronization of Safari browser chrome tinting with the active application theme.
+      evidence:
+        commits:
+        - 88642c5a6
+        - 209eccfc1
+      reason: High-polish visual feature for mobile web users.
+    exclude:
+    - text: Apple platform application refinements and synchronization improvements.
+      evidence:
+        commits:
+        - 8db8ac23a
+        - d7a59e735
+        - ff7639e29
+        - '280607642'
+        - 5b3dfffb7
+        - c422f3c92
+        - efffd19ba
+      reason: These items relate to iOS and macOS platforms which are currently listed as disabled features.
+    rationale: The week's updates significantly expand the platform's utility through the 'Save to Memories' feature and new
+      integrations for GitHub and real-time travel. These are supported by high-polish UI refinements for mobile users and
+      critical security hardening.
+  social_video_recommendations:
+  - idea: A screen recording showing a user finding a travel connection and clicking 'Save to Memory', then viewing it in
+      their settings.
+    priority: high
+    reason: Demonstrates cross-app integration and the value of the memory system.
+    evidence:
+      commits:
+      - 7c464aa37
+  - idea: A short clip showing the transition from a static train connection to one displaying live delay and status information.
+    priority: high
+    reason: Real-time data is a high-value feature for travel users.
+    evidence:
+      commits:
+      - 1347f5710
+  - idea: A clip showing the Safari address bar color changing dynamically as the user switches between light and dark themes.
+    priority: medium
+    reason: Demonstrates attention to detail in the mobile web experience.
+    evidence:
+      commits:
+      - 88642c5a6
+      - 209eccfc1
+  quality_notes:
+  - The introduction of 'Save to Memories' was supported by immediate follow-up fixes for data integrity and notification
+    synchronization.
+  - Security was a major focus, with hardening for reauthentication, passkey improvements, and Vault token validation.
+  - Mobile UX was enhanced through Safari theme synchronization and touch swipe support for grouped content.
+  validation_warnings: []

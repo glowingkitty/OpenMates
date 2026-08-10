@@ -51,7 +51,7 @@ claims:
 
 ## Why This Exists
 
-A generic AI assistant underperforms on domain-specific tasks. Mates provide tailored system prompts that establish expertise, set communication style, include domain-specific guidelines, and add necessary disclaimers (medical, legal, financial). The preprocessor routes each message to the most appropriate Mate.
+A generic AI assistant underperforms on domain-specific tasks. Mates provide tailored system prompts that establish expertise, set communication style, include domain-specific guidelines, and add necessary disclaimers (medical, legal, financial). The preprocessor routes each message to the most appropriate Mate. Mate names are UI metadata; backend prompts stay name-neutral so regular answers do not self-introduce as the selected Mate.
 
 ## How It Works
 
@@ -103,7 +103,7 @@ i18n:
   system_prompt: mates.software_development.systemprompt
 ---
 
-You are Sophia, an expert AI software development assistant.
+Act as an expert AI software development assistant.
 ...
 ```
 

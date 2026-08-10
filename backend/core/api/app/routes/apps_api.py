@@ -27,6 +27,13 @@ from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.shared.python_utils.billing_utils import calculate_total_credits
+from backend.shared.python_utils.app_skill_output_safety import (
+    AppSkillOutputSafetyContext,
+    APP_SKILL_SURFACE_REST,
+    is_external_data_skill,
+    sanitize_app_skill_output,
+    strip_request_security_controls,
+)
 from backend.shared.python_utils.provider_health import map_provider_name_to_id
 from backend.core.api.app.services.rest_skill_execution_policy import assert_rest_skill_execution_allowed
 from backend.core.api.app.services.api_key_authorization import (
@@ -42,10 +49,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
-from backend.core.api.app.utils.text_sanitization import (
-    sanitize_text_payload_for_ascii_smuggling,
-    sanitize_text_simple,
-)
+from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
 
 # Import AI models for documentation purposes
 # Use absolute imports to avoid circular dependencies
@@ -67,6 +71,7 @@ DEFAULT_APP_INTERNAL_PORT = 8000
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 APPLE_DEVICE_CLIENTS = {"ios", "macos", "apple"}
+VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak")}
 
 
 def _apple_session_device_hash(request: Request, user_id: str) -> Optional[str]:
@@ -221,6 +226,7 @@ async def get_session_or_api_key_info(
                 "device_hash": device_hash,
                 "is_cli": is_cli,
                 "email": getattr(user, "encrypted_email_address", None),
+                "vault_key_id": getattr(user, "vault_key_id", None),
             }
         except HTTPException:
             pass  # session invalid — fall through to API key
@@ -243,6 +249,40 @@ async def get_session_or_api_key_info(
 
 
 SessionOrApiKeyAuth = Depends(get_session_or_api_key_info)
+
+
+def _custom_route_user_info(request: Request | None, user: Any) -> Dict[str, Any]:
+    """Return the full auth context for custom app routes that receive a User."""
+
+    user_id = user.id if hasattr(user, "id") else str(user)
+    auth_info = getattr(getattr(request, "state", None), "auth_info", None) or {}
+    return {
+        "user_id": user_id,
+        "api_key_encrypted_name": auth_info.get("api_key_encrypted_name", ""),
+        "api_key_hash": auth_info.get("api_key_hash"),
+        "api_key_metadata": auth_info.get("api_key_metadata"),
+        "device_hash": auth_info.get("device_hash"),
+        "is_cli": auth_info.get("is_cli", False),
+        "email": auth_info.get("email"),
+        "vault_key_id": auth_info.get("vault_key_id") or getattr(user, "vault_key_id", None),
+        "auth_source": auth_info.get("auth_source", "session"),
+    }
+
+
+def _require_api_key_app_skill_scope(user_info: Dict[str, Any], app_id: str, skill_id: str) -> None:
+    if not user_info.get("api_key_hash"):
+        return
+    try:
+        ApiKeyAuthorizationService().require_app_skill_scope(
+            user_info.get("api_key_metadata") or {},
+            app_id,
+            skill_id,
+        )
+    except ApiKeyScopeError as exc:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "missing_scope", "missing_scope": exc.missing_scope},
+        ) from exc
 
 
 async def get_encryption_service(request: Request) -> EncryptionService:
@@ -294,19 +334,8 @@ def _sanitize_dict_recursively(data: Any, log_prefix: str = "") -> Any:
     Returns:
         A copy of the data with all strings sanitized
     """
-    if isinstance(data, dict):
-        return {key: _sanitize_dict_recursively(value, log_prefix) for key, value in data.items()}
-    elif isinstance(data, list):
-        return [_sanitize_dict_recursively(item, log_prefix) for item in data]
-    elif isinstance(data, str):
-        # Only sanitize for ASCII smuggling — do NOT strip URL query params here.
-        # Skill input_data often contains URLs where query params are functional
-        # (e.g. ?v=VIDEO_ID for YouTube). The URL query/fragment stripping is
-        # appropriate for LLM chat context but not for structured skill inputs.
-        return sanitize_text_simple(data, log_prefix=log_prefix)
-    else:
-        # Primitives (int, float, bool, None) pass through unchanged
-        return data
+    sanitized, _ = sanitize_text_payload_for_ascii_smuggling(data, log_prefix=log_prefix)
+    return sanitized
 
 
 def resolve_translation(translation_service, translation_key: str, namespace: str, fallback: str = "") -> str:
@@ -404,6 +433,9 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
     # Format: SECRET__{PROVIDER}__API_KEY
     provider_key_map = {
         "brave": ["SECRET__BRAVE__API_KEY", "SECRET__BRAVE_SEARCH__API_KEY"],
+        "mistral": ["SECRET__MISTRAL_AI__API_KEY", "SECRET__MISTRAL__API_KEY"],
+        "mistral_ai": ["SECRET__MISTRAL_AI__API_KEY"],
+        "google_ai_studio": ["SECRET__GOOGLE_AI_STUDIO__API_KEY"],
         "firecrawl": ["SECRET__FIRECRAWL__API_KEY", "FIRECRAWL_API_KEY"],
         "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__YOUTUBE__API_KEY"],
         "google_maps": ["SECRET__GOOGLE_MAPS__API_KEY"],
@@ -439,7 +471,9 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
     """
     # If the provider YAML declares no_api_key: true, it never needs a key — always available.
     if config_manager is not None:
-        provider_config = config_manager.get_provider_config(provider_id)
+        provider_config = config_manager.get_provider_config(provider_id) if hasattr(config_manager, "get_provider_config") else None
+        if provider_config is None and hasattr(config_manager, "get_provider_configs"):
+            provider_config = (config_manager.get_provider_configs() or {}).get(provider_id)
         if provider_config and provider_config.get("no_api_key") is True:
             logger.debug(f"Provider '{provider_id}' has no_api_key=true — always available")
             return True
@@ -451,7 +485,7 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
     
     # First, try to get from Vault
     try:
-        if secrets_manager.vault_token and secrets_manager.vault_url:
+        if getattr(secrets_manager, "vault_token", None) and getattr(secrets_manager, "vault_url", None):
             api_key = await secrets_manager.get_secret(
                 secret_path=vault_path,
                 secret_key=vault_key
@@ -475,7 +509,7 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
         vertex_project_id = os.getenv("GOOGLE_VERTEX_PROJECT_ID")
         vertex_service_account = os.getenv("GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON")
         try:
-            if secrets_manager.vault_token and secrets_manager.vault_url:
+            if getattr(secrets_manager, "vault_token", None) and getattr(secrets_manager, "vault_url", None):
                 vertex_project_id = vertex_project_id or await secrets_manager.get_secret(
                     secret_path=vault_path,
                     secret_key="project_id",
@@ -719,12 +753,12 @@ async def get_skill_providers_with_pricing(
             
             # Get provider config to extract name and description
             provider_config = config_manager.get_provider_config(provider_id)
-            provider_display_name = provider_name  # Fallback to provider_name from app.yml
+            provider_display_name = provider_ref.display_name or provider_name  # Fallback to provider_name from app.yml
             provider_description = ""  # Default empty description
             
             if provider_config:
                 # Use name and description from provider YAML file if available
-                provider_display_name = provider_config.get("name", provider_name)
+                provider_display_name = provider_ref.display_name or provider_config.get("name", provider_name)
                 provider_description = provider_config.get("description", "")
             else:
                 logger.debug(f"Provider config not found for '{provider_id}', using fallback name '{provider_name}'")
@@ -758,6 +792,8 @@ async def call_app_skill(
     input_data: Dict[str, Any],
     parameters: Dict[str, Any],
     user_info: Dict[str, Any],
+    secrets_manager: SecretsManager | None = None,
+    cache_service: CacheService | None = None,
     enforce_rest_exposure_policy: bool = True,
 ) -> Dict[str, Any]:
     """
@@ -799,10 +835,11 @@ async def call_app_skill(
     user_id_short = user_info['user_id'][:8] if user_info.get('user_id') else 'unknown'
     log_prefix = f"[API {app_id}/{skill_id}][User {user_id_short}...] "
     sanitized_input_data = _sanitize_dict_recursively(input_data, log_prefix=log_prefix)
+    skill_input_data = strip_request_security_controls(sanitized_input_data)
 
     # Build the request body the same way the old HTTP path did: tool_schema
     # structure (e.g. {"requests": [...]}) plus underscore-prefixed metadata.
-    request_payload = sanitized_input_data.copy() if isinstance(sanitized_input_data, dict) else {}
+    request_payload = skill_input_data.copy() if isinstance(skill_input_data, dict) else {}
     if not isinstance(request_payload, dict):
         request_payload = {}
     request_payload['_user_id'] = user_info['user_id']
@@ -810,20 +847,26 @@ async def call_app_skill(
     request_payload['_api_key_hash'] = user_info.get('api_key_hash')
     request_payload['_device_hash'] = user_info.get('device_hash')
     request_payload['_external_request'] = True
+    if user_info.get('vault_key_id'):
+        request_payload['_user_vault_key_id'] = user_info['vault_key_id']
+    if secrets_manager is not None:
+        request_payload['_secrets_manager'] = secrets_manager
 
     try:
         result = await registry.dispatch_skill(app_id, skill_id, request_payload)
-        sanitized_result, ascii_stats = sanitize_text_payload_for_ascii_smuggling(
+        return await sanitize_app_skill_output(
             result,
-            log_prefix=log_prefix,
+            AppSkillOutputSafetyContext(
+                app_id=app_id,
+                skill_id=skill_id,
+                surface=APP_SKILL_SURFACE_REST,
+                request_body=input_data if isinstance(input_data, dict) else {},
+                external_data=is_external_data_skill(registry.get_metadata(app_id), app_id, skill_id),
+                secrets_manager=secrets_manager,
+                cache_service=cache_service,
+                log_prefix=log_prefix,
+            ),
         )
-        if ascii_stats.get("removed_count", 0) > 0:
-            logger.warning(
-                f"{log_prefix}Removed {ascii_stats['removed_count']} ASCII-smuggling "
-                f"characters from REST skill output across "
-                f"{ascii_stats.get('fields_sanitized', 0)} field(s)"
-            )
-        return sanitized_result
     except HTTPException:
         # 4xx/5xx from inside the skill (validation, billing, missing skill, ...) —
         # propagate as-is so the REST handler returns the original status/detail.
@@ -883,6 +926,10 @@ def is_skill_execution_successful(result: Dict[str, Any]) -> bool:
                     # Check if this result item has actual results (not just errors)
                     item_results = result_item.get("results", [])
                     item_error = result_item.get("error")
+                    item_status = str(result_item.get("status") or "").lower()
+                    if item_status in {"finished", "processing"} and not item_error:
+                        all_failed = False
+                        break
                     
                     # If there are actual results (non-empty list), execution was at least partially successful
                     if isinstance(item_results, list) and len(item_results) > 0:
@@ -927,6 +974,17 @@ async def calculate_skill_credits(
     Returns:
         Number of credits to charge
     """
+    declared_result_credits = get_variable_result_credits(
+        getattr(app_metadata, "id", ""),
+        skill_id,
+        result_data,
+    )
+    if declared_result_credits is not None:
+        logger.info(
+            f"Using result-declared variable credits for skill '{app_metadata.id}.{skill_id}': {declared_result_credits}"
+        )
+        return declared_result_credits
+
     # Find the skill definition
     skill_def: Optional[AppSkillDefinition] = None
     for skill in app_metadata.skills or []:
@@ -1051,6 +1109,110 @@ async def calculate_skill_credits(
     
     logger.info(f"Calculated {credits_charged} credits for skill '{app_metadata.id}.{skill_id}' (units_processed={units_processed})")
     return credits_charged
+
+
+def get_variable_result_credits(
+    app_id: str,
+    skill_id: str,
+    result_data: Optional[Dict[str, Any]],
+) -> Optional[int]:
+    if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
+        return None
+    data = _as_dict(result_data)
+    results = data.get("results")
+    if not isinstance(results, list):
+        return None
+
+    total = 0
+    found = False
+    for item in results:
+        item_data = _as_dict(item)
+        direct_credits = item_data.get("credits_charged")
+        if item_data.get("status") == "finished" and direct_credits is not None:
+            total += int(direct_credits or 0)
+            found = True
+            continue
+        if item_data.get("status") == "processing" and item_data.get("task_id"):
+            found = True
+            continue
+        usage = item_data.get("usage")
+        if not isinstance(usage, dict):
+            continue
+        credits = usage.get("credits_charged")
+        if credits is None:
+            continue
+        total += int(credits)
+        found = True
+    return total if found else None
+
+
+def get_variable_preflight_reserved_credits(
+    app_id: str,
+    skill_id: str,
+    input_data: Dict[str, Any],
+) -> int:
+    if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
+        return 0
+    if app_id == "code" and skill_id == "image_to_html":
+        from backend.apps.code.skills.image_to_html_skill import (
+            DEFAULT_MAX_CORRECTION_PASSES,
+            DEFAULT_RESERVED_CREDITS_PER_REQUEST,
+            MAX_CORRECTION_PASSES,
+            MIN_CORRECTION_PASSES,
+        )
+
+        requests = input_data.get("requests")
+        items = requests if isinstance(requests, list) else [input_data]
+        reserved = 0
+        for item in items:
+            item_data = _as_dict(item)
+            raw_passes = item_data.get("max_correction_passes", DEFAULT_MAX_CORRECTION_PASSES)
+            try:
+                passes = int(raw_passes)
+            except (TypeError, ValueError):
+                passes = DEFAULT_MAX_CORRECTION_PASSES
+            passes = max(MIN_CORRECTION_PASSES, min(MAX_CORRECTION_PASSES, passes))
+            reserved += DEFAULT_RESERVED_CREDITS_PER_REQUEST * max(1, passes + 1)
+        return reserved
+    return 0
+
+
+def get_variable_result_usage_details(
+    app_id: str,
+    skill_id: str,
+    result_data: Optional[Dict[str, Any]],
+    request_index: int,
+) -> Dict[str, Any]:
+    if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
+        return {}
+    data = _as_dict(result_data)
+    results = data.get("results")
+    if not isinstance(results, list) or request_index >= len(results):
+        return {}
+    usage = _as_dict(_as_dict(results[request_index]).get("usage"))
+    if not usage:
+        return {}
+    details = {f"image_to_html_{key}": value for key, value in usage.items()}
+    if usage.get("model"):
+        details["model_used"] = usage["model"]
+    if usage.get("input_tokens") is not None:
+        details["input_tokens"] = usage["input_tokens"]
+    if usage.get("output_tokens") is not None:
+        details["output_tokens"] = usage["output_tokens"]
+    if usage.get("duration_second") is not None:
+        details["duration_second"] = usage["duration_second"]
+    elif usage.get("e2b_render_seconds") is not None:
+        details["duration_second"] = usage["e2b_render_seconds"]
+    return details
+
+
+def _as_dict(value: Any) -> Dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if hasattr(value, "model_dump"):
+        dumped = value.model_dump()
+        return dumped if isinstance(dumped, dict) else {}
+    return {}
 
 
 def resolve_skill_provider_info(
@@ -1339,6 +1501,10 @@ async def list_apps(
             # See audit finding #5.
             skills = []
             for skill in app_metadata.skills or []:
+                if getattr(skill, "internal", False):
+                    logger.debug(f"Skipping internal skill '{skill.id}' from app '{app_id}' list response")
+                    continue
+
                 # Check if skill is available based on API key configuration.
                 # When include_unavailable=True (used by CLI to match the web app's
                 # build-time static metadata), skip provider availability checks.
@@ -1560,8 +1726,14 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
 
         Supports both session authentication (web app) and API key authentication.
         """
-        # Extract user_id from the User object (works for both session and API key auth)
-        user_id = user.id if hasattr(user, 'id') else str(user)
+        user_info = _custom_route_user_info(request, user)
+        _require_api_key_app_skill_scope(user_info, "travel", "booking_link")
+        await require_api_key_budget_for_charge(
+            directus_service,
+            user_info=user_info,
+            requested_credits=25,
+        )
+        user_id = user_info["user_id"]
 
         try:
             logger.info(
@@ -1603,6 +1775,8 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
                     app_id="travel",
                     skill_id="booking_link",
                     usage_details=usage_details,
+                    api_key_hash=user_info.get("api_key_hash"),
+                    device_hash=user_info.get("device_hash"),
                 )
 
             return BookingLinkResponse(
@@ -1681,7 +1855,14 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
 
         Supports both session and API key authentication.
         """
-        user_id = user.id if hasattr(user, "id") else str(user)
+        user_info = _custom_route_user_info(request, user)
+        _require_api_key_app_skill_scope(user_info, "travel", "get_flight")
+        await require_api_key_budget_for_charge(
+            directus_service,
+            user_info=user_info,
+            requested_credits=7,
+        )
+        user_id = user_info["user_id"]
 
         try:
             logger.info(
@@ -1763,6 +1944,8 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
                 app_id="travel",
                 skill_id="get_flight",
                 usage_details=usage_details,
+                api_key_hash=user_info.get("api_key_hash"),
+                device_hash=user_info.get("device_hash"),
             )
 
             return FlightDetailsResponse(
@@ -1868,7 +2051,10 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
     - POST /v1/apps/audio/skills/transcribe — Audio transcription via Mistral Voxtral.
       Accepts session cookies (webapp) or Bearer API key (external clients).
     """
-    from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
+    from backend.core.api.app.routes.auth_routes.auth_dependencies import (
+        get_current_user_or_api_key,
+        get_secrets_manager,
+    )
 
     async def transcribe_handler(
         request_body: Dict[str, Any] = Body(..., description="Transcription request matching the audio/transcribe tool_schema."),
@@ -1876,6 +2062,7 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
         user=Depends(get_current_user_or_api_key),
         cache_service: CacheService = Depends(get_cache_service),
         directus_service: DirectusService = Depends(get_directus_service),
+        secrets_manager: SecretsManager = Depends(get_secrets_manager),
     ) -> SkillResponse:
         """
         Transcribe an audio recording that has been uploaded to S3.
@@ -1888,9 +2075,8 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
 
         Supports both session authentication (webapp) and API key authentication (external).
         """
-        # Extract user_id from the User object returned by get_current_user_or_api_key.
-        # Works for both session auth (User.id) and API key auth (User.id from profile fetch).
-        user_id = user.id if hasattr(user, "id") else str(user)
+        user_info = _custom_route_user_info(request, user)
+        user_id = user_info["user_id"]
 
         try:
             logger.info(f"Audio transcribe: User {user_id[:8]}... initiating transcription")
@@ -1917,15 +2103,7 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
             # framework reads this and passes it as user_vault_key_id kwarg to execute().
             request_body["_user_vault_key_id"] = vault_key_id
 
-            # Build a user_info dict compatible with call_app_skill's expectations.
-            # api_key_encrypted_name and api_key_hash are not available for session auth —
-            # use empty string / None as safe defaults.  The transcribe skill ignores them.
-            user_info = {
-                "user_id": user_id,
-                "api_key_encrypted_name": "",
-                "api_key_hash": None,
-                "device_hash": None,
-            }
+            user_info["vault_key_id"] = vault_key_id
 
             result = await call_app_skill(
                 app_id="audio",
@@ -1933,6 +2111,8 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
                 input_data=request_body,
                 parameters={},
                 user_info=user_info,
+                secrets_manager=secrets_manager,
+                cache_service=cache_service,
                 # Keep generic REST POST hidden while allowing this authenticated
                 # custom route to reach the transcription skill.
                 enforce_rest_exposure_policy=False,
@@ -1973,6 +2153,99 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
     logger.info("Registered custom route: POST /v1/apps/audio/skills/transcribe")
 
 
+def _register_models3d_custom_routes(app: FastAPI, app_name: str) -> None:
+    """Register the authenticated 3D generation endpoint for uploaded image inputs."""
+    class Model3DGenerateRequest(BaseModel):
+        prompt: str | None = None
+        image_embed_refs: list[str] | None = None
+        image_views: list[dict[str, Any]] | None = None
+
+    def compact_encrypted_image_record(record: dict[str, Any]) -> dict[str, Any]:
+        allowed_keys = {
+            "embed_id",
+            "encrypted_content",
+            "vault_wrapped_aes_key",
+            "aes_nonce",
+            "files",
+            "content_type",
+        }
+        return {key: value for key, value in record.items() if key in allowed_keys}
+
+    async def generate_handler(
+        body: Model3DGenerateRequest,
+        request: Request,
+        user_info: Dict[str, Any] = SessionOrApiKeyAuth,
+        cache_service: CacheService = Depends(get_cache_service),
+        directus_service: DirectusService = Depends(get_directus_service),
+    ) -> SkillResponse:
+        user_id = str(user_info["user_id"])
+        request_data = body.model_dump(exclude_none=True)
+        image_embed_ids = list(request_data.get("image_embed_refs") or [])
+        image_embed_ids.extend(
+            str(view.get("embed_ref") or "")
+            for view in request_data.get("image_views") or []
+            if isinstance(view, dict)
+        )
+
+        expected_user_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        input_embed_records: dict[str, dict[str, Any]] = {}
+        for embed_id in image_embed_ids:
+            cached_embed = await cache_service.get_embed_from_cache(embed_id)
+            if cached_embed and cached_embed.get("user_id") == user_id:
+                input_embed_records[embed_id] = compact_encrypted_image_record(cached_embed)
+                continue
+            embed = await directus_service.embed.get_embed_by_id(embed_id)
+            if not embed or embed.get("hashed_user_id") != expected_user_hash:
+                raise HTTPException(status_code=404, detail="Uploaded image not found")
+            input_embed_records[embed_id] = compact_encrypted_image_record(embed)
+
+        vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+        if not vault_key_id:
+            profile_result = await directus_service.users.get_user_profile(user_id)
+            profile = profile_result[1] if profile_result else None
+            vault_key_id = profile.get("vault_key_id") if profile else None
+        if not vault_key_id:
+            raise HTTPException(status_code=500, detail="Cannot resolve encryption key for 3D generation")
+
+        if user_info.get("api_key_hash") and image_embed_ids:
+            from backend.apps.models3d.skills.generate_skill import DEFAULT_MODEL_CREDITS
+
+            await require_api_key_budget_for_charge(
+                directus_service,
+                user_info=user_info,
+                requested_credits=DEFAULT_MODEL_CREDITS,
+            )
+
+        # REST callers send uploaded embed IDs; the skill resolves its normal
+        # user-facing references through this server-verified mapping.
+        request_data["_file_path_index"] = {embed_id: embed_id for embed_id in image_embed_ids}
+        request_data["_user_vault_key_id"] = vault_key_id
+        request_data["input_embed_records"] = input_embed_records
+        result = await call_app_skill(
+            app_id="models3d",
+            skill_id="generate",
+            input_data=request_data,
+            parameters={},
+            user_info=user_info,
+            secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
+            cache_service=cache_service,
+            enforce_rest_exposure_policy=False,
+        )
+        return SkillResponse(success=True, data=result, credits_charged=None)
+
+    app.add_api_route(
+        path="/v1/apps/models3d/skills/generate",
+        endpoint=limiter.limit("10/minute")(generate_handler),
+        methods=["POST"],
+        response_model=SkillResponse,
+        tags=[f"Apps | {app_name.capitalize()}"],
+        name="models3d_generate",
+        summary="Generate a 3D model",
+        description="Generate a 3D model from text, an uploaded image, or uploaded multi-view images.",
+    )
+    logger.info("Registered custom route: POST /v1/apps/models3d/skills/generate")
+
+
 def _register_code_custom_routes(app: FastAPI, app_name: str) -> None:
     """Register the canonical Code Run app-skill endpoint."""
     from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
@@ -1983,6 +2256,7 @@ def _register_code_custom_routes(app: FastAPI, app_name: str) -> None:
         CodeRunAppSkillResponseData,
         CodeRunAppSkillResult,
         CodeRunClientFile,
+        RUN_CREDITS_PER_MINUTE,
         collect_direct_code_run_files,
         _collect_code_files,
         _get_embed_metadata,
@@ -1997,6 +2271,13 @@ def _register_code_custom_routes(app: FastAPI, app_name: str) -> None:
         directus_service: DirectusService = Depends(get_directus_service),
         encryption_service: EncryptionService = Depends(get_encryption_service),
     ) -> CodeRunAppSkillResponse:
+        user_info = _custom_route_user_info(request, user)
+        _require_api_key_app_skill_scope(user_info, "code", "run")
+        await require_api_key_budget_for_charge(
+            directus_service,
+            user_info=user_info,
+            requested_credits=len(body.requests) * RUN_CREDITS_PER_MINUTE,
+        )
         results: list[CodeRunAppSkillResult] = []
         for item in body.requests:
             if item.mode == "direct":
@@ -2013,6 +2294,8 @@ def _register_code_custom_routes(app: FastAPI, app_name: str) -> None:
                     target_embed_id=None,
                     message_id=None,
                     dependency_installs=item.dependency_installs,
+                    api_key_hash=user_info.get("api_key_hash"),
+                    device_hash=user_info.get("device_hash"),
                 )
                 persisted_output = False
             else:
@@ -2051,6 +2334,8 @@ def _register_code_custom_routes(app: FastAPI, app_name: str) -> None:
                     target_embed_id=item.target_embed_id,
                     message_id=target_message_id if isinstance(target_message_id, str) else None,
                     dependency_installs=item.dependency_installs,
+                    api_key_hash=user_info.get("api_key_hash"),
+                    device_hash=user_info.get("device_hash"),
                 )
                 persisted_output = True
 
@@ -2140,6 +2425,10 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     # Convert skills
                     skills = []
                     for skill in captured_app_metadata.skills or []:
+                        if getattr(skill, "internal", False):
+                            logger.debug(f"Skipping internal skill '{skill.id}' from app '{captured_app_id}' metadata response")
+                            continue
+
                         skill_name = resolve_translation(
                             trans_service,
                             skill.name_translation_key,
@@ -2248,6 +2537,10 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
         
         # Register routes for each skill in the app
         for skill in app_metadata.skills or []:
+            if getattr(skill, "internal", False):
+                logger.info(f"Skipping generic REST endpoints for internal skill {app_id}/{skill.id}")
+                continue
+
             # Resolve skill name for documentation
             skill_name = resolve_translation(
                 translation_service,
@@ -2374,8 +2667,14 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     except Exception as e:
                         logger.warning(f"Could not import models from skill module {captured_skill.class_path}: {e}")
                 
-                # If we found the models, enhance them with proper structure from tool_schema
-                if SkillRequestModel and SkillResponseModel and captured_skill.tool_schema:
+                # If a response model exists, build the request model from tool_schema.
+                # Some async skills (e.g. code.image_to_html) intentionally define
+                # only a Response model and rely on app.yml for request structure.
+                if (
+                    SkillResponseModel
+                    and captured_skill.tool_schema
+                    and "requests" in (captured_skill.tool_schema.get("properties") or {})
+                ):
                     # Create an enhanced request model that properly defines the requests array items
                     # The original SearchRequest uses List[Dict[str, Any]] which doesn't show structure
                     # We'll create a new model based on the tool_schema
@@ -2560,14 +2859,28 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             
                             # Convert Pydantic model to dict for skill execution
                             request_dict = request_body.model_dump() if hasattr(request_body, 'model_dump') else dict(request_body)
-                            
+
+                            preflight_reserved_credits = get_variable_preflight_reserved_credits(
+                                captured_app_id,
+                                captured_skill.id,
+                                request_dict,
+                            )
+                            if preflight_reserved_credits > 0:
+                                await require_api_key_budget_for_charge(
+                                    directus_service,
+                                    user_info=user_info,
+                                    requested_credits=preflight_reserved_credits,
+                                )
+                             
                             # Execute the skill - pass request_dict directly (it matches tool_schema)
                             result = await call_app_skill(
                                 app_id=captured_app_id,
                                 skill_id=captured_skill.id,
                                 input_data=request_dict,  # Pass tool_schema structure directly
                                 parameters={},  # No separate parameters for skills with tool_schema
-                                user_info=user_info
+                                user_info=user_info,
+                                secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
+                                cache_service=cache_service,
                             )
                             
                             # Check if skill execution was successful before charging credits
@@ -2627,6 +2940,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             "server_provider": provider_info["server_provider"],
                                             "server_region": provider_info["server_region"],
                                         }
+                                        usage_details.update(get_variable_result_usage_details(
+                                            captured_app_id,
+                                            captured_skill.id,
+                                            result,
+                                            i,
+                                        ))
                                         
                                         await charge_credits_via_internal_api(
                                             user_id=user_info['user_id'],
@@ -2776,7 +3095,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 skill_id=captured_skill.id,
                                 input_data=request_dict,
                                 parameters={},
-                                user_info=user_info
+                                user_info=user_info,
+                                secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
+                                cache_service=cache_service,
                             )
                             
                             # Check if skill execution was successful before charging credits
@@ -2872,7 +3193,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 skill_id=captured_skill.id,
                                 input_data=request_body,
                                 parameters={},
-                                user_info=user_info
+                                user_info=user_info,
+                                secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
+                                cache_service=cache_service,
                             )
                             
                             # Check if skill execution was successful before charging credits
@@ -2963,7 +3286,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 skill_id=captured_skill.id,
                                 input_data=request_data.input_data,
                                 parameters=request_data.parameters or {},
-                                user_info=user_info
+                                user_info=user_info,
+                                secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
+                                cache_service=cache_service,
                             )
                             
                             # Check if skill execution was successful before charging credits
@@ -3149,6 +3474,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             _register_travel_custom_routes(app, app_name)
         if app_id == "audio":
             _register_audio_custom_routes(app, app_name)
+        if app_id == "models3d":
+            _register_models3d_custom_routes(app, app_name)
         if app_id == "code":
             _register_code_custom_routes(app, app_name)
         

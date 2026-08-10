@@ -25,6 +25,7 @@ SKIP_FIELD_NAMES = {
     "favicon",
     "hash",
     "id",
+    "s3_key",
     "place_id",
     "practice_url",
     "booking_url",
@@ -61,9 +62,14 @@ def _key_name_for_path(path: str) -> str:
     return path.lower()
 
 
-def _should_sanitize_field(path: str, text: str, min_chars: int) -> bool:
+def _should_sanitize_field(
+    path: str,
+    text: str,
+    min_chars: int,
+    skip_field_names: Optional[set[str]] = None,
+) -> bool:
     key_name = _key_name_for_path(path)
-    if key_name in SKIP_FIELD_NAMES:
+    if key_name in SKIP_FIELD_NAMES or (skip_field_names and key_name in skip_field_names):
         return False
     value = text.strip()
     if not value:
@@ -82,16 +88,22 @@ def _should_sanitize_field_with_overrides(
     text: str,
     min_chars: int,
     always_sanitize_field_names: Optional[set[str]],
+    skip_field_names: Optional[set[str]] = None,
 ) -> bool:
     key_name = _key_name_for_path(path)
     value = text.strip()
-    if not value or key_name in SKIP_FIELD_NAMES:
+    if not value or key_name in SKIP_FIELD_NAMES or (skip_field_names and key_name in skip_field_names):
         return False
     if value.startswith("http://") or value.startswith("https://"):
         return False
     if always_sanitize_field_names and key_name in always_sanitize_field_names:
         return True
-    return _should_sanitize_field(path, text, min_chars=min_chars)
+    return _should_sanitize_field(
+        path,
+        text,
+        min_chars=min_chars,
+        skip_field_names=skip_field_names,
+    )
 
 
 def _collect_string_fields_with_overrides(
@@ -100,17 +112,32 @@ def _collect_string_fields_with_overrides(
     min_chars: int,
     collected: List[Tuple[str, str]],
     always_sanitize_field_names: Optional[set[str]],
+    skip_field_names: Optional[set[str]] = None,
 ) -> None:
     if isinstance(value, dict):
         for key, nested in value.items():
             next_path = f"{base_path}.{key}" if base_path else str(key)
-            _collect_string_fields_with_overrides(nested, next_path, min_chars, collected, always_sanitize_field_names)
+            _collect_string_fields_with_overrides(
+                nested,
+                next_path,
+                min_chars,
+                collected,
+                always_sanitize_field_names,
+                skip_field_names,
+            )
         return
 
     if isinstance(value, list):
         for idx, nested in enumerate(value):
             next_path = f"{base_path}[{idx}]" if base_path else f"[{idx}]"
-            _collect_string_fields_with_overrides(nested, next_path, min_chars, collected, always_sanitize_field_names)
+            _collect_string_fields_with_overrides(
+                nested,
+                next_path,
+                min_chars,
+                collected,
+                always_sanitize_field_names,
+                skip_field_names,
+            )
         return
 
     if isinstance(value, str) and _should_sanitize_field_with_overrides(
@@ -118,6 +145,7 @@ def _collect_string_fields_with_overrides(
         value,
         min_chars=min_chars,
         always_sanitize_field_names=always_sanitize_field_names,
+        skip_field_names=skip_field_names,
     ):
         collected.append((base_path, value))
 
@@ -127,20 +155,26 @@ def _collect_string_fields(
     base_path: str,
     min_chars: int,
     collected: List[Tuple[str, str]],
+    skip_field_names: Optional[set[str]] = None,
 ) -> None:
     if isinstance(value, dict):
         for key, nested in value.items():
             next_path = f"{base_path}.{key}" if base_path else str(key)
-            _collect_string_fields(nested, next_path, min_chars, collected)
+            _collect_string_fields(nested, next_path, min_chars, collected, skip_field_names)
         return
 
     if isinstance(value, list):
         for idx, nested in enumerate(value):
             next_path = f"{base_path}[{idx}]" if base_path else f"[{idx}]"
-            _collect_string_fields(nested, next_path, min_chars, collected)
+            _collect_string_fields(nested, next_path, min_chars, collected, skip_field_names)
         return
 
-    if isinstance(value, str) and _should_sanitize_field(base_path, value, min_chars=min_chars):
+    if isinstance(value, str) and _should_sanitize_field(
+        base_path,
+        value,
+        min_chars=min_chars,
+        skip_field_names=skip_field_names,
+    ):
         collected.append((base_path, value))
 
 
@@ -191,6 +225,7 @@ async def sanitize_long_text_fields_in_payload(
     min_chars: int = 120,
     max_parallel: int = 4,
     always_sanitize_field_names: Optional[set[str]] = None,
+    skip_field_names: Optional[set[str]] = None,
 ) -> Any:
     """
     Sanitize long external text fields in a nested payload.
@@ -200,6 +235,7 @@ async def sanitize_long_text_fields_in_payload(
     sanitization fails or gets blocked.
     """
     candidates: List[Tuple[str, str]] = []
+    normalized_skip = {field.lower() for field in skip_field_names or set()}
     if always_sanitize_field_names:
         normalized_always = {field.lower() for field in always_sanitize_field_names}
         _collect_string_fields_with_overrides(
@@ -208,9 +244,16 @@ async def sanitize_long_text_fields_in_payload(
             min_chars=min_chars,
             collected=candidates,
             always_sanitize_field_names=normalized_always,
+            skip_field_names=normalized_skip,
         )
     else:
-        _collect_string_fields(payload, "", min_chars=min_chars, collected=candidates)
+        _collect_string_fields(
+            payload,
+            "",
+            min_chars=min_chars,
+            collected=candidates,
+            skip_field_names=normalized_skip,
+        )
     if not candidates:
         return payload
 

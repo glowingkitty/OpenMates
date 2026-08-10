@@ -13,6 +13,7 @@
     import EventEmbedPreview from './embeds/events/EventEmbedPreview.svelte';
     import { embedStore } from '../services/embedStore';
     import { decodeToonContent, resolveEmbed } from '../services/embedResolver';
+    import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
     import { embedPreviewRegistry } from '../services/embedPreviewRegistry';
     import { chatSyncService } from '../services/chatSyncService';
     import type { EmbedStoreEntry } from '../message_parsing/types';
@@ -175,20 +176,17 @@
                 ? rawType
                 : 'app-skill-use';
 
-        document.dispatchEvent(new CustomEvent('embedfullscreen', {
-            detail: {
-                embedId,
-                embedData,
-                decodedContent,
-                embedType,
-                attrs: {
-                    type: embedEntry.type || decodedContent.type,
-                    contentRef: embedEntry.contentRef || `embed:${embedId}`,
-                    status: embedData.status || 'finished',
-                },
+        dispatchEmbedFullscreen({
+            embedId,
+            embedData,
+            decodedContent,
+            embedType,
+            attrs: {
+                type: embedEntry.type || decodedContent.type,
+                contentRef: embedEntry.contentRef || `embed:${embedId}`,
+                status: embedData.status || 'finished',
             },
-            bubbles: true,
-        }));
+        });
     }
 </script>
 

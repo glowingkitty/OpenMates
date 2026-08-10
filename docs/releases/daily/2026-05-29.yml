@@ -1,0 +1,1774 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-29'
+generated_at: '2026-07-09T15:28:40+00:00'
+range:
+  since: '2026-05-29T00:00:00+00:00'
+  until: '2026-05-29T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 45
+  section_counts:
+    features: 5
+    bug_fixes: 13
+    improvements: 0
+    docs: 0
+    tests: 27
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 14
+  user_facing_items: 14
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add draft embed PII controls'
+    section: features
+    commits:
+    - 79f0000dc
+    authored_at: '2026-05-29T05:42:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/fileContentParsers.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/fileHelpers.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/fileContentParsers.ts
+    - frontend/packages/ui/src/components/enter_message/utils/fileHelpers.ts
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: improve client-side file PII support'
+    section: features
+    commits:
+    - 0032e41ff
+    authored_at: '2026-05-29T04:22:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/fileContentParsers.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/fileHelpers.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/fileContentParsers.ts
+    - frontend/packages/ui/src/components/enter_message/utils/fileHelpers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: shorten signup security setup'
+    section: features
+    commits:
+    - 5d84ffdad
+    authored_at: '2026-05-29T03:38:53+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/post_purchase_security_setup_email_task.py
+    - backend/core/api/templates/email/post-purchase-security-setup.mjml
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/components/signup/SignupStatusbar.svelte
+    - frontend/packages/ui/src/components/signup/signupFlow.ts
+    - frontend/packages/ui/src/components/signup/steps/password/PasswordBottomContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: show more announcement chats'
+    section: features
+    commits:
+    - 77cf112db
+    authored_at: '2026-05-29T02:28:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/demo_chats/translateDemoChat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add OpenRouter model watch'
+    section: features
+    commits:
+    - d56f00cd5
+    authored_at: '2026-05-29T02:10:22+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/templates/email/openrouter_model_watch.mjml
+    - backend/providers/anthropic.yml
+    - backend/scripts/check_openrouter_models.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: add data-testid to settings recovery key success message'
+    section: bug_fixes
+    commits:
+    - d320a1e27
+    authored_at: '2026-05-29T10:03:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/security/SettingsRecoveryKey.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: pass client-side email encryption key to bank transfer payment'
+    section: bug_fixes
+    commits:
+    - c76dc21b9
+    authored_at: '2026-05-29T09:13:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: ignore initial gift card consent event'
+    section: bug_fixes
+    commits:
+    - b99cd1092
+    authored_at: '2026-05-29T06:36:29+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/giftcards/SettingsGiftCardsBuyPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep first-purchase refund consent visible'
+    section: bug_fixes
+    commits:
+    - 311daf937
+    authored_at: '2026-05-29T06:35:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: require refund consent on first settings purchase'
+    section: bug_fixes
+    commits:
+    - 5d24b2e5f
+    authored_at: '2026-05-29T06:16:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: make office upload parser testable'
+    section: bug_fixes
+    commits:
+    - f8bd41dbf
+    authored_at: '2026-05-29T06:00:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/utils/fileContentParsers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: block Gemini uploaded-image chat inference'
+    section: bug_fixes
+    commits:
+    - b5db1cb46
+    authored_at: '2026-05-29T05:47:49+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/tests/test_model_selection.py
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve sheet and mail draft embeds'
+    section: bug_fixes
+    commits:
+    - 442c99eb6
+    authored_at: '2026-05-29T05:02:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/serializers.test.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: ignore stale signup paths after login'
+    section: bug_fixes
+    commits:
+    - 0ae60dccc
+    authored_at: '2026-05-29T04:42:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: complete stale signup resume on login'
+    section: bug_fixes
+    commits:
+    - 963e38e95
+    authored_at: '2026-05-29T04:27:05+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/tests/test_security_regressions.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve completed signup cache state'
+    section: bug_fixes
+    commits:
+    - 391a7b4b0
+    authored_at: '2026-05-29T04:17:56+00:00'
+    changed_paths:
+    - backend/core/api/app/services/cache_user_mixin.py
+    - backend/tests/test_security_regressions.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: disable unavailable Bedrock route for Claude Opus 4.8'
+    section: bug_fixes
+    commits:
+    - 3468adde6
+    authored_at: '2026-05-29T02:20:38+00:00'
+    changed_paths:
+    - backend/providers/anthropic.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: route Claude Opus 4.8 through first-party providers'
+    section: bug_fixes
+    commits:
+    - c35a3c759
+    authored_at: '2026-05-29T02:14:30+00:00'
+    changed_paths:
+    - backend/providers/anthropic.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: make recovery key submit button locator specific'
+    section: tests
+    commits:
+    - e7102221a
+    authored_at: '2026-05-29T10:50:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: update recovery key input locator in login flow spec'
+    section: tests
+    commits:
+    - b2158f9bf
+    authored_at: '2026-05-29T10:47:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: make recovery key login flow authentication wait robust'
+    section: tests
+    commits:
+    - a7bab57f9
+    authored_at: '2026-05-29T10:43:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use exact banner-back-button visibility check'
+    section: tests
+    commits:
+    - b8848d60b
+    authored_at: '2026-05-29T10:35:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-codes-settings.spec.ts
+    - frontend/apps/web_app/tests/buy-credits-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: update settings back button locators across all specs'
+    section: tests
+    commits:
+    - 3a5bacde0
+    authored_at: '2026-05-29T10:28:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-codes-settings.spec.ts
+    - frontend/apps/web_app/tests/buy-credits-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: make recovery key settings 2FA wait robust'
+    section: tests
+    commits:
+    - 1808794e0
+    authored_at: '2026-05-29T10:18:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: update recovery key copy button locator'
+    section: tests
+    commits:
+    - ef46ad6c2
+    authored_at: '2026-05-29T09:57:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for recovery key auth completion'
+    section: tests
+    commits:
+    - fe0cb3be3
+    authored_at: '2026-05-29T08:08:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: force image inference send action'
+    section: tests
+    commits:
+    - ade74a768
+    authored_at: '2026-05-29T07:47:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: tolerate referral reward dedupe'
+    section: tests
+    commits:
+    - b90caa5f0
+    authored_at: '2026-05-29T07:43:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for referral chat controls'
+    section: tests
+    commits:
+    - c1371f1f4
+    authored_at: '2026-05-29T07:27:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: rely on referral reward email'
+    section: tests
+    commits:
+    - bf3646aee
+    authored_at: '2026-05-29T07:20:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: close image overlay before inference send'
+    section: tests
+    commits:
+    - fb95f33d2
+    authored_at: '2026-05-29T07:15:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: avoid referral signup URL race'
+    section: tests
+    commits:
+    - 89ec31202
+    authored_at: '2026-05-29T07:12:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: close purchase confirmation before account checks'
+    section: tests
+    commits:
+    - 46868ef64
+    authored_at: '2026-05-29T06:54:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert visible refund consent header'
+    section: tests
+    commits:
+    - 3120303be
+    authored_at: '2026-05-29T06:45:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: limit image inference smoke matrix'
+    section: tests
+    commits:
+    - 7f8dc468d
+    authored_at: '2026-05-29T06:42:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: adjust file upload pii e2e'
+    section: tests
+    commits:
+    - 62da9c4a4
+    authored_at: '2026-05-29T06:36:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: consolidate file PII upload coverage'
+    section: tests
+    commits:
+    - b2155a475
+    authored_at: '2026-05-29T06:10:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: skip obsolete settings payment consent wait'
+    section: tests
+    commits:
+    - f2a00366e
+    authored_at: '2026-05-29T06:09:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: trigger web deploy for embed pii controls'
+    section: tests
+    commits:
+    - 4e4aea49c
+    authored_at: '2026-05-29T05:43:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/lib/index.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: trigger runtime web deploy'
+    section: tests
+    commits:
+    - 4feb0c459
+    authored_at: '2026-05-29T05:08:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/lib/index.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: trigger file attachment web deploy'
+    section: tests
+    commits:
+    - a3b4ae641
+    authored_at: '2026-05-29T05:05:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: widen file attachment embed selector'
+    section: tests
+    commits:
+    - bc50f0473
+    authored_at: '2026-05-29T04:48:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize file attachment PII spec'
+    section: tests
+    commits:
+    - f4c64dbee
+    authored_at: '2026-05-29T04:40:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: relax password signup last-used hint'
+    section: tests
+    commits:
+    - d10198be9
+    authored_at: '2026-05-29T04:03:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize passkey signup spec'
+    section: tests
+    commits:
+    - 396beaacd
+    authored_at: '2026-05-29T03:49:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: add data-testid to settings recovery key success message'
+    commits:
+    - d320a1e27
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: pass client-side email encryption key to bank transfer payment'
+    commits:
+    - c76dc21b9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: ignore initial gift card consent event'
+    commits:
+    - b99cd1092
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep first-purchase refund consent visible'
+    commits:
+    - 311daf937
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: require refund consent on first settings purchase'
+    commits:
+    - 5d24b2e5f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: make office upload parser testable'
+    commits:
+    - f8bd41dbf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: block Gemini uploaded-image chat inference'
+    commits:
+    - b5db1cb46
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add draft embed PII controls'
+    commits:
+    - 79f0000dc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: ignore stale signup paths after login'
+    commits:
+    - 0ae60dccc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: complete stale signup resume on login'
+    commits:
+    - 963e38e95
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: improve client-side file PII support'
+    commits:
+    - 0032e41ff
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: shorten signup security setup'
+    commits:
+    - 5d84ffdad
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: show more announcement chats'
+    commits:
+    - 77cf112db
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add OpenRouter model watch'
+    commits:
+    - d56f00cd5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: add data-testid to settings recovery key success message'
+    commits:
+    - d320a1e27
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: pass client-side email encryption key to bank transfer payment'
+    commits:
+    - c76dc21b9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: ignore initial gift card consent event'
+    commits:
+    - b99cd1092
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep first-purchase refund consent visible'
+    commits:
+    - 311daf937
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: require refund consent on first settings purchase'
+    commits:
+    - 5d24b2e5f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: make office upload parser testable'
+    commits:
+    - f8bd41dbf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: block Gemini uploaded-image chat inference'
+    commits:
+    - b5db1cb46
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add draft embed PII controls'
+    commits:
+    - 79f0000dc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: ignore stale signup paths after login'
+    commits:
+    - 0ae60dccc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: complete stale signup resume on login'
+    commits:
+    - 963e38e95
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: improve client-side file PII support'
+    commits:
+    - 0032e41ff
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: shorten signup security setup'
+    commits:
+    - 5d84ffdad
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: show more announcement chats'
+    commits:
+    - 77cf112db
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add OpenRouter model watch'
+    commits:
+    - d56f00cd5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: e7102221ace86d92f0aed6673ccd104561a758b2
+    short_sha: e7102221a
+    authored_at: '2026-05-29T10:50:16+00:00'
+    subject: 'test: make recovery key submit button locator specific'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    related_feature_ids: []
+  - sha: b2158f9bf8d19676f7da705bbe0ef7e9296a299c
+    short_sha: b2158f9bf
+    authored_at: '2026-05-29T10:47:13+00:00'
+    subject: 'test: update recovery key input locator in login flow spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    related_feature_ids: []
+  - sha: a7bab57f91d2d4278ec59653a0a41996688a0f8c
+    short_sha: a7bab57f9
+    authored_at: '2026-05-29T10:43:51+00:00'
+    subject: 'test: make recovery key login flow authentication wait robust'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    related_feature_ids: []
+  - sha: b8848d60b29e6e976f8494ee16fa1b924575a8da
+    short_sha: b8848d60b
+    authored_at: '2026-05-29T10:35:58+00:00'
+    subject: 'test: use exact banner-back-button visibility check'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-codes-settings.spec.ts
+    - frontend/apps/web_app/tests/buy-credits-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    related_feature_ids: []
+  - sha: 3a5bacde0d8ca8b2ce8a2a3a89e92254f8930a72
+    short_sha: 3a5bacde0
+    authored_at: '2026-05-29T10:28:07+00:00'
+    subject: 'test: update settings back button locators across all specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-codes-settings.spec.ts
+    - frontend/apps/web_app/tests/buy-credits-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    related_feature_ids: []
+  - sha: 1808794e0ff6b1c13785b5d37bedf9ef4ebe98c4
+    short_sha: 1808794e0
+    authored_at: '2026-05-29T10:18:57+00:00'
+    subject: 'test: make recovery key settings 2FA wait robust'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    related_feature_ids: []
+  - sha: d320a1e274491c83037c54623499e1849e33cbd8
+    short_sha: d320a1e27
+    authored_at: '2026-05-29T10:03:20+00:00'
+    subject: 'fix: add data-testid to settings recovery key success message'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/security/SettingsRecoveryKey.svelte
+    related_feature_ids: []
+  - sha: ef46ad6c289bded4a4d5f290280af7366533ee4c
+    short_sha: ef46ad6c2
+    authored_at: '2026-05-29T09:57:37+00:00'
+    subject: 'test: update recovery key copy button locator'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    related_feature_ids: []
+  - sha: c76dc21b9acfdff3c7fa18f71a589f2d57beec7e
+    short_sha: c76dc21b9
+    authored_at: '2026-05-29T09:13:15+00:00'
+    subject: 'fix: pass client-side email encryption key to bank transfer payment'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Payment.svelte
+    related_feature_ids: []
+  - sha: fe0cb3be385b5d750b97ac3505dac3790957e88a
+    short_sha: fe0cb3be3
+    authored_at: '2026-05-29T08:08:05+00:00'
+    subject: 'test: wait for recovery key auth completion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    related_feature_ids: []
+  - sha: ade74a7687de1c4d2b2f4ed1ff5493a5fc64e269
+    short_sha: ade74a768
+    authored_at: '2026-05-29T07:47:51+00:00'
+    subject: 'test: force image inference send action'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    related_feature_ids: []
+  - sha: b90caa5f013d88c94a30154d0295ffac5f0c9e45
+    short_sha: b90caa5f0
+    authored_at: '2026-05-29T07:43:22+00:00'
+    subject: 'test: tolerate referral reward dedupe'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    related_feature_ids: []
+  - sha: c1371f1f4cbaf270d0348e57e71a05843d7ea7a8
+    short_sha: c1371f1f4
+    authored_at: '2026-05-29T07:27:12+00:00'
+    subject: 'test: wait for referral chat controls'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    related_feature_ids: []
+  - sha: bf3646aeeb8f58969db26b7e6d154aff900ab695
+    short_sha: bf3646aee
+    authored_at: '2026-05-29T07:20:51+00:00'
+    subject: 'test: rely on referral reward email'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    related_feature_ids: []
+  - sha: fb95f33d2c04907134db55d6fb1e1373bbe0a8b4
+    short_sha: fb95f33d2
+    authored_at: '2026-05-29T07:15:15+00:00'
+    subject: 'test: close image overlay before inference send'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    related_feature_ids: []
+  - sha: 89ec3120269602e426d0a9d5da3af10a410c0357
+    short_sha: 89ec31202
+    authored_at: '2026-05-29T07:12:53+00:00'
+    subject: 'test: avoid referral signup URL race'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    related_feature_ids: []
+  - sha: 46868ef64fbb0864c3467d1a9771c536784bc583
+    short_sha: 46868ef64
+    authored_at: '2026-05-29T06:54:54+00:00'
+    subject: 'test: close purchase confirmation before account checks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: 3120303be5713fd1a0882a7bbe2552a60ff359b9
+    short_sha: 3120303be
+    authored_at: '2026-05-29T06:45:25+00:00'
+    subject: 'test: assert visible refund consent header'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: 7f8dc468db6cda181a8769618c7846dd3b7ccecc
+    short_sha: 7f8dc468d
+    authored_at: '2026-05-29T06:42:32+00:00'
+    subject: 'test: limit image inference smoke matrix'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    related_feature_ids: []
+  - sha: 62da9c4a4458868db0ca1aa180b42ccdd53bffb8
+    short_sha: 62da9c4a4
+    authored_at: '2026-05-29T06:36:58+00:00'
+    subject: 'test: adjust file upload pii e2e'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    related_feature_ids: []
+  - sha: b99cd1092d6a86ffd3846d44e342e956872951d4
+    short_sha: b99cd1092
+    authored_at: '2026-05-29T06:36:29+00:00'
+    subject: 'fix: ignore initial gift card consent event'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/giftcards/SettingsGiftCardsBuyPayment.svelte
+    related_feature_ids: []
+  - sha: 311daf9374346084a0af6996eead43566c707f3d
+    short_sha: 311daf937
+    authored_at: '2026-05-29T06:35:02+00:00'
+    subject: 'fix: keep first-purchase refund consent visible'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    related_feature_ids: []
+  - sha: 5d24b2e5f1d69cb4784c28264680cea43d40e593
+    short_sha: 5d24b2e5f
+    authored_at: '2026-05-29T06:16:20+00:00'
+    subject: 'fix: require refund consent on first settings purchase'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    related_feature_ids: []
+  - sha: b2155a47516af0ddf5a9b55adcdd228218cc6b44
+    short_sha: b2155a475
+    authored_at: '2026-05-29T06:10:55+00:00'
+    subject: 'test: consolidate file PII upload coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    related_feature_ids: []
+  - sha: f2a00366e469541702e144065e48cc66e515a83d
+    short_sha: f2a00366e
+    authored_at: '2026-05-29T06:09:50+00:00'
+    subject: 'test: skip obsolete settings payment consent wait'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: f8bd41dbf2905afe5f40ae59998a17e3d3bfc7f4
+    short_sha: f8bd41dbf
+    authored_at: '2026-05-29T06:00:53+00:00'
+    subject: 'fix: make office upload parser testable'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/utils/fileContentParsers.ts
+    related_feature_ids: []
+  - sha: b5db1cb46e3d969d700558172d2139e5e4307010
+    short_sha: b5db1cb46
+    authored_at: '2026-05-29T05:47:49+00:00'
+    subject: 'fix: block Gemini uploaded-image chat inference'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/tests/test_model_selection.py
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    related_feature_ids: []
+  - sha: 4e4aea49cd7c82f01b6f430927756b7f3b677aa3
+    short_sha: 4e4aea49c
+    authored_at: '2026-05-29T05:43:51+00:00'
+    subject: 'test: trigger web deploy for embed pii controls'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/lib/index.ts
+    related_feature_ids: []
+  - sha: 79f0000dc4758695ff17dc30481dada73deb2ba6
+    short_sha: 79f0000dc
+    authored_at: '2026-05-29T05:42:37+00:00'
+    subject: 'feat: add draft embed PII controls'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/fileContentParsers.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/fileHelpers.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/fileContentParsers.ts
+    - frontend/packages/ui/src/components/enter_message/utils/fileHelpers.ts
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    related_feature_ids: []
+  - sha: 4feb0c45947478a3fcf957ab24d93c72e9a0da6a
+    short_sha: 4feb0c459
+    authored_at: '2026-05-29T05:08:20+00:00'
+    subject: 'test: trigger runtime web deploy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/lib/index.ts
+    related_feature_ids: []
+  - sha: a3b4ae64166cf22ee5eba19b78a9929348a10d6d
+    short_sha: a3b4ae641
+    authored_at: '2026-05-29T05:05:37+00:00'
+    subject: 'test: trigger file attachment web deploy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    related_feature_ids: []
+  - sha: 442c99eb617aff7839cad80348f8389a480dcdef
+    short_sha: 442c99eb6
+    authored_at: '2026-05-29T05:02:59+00:00'
+    subject: 'fix: preserve sheet and mail draft embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/serializers.test.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    related_feature_ids: []
+  - sha: bc50f04732a8c9e70bdad011e6e8c36fc82b429b
+    short_sha: bc50f0473
+    authored_at: '2026-05-29T04:48:28+00:00'
+    subject: 'test: widen file attachment embed selector'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    related_feature_ids: []
+  - sha: 0ae60dccc06eee2d691e276643279700f7a1b9ca
+    short_sha: 0ae60dccc
+    authored_at: '2026-05-29T04:42:34+00:00'
+    subject: 'fix: ignore stale signup paths after login'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+    related_feature_ids: []
+  - sha: f4c64dbeee8d96d330416d35f22e8f3d2b2543c9
+    short_sha: f4c64dbee
+    authored_at: '2026-05-29T04:40:27+00:00'
+    subject: 'test: stabilize file attachment PII spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    related_feature_ids: []
+  - sha: 963e38e959122a8a8cb1eee0b2907ac18ce1ded6
+    short_sha: 963e38e95
+    authored_at: '2026-05-29T04:27:05+00:00'
+    subject: 'fix: complete stale signup resume on login'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/tests/test_security_regressions.py
+    related_feature_ids: []
+  - sha: 0032e41ffbc8b1c56074196fd330ad4ebaed625f
+    short_sha: 0032e41ff
+    authored_at: '2026-05-29T04:22:13+00:00'
+    subject: 'feat: improve client-side file PII support'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/fileContentParsers.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/fileHelpers.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/fileContentParsers.ts
+    - frontend/packages/ui/src/components/enter_message/utils/fileHelpers.ts
+    related_feature_ids: []
+  - sha: 391a7b4b05cff99ef2e3b1f10f09f0abc58dacb0
+    short_sha: 391a7b4b0
+    authored_at: '2026-05-29T04:17:56+00:00'
+    subject: 'fix: preserve completed signup cache state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/cache_user_mixin.py
+    - backend/tests/test_security_regressions.py
+    related_feature_ids: []
+  - sha: d10198be9c5c309fee80c49b2a355467725c3d48
+    short_sha: d10198be9
+    authored_at: '2026-05-29T04:03:38+00:00'
+    subject: 'test: relax password signup last-used hint'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    related_feature_ids: []
+  - sha: 396beaacd4b32d32704c2596ec2965fa11b91a39
+    short_sha: 396beaacd
+    authored_at: '2026-05-29T03:49:18+00:00'
+    subject: 'test: stabilize passkey signup spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    related_feature_ids: []
+  - sha: 5d84ffdad7e218ec3cd2edb6b10dd73271cfaa6a
+    short_sha: 5d84ffdad
+    authored_at: '2026-05-29T03:38:53+00:00'
+    subject: 'feat: shorten signup security setup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/post_purchase_security_setup_email_task.py
+    - backend/core/api/templates/email/post-purchase-security-setup.mjml
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/components/signup/SignupStatusbar.svelte
+    - frontend/packages/ui/src/components/signup/signupFlow.ts
+    - frontend/packages/ui/src/components/signup/steps/password/PasswordBottomContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    related_feature_ids: []
+  - sha: 77cf112dbd76d71eb842ee8d888b82a9120e1598
+    short_sha: 77cf112db
+    authored_at: '2026-05-29T02:28:15+00:00'
+    subject: 'feat: show more announcement chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/demo_chats/translateDemoChat.ts
+    related_feature_ids: []
+  - sha: 3468adde63ea0d4461cba8492fc3c7b49830d4da
+    short_sha: 3468adde6
+    authored_at: '2026-05-29T02:20:38+00:00'
+    subject: 'fix: disable unavailable Bedrock route for Claude Opus 4.8'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/providers/anthropic.yml
+    related_feature_ids: []
+  - sha: c35a3c7592a46c90b07eb299d5a528620ea02ca7
+    short_sha: c35a3c759
+    authored_at: '2026-05-29T02:14:30+00:00'
+    subject: 'fix: route Claude Opus 4.8 through first-party providers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/providers/anthropic.yml
+    related_feature_ids: []
+  - sha: d56f00cd54be01f42ab9d3e93baf4768e9f66c09
+    short_sha: d56f00cd5
+    authored_at: '2026-05-29T02:10:22+00:00'
+    subject: 'feat: add OpenRouter model watch'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/templates/email/openrouter_model_watch.mjml
+    - backend/providers/anthropic.yml
+    - backend/scripts/check_openrouter_models.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced enhanced privacy controls for file embeds, streamlined the signup security process, and refined
+    payment consent logic. The update also includes significant internal test stabilization and AI model routing improvements.
+  released_changes:
+  - text: Added draft embed PII controls and improved client-side support for file-based personally identifiable information.
+    evidence:
+      commits:
+      - 79f0000dc
+      - 0032e41ff
+    release_status: released_main
+  - text: Shortened the security setup process during user signup to improve onboarding speed.
+    evidence:
+      commits:
+      - 5d84ffdad
+    release_status: released_main
+  - text: The chat interface now displays more announcement chats by default.
+    evidence:
+      commits:
+      - 77cf112db
+    release_status: released_main
+  - text: Added a monitoring service for OpenRouter models to track availability and updates.
+    evidence:
+      commits:
+      - d56f00cd5
+    release_status: released_main
+  bug_fixes:
+  - text: Refined the purchase flow to ensure refund consent is correctly requested and remains visible during the first transaction
+      in settings.
+    evidence:
+      commits:
+      - 311daf937
+      - 5d24b2e5f
+      - b99cd1092
+    release_status: released_main
+  - text: Resolved an issue where client-side email encryption keys were not correctly passed during bank transfer payments.
+    evidence:
+      commits:
+      - c76dc21b9
+    release_status: released_main
+  - text: Fixed logic for handling stale signup paths, ensuring users can correctly resume or complete registration after
+      logging in.
+    evidence:
+      commits:
+      - 0ae60dccc
+      - 963e38e95
+    release_status: released_main
+  - text: Blocked Gemini model inference on uploaded images to prevent unsupported processing attempts.
+    evidence:
+      commits:
+      - b5db1cb46
+    release_status: released_main
+  - text: Added specific test identifiers to the recovery key success message in security settings.
+    evidence:
+      commits:
+      - d320a1e27
+    release_status: released_main
+  unreleased_progress:
+  - text: Internal adjustments to AI provider routing for Claude Opus 4.8.
+    evidence:
+      commits:
+      - 3468adde6
+      - c35a3c759
+    release_status: released_main
+  - text: Internal improvements to the serialization of mail and sheet draft embeds.
+    evidence:
+      commits:
+      - 442c99eb6
+    release_status: released_main
+  - text: Refined internal cache state management for completed signup flows.
+    evidence:
+      commits:
+      - 391a7b4b0
+    release_status: released_main
+  internal_progress:
+  - text: Extensive stabilization of the end-to-end test suite, covering recovery key flows, referral rewards, image inference,
+      and signup procedures.
+    evidence:
+      commits:
+      - e7102221a
+      - b2158f9bf
+      - a7bab57f9
+      - b8848d60b
+      - 3a5bacde0
+      - 1808794e0
+      - ef46ad6c2
+      - fe0cb3be3
+      - ade74a768
+      - b90caa5f0
+      - c1371f1f4
+      - bf3646aee
+      - fb95f33d2
+      - 89ec31202
+      - 46868ef64
+      - 3120303be
+      - 7f8dc468d
+      - 62da9c4a4
+      - b2155a475
+      - f2a00366e
+      - 4e4aea49c
+      - 4feb0c459
+      - a3b4ae641
+      - bc50f0473
+      - f4c64dbee
+      - d10198be9
+      - 396beaacd
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New PII controls for draft embeds and improved client-side file support.
+      evidence:
+        commits:
+        - 79f0000dc
+        - 0032e41ff
+      reason: Significant enhancement to user privacy and file handling.
+    - text: Streamlined signup security configuration.
+      evidence:
+        commits:
+        - 5d84ffdad
+      reason: Improves the initial user experience by streamlining security setup.
+    - text: Increased visibility for announcement chats.
+      evidence:
+        commits:
+        - 77cf112db
+      reason: Improves visibility of important project updates.
+    exclude:
+    - text: Internal AI routing and session management updates.
+      evidence:
+        commits:
+        - 3468adde6
+        - c35a3c759
+        - 442c99eb6
+        - 391a7b4b0
+      reason: Internal routing, serialization, and cache management fixes are not user-facing.
+    rationale: The update focuses on privacy-centric file handling and a smoother onboarding experience, which are key value
+      propositions for users.
+  social_video_recommendations:
+  - idea: A walkthrough of the new PII controls when attaching files or code to a draft.
+    priority: High
+    reason: Demonstrates OpenMates' commitment to privacy and granular user control over sensitive data.
+    evidence:
+      commits:
+      - 79f0000dc
+      - 0032e41ff
+  quality_notes:
+  - Heavy emphasis on test reliability for security-critical flows like recovery keys and signups.
+  - Proactive blocking of unsupported AI inference types (Gemini image processing).
+  validation_warnings: []

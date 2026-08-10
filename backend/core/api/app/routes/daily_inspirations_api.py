@@ -29,6 +29,9 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.websockets import manager as ws_manager
+from backend.apps.ai.daily_inspiration.feature_suggestions import (
+    has_complete_daily_inspiration_set,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -196,6 +199,13 @@ async def get_daily_inspirations(
         since_timestamp=since,
         limit=10,  # Max 10 (3 per day × ~3 days)
     )
+
+    if inspirations and not has_complete_daily_inspiration_set(inspirations):
+        logger.info(
+            "[daily_inspirations_api] Ignoring incomplete legacy inspiration set for user %s…",
+            user_id[:8],
+        )
+        inspirations = []
 
     logger.debug(
         "[daily_inspirations_api] Returning %d inspirations for user %s…",

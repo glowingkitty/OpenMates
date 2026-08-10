@@ -27,11 +27,15 @@ from typing import Any, Dict, List, Optional
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.apps.ai.daily_inspiration.feature_suggestions import feature_requires_authentication
+from backend.apps.ai.daily_inspiration.media_coherence import (
+    check_inspiration_media_coherence,
+    is_inspiration_media_coherent,
+)
 
 logger = logging.getLogger(__name__)
 
 # Redis cache key prefix for the public default-inspirations endpoint
-_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v8:"
+_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v11:"
 
 # Supported languages — same as the public API endpoint
 SUPPORTED_LANGUAGES = {
@@ -77,6 +81,9 @@ def _feature_metadata(entry: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _is_public_default_candidate(entry: Dict[str, Any]) -> bool:
+    if (entry.get("content_type") or "video") == "video":
+        return is_inspiration_media_coherent(entry)
+
     if (entry.get("content_type") or "video") != "feature":
         return True
 
@@ -437,6 +444,7 @@ async def _audit_pool_async(task: BaseServiceTask) -> Dict[str, Any]:
         ) -> Dict[str, int]:
             keyword_violations = 0
             age_violations = 0
+            media_violations = 0
             deleted = 0
             for item in items:
                 entry_id = str(item.get("id", "") or "")
@@ -454,6 +462,11 @@ async def _audit_pool_async(task: BaseServiceTask) -> Dict[str, Any]:
                 if age_reason is not None:
                     reasons.append(f"age_policy({age_reason})")
                     age_violations += 1
+
+                media_result = check_inspiration_media_coherence(item)
+                if media_result["verdict"] == "REJECT":
+                    reasons.append(f"media_coherence({media_result.get('reason')})")
+                    media_violations += 1
 
                 if not reasons:
                     continue
@@ -478,6 +491,7 @@ async def _audit_pool_async(task: BaseServiceTask) -> Dict[str, Any]:
                 "scanned": len(items),
                 "keyword_violations": keyword_violations,
                 "age_violations": age_violations,
+                "media_violations": media_violations,
                 "deleted": deleted,
             }
 
@@ -507,8 +521,10 @@ async def _audit_pool_async(task: BaseServiceTask) -> Dict[str, Any]:
         total_violations = (
             pool_stats["keyword_violations"]
             + pool_stats["age_violations"]
+            + pool_stats["media_violations"]
             + defaults_stats["keyword_violations"]
             + defaults_stats["age_violations"]
+            + defaults_stats["media_violations"]
         )
         total_deleted = pool_stats["deleted"] + defaults_stats["deleted"]
 
@@ -525,10 +541,12 @@ async def _audit_pool_async(task: BaseServiceTask) -> Dict[str, Any]:
         logger.info(
             f"[PoolAudit][{task_id}] Completed: "
             f"pool(scanned={pool_stats['scanned']} kw={pool_stats['keyword_violations']} "
-            f"age={pool_stats['age_violations']} del={pool_stats['deleted']}) "
+            f"age={pool_stats['age_violations']} media={pool_stats['media_violations']} "
+            f"del={pool_stats['deleted']}) "
             f"defaults(scanned={defaults_stats['scanned']} "
             f"kw={defaults_stats['keyword_violations']} "
-            f"age={defaults_stats['age_violations']} del={defaults_stats['deleted']})"
+            f"age={defaults_stats['age_violations']} "
+            f"media={defaults_stats['media_violations']} del={defaults_stats['deleted']})"
         )
         return result
 

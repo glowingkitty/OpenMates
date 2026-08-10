@@ -535,6 +535,32 @@ describe("ChatKeyManager — Web Locks mutex (KEYS-01/KEYS-02)", () => {
     expect(result.chatKey).toEqual(existingKey);
   });
 
+  it("createAndPersistKeyLocked() prefers persisted IDB key over stale in-memory key", async () => {
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    const staleKey = makeKey(7);
+    const persistedKey = makeKey(42);
+
+    mgr.injectKey("chat-1", staleKey, "created");
+    mgr.setEncryptedChatKeyFetcher(makeFetcher({ "chat-1": "persisted-key" }));
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(persistedKey);
+
+    const result = await mgr.createAndPersistKeyLocked("chat-1");
+
+    expect(result.chatKey).toEqual(persistedKey);
+    expect(result.encryptedChatKey).toBe("persisted-key");
+    expect(mgr.getKeySync("chat-1")).toEqual(persistedKey);
+  });
+
+  it("createAndPersistKeyLocked() refuses to replace an undecryptable persisted key", async () => {
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    mgr.setEncryptedChatKeyFetcher(makeFetcher({ "chat-1": "persisted-key" }));
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(null);
+
+    await expect(mgr.createAndPersistKeyLocked("chat-1")).rejects.toThrow(
+      "persisted encrypted_chat_key could not be decrypted",
+    );
+  });
+
   it("Web Lock timeout (AbortController fires) falls back to unlocked createAndPersistKey", async () => {
     const { encryptChatKeyWithMasterKey } = await import("../../cryptoService");
     vi.mocked(encryptChatKeyWithMasterKey).mockResolvedValue("encrypted-dummy");

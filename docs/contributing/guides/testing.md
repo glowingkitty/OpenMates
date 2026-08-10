@@ -7,33 +7,114 @@ last_verified: 2026-06-11
 
 Detailed test commands, Playwright Docker setup, test runner reference, and sequential debugging workflow.
 
+## Contract Assertion Metadata
+
+Every new or changed behavioral test case names the stable contract assertions
+it proves, its proof strength, and its surface through a framework-neutral
+comment immediately before the test declaration:
+
+```text
+// contract-test: direct surface=gui.web assertions=web-search.surface-parity
+# contract-test: supporting surface=rest_api assertions=web-search.response.validated
+```
+
+Valid proof strengths are `direct` and `supporting`. Valid product surfaces are
+`rest_api`, `cli`, `sdks.npm`, `sdks.pip`, `gui.web`, and `gui.apple`.
+Repository-only test files may use `contract-test: infrastructure` or
+`contract-test: tooling`; a file-level `contract-test-file` marker is allowed
+only for those non-product classifications. New or changed tests cannot use
+`legacy_unmapped`. Run `python3 scripts/contracts.py check-test <path>` to inspect
+a touched test. Assertion links are traceability, not proof by themselves; only
+current successful direct evidence with a matching assertion fingerprint counts.
+
 ---
 
 ## Test Commands
 
-### New Functionality Verification Order
+### New Functionality Phase Gates
 
-For new functionality, verification must happen in this order by default:
+For new shared functionality, implementation and verification must happen in this
+order by default:
 
-1. **OpenMates CLI first:** add or run an OpenMates CLI command or CLI contract
-   test that exercises the backend/API/WebSocket behavior. This is the cheapest
-   and fastest proof, and it catches backend processing, model routing, skill
-   invocation, embed resolution, sync, and WebSocket issues before browser state
-   is involved.
-2. **Web app E2E second:** after CLI evidence is green, add or run the
-   Playwright `*.spec.ts` that verifies the browser-specific flow through
-   `python3 scripts/tests.py run --spec <name>.spec.ts`. Web specs prove Svelte,
-   TipTap, IndexedDB/localStorage, rendering, screenshots, and user interaction
-   behavior.
-3. **Apple app third:** after CLI and web evidence are green, run or attempt the
-   Apple app test through `scripts/apple_remote.py` when the feature has an
-   Apple counterpart. Use `test-ios` for native tests, `build-ios` when no
-   targeted test exists, and `cleanup` after simulator verification.
+1. **REST API/WebSocket contract first:** implement and test the direct backend
+   contract with a REST request, WebSocket probe, or focused API smoke script
+   against the dev server. This must pass before any CLI, SDK, web, or Apple work
+   starts. This catches route exposure, auth, owner/team scoping, rate limits,
+   credit/budget limits, backend processing, model routing, skill invocation,
+   embed resolution, sync, and WebSocket issues before client state is involved.
+
+   The REST/API phase-gate proof must classify every changed endpoint as
+   unauthenticated public REST API, developer API-key REST API, first-party client
+   surface only, or internal-only. It must state whether the endpoint accepts or
+   returns client-side encrypted data or decrypted plaintext. Endpoints that touch
+   client-side encrypted chat, memory, file, key, sync, or share material default
+   to first-party or internal-only access unless an approved spec explicitly
+   preserves encryption boundaries for public/developer access.
+
+   The REST/API phase-gate proof must use real requests against the real dev API
+   and WebSocket services with real auth/test-account state. It must not be a
+   mocked `fetch`, mocked SDK client, stubbed local server, direct function call,
+   fixture replay, or unit test that bypasses the OpenMates API/WebSocket path.
+   It should verify the happy path and relevant 401/403/429 or budget errors for
+   the endpoint classification. Mocked tests are useful as supplemental unit
+   coverage only; they never satisfy the REST/API-first gate. If an external paid provider would make the real command
+   expensive, use a low-cost real request or record an explicit user-approved
+   waiver before relying on provider replay for that external call.
+2. **OpenMates CLI second:** implement and test an OpenMates CLI command, real CLI
+   chat, or CLI contract test against the dev server. This must pass on the dev
+   server before any SDK, web, or Apple work starts. This catches client packaging
+   and command behavior while still avoiding browser state.
+3. **SDK parity third:** implement and test npm SDK and pip SDK parity locally
+   against the dev server for the same behavior when it is exposed
+   programmatically. Run `python3 scripts/audit_sdk_cli_parity.py` when CLI or
+   SDK surfaces change. After local REST/API, CLI, and SDK evidence is green, reproduce or
+   wire the same coverage into GitHub Actions for CI/daily tests.
+4. **Web app fourth:** after REST/API, CLI, and required SDK evidence are green, implement the
+   web surface and run the Playwright `*.spec.ts` that verifies the
+   browser-specific flow through `python3 scripts/tests.py run --spec
+   <name>.spec.ts`. Web specs prove Svelte, TipTap, IndexedDB/localStorage,
+   rendering, screenshots, and user interaction behavior.
+5. **UI visual smoke fifth:** for larger user-visible web/UI changes, inspect the
+   deployed `app.dev.openmates.org` route with Playwright after Playwright specs
+   in both laptop and mobile viewports. Run
+   `node frontend/apps/web_app/scripts/visual-smoke.mjs --url <url> --session <id>`
+   to capture screenshots and automated hard-failure checks. Then open/review the
+   laptop and mobile screenshots and record a pass only with a summary that states
+   `Defects:` and `Accepted differences:`. Fix, redeploy, and rerun if the review
+   finds objective clipping, overlap, overflow, hidden controls, broken media,
+   console-visible errors, stuck loading states, or unresponsive primary controls.
+   Use Firecrawl only as a recorded fallback when Playwright is impractical or
+   blocked; keep calls minimal and record why.
+6. **User confirmation sixth:** for user-visible web UI or behavior, ask the user
+   to confirm the deployed dev web app works and looks correct. A passing
+   `*.spec.ts` plus reviewed UI visual-smoke evidence is necessary but not
+   sufficient to start Apple parity.
+7. **Apple app last:** after REST/API, CLI, SDK, web, required UI visual-smoke,
+   and required user-confirmation evidence are green, run or attempt the Apple app test through
+   `scripts/apple_remote.py` when the feature has an Apple counterpart. Use
+   `test-ios` for native tests, `build-ios` when no targeted test exists, and
+   `cleanup` after simulator verification.
 
 Do not skip directly to Playwright for shared product behavior unless the change
 is clearly browser-only, such as selector changes, layout/screenshot diffs,
-pointer-event overlays, or Svelte-only rendering. Do not mark Apple
-`not affected` unless there is no native counterpart.
+pointer-event overlays, or Svelte-only rendering. Do not skip UI visual smoke for
+larger deployed UI work unless the change is Tier 0/non-visual or a documented
+waiver explains why browser review would add no signal. Do not mark Apple
+`not affected` unless there is no native counterpart. Do not start a later client
+while an earlier phase is unimplemented, untested, or blocked unless the spec or
+session contract records an explicit user-approved waiver or accepted external
+blocker.
+
+REST/API, CLI, and SDK tests must prove the exact behavior on the dev server before being
+promoted into GitHub Actions. Do not add or rely on a GitHub Actions REST/API,
+CLI, or SDK run as the first proof for a new feature; GitHub Actions is the
+retention and daily-regression gate after local dev-server REST/API, CLI, and SDK
+evidence succeeds.
+
+Do not count a mocked API-call test as dev-server REST/API or CLI evidence. The
+acceptance artifact should show the real request or command that was executed,
+the dev API URL or test environment target, and the observable product result
+returned by the dev server.
 
 Use the parity verifier when a change spans shared product behavior or multiple
 clients:
@@ -43,38 +124,75 @@ python3 scripts/verify_parity.py --run --web-spec <name>.spec.ts --apple build
 python3 scripts/verify_parity.py --check --no-skips
 ```
 
-The verifier runs static CLI/npm SDK/pip SDK parity first, then dispatches CLI
-and web checks through `scripts/tests.py`, then runs Apple verification through
-`scripts/apple_remote.py`. It writes JSON evidence to `test-results/parity/` and
-never runs local Playwright or Vitest directly. If a phase is not applicable,
-record an explicit reason with `--skip-web` or `--apple skip --skip-apple`.
+The verifier runs static CLI/npm SDK/pip SDK parity first and can record/check
+phase evidence, but it does not replace the required local dev-server CLI and
+SDK proof. GitHub Actions reproduction for CLI/SDK coverage happens only after
+those local checks are green. Web checks still go through `scripts/tests.py`, UI
+visual smoke is recorded through `scripts/sessions.py visual-smoke` with
+`--method playwright`, both `--viewport laptop` and `--viewport mobile`, screenshot
+artifacts, and a reviewed summary with `Defects:` plus `Accepted differences:`.
+Apple verification goes through `scripts/apple_remote.py`. It writes JSON
+evidence to `test-results/parity/` and never runs local Playwright or Vitest
+directly. It does not replace the required user confirmation gate for
+user-visible web behavior. If a phase is not applicable, record an explicit
+reason with `--skip-web` or `--apple skip --skip-apple`.
 
 ### Cross-App Parity Order
 
-For chat, AI pipeline, settings-backed chat behavior, app skills, embeds, sync,
-or any feature that exists across clients, tests must prove parity in this
-order: OpenMates CLI first, web app second, Apple app third.
+For chat, AI pipeline, settings-backed chat behavior, app skills, focus modes,
+embeds, memory types, provider-backed behavior, sync, billing, notifications,
+benchmark behavior, or any feature that exists across clients, implementation and
+tests must prove parity in this order: REST API/WebSocket contract first,
+OpenMates CLI second, npm SDK and pip SDK third, web app fourth, UI visual smoke
+fifth for larger UI, user confirmation sixth, Apple app last.
 
-1. **CLI contract first:** add or run an OpenMates CLI test that exercises the
-   backend/API/WebSocket contract without browser UI, TipTap, IndexedDB UI
-   state, screenshots, or Svelte rendering. This is the required first proof for
-   chat and app-skill behavior because it isolates backend correctness.
-2. **Web app E2E second:** after the CLI contract is green, add or run the
+1. **REST/API contract first:** add or run a direct REST/WebSocket test against
+   the dev server that exercises the backend/API/WebSocket contract without CLI,
+   SDK, browser UI, TipTap, IndexedDB UI state, screenshots, or Svelte rendering.
+   This is the required first proof because it isolates backend correctness and
+   endpoint exposure. It must classify public/developer/first-party/internal
+   access and verify auth, rate limits, credit/budget limits, and encryption
+   boundaries where relevant.
+
+   This contract must drive real HTTP/WebSocket requests against
+   `https://api.dev.openmates.org` or the approved dev-server target. It must not
+   mock the OpenMates API, WebSocket client, SDK facade, route handlers, or backend
+   skill execution. Once it passes on dev, move or wire the coverage into GitHub
+   Actions so it becomes part of the daily test set.
+2. **CLI contract second:** after the REST/API contract is green, add or run an
+   OpenMates CLI test against the dev server for the same behavior.
+3. **SDK parity third:** after the CLI contract is green, add or run npm SDK and
+   pip SDK parity checks locally against the dev server for exposed
+   programmatic behavior.
+4. **Web app E2E fourth:** after REST/API, CLI, and required SDK parity are green, add or run the
    Playwright spec that verifies the browser-specific flow, including composer
    behavior, draft/autosave state, settings UI, embeds, rendering, and user
    interactions. If the CLI contract passes but Playwright fails, debug the web
    app path instead of the backend pipeline first.
-3. **Apple parity third:** when the product surface has an Apple counterpart,
+5. **UI visual smoke fifth:** for larger user-visible web changes, inspect the
+   deployed route with Playwright in both laptop and mobile viewports, review the
+   screenshots, and record defects plus accepted differences. Use Firecrawl only
+   as a recorded fallback when Playwright is impractical or blocked. Fix,
+   redeploy, and rerun when the smoke finds an objective issue.
+6. **User confirmation sixth:** for user-visible web changes, ask the user to
+   confirm the deployed dev web app works and looks correct. Automated specs and
+   reviewed visual-smoke artifacts are not enough to begin Apple parity.
+7. **Apple parity last:** when the product surface has an Apple counterpart,
    run or attempt the relevant iOS/macOS verification through
-   `scripts/apple_remote.py` after CLI and web evidence are green. Record
-   Mac/Xcode evidence or a sanitized failure class per the Apple App section
-   below.
+   `scripts/apple_remote.py` after REST/API, CLI, SDK, web, required UI
+   visual-smoke evidence, and required user-confirmation evidence are green.
+   Record Mac/Xcode evidence or a sanitized failure class per
+   the Apple App section below.
 
-Do not clone every Playwright spec into a CLI test. Prefer small reusable CLI
-contract tests for shared invariants such as message send, default-model
-routing, mock replay, skill invocation, embed resolution, sub-chat behavior, and
-sync lifecycle. Playwright remains responsible for browser UI and local web
-state; Apple tests remain responsible for native UI parity.
+Do not clone every Playwright spec into a CLI test. Prefer small reusable real
+CLI contract tests for shared invariants such as message send, default-model
+routing, skill invocation, embed resolution, sub-chat behavior, and sync
+lifecycle. SDK tests remain responsible for programmatic parity. Playwright
+remains responsible for browser UI and local web state; UI visual smoke remains
+responsible for obvious deployed laptop/mobile rendering, implementation error
+text, loading/spinner stalls, and basic responsiveness issues; user confirmation remains
+responsible for subjective deployed web feel and visual correctness; Apple tests remain
+responsible for native UI parity.
 
 When fixing a failing chat-related Playwright spec, first check whether a
 matching CLI contract exists. If not, write or propose the minimal CLI contract
@@ -177,42 +295,64 @@ python3 scripts/tests.py run --suite pytest            # Pytest via GitHub Actio
 python3 scripts/tests.py run                           # Full suite (local orchestration + GitHub Actions)
 python3 scripts/tests.py run --only-failed             # Rerun failures
 python3 scripts/tests.py run --spec chat-flow.spec.ts  # Single Playwright spec
+python3 scripts/tests.py run --spec chat-flow.spec.ts --detach  # Dispatch in background
 python3 scripts/tests.py run --suite playwright        # All E2E specs via GitHub Actions
 python3 scripts/tests.py run --daily                   # Cron mode (commit gate, emails)
 python3 scripts/tests.py run --daily --force           # Skip commit check
 python3 scripts/tests.py run --hourly-dev              # Hourly dev smoke (4 specs)
-python3 scripts/tests.py run --hourly-prod             # Hourly prod smoke
+python3 scripts/tests.py run --hourly-prod             # Free hourly prod smoke (legacy alias)
+python3 scripts/tests.py run --prod-paid-chat          # Paid prod CLI chat smoke (scheduled slots)
+python3 scripts/tests.py run --prod-app-skill          # Prod CLI app-skill smoke (daily slot)
 python3 scripts/tests.py run --hourly-dev --dry-run-notify  # Test Discord wiring only
 python3 scripts/tests.py run --max-concurrent 10       # Override batch size (default: 20)
 python3 scripts/tests.py run --no-fail-fast            # Run all batches even on failure
 python3 scripts/tests.py run --dry-run                 # Show what would run
 
+# Durable failed-test debugging campaigns
+python3 scripts/tests.py campaign start --session <id> --json
+python3 scripts/tests.py campaign status --campaign <id> --json
+python3 scripts/tests.py campaign next --campaign <id> --lease --session <id> --json
+python3 scripts/tests.py run --campaign <id> --group <group-id>
+
 `scripts/run_tests.py` remains the underlying execution engine. Agents and humans
 should use `scripts/tests.py run` so current state, history, and failure leases
 stay consistent.
+
+Use `--detach` when the caller should return immediately instead of holding a
+shell open while GitHub Actions runs. The command prints the background log path
+and the `scripts/tests.py status --json` command for following the recorded run.
+
+When fixing multiple current failures, use the campaign commands rather than a
+local progress file or an unscoped `--only-failed` rerun. Each durable group must
+record expected behavior and concrete acceptance criteria before source edits,
+preserve failed approaches, and verify all member keys. Campaign-bound reruns
+that expose another failure add a child group instead of silently expanding
+chat-only scope.
 ```
 
 ### Hourly smoke modes (OPE-349)
 
-Two thin "is the core flow alive?" runners triggered hourly by the dev server's
-local crontab. They are intentionally separate from `--daily` because the goal
-is "catch urgent breakage within an hour", not full coverage.
+Thin "is the core flow alive?" runners are triggered by the dev server's local
+crontab. They are intentionally separate from `--daily` because the goal is
+"catch urgent production breakage quickly", not full coverage.
 
-| Mode | What it runs | Discord webhook | Schedule |
+| Mode | What it runs | Notification | Schedule |
 | --- | --- | --- | --- |
-| `--hourly-dev` | reachability + Stripe + chat (see `frontend/apps/web_app/tests/dev-smoke/README.md`) | `DISCORD_WEBHOOK_DEV_SMOKE` | local cron, 08–18 UTC |
-| `--hourly-prod` | dispatches `prod-smoke.yml` (3 specs) | `DISCORD_WEBHOOK_PROD_SMOKE` | local cron, 08–18 UTC |
-| `--daily` | full pytest + vitest + all E2E | `DISCORD_WEBHOOK_DEV_NIGHTLY` | local cron, 03 UTC weekdays |
+| `--hourly-dev` | reachability + Stripe + chat (see `frontend/apps/web_app/tests/dev-smoke/README.md`) | Discord | local cron, 08–18 UTC |
+| `--hourly-prod` / `--prod-free-hourly` | production logged-out reachability only | Discord + email on failure | hourly, 06:00–23:59 Europe/Berlin |
+| `--prod-paid-chat` | production CLI `chats new` with one tiny paid `PONG` prompt | Discord + email on failure | 07:00, 13:00, 19:00 Europe/Berlin |
+| `--prod-app-skill` | production CLI `apps web search` direct typed app-skill command | Discord + email on failure | 09:00 Europe/Berlin |
+| `--daily` | full pytest + vitest + all E2E | Discord + email | local cron, 03 UTC weekdays |
 
 **Why local cron, not GitHub Actions `schedule:`** — the GH-Actions cron silently
 skips runs under load, which lost us prod outage alerts. The local crontab on
 the dev server triggers `gh workflow run` so the actual specs still execute on
 GH Actions runners; only the trigger moves. See OPE-349 for the full rationale.
 
-**Discord noise control** — the hourly modes post on FAILURE only, plus a single
-"all good" heartbeat once per UTC day so the channel proves the pipeline is
-still alive. The nightly mode posts every run. Each webhook lives in its own
-Discord channel so noise from one cron never drowns out alerts from another.
+**Discord noise control** — production smoke posts on FAILURE only. The dev
+hourly mode can still post a single daily green heartbeat; the nightly mode
+posts every run. Each webhook lives in its own Discord channel so noise from
+one cron never drowns out alerts from another.
 
 To verify a webhook without dispatching specs:
 
@@ -222,9 +362,15 @@ python3 scripts/tests.py run --hourly-prod --dry-run-notify
 python3 scripts/tests.py run --daily --dry-run-notify
 ```
 
-Hourly archives: `test-results/hourly-dev/run-*.json` and `test-results/hourly-prod/run-*.json` (rotated to last 7 days).
+Hourly/prod archives: `test-results/hourly-dev/run-*.json`, `test-results/hourly-prod/run-*.json`, `test-results/prod-paid-chat/run-*.json`, and `test-results/prod-app-skill/run-*.json` (rotated to last 7 days).
 
-Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of concurrent runners, each with a separate test account (`OPENMATES_TEST_ACCOUNT_1_EMAIL` through `20`). Batch-level fail-fast: current batch finishes, then stops if any failures.
+Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of up to 20 concurrent runners, each with a separate test account. The 27-slot inventory uses slots 1-13 and 21-27 for normal tests while reserving slots 14-20 for credential-mutating tests. Batch-level fail-fast: current batch finishes, then stops if any failures.
+
+Slots 21-27 are stored together in the encrypted `OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON` repository secret because GitHub caps the repository-level namespace at 100 entries. The JSON object is keyed by slot and each value contains `email`, `password`, and `otpKey`; the workflow selects and masks only the requested slot. Test account secrets must never be copied into source, logs, or artifacts.
+
+To migrate an already-provisioned expanded slot from individual repository secrets without exposing its values, dispatch `playwright-spec.yml` for that slot with `migrate_account_secrets_to_expanded_bundle=true`. The migration is restricted to slots 21-27, fails closed when any source credential is missing, writes the consolidated secret before deleting that slot's individual secrets, and must be run sequentially to avoid concurrent read-modify-write updates.
+
+Development dispatches pin the checked-out source to the commit whose Vercel deployment passed the readiness gate, so a moving `dev` branch cannot change the test implementation after dispatch.
 
 ### Reserved E2E Credential Accounts
 
@@ -241,9 +387,9 @@ Most specs use the normal account pool. Specs that rotate, reset, or delete pers
 | 19 | `settings-change-email.spec.ts` | Email roundtrip mutates the account login identifier. |
 | 20 | `api-keys-flow.spec.ts` | API-key lifecycle tests create/delete developer credentials. |
 
-`scripts/run_tests.py` applies this mapping for full-suite, only-failed, and single-spec dispatches. Normal specs are assigned only from slots 1-13. If you add a spec that changes password, email, 2FA, recovery keys, backup codes, API keys, passkeys, or account data destructively, first add it to the reserved policy and document the slot here.
+`scripts/run_tests.py` applies this mapping for full-suite, only-failed, and single-spec dispatches. Normal specs are assigned only from slots 1-13 and 21-27, allowing 20 concurrent normal specs without touching reserved credentials. If you add a spec that changes password, email, 2FA, recovery keys, backup codes, API keys, passkeys, or account data destructively, first add it to the reserved policy and document the slot here.
 
-Use `cli-provision-auth-accounts.spec.ts` with `CREATE_ACCOUNT_SLOT` to provision reserved auth-test accounts for slots 15-20 when a slot secret is missing or intentionally rotated. The utility writes credential artifacts to the GitHub Actions artifact bundle; copy them into the matching `OPENMATES_TEST_ACCOUNT_<slot>_*` repository secrets and never commit generated credentials.
+Use `cli-provision-auth-accounts.spec.ts` with `CREATE_ACCOUNT_SLOT` to provision reserved auth-test accounts for slots 14-20 when a slot secret is missing or intentionally rotated. The workflow reads the reusable dev-only invite from the `E2E_SIGNUP_INVITE_CODE` repository secret and exposes it to the CLI only through `OPENMATES_CLI_SIGNUP_INVITE_CODE`. The utility writes credential artifacts to the GitHub Actions artifact bundle; copy them into the matching `OPENMATES_TEST_ACCOUNT_<slot>_*` repository secrets and never commit generated credentials.
 
 Apple XCUITests that mutate sensitive account state use the same reserved slot variables through `RealAccountUITestSupport.fromReservedSlot(<slot>)`; tests must skip when a required reserved slot is absent rather than falling back to the normal account pool. Static sensitive-settings parity smokes can use narrow fixture launch arguments when they do not call live account APIs.
 
@@ -269,10 +415,10 @@ Progress tracked in `test-results/progress.txt`.
 
 ### Debug Workflow (When a Spec Fails)
 
-1. Reproduce in Firecrawl browser — walk through user flow manually
+1. Reproduce with Playwright/browser evidence; use Firecrawl only as fallback
 2. Identify root cause (selector changed, timing, backend change, env issue)
 3. Fix app code or spec file
-4. Verify fix in Firecrawl first
+4. Verify fix with Playwright visual smoke first
 5. Re-run: `./scripts/run-tests-sequential.sh --spec <name>`
 6. Continue: `./scripts/run-tests-sequential.sh --next`
 
@@ -340,6 +486,12 @@ Located in `tests/helpers/`. All parameters are optional with sensible defaults.
 The live mock system runs the **full backend pipeline** (preprocessing, inference, skill execution, postprocessing, billing) but intercepts external API calls with cached record-and-replay responses. This tests everything except the parts that cost money.
 
 **Important:** Always use `withLiveMockMarker()`. Never use the old `withMockMarker()` which skips the entire pipeline.
+
+Live mock mode is supplemental coverage. It does not satisfy the new-feature CLI
+phase gate, which requires real CLI commands against the dev server with no
+mocked OpenMates API/WebSocket calls. Use live mock mode for repeatable CI and
+cost control after the real dev CLI proof exists, or when a spec records an
+explicit user-approved external-provider waiver.
 
 ### How It Works
 
@@ -442,49 +594,34 @@ The old `withMockMarker()` / fixture replay system still exists in `backend/apps
 
 ---
 
-## Production Smoke Suite (OPE-76)
+## Production Smoke Suite (OPE-76 / OPE-349)
 
-A minimal Playwright suite runs hourly from 10:00–20:00 Europe/Berlin against the **live production server** via `.github/workflows/prod-smoke.yml`. Three specs live under `frontend/apps/web_app/tests/prod-smoke/`:
+Production smoke is deliberately smaller than dev coverage. The dev server
+dispatches `.github/workflows/prod-smoke.yml` with a `suite` input, polls the
+GitHub Actions run, parses the uploaded artifact, and sends Discord + email on
+failure. The workflow itself does not send notifications.
 
-| Spec | What it verifies |
-|------|-------------------|
-| `prod-smoke-reachability.spec.ts` | `/`, `/login`, `/signup` load and render key `data-testid` markers. Pre-flight check. |
-| `prod-smoke-signup-giftcard-chat.spec.ts` | Fresh Mailosaur email → full cold-boot signup → redeem reusable gift card → send chat → delete account. |
-| `prod-smoke-login-chat.spec.ts` | Persistent prod test account login → send chat → best-effort cleanup. |
+| Suite | Command | What it verifies | Cost |
+|------|---------|------------------|------|
+| `free-hourly` | `python3 scripts/tests.py run --prod-free-hourly` | `prod-smoke-reachability.spec.ts`: logged-out production web shell loads and login/signup renders. | Free |
+| `paid-chat` | `python3 scripts/tests.py run --prod-paid-chat` | `openmates chats new "Reply with exactly: PONG"` against production API using the prod smoke API key. | One tiny paid LLM turn |
+| `app-skill-web-search` | `python3 scripts/tests.py run --prod-app-skill` | `openmates apps web search "OpenMates official website"` direct typed app-skill command against production API. | Provider/API cost only |
 
-### Why it's structured this way
+### Required configuration
 
-- **No Stripe on prod.** The signup spec uses the OPE-76 reusable + domain-bound gift card extension, so the flow goes through the Credits step via the existing "I have a gift card" button (`#signup-credits-gift-card`). Zero real money is burned.
-- **The gift card is locked to one Mailosaur server subdomain**, not the bare `mailosaur.net` TLD. `gift_card_methods._enforce_gift_card_domain` does an EXACT full-domain match (not a suffix match) — a suffix check would let ANY Mailosaur customer redeem our smoke-test card.
-- **Dual-channel failure notifications.** `.github/actions/notify-test-failure/` posts to Discord AND sends a Brevo email on any failure. Both sends are independent so one channel's outage cannot mask the failure. Motivated by the 2026-04-06 nightly summary email that silently never arrived.
-
-### Seeding the reusable gift card on prod
-
-One-time admin API call against the prod API after the schema migration lands:
-
-```bash
-curl -X POST "$PROD_API/v1/admin/generate-gift-cards" \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "credits_value": 1000,
-    "count": 1,
-    "notes": "OPE-76 reusable prod smoke test card",
-    "is_reusable": true,
-    "allowed_email_domain": "<mailosaur-server-id>.mailosaur.net"
-  }'
-```
-
-Copy the returned code into the `PROD_SMOKE_GIFT_CARD_CODE` GitHub secret. The card survives redemptions forever and is only redeemable by users whose email domain matches `allowed_email_domain` exactly.
-
-### Required GitHub Actions secrets
-
-`PROD_BASE_URL`, `PROD_SMOKE_GIFT_CARD_CODE`, `PROD_SMOKE_EMAIL_DOMAIN`, `PROD_SMOKE_MAILOSAUR_API_KEY`, `PROD_SMOKE_MAILOSAUR_SERVER_ID`, `OPENMATES_PROD_TEST_ACCOUNT_EMAIL`/`_PASSWORD`/`_OTP_KEY`, `DISCORD_WEBHOOK_PROD_SMOKE`, `PROD_SMOKE_EMAIL_TO`, `BREVO_API_KEY`.
+- GitHub Actions: `PROD_BASE_URL`, `OPENMATES_TEST_ACCOUNT_API_KEY`.
+- Dev server notifications: `DISCORD_WEBHOOK_PROD_SMOKE` and either Brevo
+  (`BREVO_API_KEY` + `ADMIN_NOTIFY_EMAIL`) or the internal email API
+  (`INTERNAL_API_SHARED_TOKEN` + `ADMIN_NOTIFY_EMAIL`).
+- `--force` bypasses Berlin-time schedule gates for manual verification.
+- `--dry-run` prints the GitHub workflow dispatch that would happen without
+  running production tests.
 
 ### Manual dispatch
 
 ```bash
 gh workflow run prod-smoke.yml
+gh workflow run prod-smoke.yml -f suite=paid-chat
 gh run watch
 ```
 
@@ -502,6 +639,6 @@ gh run watch
 
 - [ ] Tests actually fail when code is broken
 - [ ] Tests cover happy path AND at least one error path
-- [ ] Tests don't depend on external services (mock them)
+- [ ] Unit tests mock external services when appropriate, but CLI phase-gate evidence uses real dev-server commands and does not mock OpenMates API/WebSocket calls
 - [ ] No `time.sleep()` or arbitrary waits
 - [ ] Apple impact was checked for shared product surfaces, and Mac verification or an explicit `not affected` note was recorded

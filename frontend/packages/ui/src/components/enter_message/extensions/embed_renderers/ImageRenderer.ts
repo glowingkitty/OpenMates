@@ -82,6 +82,8 @@ interface ImageEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
    * read-only context (from TOON blob 'file_type' field).
    */
   fileType?: string;
+  /** Local-only anonymous preview that cannot upload until signup. */
+  needsSignup?: boolean;
 }
 
 /**
@@ -168,7 +170,7 @@ export class ImageRenderer implements EmbedRenderer {
         // File object is no longer available (attrs.originalFile is always undefined there).
         const fileSize = parsed.file_size as number | undefined;
         const fileType = parsed.file_type as string | undefined;
-        const publicSrc = parsed.src as string | undefined;
+        const publicSrc = (parsed.src as string | undefined) || (parsed.previewImageUrl as string | undefined);
 
         if (publicSrc) {
           const publicAttrs: ImageEmbedAttrs = {
@@ -436,6 +438,7 @@ export class ImageRenderer implements EmbedRenderer {
           isAuthenticated,
           fileSize,
           fileType,
+          needsSignup: attrs.needsSignup === true,
           aiDetection: attrs.aiDetection ?? null,
           onFullscreen: handleFullscreen,
           onStop: handleStop,

@@ -15,12 +15,40 @@ export {
   MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
   normalizeInterestTagIds,
+  reconcileAuthoritativeChats,
 } from "./client.js";
 export { serializeToYaml, getExtForLang } from "./cli.js";
+export {
+  buildImagesAiDetectionSummary,
+  classifyImagesAiDetection,
+  formatImagesAiDetectionLabel,
+  type ImagesAiDetectionClassification,
+  type ImagesAiDetectionSummary,
+} from "./cli.js";
 export { defaultCloneBranchForVersion } from "./server.js";
 export { SUPPORT_URL, renderSupportInfo } from "./support.js";
 export { OpenMates, OpenMatesApiError, OpenMatesConfigError } from "./sdk.js";
 export { APP_SKILL_METADATA } from "./generated/appSkills.js";
+export {
+  buildCreatePlanCriterionInput,
+  buildCreatePlanLearningInput,
+  buildCreatePlanVerificationInput,
+  buildCreateUserPlanInput,
+  buildPlanVerificationEvidenceInput,
+  buildUpdatePlanLearningInput,
+  buildUpdatePlanVerificationInput,
+  buildUpdateUserPlanInput,
+  decryptPlanLearning,
+  decryptPlanLearnings,
+  decryptUserPlan,
+  decryptUserPlans,
+  findPlan,
+  findPlanLearning,
+  renderPlanDetail,
+  renderPlanLearningDetail,
+  renderPlanLearningList,
+  renderPlanList,
+} from "./plansCli.js";
 export {
   ASSISTANT_FEEDBACK_REPORT_TITLE,
   ASSISTANT_FEEDBACK_THANKS,
@@ -32,6 +60,9 @@ export type {
   DecryptedMessage,
   DecryptedEmbed,
   DecryptedNewChatSuggestion,
+  DecryptedDraft,
+  EncryptedDraft,
+  AuthoritativeChatReconciliation,
   ChatListPage,
   MemoryTypeDef,
   MemoryFieldDef,
@@ -52,11 +83,6 @@ export type {
   WorkflowRunContentStorage,
   WorkflowRunDetail,
   WorkflowSummary,
-  ProjectSourceCapability,
-  ProjectSourceCreateInput,
-  ProjectSourceRecord,
-  ProjectSourceStatus,
-  ProjectSourceType,
   AuthMethodsStatus,
   CliSignupResult,
   TotpSetupStartResult,
@@ -70,10 +96,36 @@ export type {
   ChatCreateOptions,
   ChatListOptions,
   ChatResponse,
+  ApiKeyCreateOptions,
+  ApiKeyCreateResult,
+  ApiKeyRecord,
   EncryptedChatMetadata,
+  DraftRecord,
+  EncryptedDraftRecord,
   FocusModeSelection,
+  IdeaBucketAddInput,
+  IdeaBucketProcessOptions,
+  IdeaBucketResult,
+  IdeaBucketSettings,
+  IdeaBucketSettingsInput,
   OpenMatesOptions,
+  TaskListFilters,
+  PlanPlainCreateOptions,
+  PlanPlainUpdateOptions,
+  PlanRecord,
+  ProjectPlainCreateOptions,
+  ProjectPlainUpdateOptions,
+  ProjectRecordPlain,
+  TaskPlainCreateOptions,
+  TaskPlainUpdateOptions,
+  TaskRecord,
 } from "./sdk.js";
+export type {
+  DesignIconExportFormat,
+  DesignIconExportOptions,
+  DesignIconExportResult,
+} from "./designIcons.js";
+export type { DecryptedUserTask } from "./tasksCli.js";
 export type {
   OpenMatesSession,
   SyncCache,

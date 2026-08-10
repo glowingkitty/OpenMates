@@ -10,6 +10,14 @@ logo_svg: "logos/firecrawl.svg" # Path for UI, relative to a common logos direct
 region: "US" # Firecrawl is based in San Francisco, US
 privacy_policy: "https://www.firecrawl.dev/privacy-policy"
 
+required_keys:
+  - env_key: "SECRET__FIRECRAWL__API_KEY"
+    vault_path: "kv/data/providers/firecrawl"
+    vault_key: "api_key"
+    description: "Firecrawl API key for web scraping, crawling, and extraction."
+    setup_url: "https://firecrawl.dev/app"
+    docs_url: "https://docs.firecrawl.dev/introduction"
+
 # API endpoint configuration
 api_base_url: "https://api.firecrawl.dev/v2"
 

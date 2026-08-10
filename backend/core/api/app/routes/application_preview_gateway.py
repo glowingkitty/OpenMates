@@ -53,8 +53,45 @@ HTML_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>\b(?:src|href|action)\s*=\s*[\"
 QUOTED_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>[\"'])/(?!/|p/)(?P<path>[^\"']+)")
 CSS_URL_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>url\(\s*[\"']?)/(?!/|p/)(?P<path>[^)\"'\s]+)")
 UPSTREAM_PATH_SEGMENT_SAFE_CHARS = "@"
+VITE_HMR_CLIENT_PATH = "@vite/client"
+VITE_HMR_CLIENT_SHIM = b"""
+const styles = new Map();
+
+export function createHotContext() {
+  return {
+    data: {},
+    accept() {},
+    dispose() {},
+    prune() {},
+    decline() {},
+    invalidate() {},
+    on() {},
+    off() {},
+    send() {},
+  };
+}
+
+export function updateStyle(id, content) {
+  let style = styles.get(id);
+  if (!style) {
+    style = document.createElement('style');
+    style.setAttribute('data-vite-dev-id', id);
+    document.head.appendChild(style);
+    styles.set(id, style);
+  }
+  style.textContent = content;
+}
+
+export function removeStyle(id) {
+  const style = styles.get(id);
+  if (style) {
+    style.remove();
+    styles.delete(id);
+  }
+}
+""".strip()
 VITE_HMR_CLIENT_SCRIPT_PATTERN = re.compile(
-    r"\s*<script\b(?=[^>]*\bsrc=[\"']/@vite/client[\"'])[^>]*>\s*</script>",
+    r"\s*<script\b(?=[^>]*\bsrc=[\"']/(?:t/[^/]+/|p/[^/]+/[^/]+/)?@vite/client[\"'])[^>]*>\s*</script>",
     re.IGNORECASE,
 )
 
@@ -152,6 +189,13 @@ async def build_preview_gateway_response(
     upstream_fetch: Any | None = None,
 ) -> Response:
     session = await validate_preview_gateway_access(cache_service, session_id, preview_token, now=now, preview_host=preview_host)
+    if path.strip("/") == VITE_HMR_CLIENT_PATH:
+        return Response(
+            content=VITE_HMR_CLIENT_SHIM,
+            media_type="application/javascript",
+            headers=preview_gateway_security_headers(),
+        )
+
     upstream_base_url = _select_upstream_base_url(session, path)
     if not isinstance(upstream_base_url, str) or not upstream_base_url.strip():
         return JSONResponse(

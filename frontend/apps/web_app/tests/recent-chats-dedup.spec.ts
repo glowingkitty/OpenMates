@@ -39,6 +39,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 
 const consoleLogs: string[] = [];
 const warnErrorLogs: Array<{ timestamp: string; type: string; text: string }> = [];
+const UUID_CHAT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
@@ -83,12 +84,17 @@ async function performLogin(
 function isPublicChatId(chatId: string): boolean {
 	return (
 		chatId.startsWith('demo-') ||
+		chatId.startsWith('example-') ||
 		chatId.startsWith('legal-') ||
 		chatId.startsWith('announcements-') ||
 		chatId.startsWith('tips-') ||
 		chatId === 'example-for-everyone' ||
 		chatId === 'example-for-developers'
 	);
+}
+
+function isUserOwnedChatId(chatId: string): boolean {
+	return UUID_CHAT_ID_PATTERN.test(chatId) && !isPublicChatId(chatId);
 }
 
 /**
@@ -119,7 +125,7 @@ async function getSidebarChats(
 	for (let i = 0; i < Math.min(wrapperCount, count * 3); i++) {
 		if (chats.length >= count) break;
 		const chatId = await chatWrappers.nth(i).getAttribute('data-chat-id');
-		if (!chatId || isPublicChatId(chatId)) continue;
+		if (!chatId || !isUserOwnedChatId(chatId)) continue;
 		const titleEl = chatWrappers.nth(i).getByTestId('chat-title');
 		const text = (await titleEl.textContent())?.trim() || '';
 		if (
@@ -214,37 +220,18 @@ async function closeSidebar(page: any, logStep: (...args: any[]) => void): Promi
 }
 
 /**
- * Get the resume card title from the welcome screen.
- * Returns null if no resume card is visible.
+ * Get the recent/resume card title for a specific chat identity.
+ * Priority cards can render before the primary resume card, so assertions must
+ * target the opened chat's data-chat-id instead of the first visible title.
  */
-async function getResumeCardTitle(page: any): Promise<string | null> {
-	// Prefer the primary last-opened resume card. The carousel may render
-	// priority/reminder cards before it, and those cards reuse the title test IDs.
-	const primaryResumeCard = page
-		.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]')
-		.first();
-	if (await primaryResumeCard.isVisible({ timeout: 10000 }).catch(() => false)) {
-		const largeTitle = primaryResumeCard.getByTestId('resume-large-title').first();
-		const compactTitle = primaryResumeCard.getByTestId('resume-chat-title').first();
-		if (await largeTitle.isVisible({ timeout: 500 }).catch(() => false)) {
-			return (await largeTitle.textContent())?.trim() || null;
-		}
-		if (await compactTitle.isVisible({ timeout: 500 }).catch(() => false)) {
-			return (await compactTitle.textContent())?.trim() || null;
-		}
-	}
+async function getRecentCardTitleByChatId(page: any, chatId: string): Promise<string | null> {
+	const container = page.getByTestId('recent-chats-scroll-container');
+	const card = container.locator(`[data-chat-id="${chatId}"]`).first();
+	await expect(card).toBeVisible({ timeout: 10000 });
 
-	// Fallback for the edge case where the current resume chat is also promoted
-	// into the priority section, which intentionally suppresses the primary card.
-	const largeTitle = page.getByTestId('resume-large-title').first();
-	const compactTitle = page.getByTestId('resume-chat-title').first();
-	if (await largeTitle.isVisible({ timeout: 500 }).catch(() => false)) {
-		return (await largeTitle.textContent())?.trim() || null;
-	}
-	if (await compactTitle.isVisible({ timeout: 500 }).catch(() => false)) {
-		return (await compactTitle.textContent())?.trim() || null;
-	}
-	return null;
+	const title = card.locator('[data-testid="resume-large-title"], [data-testid="resume-chat-title"]').first();
+	await expect(title).toBeVisible({ timeout: 5000 });
+	return (await title.textContent())?.trim() || null;
 }
 
 /**
@@ -391,7 +378,7 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	const resumeContainer = page.getByTestId('recent-chats-scroll-container');
 	await expect(resumeContainer).toBeVisible({ timeout: 20000 });
 
-	const resumeTitle1 = await getResumeCardTitle(page);
+	const resumeTitle1 = await getRecentCardTitleByChatId(page, chatA.chatId);
 	logStep(`Resume card after chat A: "${resumeTitle1}"`);
 
 	// ASSERTION 1: Resume card should show chat A's title
@@ -406,7 +393,11 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	logStep('PASS: No duplicate cards found.');
 
 	const chatB = allCards1.find(
-		(card) => card.chatId && card.chatId !== chatA.chatId && card.title !== 'Untitled chat'
+		(card) =>
+			card.chatId &&
+			isUserOwnedChatId(card.chatId) &&
+			card.chatId !== chatA.chatId &&
+			card.title !== 'Untitled chat'
 	);
 	expect(chatB, 'Expected a second recent chat card to open for phase 3').toBeTruthy();
 	logStep(`Chat B from recent cards: "${chatB?.title}" (${chatB?.chatId})`);
@@ -435,7 +426,7 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	// Wait for resume card
 	await expect(resumeContainer).toBeVisible({ timeout: 20000 });
 
-	const resumeTitle2 = await getResumeCardTitle(page);
+	const resumeTitle2 = await getRecentCardTitleByChatId(page, chatB!.chatId!);
 	logStep(`Resume card after chat B: "${resumeTitle2}"`);
 
 	// ASSERTION 2: Resume card should now show chat B's title

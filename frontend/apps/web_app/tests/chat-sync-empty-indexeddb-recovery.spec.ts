@@ -388,6 +388,29 @@ async function ensureSidebarOpen(page: any): Promise<void> {
 	await expect(activityHistory).toBeVisible({ timeout: 15000 });
 }
 
+test('empty browser storage reloads server chats instead of stalling phased sync', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(180000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const logCheckpoint = createSignupLogger('CHAT_SYNC_EMPTY_STORAGE_RELOAD');
+	await loginToTestAccount(page, logCheckpoint, async () => undefined, { waitForEditor: true });
+	await ensureSidebarOpen(page);
+	await expect(page.getByTestId('chat-item-wrapper').first()).toBeVisible({ timeout: 30000 });
+
+	await clearLocalChatIndexedDb(page);
+	await page.evaluate(() => localStorage.clear());
+	await page.reload();
+	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
+	await ensureSidebarOpen(page);
+
+	await expect(page.getByTestId('chat-item-wrapper').first()).toBeVisible({ timeout: 45000 });
+});
+
 test('empty local IndexedDB with cold server cache keeps sync pending instead of finalizing no chats', async ({
 	page
 }: {

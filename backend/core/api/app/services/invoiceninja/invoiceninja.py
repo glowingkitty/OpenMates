@@ -39,6 +39,7 @@ class InvoiceNinjaService:
 
         # --- Static Configuration (Consider moving to config or secrets) ---
         self.STRIPE_BANK_ACCOUNT_NAME: str = "Stripe"
+        self.BANK_TRANSFER_BANK_ACCOUNT_NAME: str = "Revolut Business"
         self.PRODUCT_KEY_CREDITS_1K: str = "1.000 credits"
         self.PRODUCT_KEY_CREDITS_10K: str = "10.000 credits"
         self.PRODUCT_KEY_CREDITS_21K: str = "21.000 credits"
@@ -50,6 +51,8 @@ class InvoiceNinjaService:
         # --- Initialize dynamic bank integration details (will be populated in _async_init) ---
         self._stripe_bank_account_id: Optional[str] = None
         self._stripe_bank_integration_id: Optional[str] = None # Note: API returns string ID for integration
+        self._bank_transfer_bank_account_id: Optional[str] = None
+        self._bank_transfer_bank_integration_id: Optional[str] = None
 
         # Async HTTP client (initialized in _async_init, closed via close())
         self._http_client: Optional[httpx.AsyncClient] = None
@@ -134,6 +137,7 @@ class InvoiceNinjaService:
 
 
         found_stripe = False
+        found_bank_transfer = False
 
         for integration in integrations:
             # Check required fields exist
@@ -155,11 +159,39 @@ class InvoiceNinjaService:
                 self._stripe_bank_integration_id = int_id
                 logger.info(f"Found and assigned Stripe integration: Name='{acc_name}', AccountID='{self._stripe_bank_account_id}', IntegrationID='{self._stripe_bank_integration_id}'")
                 found_stripe = True
+
+            if not found_bank_transfer and acc_name == self.BANK_TRANSFER_BANK_ACCOUNT_NAME:
+                self._bank_transfer_bank_account_id = acc_id
+                self._bank_transfer_bank_integration_id = int_id
+                logger.info(
+                    f"Found and assigned bank transfer integration: Name='{acc_name}', "
+                    f"AccountID='{self._bank_transfer_bank_account_id}', "
+                    f"IntegrationID='{self._bank_transfer_bank_integration_id}'"
+                )
+                found_bank_transfer = True
+
+            if found_stripe and found_bank_transfer:
                 break
 
         # Log warnings if not found
         if not found_stripe:
             logger.warning(f"Could not find a valid bank integration matching name '{self.STRIPE_BANK_ACCOUNT_NAME}' with all required IDs. Stripe transactions cannot be processed.")
+        if not found_bank_transfer:
+            logger.warning(
+                f"Could not find a valid bank integration matching name "
+                f"'{self.BANK_TRANSFER_BANK_ACCOUNT_NAME}' with all required IDs. "
+                "Bank transfer transactions cannot be processed."
+            )
+
+    def _bank_integration_for_processor(self, processor_type: str) -> Tuple[Optional[str], Optional[str]]:
+        normalized_processor = processor_type.lower()
+        if normalized_processor == 'stripe':
+            return self._stripe_bank_account_id, self._stripe_bank_integration_id
+        if normalized_processor == 'bank_transfer':
+            return self._bank_transfer_bank_account_id, self._bank_transfer_bank_integration_id
+
+        logger.warning(f"Unknown processor type '{processor_type}'. Cannot determine bank/integration IDs.")
+        return None, None
 
     async def make_api_request(self, method: str, endpoint: str, params: Optional[Dict[str, Any]] = None, data: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """Makes an async JSON API request via httpx and handles common errors."""
@@ -513,11 +545,7 @@ class InvoiceNinjaService:
         target_processor_bank_id: Optional[str] = None
         target_bank_integration_id: Optional[str] = None
 
-        if processor_type.lower() == 'stripe':
-            target_processor_bank_id = self._stripe_bank_account_id
-            target_bank_integration_id = self._stripe_bank_integration_id
-        else:
-            logger.warning(f"Unknown processor type '{processor_type}'. Cannot determine bank/integration IDs.")
+        target_processor_bank_id, target_bank_integration_id = self._bank_integration_for_processor(processor_type)
 
         # --- Sanity Check Fetched IDs ---
         if target_processor_bank_id is None:
@@ -679,6 +707,14 @@ class InvoiceNinjaService:
 
         # --- Success ---
         logger.info(f"Process Completed for {processor_type.upper()} Order: {external_order_id}")
+        return {
+            "invoice_id": ninja_invoice_id,
+            "invoice_number": ninja_invoice_number,
+            "payment_id": ninja_payment_id,
+            "bank_transaction_id": ninja_bank_transaction_id,
+            "pdf_upload_success": pdf_upload_success,
+            "transaction_match_success": transaction_match_success,
+        }
 
     async def create_credit_note(
         self,
@@ -975,11 +1011,7 @@ class InvoiceNinjaService:
         target_processor_bank_id: Optional[str] = None
         target_bank_integration_id: Optional[str] = None
 
-        if processor_type.lower() == 'stripe':
-            target_processor_bank_id = self._stripe_bank_account_id
-            target_bank_integration_id = self._stripe_bank_integration_id
-        else:
-            logger.warning(f"Unknown processor type '{processor_type}'. Cannot determine bank/integration IDs.")
+        target_processor_bank_id, target_bank_integration_id = self._bank_integration_for_processor(processor_type)
 
         # Create bank transaction for refund (DEBIT)
         if target_processor_bank_id and target_bank_integration_id:

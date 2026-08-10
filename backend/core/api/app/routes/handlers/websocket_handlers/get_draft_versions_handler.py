@@ -48,11 +48,13 @@
 #   }
 
 import logging
+import hashlib
 from typing import Dict, Any, List
 
 from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 
 logger = logging.getLogger(__name__)
@@ -61,10 +63,72 @@ logger = logging.getLogger(__name__)
 MAX_CHATS_PER_REQUEST = 200
 
 
+async def get_authoritative_user_draft(
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    user_id: str,
+    chat_id: str,
+):
+    """Read a draft cache-first, falling back to its encrypted Directus row."""
+    cached = await cache_service.get_user_draft_from_cache(user_id=user_id, chat_id=chat_id)
+    cached_draft = None
+    cached_version_int = 0
+    if cached is not None:
+        is_tombstoned = getattr(cache_service, "is_user_draft_tombstoned", None)
+        if is_tombstoned and await is_tombstoned(user_id, chat_id):
+            return None
+        cached_md, cached_version, cached_preview = cached
+        try:
+            cached_version_int = int(cached_version or 0)
+        except (TypeError, ValueError):
+            cached_version_int = 0
+        if cached_md is not None and cached_md != "null" and cached_version_int > 0:
+            cached_draft = cached
+        else:
+            logger.info(
+                "Ignoring empty cached draft for user %s, chat %s until Directus fallback is checked.",
+                user_id,
+                chat_id,
+            )
+    else:
+        cached_md = None
+        cached_version = 0
+
+    rows = await directus_service.get_items(
+        "drafts",
+        params={
+            "filter[hashed_user_id][_eq]": hashlib.sha256(user_id.encode()).hexdigest(),
+            "filter[chat_id][_eq]": chat_id,
+            "fields": "encrypted_content,version",
+            "limit": 1,
+        },
+        admin_required=True,
+    )
+    if not rows:
+        return cached_draft
+    row = rows[0]
+    draft_version = int(row.get("version") or 0)
+    encrypted_content = row.get("encrypted_content")
+    if not encrypted_content or draft_version <= 0:
+        return cached_draft
+    if cached_draft and draft_version <= cached_version_int:
+        return cached_draft
+    draft = (encrypted_content, draft_version, None)
+    await cache_service.update_user_draft_in_cache(
+        user_id,
+        chat_id,
+        draft[0],
+        draft[1],
+        encrypted_draft_preview=None,
+    )
+    return draft
+
+
 async def handle_get_draft_versions(
     websocket: WebSocket,
     manager: ConnectionManager,
     cache_service: CacheService,
+    directus_service: DirectusService,
     user_id: str,
     device_fingerprint_hash: str,
     payload: Dict[str, Any],
@@ -75,7 +139,7 @@ async def handle_get_draft_versions(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("get_draft_versions", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -86,10 +150,8 @@ async def handle_get_draft_versions(
             logger.debug(
                 f"User {user_id}: get_draft_versions received with empty chats list — sending empty response."
             )
-            await manager.send_personal_message(
-                message={"type": "draft_versions_response", "payload": {"versions": {}}},
-                user_id=user_id,
-                device_fingerprint_hash=device_fingerprint_hash,
+            await websocket.send_json(
+                {"type": "draft_versions_response", "payload": {"versions": {}}}
             )
             return
 
@@ -105,6 +167,7 @@ async def handle_get_draft_versions(
         )
 
         versions: Dict[str, int] = {}
+        unavailable_chat_ids: List[str] = []
 
         for chat_entry in chats:
             chat_id = chat_entry.get("chat_id")
@@ -114,8 +177,11 @@ async def handle_get_draft_versions(
             try:
                 # get_user_draft_from_cache returns (encrypted_draft_md, draft_v, encrypted_draft_preview) or None.
                 # We only need the version — content and preview are not sent here.
-                draft_cache_result = await cache_service.get_user_draft_from_cache(
-                    user_id=user_id, chat_id=chat_id
+                draft_cache_result = await get_authoritative_user_draft(
+                    cache_service,
+                    directus_service,
+                    user_id,
+                    chat_id,
                 )
                 if draft_cache_result:
                     _, server_draft_v, _ = draft_cache_result
@@ -128,18 +194,22 @@ async def handle_get_draft_versions(
                     f"User {user_id}: Error fetching draft version for chat {chat_id}: {e}",
                     exc_info=True,
                 )
-                # On error, report 0 so the client doesn't retain a potentially stale draft.
-                # The client will clear the draft which is the safer outcome.
-                versions[chat_id] = 0
+                # A cache failure is not authoritative deletion evidence. Omitting
+                # the version keeps valid local drafts until a later successful sync.
+                unavailable_chat_ids.append(chat_id)
 
         logger.info(
             f"User {user_id}: Responding to get_draft_versions with {len(versions)} version(s)."
         )
 
-        await manager.send_personal_message(
-            message={"type": "draft_versions_response", "payload": {"versions": versions}},
-            user_id=user_id,
-            device_fingerprint_hash=device_fingerprint_hash,
+        await websocket.send_json(
+            {
+                "type": "draft_versions_response",
+                "payload": {
+                    "versions": versions,
+                    "unavailable_chat_ids": unavailable_chat_ids,
+                },
+            }
         )
 
     finally:

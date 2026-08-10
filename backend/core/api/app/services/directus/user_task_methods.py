@@ -7,31 +7,47 @@
 import hashlib
 import logging
 import re
+import secrets
 from typing import Any
 
 logger = logging.getLogger(__name__)
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
-KEY_WRAPPER_TYPES = {"master", "chat", "project"}
+KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
 
 
 USER_TASK_FIELDS = (
-    "id,task_id,hashed_user_id,status,assignee_type,assignee_hash,"
-    "primary_chat_id,hashed_primary_chat_id,linked_project_hashes,parent_task_id,"
-    "plan_id,plan_step_id,task_type,verification_id,"
+    "id,task_id,hashed_user_id,hashed_team_id,status,assignee_type,assignee_hash,"
+    "primary_chat_id,hashed_primary_chat_id,linked_project_hashes,label_hashes,parent_task_id,"
+    "plan_id,plan_step_id,task_type,verification_id,source_plan_id,source_learning_id,"
     "due_at,priority,position,version,created_at,updated_at,started_at,"
-    "completed_at,blocked_reason_code,ai_execution_state,encrypted_title,"
-    "encrypted_task_key,encrypted_description,encrypted_tags,encrypted_linked_project_ids,"
+    "completed_at,blocked_reason_code,queue_state,ai_execution_state,encrypted_title,"
+    "encrypted_task_key,encrypted_description,encrypted_labels,encrypted_tags,encrypted_linked_project_ids,"
     "encrypted_activity_summary,encrypted_latest_instruction"
 )
 
+USER_TASK_METADATA_FIELDS = "task_id,status,updated_at,version"
+
 USER_TASK_KEY_WRAPPER_FIELDS = (
     "id,hashed_task_id,hashed_user_id,key_type,hashed_chat_id,hashed_project_id,"
-    "encrypted_task_key,created_at,expires_at"
+    "hashed_plan_id,hashed_team_id,team_key_epoch,encrypted_task_key,created_at,expires_at,wrapper_version"
 )
+
+USER_TASK_EXECUTION_CONTEXT_FIELDS = "id,hashed_user_id,hashed_task_id,hashed_chat_id,encrypted_context,created_at,expires_at"
 
 
 def hash_id(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def derive_task_short_id(task: dict[str, Any]) -> str:
+    prefix = str(task.get("short_id_prefix") or "TASK")
+    source = str(task.get("task_id") or f"{task.get('created_at') or ''}-{task.get('position') or ''}")
+    digest = hashlib.sha256(source.encode()).hexdigest()[:4].upper()
+    return f"{prefix}-{int(digest, 16) % 10_000}"
+
+
+def _with_short_id(task: dict[str, Any]) -> dict[str, Any]:
+    return {**task, "short_id": task.get("short_id") or derive_task_short_id(task)}
 
 
 def is_sha256_hex(value: str | None) -> bool:
@@ -46,6 +62,27 @@ def _coerce_hashes(value: Any) -> set[str]:
     return set()
 
 
+def _coerce_blind_hashes(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    hashes: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not is_sha256_hex(item):
+            raise ValueError("Task label hashes must be lowercase SHA-256 hex strings")
+        hashes.append(item)
+    return hashes
+
+
+def _coerce_priority(value: Any) -> int:
+    try:
+        priority = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Task priority must be an integer from 0 to 4") from exc
+    if priority < 0 or priority > 4:
+        raise ValueError("Task priority must be an integer from 0 to 4")
+    return priority
+
+
 def _validate_wrapper_shape(wrapper: dict[str, Any], encrypted_key_field: str) -> bool:
     key_type = wrapper.get("key_type")
     if key_type not in KEY_WRAPPER_TYPES:
@@ -57,21 +94,40 @@ def _validate_wrapper_shape(wrapper: dict[str, Any], encrypted_key_field: str) -
 
     hashed_chat_id = wrapper.get("hashed_chat_id")
     hashed_project_id = wrapper.get("hashed_project_id")
+    hashed_plan_id = wrapper.get("hashed_plan_id")
+    hashed_team_id = wrapper.get("hashed_team_id")
+    team_key_epoch = wrapper.get("team_key_epoch")
     if hashed_chat_id is not None and not is_sha256_hex(hashed_chat_id):
         logger.error("Rejected user task key wrapper with invalid hashed_chat_id")
         return False
     if hashed_project_id is not None and not is_sha256_hex(hashed_project_id):
         logger.error("Rejected user task key wrapper with invalid hashed_project_id")
         return False
-    if key_type == "master" and (hashed_chat_id is not None or hashed_project_id is not None):
+    if hashed_plan_id is not None and not is_sha256_hex(hashed_plan_id):
+        logger.error("Rejected user task key wrapper with invalid hashed_plan_id")
+        return False
+    if hashed_team_id is not None and not is_sha256_hex(hashed_team_id):
+        logger.error("Rejected user task key wrapper with invalid hashed_team_id")
+        return False
+    if key_type == "master" and any(value is not None for value in (hashed_chat_id, hashed_project_id, hashed_plan_id, hashed_team_id)):
         logger.error("Rejected user task master wrapper with scoped hash")
         return False
-    if key_type == "chat" and (hashed_chat_id is None or hashed_project_id is not None):
+    if key_type == "chat" and (hashed_chat_id is None or any(value is not None for value in (hashed_project_id, hashed_plan_id, hashed_team_id))):
         logger.error("Rejected user task chat wrapper with invalid scope")
         return False
-    if key_type == "project" and (hashed_project_id is None or hashed_chat_id is not None):
+    if key_type == "project" and (hashed_project_id is None or any(value is not None for value in (hashed_chat_id, hashed_plan_id, hashed_team_id))):
         logger.error("Rejected user task project wrapper with invalid scope")
         return False
+    if key_type == "plan" and (hashed_plan_id is None or any(value is not None for value in (hashed_chat_id, hashed_project_id, hashed_team_id))):
+        logger.error("Rejected user task plan wrapper with invalid scope")
+        return False
+    if key_type == "team":
+        if hashed_team_id is None or any(value is not None for value in (hashed_chat_id, hashed_project_id, hashed_plan_id)):
+            logger.error("Rejected user task team wrapper with invalid scope")
+            return False
+        if not isinstance(team_key_epoch, int) or team_key_epoch < 1:
+            logger.error("Rejected user task team wrapper without valid team_key_epoch")
+            return False
     return True
 
 
@@ -80,6 +136,7 @@ def _validate_wrapper_set(
     *,
     primary_chat_hash: str | None,
     project_hashes: set[str],
+    plan_hash: str | None = None,
 ) -> bool:
     if not wrappers:
         logger.error("Rejected empty user task key wrapper set")
@@ -87,6 +144,7 @@ def _validate_wrapper_set(
     master_count = 0
     chat_hashes: set[str] = set()
     wrapper_project_hashes: set[str] = set()
+    plan_hashes: set[str] = set()
     for wrapper in wrappers:
         if not _validate_wrapper_shape(wrapper, "encrypted_task_key"):
             return False
@@ -105,6 +163,12 @@ def _validate_wrapper_set(
                 logger.error("Rejected user task project wrapper that does not match linked project metadata")
                 return False
             wrapper_project_hashes.add(hashed_project_id)
+        elif key_type == "plan":
+            hashed_plan_id = wrapper.get("hashed_plan_id")
+            if hashed_plan_id != plan_hash:
+                logger.error("Rejected user task plan wrapper that does not match plan metadata")
+                return False
+            plan_hashes.add(hashed_plan_id)
     if master_count != 1:
         logger.error("Rejected user task key wrapper set without exactly one master wrapper")
         return False
@@ -113,6 +177,9 @@ def _validate_wrapper_set(
         return False
     if not project_hashes.issubset(wrapper_project_hashes):
         logger.error("Rejected user task key wrapper set missing linked project wrappers")
+        return False
+    if plan_hash and plan_hash not in plan_hashes:
+        logger.error("Rejected user task key wrapper set missing linked plan wrapper")
         return False
     return True
 
@@ -129,39 +196,109 @@ class UserTaskMethods:
         chat_id: str | None = None,
         project_id: str | None = None,
         assignee_hash: str | None = None,
+        label_hashes: list[str] | None = None,
+        priority: int | None = None,
         due_before: int | None = None,
+        team_id: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
+        if team_id:
+            filter_terms: list[dict[str, Any]] = [{"hashed_team_id": {"_eq": hash_id(team_id)}}]
+        else:
+            filter_terms = [{"hashed_user_id": {"_eq": hash_id(user_id)}}, {"hashed_team_id": {"_null": True}}]
+        valid_label_hashes = _coerce_blind_hashes(label_hashes or [])
         params: dict[str, Any] = {
-            "filter[hashed_user_id][_eq]": hash_id(user_id),
             "fields": USER_TASK_FIELDS,
             "sort": "position,created_at",
             "limit": max(1, min(limit, 500)),
         }
         if status:
-            params["filter[status][_eq]"] = status
+            filter_terms.append({"status": {"_eq": status}})
         if chat_id:
-            params["filter[hashed_primary_chat_id][_eq]"] = hash_id(chat_id)
+            filter_terms.append({"hashed_primary_chat_id": {"_eq": hash_id(chat_id)}})
         if project_id:
-            params["filter[linked_project_hashes][_contains]"] = hash_id(project_id)
+            filter_terms.append({"linked_project_hashes": {"_contains": hash_id(project_id)}})
         if assignee_hash:
-            params["filter[assignee_hash][_eq]"] = assignee_hash
+            filter_terms.append({"assignee_hash": {"_eq": assignee_hash}})
+        if priority is not None:
+            filter_terms.append({"priority": {"_eq": _coerce_priority(priority)}})
+        for label_hash in valid_label_hashes:
+            filter_terms.append({"label_hashes": {"_contains": label_hash}})
         if due_before is not None:
-            params["filter[due_at][_lte]"] = due_before
+            filter_terms.append({"due_at": {"_lte": due_before}})
+        params["filter"] = {"_and": filter_terms} if len(filter_terms) > 1 else filter_terms[0]
 
         response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
-        return response if isinstance(response, list) else []
+        return [_with_short_id(task) for task in response] if isinstance(response, list) else []
 
-    async def get_task(self, task_id: str, user_id: str) -> dict[str, Any] | None:
+    async def summarize_task_metadata(self, user_id: str, team_id: str | None = None) -> dict[str, Any]:
+        if team_id:
+            filter_terms: list[dict[str, Any]] = [{"hashed_team_id": {"_eq": hash_id(team_id)}}]
+        else:
+            filter_terms = [{"hashed_user_id": {"_eq": hash_id(user_id)}}, {"hashed_team_id": {"_null": True}}]
+        response = await self.directus_service.get_items(
+            "user_tasks",
+            params={
+                "fields": "status",
+                "filter": {"_and": filter_terms} if len(filter_terms) > 1 else filter_terms[0],
+                "limit": -1,
+            },
+            no_cache=True,
+        )
+        tasks = response if isinstance(response, list) else []
+        by_status: dict[str, int] = {}
+        for task in tasks:
+            status = str(task.get("status") or "unknown")
+            by_status[status] = by_status.get(status, 0) + 1
+        return {"total": len(tasks), "by_status": by_status}
+
+    async def get_task_metadata(self, task_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any] | None:
         params = {
             "filter[task_id][_eq]": task_id,
-            "filter[hashed_user_id][_eq]": hash_id(user_id),
+            "fields": USER_TASK_METADATA_FIELDS,
+            "limit": 1,
+        }
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
+        else:
+            params["filter[hashed_user_id][_eq]"] = hash_id(user_id)
+            params["filter[hashed_team_id][_null]"] = True
+        response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
+        if response and isinstance(response, list):
+            task = response[0]
+            return {
+                "task_id": task.get("task_id"),
+                "status": task.get("status"),
+                "updated_at": task.get("updated_at"),
+                "version": task.get("version"),
+            }
+        return None
+
+    async def get_task(self, task_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any] | None:
+        params = {
+            "filter[task_id][_eq]": task_id,
             "fields": USER_TASK_FIELDS,
             "limit": 1,
         }
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
+        else:
+            params["filter[hashed_user_id][_eq]"] = hash_id(user_id)
+            params["filter[hashed_team_id][_null]"] = True
         response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
         if response and isinstance(response, list):
-            return response[0]
+            return _with_short_id(response[0])
+        return None
+
+    async def get_task_by_short_id(self, short_id: str, user_id: str) -> dict[str, Any] | None:
+        matches: list[dict[str, Any]] = []
+        for task in await self.list_tasks(user_id, limit=500):
+            if task.get("short_id") == short_id:
+                matches.append(task)
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            logger.error("Ambiguous task short ID %s for user hash %s", short_id, hash_id(user_id))
         return None
 
     async def list_due_ai_tasks(self, due_before: int, *, limit: int = 100) -> list[dict[str, Any]]:
@@ -203,14 +340,19 @@ class UserTaskMethods:
         linked_project_ids = payload.pop("linked_project_ids", []) or []
         now = payload.get("created_at") or payload.get("updated_at")
         primary_chat_id = payload.get("primary_chat_id")
+        version = payload.get("version")
+        if version is None:
+            raise ValueError("Task create requires version")
         record = {
             **payload,
             "hashed_user_id": hash_id(user_id),
             "status": payload.get("status") or "todo",
             "assignee_type": payload.get("assignee_type") or "user",
             "linked_project_hashes": [hash_id(project_id) for project_id in linked_project_ids if project_id],
+            "label_hashes": _coerce_blind_hashes(payload.get("label_hashes") or []),
+            "priority": _coerce_priority(payload.get("priority") or 0),
             "hashed_primary_chat_id": hash_id(primary_chat_id) if primary_chat_id else None,
-            "version": payload.get("version", 1),
+            "version": int(version),
             "created_at": now,
             "updated_at": payload.get("updated_at", now),
         }
@@ -218,6 +360,7 @@ class UserTaskMethods:
             key_wrappers,
             primary_chat_hash=record.get("hashed_primary_chat_id"),
             project_hashes=_coerce_hashes(record.get("linked_project_hashes")),
+            plan_hash=hash_id(record["plan_id"]) if record.get("plan_id") else None,
         ):
             return None
         success, data = await self.directus_service.create_item("user_tasks", record)
@@ -237,7 +380,7 @@ class UserTaskMethods:
         for wrapper in wrappers:
             wrapper_id = wrapper.get("id")
             if wrapper_id:
-                await self.directus_service.delete_item("user_task_key_wrappers", wrapper_id)
+                await self.directus_service.delete_item("user_task_key_wrappers", wrapper_id, admin_required=True)
         row_id = task_row.get("id")
         if row_id:
             await self.directus_service.delete_item("user_tasks", row_id)
@@ -245,6 +388,8 @@ class UserTaskMethods:
     async def create_task_key_wrapper(self, user_id: str, task_id: str, wrapper: dict[str, Any]) -> dict[str, Any] | None:
         hashed_chat_id = wrapper.get("hashed_chat_id")
         hashed_project_id = wrapper.get("hashed_project_id")
+        hashed_plan_id = wrapper.get("hashed_plan_id")
+        hashed_team_id = wrapper.get("hashed_team_id")
         if not _validate_wrapper_shape(wrapper, "encrypted_task_key"):
             return None
         record = {
@@ -253,24 +398,62 @@ class UserTaskMethods:
             "key_type": wrapper.get("key_type"),
             "hashed_chat_id": hashed_chat_id,
             "hashed_project_id": hashed_project_id,
+            "hashed_plan_id": hashed_plan_id,
+            "hashed_team_id": hashed_team_id,
+            "team_key_epoch": wrapper.get("team_key_epoch"),
             "encrypted_task_key": wrapper.get("encrypted_task_key"),
             "created_at": wrapper.get("created_at"),
             "expires_at": wrapper.get("expires_at"),
+            "wrapper_version": wrapper.get("wrapper_version", 1),
         }
-        success, data = await self.directus_service.create_item("user_task_key_wrappers", record)
+        success, data = await self.directus_service.create_item("user_task_key_wrappers", record, admin_required=True)
         if not success:
             logger.error("Failed to create user task key wrapper: %s", data)
             return None
         return data
 
-    async def replace_task_key_wrappers(self, user_id: str, task_id: str, wrappers: list[dict[str, Any]]) -> list[dict[str, Any]] | None:
-        task = await self.get_task(task_id, user_id)
+    async def replace_task_key_wrappers(self, user_id: str, task_id: str, wrappers: list[dict[str, Any]], expected_version: int) -> list[dict[str, Any]] | None:
+        lock_key = self._task_lock_key(user_id, task_id)
+        lock_token = await self._acquire_task_lock(lock_key)
+        try:
+            task = await self.get_task(task_id, user_id)
+            if not task:
+                return None
+            task_version = task.get("version")
+            if task_version is None:
+                return None
+            if int(task_version) != int(expected_version):
+                return None
+            replacement = await self._replace_task_key_wrappers_unlocked(user_id, task_id, wrappers, task=task)
+            if replacement is None:
+                return None
+            created_wrappers, previous_wrappers = replacement
+            version_touch = await self.directus_service.update_item_if_version(
+                "user_tasks",
+                task["id"],
+                {"version": int(expected_version) + 1},
+                int(expected_version),
+                owner_hash_field="hashed_user_id",
+                owner_hash=hash_id(user_id),
+            )
+            if not version_touch:
+                if not await self._delete_key_wrappers(created_wrappers):
+                    raise RuntimeError("Failed to clean up new user task key wrappers")
+                await self._restore_task_key_wrappers(user_id, task_id, previous_wrappers)
+                raise RuntimeError("Failed to advance task version after key wrapper replacement")
+            return created_wrappers
+        finally:
+            await self._release_task_lock(lock_key, lock_token)
+
+    async def _replace_task_key_wrappers_unlocked(self, user_id: str, task_id: str, wrappers: list[dict[str, Any]], *, task: dict[str, Any] | None = None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
+        task = task or await self.get_task(task_id, user_id)
         if not task:
             return None
         if not _validate_wrapper_set(
             wrappers,
             primary_chat_hash=task.get("hashed_primary_chat_id"),
             project_hashes=_coerce_hashes(task.get("linked_project_hashes")),
+            plan_hash=hash_id(task["plan_id"]) if task.get("plan_id") else None,
         ):
             return None
         existing_wrappers = await self.list_task_key_wrappers(user_id, task_id)
@@ -281,13 +464,16 @@ class UserTaskMethods:
                 for created in created_wrappers:
                     created_id = created.get("id")
                     if created_id:
-                        await self.directus_service.delete_item("user_task_key_wrappers", created_id)
+                        await self.directus_service.delete_item("user_task_key_wrappers", created_id, admin_required=True)
                 return None
             created_wrappers.append(created_wrapper)
-        if not await self._delete_key_wrappers(existing_wrappers):
-            await self._delete_key_wrappers(created_wrappers)
+        deleted_existing, deleted_existing_wrappers = await self._delete_key_wrappers_tracking(existing_wrappers)
+        if not deleted_existing:
+            if not await self._delete_key_wrappers(created_wrappers):
+                raise RuntimeError("Failed to clean up new user task key wrappers")
+            await self._restore_task_key_wrappers(user_id, task_id, deleted_existing_wrappers)
             raise RuntimeError("Failed to delete old user task key wrappers")
-        return created_wrappers
+        return created_wrappers, existing_wrappers
 
     async def list_task_key_wrappers(self, user_id: str, task_id: str) -> list[dict[str, Any]]:
         params = {
@@ -296,11 +482,107 @@ class UserTaskMethods:
             "fields": USER_TASK_KEY_WRAPPER_FIELDS,
             "limit": 50,
         }
-        response = await self.directus_service.get_items("user_task_key_wrappers", params=params, no_cache=True)
+        response = await self.directus_service.get_items("user_task_key_wrappers", params=params, no_cache=True, admin_required=True)
         return response if isinstance(response, list) else []
 
+    async def create_task_execution_context(
+        self,
+        *,
+        user_id: str,
+        task_id: str,
+        chat_id: str,
+        encrypted_context: str,
+        created_at: int,
+        expires_at: int,
+    ) -> dict[str, Any] | None:
+        if expires_at <= created_at:
+            raise ValueError("Task execution context must expire after creation")
+        record = {
+            "hashed_user_id": hash_id(user_id),
+            "hashed_task_id": hash_id(task_id),
+            "hashed_chat_id": hash_id(chat_id),
+            "encrypted_context": encrypted_context,
+            "created_at": created_at,
+            "expires_at": expires_at,
+        }
+        success, data = await self.directus_service.create_item("user_task_execution_contexts", record, admin_required=True)
+        if not success:
+            logger.error("Failed to create user task execution context: %s", data)
+            return None
+        return data
+
+    async def get_task_execution_context(self, *, user_id: str, task_id: str, chat_id: str, now: int) -> dict[str, Any] | None:
+        params = {
+            "filter[hashed_user_id][_eq]": hash_id(user_id),
+            "filter[hashed_task_id][_eq]": hash_id(task_id),
+            "filter[hashed_chat_id][_eq]": hash_id(chat_id),
+            "filter[expires_at][_gt]": now,
+            "fields": USER_TASK_EXECUTION_CONTEXT_FIELDS,
+            "sort": "-created_at",
+            "limit": 1,
+        }
+        response = await self.directus_service.get_items("user_task_execution_contexts", params=params, no_cache=True, admin_required=True)
+        if response and isinstance(response, list):
+            return response[0]
+        return None
+
+    async def delete_expired_task_execution_contexts(self, now: int, *, limit: int = 100) -> int:
+        response = await self.directus_service.get_items(
+            "user_task_execution_contexts",
+            params={
+                "filter[expires_at][_lte]": now,
+                "fields": "id",
+                "limit": max(1, min(limit, 500)),
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        contexts = response if isinstance(response, list) else []
+        deleted = 0
+        for context in contexts:
+            context_id = context.get("id")
+            if context_id and await self.directus_service.delete_item("user_task_execution_contexts", context_id, admin_required=True) is not False:
+                deleted += 1
+        return deleted
+
     async def update_task(self, task_id: str, user_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
-        existing = await self.get_task(task_id, user_id)
+        lock_key = self._task_lock_key(user_id, task_id)
+        lock_token = await self._acquire_task_lock(lock_key)
+        try:
+            if patch.get("version") is None:
+                raise ValueError("Task update requires expected version")
+            existing = await self.get_task(task_id, user_id)
+            if not existing:
+                return None
+            existing_version = existing.get("version")
+            if existing_version is None:
+                return None
+            if int(existing_version) != int(patch.get("version") or 0):
+                return None
+            return await self._update_task_unlocked(task_id, user_id, patch, existing=existing)
+        finally:
+            await self._release_task_lock(lock_key, lock_token)
+
+    async def update_task_if_version(self, task_id: str, user_id: str, patch: dict[str, Any], expected_version: int) -> dict[str, Any] | None:
+        lock_key = self._task_lock_key(user_id, task_id)
+        lock_token = await self._acquire_task_lock(lock_key)
+        try:
+            existing = await self.get_task(task_id, user_id)
+            if not existing:
+                return None
+            existing_version = existing.get("version")
+            if existing_version is None:
+                return None
+            if int(existing_version) != int(expected_version):
+                return None
+            patch_version = patch.get("version")
+            committed_version = int(patch_version) if patch_version is not None and int(patch_version) != int(expected_version) else None
+            return await self._update_task_unlocked(task_id, user_id, patch, existing=existing, committed_version=committed_version)
+        finally:
+            await self._release_task_lock(lock_key, lock_token)
+
+    async def _update_task_unlocked(self, task_id: str, user_id: str, patch: dict[str, Any], *, existing: dict[str, Any] | None = None, committed_version: int | None = None) -> dict[str, Any] | None:
+        existing = existing or await self.get_task(task_id, user_id)
         if not existing:
             return None
         update = dict(patch)
@@ -322,6 +604,7 @@ class UserTaskMethods:
         if "linked_project_ids" in update:
             linked_project_ids = update.get("linked_project_ids") or []
             next_project_hashes = {hash_id(project_id) for project_id in linked_project_ids if project_id}
+        next_plan_hash = hash_id(update["plan_id"]) if update.get("plan_id") else (hash_id(existing["plan_id"]) if existing.get("plan_id") else None)
 
         relinks_context = next_chat_hash != existing_chat_hash or next_project_hashes != existing_project_hashes
         if relinks_context and not key_wrappers:
@@ -332,6 +615,11 @@ class UserTaskMethods:
             return None
         update.pop("task_id", None)
         update.pop("hashed_user_id", None)
+        update.pop("version", None)
+        if "label_hashes" in update:
+            update["label_hashes"] = _coerce_blind_hashes(update.get("label_hashes") or [])
+        if "priority" in update:
+            update["priority"] = _coerce_priority(update.get("priority") or 0)
         if "primary_chat_id" in update:
             primary_chat_id = update.get("primary_chat_id")
             update["hashed_primary_chat_id"] = hash_id(primary_chat_id) if primary_chat_id else None
@@ -342,6 +630,7 @@ class UserTaskMethods:
             key_wrappers,
             primary_chat_hash=next_chat_hash,
             project_hashes=next_project_hashes,
+            plan_hash=next_plan_hash,
         ):
             return None
         if key_wrappers is not None:
@@ -352,41 +641,160 @@ class UserTaskMethods:
                     await self._delete_key_wrappers(created_wrappers)
                     return None
                 created_wrappers.append(created_wrapper)
-        update["version"] = int(existing.get("version") or 1) + 1
-        updated = await self.directus_service.update_item("user_tasks", existing["id"], update)
-        if not updated:
-            await self._delete_key_wrappers(created_wrappers)
+        existing_version = existing.get("version")
+        if existing_version is None:
             return None
-        if not await self._delete_key_wrappers(existing_wrappers):
-            raise RuntimeError("Failed to delete old user task key wrappers")
-        return updated
+        next_version = int(committed_version) if committed_version is not None else int(existing_version) + 1
+        if next_version <= int(existing_version):
+            return None
+        if key_wrappers is not None:
+            deleted_existing, deleted_existing_wrappers = await self._delete_key_wrappers_tracking(existing_wrappers)
+            if not deleted_existing:
+                if not await self._delete_key_wrappers(created_wrappers):
+                    raise RuntimeError("Failed to clean up new user task key wrappers")
+                await self._restore_task_key_wrappers(user_id, task_id, deleted_existing_wrappers)
+                raise RuntimeError("Failed to delete old user task key wrappers")
+            final_update = dict(update)
+            final_update["version"] = next_version
+            updated = await self.directus_service.update_item_if_version(
+                "user_tasks",
+                existing["id"],
+                final_update,
+                int(existing_version),
+                owner_hash_field="hashed_user_id",
+                owner_hash=hash_id(user_id),
+            )
+            if not updated:
+                updated = await self._committed_task_after_empty_update(task_id, user_id, next_version)
+            if not updated:
+                if not await self._delete_key_wrappers(created_wrappers):
+                    raise RuntimeError("Failed to clean up new user task key wrappers")
+                await self._restore_task_key_wrappers(user_id, task_id, existing_wrappers)
+                return None
+            return updated
+
+        update["version"] = next_version
+        updated = await self.directus_service.update_item_if_version(
+            "user_tasks",
+            existing["id"],
+            update,
+            int(existing_version),
+            owner_hash_field="hashed_user_id",
+            owner_hash=hash_id(user_id),
+        )
+        return updated or await self._committed_task_after_empty_update(task_id, user_id, next_version)
+
+    async def _committed_task_after_empty_update(self, task_id: str, user_id: str, expected_version: int) -> dict[str, Any] | None:
+        current = await self.get_task(task_id, user_id)
+        if current and int(current.get("version") or 0) == int(expected_version):
+            return current
+        return None
+
+    def _task_lock_key(self, user_id: str, task_id: str) -> str:
+        return f"user_task_write_lock:{hash_id(user_id)}:{hash_id(task_id)}"
+
+    async def _acquire_task_lock(self, key: str) -> str | None:
+        cache = getattr(self.directus_service, "cache", None)
+        if cache is None:
+            raise RuntimeError("Task lock backend is unavailable")
+        client_ref = getattr(cache, "client", None)
+        if client_ref is None:
+            raise RuntimeError("Task lock backend is unavailable")
+        client = await client_ref
+        if not client:
+            raise RuntimeError("Task lock backend is unavailable")
+        token = secrets.token_urlsafe(16)
+        acquired = await client.set(key, token, nx=True, ex=30)
+        if not acquired:
+            raise RuntimeError("Task is already being updated")
+        return token
+
+    async def _release_task_lock(self, key: str, token: str | None) -> None:
+        if token is None:
+            return
+        cache = getattr(self.directus_service, "cache", None)
+        if cache is None:
+            return
+        client_ref = getattr(cache, "client", None)
+        if client_ref is None:
+            return
+        client = await client_ref
+        if not client:
+            return
+        current = await client.get(key)
+        if isinstance(current, bytes):
+            current = current.decode("utf-8")
+        if current == token:
+            await client.delete(key)
 
     async def _delete_key_wrappers(self, wrappers: list[dict[str, Any]]) -> bool:
+        all_deleted, _deleted_wrappers = await self._delete_key_wrappers_tracking(wrappers)
+        return all_deleted
+
+    async def _delete_key_wrappers_tracking(self, wrappers: list[dict[str, Any]]) -> tuple[bool, list[dict[str, Any]]]:
         all_deleted = True
+        deleted_wrappers: list[dict[str, Any]] = []
         for wrapper in wrappers:
             wrapper_id = wrapper.get("id")
             if wrapper_id:
-                deleted = await self.directus_service.delete_item("user_task_key_wrappers", wrapper_id)
+                deleted = await self.directus_service.delete_item("user_task_key_wrappers", wrapper_id, admin_required=True)
                 if deleted is False:
                     logger.error("Failed to delete old user task key wrapper")
                     all_deleted = False
-        return all_deleted
+                else:
+                    deleted_wrappers.append(wrapper)
+        return all_deleted, deleted_wrappers
+
+    async def _restore_task_key_wrappers(self, user_id: str, task_id: str, wrappers: list[dict[str, Any]]) -> None:
+        restored: list[dict[str, Any]] = []
+        for wrapper in wrappers:
+            created = await self.create_task_key_wrapper(user_id, task_id, wrapper)
+            if not created:
+                await self._delete_key_wrappers(restored)
+                raise RuntimeError("Failed to restore old user task key wrappers")
+            restored.append(created)
 
     async def start_due_ai_task(self, task: dict[str, Any], now: int) -> dict[str, Any] | None:
         row_id = task.get("id")
         if not row_id:
             return None
+        task_id = str(task.get("task_id") or "")
+        owner_hash = str(task.get("hashed_user_id") or "")
+        if not task_id or not owner_hash:
+            return None
+        lock_key = f"user_task_write_lock:{owner_hash}:{hash_id(task_id)}"
+        lock_token = await self._acquire_task_lock(lock_key)
         update = {
             "status": "in_progress",
             "ai_execution_state": "queued",
             "started_at": now,
             "updated_at": now,
-            "version": int(task.get("version") or 1) + 1,
+            "version": int(task["version"]) + 1,
         }
-        return await self.directus_service.update_item("user_tasks", row_id, update)
+        try:
+            return await self.directus_service.update_item_if_version(
+                "user_tasks",
+                row_id,
+                update,
+                int(task["version"]),
+                owner_hash_field="hashed_user_id",
+                owner_hash=owner_hash,
+            )
+        finally:
+            await self._release_task_lock(lock_key, lock_token)
 
-    async def delete_task(self, task_id: str, user_id: str) -> bool:
-        existing = await self.get_task(task_id, user_id)
-        if not existing:
-            return False
-        return await self.directus_service.delete_item("user_tasks", existing["id"])
+    async def delete_task(self, task_id: str, user_id: str, expected_version: int) -> bool:
+        lock_key = self._task_lock_key(user_id, task_id)
+        lock_token = await self._acquire_task_lock(lock_key)
+        try:
+            existing = await self.get_task(task_id, user_id)
+            if not existing:
+                return False
+            existing_version = existing.get("version")
+            if existing_version is None:
+                return False
+            if int(existing_version) != int(expected_version):
+                return False
+            return await self.directus_service.delete_item("user_tasks", existing["id"])
+        finally:
+            await self._release_task_lock(lock_key, lock_token)

@@ -1,0 +1,50 @@
+{
+  "fingerprint": "7d63eece0af22e63",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "math_calculate_cli",
+  "recorded_at": "2026-08-03T13:04:31.298633+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 3,
+    "temperature": 0.0,
+    "tool_choice": "auto",
+    "last_message_hash": "7538bb761db15d0c",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "expression_latex: \"12\"\nresult_latex: \"12.0\"\nresult_numeric: 12.0\nresult_str: \"12.0000000000000\"\nexpression_raw: sqrt(144)\ntitle: null\nsteps: \"\"\nmode_used: numeric\nerror: null\nexpression: sqrt(144)\nres..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "The square root of 144 is 12 (since $12 \\times 12 = 144$).\n\nWould you like to calculate another square root or explore how square roots are computed?",
+    "chunk_count": 4,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "The square"
+      },
+      {
+        "kind": "text",
+        "value": " root of 144 is 12 (since $12 \\times"
+      },
+      {
+        "kind": "text",
+        "value": " 12 = 144$).\n\nWould you like to calculate another square root or explore how square roots are computed?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 14395,
+          "candidates_token_count": 45,
+          "total_token_count": 14440,
+          "user_input_tokens": 143,
+          "system_prompt_tokens": 13232
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,1603 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-17'
+generated_at: '2026-07-09T15:45:48+00:00'
+range:
+  since: '2026-06-17T00:00:00+00:00'
+  until: '2026-06-17T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 41
+  section_counts:
+    features: 0
+    bug_fixes: 17
+    improvements: 0
+    docs: 0
+    tests: 24
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 14
+  user_facing_items: 14
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: recover completed AI responses after reconnect'
+    section: bug_fixes
+    commits:
+    - 9c308087b
+    authored_at: '2026-06-17T22:23:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: normalize Calendar connected account send context'
+    section: bug_fixes
+    commits:
+    - 22f02dd06
+    authored_at: '2026-06-17T22:09:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedPreview.svelte
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: compare decrypted duplicate messages safely'
+    section: bug_fixes
+    commits:
+    - a43bebb92
+    authored_at: '2026-06-17T13:59:29+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: order anonymous chat history'
+    section: bug_fixes
+    commits:
+    - eeda6e780
+    authored_at: '2026-06-17T13:20:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize anonymous chat rendering'
+    section: bug_fixes
+    commits:
+    - d08b1560c
+    authored_at: '2026-06-17T13:02:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve live input during draft restore'
+    section: bug_fixes
+    commits:
+    - d802159e4
+    authored_at: '2026-06-17T11:57:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render Calendar skill embeds and avoid dead permission waits'
+    section: bug_fixes
+    commits:
+    - 6f3f26104
+    authored_at: '2026-06-17T11:44:58+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_permission_request.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_connected_account_permission_request.py
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersConnectedAccounts.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersConnectedAccounts.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: clear anonymous send pending state'
+    section: bug_fixes
+    commits:
+    - 3e651064c
+    authored_at: '2026-06-17T11:44:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: polish video source quotes'
+    section: bug_fixes
+    commits:
+    - f9256739a
+    authored_at: '2026-06-17T11:42:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    - frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: store anonymous chats in indexeddb'
+    section: bug_fixes
+    commits:
+    - ccba72366
+    authored_at: '2026-06-17T10:55:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/anonymousChatPromotionService.test.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatKeyWrapping.ts
+    - frontend/packages/ui/src/services/anonymousChatPromotionService.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: match video quotes across timestamps'
+    section: bug_fixes
+    commits:
+    - 30e07d1b1
+    authored_at: '2026-06-17T10:29:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: highlight video source quotes'
+    section: bug_fixes
+    commits:
+    - 29547b6ad
+    authored_at: '2026-06-17T10:16:33+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: label video source quote badges'
+    section: bug_fixes
+    commits:
+    - 358d36fa8
+    authored_at: '2026-06-17T09:58:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    - frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve anonymous chat activation'
+    section: bug_fixes
+    commits:
+    - b5d1261dd
+    authored_at: '2026-06-17T01:07:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: normalize anonymous chat messages'
+    section: bug_fixes
+    commits:
+    - ff4a436a6
+    authored_at: '2026-06-17T00:54:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: activate anonymous chat after response'
+    section: bug_fixes
+    commits:
+    - '478231038'
+    authored_at: '2026-06-17T00:29:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow anonymous sends from demo chats'
+    section: bug_fixes
+    commits:
+    - 3b5a57fbc
+    authored_at: '2026-06-17T00:17:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: use anonymous chat scroll control'
+    section: tests
+    commits:
+    - 4e461272d
+    authored_at: '2026-06-17T14:18:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: scroll anonymous history container'
+    section: tests
+    commits:
+    - ec03fb76f
+    authored_at: '2026-06-17T14:09:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: scroll restored anonymous answer'
+    section: tests
+    commits:
+    - c187979c7
+    authored_at: '2026-06-17T13:46:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: clear anonymous composer retry text'
+    section: tests
+    commits:
+    - ccc11554a
+    authored_at: '2026-06-17T13:32:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: focus Calendar permission seed on embed rendering'
+    section: tests
+    commits:
+    - c527c69dd
+    authored_at: '2026-06-17T13:31:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: preserve Calendar receipt seed shape'
+    section: tests
+    commits:
+    - cbdc00c8f
+    authored_at: '2026-06-17T13:20:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert Calendar receipts before dialog overlay'
+    section: tests
+    commits:
+    - c9b1b959f
+    authored_at: '2026-06-17T13:10:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: keep E2E chat seeding available after login'
+    section: tests
+    commits:
+    - 00c536d99
+    authored_at: '2026-06-17T12:59:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/app.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: seed Calendar embed chats through app storage'
+    section: tests
+    commits:
+    - 9b5cb3965
+    authored_at: '2026-06-17T12:49:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    - frontend/packages/ui/src/app.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: enter anonymous composer before typing'
+    section: tests
+    commits:
+    - 78f50cced
+    authored_at: '2026-06-17T12:41:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use public chat for Calendar embed assertion'
+    section: tests
+    commits:
+    - ada6c689a
+    authored_at: '2026-06-17T12:36:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert second anonymous request'
+    section: tests
+    commits:
+    - 9a2afaaee
+    authored_at: '2026-06-17T12:33:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: type anonymous chat via contenteditable'
+    section: tests
+    commits:
+    - 19299ddb0
+    authored_at: '2026-06-17T12:22:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert Calendar skill embed rendering'
+    section: tests
+    commits:
+    - 232b76732
+    authored_at: '2026-06-17T12:20:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: target anonymous chat contenteditable'
+    section: tests
+    commits:
+    - 10a113bcc
+    authored_at: '2026-06-17T12:14:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fill anonymous chat editor deterministically'
+    section: tests
+    commits:
+    - 24559f267
+    authored_at: '2026-06-17T12:05:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert anonymous indexeddb storage'
+    section: tests
+    commits:
+    - fa06e6354
+    authored_at: '2026-06-17T11:21:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: copy anonymous message rows'
+    section: tests
+    commits:
+    - acbbd7923
+    authored_at: '2026-06-17T11:04:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: isolate anonymous message ids'
+    section: tests
+    commits:
+    - a7329267c
+    authored_at: '2026-06-17T11:02:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: mock anonymous storage in vitest'
+    section: tests
+    commits:
+    - 0f129eead
+    authored_at: '2026-06-17T10:59:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: normalize video quote timestamps'
+    section: tests
+    commits:
+    - 1acb32b74
+    authored_at: '2026-06-17T10:46:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: accept split video quote highlights'
+    section: tests
+    commits:
+    - 91115cba0
+    authored_at: '2026-06-17T10:38:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: mock anonymous stream in page'
+    section: tests
+    commits:
+    - 72b8dfbca
+    authored_at: '2026-06-17T00:39:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: handle anonymous chat mock CORS'
+    section: tests
+    commits:
+    - 19ff4d8d9
+    authored_at: '2026-06-17T00:07:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: normalize Calendar connected account send context'
+    commits:
+    - 22f02dd06
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: order anonymous chat history'
+    commits:
+    - eeda6e780
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize anonymous chat rendering'
+    commits:
+    - d08b1560c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve live input during draft restore'
+    commits:
+    - d802159e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render Calendar skill embeds and avoid dead permission waits'
+    commits:
+    - 6f3f26104
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: clear anonymous send pending state'
+    commits:
+    - 3e651064c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: polish video source quotes'
+    commits:
+    - f9256739a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: match video quotes across timestamps'
+    commits:
+    - 30e07d1b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: highlight video source quotes'
+    commits:
+    - 29547b6ad
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: label video source quote badges'
+    commits:
+    - 358d36fa8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve anonymous chat activation'
+    commits:
+    - b5d1261dd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: normalize anonymous chat messages'
+    commits:
+    - ff4a436a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: activate anonymous chat after response'
+    commits:
+    - '478231038'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: allow anonymous sends from demo chats'
+    commits:
+    - 3b5a57fbc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: normalize Calendar connected account send context'
+    commits:
+    - 22f02dd06
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: order anonymous chat history'
+    commits:
+    - eeda6e780
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize anonymous chat rendering'
+    commits:
+    - d08b1560c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve live input during draft restore'
+    commits:
+    - d802159e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render Calendar skill embeds and avoid dead permission waits'
+    commits:
+    - 6f3f26104
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: clear anonymous send pending state'
+    commits:
+    - 3e651064c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: polish video source quotes'
+    commits:
+    - f9256739a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: match video quotes across timestamps'
+    commits:
+    - 30e07d1b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: highlight video source quotes'
+    commits:
+    - 29547b6ad
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: label video source quote badges'
+    commits:
+    - 358d36fa8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve anonymous chat activation'
+    commits:
+    - b5d1261dd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: normalize anonymous chat messages'
+    commits:
+    - ff4a436a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: activate anonymous chat after response'
+    commits:
+    - '478231038'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: allow anonymous sends from demo chats'
+    commits:
+    - 3b5a57fbc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 9c308087ba5d94ab3a7a1d2c935a3ff5550c67f2
+    short_sha: 9c308087b
+    authored_at: '2026-06-17T22:23:42+00:00'
+    subject: 'fix: recover completed AI responses after reconnect'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    related_feature_ids: []
+  - sha: 22f02dd06c8846416781d14f195b7d71d8be3e04
+    short_sha: 22f02dd06
+    authored_at: '2026-06-17T22:09:15+00:00'
+    subject: 'fix: normalize Calendar connected account send context'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedPreview.svelte
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    related_feature_ids: []
+  - sha: 4e461272dbd395a19a092cb59c141c811a94bcac
+    short_sha: 4e461272d
+    authored_at: '2026-06-17T14:18:55+00:00'
+    subject: 'test: use anonymous chat scroll control'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: ec03fb76f3fe000a329d2df76928ca24dd667a3f
+    short_sha: ec03fb76f
+    authored_at: '2026-06-17T14:09:19+00:00'
+    subject: 'test: scroll anonymous history container'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: a43bebb92eb324acd1980502b79701b31bc2c13e
+    short_sha: a43bebb92
+    authored_at: '2026-06-17T13:59:29+00:00'
+    subject: 'fix: compare decrypted duplicate messages safely'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    related_feature_ids: []
+  - sha: c187979c73f8788fd9ff2da6b282e7adbc2cdf7b
+    short_sha: c187979c7
+    authored_at: '2026-06-17T13:46:39+00:00'
+    subject: 'test: scroll restored anonymous answer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: ccc11554abf33f0478d58d366ffd53b117d166c8
+    short_sha: ccc11554a
+    authored_at: '2026-06-17T13:32:37+00:00'
+    subject: 'test: clear anonymous composer retry text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: c527c69dd3a2eca86068e9fab9b04c10484bd4b8
+    short_sha: c527c69dd
+    authored_at: '2026-06-17T13:31:43+00:00'
+    subject: 'test: focus Calendar permission seed on embed rendering'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    related_feature_ids: []
+  - sha: eeda6e78061d53a08552e0d370d8080d34e2a6b7
+    short_sha: eeda6e780
+    authored_at: '2026-06-17T13:20:47+00:00'
+    subject: 'fix: order anonymous chat history'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    related_feature_ids: []
+  - sha: cbdc00c8fa896bbdccb42016bfdc016f3eb819ff
+    short_sha: cbdc00c8f
+    authored_at: '2026-06-17T13:20:29+00:00'
+    subject: 'test: preserve Calendar receipt seed shape'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    related_feature_ids: []
+  - sha: c9b1b959f1d9783572983e28732edff3c0f417ad
+    short_sha: c9b1b959f
+    authored_at: '2026-06-17T13:10:33+00:00'
+    subject: 'test: assert Calendar receipts before dialog overlay'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    related_feature_ids: []
+  - sha: d08b1560cc31a9b0de7d32a1915a537ef855f00a
+    short_sha: d08b1560c
+    authored_at: '2026-06-17T13:02:04+00:00'
+    subject: 'fix: stabilize anonymous chat rendering'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 00c536d990f5f8779adc2815e02fb50eb96f00dc
+    short_sha: 00c536d99
+    authored_at: '2026-06-17T12:59:56+00:00'
+    subject: 'test: keep E2E chat seeding available after login'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/app.ts
+    related_feature_ids: []
+  - sha: 9b5cb3965c16d793a693ba9d0c253fb519c0c1b7
+    short_sha: 9b5cb3965
+    authored_at: '2026-06-17T12:49:39+00:00'
+    subject: 'test: seed Calendar embed chats through app storage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    - frontend/packages/ui/src/app.ts
+    related_feature_ids: []
+  - sha: 78f50cced6f869337b5d7b3c62caedf26032c45f
+    short_sha: 78f50cced
+    authored_at: '2026-06-17T12:41:50+00:00'
+    subject: 'test: enter anonymous composer before typing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: ada6c689a100358fdf3d5a49808fd8db61a13abf
+    short_sha: ada6c689a
+    authored_at: '2026-06-17T12:36:57+00:00'
+    subject: 'test: use public chat for Calendar embed assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    related_feature_ids: []
+  - sha: 9a2afaaeefa3e8549afacdc32c0a951b84ba3596
+    short_sha: 9a2afaaee
+    authored_at: '2026-06-17T12:33:40+00:00'
+    subject: 'test: assert second anonymous request'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: 19299ddb0a3422b55a7576103f4f287588c82356
+    short_sha: 19299ddb0
+    authored_at: '2026-06-17T12:22:28+00:00'
+    subject: 'test: type anonymous chat via contenteditable'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: 232b7673252afa0911a2060adc7ec4804f971992
+    short_sha: 232b76732
+    authored_at: '2026-06-17T12:20:39+00:00'
+    subject: 'test: assert Calendar skill embed rendering'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    related_feature_ids: []
+  - sha: 10a113bccf11138b6c231bad7cd97bc891bf8b63
+    short_sha: 10a113bcc
+    authored_at: '2026-06-17T12:14:05+00:00'
+    subject: 'test: target anonymous chat contenteditable'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: 24559f267d271d3e6fa61ccc6a712b49ab0dac2a
+    short_sha: 24559f267
+    authored_at: '2026-06-17T12:05:30+00:00'
+    subject: 'test: fill anonymous chat editor deterministically'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: d802159e4bdc27595af032e5284c498ec2831fec
+    short_sha: d802159e4
+    authored_at: '2026-06-17T11:57:18+00:00'
+    subject: 'fix: preserve live input during draft restore'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 6f3f261044577a23929c1d49bf3cc29c250790d3
+    short_sha: 6f3f26104
+    authored_at: '2026-06-17T11:44:58+00:00'
+    subject: 'fix: render Calendar skill embeds and avoid dead permission waits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_permission_request.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_connected_account_permission_request.py
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersConnectedAccounts.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersConnectedAccounts.ts
+    related_feature_ids: []
+  - sha: 3e651064c54096f4be7321f592bde5d1700a7453
+    short_sha: 3e651064c
+    authored_at: '2026-06-17T11:44:49+00:00'
+    subject: 'fix: clear anonymous send pending state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: f9256739a7142aee95f2513c08dcfe6570594acd
+    short_sha: f9256739a
+    authored_at: '2026-06-17T11:42:14+00:00'
+    subject: 'fix: polish video source quotes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    - frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: fa06e63546feeefe2735193c325fd24f7553fd31
+    short_sha: fa06e6354
+    authored_at: '2026-06-17T11:21:39+00:00'
+    subject: 'test: assert anonymous indexeddb storage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: acbbd7923c3aefb64f7c837aaf0b808d46b39f71
+    short_sha: acbbd7923
+    authored_at: '2026-06-17T11:04:53+00:00'
+    subject: 'test: copy anonymous message rows'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    related_feature_ids: []
+  - sha: a7329267c325366f63847bc7b0e0b97bfe8ed41c
+    short_sha: a7329267c
+    authored_at: '2026-06-17T11:02:00+00:00'
+    subject: 'test: isolate anonymous message ids'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    related_feature_ids: []
+  - sha: 0f129eeadfc2029a92a351c6e1a9547e5f1705f2
+    short_sha: 0f129eead
+    authored_at: '2026-06-17T10:59:42+00:00'
+    subject: 'test: mock anonymous storage in vitest'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    related_feature_ids: []
+  - sha: ccba72366715d73d53524fa3a11d9c26062f4d52
+    short_sha: ccba72366
+    authored_at: '2026-06-17T10:55:45+00:00'
+    subject: 'fix: store anonymous chats in indexeddb'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/anonymousChatPromotionService.test.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatKeyWrapping.ts
+    - frontend/packages/ui/src/services/anonymousChatPromotionService.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 1acb32b74f4ca689b8bc2c678f0c943bc9a00d12
+    short_sha: 1acb32b74
+    authored_at: '2026-06-17T10:46:52+00:00'
+    subject: 'test: normalize video quote timestamps'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    related_feature_ids: []
+  - sha: 91115cba010fa7a428f069f95af3fe0c3e51f8b0
+    short_sha: 91115cba0
+    authored_at: '2026-06-17T10:38:11+00:00'
+    subject: 'test: accept split video quote highlights'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    related_feature_ids: []
+  - sha: 30e07d1b100d472827c1361d9c90ea91065ba3dd
+    short_sha: 30e07d1b1
+    authored_at: '2026-06-17T10:29:17+00:00'
+    subject: 'fix: match video quotes across timestamps'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 29547b6ad124bcef50820a20fb578f986282392c
+    short_sha: 29547b6ad
+    authored_at: '2026-06-17T10:16:33+00:00'
+    subject: 'fix: highlight video source quotes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 358d36fa8f19dd9963d0dc34853131d77c0f5d00
+    short_sha: 358d36fa8
+    authored_at: '2026-06-17T09:58:22+00:00'
+    subject: 'fix: label video source quote badges'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    - frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
+    related_feature_ids: []
+  - sha: b5d1261dd821e3704a2deebb0f14c30911361109
+    short_sha: b5d1261dd
+    authored_at: '2026-06-17T01:07:42+00:00'
+    subject: 'fix: preserve anonymous chat activation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: ff4a436a66faab1be2a4eb1ebb5b24a5dbf57ace
+    short_sha: ff4a436a6
+    authored_at: '2026-06-17T00:54:18+00:00'
+    subject: 'fix: normalize anonymous chat messages'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 72b8dfbcaa5fc2351191560ced7c0a1a93166afe
+    short_sha: 72b8dfbca
+    authored_at: '2026-06-17T00:39:23+00:00'
+    subject: 'test: mock anonymous stream in page'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: 47823103845f75e62dd3a92cae418adb3b63439e
+    short_sha: '478231038'
+    authored_at: '2026-06-17T00:29:34+00:00'
+    subject: 'fix: activate anonymous chat after response'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 3b5a57fbc4c265d0cb7627bf5243cf611abdd462
+    short_sha: 3b5a57fbc
+    authored_at: '2026-06-17T00:17:30+00:00'
+    subject: 'fix: allow anonymous sends from demo chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 19ff4d8d9f8d370c0d298262d1e5ff0ebc505688
+    short_sha: 19ff4d8d9
+    authored_at: '2026-06-17T00:07:58+00:00'
+    subject: 'test: handle anonymous chat mock CORS'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on stabilizing the anonymous chat experience, refining Calendar integration workflows, and enhancing
+    the visual fidelity of video source citations. Significant effort was also directed toward expanding the automated test
+    suite for these features.
+  released_changes:
+  - text: The anonymous chat experience was refined with fixes for history ordering, message normalization, and activation
+      states after AI responses.
+    evidence:
+      commits:
+      - eeda6e780
+      - d08b1560c
+      - 3e651064c
+      - b5d1261dd
+      - ff4a436a6
+      - '478231038'
+      - 3b5a57fbc
+    release_status: released_main
+  - text: Calendar integrations now feature normalized account context and improved skill embed rendering to prevent unnecessary
+      permission waits.
+    evidence:
+      commits:
+      - 22f02dd06
+      - 6f3f26104
+    release_status: released_main
+  - text: Video source citations were polished with improved quote matching across timestamps, better highlighting, and clearer
+      badge labeling.
+    evidence:
+      commits:
+      - f9256739a
+      - 30e07d1b1
+      - 29547b6ad
+      - 358d36fa8
+    release_status: released_main
+  - text: The message composer now preserves live input when a draft is restored.
+    evidence:
+      commits:
+      - d802159e4
+    release_status: released_main
+  bug_fixes:
+  - text: AI responses that complete during a network disconnection are now recovered upon reconnection.
+    evidence:
+      commits:
+      - 9c308087b
+    release_status: released_main
+  - text: Duplicate message detection now safely compares decrypted content.
+    evidence:
+      commits:
+      - a43bebb92
+    release_status: released_main
+  - text: Anonymous chat storage has been migrated to IndexedDB for improved persistence.
+    evidence:
+      commits:
+      - ccba72366
+    release_status: released_main
+  unreleased_progress:
+  - text: Extensive internal testing infrastructure was added to validate anonymous chat scrolling, Calendar permission seeds,
+      and video quote normalization.
+    evidence:
+      commits:
+      - 4e461272d
+      - ec03fb76f
+      - c187979c7
+      - ccc11554a
+      - c527c69dd
+      - cbdc00c8f
+      - c9b1b959f
+      - 00c536d99
+      - 9b5cb3965
+      - 78f50cced
+      - ada6c689a
+      - 9a2afaaee
+      - 19299ddb0
+      - 232b76732
+      - 10a113bcc
+      - 24559f267
+      - fa06e6354
+      - acbbd7923
+      - a7329267c
+      - 0f129eead
+      - 1acb32b74
+      - 91115cba0
+      - 72b8dfbca
+      - 19ff4d8d9
+    release_status: released_main
+  internal_progress: []
+  newsletter_recommendation:
+    include:
+    - text: Improved Calendar integration reliability and permission handling.
+      evidence:
+        commits:
+        - 22f02dd06
+        - 6f3f26104
+      reason: These updates improve the reliability of Calendar integrations and permission flows.
+    - text: Stability and rendering fixes for anonymous chat sessions.
+      evidence:
+        commits:
+        - eeda6e780
+        - d08b1560c
+        - 3e651064c
+        - b5d1261dd
+        - ff4a436a6
+        - '478231038'
+        - 3b5a57fbc
+      reason: A significant number of fixes stabilize the anonymous chat experience.
+    - text: Enhanced video source quote highlighting and verification.
+      evidence:
+        commits:
+        - f9256739a
+        - 30e07d1b1
+        - 29547b6ad
+        - 358d36fa8
+      reason: These changes enhance the visual verification of AI-generated video quotes.
+    - text: Preservation of live input during message draft restoration.
+      evidence:
+        commits:
+        - d802159e4
+      reason: This fix prevents data loss when restoring message drafts.
+    exclude:
+    - text: Internal synchronization and database optimizations.
+      evidence:
+        commits:
+        - 9c308087b
+        - a43bebb92
+        - ccba72366
+      reason: These items are marked as not user-facing and describe internal synchronization or storage logic.
+    - text: End-to-end and unit test suite expansions.
+      evidence:
+        commits:
+        - 4e461272d
+        - ec03fb76f
+        - c187979c7
+        - ccc11554a
+        - c527c69dd
+        - cbdc00c8f
+        - c9b1b959f
+        - 00c536d99
+        - 9b5cb3965
+        - 78f50cced
+        - ada6c689a
+        - 9a2afaaee
+        - 19299ddb0
+        - 232b76732
+        - 10a113bcc
+        - 24559f267
+        - fa06e6354
+        - acbbd7923
+        - a7329267c
+        - 0f129eead
+        - 1acb32b74
+        - 91115cba0
+        - 72b8dfbca
+        - 19ff4d8d9
+      reason: Test-only commits are not suitable for public newsletters.
+    rationale: The selected items represent user-facing improvements to core features like anonymous chat, calendar connectivity,
+      and source citations, all of which are ready for public communication.
+  social_video_recommendations:
+  - idea: Showcase the new video source quote highlighting.
+    priority: medium
+    reason: The visual updates to how OpenMates cites video sources provide a clear 'proof of work' story for AI accuracy.
+    evidence:
+      commits:
+      - 29547b6ad
+      - 358d36fa8
+      - f9256739a
+  quality_notes:
+  - Extensive regression testing was added for anonymous chat flows, including scroll behavior and storage persistence.
+  - Calendar permission flows received targeted E2E test coverage to ensure reliable embed rendering.
+  validation_warnings: []

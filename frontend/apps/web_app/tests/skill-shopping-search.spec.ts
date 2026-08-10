@@ -107,7 +107,7 @@ test.describe('App: Shopping / Skill: search_products', () => {
 			logCheckpoint, takeStepScreenshot, 'shopping-search'
 		);
 
-		const embed = await waitForEmbedFinished(page, 'shopping', 'search_products');
+		const embed = await waitForEmbedFinished(page, 'shopping', 'search_products', 180_000);
 		logCheckpoint('Shopping search embed finished.');
 
 		const fullscreenOverlay = await openFullscreen(page, embed);

@@ -923,6 +923,7 @@ code changes are needed, and do not edit files, commit, or deploy.
         context_summary=f"{len(to_dispatch)} EU-source vulnerability(ies) dispatched for fix",
         kill_on_exit=True,
         linear_task=False,
+        requires_human_approval=True,
     )
 
     # End session if OpenCode didn't deploy (cleanup)

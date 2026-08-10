@@ -3,8 +3,8 @@
  * Plans V1 web flow coverage.
  *
  * Verifies the deployed web app can create encrypted durable plans from the
- * Tasks surface, display linked plan cards, and activate a plan before work
- * tasks begin.
+ * central Plans workspace, display plan board cards, and archive with explicit
+ * confirmation plus undo.
  */
 
 const { expect, test } = require('./helpers/cookie-audit');
@@ -13,31 +13,56 @@ const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 test.describe('Plans V1 flow', () => {
-	test('creates and activates an encrypted plan from the Tasks surface', async ({ page }) => {
+	test('creates and archives an encrypted plan from the Plans workspace', async ({ page }) => {
 		test.setTimeout(120000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
 
 		const planTitle = `E2E plan ${Date.now()}`;
-		const planSummary = 'Created by the Plans V1 Playwright flow';
+		const renamedPlanTitle = `${planTitle} renamed`;
+		let createRequestPayload = '';
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page);
 
-		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('linked-plans-section')).toBeVisible({ timeout: 30000 });
+		await page.goto(getE2EDebugUrl('/plans'), { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('plans-page')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('plans-workspace-home')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('plan-greeting')).toContainText(/what is your next plan\?/i, { timeout: 15000 });
+		await expect(page.getByTestId('plan-board')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('task-create-form')).toHaveCount(0);
 
-		await page.getByTestId('plan-title-input').fill(planTitle);
-		await page.getByTestId('plan-summary-input').fill(planSummary);
-		await page.getByTestId('plan-create-button').click();
+		const createResponse = page.waitForResponse((response) => {
+			if (!response.url().includes('/v1/user-plans') || response.request().method() !== 'POST') return false;
+			createRequestPayload = response.request().postData() ?? '';
+			return response.ok();
+		});
+		await page.getByTestId('plan-workspace-input').fill(planTitle);
+		await page.getByTestId('plan-workspace-submit').click();
+		await createResponse;
+		expect(createRequestPayload).not.toContain(planTitle);
 
-		const planCard = page.getByTestId('linked-plan-card').filter({ hasText: planTitle }).first();
+		const planCard = page.getByTestId('plan-card').filter({ hasText: planTitle }).first();
 		await expect(planCard).toBeVisible({ timeout: 30000 });
-		await expect(planCard).toContainText(planSummary);
 		await expect(planCard).toHaveAttribute('data-plan-status', 'draft');
+		await expect(page.getByTestId('plan-column-backlog')).toContainText(planTitle);
 
-		await planCard.getByTestId('plan-activate-button').click();
-		await expect(planCard).toHaveAttribute('data-plan-status', 'active', { timeout: 30000 });
+		await page.getByTestId('plan-workspace-input').fill(`rename ${planTitle} to ${renamedPlanTitle}`);
+		await Promise.all([
+			page.waitForResponse((response) => response.request().method() === 'PATCH' && response.url().includes('/v1/user-plans/') && response.ok()),
+			page.getByTestId('plan-workspace-submit').click(),
+		]);
+		const renamedCard = page.getByTestId('plan-card').filter({ hasText: renamedPlanTitle }).first();
+		await expect(renamedCard).toBeVisible({ timeout: 30000 });
+
+		await page.getByTestId('plan-workspace-input').fill(`delete ${renamedPlanTitle}`);
+		await page.getByTestId('plan-workspace-submit').click();
+		await expect(page.getByTestId('plan-archive-confirmation')).toBeVisible({ timeout: 15000 });
+		await Promise.all([
+			page.waitForResponse((response) => response.request().method() === 'PATCH' && response.url().includes('/v1/user-plans/') && response.ok()),
+			page.getByTestId('plan-archive-confirm').click(),
+		]);
+		await expect(page.getByTestId('plan-board')).not.toContainText(renamedPlanTitle, { timeout: 30000 });
+		await expect(page.getByTestId('plan-archive-undo')).toBeVisible({ timeout: 15000 });
 	});
 });

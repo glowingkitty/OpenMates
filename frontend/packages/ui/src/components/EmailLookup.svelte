@@ -52,6 +52,7 @@
     
     // Add rate limiting state
     const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
+    const EMAIL_LOOKUP_TIMEOUT_MS = 10000;
     let isRateLimited = $state(false);
     let rateLimitTimer: ReturnType<typeof setTimeout>;
     let lastAuthMethod = $state<LastAuthMethod | null>(null);
@@ -158,6 +159,8 @@
         isLoading = true;
         loginFailedWarning = false;
         $sessionExpiredWarning = false;
+        const lookupController = new AbortController();
+        const lookupTimeout = setTimeout(() => lookupController.abort(), EMAIL_LOOKUP_TIMEOUT_MS);
 
         try {
             // Update the email value with the current input value
@@ -178,7 +181,8 @@
                     hashed_email,
                     stay_logged_in: stayLoggedIn
                 }),
-                credentials: 'include'
+                credentials: 'include',
+                signal: lookupController.signal
             });
             
             // Check for rate limiting first
@@ -193,29 +197,33 @@
             const data = await response.json();
             
             if (response.ok) {
-                // Store the email salt if provided
-                if (data.user_email_salt) {
+                if (!data.user_email_salt) {
+                    console.error('Email lookup response missing user_email_salt');
+                    loginFailedWarning = true;
+                    return;
+                }
+
+                try {
+                    // Convert base64 string to Uint8Array and store it before password login.
+                    const emailSalt = base64ToUint8Array(data.user_email_salt);
+                    cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+                    console.debug('Email salt stored successfully');
+
+                    // Generate and store email encryption key for zero-knowledge email decryption
                     try {
-                        // Convert base64 string to Uint8Array and store it
-                        const emailSalt = base64ToUint8Array(data.user_email_salt);
-                        cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
-                        console.debug('Email salt stored successfully');
-                        
-                        // Generate and store email encryption key for zero-knowledge email decryption
-                        try {
-                            // Derive email encryption key from email and salt
-                            const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(email, emailSalt);
-                            // Store the email encryption key on the client for server communication
-                            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
-                            console.debug('Email encryption key generated and stored successfully');
-                        } catch (encKeyError) {
-                            console.error('Error generating email encryption key:', encKeyError);
-                            // Continue with login even if encryption key generation fails
-                        }
-                    } catch (error) {
-                        console.error('Error storing email salt:', error);
-                        // Continue with login even if salt storage fails
+                        // Derive email encryption key from email and salt
+                        const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(email, emailSalt);
+                        // Store the email encryption key on the client for server communication
+                        cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
+                        console.debug('Email encryption key generated and stored successfully');
+                    } catch (encKeyError) {
+                        console.error('Error generating email encryption key:', encKeyError);
+                        // Continue with login even if encryption key generation fails
                     }
+                } catch (error) {
+                    console.error('Error storing email salt:', error);
+                    loginFailedWarning = true;
+                    return;
                 }
                 
                 // Check if passkey is available
@@ -243,35 +251,12 @@
                 // Handle error
                 console.warn("Email lookup failed:", data.error || "Unknown error");
                 loginFailedWarning = true;
-                // Still dispatch with default methods if lookup fails
-                dispatch('lookupSuccess', {
-                    email,
-                    availableLoginMethods: ['password', 'recovery_key'],
-                    preferredLoginMethod: 'password',
-                    stayLoggedIn,
-                    tfa_app_name: null,
-                    tfa_enabled: true // Always true for anti-enumeration consistency
-                });
-
-                // Clear only the input field value after lookup
-                emailInputValue = '';
             }
         } catch (error) {
             console.error('Email lookup error:', error);
             loginFailedWarning = true;
-            // Still dispatch with default methods if lookup fails
-            dispatch('lookupSuccess', {
-                email,
-                availableLoginMethods: ['password'],
-                preferredLoginMethod: 'password',
-                stayLoggedIn,
-                tfa_app_name: null,
-                tfa_enabled: true // Always true for anti-enumeration consistency
-            });
-            
-            // Clear only the input field value after lookup
-            emailInputValue = '';
         } finally {
+            clearTimeout(lookupTimeout);
             isLoading = false;
         }
     }
@@ -330,6 +315,7 @@
                 <button 
                     type="button"
                     class="passkey-button" 
+                    data-testid="login-use-email-button"
                     onclick={onCancelPasskey}
                 >
                     <span class="clickable-icon icon_mail"></span>
@@ -339,6 +325,7 @@
                 <button 
                     type="button"
                     class="passkey-button" 
+                    data-testid="login-passkey-button"
                     onclick={onPasskeyClick}
                 >
                     <span class="clickable-icon icon_passkey"></span>
@@ -351,6 +338,7 @@
                 <button
                     type="button"
                     class="passkey-button pair-login-button"
+                    data-testid="login-pair-button"
                     onclick={onPairLoginClick}
                 >
                     <span class="clickable-icon icon_phone"></span>
@@ -374,6 +362,7 @@
                     <span class="clickable-icon icon_mail"></span>
                     <input
                         id="login-email-input"
+                        data-testid="login-email-input"
                         type="email"
                         name="username"
                         bind:value={emailInputValue}
@@ -402,6 +391,7 @@
             <!-- Continue button - fifth element -->
             <button
                 id="login-continue-button"
+                data-testid="login-continue-button"
                 type="submit"
                 class="login-button"
                 disabled={isLoading || !hasValidEmail}

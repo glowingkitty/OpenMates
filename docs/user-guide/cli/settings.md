@@ -62,7 +62,10 @@ openmates settings account info
 openmates settings account timezone set Europe/Berlin
 openmates settings account export manifest
 openmates settings account export data
-openmates settings account import-chat ./chat.yml
+openmates account import claude ./claude-export.zip --dry-run
+openmates account import chatgpt ./chatgpt-export.zip --dry-run
+openmates account import opencode ./opencode-session.json --dry-run
+openmates account import openmates ./openmates-export.zip --dry-run
 openmates settings account username set alice_123
 openmates settings account profile-picture set ./avatar.jpg
 openmates settings account chats stats
@@ -95,7 +98,7 @@ openmates settings interface font set lexend
 ## AI
 
 ```
-openmates settings ai models set-defaults --simple gpt-5.4 --complex claude-opus-4-7
+openmates settings ai models set-defaults --simple gpt-5.4 --complex claude-fable-5
 ```
 
 ## Privacy

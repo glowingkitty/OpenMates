@@ -74,6 +74,39 @@ async function selectInsideMessage(
 	);
 }
 
+async function openMessageContextMenu(
+	page: any,
+	messageSelector: string,
+	rect: { x: number; y: number; width: number; height: number }
+): Promise<void> {
+	await page.evaluate(
+		({ sel, r }: { sel: string; r: { x: number; y: number; width: number; height: number } }) => {
+			const container = document.querySelector(sel) as HTMLElement | null;
+			if (!container) throw new Error(`Message container not found for selector: ${sel}`);
+			container.dispatchEvent(
+				new MouseEvent('contextmenu', {
+					bubbles: true,
+					cancelable: true,
+					clientX: r.x + r.width / 2,
+					clientY: r.y + r.height / 2,
+					button: 2
+				})
+			);
+		},
+		{ sel: messageSelector, r: rect }
+	);
+}
+
+async function triggerExplainInNewChat(page: any): Promise<void> {
+	const explainActionSelector = `${SELECTORS.contextMenuExplain}, ${SELECTORS.selectionToolbarExplain}`;
+	await expect(page.locator(explainActionSelector).first()).toBeVisible({ timeout: 5000 });
+	await page.evaluate((selector: string) => {
+		const button = document.querySelector(selector);
+		if (!button) throw new Error('Explain in new chat action closed before mousedown');
+		button.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true }));
+	}, explainActionSelector);
+}
+
 test('explains selected assistant text in a background new chat', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(300_000);
@@ -111,42 +144,29 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	const userSelection = await selectInsideMessage(page, SELECTORS.userMessageContent, 'vector database');
 	expect(userSelection.selected).toBe(true);
 	expect(userSelection.rect).not.toBeNull();
-	await page.mouse.click(
-		userSelection.rect!.x + userSelection.rect!.width / 2,
-		userSelection.rect!.y + userSelection.rect!.height / 2,
-		{ button: 'right' }
-	);
-	await expect(page.locator(SELECTORS.contextMenuExplain)).toHaveCount(0);
+	await openMessageContextMenu(page, SELECTORS.userMessageContent, userSelection.rect!);
+	await expect(page.locator(`${SELECTORS.contextMenuExplain}, ${SELECTORS.selectionToolbarExplain}`)).toHaveCount(0);
 	await page.mouse.click(10, 10);
 
 	log('Selecting assistant phrase and clicking Explain in new chat from the highlight menu.');
 	const assistantSelection = await selectInsideMessage(page, SELECTORS.mateMessageContent, 'vector database');
 	expect(assistantSelection.selected).toBe(true);
 	expect(assistantSelection.rect).not.toBeNull();
-	await page.mouse.click(
-		assistantSelection.rect!.x + assistantSelection.rect!.width / 2,
-		assistantSelection.rect!.y + assistantSelection.rect!.height / 2,
-		{ button: 'right' }
-	);
-	const explainButton = page.locator(SELECTORS.contextMenuExplain);
-	await expect(explainButton).toBeVisible({ timeout: 5000 });
+	await openMessageContextMenu(page, SELECTORS.mateMessageContent, assistantSelection.rect!);
 	// The product handles this action on mousedown to preserve the selected text
 	// before focus/click can collapse it. Dispatch that leading edge immediately;
-	// the context menu is transient and can close between a diagnostic screenshot
+	// the explain action is transient and can close between a diagnostic screenshot
 	// and a later locator action.
-	await page.evaluate((selector: string) => {
-		const button = document.querySelector(selector);
-		if (!button) throw new Error('Explain in new chat menu item closed before mousedown');
-		button.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true }));
-	}, SELECTORS.contextMenuExplain);
+	await triggerExplainInNewChat(page);
 
 	await expect(page).toHaveURL(sourceUrl, { timeout: 5000 });
-	await expect(page.locator(SELECTORS.notification).filter({ hasText: /background/i })).toBeVisible({ timeout: 20_000 });
+	const explanationNotification = page.locator(SELECTORS.notification).filter({ hasText: /background/i });
+	await expect(explanationNotification).toBeVisible({ timeout: 20_000 });
 	const sourceChatTextAfter = await page.locator(SELECTORS.chatMessage).allTextContents();
 	expect(sourceChatTextAfter.join('\n')).not.toContain('Tell me more about: vector database');
 
 	log('Opening background explanation chat from notification action.');
-	const openAction = page.locator(SELECTORS.notificationAction).filter({ hasText: /open/i }).first();
+	const openAction = explanationNotification.locator(SELECTORS.notificationAction).filter({ hasText: /open/i }).first();
 	await expect(openAction).toBeVisible({ timeout: 10_000 });
 	await openAction.click();
 	await expect(page).not.toHaveURL(sourceUrl, { timeout: 15_000 });

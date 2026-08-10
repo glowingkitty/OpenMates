@@ -8,3 +8,4 @@ description: "Public community posts and discussions from Reddit."
 logo_svg: "logos/reddit.svg"
 region: "US"
 privacy_policy: "https://www.reddit.com/policies/privacy-policy"
+no_api_key: true

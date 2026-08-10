@@ -22,10 +22,13 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 _release_intelligence = importlib.import_module("release_intelligence")
 CommitChange = _release_intelligence.CommitChange
+FeatureAvailabilityService = _release_intelligence.FeatureAvailabilityService
+PLATFORM_FEATURES = _release_intelligence.PLATFORM_FEATURES
 build_monthly_artifact = _release_intelligence.build_monthly_artifact
 build_monthly_llm_source = _release_intelligence.build_monthly_llm_source
 build_daily_artifact = _release_intelligence.build_daily_artifact
 build_daily_llm_source = _release_intelligence.build_daily_llm_source
+build_pr_readiness_report = _release_intelligence.build_pr_readiness_report
 build_weekly_discord_payload = _release_intelligence.build_weekly_discord_payload
 build_weekly_artifact = _release_intelligence.build_weekly_artifact
 build_weekly_llm_source = _release_intelligence.build_weekly_llm_source
@@ -35,6 +38,8 @@ load_weekly_artifacts = _release_intelligence.load_weekly_artifacts
 llm_system_prompt = _release_intelligence.llm_system_prompt
 normalize_summary = _release_intelligence.normalize_summary
 newsletter_include_commits_from_source = _release_intelligence.newsletter_include_commits_from_source
+render_pr_readiness_markdown = _release_intelligence.render_pr_readiness_markdown
+render_release_summary_markdown = _release_intelligence.render_release_summary_markdown
 
 
 def test_daily_artifact_groups_changes_and_gates_newsletter_readiness() -> None:
@@ -245,8 +250,103 @@ def test_daily_llm_source_includes_disabled_feature_context() -> None:
     source = build_daily_llm_source(artifact)
     disabled_ids = {feature["id"] for feature in source["feature_availability"]["disabled_features"]}
 
-    assert {"platform:workflows", "platform:projects", "platform:tasks", "platform:plans"} <= disabled_ids
+    assert {"platform:workflows", "platform:projects", "platform:tasks", "platform:plans", "platform:teams"} <= disabled_ids
     assert {"platform:ios", "platform:macos", "platform:apple-watch"} <= disabled_ids
+
+
+def test_pr_readiness_report_flags_currently_accessible_workspace_features(monkeypatch) -> None:
+    monkeypatch.setattr(
+        _release_intelligence,
+        "load_runtime_feature_availability_service",
+        lambda: FeatureAvailabilityService(list(PLATFORM_FEATURES), {"feature_overrides": {"enabled": ["platform:projects"], "disabled": []}}),
+    )
+    monkeypatch.setattr(
+        _release_intelligence,
+        "load_feature_availability_service",
+        lambda: FeatureAvailabilityService(list(PLATFORM_FEATURES), {"feature_overrides": {"disabled": []}}),
+    )
+    commits = [
+        CommitChange(
+            sha="8888888888888888888888888888888888888888",
+            short_sha="8888888",
+            authored_at="2026-07-20T14:00:00+00:00",
+            subject="feat(projects): add project workspace source browser",
+            body="",
+            changed_paths=["backend/core/api/app/routes/projects.py", "frontend/packages/ui/src/components/projects/ProjectsPage.svelte"],
+            in_main=False,
+            in_dev=True,
+        )
+    ]
+
+    report = build_pr_readiness_report(commits=commits, daily_artifacts=[], base_ref="origin/main", head_ref="origin/dev")
+    projects = next(candidate for candidate in report["feature_candidates"] if candidate["id"] == "platform:projects")
+
+    assert projects["runtime_effective_enabled"] is True
+    assert projects["release_effective_enabled"] is False
+    assert projects["status"] == "currently_accessible"
+    assert report["summary"]["currently_accessible_count"] >= 1
+
+
+def test_pr_readiness_report_detects_revolut_business_finance_skill() -> None:
+    commits = [
+        CommitChange(
+            sha="9999999999999999999999999999999999999999",
+            short_sha="9999999",
+            authored_at="2026-07-20T15:00:00+00:00",
+            subject="feat(finance): add Revolut Business account overview",
+            body="",
+            changed_paths=["backend/apps/finance/skills/check_accounts.py", "backend/shared/providers/revolut_business/client.py"],
+            in_main=False,
+            in_dev=True,
+        )
+    ]
+
+    report = build_pr_readiness_report(commits=commits, daily_artifacts=[], base_ref="origin/main", head_ref="origin/dev")
+    ids = {candidate["id"] for candidate in report["feature_candidates"]}
+
+    assert "skill:finance:check_accounts" in ids
+
+
+def test_pr_readiness_report_detects_code_image_to_html_skill() -> None:
+    commits = [
+        CommitChange(
+            sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            short_sha="aaaaaaa",
+            authored_at="2026-07-20T16:00:00+00:00",
+            subject="feat(code): add image to code skill",
+            body="",
+            changed_paths=["backend/apps/code/skills/image_to_html_skill.py"],
+            in_main=False,
+            in_dev=True,
+        )
+    ]
+
+    report = build_pr_readiness_report(commits=commits, daily_artifacts=[], base_ref="origin/main", head_ref="origin/dev")
+    ids = {candidate["id"] for candidate in report["feature_candidates"]}
+
+    assert "skill:code:image_to_html" in ids
+
+
+def test_pr_readiness_report_surfaces_unmapped_user_facing_features() -> None:
+    commits = [
+        CommitChange(
+            sha="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            short_sha="bbbbbbb",
+            authored_at="2026-07-20T17:00:00+00:00",
+            subject="feat(chat): add new composer celebration state",
+            body="",
+            changed_paths=["frontend/packages/ui/src/components/ActiveChat.svelte"],
+            in_main=False,
+            in_dev=True,
+        )
+    ]
+
+    report = build_pr_readiness_report(commits=commits, daily_artifacts=[], base_ref="origin/main", head_ref="origin/dev")
+    markdown = render_pr_readiness_markdown(report)
+
+    assert report["summary"]["unmapped_user_facing_count"] == 1
+    assert "Unmapped User-Facing Feature Commits" in markdown
+    assert "new composer celebration" in markdown
 
 
 def test_llm_prompt_requires_neutral_authorship_and_disabled_feature_exclusions() -> None:
@@ -254,7 +354,7 @@ def test_llm_prompt_requires_neutral_authorship_and_disabled_feature_exclusions(
 
     assert 'Do not write "the team", "we", "our team"' in prompt
     assert "feature_availability.disabled_features" in prompt
-    assert "Workflows, projects, tasks, plans, iOS, macOS, and Apple Watch are unreleased" in prompt
+    assert "Workflows, projects, tasks, plans, teams, iOS, macOS, and Apple Watch are unreleased" in prompt
     assert "For weekly summaries, be more extensive" in prompt
 
 
@@ -462,13 +562,82 @@ def test_weekly_discord_payload_includes_include_and_exclude_items() -> None:
     assert "Apple Watch" in description
 
 
+def test_release_summary_markdown_prioritizes_llm_interpretation() -> None:
+    artifact = {
+        "cadence": "daily",
+        "date": "2026-08-05",
+        "summary": {"total_commits": 12},
+        "llm_summary": {
+            "overview": "OpenMates improved chat reliability.",
+            "released_changes": [],
+            "bug_fixes": [{"text": "Chat reconnects now recover cleanly.", "evidence": {"commits": ["abc1234"]}}],
+            "unreleased_progress": [],
+            "internal_progress": [],
+            "newsletter_recommendation": {
+                "include": [{"text": "Mention reconnect reliability.", "evidence": {"commits": ["abc1234"]}}],
+                "exclude": [],
+                "rationale": "The fix is released and user-facing.",
+            },
+            "quality_notes": ["No validation gaps."],
+            "validation_warnings": [],
+        },
+    }
+
+    rendered = render_release_summary_markdown(artifact)
+
+    assert rendered.startswith("# Daily Release Summary: 2026-08-05")
+    assert "OpenMates improved chat reliability." in rendered
+    assert "Chat reconnects now recover cleanly. (abc1234)" in rendered
+    assert "## Newsletter Guidance" in rendered
+    assert "The fix is released and user-facing." in rendered
+    assert "changed_paths" not in rendered
+
+
 def test_release_intelligence_cron_wrapper_documents_all_modes() -> None:
     wrapper = (ROOT / "scripts" / "release-intelligence-cron.sh").read_text(encoding="utf-8")
 
+    env_source = wrapper.index('. "$PROJECT_ROOT/.env"')
+    assert wrapper.rfind("set +u", 0, env_source) != -1
+    assert wrapper.find("set -u", env_source) != -1
     assert "run_daily" in wrapper
     assert "run_weekly" in wrapper
     assert "--discord" in wrapper
     assert "run_monthly" in wrapper
+
+
+def test_create_pr_skill_requires_feature_readiness_gate() -> None:
+    skill = (ROOT / ".claude" / "skills" / "create-pr" / "SKILL.md").read_text(encoding="utf-8")
+    opencode_skill = (ROOT / ".agents" / "skills" / "create-pr" / "SKILL.md").read_text(encoding="utf-8")
+    opencode_command = (ROOT / ".opencode" / "commands" / "pullrequest.md").read_text(encoding="utf-8")
+
+    assert "pr-readiness" in skill
+    assert "Feature Readiness" in skill
+    assert "stop" in skill.lower()
+    assert "gh pr create" in skill
+    assert "--state merged" in skill
+    assert "mergedAt" in skill
+    assert "createdAt" not in skill
+    assert "docs/releases/daily/YYYY-MM-DD.md" in skill
+    assert "docs/releases/weekly/YYYY-Www.md" in skill
+    assert "on or after that merge date" in skill
+    assert "For the merge-day\nfile" in skill
+    assert "exclude entries already reachable from the prior PR's merge commit" in skill
+    assert skill.index("Summarize Changelog Markdown") < skill.index("Ask Exactly Five Clarifying Questions")
+    assert "Ask one question per assistant message" in skill
+    assert "Question 1 of 5" in skill
+    assert "Question 5 of 5" in skill
+    assert "Include a concrete recommendation in each question" in skill
+    assert "continue autonomously" in skill
+    assert "do not\nask for a separate plan approval" in skill.lower()
+    assert "Do not\nrequest the same confirmation again" in skill
+    assert "Only continue after the user confirms" not in skill
+    assert "!`" not in skill
+    assert "2>/dev/null || true" not in skill
+    assert "tail -30" not in skill
+    assert opencode_skill == skill.replace("name: openmates:pullrequest", "name: create-pr", 1)
+    assert "Load the `create-pr` skill with the `skill` tool" in opencode_command
+    assert "asks exactly five clarifying" in opencode_command
+    assert opencode_command.split("---", 2)[2].strip()
 
 
 def test_llm_summary_normalization_keeps_only_known_commit_evidence() -> None:
@@ -612,3 +781,34 @@ def test_newsletter_include_commits_from_weekly_source_uses_daily_candidates() -
     source = build_weekly_llm_source(weekly, [daily])
 
     assert newsletter_include_commits_from_source(source) == {"abc1234"}
+
+
+def test_collect_commits_keeps_date_bounds_with_from_ref(monkeypatch) -> None:
+    logged_commands = []
+
+    def fake_git_output(command, check=True):
+        if command[0] == "log":
+            logged_commands.append(command)
+        return ""
+
+    monkeypatch.setattr(_release_intelligence, "git_output", fake_git_output)
+
+    commits = _release_intelligence.collect_commits(
+        since="2026-04-13T12:11:31+00:00",
+        until="2026-04-13T23:59:59+00:00",
+        from_ref="v0.9.0-alpha",
+        to_ref="origin/main",
+        main_ref="origin/main",
+        dev_ref="origin/dev",
+    )
+
+    assert commits == []
+    assert logged_commands == [
+        [
+            "log",
+            "--format=%x1e%H%x1f%h%x1f%aI%x1f%s%x1f%b",
+            "--since=2026-04-13T12:11:31+00:00",
+            "--until=2026-04-13T23:59:59+00:00",
+            "v0.9.0-alpha..origin/main",
+        ]
+    ]

@@ -1,0 +1,44 @@
+# backend/providers/geoapify.yml
+#
+# Configuration for Geoapify Places and Place Details.
+# Used by the Maps app as an OpenStreetMap-backed enrichment provider for
+# amenities and accessibility fields that Google Places does not reliably expose.
+
+provider_id: "geoapify"
+name: "Geoapify"
+description: "OpenStreetMap-backed Places and Place Details API for bounded Maps amenity enrichment."
+logo_svg: "icons/maps.svg"
+region: "EU"
+privacy_policy: "https://www.geoapify.com/privacy-policy/" # verified 2026-07-30
+
+required_keys:
+  - env_key: "SECRET__GEOAPIFY__API_KEY"
+    vault_path: "kv/data/providers/geoapify"
+    vault_key: "api_key"
+    description: "Geoapify API key for Places and Place Details enrichment."
+    setup_url: "https://myprojects.geoapify.com/"
+    docs_url: "https://apidocs.geoapify.com/docs/places/"
+
+api_base_url: "https://api.geoapify.com/v2"
+
+# Geoapify pricing and limits, verified 2026-07-30:
+# - Free plan: 3,000 credits/day, about 90,000 credits/month.
+# - Places API with limit <= 20: 1 Geoapify credit.
+# - Place Details with features=details: 1 Geoapify credit per place.
+# OpenMates keeps Maps user-facing pricing at the existing base cost for the
+# first enrichment slice; these provider credits are operational cost guardrails.
+rate_limits:
+  free:
+    credits_per_day: 3000
+    places_limit_per_credit: 20
+  default_enrichment:
+    places_requests_per_search_group: 1
+    strict_place_details_per_search_group: 5
+    timeout_ms: 1200
+
+pricing:
+  per_request_credits: 1
+
+cache:
+  positive_detail_ttl_days: 30
+  no_match_ttl_days: 7

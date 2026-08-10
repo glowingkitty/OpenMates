@@ -1,0 +1,77 @@
+{
+  "fingerprint": "1e5ea324ef317653",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "events_search_web",
+  "recorded_at": "2026-08-02T13:58:02.606891+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 3,
+    "temperature": 0.0,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[10]:\n  - id: \"2461466\"\n    provider: resident_advisor\n    title: khisdapaze Open Air\n    description: \"Lineup: Christa K, Cristalyne, Ini Lamborghini, Meta Chrom, Mimimosa\\nGenres: Techno, Hou..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are the event search results for Berlin during the requested weekends in June 2026:\n\n### Weekend 1: June 20–21, 2026\n```embeds_results_view\ntitle: Tech & Electronic Events (June 20–21, 2026)\nembeds: khisdapaze-open-air-DrZ, oxi-groove-affair-LeT, hardsleeper-ip0\n```\n\n### Weekend 2: June 27–28, 2026\n```embeds_results_view\ntitle: Tech & Electronic Events (June 27–28, 2026)\nembeds: else-x-home-qaT, free-entry-dayrave-MB9, salon-x-vollkommen-Wjc\n```\n\n***\n\n* **Next Steps:** Would you like to filter these further by specific venues or look into transport and accommodation options for either weekend?",
+    "chunk_count": 11,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here are"
+      },
+      {
+        "kind": "text",
+        "value": " the event search results for Berlin during the requested weekends in June 2026:\n\n"
+      },
+      {
+        "kind": "text",
+        "value": "### Weekend 1: June 20–21, 2026\n```embeds_results"
+      },
+      {
+        "kind": "text",
+        "value": "_view\ntitle: Tech & Electronic Events (June 20–21, 2026)\nembeds:"
+      },
+      {
+        "kind": "text",
+        "value": " khisdapaze-open-air-DrZ, oxi-groove-affair-LeT, h"
+      },
+      {
+        "kind": "text",
+        "value": "ardsleeper-ip0\n```\n\n### Weekend 2: June 27–28, 2026"
+      },
+      {
+        "kind": "text",
+        "value": "\n```embeds_results_view\ntitle: Tech & Electronic Events (June 27–28,"
+      },
+      {
+        "kind": "text",
+        "value": " 2026)\nembeds: else-x-home-qaT, free-entry-day"
+      },
+      {
+        "kind": "text",
+        "value": "rave-MB9, salon-x-vollkommen-Wjc\n```\n\n***\n\n* **Next Steps:** Would you like to filter"
+      },
+      {
+        "kind": "text",
+        "value": " these further by specific venues or look into transport and accommodation options for either weekend?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 20648,
+          "candidates_token_count": 218,
+          "total_token_count": 20866,
+          "user_input_tokens": 5355,
+          "system_prompt_tokens": 13337
+        }
+      }
+    ]
+  }
+}

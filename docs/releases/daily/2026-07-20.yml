@@ -1,0 +1,3858 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-20'
+generated_at: '2026-07-21T10:49:17+00:00'
+range:
+  since: '2026-07-20T00:00:00+00:00'
+  until: '2026-07-21T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 84
+  section_counts:
+    features: 6
+    bug_fixes: 38
+    improvements: 1
+    docs: 6
+    tests: 27
+    infrastructure: 1
+    internal: 2
+    other: 3
+  newsletter_ready_items: 0
+  user_facing_items: 34
+  dev_only_items: 84
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add business company financials skill'
+    section: features
+    commits:
+    - 3f964af8c
+    authored_at: '2026-07-20T23:52:07+00:00'
+    changed_paths:
+    - backend/apps/business/__init__.py
+    - backend/apps/business/app.yml
+    - backend/apps/business/skills/__init__.py
+    - backend/apps/business/skills/company_financials.py
+    - backend/shared/providers/sec_edgar/__init__.py
+    - backend/shared/providers/sec_edgar/client.py
+    - backend/shared/providers/sec_edgar/models.py
+    - backend/tests/test_business_company_financials_skill.py
+    - backend/tests/test_business_company_financials_workflow.py
+    - backend/tests/test_sec_edgar_provider.py
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add ChatGPT account import support'
+    section: features
+    commits:
+    - '790933002'
+    authored_at: '2026-07-20T14:18:57+00:00'
+    changed_paths:
+    - backend/core/api/app/services/account_import_service.py
+    - backend/tests/test_account_import_chatgpt_parser.py
+    - docs/specs/account-import-v1/spec.yml
+    - frontend/packages/openmates-cli/src/accountImport.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/account-import-sdk.test.ts
+    - frontend/packages/openmates-cli/tests/account-import.test.ts
+    - frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
+    - frontend/packages/ui/src/services/__tests__/chatImportService.test.ts
+    - frontend/packages/ui/src/services/chatImportService.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_account_import.py
+    - scripts/verify_account_import_cli.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add PII placeholder rewrite'
+    section: features
+    commits:
+    - e6f046a86
+    authored_at: '2026-07-20T13:27:56+00:00'
+    changed_paths:
+    - docs/specs/pii-placeholder-rewrite-v1/spec.yml
+    - frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+    - frontend/packages/secret-scanner/src/index.ts
+    - frontend/packages/secret-scanner/src/registry.ts
+    - frontend/packages/secret-scanner/src/scanner.ts
+    - frontend/packages/secret-scanner/src/types.ts
+    - frontend/packages/secret-scanner/tests/redact-restore.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/placeholderRewriteService.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/placeholderRewriteService.ts
+    - frontend/packages/ui/src/stores/__tests__/embedPIIStore.test.ts
+    - frontend/packages/ui/src/stores/embedPIIStore.ts
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: complete Plans V1 detail and SDK contracts'
+    section: features
+    commits:
+    - ab986bff2
+    authored_at: '2026-07-20T09:53:23+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/core/api/app/services/user_plan_share_bundle.py
+    - backend/core/directus/schemas/user_plans.yml
+    - backend/tests/test_plan_acceptance_criteria_coverage.py
+    - backend/tests/test_plan_assumption_workflow.py
+    - backend/tests/test_plan_reference_patterns.py
+    - backend/tests/test_user_plan_execution_contexts.py
+    - backend/tests/test_user_plans_api.py
+    - backend/tests/test_user_plans_share_bundle.py
+    - docs/specs/plans-v1/spec.yml
+    - frontend/apps/web_app/tests/plan-acceptance-checks-flow.spec.ts
+    - frontend/apps/web_app/tests/plan-assumptions-flow.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
+    - frontend/packages/ui/src/services/userPlanService.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    - scripts/audit_sdk_cli_parity.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:plans'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: render workspace embed parity chrome on Apple'
+    section: features
+    commits:
+    - d4f0037e5
+    authored_at: '2026-07-20T09:29:50+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - backend/tests/test_apple_ui_contracts.py
+    - scripts/apple_ui_contracts.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: route web research company financials'
+    section: features
+    commits:
+    - 248325bb4
+    authored_at: '2026-07-20T00:36:18+00:00'
+    changed_paths:
+    - backend/apps/web/app.yml
+    - backend/tests/test_web_research_business_financials_routing.py
+    - docs/specs/business-company-financials/spec.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: preserve draft embeds during server echoes'
+    section: bug_fixes
+    commits:
+    - 95819edcc
+    authored_at: '2026-07-20T23:47:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/drafts/__tests__/draftWebsocket.test.ts
+    - frontend/packages/ui/src/services/drafts/draftWebsocket.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize chat hash routing'
+    section: bug_fixes
+    commits:
+    - 930399a96
+    authored_at: '2026-07-20T23:25:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clear processed ideabucket drafts'
+    section: bug_fixes
+    commits:
+    - 62944d6b6
+    authored_at: '2026-07-20T23:04:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clear processed ideabucket drafts'
+    section: bug_fixes
+    commits:
+    - 5587bf7f4
+    authored_at: '2026-07-20T20:46:51+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncMerge.test.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hydrate encrypted embed fallbacks'
+    section: bug_fixes
+    commits:
+    - af18d5b80
+    authored_at: '2026-07-20T20:23:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remove accidental sdk route changes'
+    section: bug_fixes
+    commits:
+    - 81cd5a815
+    authored_at: '2026-07-20T19:54:57+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore embedded audio drafts'
+    section: bug_fixes
+    commits:
+    - 9b47d9969
+    authored_at: '2026-07-20T19:50:30+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist pending chat upserts'
+    section: bug_fixes
+    commits:
+    - 4b846c798
+    authored_at: '2026-07-20T18:14:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatListCache.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hydrate audio draft refs'
+    section: bug_fixes
+    commits:
+    - 13ab9b51c
+    authored_at: '2026-07-20T18:08:14+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/fileEmbed.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reject stale upload dedup keys'
+    section: bug_fixes
+    commits:
+    - a6c3c04cf
+    authored_at: '2026-07-20T17:42:56+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/tests/test_upload_duplicate_ownership.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore audio draft embeds'
+    section: bug_fixes
+    commits:
+    - ae10dcd35
+    authored_at: '2026-07-20T17:37:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound CLI draft refresh'
+    section: bug_fixes
+    commits:
+    - ecc224c30
+    authored_at: '2026-07-20T17:09:01+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/tests/draft-sync.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate upload S3 keys per embed'
+    section: bug_fixes
+    commits:
+    - 779fbbecd
+    authored_at: '2026-07-20T16:53:41+00:00'
+    changed_paths:
+    - backend/tests/test_upload_s3_keys.py
+    - backend/upload/routes/upload_route.py
+    - backend/upload/s3_keys.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore draft embed previews'
+    section: bug_fixes
+    commits:
+    - 62c9b7723
+    authored_at: '2026-07-20T16:44:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: add Apple PII placeholder rewrite'
+    section: bug_fixes
+    commits:
+    - 54c8772d2
+    authored_at: '2026-07-20T16:40:49+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerPIIDecorations.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: limit app-skill metadata safety scans'
+    section: bug_fixes
+    commits:
+    - 3c607a26d
+    authored_at: '2026-07-20T16:13:55+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/tests/test_app_skill_output_safety.py
+    - backend/tests/test_external_result_sanitizer.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: suppress released failed-test keys'
+    section: bug_fixes
+    commits:
+    - 04bf71217
+    authored_at: '2026-07-20T15:24:10+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: timeout login email lookup'
+    section: bug_fixes
+    commits:
+    - c5fabbf0b
+    authored_at: '2026-07-20T15:10:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: emit explicit chat tombstones during sync'
+    section: bug_fixes
+    commits:
+    - 450dade2f
+    authored_at: '2026-07-20T15:04:44+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_cross_client_draft_sync.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: honor released failed-test leases in queue'
+    section: bug_fixes
+    commits:
+    - 610623bea
+    authored_at: '2026-07-20T14:40:47+00:00'
+    changed_paths:
+    - scripts/tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: skip released failed-test leases until rerun'
+    section: bug_fixes
+    commits:
+    - b68170938
+    authored_at: '2026-07-20T14:40:09+00:00'
+    changed_paths:
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist chat deletion tombstones'
+    section: bug_fixes
+    commits:
+    - 455f38ff5
+    authored_at: '2026-07-20T14:33:41+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py
+    - backend/tests/test_delete_chat_handler.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: lazy-load tracing setup entrypoint'
+    section: bug_fixes
+    commits:
+    - 130a9e13c
+    authored_at: '2026-07-20T14:11:34+00:00'
+    changed_paths:
+    - backend/shared/python_utils/tracing/__init__.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep tracing utilities importable without redis instrumentation'
+    section: bug_fixes
+    commits:
+    - cd0ed997b
+    authored_at: '2026-07-20T14:11:03+00:00'
+    changed_paths:
+    - backend/shared/python_utils/tracing/config.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: honor chat tombstones during phased sync'
+    section: bug_fixes
+    commits:
+    - 81cc0a72c
+    authored_at: '2026-07-20T14:09:55+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_cross_client_draft_sync.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix CLI draft refresh after cleared cache
+    section: bug_fixes
+    commits:
+    - 25c21feb8
+    authored_at: '2026-07-20T11:54:29+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/draft-sync.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: initialize security auth after methods load'
+    section: bug_fixes
+    commits:
+    - 2e64854a2
+    authored_at: '2026-07-20T11:00:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: register test control import module'
+    section: bug_fixes
+    commits:
+    - 7f600922a
+    authored_at: '2026-07-20T10:45:58+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: release plans workspace gate'
+    section: bug_fixes
+    commits:
+    - b3fc281d5
+    authored_at: '2026-07-20T10:42:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
+    - frontend/packages/ui/src/config/workspaceFeatureGates.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize failed-test control reporting'
+    section: bug_fixes
+    commits:
+    - a314f9f99
+    authored_at: '2026-07-20T10:24:49+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/test_run_summary_email_task.py
+    - backend/core/api/templates/email/test_run_summary.mjml
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - scripts/run-tests-daily.sh
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: add Apple workspace embed fixtures'
+    section: bug_fixes
+    commits:
+    - 3243db760
+    authored_at: '2026-07-20T10:12:42+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: include account import CLI source'
+    section: bug_fixes
+    commits:
+    - b313f3d0d
+    authored_at: '2026-07-20T10:11:27+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/accountImport.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route Apple workspace embed parents'
+    section: bug_fixes
+    commits:
+    - fb188229a
+    authored_at: '2026-07-20T10:08:26+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate Apple embed localized labels'
+    section: bug_fixes
+    commits:
+    - eb4208669
+    authored_at: '2026-07-20T09:58:08+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: define Apple workspace embed types'
+    section: bug_fixes
+    commits:
+    - 63c0f19b0
+    authored_at: '2026-07-20T09:55:47+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: include Apple product summary renderer'
+    section: bug_fixes
+    commits:
+    - 2b5b120f9
+    authored_at: '2026-07-20T09:54:23+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: guard stale draft flush on chat switch'
+    section: bug_fixes
+    commits:
+    - 07d89dbc5
+    authored_at: '2026-07-20T01:15:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist E2E draft helper replacements'
+    section: bug_fixes
+    commits:
+    - 9d5573165
+    authored_at: '2026-07-20T00:58:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: Improved startup procedure
+    section: improvements
+    commits:
+    - be33dd8b3
+    authored_at: '2026-07-20T00:35:05+00:00'
+    changed_paths:
+    - backend/core/api/app/services/domain_security_restricted.encrypted
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: record Apple PII rewrite parity'
+    section: docs
+    commits:
+    - 3e2a7f931
+    authored_at: '2026-07-20T17:09:29+00:00'
+    changed_paths:
+    - docs/specs/pii-placeholder-rewrite-v1/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record PII upload rewrite evidence'
+    section: docs
+    commits:
+    - af9bdf98b
+    authored_at: '2026-07-20T16:11:37+00:00'
+    changed_paths:
+    - docs/specs/pii-placeholder-rewrite-v1/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record ChatGPT import parity evidence'
+    section: docs
+    commits:
+    - 06c19a2fa
+    authored_at: '2026-07-20T14:59:42+00:00'
+    changed_paths:
+    - docs/specs/account-import-v1/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record PII rewrite evidence'
+    section: docs
+    commits:
+    - b512362a9
+    authored_at: '2026-07-20T13:42:49+00:00'
+    changed_paths:
+    - docs/specs/pii-placeholder-rewrite-v1/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Plans V1 E2E evidence'
+    section: docs
+    commits:
+    - cab862c52
+    authored_at: '2026-07-20T11:00:05+00:00'
+    changed_paths:
+    - docs/specs/plans-v1/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record web research routing evidence'
+    section: docs
+    commits:
+    - b7fada4c2
+    authored_at: '2026-07-20T00:41:50+00:00'
+    changed_paths:
+    - docs/specs/business-company-financials/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: stabilize restored audio draft assertion'
+    section: tests
+    commits:
+    - efd4ab0cc
+    authored_at: '2026-07-20T23:47:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: validate audio draft markdown separately'
+    section: tests
+    commits:
+    - 7d7496e95
+    authored_at: '2026-07-20T19:19:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align import chat assertions'
+    section: tests
+    commits:
+    - e6e17841f
+    authored_at: '2026-07-20T19:03:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/import-chats.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: require scoped IdeaBucket draft editor'
+    section: tests
+    commits:
+    - e7eb39f41
+    authored_at: '2026-07-20T19:00:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: refresh import chats fixture'
+    section: tests
+    commits:
+    - 07cdab0df
+    authored_at: '2026-07-20T18:53:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/fixtures/import-chats-test.zip
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: update import chat upload selector'
+    section: tests
+    commits:
+    - c3063951b
+    authored_at: '2026-07-20T18:43:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/import-chats.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: tolerate truncated draft search rows'
+    section: tests
+    commits:
+    - b3df04c54
+    authored_at: '2026-07-20T18:38:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: scope draft search metadata'
+    section: tests
+    commits:
+    - bb47e9bae
+    authored_at: '2026-07-20T18:23:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: avoid stale upload dedup in image inference'
+    section: tests
+    commits:
+    - db71cea85
+    authored_at: '2026-07-20T17:14:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: serialize real image inference trials'
+    section: tests
+    commits:
+    - 07e372840
+    authored_at: '2026-07-20T16:56:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for synced response in message sync'
+    section: tests
+    commits:
+    - 60140de80
+    authored_at: '2026-07-20T16:08:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: bound IdeaBucket draft dismiss wait'
+    section: tests
+    commits:
+    - de7a62c1f
+    authored_at: '2026-07-20T15:39:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: fix ChatGPT import web assertion'
+    section: tests
+    commits:
+    - 0d1bb216c
+    authored_at: '2026-07-20T14:52:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/import-account-v1.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add ChatGPT import parity coverage'
+    section: tests
+    commits:
+    - c658e4ed1
+    authored_at: '2026-07-20T14:39:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/account-import-test-helpers.ts
+    - frontend/apps/web_app/tests/import-account-v1.spec.ts
+    - scripts/verify_account_import_cli.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stub skill output safety in registry refresh test'
+    section: tests
+    commits:
+    - 7830e527a
+    authored_at: '2026-07-20T13:59:22+00:00'
+    changed_paths:
+    - backend/tests/test_skill_executor_registry_refresh.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: match skill registry fake metadata interface'
+    section: tests
+    commits:
+    - 4e0bce8a2
+    authored_at: '2026-07-20T13:53:23+00:00'
+    changed_paths:
+    - backend/tests/test_skill_executor_registry_refresh.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for assistant before draft sync delete'
+    section: tests
+    commits:
+    - bf3b8b25f
+    authored_at: '2026-07-20T13:43:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    - frontend/packages/openmates-cli/src/accountImport.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Preserve null CLI draft poll results
+    section: tests
+    commits:
+    - 7f034c24d
+    authored_at: '2026-07-20T12:50:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Expose transient CLI draft refresh stderr
+    section: tests
+    commits:
+    - 0af83a7c6
+    authored_at: '2026-07-20T12:38:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Log transient CLI draft refresh failures
+    section: tests
+    commits:
+    - c00e49883
+    authored_at: '2026-07-20T12:21:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Stabilize CLI draft refresh polling
+    section: tests
+    commits:
+    - a754b9ac6
+    authored_at: '2026-07-20T12:07:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: accept refund consent before bank transfer switch'
+    section: tests
+    commits:
+    - 01b40d7c0
+    authored_at: '2026-07-20T11:50:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: avoid blocking on absent draft dismiss'
+    section: tests
+    commits:
+    - f620f3f46
+    authored_at: '2026-07-20T10:49:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: bound draft replacement helper wait'
+    section: tests
+    commits:
+    - 7c67a9e8d
+    authored_at: '2026-07-20T10:30:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: harden draft sync IndexedDB reads'
+    section: tests
+    commits:
+    - 65a59845e
+    authored_at: '2026-07-20T10:01:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: avoid blocking draft helper on websocket flush'
+    section: tests
+    commits:
+    - 7dca6f702
+    authored_at: '2026-07-20T09:41:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: drive draft edits through component helper'
+    section: tests
+    commits:
+    - 203d144e3
+    authored_at: '2026-07-20T00:31:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: remove accidental account import hunk'
+    section: infrastructure
+    commits:
+    - 2af2e20e7
+    authored_at: '2026-07-20T13:46:50+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/accountImport.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal:
+  - title: Tombstone SDK chat deletes in cache
+    section: internal
+    commits:
+    - 124e12db4
+    authored_at: '2026-07-20T13:24:57+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Keep draft tombstones authoritative
+    section: internal
+    commits:
+    - 4d21a09c0
+    authored_at: '2026-07-20T11:07:28+00:00'
+    changed_paths:
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/tests/test_cross_client_draft_sync.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  other:
+  - title: Apply Phase 2 authoritative chat deletions
+    section: other
+    commits:
+    - ef763c990
+    authored_at: '2026-07-20T13:08:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Avoid heavy sync for deleted CLI drafts
+    section: other
+    commits:
+    - 7b921d539
+    authored_at: '2026-07-20T11:38:16+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/draft-sync.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Reconcile CLI draft fallback deletions
+    section: other
+    commits:
+    - 9a49cdbb7
+    authored_at: '2026-07-20T11:24:23+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/draft-sync.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+unreleased_progress:
+  dev_only:
+  - title: 'feat: add business company financials skill'
+    commits:
+    - 3f964af8c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize restored audio draft assertion'
+    commits:
+    - efd4ab0cc
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve draft embeds during server echoes'
+    commits:
+    - 95819edcc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize chat hash routing'
+    commits:
+    - 930399a96
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: clear processed ideabucket drafts'
+    commits:
+    - 62944d6b6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clear processed ideabucket drafts'
+    commits:
+    - 5587bf7f4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: hydrate encrypted embed fallbacks'
+    commits:
+    - af18d5b80
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: remove accidental sdk route changes'
+    commits:
+    - 81cd5a815
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore embedded audio drafts'
+    commits:
+    - 9b47d9969
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: validate audio draft markdown separately'
+    commits:
+    - 7d7496e95
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align import chat assertions'
+    commits:
+    - e6e17841f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: require scoped IdeaBucket draft editor'
+    commits:
+    - e7eb39f41
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: refresh import chats fixture'
+    commits:
+    - 07cdab0df
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: update import chat upload selector'
+    commits:
+    - c3063951b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: tolerate truncated draft search rows'
+    commits:
+    - b3df04c54
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: scope draft search metadata'
+    commits:
+    - bb47e9bae
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: persist pending chat upserts'
+    commits:
+    - 4b846c798
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: hydrate audio draft refs'
+    commits:
+    - 13ab9b51c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: reject stale upload dedup keys'
+    commits:
+    - a6c3c04cf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore audio draft embeds'
+    commits:
+    - ae10dcd35
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: avoid stale upload dedup in image inference'
+    commits:
+    - db71cea85
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record Apple PII rewrite parity'
+    commits:
+    - 3e2a7f931
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: bound CLI draft refresh'
+    commits:
+    - ecc224c30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: serialize real image inference trials'
+    commits:
+    - 07e372840
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: isolate upload S3 keys per embed'
+    commits:
+    - 779fbbecd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore draft embed previews'
+    commits:
+    - 62c9b7723
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: add Apple PII placeholder rewrite'
+    commits:
+    - 54c8772d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: limit app-skill metadata safety scans'
+    commits:
+    - 3c607a26d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record PII upload rewrite evidence'
+    commits:
+    - af9bdf98b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for synced response in message sync'
+    commits:
+    - 60140de80
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: bound IdeaBucket draft dismiss wait'
+    commits:
+    - de7a62c1f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: suppress released failed-test keys'
+    commits:
+    - 04bf71217
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: timeout login email lookup'
+    commits:
+    - c5fabbf0b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: emit explicit chat tombstones during sync'
+    commits:
+    - 450dade2f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record ChatGPT import parity evidence'
+    commits:
+    - 06c19a2fa
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: fix ChatGPT import web assertion'
+    commits:
+    - 0d1bb216c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: honor released failed-test leases in queue'
+    commits:
+    - 610623bea
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: skip released failed-test leases until rerun'
+    commits:
+    - b68170938
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add ChatGPT import parity coverage'
+    commits:
+    - c658e4ed1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: persist chat deletion tombstones'
+    commits:
+    - 455f38ff5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add ChatGPT account import support'
+    commits:
+    - '790933002'
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: lazy-load tracing setup entrypoint'
+    commits:
+    - 130a9e13c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep tracing utilities importable without redis instrumentation'
+    commits:
+    - cd0ed997b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: honor chat tombstones during phased sync'
+    commits:
+    - 81cc0a72c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stub skill output safety in registry refresh test'
+    commits:
+    - 7830e527a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: match skill registry fake metadata interface'
+    commits:
+    - 4e0bce8a2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: remove accidental account import hunk'
+    commits:
+    - 2af2e20e7
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for assistant before draft sync delete'
+    commits:
+    - bf3b8b25f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record PII rewrite evidence'
+    commits:
+    - b512362a9
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add PII placeholder rewrite'
+    commits:
+    - e6f046a86
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Tombstone SDK chat deletes in cache
+    commits:
+    - 124e12db4
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Apply Phase 2 authoritative chat deletions
+    commits:
+    - ef763c990
+    section: other
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Preserve null CLI draft poll results
+    commits:
+    - 7f034c24d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Expose transient CLI draft refresh stderr
+    commits:
+    - 0af83a7c6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Log transient CLI draft refresh failures
+    commits:
+    - c00e49883
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Stabilize CLI draft refresh polling
+    commits:
+    - a754b9ac6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix CLI draft refresh after cleared cache
+    commits:
+    - 25c21feb8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: accept refund consent before bank transfer switch'
+    commits:
+    - 01b40d7c0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Avoid heavy sync for deleted CLI drafts
+    commits:
+    - 7b921d539
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Reconcile CLI draft fallback deletions
+    commits:
+    - 9a49cdbb7
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Keep draft tombstones authoritative
+    commits:
+    - 4d21a09c0
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: initialize security auth after methods load'
+    commits:
+    - 2e64854a2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record Plans V1 E2E evidence'
+    commits:
+    - cab862c52
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: avoid blocking on absent draft dismiss'
+    commits:
+    - f620f3f46
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: register test control import module'
+    commits:
+    - 7f600922a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: release plans workspace gate'
+    commits:
+    - b3fc281d5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: bound draft replacement helper wait'
+    commits:
+    - 7c67a9e8d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize failed-test control reporting'
+    commits:
+    - a314f9f99
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: add Apple workspace embed fixtures'
+    commits:
+    - 3243db760
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: include account import CLI source'
+    commits:
+    - b313f3d0d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: route Apple workspace embed parents'
+    commits:
+    - fb188229a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: harden draft sync IndexedDB reads'
+    commits:
+    - 65a59845e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: isolate Apple embed localized labels'
+    commits:
+    - eb4208669
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: define Apple workspace embed types'
+    commits:
+    - 63c0f19b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: include Apple product summary renderer'
+    commits:
+    - 2b5b120f9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: complete Plans V1 detail and SDK contracts'
+    commits:
+    - ab986bff2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: avoid blocking draft helper on websocket flush'
+    commits:
+    - 7dca6f702
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: render workspace embed parity chrome on Apple'
+    commits:
+    - d4f0037e5
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: guard stale draft flush on chat switch'
+    commits:
+    - 07d89dbc5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: persist E2E draft helper replacements'
+    commits:
+    - 9d5573165
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record web research routing evidence'
+    commits:
+    - b7fada4c2
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: route web research company financials'
+    commits:
+    - 248325bb4
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Improved startup procedure
+    commits:
+    - be33dd8b3
+    section: improvements
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: drive draft edits through component helper'
+    commits:
+    - 203d144e3
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add business company financials skill'
+    commits:
+    - 3f964af8c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: route web research company financials'
+    commits:
+    - 248325bb4
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat: add business company financials skill'
+    commits:
+    - 3f964af8c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve draft embeds during server echoes'
+    commits:
+    - 95819edcc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize chat hash routing'
+    commits:
+    - 930399a96
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: remove accidental sdk route changes'
+    commits:
+    - 81cd5a815
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore embedded audio drafts'
+    commits:
+    - 9b47d9969
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hydrate audio draft refs'
+    commits:
+    - 13ab9b51c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: reject stale upload dedup keys'
+    commits:
+    - a6c3c04cf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore audio draft embeds'
+    commits:
+    - ae10dcd35
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: bound CLI draft refresh'
+    commits:
+    - ecc224c30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore draft embed previews'
+    commits:
+    - 62c9b7723
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: add Apple PII placeholder rewrite'
+    commits:
+    - 54c8772d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: limit app-skill metadata safety scans'
+    commits:
+    - 3c607a26d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: timeout login email lookup'
+    commits:
+    - c5fabbf0b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: emit explicit chat tombstones during sync'
+    commits:
+    - 450dade2f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: persist chat deletion tombstones'
+    commits:
+    - 455f38ff5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add ChatGPT account import support'
+    commits:
+    - '790933002'
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: honor chat tombstones during phased sync'
+    commits:
+    - 81cc0a72c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add PII placeholder rewrite'
+    commits:
+    - e6f046a86
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix CLI draft refresh after cleared cache
+    commits:
+    - 25c21feb8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Avoid heavy sync for deleted CLI drafts
+    commits:
+    - 7b921d539
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Reconcile CLI draft fallback deletions
+    commits:
+    - 9a49cdbb7
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: initialize security auth after methods load'
+    commits:
+    - 2e64854a2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize failed-test control reporting'
+    commits:
+    - a314f9f99
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: add Apple workspace embed fixtures'
+    commits:
+    - 3243db760
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: include account import CLI source'
+    commits:
+    - b313f3d0d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: route Apple workspace embed parents'
+    commits:
+    - fb188229a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: isolate Apple embed localized labels'
+    commits:
+    - eb4208669
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: define Apple workspace embed types'
+    commits:
+    - 63c0f19b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: include Apple product summary renderer'
+    commits:
+    - 2b5b120f9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: complete Plans V1 detail and SDK contracts'
+    commits:
+    - ab986bff2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: render workspace embed parity chrome on Apple'
+    commits:
+    - d4f0037e5
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: guard stale draft flush on chat switch'
+    commits:
+    - 07d89dbc5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: persist E2E draft helper replacements'
+    commits:
+    - 9d5573165
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: route web research company financials'
+    commits:
+    - 248325bb4
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 3f964af8c53b0184681ff2321d54ab1ed9dfa95d
+    short_sha: 3f964af8c
+    authored_at: '2026-07-20T23:52:07+00:00'
+    subject: 'feat: add business company financials skill'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/business/__init__.py
+    - backend/apps/business/app.yml
+    - backend/apps/business/skills/__init__.py
+    - backend/apps/business/skills/company_financials.py
+    - backend/shared/providers/sec_edgar/__init__.py
+    - backend/shared/providers/sec_edgar/client.py
+    - backend/shared/providers/sec_edgar/models.py
+    - backend/tests/test_business_company_financials_skill.py
+    - backend/tests/test_business_company_financials_workflow.py
+    - backend/tests/test_sec_edgar_provider.py
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    related_feature_ids: []
+  - sha: efd4ab0ccd588a70b3dfd620235acc4037c547ad
+    short_sha: efd4ab0cc
+    authored_at: '2026-07-20T23:47:07+00:00'
+    subject: 'test: stabilize restored audio draft assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: 95819edccf0da2ee1984b9915898ce7539109736
+    short_sha: 95819edcc
+    authored_at: '2026-07-20T23:47:05+00:00'
+    subject: 'fix: preserve draft embeds during server echoes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/drafts/__tests__/draftWebsocket.test.ts
+    - frontend/packages/ui/src/services/drafts/draftWebsocket.ts
+    related_feature_ids: []
+  - sha: 930399a965ce0b811c7339b28d8cb5adb068369a
+    short_sha: 930399a96
+    authored_at: '2026-07-20T23:25:24+00:00'
+    subject: 'fix: stabilize chat hash routing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: 62944d6b636fa2e6fe97d943aec9579adcacf27c
+    short_sha: 62944d6b6
+    authored_at: '2026-07-20T23:04:56+00:00'
+    subject: 'fix: clear processed ideabucket drafts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    related_feature_ids: []
+  - sha: 5587bf7f42865dcd2cff7600412be9eb48b531d2
+    short_sha: 5587bf7f4
+    authored_at: '2026-07-20T20:46:51+00:00'
+    subject: 'fix: clear processed ideabucket drafts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncMerge.test.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    related_feature_ids: []
+  - sha: af18d5b80939805fdd4febb2e213cd9678d5466c
+    short_sha: af18d5b80
+    authored_at: '2026-07-20T20:23:04+00:00'
+    subject: 'fix: hydrate encrypted embed fallbacks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: 81cd5a815ad6f412f3b0e5be27e27f2c3c4188b8
+    short_sha: 81cd5a815
+    authored_at: '2026-07-20T19:54:57+00:00'
+    subject: 'fix: remove accidental sdk route changes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    related_feature_ids: []
+  - sha: 9b47d9969be08b6b9bb65126add72842e5ef6eb5
+    short_sha: 9b47d9969
+    authored_at: '2026-07-20T19:50:30+00:00'
+    subject: 'fix: restore embedded audio drafts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 7d7496e95e9e052f3d47aab5a4a37ad15efd6a7c
+    short_sha: 7d7496e95
+    authored_at: '2026-07-20T19:19:31+00:00'
+    subject: 'test: validate audio draft markdown separately'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: e6e17841ffcf071dbe11c479b800113c6b250b5f
+    short_sha: e6e17841f
+    authored_at: '2026-07-20T19:03:28+00:00'
+    subject: 'test: align import chat assertions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/import-chats.spec.ts
+    related_feature_ids: []
+  - sha: e7eb39f41a205b583533ef6faf4ec4576d8fe3ac
+    short_sha: e7eb39f41
+    authored_at: '2026-07-20T19:00:00+00:00'
+    subject: 'test: require scoped IdeaBucket draft editor'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: 07cdab0df959dc33fd881c412217b61348487e27
+    short_sha: 07cdab0df
+    authored_at: '2026-07-20T18:53:57+00:00'
+    subject: 'test: refresh import chats fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/fixtures/import-chats-test.zip
+    related_feature_ids: []
+  - sha: c3063951bf0485b3e1c734612c63afbc11439ac9
+    short_sha: c3063951b
+    authored_at: '2026-07-20T18:43:01+00:00'
+    subject: 'test: update import chat upload selector'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/import-chats.spec.ts
+    related_feature_ids: []
+  - sha: b3df04c54c6dfd521673eb4b4b463a489c0fab21
+    short_sha: b3df04c54
+    authored_at: '2026-07-20T18:38:05+00:00'
+    subject: 'test: tolerate truncated draft search rows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: bb47e9bae57c14772432fc46d1f961945e192555
+    short_sha: bb47e9bae
+    authored_at: '2026-07-20T18:23:11+00:00'
+    subject: 'test: scope draft search metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: 4b846c79834cc703fab4cff29e01812ebd3f77b2
+    short_sha: 4b846c798
+    authored_at: '2026-07-20T18:14:30+00:00'
+    subject: 'fix: persist pending chat upserts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatListCache.ts
+    related_feature_ids: []
+  - sha: 13ab9b51c6a2586ef7ac58d8d53cde13b4266007
+    short_sha: 13ab9b51c
+    authored_at: '2026-07-20T18:08:14+00:00'
+    subject: 'fix: hydrate audio draft refs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/fileEmbed.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: a6c3c04cf5ed8a778dd663ed406fbfb7fc310779
+    short_sha: a6c3c04cf
+    authored_at: '2026-07-20T17:42:56+00:00'
+    subject: 'fix: reject stale upload dedup keys'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/tests/test_upload_duplicate_ownership.py
+    related_feature_ids: []
+  - sha: ae10dcd35e5812d0c434ca56fa68c47ff0f3c178
+    short_sha: ae10dcd35
+    authored_at: '2026-07-20T17:37:14+00:00'
+    subject: 'fix: restore audio draft embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: db71cea8537e51dfaf78c878d75c3fa530704de1
+    short_sha: db71cea85
+    authored_at: '2026-07-20T17:14:46+00:00'
+    subject: 'test: avoid stale upload dedup in image inference'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    related_feature_ids: []
+  - sha: 3e2a7f9318c6bdbdb41e0ce35524632725bceaa1
+    short_sha: 3e2a7f931
+    authored_at: '2026-07-20T17:09:29+00:00'
+    subject: 'docs: record Apple PII rewrite parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/pii-placeholder-rewrite-v1/spec.yml
+    related_feature_ids: []
+  - sha: ecc224c30a55e63c4129d25fd71d82301d353e71
+    short_sha: ecc224c30
+    authored_at: '2026-07-20T17:09:01+00:00'
+    subject: 'fix: bound CLI draft refresh'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/tests/draft-sync.test.ts
+    related_feature_ids: []
+  - sha: 07e37284061d08d29448c84ecf847c9a48b8f286
+    short_sha: 07e372840
+    authored_at: '2026-07-20T16:56:04+00:00'
+    subject: 'test: serialize real image inference trials'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    related_feature_ids: []
+  - sha: 779fbbecdf5b6843408f22204ee8924a0bc51301
+    short_sha: 779fbbecd
+    authored_at: '2026-07-20T16:53:41+00:00'
+    subject: 'fix: isolate upload S3 keys per embed'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_upload_s3_keys.py
+    - backend/upload/routes/upload_route.py
+    - backend/upload/s3_keys.py
+    related_feature_ids: []
+  - sha: 62c9b77232e06df45286d29c326313b3f4774545
+    short_sha: 62c9b7723
+    authored_at: '2026-07-20T16:44:35+00:00'
+    subject: 'fix: restore draft embed previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 54c8772d2bdf6d0fba31f6248716e23291c6bd7c
+    short_sha: 54c8772d2
+    authored_at: '2026-07-20T16:40:49+00:00'
+    subject: 'fix: add Apple PII placeholder rewrite'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerPIIDecorations.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 3c607a26d8dc95a57455c4b1657a98acebffb179
+    short_sha: 3c607a26d
+    authored_at: '2026-07-20T16:13:55+00:00'
+    subject: 'fix: limit app-skill metadata safety scans'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/tests/test_app_skill_output_safety.py
+    - backend/tests/test_external_result_sanitizer.py
+    related_feature_ids: []
+  - sha: af9bdf98b09490d5e3378501d1778312119f70b6
+    short_sha: af9bdf98b
+    authored_at: '2026-07-20T16:11:37+00:00'
+    subject: 'docs: record PII upload rewrite evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/pii-placeholder-rewrite-v1/spec.yml
+    related_feature_ids: []
+  - sha: 60140de801a2e70d90588eb1ffd166d9a38ff11b
+    short_sha: 60140de80
+    authored_at: '2026-07-20T16:08:33+00:00'
+    subject: 'test: wait for synced response in message sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    related_feature_ids: []
+  - sha: de7a62c1f2d8c05d791106e8088ed933fe631b82
+    short_sha: de7a62c1f
+    authored_at: '2026-07-20T15:39:34+00:00'
+    subject: 'test: bound IdeaBucket draft dismiss wait'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: 04bf712179984ef07f8d3ecd326f7f224c2707fe
+    short_sha: 04bf71217
+    authored_at: '2026-07-20T15:24:10+00:00'
+    subject: 'fix: suppress released failed-test keys'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: c5fabbf0b9f65ddc94f72d803b330f0048ceedc8
+    short_sha: c5fabbf0b
+    authored_at: '2026-07-20T15:10:16+00:00'
+    subject: 'fix: timeout login email lookup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    related_feature_ids: []
+  - sha: 450dade2f06091fe55891b6520a59ff8e3fb4f76
+    short_sha: 450dade2f
+    authored_at: '2026-07-20T15:04:44+00:00'
+    subject: 'fix: emit explicit chat tombstones during sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_cross_client_draft_sync.py
+    related_feature_ids: []
+  - sha: 06c19a2fad83cbb1b1b765a01c02cfb9f72c5856
+    short_sha: 06c19a2fa
+    authored_at: '2026-07-20T14:59:42+00:00'
+    subject: 'docs: record ChatGPT import parity evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/account-import-v1/spec.yml
+    related_feature_ids: []
+  - sha: 0d1bb216c30701fd94639a819c07bbf200321953
+    short_sha: 0d1bb216c
+    authored_at: '2026-07-20T14:52:51+00:00'
+    subject: 'test: fix ChatGPT import web assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/import-account-v1.spec.ts
+    related_feature_ids: []
+  - sha: 610623beafaa3dd61020674af267ac07ad3a6807
+    short_sha: 610623bea
+    authored_at: '2026-07-20T14:40:47+00:00'
+    subject: 'fix: honor released failed-test leases in queue'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    related_feature_ids: []
+  - sha: b681709389f0269ca026b7efd80106d12d70e53c
+    short_sha: b68170938
+    authored_at: '2026-07-20T14:40:09+00:00'
+    subject: 'fix: skip released failed-test leases until rerun'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: c658e4ed1705db8153ae623938cc8b7c69015d0d
+    short_sha: c658e4ed1
+    authored_at: '2026-07-20T14:39:45+00:00'
+    subject: 'test: add ChatGPT import parity coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/account-import-test-helpers.ts
+    - frontend/apps/web_app/tests/import-account-v1.spec.ts
+    - scripts/verify_account_import_cli.py
+    related_feature_ids: []
+  - sha: 455f38ff52c02405a1f4cc2694ceaa10b80e1748
+    short_sha: 455f38ff5
+    authored_at: '2026-07-20T14:33:41+00:00'
+    subject: 'fix: persist chat deletion tombstones'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py
+    - backend/tests/test_delete_chat_handler.py
+    related_feature_ids: []
+  - sha: 790933002e3ae7b128990c41fbf470feae7aebce
+    short_sha: '790933002'
+    authored_at: '2026-07-20T14:18:57+00:00'
+    subject: 'feat: add ChatGPT account import support'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/account_import_service.py
+    - backend/tests/test_account_import_chatgpt_parser.py
+    - docs/specs/account-import-v1/spec.yml
+    - frontend/packages/openmates-cli/src/accountImport.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/account-import-sdk.test.ts
+    - frontend/packages/openmates-cli/tests/account-import.test.ts
+    - frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
+    - frontend/packages/ui/src/services/__tests__/chatImportService.test.ts
+    - frontend/packages/ui/src/services/chatImportService.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_account_import.py
+    - scripts/verify_account_import_cli.py
+    related_feature_ids: []
+  - sha: 130a9e13c2bdd0fee34dace38be80af7049e5886
+    short_sha: 130a9e13c
+    authored_at: '2026-07-20T14:11:34+00:00'
+    subject: 'fix: lazy-load tracing setup entrypoint'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/python_utils/tracing/__init__.py
+    related_feature_ids: []
+  - sha: cd0ed997b71e1b23d0565f2ce313d63e7844e74e
+    short_sha: cd0ed997b
+    authored_at: '2026-07-20T14:11:03+00:00'
+    subject: 'fix: keep tracing utilities importable without redis instrumentation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/python_utils/tracing/config.py
+    related_feature_ids: []
+  - sha: 81cc0a72c7d87df8afb3dc711c940e57c62e275d
+    short_sha: 81cc0a72c
+    authored_at: '2026-07-20T14:09:55+00:00'
+    subject: 'fix: honor chat tombstones during phased sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_cross_client_draft_sync.py
+    related_feature_ids: []
+  - sha: 7830e527af7894f3e39a2738d334ca7fe4947644
+    short_sha: 7830e527a
+    authored_at: '2026-07-20T13:59:22+00:00'
+    subject: 'test: stub skill output safety in registry refresh test'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_skill_executor_registry_refresh.py
+    related_feature_ids: []
+  - sha: 4e0bce8a2f6817370ec2a78400167e156c26cb8c
+    short_sha: 4e0bce8a2
+    authored_at: '2026-07-20T13:53:23+00:00'
+    subject: 'test: match skill registry fake metadata interface'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_skill_executor_registry_refresh.py
+    related_feature_ids: []
+  - sha: 2af2e20e7c930d2217e7b53572a6466664938689
+    short_sha: 2af2e20e7
+    authored_at: '2026-07-20T13:46:50+00:00'
+    subject: 'chore: remove accidental account import hunk'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/accountImport.ts
+    related_feature_ids: []
+  - sha: bf3b8b25f4e34ab8129b091dbceede70bf9fcaa9
+    short_sha: bf3b8b25f
+    authored_at: '2026-07-20T13:43:28+00:00'
+    subject: 'test: wait for assistant before draft sync delete'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    - frontend/packages/openmates-cli/src/accountImport.ts
+    related_feature_ids: []
+  - sha: b512362a991c3f2803351e46a1973c9851748015
+    short_sha: b512362a9
+    authored_at: '2026-07-20T13:42:49+00:00'
+    subject: 'docs: record PII rewrite evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/pii-placeholder-rewrite-v1/spec.yml
+    related_feature_ids: []
+  - sha: e6f046a86850b519be153234db01ec115e585776
+    short_sha: e6f046a86
+    authored_at: '2026-07-20T13:27:56+00:00'
+    subject: 'feat: add PII placeholder rewrite'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/pii-placeholder-rewrite-v1/spec.yml
+    - frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+    - frontend/packages/secret-scanner/src/index.ts
+    - frontend/packages/secret-scanner/src/registry.ts
+    - frontend/packages/secret-scanner/src/scanner.ts
+    - frontend/packages/secret-scanner/src/types.ts
+    - frontend/packages/secret-scanner/tests/redact-restore.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/placeholderRewriteService.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/placeholderRewriteService.ts
+    - frontend/packages/ui/src/stores/__tests__/embedPIIStore.test.ts
+    - frontend/packages/ui/src/stores/embedPIIStore.ts
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts
+    related_feature_ids: []
+  - sha: 124e12db47e9a7a5af344bdedae90783d61569d0
+    short_sha: 124e12db4
+    authored_at: '2026-07-20T13:24:57+00:00'
+    subject: Tombstone SDK chat deletes in cache
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    related_feature_ids: []
+  - sha: ef763c9904ee81af65ced1ad2e603dc412731e35
+    short_sha: ef763c990
+    authored_at: '2026-07-20T13:08:08+00:00'
+    subject: Apply Phase 2 authoritative chat deletions
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 7f034c24d39716af07915f855d6ece664da12ee9
+    short_sha: 7f034c24d
+    authored_at: '2026-07-20T12:50:57+00:00'
+    subject: Preserve null CLI draft poll results
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: 0af83a7c6848dc732c38ef911b163876e2cda9e9
+    short_sha: 0af83a7c6
+    authored_at: '2026-07-20T12:38:41+00:00'
+    subject: Expose transient CLI draft refresh stderr
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: c00e498837c16e81f983296747273244d2b63cf4
+    short_sha: c00e49883
+    authored_at: '2026-07-20T12:21:22+00:00'
+    subject: Log transient CLI draft refresh failures
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: a754b9ac6186c11ccda7353a2b9c95a14338e3b9
+    short_sha: a754b9ac6
+    authored_at: '2026-07-20T12:07:51+00:00'
+    subject: Stabilize CLI draft refresh polling
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: 25c21feb8f60dd50edac2cfd4f8d8f4c39aac9af
+    short_sha: 25c21feb8
+    authored_at: '2026-07-20T11:54:29+00:00'
+    subject: Fix CLI draft refresh after cleared cache
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/draft-sync.test.ts
+    related_feature_ids: []
+  - sha: 01b40d7c099a31ab505fc64909e24425fa9722d7
+    short_sha: 01b40d7c0
+    authored_at: '2026-07-20T11:50:52+00:00'
+    subject: 'test: accept refund consent before bank transfer switch'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    related_feature_ids: []
+  - sha: 7b921d5392b7c62302dc3b20ca0cf6ea2d17bbd5
+    short_sha: 7b921d539
+    authored_at: '2026-07-20T11:38:16+00:00'
+    subject: Avoid heavy sync for deleted CLI drafts
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/draft-sync.test.ts
+    related_feature_ids: []
+  - sha: 9a49cdbb79eb84bb6acf01e94b9f7ba68ebcd61e
+    short_sha: 9a49cdbb7
+    authored_at: '2026-07-20T11:24:23+00:00'
+    subject: Reconcile CLI draft fallback deletions
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/draft-sync.test.ts
+    related_feature_ids: []
+  - sha: 4d21a09c09d8c36db4344a3b47cd606428664460
+    short_sha: 4d21a09c0
+    authored_at: '2026-07-20T11:07:28+00:00'
+    subject: Keep draft tombstones authoritative
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/tests/test_cross_client_draft_sync.py
+    related_feature_ids: []
+  - sha: 2e64854a2d6991e7b4983006f298ee0bccc468d1
+    short_sha: 2e64854a2
+    authored_at: '2026-07-20T11:00:34+00:00'
+    subject: 'fix: initialize security auth after methods load'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    related_feature_ids: []
+  - sha: cab862c52f44c002a74ac652c0d47133f8532dc6
+    short_sha: cab862c52
+    authored_at: '2026-07-20T11:00:05+00:00'
+    subject: 'docs: record Plans V1 E2E evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/plans-v1/spec.yml
+    related_feature_ids: []
+  - sha: f620f3f46f91b86ef47b864cfba25378fff06346
+    short_sha: f620f3f46
+    authored_at: '2026-07-20T10:49:54+00:00'
+    subject: 'test: avoid blocking on absent draft dismiss'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: 7f600922a426ccc182a5bbe3c436730eafc8e8d3
+    short_sha: 7f600922a
+    authored_at: '2026-07-20T10:45:58+00:00'
+    subject: 'fix: register test control import module'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: b3fc281d534fbffef6a2ecc5ca4e1ec22962e66b
+    short_sha: b3fc281d5
+    authored_at: '2026-07-20T10:42:01+00:00'
+    subject: 'fix: release plans workspace gate'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
+    - frontend/packages/ui/src/config/workspaceFeatureGates.ts
+    related_feature_ids: []
+  - sha: 7c67a9e8d2bc9c20a78d04663c3c19a078d8e657
+    short_sha: 7c67a9e8d
+    authored_at: '2026-07-20T10:30:52+00:00'
+    subject: 'test: bound draft replacement helper wait'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: a314f9f99a3748e6a0b4ae6891ef71ee59e52971
+    short_sha: a314f9f99
+    authored_at: '2026-07-20T10:24:49+00:00'
+    subject: 'fix: stabilize failed-test control reporting'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/test_run_summary_email_task.py
+    - backend/core/api/templates/email/test_run_summary.mjml
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - scripts/run-tests-daily.sh
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 3243db760e6e6aa816851246b42fe8e2005c06cc
+    short_sha: 3243db760
+    authored_at: '2026-07-20T10:12:42+00:00'
+    subject: 'fix: add Apple workspace embed fixtures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b313f3d0dbd8cb50b7d7e78f3ad8b7f37a5f414e
+    short_sha: b313f3d0d
+    authored_at: '2026-07-20T10:11:27+00:00'
+    subject: 'fix: include account import CLI source'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/accountImport.ts
+    related_feature_ids: []
+  - sha: fb188229afa0a6c19ee735c2f1debcfdf7598872
+    short_sha: fb188229a
+    authored_at: '2026-07-20T10:08:26+00:00'
+    subject: 'fix: route Apple workspace embed parents'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 65a59845e803ddf76a9fe454e03bc158a9ebfe46
+    short_sha: 65a59845e
+    authored_at: '2026-07-20T10:01:59+00:00'
+    subject: 'test: harden draft sync IndexedDB reads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    related_feature_ids: []
+  - sha: eb4208669bf81471d453f2ea595e522797c63ee9
+    short_sha: eb4208669
+    authored_at: '2026-07-20T09:58:08+00:00'
+    subject: 'fix: isolate Apple embed localized labels'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 63c0f19b0fc58d4a8a559af1b05906eeb07ae048
+    short_sha: 63c0f19b0
+    authored_at: '2026-07-20T09:55:47+00:00'
+    subject: 'fix: define Apple workspace embed types'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2b5b120f9cbc66c955c91d3971871da31bc8ee6b
+    short_sha: 2b5b120f9
+    authored_at: '2026-07-20T09:54:23+00:00'
+    subject: 'fix: include Apple product summary renderer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ab986bff2a9c3feb825a9016a458bb550d5ec448
+    short_sha: ab986bff2
+    authored_at: '2026-07-20T09:53:23+00:00'
+    subject: 'feat: complete Plans V1 detail and SDK contracts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/core/api/app/services/user_plan_share_bundle.py
+    - backend/core/directus/schemas/user_plans.yml
+    - backend/tests/test_plan_acceptance_criteria_coverage.py
+    - backend/tests/test_plan_assumption_workflow.py
+    - backend/tests/test_plan_reference_patterns.py
+    - backend/tests/test_user_plan_execution_contexts.py
+    - backend/tests/test_user_plans_api.py
+    - backend/tests/test_user_plans_share_bundle.py
+    - docs/specs/plans-v1/spec.yml
+    - frontend/apps/web_app/tests/plan-acceptance-checks-flow.spec.ts
+    - frontend/apps/web_app/tests/plan-assumptions-flow.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
+    - frontend/packages/ui/src/services/userPlanService.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    - scripts/audit_sdk_cli_parity.py
+    related_feature_ids:
+    - platform:plans
+  - sha: 7dca6f702a7780e0303de2c188933147015115bb
+    short_sha: 7dca6f702
+    authored_at: '2026-07-20T09:41:41+00:00'
+    subject: 'test: avoid blocking draft helper on websocket flush'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: d4f0037e5d2ce267b58b2ce2f3a3a02e76772dd0
+    short_sha: d4f0037e5
+    authored_at: '2026-07-20T09:29:50+00:00'
+    subject: 'feat: render workspace embed parity chrome on Apple'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - backend/tests/test_apple_ui_contracts.py
+    - scripts/apple_ui_contracts.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 07d89dbc5d3f70ae38d71a254bd3c222f6a7d16c
+    short_sha: 07d89dbc5
+    authored_at: '2026-07-20T01:15:58+00:00'
+    subject: 'fix: guard stale draft flush on chat switch'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 9d5573165aac02185478c91ccc8d6193749d5c45
+    short_sha: 9d5573165
+    authored_at: '2026-07-20T00:58:07+00:00'
+    subject: 'fix: persist E2E draft helper replacements'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: b7fada4c27fc5ef54a163611889498c85e2ede09
+    short_sha: b7fada4c2
+    authored_at: '2026-07-20T00:41:50+00:00'
+    subject: 'docs: record web research routing evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/business-company-financials/spec.yml
+    related_feature_ids: []
+  - sha: 248325bb433f667e5ebbe5779e43ff0d8a9fb3f0
+    short_sha: 248325bb4
+    authored_at: '2026-07-20T00:36:18+00:00'
+    subject: 'feat: route web research company financials'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/web/app.yml
+    - backend/tests/test_web_research_business_financials_routing.py
+    - docs/specs/business-company-financials/spec.yml
+    related_feature_ids: []
+  - sha: be33dd8b3f1fa699c3bc4847b34349e01e7a2c64
+    short_sha: be33dd8b3
+    authored_at: '2026-07-20T00:35:05+00:00'
+    subject: Improved startup procedure
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/domain_security_restricted.encrypted
+    related_feature_ids: []
+  - sha: 203d144e326f14232134a490642cd88981551568
+    short_sha: 203d144e3
+    authored_at: '2026-07-20T00:31:57+00:00'
+    subject: 'test: drive draft edits through component helper'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on expanding business intelligence capabilities and data portability while significantly hardening
+    the draft synchronization engine. Key developments include a new company financials skill and support for importing ChatGPT
+    account data, alongside extensive stability fixes for cross-client draft management.
+  released_changes: []
+  bug_fixes:
+  - text: OpenMates now preserves draft embeds during server echoes to prevent data loss in the message input component.
+    evidence:
+      commits:
+      - 95819edcc
+    release_status: dev_only
+  - text: Chat hash routing was stabilized and draft embed previews were restored.
+    evidence:
+      commits:
+      - 930399a96
+      - 62c9b7723
+    release_status: dev_only
+  - text: Several issues with audio drafts were resolved, including hydration of references and restoration of embedded drafts.
+    evidence:
+      commits:
+      - 9b47d9969
+      - 13ab9b51c
+      - ae10dcd35
+    release_status: dev_only
+  - text: Synchronization reliability was improved by honoring chat deletion tombstones during phased sync.
+    evidence:
+      commits:
+      - 450dade2f
+      - 81cc0a72c
+      - 455f38ff5
+    release_status: dev_only
+  - text: The CLI draft refresh logic was corrected and fallback deletions were reconciled.
+    evidence:
+      commits:
+      - ecc224c30
+      - 25c21feb8
+      - 9a49cdbb7
+    release_status: dev_only
+  - text: The login email lookup now includes a timeout, and security authentication initializes only after methods have loaded.
+    evidence:
+      commits:
+      - c5fabbf0b
+      - 2e64854a2
+    release_status: dev_only
+  unreleased_progress:
+  - text: A business company financials skill was added, utilizing SEC EDGAR data for web research routing.
+    evidence:
+      commits:
+      - 3f964af8c
+      - 248325bb4
+    release_status: dev_only
+  - text: Support for importing ChatGPT account data was introduced to the core API and CLI.
+    evidence:
+      commits:
+      - '790933002'
+      - b313f3d0d
+    release_status: dev_only
+  - text: A PII placeholder rewrite feature was developed to redact sensitive information before transmission.
+    evidence:
+      commits:
+      - e6f046a86
+    release_status: dev_only
+  - text: Work continued on Plans V1, including detail view implementation and SDK contract completion.
+    evidence:
+      commits:
+      - ab986bff2
+      - b3fc281d5
+    release_status: dev_only
+  - text: Apple platform parity was enhanced with workspace embed rendering, localized labels, and PII detection support.
+    evidence:
+      commits:
+      - d4f0037e5
+      - 54c8772d2
+      - 3243db760
+      - fb188229a
+      - eb4208669
+      - 63c0f19b0
+      - 2b5b120f9
+    release_status: dev_only
+  internal_progress:
+  - text: Test infrastructure was hardened with improved failed-test reporting and lease management in the queue.
+    evidence:
+      commits:
+      - a314f9f99
+      - 04bf71217
+      - 610623bea
+      - b68170938
+      - 7f600922a
+    release_status: dev_only
+  - text: Startup procedures were optimized and tracing utility imports were refined to allow lazy-loading.
+    evidence:
+      commits:
+      - be33dd8b3
+      - 130a9e13c
+      - cd0ed997b
+    release_status: dev_only
+  - text: Upload security was refined by isolating S3 keys per embed and rejecting stale deduplication keys.
+    evidence:
+      commits:
+      - 779fbbecd
+      - a6c3c04cf
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: ChatGPT account import support.
+      evidence:
+        commits:
+        - '790933002'
+      reason: Feature is currently dev_only and not yet available in the main release.
+    - text: Business company financials skill.
+      evidence:
+        commits:
+        - 3f964af8c
+      reason: Feature is currently dev_only and not yet available in the main release.
+    - text: PII placeholder rewrite.
+      evidence:
+        commits:
+        - e6f046a86
+      reason: Feature is currently dev_only and not yet available in the main release.
+    - text: Plans V1 detail and SDK contracts.
+      evidence:
+        commits:
+        - ab986bff2
+      reason: Related to the disabled platform:plans feature.
+    - text: Apple platform workspace embed parity.
+      evidence:
+        commits:
+        - d4f0037e5
+      reason: Related to the disabled platform:ios and platform:macos features.
+    rationale: No user-facing features reached the main release with public communication readiness during this period. Major
+      work remains in dev_only status or is gated by disabled feature flags.
+  social_video_recommendations:
+  - idea: Demonstrate the new ChatGPT account import flow to show how users can migrate their history to OpenMates.
+    priority: medium
+    reason: Concrete data portability story that appeals to power users.
+    evidence:
+      commits:
+      - '790933002'
+  - idea: Showcase the PII placeholder rewrite feature redacting sensitive info in real-time within the composer.
+    priority: low
+    reason: Visual demonstration of privacy-focused features.
+    evidence:
+      commits:
+      - e6f046a86
+  quality_notes:
+  - Significant effort was directed toward stabilizing cross-client draft synchronization, with over 20 commits dedicated
+    to E2E test hardening and edge-case handling in the draft sync engine.
+  - The project maintained a high standard of documentation by recording evidence for all major new features including account
+    imports and PII redaction.
+  validation_warnings: []

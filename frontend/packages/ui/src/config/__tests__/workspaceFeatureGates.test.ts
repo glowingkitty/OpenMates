@@ -1,8 +1,7 @@
 // frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
 // Regression coverage for workspace release gates.
-// Optional top-level workspaces must stay hidden until the web build releases
-// them, even if an older backend availability response omits their disabled IDs.
-// Chats remain the only default visible workspace in the current production UI.
+// Optional top-level workspaces must follow the current web release list even if
+// the backend availability response omits their disabled IDs.
 
 import { describe, expect, it } from "vitest";
 
@@ -14,10 +13,27 @@ describe("isWorkspaceFeatureAvailable", () => {
   });
 
   it("hides unreleased optional workspaces even when backend omits disabled IDs", () => {
-    expect(isWorkspaceFeatureAvailable("platform:plans", {})).toBe(false);
     expect(isWorkspaceFeatureAvailable("platform:projects", {})).toBe(false);
-    expect(isWorkspaceFeatureAvailable("platform:tasks", {})).toBe(false);
-    expect(isWorkspaceFeatureAvailable("platform:workflows", {})).toBe(false);
+  });
+
+  it("shows released optional workspaces when backend omits disabled IDs", () => {
+    expect(isWorkspaceFeatureAvailable("platform:plans", {})).toBe(true);
+    expect(isWorkspaceFeatureAvailable("platform:tasks", {})).toBe(true);
+    expect(isWorkspaceFeatureAvailable("platform:workflows", {})).toBe(true);
+  });
+
+  it("hides every optional header workspace disabled by the release backend", () => {
+    const disabled = {
+      "platform:projects": true,
+      "platform:plans": true,
+      "platform:tasks": true,
+      "platform:workflows": true,
+    } as const;
+
+    expect(isWorkspaceFeatureAvailable("platform:projects", disabled)).toBe(false);
+    expect(isWorkspaceFeatureAvailable("platform:plans", disabled)).toBe(false);
+    expect(isWorkspaceFeatureAvailable("platform:tasks", disabled)).toBe(false);
+    expect(isWorkspaceFeatureAvailable("platform:workflows", disabled)).toBe(false);
   });
 
   it("keeps disabled chats hidden if backend explicitly disables them", () => {

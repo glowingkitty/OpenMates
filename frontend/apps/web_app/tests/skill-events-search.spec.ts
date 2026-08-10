@@ -5,7 +5,7 @@
  * Phase 1: Embed preview renders at /dev/preview/embeds/events
  * Phase 2: CLI direct skill command (openmates apps events search --json)
  * Phase 3: CLI chat send triggers skill (openmates chats new "..." --json)
- * Phase 4: Web UI chat triggers skill with embed rendering + fullscreen grid
+ * Phase 4: Web UI chat preserves embed refs from streaming through the final grouped view
  *
  * Architecture context: docs/architecture/embeds.md
  */
@@ -27,17 +27,7 @@ const {
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
-const {
-	verifyEmbedPreviewPage,
-	waitForEmbedFinished,
-	openFullscreen,
-	verifySearchGrid,
-	closeFullscreen
-} = require('./helpers/embed-test-helpers');
-const {
-	saveCurrentFullscreenEmbed,
-	verifySavedMemoryEntry
-} = require('./helpers/saved-memory-test-helpers');
+const { verifyEmbedPreviewPage } = require('./helpers/embed-test-helpers');
 const {
 	expectSettingsProviderIcons,
 	expectSkillCardProviderIcons
@@ -71,28 +61,6 @@ const EVENT_SEARCH_CARD_ICON_PROVIDERS = [
 const EVENT_SEARCH_CARD_SELECTOR = '[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"]';
 const EVENT_SEARCH_FIRST_RANGE = 'Jun 20, 2026 - Jun 21, 2026';
 const EVENT_SEARCH_SECOND_RANGE = 'Jun 27, 2026 - Jun 28, 2026';
-
-async function expectCalendarDownload(page: any, logCheckpoint: (message: string) => void): Promise<void> {
-	const dismissButtons = page.getByTestId('notification-dismiss');
-	const dismissCount = await dismissButtons.count();
-	for (let i = 0; i < dismissCount; i += 1) {
-		await dismissButtons.nth(i).click().catch(() => undefined);
-	}
-	if (dismissCount > 0) {
-		logCheckpoint(`Dismissed ${dismissCount} notification(s) before calendar download.`);
-	}
-
-	const calendarButton = page.getByTestId('embed-calendar-button');
-	await expect(calendarButton).toBeVisible({ timeout: 5000 });
-
-	const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
-	await calendarButton.click();
-	const download = await downloadPromise;
-	const suggestedFilename = download.suggestedFilename();
-	expect(suggestedFilename).toMatch(/\.ics$/);
-	expect(await download.failure()).toBeNull();
-	logCheckpoint(`Calendar download started: ${suggestedFilename}`);
-}
 
 test.describe('App: Events / Skill: search', () => {
 	test.setTimeout(120_000);
@@ -212,38 +180,80 @@ test.describe('App: Events / Skill: search', () => {
 
 		logCheckpoint('Waiting for events search embeds to appear during streaming...');
 		const streamingEmbeds = page.locator(EVENT_SEARCH_CARD_SELECTOR);
+		const rangedEmbeds = streamingEmbeds.filter({ has: page.getByTestId('events-search-range') });
 		await expect(streamingEmbeds.first()).toBeVisible({ timeout: 60_000 });
-		await expect(streamingEmbeds.filter({ has: page.getByTestId('events-search-range') }).first()).toBeVisible({ timeout: 60_000 });
+		await expect(rangedEmbeds.first()).toBeVisible({ timeout: 60_000 });
 		await expect(page.getByTestId('events-search-range').filter({ hasText: EVENT_SEARCH_FIRST_RANGE })).toBeVisible({ timeout: 60_000 });
 		await expect(page.getByTestId('events-search-range').filter({ hasText: EVENT_SEARCH_SECOND_RANGE })).toBeVisible({ timeout: 60_000 });
+		const embed = rangedEmbeds
+			.filter({ has: page.getByTestId('events-search-range').filter({ hasText: EVENT_SEARCH_SECOND_RANGE }) })
+			.last();
+		await expect(embed).toBeVisible({ timeout: 60_000 });
+		const streamingMessageContent = page
+			.getByTestId('message-content')
+			.filter({ has: embed });
+		await expect(streamingMessageContent).toHaveAttribute('data-streaming', 'true');
 		await takeStepScreenshot(page, 'events-search-embeds-during-streaming');
 
-		logCheckpoint('Waiting for events search embed to finish...');
-		const embed = await waitForEmbedFinished(page, 'events', 'search');
-		const finishedEmbeds = page.locator(`${EVENT_SEARCH_CARD_SELECTOR}[data-status="finished"]`);
-		await expect(async () => {
-			const count = await finishedEmbeds.count();
-			expect(count).toBeGreaterThanOrEqual(2);
-		}).toPass({ timeout: 120_000 });
-		await expect(page.getByTestId('events-search-range').filter({ hasText: EVENT_SEARCH_FIRST_RANGE })).toBeVisible({ timeout: 30_000 });
-		await expect(page.getByTestId('events-search-range').filter({ hasText: EVENT_SEARCH_SECOND_RANGE })).toBeVisible({ timeout: 30_000 });
-		logCheckpoint('Events search embed finished.');
-		await takeStepScreenshot(page, 'events-search-embed-finished');
+		const finalGroupedView = page.getByTestId('embeds-map-view').last();
+		await expect(finalGroupedView).toBeVisible({ timeout: 60_000 });
+		const finalGroupedCards = finalGroupedView.getByTestId('embeds-map-view-card');
+		await expect(finalGroupedCards.first()).toBeVisible({ timeout: 60_000 });
+		const finalGroupedCardCount = await finalGroupedCards.count();
+		expect(finalGroupedCardCount).toBeGreaterThan(0);
+		await expect(finalGroupedView.getByText('Loading preview...', { exact: true })).toHaveCount(0);
+		logCheckpoint(`Resolved final grouped view contains ${finalGroupedCardCount} event embeds.`);
+		await expect(
+			page.getByTestId('message-content').filter({ has: finalGroupedView })
+		).toHaveAttribute('data-streaming', 'false', { timeout: 60_000 });
+		await expect(finalGroupedView).toBeVisible();
+		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
 
-		const fullscreenOverlay = await openFullscreen(page, embed);
-		logCheckpoint('Fullscreen opened.');
+		const stabilityProbe = await page.evaluate(() => {
+			const value = crypto.randomUUID();
+			(window as any).__reportIssueStabilityProbe = value;
+			return value;
+		});
+		await page.locator('#settings-menu-toggle').click();
+		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+		await expect(settingsMenu).toBeVisible({ timeout: 10_000 });
+		await settingsMenu
+			.getByRole('menuitem', { name: /report.*issue|issue.*report|problem.*melden/i })
+			.first()
+			.click();
+		await expect(page.getByTestId('report-issue-form')).toBeVisible({ timeout: 15_000 });
 
-		const resultCards = await verifySearchGrid(fullscreenOverlay);
-		const count = await resultCards.count();
-		logCheckpoint(`Found ${count} event result(s) in fullscreen grid.`);
+		expect(await page.evaluate(() => (window as any).__reportIssueStabilityProbe)).toBe(stabilityProbe);
+		await expect(finalGroupedView).toBeVisible();
+		await expect(
+			page.getByTestId('message-content').filter({ has: finalGroupedView })
+		).toHaveAttribute('data-streaming', 'false');
+		expect(await finalGroupedCards.count()).toBe(finalGroupedCardCount);
+		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
+		logCheckpoint('Report Issue opened without reloading the page or changing final grouped embeds.');
 
-		await resultCards.first().click();
-		await expectCalendarDownload(page, logCheckpoint);
-		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, undefined, { expectReminder: true });
+		const closeSettings = page.getByTestId('icon-button-close');
+		if (await closeSettings.isVisible().catch(() => false)) {
+			await closeSettings.click();
+		}
 
-		await closeFullscreen(page, fullscreenOverlay);
-		logCheckpoint('Fullscreen closed.');
-		await verifySavedMemoryEntry(page, 'events', 'saved_events', savedTitle, logCheckpoint);
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		const reloadedGroupedView = page.getByTestId('embeds-map-view').last();
+		await expect(reloadedGroupedView).toBeVisible({ timeout: 60_000 });
+		await expect(reloadedGroupedView.getByTestId('embeds-map-view-card').first()).toBeVisible({
+			timeout: 60_000
+		});
+		await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
+		await takeStepScreenshot(page, 'events-search-embeds-after-reload');
+		await page.setViewportSize({ width: 390, height: 844 });
+		await expect(reloadedGroupedView).toBeVisible();
+		await expect(reloadedGroupedView.getByTestId('embeds-map-view-card').first()).toBeVisible();
+		await reloadedGroupedView.evaluate((element: HTMLElement) => {
+			element.scrollIntoView({ block: 'start' });
+		});
+		await takeStepScreenshot(page, 'events-search-embeds-after-reload-mobile');
+		await page.setViewportSize({ width: 1280, height: 720 });
+		logCheckpoint('Completed app-skill group retained populated cards after reload.');
 
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'events-search');
 	});

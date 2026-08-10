@@ -15,6 +15,8 @@ class AskSkillRequest(BaseModel):
     current_user_content: Optional[str] = Field(default=None, description="Plaintext content of the current user turn for stream-time intent checks.")
     chat_has_title: bool = Field(default=False, description="Whether the chat already has a title. Used to determine if metadata (title, category, icon) should be generated.")
     current_chat_title: Optional[str] = Field(default=None, description="The current decrypted chat title (if available). Used by post-processing to decide if the title needs updating when the conversation drifts.")
+    current_chat_title_v: Optional[int] = Field(default=None, description="Client title version when the AI turn started. Used to reject stale generated title updates.")
+    current_chat_metadata_v: Optional[int] = Field(default=None, description="Client metadata version when the AI turn started. Used for post-processing metadata race checks.")
     is_incognito: bool = Field(default=False, description="Whether this is an incognito chat. Incognito chats skip persistence and post-processing.")
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
@@ -25,6 +27,12 @@ class AskSkillRequest(BaseModel):
     connected_account_token_refs: Optional[List[Dict[str, Any]]] = Field(default=None, description="Short-lived turn-token refs created by the client token broker before send.")
     mentioned_settings_memories_cleartext: Optional[Dict[str, Any]] = Field(default=None, description="Cleartext for @memory/@memory-entry mentions (key: app_id:item_key, value: list of entry contents). Backend uses this and does not request those categories again.")
     benchmark_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Sanitized CLI benchmark metadata for usage source tagging.")
+    client_type: Optional[str] = Field(default=None, description="Client surface that originated this request, when explicitly declared by trusted clients.")
+    client_capabilities: Optional[List[str]] = Field(default_factory=list, description="Explicit client capabilities available for this request.")
+    team_id: Optional[str] = Field(default=None, description="Team context for team-scoped AI requests. When set, billing and prechecks use team credits.")
+    team_id_hash: Optional[str] = Field(default=None, description="Hashed team id for privacy-preserving usage attribution.")
+    team_workspace_type: Optional[str] = Field(default="chat", description="Team workspace type used for team usage attribution.")
+    team_object_id_hash: Optional[str] = Field(default=None, description="Hashed team object id for usage attribution.")
     # Filepath → embed_id index built during embed resolution.
     # Maps the human-readable embed_ref shown to the LLM (e.g. "my_photo.jpg" or
     # "src/components/Button.tsx") back to the internal UUID embed_id used for
@@ -38,11 +46,21 @@ class AskSkillRequest(BaseModel):
             "file_path argument instead of a raw embed_id."
         ),
     )
+    has_image_upload_embed: bool = Field(
+        default=False,
+        description="True when the current turn includes an uploaded image embed.",
+    )
     # Sub-chat orchestration fields
     parent_id: Optional[str] = Field(default=None, description="The ID of the parent chat.")
     is_sub_chat: bool = Field(default=False, description="Whether this is a sub-chat.")
     budget_limit: Optional[int] = Field(default=None, description="Optional credit limit for this sub-chat subtree.")
     budget_spent: int = Field(default=0, description="Cumulative credit spent under this sub-chat subtree.")
     user_task_id: Optional[str] = Field(default=None, description="Product task ID when this ask is executing a user task.")
+    recovery_task_id: Optional[str] = Field(default=None, description="Stable epoch-1 task ID reserved by durable chat preflight.")
+    legacy_cutover_task_id: Optional[str] = Field(default=None, description="Stable epoch-0 task ID owning one durable cutover admission.")
+    recovery_preflight_id: Optional[str] = Field(default=None, description="Durable epoch-1 preflight identity.")
+    recovery_turn_id: Optional[str] = Field(default=None, description="Stable user-turn identity for sealed recovery.")
+    recovery_public_key: Optional[str] = Field(default=None, description="Raw X25519 recovery public key encoded as unpadded base64url.")
+    chat_key_version: Optional[int] = Field(default=None, description="Immutable cryptographic chat-key version.")
 
 # Add other shared AI skill-related schemas here if needed in the future.

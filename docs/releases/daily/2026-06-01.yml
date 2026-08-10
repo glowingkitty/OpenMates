@@ -1,0 +1,883 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-01'
+generated_at: '2026-07-09T15:32:21+00:00'
+range:
+  since: '2026-06-01T00:00:00+00:00'
+  until: '2026-06-01T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 14
+  section_counts:
+    features: 4
+    bug_fixes: 9
+    improvements: 0
+    docs: 0
+    tests: 0
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 4
+  user_facing_items: 7
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add SwiftLint workflow for Apple code'
+    section: features
+    commits:
+    - d6efbafd2
+    authored_at: '2026-06-01T15:33:05+00:00'
+    changed_paths:
+    - .codex/hooks/claude-hook-bridge.sh
+    - .opencode/plugins/openmates-hooks.js
+    - .swiftlint.yml
+    - scripts/lint_changed.sh
+    - scripts/lint_swift.sh
+    - scripts/sessions.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: support Linear CLI credential sources'
+    section: features
+    commits:
+    - 4af58d03e
+    authored_at: '2026-06-01T15:24:01+00:00'
+    changed_paths:
+    - scripts/README.md
+    - scripts/linear.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add Linear API CLI'
+    section: features
+    commits:
+    - 360ce3448
+    authored_at: '2026-06-01T15:13:55+00:00'
+    changed_paths:
+    - scripts/README.md
+    - scripts/linear.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add native offline prefetch sync'
+    section: features
+    commits:
+    - 167ac38c0
+    authored_at: '2026-06-01T15:11:20+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - backend/core/api/app/routes/sync_api.py
+    - backend/core/api/main.py
+    - backend/tests/test_sync_api.py
+    - docs/architecture/data/sync.md
+    - docs/architecture/phased_sync_handler.md
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  bug_fixes:
+  - title: 'fix: hide empty guest memory categories'
+    section: bug_fixes
+    commits:
+    - 5cd45e318
+    authored_at: '2026-06-01T20:47:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: handle Safari share sheet URLs in Apple extensions'
+    section: bug_fixes
+    commits:
+    - dbb440c3f
+    authored_at: '2026-06-01T20:30:08+00:00'
+    changed_paths:
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: use Linear ID type for state lookup'
+    section: bug_fixes
+    commits:
+    - 4a97ee18a
+    authored_at: '2026-06-01T15:43:50+00:00'
+    changed_paths:
+    - scripts/linear.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: bound startup chat sync'
+    section: bug_fixes
+    commits:
+    - 1b45ebba5
+    authored_at: '2026-06-01T13:51:48+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    - docs/architecture/data/sync.md
+    - docs/architecture/phased_sync_handler.md
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: avoid logging full websocket sync payloads'
+    section: bug_fixes
+    commits:
+    - f4115fff9
+    authored_at: '2026-06-01T12:46:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/websocketService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: contain sub-chat preview sync fanout'
+    section: bug_fixes
+    commits:
+    - 6904f92d1
+    authored_at: '2026-06-01T11:58:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep sub-chats scoped to parent chats'
+    section: bug_fixes
+    commits:
+    - 2d5ded51c
+    authored_at: '2026-06-01T11:42:27+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align projects workspace shell'
+    section: bug_fixes
+    commits:
+    - 09ec7d8e5
+    authored_at: '2026-06-01T11:36:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
+  - title: 'fix: align projects navigation and sidebar'
+    section: bug_fixes
+    commits:
+    - 91e88f2d0
+    authored_at: '2026-06-01T10:16:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure:
+  - title: 'chore: route task tracking through GitHub and Linear CLI'
+    section: infrastructure
+    commits:
+    - 893798f10
+    authored_at: '2026-06-01T15:36:50+00:00'
+    changed_paths:
+    - .agents/skills/clarify/SKILL.md
+    - .agents/skills/daily-meeting/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/next-tasks/SKILL.md
+    - .agents/skills/organize-linear-tasks/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .agents/skills/triage-recent-bugs/SKILL.md
+    - .claude/rules/linear-tasks.md
+    - .claude/rules/planning.md
+    - .claude/rules/task-management.md
+    - .claude/skills/clarify/SKILL.md
+    - .claude/skills/daily-meeting/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .claude/skills/next-tasks/SKILL.md
+    - .claude/skills/organize-linear-tasks/SKILL.md
+    - .claude/skills/reproduce-first/SKILL.md
+    - .claude/skills/triage-recent-bugs/SKILL.md
+    - AGENTS.md
+    - CLAUDE.md
+    - opencode.json
+    - scripts/prompts/daily-meeting.md
+    - scripts/prompts/linear-task-research.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: hide empty guest memory categories'
+    commits:
+    - 5cd45e318
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: bound startup chat sync'
+    commits:
+    - 1b45ebba5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: contain sub-chat preview sync fanout'
+    commits:
+    - 6904f92d1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep sub-chats scoped to parent chats'
+    commits:
+    - 2d5ded51c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: hide empty guest memory categories'
+    commits:
+    - 5cd45e318
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add native offline prefetch sync'
+    commits:
+    - 167ac38c0
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: bound startup chat sync'
+    commits:
+    - 1b45ebba5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: contain sub-chat preview sync fanout'
+    commits:
+    - 6904f92d1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep sub-chats scoped to parent chats'
+    commits:
+    - 2d5ded51c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align projects workspace shell'
+    commits:
+    - 09ec7d8e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align projects navigation and sidebar'
+    commits:
+    - 91e88f2d0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 5cd45e3189d1bbb9bf647f21c9d1b7dc79405e85
+    short_sha: 5cd45e318
+    authored_at: '2026-06-01T20:47:35+00:00'
+    subject: 'fix: hide empty guest memory categories'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    related_feature_ids: []
+  - sha: dbb440c3ff7fda4abd8c3a44446abd8854658679
+    short_sha: dbb440c3f
+    authored_at: '2026-06-01T20:30:08+00:00'
+    subject: 'fix: handle Safari share sheet URLs in Apple extensions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 4a97ee18adaab165a4cd4e2c5f2426ea835ac32b
+    short_sha: 4a97ee18a
+    authored_at: '2026-06-01T15:43:50+00:00'
+    subject: 'fix: use Linear ID type for state lookup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/linear.py
+    related_feature_ids: []
+  - sha: 893798f104c8b20cd7b49d8b00b2c0f845e5d3ff
+    short_sha: 893798f10
+    authored_at: '2026-06-01T15:36:50+00:00'
+    subject: 'chore: route task tracking through GitHub and Linear CLI'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/clarify/SKILL.md
+    - .agents/skills/daily-meeting/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/next-tasks/SKILL.md
+    - .agents/skills/organize-linear-tasks/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .agents/skills/triage-recent-bugs/SKILL.md
+    - .claude/rules/linear-tasks.md
+    - .claude/rules/planning.md
+    - .claude/rules/task-management.md
+    - .claude/skills/clarify/SKILL.md
+    - .claude/skills/daily-meeting/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .claude/skills/next-tasks/SKILL.md
+    - .claude/skills/organize-linear-tasks/SKILL.md
+    - .claude/skills/reproduce-first/SKILL.md
+    - .claude/skills/triage-recent-bugs/SKILL.md
+    - AGENTS.md
+    - CLAUDE.md
+    - opencode.json
+    - scripts/prompts/daily-meeting.md
+    - scripts/prompts/linear-task-research.md
+    related_feature_ids: []
+  - sha: d6efbafd221acf23e4aa5795afc0ff90c49c847b
+    short_sha: d6efbafd2
+    authored_at: '2026-06-01T15:33:05+00:00'
+    subject: 'feat: add SwiftLint workflow for Apple code'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .codex/hooks/claude-hook-bridge.sh
+    - .opencode/plugins/openmates-hooks.js
+    - .swiftlint.yml
+    - scripts/lint_changed.sh
+    - scripts/lint_swift.sh
+    - scripts/sessions.py
+    related_feature_ids: []
+  - sha: 4af58d03ef750f9dc3d674b4c3434f88fe0849dc
+    short_sha: 4af58d03e
+    authored_at: '2026-06-01T15:24:01+00:00'
+    subject: 'feat: support Linear CLI credential sources'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/README.md
+    - scripts/linear.py
+    related_feature_ids: []
+  - sha: 360ce34482987aa27bbf866e82e6279ae59e069a
+    short_sha: 360ce3448
+    authored_at: '2026-06-01T15:13:55+00:00'
+    subject: 'feat: add Linear API CLI'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/README.md
+    - scripts/linear.py
+    related_feature_ids: []
+  - sha: 167ac38c061596cfb6db1cb155416902f08e54ec
+    short_sha: 167ac38c0
+    authored_at: '2026-06-01T15:11:20+00:00'
+    subject: 'feat: add native offline prefetch sync'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - backend/core/api/app/routes/sync_api.py
+    - backend/core/api/main.py
+    - backend/tests/test_sync_api.py
+    - docs/architecture/data/sync.md
+    - docs/architecture/phased_sync_handler.md
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 1b45ebba56d0e1a0af06ddb1f8a81b650b531a19
+    short_sha: 1b45ebba5
+    authored_at: '2026-06-01T13:51:48+00:00'
+    subject: 'fix: bound startup chat sync'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    - docs/architecture/data/sync.md
+    - docs/architecture/phased_sync_handler.md
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: f4115fff9c1180baa9af191a6b12fa41297e1c9e
+    short_sha: f4115fff9
+    authored_at: '2026-06-01T12:46:47+00:00'
+    subject: 'fix: avoid logging full websocket sync payloads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/websocketService.ts
+    related_feature_ids: []
+  - sha: 6904f92d17c4014b71a6b267ce8d5fa0d7ae3f3a
+    short_sha: 6904f92d1
+    authored_at: '2026-06-01T11:58:56+00:00'
+    subject: 'fix: contain sub-chat preview sync fanout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    related_feature_ids: []
+  - sha: 2d5ded51c5db2d67bcc9adc4351c7c1c7b262c6a
+    short_sha: 2d5ded51c
+    authored_at: '2026-06-01T11:42:27+00:00'
+    subject: 'fix: keep sub-chats scoped to parent chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: 09ec7d8e5a9e0f2e8290f6e9c238438c6dbc3d83
+    short_sha: 09ec7d8e5
+    authored_at: '2026-06-01T11:36:03+00:00'
+    subject: 'fix: align projects workspace shell'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    related_feature_ids:
+    - platform:projects
+  - sha: 91e88f2d0dc90aef47fb80efd869026dae18ae8a
+    short_sha: 91e88f2d0
+    authored_at: '2026-06-01T10:16:17+00:00'
+    subject: 'fix: align projects navigation and sidebar'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    related_feature_ids:
+    - platform:projects
+llm_summary:
+  overview: OpenMates focused on refining chat synchronization reliability and improving the guest user experience, alongside
+    significant internal tooling updates for task management.
+  released_changes:
+  - text: Sub-chats are now strictly scoped to their parent chats, and the synchronization of sub-chat previews has been optimized
+      to prevent unnecessary fanout.
+    evidence:
+      commits:
+      - 2d5ded51c
+      - 6904f92d1
+    release_status: released_main
+  bug_fixes:
+  - text: The application now hides empty guest memory categories in the settings view to streamline the experience for unauthenticated
+      users.
+    evidence:
+      commits:
+      - 5cd45e318
+    release_status: released_main
+  - text: Startup chat synchronization is now bounded to ensure more predictable performance and stability during the initial
+      connection phase.
+    evidence:
+      commits:
+      - 1b45ebba5
+    release_status: released_main
+  unreleased_progress:
+  - text: Work on the unreleased iOS and macOS platforms included the addition of native offline prefetch synchronization
+      and improved Safari share sheet URL handling in extensions.
+    evidence:
+      commits:
+      - 167ac38c0
+      - dbb440c3f
+    release_status: released_main
+  - text: The projects platform received updates to align the workspace shell, navigation, and sidebar components.
+    evidence:
+      commits:
+      - 09ec7d8e5
+      - 91e88f2d0
+    release_status: released_main
+  internal_progress:
+  - text: A new Linear API CLI was introduced with support for various credential sources and improved ID type handling for
+      task management.
+    evidence:
+      commits:
+      - 360ce3448
+      - 4af58d03e
+      - 4a97ee18a
+    release_status: released_main
+  - text: SwiftLint workflows were integrated to automate code quality checks for Apple-related codebases.
+    evidence:
+      commits:
+      - d6efbafd2
+    release_status: released_main
+  - text: Task tracking workflows were updated to route through GitHub and the new Linear CLI integrations.
+    evidence:
+      commits:
+      - 893798f10
+    release_status: released_main
+  - text: Websocket logging verbosity was reduced by avoiding the capture of full synchronization payloads.
+    evidence:
+      commits:
+      - f4115fff9
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Hide empty guest memory categories.
+      evidence:
+        commits:
+        - 5cd45e318
+      reason: This is a user-facing fix that improves the guest user experience.
+    - text: Bounded startup chat synchronization.
+      evidence:
+        commits:
+        - 1b45ebba5
+      reason: This improvement enhances the reliability of the initial chat synchronization process.
+    - text: Optimized sub-chat preview synchronization.
+      evidence:
+        commits:
+        - 6904f92d1
+      reason: This optimization reduces unnecessary network traffic during chat synchronization.
+    - text: Improved sub-chat scoping to parent chats.
+      evidence:
+        commits:
+        - 2d5ded51c
+      reason: This ensures better data organization and scoping within the chat interface.
+    exclude:
+    - text: Native offline prefetch sync and Safari share sheet improvements.
+      evidence:
+        commits:
+        - 167ac38c0
+        - dbb440c3f
+      reason: These changes relate to the iOS and macOS platforms, which are currently disabled.
+    - text: Projects workspace and navigation alignments.
+      evidence:
+        commits:
+        - 09ec7d8e5
+        - 91e88f2d0
+      reason: These changes relate to the projects platform, which is currently disabled.
+    rationale: The recommended items are released to the main branch and ready for public communication, focusing on core
+      chat stability and guest experience refinements.
+  social_video_recommendations:
+  - idea: A demonstration of the improved chat synchronization and sub-chat scoping to highlight platform reliability.
+    priority: medium
+    reason: These changes provide a concrete story about the technical maturity and reliability of the chat synchronization
+      engine.
+    evidence:
+      commits:
+      - 2d5ded51c
+      - 6904f92d1
+      - 1b45ebba5
+  quality_notes:
+  - This update prioritizes synchronization stability and data scoping within the chat interface.
+  - Internal code quality was bolstered with new linting workflows for Apple platforms.
+  validation_warnings: []

@@ -1,0 +1,1801 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-24'
+generated_at: '2026-07-09T15:50:19+00:00'
+range:
+  since: '2026-06-24T00:00:00+00:00'
+  until: '2026-06-24T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 44
+  section_counts:
+    features: 1
+    bug_fixes: 18
+    improvements: 0
+    docs: 0
+    tests: 23
+    infrastructure: 2
+    internal: 0
+    other: 0
+  newsletter_ready_items: 12
+  user_facing_items: 14
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add workflows v1 durable backend'
+    section: features
+    commits:
+    - b3874966d
+    authored_at: '2026-06-24T14:33:16+00:00'
+    changed_paths:
+    - backend/apps/workflows/__init__.py
+    - backend/apps/workflows/app.yml
+    - backend/apps/workflows/skills/__init__.py
+    - backend/apps/workflows/skills/_services.py
+    - backend/apps/workflows/skills/cancel_pending_skill.py
+    - backend/apps/workflows/skills/keep_temporary_skill.py
+    - backend/apps/workflows/skills/run_skill.py
+    - backend/apps/workflows/skills/schedule_once_skill.py
+    - backend/apps/workflows/skills/schedule_recurring_skill.py
+    - backend/apps/workflows/skills/search_skill.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_action_adapter.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_assistant_service.py
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/core/api/app/services/workflow_event_service.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/core/directus/schemas/workflow_encrypted_blobs.yml
+    - backend/core/directus/schemas/workflow_runs.yml
+    - backend/core/directus/schemas/workflows.yml
+    - backend/tests/test_workflow_assistant_and_events.py
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflows_models.py
+    - docs/specs/workflows-v1/spec.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+    - scripts/audit_skill_embed_registry.py
+    - scripts/tests/test_audit_skill_embed_registry.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:workflows, platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:workflows, platform:workflows'
+  bug_fixes:
+  - title: 'fix: restore cancelled new chat draft'
+    section: bug_fixes
+    commits:
+    - 8b5916b39
+    authored_at: '2026-06-24T21:25:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: serialize chat db schema repair callers'
+    section: bug_fixes
+    commits:
+    - 59afdea50
+    authored_at: '2026-06-24T20:13:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/db.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: settle locale before public chat deep links'
+    section: bug_fixes
+    commits:
+    - 0b135c958
+    authored_at: '2026-06-24T19:36:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore guest intro desktop size'
+    section: bug_fixes
+    commits:
+    - 922d6cf5a
+    authored_at: '2026-06-24T18:25:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: localize fork completion action'
+    section: bug_fixes
+    commits:
+    - ef63a0b78
+    authored_at: '2026-06-24T17:41:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/packages/ui/src/services/forkChatService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve api key device approval errors'
+    section: bug_fixes
+    commits:
+    - 6a08f6470
+    authored_at: '2026-06-24T15:26:56+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/tests/test_auth_dependencies.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize workflow save verification'
+    section: bug_fixes
+    commits:
+    - 461ff46f9
+    authored_at: '2026-06-24T15:04:01+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_service.py
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
+  - title: 'fix: retry workflow Directus auth with admin token'
+    section: bug_fixes
+    commits:
+    - fe850bde6
+    authored_at: '2026-06-24T14:43:26+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_service.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+  - title: 'fix: return encrypted webhook display fields'
+    section: bug_fixes
+    commits:
+    - 53b43168f
+    authored_at: '2026-06-24T13:14:53+00:00'
+    changed_paths:
+    - backend/core/api/app/routers/webhooks.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: stabilize cli embed version keys'
+    section: bug_fixes
+    commits:
+    - 9acee5e2d
+    authored_at: '2026-06-24T11:04:41+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/crypto.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: upsert encrypted embed diff rows'
+    section: bug_fixes
+    commits:
+    - 347f8a442
+    authored_at: '2026-06-24T10:37:39+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: complete partial chat db repair in place'
+    section: bug_fixes
+    commits:
+    - 917d053b2
+    authored_at: '2026-06-24T10:08:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/db.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: serialize chat indexeddb schema repair'
+    section: bug_fixes
+    commits:
+    - 8b84db931
+    authored_at: '2026-06-24T09:45:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/db.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: keep focus activation rejectable until active'
+    section: bug_fixes
+    commits:
+    - 9b345bb88
+    authored_at: '2026-06-24T09:05:29+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render focus badge during chat updates'
+    section: bug_fixes
+    commits:
+    - ee70c09d2
+    authored_at: '2026-06-24T08:13:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show live focus badge in chat row'
+    section: bug_fixes
+    commits:
+    - 75822e8b3
+    authored_at: '2026-06-24T07:54:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: verify websocket auth before logout'
+    section: bug_fixes
+    commits:
+    - cd05160b3
+    authored_at: '2026-06-24T06:23:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/services/websocketService.ts
+    - frontend/packages/ui/src/stores/learningModeStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: polish guest language and onboarding UI'
+    section: bug_fixes
+    commits:
+    - 3635d5b7f
+    authored_at: '2026-06-24T05:54:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/components/embeds/ChatEmbedPreview.svelte
+    - frontend/packages/ui/src/data/product_features.yml
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: align recovery key logout assertions'
+    section: tests
+    commits:
+    - 11da24aea
+    authored_at: '2026-06-24T22:06:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align welcome language switch spec'
+    section: tests
+    commits:
+    - 30dfab98f
+    authored_at: '2026-06-24T21:48:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/language-switch-welcome-screen.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: deep-link german language fixture'
+    section: tests
+    commits:
+    - 041d4a0d7
+    authored_at: '2026-06-24T19:21:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: deep-link localized demo chat'
+    section: tests
+    commits:
+    - a92143851
+    authored_at: '2026-06-24T18:58:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use best-effort fork cleanup'
+    section: tests
+    commits:
+    - 253458a14
+    authored_at: '2026-06-24T18:05:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fork from assistant response'
+    section: tests
+    commits:
+    - dea9bb20d
+    authored_at: '2026-06-24T17:53:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: verify fork with sidebar closed'
+    section: tests
+    commits:
+    - 885bfeb12
+    authored_at: '2026-06-24T15:54:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize fork context menu open'
+    section: tests
+    commits:
+    - 47ef6a7fd
+    authored_at: '2026-06-24T15:43:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize fork conversation sends'
+    section: tests
+    commits:
+    - 42afb47b2
+    authored_at: '2026-06-24T15:31:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: handle follow-up memory permissions'
+    section: tests
+    commits:
+    - 16232472c
+    authored_at: '2026-06-24T14:55:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add manual follow-up replay fixture'
+    section: tests
+    commits:
+    - '982226885'
+    authored_at: '2026-06-24T14:45:21+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/manual_follow_up_hides_suggestions.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: slim default model replay fixtures'
+    section: tests
+    commits:
+    - 0aba96d13
+    authored_at: '2026-06-24T14:03:20+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/default_model_auto.json
+    - backend/apps/ai/testing/fixtures/default_model_mistral.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: clear capped webhook e2e accounts'
+    section: tests
+    commits:
+    - 50b9696e8
+    authored_at: '2026-06-24T13:32:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deeplink-webhook-message.spec.ts
+    - frontend/apps/web_app/tests/webhook-incoming-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: scroll stale webhook cleanup'
+    section: tests
+    commits:
+    - 76a6927bc
+    authored_at: '2026-06-24T13:23:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deeplink-webhook-message.spec.ts
+    - frontend/apps/web_app/tests/webhook-incoming-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: slim daily inspiration replay fixture'
+    section: tests
+    commits:
+    - 400648bb8
+    authored_at: '2026-06-24T12:54:30+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/daily_inspiration.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: allow cli memory list retry'
+    section: tests
+    commits:
+    - 0386cd01a
+    authored_at: '2026-06-24T12:12:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-memories.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: slim ai language replay fixture'
+    section: tests
+    commits:
+    - cdf2ae85f
+    authored_at: '2026-06-24T11:35:12+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/ai_lang_turn1_german.json
+    - backend/apps/ai/testing/fixtures/ai_lang_turn2_english.json
+    - frontend/apps/web_app/tests/ai-response-language.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: close visible focus details panel'
+    section: tests
+    commits:
+    - 00160a8bb
+    authored_at: '2026-06-24T08:42:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: close focus details before stop action'
+    section: tests
+    commits:
+    - a4a4d636b
+    authored_at: '2026-06-24T08:31:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: open focus details via context menu'
+    section: tests
+    commits:
+    - 5fae14a3d
+    authored_at: '2026-06-24T07:34:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align projects flow chat tab'
+    section: tests
+    commits:
+    - 2e4cd16b4
+    authored_at: '2026-06-24T06:41:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align feature availability chat tab'
+    section: tests
+    commits:
+    - e16a4eb35
+    authored_at: '2026-06-24T06:26:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: repair focus and feature availability failures'
+    section: tests
+    commits:
+    - 10b2795b2
+    authored_at: '2026-06-24T06:15:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-rejection.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/stores/activeChatFocusStore.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: resume deploy push after transient failure'
+    section: infrastructure
+    commits:
+    - 1a396290c
+    authored_at: '2026-06-24T12:19:06+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'chore: remove accidental cli workflow hunks'
+    section: infrastructure
+    commits:
+    - b1ecc6c74
+    authored_at: '2026-06-24T11:37:00+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add workflows v1 durable backend'
+    commits:
+    - b3874966d
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: align feature availability chat tab'
+    commits:
+    - e16a4eb35
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: repair focus and feature availability failures'
+    commits:
+    - 10b2795b2
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: restore cancelled new chat draft'
+    commits:
+    - 8b5916b39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: settle locale before public chat deep links'
+    commits:
+    - 0b135c958
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore guest intro desktop size'
+    commits:
+    - 922d6cf5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: localize fork completion action'
+    commits:
+    - ef63a0b78
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve api key device approval errors'
+    commits:
+    - 6a08f6470
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize cli embed version keys'
+    commits:
+    - 9acee5e2d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: upsert encrypted embed diff rows'
+    commits:
+    - 347f8a442
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep focus activation rejectable until active'
+    commits:
+    - 9b345bb88
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render focus badge during chat updates'
+    commits:
+    - ee70c09d2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show live focus badge in chat row'
+    commits:
+    - 75822e8b3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: verify websocket auth before logout'
+    commits:
+    - cd05160b3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: polish guest language and onboarding UI'
+    commits:
+    - 3635d5b7f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: restore cancelled new chat draft'
+    commits:
+    - 8b5916b39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: settle locale before public chat deep links'
+    commits:
+    - 0b135c958
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore guest intro desktop size'
+    commits:
+    - 922d6cf5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: localize fork completion action'
+    commits:
+    - ef63a0b78
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve api key device approval errors'
+    commits:
+    - 6a08f6470
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize workflow save verification'
+    commits:
+    - 461ff46f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add workflows v1 durable backend'
+    commits:
+    - b3874966d
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: stabilize cli embed version keys'
+    commits:
+    - 9acee5e2d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: upsert encrypted embed diff rows'
+    commits:
+    - 347f8a442
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep focus activation rejectable until active'
+    commits:
+    - 9b345bb88
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render focus badge during chat updates'
+    commits:
+    - ee70c09d2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show live focus badge in chat row'
+    commits:
+    - 75822e8b3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: verify websocket auth before logout'
+    commits:
+    - cd05160b3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: polish guest language and onboarding UI'
+    commits:
+    - 3635d5b7f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 11da24aea26a587d548e0ea7a64ea776618e0f37
+    short_sha: 11da24aea
+    authored_at: '2026-06-24T22:06:56+00:00'
+    subject: 'test: align recovery key logout assertions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    related_feature_ids: []
+  - sha: 30dfab98f67f94d979a0954d8755297043a93904
+    short_sha: 30dfab98f
+    authored_at: '2026-06-24T21:48:48+00:00'
+    subject: 'test: align welcome language switch spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/language-switch-welcome-screen.spec.ts
+    related_feature_ids: []
+  - sha: 8b5916b3949d2d2bdeb466f4d807140d6626447a
+    short_sha: 8b5916b39
+    authored_at: '2026-06-24T21:25:56+00:00'
+    subject: 'fix: restore cancelled new chat draft'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 59afdea50d95e24dd52622d417a9e8a33ca87bbb
+    short_sha: 59afdea50
+    authored_at: '2026-06-24T20:13:15+00:00'
+    subject: 'fix: serialize chat db schema repair callers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/db.ts
+    related_feature_ids: []
+  - sha: 0b135c95866e246a450dc30a7b328dce65bb025b
+    short_sha: 0b135c958
+    authored_at: '2026-06-24T19:36:25+00:00'
+    subject: 'fix: settle locale before public chat deep links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: 041d4a0d777f4a2e224fc7d0ed0e981a50532dbe
+    short_sha: 041d4a0d7
+    authored_at: '2026-06-24T19:21:00+00:00'
+    subject: 'test: deep-link german language fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    related_feature_ids: []
+  - sha: a9214385122856a1b880db8a3cf76422fbfc7062
+    short_sha: a92143851
+    authored_at: '2026-06-24T18:58:24+00:00'
+    subject: 'test: deep-link localized demo chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    related_feature_ids: []
+  - sha: 922d6cf5af9cb94a5aa5d27cb3cd926a061b3a00
+    short_sha: 922d6cf5a
+    authored_at: '2026-06-24T18:25:15+00:00'
+    subject: 'fix: restore guest intro desktop size'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 253458a14f429c5a9cf3b8705c95eba5d3818d33
+    short_sha: 253458a14
+    authored_at: '2026-06-24T18:05:32+00:00'
+    subject: 'test: use best-effort fork cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    related_feature_ids: []
+  - sha: dea9bb20d0f2eb4a17065f10cbf9ddb3c2d01524
+    short_sha: dea9bb20d
+    authored_at: '2026-06-24T17:53:21+00:00'
+    subject: 'test: fork from assistant response'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    related_feature_ids: []
+  - sha: ef63a0b78a3176277bc4aff581a9670da0e7b1ca
+    short_sha: ef63a0b78
+    authored_at: '2026-06-24T17:41:30+00:00'
+    subject: 'fix: localize fork completion action'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/packages/ui/src/services/forkChatService.ts
+    related_feature_ids: []
+  - sha: 885bfeb123dba6039ea53f133b9453c90392e780
+    short_sha: 885bfeb12
+    authored_at: '2026-06-24T15:54:40+00:00'
+    subject: 'test: verify fork with sidebar closed'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    related_feature_ids: []
+  - sha: 47ef6a7fdee711404246c6a9b030f6d059d8a256
+    short_sha: 47ef6a7fd
+    authored_at: '2026-06-24T15:43:10+00:00'
+    subject: 'test: stabilize fork context menu open'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    related_feature_ids: []
+  - sha: 42afb47b21e4381771a6bf840b9caa0d4bb9d8c1
+    short_sha: 42afb47b2
+    authored_at: '2026-06-24T15:31:43+00:00'
+    subject: 'test: stabilize fork conversation sends'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    related_feature_ids: []
+  - sha: 6a08f6470a3fa5f0e2ab464215aef34be1ed89b3
+    short_sha: 6a08f6470
+    authored_at: '2026-06-24T15:26:56+00:00'
+    subject: 'fix: preserve api key device approval errors'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/tests/test_auth_dependencies.py
+    related_feature_ids: []
+  - sha: 461ff46f93ebb98a9d2c9fefafd027d1e732dd8a
+    short_sha: 461ff46f9
+    authored_at: '2026-06-24T15:04:01+00:00'
+    subject: 'fix: stabilize workflow save verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_service.py
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    related_feature_ids:
+    - platform:workflows
+  - sha: 16232472c26f8410a361ff89a116a88610732267
+    short_sha: 16232472c
+    authored_at: '2026-06-24T14:55:56+00:00'
+    subject: 'test: handle follow-up memory permissions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    related_feature_ids: []
+  - sha: 98222688562c80d6f10a87aded18be9bd4341e77
+    short_sha: '982226885'
+    authored_at: '2026-06-24T14:45:21+00:00'
+    subject: 'test: add manual follow-up replay fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/manual_follow_up_hides_suggestions.json
+    related_feature_ids: []
+  - sha: fe850bde6e63a02f77b9ca364cb693e242d839e5
+    short_sha: fe850bde6
+    authored_at: '2026-06-24T14:43:26+00:00'
+    subject: 'fix: retry workflow Directus auth with admin token'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_service.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: b3874966d897450dca063588d68a87c6b8fb8a36
+    short_sha: b3874966d
+    authored_at: '2026-06-24T14:33:16+00:00'
+    subject: 'feat: add workflows v1 durable backend'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/workflows/__init__.py
+    - backend/apps/workflows/app.yml
+    - backend/apps/workflows/skills/__init__.py
+    - backend/apps/workflows/skills/_services.py
+    - backend/apps/workflows/skills/cancel_pending_skill.py
+    - backend/apps/workflows/skills/keep_temporary_skill.py
+    - backend/apps/workflows/skills/run_skill.py
+    - backend/apps/workflows/skills/schedule_once_skill.py
+    - backend/apps/workflows/skills/schedule_recurring_skill.py
+    - backend/apps/workflows/skills/search_skill.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_action_adapter.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_assistant_service.py
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/core/api/app/services/workflow_event_service.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/core/directus/schemas/workflow_encrypted_blobs.yml
+    - backend/core/directus/schemas/workflow_runs.yml
+    - backend/core/directus/schemas/workflows.yml
+    - backend/tests/test_workflow_assistant_and_events.py
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflows_models.py
+    - docs/specs/workflows-v1/spec.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+    - scripts/audit_skill_embed_registry.py
+    - scripts/tests/test_audit_skill_embed_registry.py
+    related_feature_ids:
+    - app:workflows
+    - platform:workflows
+  - sha: 0aba96d13f8e4df5e7414236638b010d2ea46747
+    short_sha: 0aba96d13
+    authored_at: '2026-06-24T14:03:20+00:00'
+    subject: 'test: slim default model replay fixtures'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/default_model_auto.json
+    - backend/apps/ai/testing/fixtures/default_model_mistral.json
+    related_feature_ids: []
+  - sha: 50b9696e8acac6d10d50a03fb179508ee34d2096
+    short_sha: 50b9696e8
+    authored_at: '2026-06-24T13:32:29+00:00'
+    subject: 'test: clear capped webhook e2e accounts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deeplink-webhook-message.spec.ts
+    - frontend/apps/web_app/tests/webhook-incoming-chat.spec.ts
+    related_feature_ids: []
+  - sha: 76a6927bc4d59e2ac251f63f783adfac3b0933d5
+    short_sha: 76a6927bc
+    authored_at: '2026-06-24T13:23:20+00:00'
+    subject: 'test: scroll stale webhook cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deeplink-webhook-message.spec.ts
+    - frontend/apps/web_app/tests/webhook-incoming-chat.spec.ts
+    related_feature_ids: []
+  - sha: 53b43168f2b83733417f41dc3b56e7f57f1e135d
+    short_sha: 53b43168f
+    authored_at: '2026-06-24T13:14:53+00:00'
+    subject: 'fix: return encrypted webhook display fields'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routers/webhooks.py
+    related_feature_ids: []
+  - sha: 400648bb8c32f4ec6ff5c5dda0cb36d43cc1465e
+    short_sha: 400648bb8
+    authored_at: '2026-06-24T12:54:30+00:00'
+    subject: 'test: slim daily inspiration replay fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/daily_inspiration.json
+    related_feature_ids: []
+  - sha: 1a396290c72248d53341c9482d8316558ce3490c
+    short_sha: 1a396290c
+    authored_at: '2026-06-24T12:19:06+00:00'
+    subject: 'chore: resume deploy push after transient failure'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    related_feature_ids: []
+  - sha: 0386cd01a60aa593ca64f1b88a74d22a4c53d48e
+    short_sha: 0386cd01a
+    authored_at: '2026-06-24T12:12:48+00:00'
+    subject: 'test: allow cli memory list retry'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-memories.spec.ts
+    related_feature_ids: []
+  - sha: b1ecc6c743dc25e965de934e6292c155da7760f5
+    short_sha: b1ecc6c74
+    authored_at: '2026-06-24T11:37:00+00:00'
+    subject: 'chore: remove accidental cli workflow hunks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    related_feature_ids: []
+  - sha: cdf2ae85f85e9c6cbd52661985a5949cd7231cd8
+    short_sha: cdf2ae85f
+    authored_at: '2026-06-24T11:35:12+00:00'
+    subject: 'test: slim ai language replay fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/ai_lang_turn1_german.json
+    - backend/apps/ai/testing/fixtures/ai_lang_turn2_english.json
+    - frontend/apps/web_app/tests/ai-response-language.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    related_feature_ids: []
+  - sha: 9acee5e2d180f46ac0e5fc99c660ae1e8c13e7f3
+    short_sha: 9acee5e2d
+    authored_at: '2026-06-24T11:04:41+00:00'
+    subject: 'fix: stabilize cli embed version keys'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/crypto.test.ts
+    related_feature_ids: []
+  - sha: 347f8a4425b95b839d37fdd32dde63bf053a39c7
+    short_sha: 347f8a442
+    authored_at: '2026-06-24T10:37:39+00:00'
+    subject: 'fix: upsert encrypted embed diff rows'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    related_feature_ids: []
+  - sha: 917d053b21d1a8dc538c3c4b9f6f385f215c45a8
+    short_sha: 917d053b2
+    authored_at: '2026-06-24T10:08:07+00:00'
+    subject: 'fix: complete partial chat db repair in place'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/db.ts
+    related_feature_ids: []
+  - sha: 8b84db93197e5cb69477ad64503893128a6ebe90
+    short_sha: 8b84db931
+    authored_at: '2026-06-24T09:45:45+00:00'
+    subject: 'fix: serialize chat indexeddb schema repair'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/db.ts
+    related_feature_ids: []
+  - sha: 9b345bb88eff9bcc0a245ad4cd4feb238b694709
+    short_sha: 9b345bb88
+    authored_at: '2026-06-24T09:05:29+00:00'
+    subject: 'fix: keep focus activation rejectable until active'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    related_feature_ids: []
+  - sha: 00160a8bbf56cb9bae3d639599b9cffac5f67b2c
+    short_sha: 00160a8bb
+    authored_at: '2026-06-24T08:42:33+00:00'
+    subject: 'test: close visible focus details panel'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    related_feature_ids: []
+  - sha: a4a4d636b488ddf8770725cc5e3e10c7ae9eb695
+    short_sha: a4a4d636b
+    authored_at: '2026-06-24T08:31:51+00:00'
+    subject: 'test: close focus details before stop action'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    related_feature_ids: []
+  - sha: ee70c09d242d7f77ed62ee0c97ad77f7663d8a3e
+    short_sha: ee70c09d2
+    authored_at: '2026-06-24T08:13:14+00:00'
+    subject: 'fix: render focus badge during chat updates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    related_feature_ids: []
+  - sha: 75822e8b33b5ab661f15bf33ec334620706b4368
+    short_sha: 75822e8b3
+    authored_at: '2026-06-24T07:54:16+00:00'
+    subject: 'fix: show live focus badge in chat row'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    related_feature_ids: []
+  - sha: 5fae14a3d38dbeff0dd85fb1755ceb4c6881b3f2
+    short_sha: 5fae14a3d
+    authored_at: '2026-06-24T07:34:42+00:00'
+    subject: 'test: open focus details via context menu'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    related_feature_ids: []
+  - sha: 2e4cd16b463348bb45d99eb4cac947f3c7dcfc6a
+    short_sha: 2e4cd16b4
+    authored_at: '2026-06-24T06:41:59+00:00'
+    subject: 'test: align projects flow chat tab'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    related_feature_ids: []
+  - sha: e16a4eb35ace1ac90a5352e2eb2c8c5c8f24152a
+    short_sha: e16a4eb35
+    authored_at: '2026-06-24T06:26:32+00:00'
+    subject: 'test: align feature availability chat tab'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    related_feature_ids: []
+  - sha: cd05160b36017543495ca39dbdf8354970728049
+    short_sha: cd05160b3
+    authored_at: '2026-06-24T06:23:54+00:00'
+    subject: 'fix: verify websocket auth before logout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/services/websocketService.ts
+    - frontend/packages/ui/src/stores/learningModeStore.ts
+    related_feature_ids: []
+  - sha: 10b2795b2e7f4a5230ff9e936c5d89622910cbf3
+    short_sha: 10b2795b2
+    authored_at: '2026-06-24T06:15:32+00:00'
+    subject: 'test: repair focus and feature availability failures'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-rejection.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/stores/activeChatFocusStore.ts
+    related_feature_ids: []
+  - sha: 3635d5b7f892fedc03ef651378581667a911f309
+    short_sha: 3635d5b7f
+    authored_at: '2026-06-24T05:54:58+00:00'
+    subject: 'fix: polish guest language and onboarding UI'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/components/embeds/ChatEmbedPreview.svelte
+    - frontend/packages/ui/src/data/product_features.yml
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates improved the guest onboarding experience and chat reliability while introducing more visible Focus Mode
+    indicators. Significant backend work was also completed for the upcoming Workflows system.
+  released_changes:
+  - text: Focus Mode visibility was enhanced with live badges in the chat row and active chat view, and activation remains
+      rejectable until fully active.
+    evidence:
+      commits:
+      - 75822e8b3
+      - ee70c09d2
+      - 9b345bb88
+    release_status: released_main
+  - text: The guest experience was refined with polished onboarding UI, better language detection, and corrected desktop banner
+      sizing.
+    evidence:
+      commits:
+      - 3635d5b7f
+      - 922d6cf5a
+    release_status: released_main
+  - text: Chat reliability was improved by restoring cancelled drafts, localizing fork actions, and settling locales before
+      processing deep links.
+    evidence:
+      commits:
+      - 8b5916b39
+      - ef63a0b78
+      - 0b135c958
+    release_status: released_main
+  bug_fixes:
+  - text: Authentication and session security were improved by preserving device approval errors for API keys and verifying
+      WebSocket authorization before logout.
+    evidence:
+      commits:
+      - 6a08f6470
+      - cd05160b3
+    release_status: released_main
+  - text: The CLI and embed systems received stability fixes for version keys and encrypted diff row synchronization.
+    evidence:
+      commits:
+      - 9acee5e2d
+      - 347f8a442
+    release_status: released_main
+  - text: Internal chat database schema repairs are now serialized to prevent race conditions during maintenance.
+    evidence:
+      commits:
+      - 59afdea50
+      - 917d053b2
+      - 8b84db931
+    release_status: released_main
+  unreleased_progress:
+  - text: The Workflows v1 durable backend was added, including support for recurring skills and encrypted data blobs, though
+      the feature remains disabled for general use.
+    evidence:
+      commits:
+      - b3874966d
+      - 461ff46f9
+      - fe850bde6
+    release_status: released_main
+  internal_progress:
+  - text: Deployment scripts were updated to handle transient failures, and accidental code hunks were removed from the CLI.
+    evidence:
+      commits:
+      - 1a396290c
+      - b1ecc6c74
+    release_status: released_main
+  - text: Extensive test suite maintenance was performed across the web app and CLI, covering recovery flows, language detection,
+      and conversation forking.
+    evidence:
+      commits:
+      - 11da24aea
+      - 30dfab98f
+      - 041d4a0d7
+      - a92143851
+      - 253458a14
+      - dea9bb20d
+      - 885bfeb12
+      - 47ef6a7fd
+      - 42afb47b2
+      - 16232472c
+      - '982226885'
+      - 0aba96d13
+      - 50b9696e8
+      - 76a6927bc
+      - 400648bb8
+      - 0386cd01a
+      - cdf2ae85f
+      - 00160a8bb
+      - a4a4d636b
+      - 5fae14a3d
+      - 2e4cd16b4
+      - e16a4eb35
+      - 10b2795b2
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: OpenMates now restores cancelled new chat drafts, preventing lost work.
+      evidence:
+        commits:
+        - 8b5916b39
+      reason: Directly improves the chat drafting experience.
+    - text: Focus Mode status is now more visible with live badges in the chat list and active chat view.
+      evidence:
+        commits:
+        - 75822e8b3
+        - ee70c09d2
+      reason: Visual feedback for a core productivity feature.
+    - text: The guest onboarding experience was polished with improved language detection and desktop UI refinements.
+      evidence:
+        commits:
+        - 3635d5b7f
+        - 922d6cf5a
+      reason: Improves the first-run experience for new users.
+    exclude:
+    - text: Workflows v1 backend and stability updates.
+      evidence:
+        commits:
+        - b3874966d
+        - 461ff46f9
+        - fe850bde6
+      reason: Workflows are currently a disabled feature.
+    - text: IndexedDB schema repair serialization.
+      evidence:
+        commits:
+        - 59afdea50
+        - 917d053b2
+        - 8b84db931
+      reason: Internal database maintenance details.
+    rationale: The newsletter should highlight user-facing improvements to chat reliability, Focus Mode visibility, and the
+      onboarding experience while excluding internal maintenance and disabled features like Workflows.
+  social_video_recommendations:
+  - idea: A short clip showing the new live Focus Mode badges appearing in the chat list as a user enters deep work.
+    priority: medium
+    reason: Provides a clear visual update to a core productivity feature.
+    evidence:
+      commits:
+      - 75822e8b3
+      - ee70c09d2
+  quality_notes:
+  - Extensive test coverage (23 commits) ensures stability for core flows like forking and language detection.
+  - Internal database repairs were hardened to prevent data corruption during schema updates.
+  validation_warnings: []

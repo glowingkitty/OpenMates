@@ -1,6 +1,6 @@
 # backend/core/directus/schemas/workflow_input_events.yml
 # Append-only workflow-input event stream used by REST polling and future live
-# transports. Payloads must be sanitized/redacted before persistence.
+# transports. Event bodies are owner-encrypted Automation Vault blobs.
 workflow_input_events:
   type: collection
   fields:
@@ -25,9 +25,12 @@ workflow_input_events:
     redacted_summary:
       type: string
       note: "Safe summary only; never raw user text."
-    payload_json:
-      type: json
-      note: "Sanitized event payload for clients."
+    encrypted_payload_ref:
+      type: string
+      note: "Automation Vault reference for the private event payload."
+    encrypted_payload_checksum:
+      type: string
+      note: "SHA256 checksum for the encrypted event payload."
     created_at:
       type: integer
       note: "Unix timestamp."

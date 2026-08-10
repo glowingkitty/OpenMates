@@ -1,0 +1,51 @@
+# Durable exactly-once identity for personal credit charges.
+# Balance snapshots remain user-key ciphertext; no decrypted balance, prompt,
+# title, summary, key material, or provider response is stored in this ledger.
+billing_charge_identities:
+  type: collection
+  note: "Internal exactly-once personal billing charge identities"
+  fields:
+    id:
+      type: uuid
+      primary: true
+    charge_id:
+      type: string
+      length: 255
+      required: true
+    hashed_user_id:
+      type: string
+      length: 128
+      required: true
+    app_id:
+      type: string
+      length: 100
+      required: true
+    skill_id:
+      type: string
+      length: 100
+      required: true
+    charged_credits:
+      type: integer
+      required: true
+    requested_credits:
+      type: integer
+      required: true
+    encrypted_balance_before:
+      type: text
+      required: true
+    encrypted_balance_after:
+      type: text
+      required: true
+    usage_id:
+      type: uuid
+      required: true
+    state:
+      type: string
+      length: 24
+      required: true
+    created_at:
+      type: datetime
+      required: true
+    committed_at:
+      type: datetime
+      required: true

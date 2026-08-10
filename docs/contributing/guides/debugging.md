@@ -11,6 +11,16 @@ Detailed CLI commands, log queries, and diagnostic procedures.
 
 ## Unified Debug CLI (Production)
 
+Production issue investigations must start from production code. Fetch and inspect `main` before using the current `dev` worktree:
+
+```bash
+git fetch origin main:refs/remotes/origin/main
+git show origin/main:<suspect-path>
+git diff origin/main..dev -- <suspect-path>
+```
+
+Use `dev` only after the `main` inspection to check whether the same issue, bug, or behavior is also present on dev, or whether dev already contains the fix.
+
 ```bash
 # Query production logs (last 30 min)
 docker exec api python /app/backend/scripts/debug.py logs --services task-worker --since 30
@@ -245,23 +255,23 @@ python3 scripts/sessions.py debug-vercel
 | `ERROR` status      | Build failure            | `debug.py vercel --all`  |
 | 404 on routes       | Adapter misconfiguration | `debug.py vercel`        |
 | Runtime crash (500) | Missing env var          | `debug.py vercel`        |
-| App blank           | Client-side JS error     | Firecrawl or OpenObserve |
+| App blank           | Client-side JS error     | Playwright smoke or OpenObserve |
 
 Do NOT run `vercel build` locally. Fix code → push → auto-deploys.
 
 ---
 
-## Browser-Based Debugging with Firecrawl
+## Browser-Based Debugging
+
+Prefer local Playwright or the deployed Playwright visual-smoke helper first.
+Use Firecrawl only as an explicit fallback when Playwright cannot reproduce or
+inspect the route practically.
 
 ```
-firecrawl_browser_create
-→ agent-browser open https://app.dev.openmates.org
-→ agent-browser snapshot -i -c
-→ [reproduce bug]
-→ agent-browser screenshot
-[fix → rebuild/push]
-→ [verify fix]
-→ agent-browser screenshot
+node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/<route> --session <id>
+→ inspect screenshots and summary
+→ [fix → rebuild/push]
+→ [verify fix with Playwright spec and visual smoke]
 ```
 
 ### Client-side state inspection:

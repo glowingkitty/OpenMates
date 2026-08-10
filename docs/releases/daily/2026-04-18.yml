@@ -1,0 +1,2679 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-18'
+generated_at: '2026-07-09T15:08:55+00:00'
+range:
+  since: '2026-04-18T00:00:00+00:00'
+  until: '2026-04-18T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 46
+  section_counts:
+    features: 18
+    bug_fixes: 22
+    improvements: 0
+    docs: 2
+    tests: 0
+    infrastructure: 1
+    internal: 0
+    other: 3
+  newsletter_ready_items: 11
+  user_facing_items: 23
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat(apple): fix sidebar list row backgrounds to strip native chrome'
+    section: features
+    commits:
+    - e81d879fa
+    authored_at: '2026-04-18T18:09:08+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): add assistant avatar + fix list row backgrounds in UI redesign'
+    section: features
+    commits:
+    - 78b2e4f8e
+    authored_at: '2026-04-18T18:08:39+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(reminder): add quick When? preset dropdown, hide Day/Time unless Custom selected'
+    section: features
+    commits:
+    - b0e4c71de
+    authored_at: '2026-04-18T16:59:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
+    - frontend/packages/ui/src/components/settings/elements/SettingsInput.svelte
+    - frontend/packages/ui/src/components/settings/notifications/SettingsReminders.svelte
+    - frontend/packages/ui/src/i18n/sources/reminder.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(skills): add publish-newsletter skill'
+    section: features
+    commits:
+    - 0d4c90e3c
+    authored_at: '2026-04-18T16:46:29+00:00'
+    changed_paths:
+    - .claude/skills/publish-newsletter/SKILL.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat(newsletter): add YouTube link to OpenMates v0.9 announcement'
+    section: features
+    commits:
+    - f7f23a7b9
+    authored_at: '2026-04-18T16:41:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat(apple): initial build fixes, i18n bundling, and scaffolded navigation (WIP)'
+    section: features
+    commits:
+    - a1ea15acf
+    authored_at: '2026-04-18T15:57:53+02:00'
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Resources/i18n/ar.json
+    - apple/OpenMates/Resources/i18n/cs.json
+    - apple/OpenMates/Resources/i18n/de.json
+    - apple/OpenMates/Resources/i18n/en.json
+    - apple/OpenMates/Resources/i18n/es.json
+    - apple/OpenMates/Resources/i18n/fr.json
+    - apple/OpenMates/Resources/i18n/he.json
+    - apple/OpenMates/Resources/i18n/hi.json
+    - apple/OpenMates/Resources/i18n/id.json
+    - apple/OpenMates/Resources/i18n/it.json
+    - apple/OpenMates/Resources/i18n/ja.json
+    - apple/OpenMates/Resources/i18n/ko.json
+    - apple/OpenMates/Resources/i18n/nl.json
+    - apple/OpenMates/Resources/i18n/pl.json
+    - apple/OpenMates/Resources/i18n/pt.json
+    - apple/OpenMates/Resources/i18n/ru.json
+    - apple/OpenMates/Resources/i18n/sv.json
+    - apple/OpenMates/Resources/i18n/th.json
+    - apple/OpenMates/Resources/i18n/tr.json
+    - apple/OpenMates/Resources/i18n/vi.json
+    - apple/OpenMates/Resources/i18n/zh.json
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/I18n/LocalizationManager.swift
+    - apple/OpenMates/Sources/Core/I18n/SupportedLanguage.swift
+    - apple/OpenMates/Sources/Core/Intents/OpenMatesShortcuts.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/SkillExecutor.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Services/HandoffManager.swift
+    - apple/OpenMates/Sources/Core/Services/SpotlightIndexer.swift
+    - apple/OpenMates/Sources/Core/Services/UnreadMessagesStore.swift
+    - apple/OpenMates/Sources/Core/StoreKit/StoreManager.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AccountRecoveryView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/DeviceVerificationView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasskeyLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsListView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageHighlightsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ReminderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContextMenuView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatListView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsEmailView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsStorageFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSupportView.swift
+    - apple/OpenMates/Sources/Shared/Components/CopyMessageFormatter.swift
+    - apple/OpenMates/Sources/Shared/Components/KeyboardShortcuts.swift
+    - apple/OpenMates/Sources/Shared/Extensions/AccessibilityModifiers.swift
+    - apple/OpenMates/Sources/Shared/Extensions/AnyCodable.swift
+    - apple/OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+    - apple/OpenMates/Sources/Shared/Extensions/FontRegistration.swift
+    - apple/OpenMatesShareExtension/Info.plist
+    - apple/OpenMatesShareExtension/OpenMatesShareExtension.entitlements
+    - apple/OpenMatesWidget/Info.plist
+    - apple/OpenMatesWidget/OpenMatesWidget.entitlements
+    - apple/OpenMatesWidget/OpenMatesWidget.swift
+    - apple/project.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(newsletter): update introducing-openmates-v09 manifest with CTA and subject'
+    section: features
+    commits:
+    - b78387a1e
+    authored_at: '2026-04-18T12:17:33+00:00'
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat(newsletter): update introducing-openmates-v09 manifest and DemoChat'
+    section: features
+    commits:
+    - d73dfacc8
+    authored_at: '2026-04-18T12:17:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/announcements_introducing_openmates_v09.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat(newsletter): update introducing-openmates-v09 with April 2026 content and CTA'
+    section: features
+    commits:
+    - 7253d9793
+    authored_at: '2026-04-18T12:16:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat(newsletter): publish April 2026 update issue + CTA marker support'
+    section: features
+    commits:
+    - 4b38d1ad4
+    authored_at: '2026-04-18T11:51:24+00:00'
+    changed_paths:
+    - backend/newsletters/issues/april-2026-update.yml
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - frontend/packages/ui/src/demo_chats/data/announcements_april_2026_update.ts
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat(apple): OPE-443 — remaining 8 accessibility files from settings agent'
+    section: features
+    commits:
+    - 8115f7907
+    authored_at: '2026-04-18T11:50:43+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsExportAccountView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsIncognitoInfoView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsStorageFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSupportView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(newsletter): publish April 2026 update, add CTA support'
+    section: features
+    commits:
+    - f0cac0cee
+    authored_at: '2026-04-18T11:50:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_april_2026_update.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat(apple): OPE-443 — full accessibility rollout across all 41 views'
+    section: features
+    commits:
+    - 32eec8101
+    authored_at: '2026-04-18T11:45:42+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Auth/Views/AccountRecoveryView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/BackupCodeView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/DeviceVerificationView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasskeyLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/RecoveryKeyView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatImportView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatPaginationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ForkProgressBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsListView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageEditView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ReminderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/ShareEmbedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsServerView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/AITypingIndicator.swift
+    - apple/OpenMates/Sources/Shared/Components/NotificationBanners.swift
+    - apple/OpenMates/Sources/Shared/Components/ToastNotification.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): complete i18n sweep — all 169 hardcoded strings replaced across 53 files'
+    section: features
+    commits:
+    - b2a1235c8
+    authored_at: '2026-04-18T11:21:14+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Auth/Views/AccountRecoveryView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/BackupCodeView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/DeviceVerificationView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasskeyLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/RecoveryKeyView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatImportView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatPaginationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ExampleChatsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ForkProgressBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsListView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageEditView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ReminderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchResultsRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/ShareEmbedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/NewsletterSettingsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAccountChatsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDevicesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsEmailView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsExportAccountView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsIncognitoInfoView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsLogsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProfilePictureView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsServerView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsShareDebugLogsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsStorageFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSupportView.swift
+    - apple/OpenMates/Sources/Shared/Components/AITypingIndicator.swift
+    - apple/OpenMates/Sources/Shared/Components/NotificationBanners.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): replace all web redirects with native settings, wire i18n across entire app'
+    section: features
+    commits:
+    - 20f69633f
+    authored_at: '2026-04-18T10:58:15+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): add Handoff/Continuity, rich markdown, Lock Screen widget, Spotlight indexing, and keyboard shortcuts'
+    section: features
+    commits:
+    - d9ccfc124
+    authored_at: '2026-04-18T01:14:48+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/Services/HandoffManager.swift
+    - apple/OpenMates/Sources/Core/Services/SpotlightIndexer.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/KeyboardShortcuts.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMatesWidget/OpenMatesWidget.swift
+    - apple/project.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): add WidgetKit widget, message pagination, and 29 Siri Shortcuts'
+    section: features
+    commits:
+    - bc90dc668
+    authored_at: '2026-04-18T01:03:34+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Intents/AskOpenMatesIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/ChatManagementIntents.swift
+    - apple/OpenMates/Sources/Core/Intents/MemoryIntents.swift
+    - apple/OpenMates/Sources/Core/Intents/OpenMatesShortcuts.swift
+    - apple/OpenMates/Sources/Core/Intents/ReadLastResponseIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/ReminderIntents.swift
+    - apple/OpenMates/Sources/Core/Intents/SearchChatsIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/EventsSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/HealthSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/HomeSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/ImageSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/MailSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/MapsSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/MathCalculateIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/NewsSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/NutritionSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/ShoppingSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/SkillExecutor.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/TravelSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/VideoSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/WebSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/StartChatIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/TodaysInspirationIntent.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Extensions/WidgetInspirationData.swift
+    - apple/OpenMatesWidget/Info.plist
+    - apple/OpenMatesWidget/OpenMatesWidget.entitlements
+    - apple/OpenMatesWidget/OpenMatesWidget.swift
+    - apple/project.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): add WidgetKit daily inspiration widget, message pagination, and 29 Siri Shortcuts'
+    section: features
+    commits:
+    - 077ec3f7b
+    authored_at: '2026-04-18T01:02:48+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Intents/Skills/CodeDocsIntent.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  bug_fixes:
+  - title: 'fix(cors): add reminder skills to webapp CORS matchers'
+    section: bug_fixes
+    commits:
+    - 030f7c430
+    authored_at: '2026-04-18T16:58:27+00:00'
+    changed_paths:
+    - deployment/prod_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(newsletter): increase aiohttp header size limit for landing page check'
+    section: bug_fixes
+    commits:
+    - 9db97b3be
+    authored_at: '2026-04-18T14:29:58+00:00'
+    changed_paths:
+    - backend/scripts/send_newsletter.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(newsletter): rename --confirm-send to --send'
+    section: bug_fixes
+    commits:
+    - 649b4fa69
+    authored_at: '2026-04-18T14:28:06+00:00'
+    changed_paths:
+    - backend/scripts/send_newsletter.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(newsletter): allow autoplay-video deep links for authenticated users'
+    section: bug_fixes
+    commits:
+    - 395e3bdf2
+    authored_at: '2026-04-18T13:53:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(newsletter): separate email_body from chat message in i18n, restore video+CTA markers and absolute URLs'
+    section: bug_fixes
+    commits:
+    - 44cd8d3ce
+    authored_at: '2026-04-18T13:47:07+00:00'
+    changed_paths:
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(newsletter): shorten title to OpenMates v0.9: New apps & skills, AI models, file upload & more'
+    section: bug_fixes
+    commits:
+    - 672f2200d
+    authored_at: '2026-04-18T13:29:03+00:00'
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(seo): remove old layout.svelte replaced by layout@.svelte'
+    section: bug_fixes
+    commits:
+    - 972bc5ebf
+    authored_at: '2026-04-18T12:58:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/+layout.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(seo): reset layout chain for SEO route group to enable SSR'
+    section: bug_fixes
+    commits:
+    - 32fa7413d
+    authored_at: '2026-04-18T12:57:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/+layout@.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(seo): exclude announcements/tips from Vercel SPA catch-all rewrite'
+    section: bug_fixes
+    commits:
+    - 580bfba07
+    authored_at: '2026-04-18T12:51:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/vercel.json
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(seo): switch announcement/tip pages from prerender to SSR'
+    section: bug_fixes
+    commits:
+    - 59099bf68
+    authored_at: '2026-04-18T12:46:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.ts
+    - frontend/apps/web_app/src/routes/(seo)/tips/[slug]/+page.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(seo): force prerender for announcement pages'
+    section: bug_fixes
+    commits:
+    - 64ce3120f
+    authored_at: '2026-04-18T12:36:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(seo): force prerender for announcement and tip pages'
+    section: bug_fixes
+    commits:
+    - 47b5fc5c4
+    authored_at: '2026-04-18T12:36:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/tips/[slug]/+page.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(newsletter): correct title to Introducing OpenMates v0.9, relativize links'
+    section: bug_fixes
+    commits:
+    - 704d938a4
+    authored_at: '2026-04-18T12:27:55+00:00'
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    - backend/scripts/publish_newsletter.py
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(newsletter): use correct slug introducing-openmates-v09, remove duplicate april-2026-update'
+    section: bug_fixes
+    commits:
+    - 1abe82eec
+    authored_at: '2026-04-18T12:15:55+00:00'
+    changed_paths:
+    - backend/newsletters/issues/april-2026-update.yml
+    - frontend/packages/ui/src/demo_chats/data/announcements_april_2026_update.ts
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_april_2026_update.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(email): skip brand-name replacement inside existing anchor elements'
+    section: bug_fixes
+    commits:
+    - a5c8989d6
+    authored_at: '2026-04-18T12:07:18+00:00'
+    changed_paths:
+    - backend/core/api/app/services/email/html_processor.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(email): prevent brand-name mangling in CTA buttons + mount newsletter thumbnails'
+    section: bug_fixes
+    commits:
+    - 023eae00b
+    authored_at: '2026-04-18T12:06:55+00:00'
+    changed_paths:
+    - backend/core/docker-compose.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(email): move brand-name processing after MJML→HTML conversion'
+    section: bug_fixes
+    commits:
+    - a3540bf7e
+    authored_at: '2026-04-18T11:56:39+00:00'
+    changed_paths:
+    - backend/core/api/app/services/email/renderer.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(apple): wire embed updates, audio/video playback, hidden chats, fork nav, push badges, settings persistence,
+      offline queue'
+    section: bug_fixes
+    commits:
+    - 3f9300e09
+    authored_at: '2026-04-18T10:36:30+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsListView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix(apple): wire E2EE decryption for chats, messages, and titles using PBKDF2 + per-chat keys'
+    section: bug_fixes
+    commits:
+    - c4162e7b9
+    authored_at: '2026-04-18T09:47:31+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageEditView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: add group-title testid and exclude /status from Vercel SPA rewrite'
+    section: bug_fixes
+    commits:
+    - 8ddca9ca4
+    authored_at: '2026-04-18T01:05:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/vercel.json
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add missing testids for import-chats and docs-links, blur fix for incognito-mode'
+    section: bug_fixes
+    commits:
+    - ca7664500
+    authored_at: '2026-04-18T00:40:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/lib/components/docs/DocsMessage.svelte
+    - frontend/apps/web_app/tests/incognito-mode.spec.ts
+    - frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add showcase-body testid and blur input in recent-chats-dedup'
+    section: bug_fixes
+    commits:
+    - df9ef4e95
+    authored_at: '2026-04-18T00:04:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs(apple): add comprehensive UI redesign task spec'
+    section: docs
+    commits:
+    - 6d9ddb617
+    authored_at: '2026-04-18T16:26:12+02:00'
+    changed_paths:
+    - docs/architecture/frontend/apple-ui-redesign-task.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: update compliance browser-storage/cookies docs and dependabot processed list'
+    section: docs
+    commits:
+    - 7fc8c874e
+    authored_at: '2026-04-18T11:52:39+00:00'
+    changed_paths:
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - scripts/dependabot-processed.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests: []
+  infrastructure:
+  - title: 'chore(apple): gitignore bundled i18n JSON files'
+    section: infrastructure
+    commits:
+    - 8e26638d9
+    authored_at: '2026-04-18T16:08:35+02:00'
+    changed_paths:
+    - apple/.gitignore
+    - apple/OpenMates/Resources/i18n/ar.json
+    - apple/OpenMates/Resources/i18n/cs.json
+    - apple/OpenMates/Resources/i18n/de.json
+    - apple/OpenMates/Resources/i18n/en.json
+    - apple/OpenMates/Resources/i18n/es.json
+    - apple/OpenMates/Resources/i18n/fr.json
+    - apple/OpenMates/Resources/i18n/he.json
+    - apple/OpenMates/Resources/i18n/hi.json
+    - apple/OpenMates/Resources/i18n/id.json
+    - apple/OpenMates/Resources/i18n/it.json
+    - apple/OpenMates/Resources/i18n/ja.json
+    - apple/OpenMates/Resources/i18n/ko.json
+    - apple/OpenMates/Resources/i18n/nl.json
+    - apple/OpenMates/Resources/i18n/pl.json
+    - apple/OpenMates/Resources/i18n/pt.json
+    - apple/OpenMates/Resources/i18n/ru.json
+    - apple/OpenMates/Resources/i18n/sv.json
+    - apple/OpenMates/Resources/i18n/th.json
+    - apple/OpenMates/Resources/i18n/tr.json
+    - apple/OpenMates/Resources/i18n/vi.json
+    - apple/OpenMates/Resources/i18n/zh.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  internal: []
+  other:
+  - title: 'Merge pull request #375 from glowingkitty/dev'
+    section: other
+    commits:
+    - 8872bf2f2
+    authored_at: '2026-04-18T19:17:14+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'Merge pull request #374 from glowingkitty/dev'
+    section: other
+    commits:
+    - d0ab0c957
+    authored_at: '2026-04-18T16:32:39+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'Merge pull request #373 from glowingkitty/dev'
+    section: other
+    commits:
+    - ef14829aa
+    authored_at: '2026-04-18T16:14:36+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat(reminder): add quick When? preset dropdown, hide Day/Time unless Custom selected'
+    commits:
+    - b0e4c71de
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(newsletter): allow autoplay-video deep links for authenticated users'
+    commits:
+    - 395e3bdf2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(seo): remove old layout.svelte replaced by layout@.svelte'
+    commits:
+    - 972bc5ebf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(seo): reset layout chain for SEO route group to enable SSR'
+    commits:
+    - 32fa7413d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(seo): exclude announcements/tips from Vercel SPA catch-all rewrite'
+    commits:
+    - 580bfba07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(seo): switch announcement/tip pages from prerender to SSR'
+    commits:
+    - 59099bf68
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(seo): force prerender for announcement pages'
+    commits:
+    - 64ce3120f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(seo): force prerender for announcement and tip pages'
+    commits:
+    - 47b5fc5c4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add group-title testid and exclude /status from Vercel SPA rewrite'
+    commits:
+    - 8ddca9ca4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add missing testids for import-chats and docs-links, blur fix for incognito-mode'
+    commits:
+    - ca7664500
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add showcase-body testid and blur input in recent-chats-dedup'
+    commits:
+    - df9ef4e95
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat(apple): fix sidebar list row backgrounds to strip native chrome'
+    commits:
+    - e81d879fa
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): add assistant avatar + fix list row backgrounds in UI redesign'
+    commits:
+    - 78b2e4f8e
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(reminder): add quick When? preset dropdown, hide Day/Time unless Custom selected'
+    commits:
+    - b0e4c71de
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(apple): initial build fixes, i18n bundling, and scaffolded navigation (WIP)'
+    commits:
+    - a1ea15acf
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(newsletter): allow autoplay-video deep links for authenticated users'
+    commits:
+    - 395e3bdf2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(seo): remove old layout.svelte replaced by layout@.svelte'
+    commits:
+    - 972bc5ebf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(seo): reset layout chain for SEO route group to enable SSR'
+    commits:
+    - 32fa7413d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(seo): exclude announcements/tips from Vercel SPA catch-all rewrite'
+    commits:
+    - 580bfba07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(seo): switch announcement/tip pages from prerender to SSR'
+    commits:
+    - 59099bf68
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(seo): force prerender for announcement pages'
+    commits:
+    - 64ce3120f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(seo): force prerender for announcement and tip pages'
+    commits:
+    - 47b5fc5c4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(apple): OPE-443 — remaining 8 accessibility files from settings agent'
+    commits:
+    - 8115f7907
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): OPE-443 — full accessibility rollout across all 41 views'
+    commits:
+    - 32eec8101
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): complete i18n sweep — all 169 hardcoded strings replaced across 53 files'
+    commits:
+    - b2a1235c8
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): replace all web redirects with native settings, wire i18n across entire app'
+    commits:
+    - 20f69633f
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(apple): wire embed updates, audio/video playback, hidden chats, fork nav, push badges, settings persistence,
+      offline queue'
+    commits:
+    - 3f9300e09
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(apple): wire E2EE decryption for chats, messages, and titles using PBKDF2 + per-chat keys'
+    commits:
+    - c4162e7b9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): add Handoff/Continuity, rich markdown, Lock Screen widget, Spotlight indexing, and keyboard shortcuts'
+    commits:
+    - d9ccfc124
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: add group-title testid and exclude /status from Vercel SPA rewrite'
+    commits:
+    - 8ddca9ca4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(apple): add WidgetKit widget, message pagination, and 29 Siri Shortcuts'
+    commits:
+    - bc90dc668
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): add WidgetKit daily inspiration widget, message pagination, and 29 Siri Shortcuts'
+    commits:
+    - 077ec3f7b
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: add missing testids for import-chats and docs-links, blur fix for incognito-mode'
+    commits:
+    - ca7664500
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add showcase-body testid and blur input in recent-chats-dedup'
+    commits:
+    - df9ef4e95
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: e81d879fa6922e1797a3c9d800304db24f9a4862
+    short_sha: e81d879fa
+    authored_at: '2026-04-18T18:09:08+00:00'
+    subject: 'feat(apple): fix sidebar list row backgrounds to strip native chrome'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 78b2e4f8e6267f6aa168caafdb8dd9a9c2222a74
+    short_sha: 78b2e4f8e
+    authored_at: '2026-04-18T18:08:39+00:00'
+    subject: 'feat(apple): add assistant avatar + fix list row backgrounds in UI redesign'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 8872bf2f20b80d68e87700533508bd44ce706264
+    short_sha: 8872bf2f2
+    authored_at: '2026-04-18T19:17:14+02:00'
+    subject: 'Merge pull request #375 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: b0e4c71dec1b8984f64ec6c4c16c9f4ce8bc0523
+    short_sha: b0e4c71de
+    authored_at: '2026-04-18T16:59:03+00:00'
+    subject: 'feat(reminder): add quick When? preset dropdown, hide Day/Time unless Custom selected'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
+    - frontend/packages/ui/src/components/settings/elements/SettingsInput.svelte
+    - frontend/packages/ui/src/components/settings/notifications/SettingsReminders.svelte
+    - frontend/packages/ui/src/i18n/sources/reminder.yml
+    related_feature_ids: []
+  - sha: 030f7c430b23b51df283a59c61322bedb857bb8c
+    short_sha: 030f7c430
+    authored_at: '2026-04-18T16:58:27+00:00'
+    subject: 'fix(cors): add reminder skills to webapp CORS matchers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/prod_server/Caddyfile
+    related_feature_ids: []
+  - sha: 0d4c90e3c213d29572965ad6c75ef6cef7ab8760
+    short_sha: 0d4c90e3c
+    authored_at: '2026-04-18T16:46:29+00:00'
+    subject: 'feat(skills): add publish-newsletter skill'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/skills/publish-newsletter/SKILL.md
+    related_feature_ids: []
+  - sha: f7f23a7b96d385e365a62b55f772d7305f60f79a
+    short_sha: f7f23a7b9
+    authored_at: '2026-04-18T16:41:38+00:00'
+    subject: 'feat(newsletter): add YouTube link to OpenMates v0.9 announcement'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    related_feature_ids: []
+  - sha: d0ab0c9571756077c97db1f57379561c1234b5e7
+    short_sha: d0ab0c957
+    authored_at: '2026-04-18T16:32:39+02:00'
+    subject: 'Merge pull request #374 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 9db97b3bec863c465509b7972a0f1f471bcb3644
+    short_sha: 9db97b3be
+    authored_at: '2026-04-18T14:29:58+00:00'
+    subject: 'fix(newsletter): increase aiohttp header size limit for landing page check'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/scripts/send_newsletter.py
+    related_feature_ids: []
+  - sha: 649b4fa695a77a841ef49edd02c86d44a7a27d24
+    short_sha: 649b4fa69
+    authored_at: '2026-04-18T14:28:06+00:00'
+    subject: 'fix(newsletter): rename --confirm-send to --send'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/scripts/send_newsletter.py
+    related_feature_ids: []
+  - sha: 6d9ddb617911f7311bd66150c096e15e6ea9cbb2
+    short_sha: 6d9ddb617
+    authored_at: '2026-04-18T16:26:12+02:00'
+    subject: 'docs(apple): add comprehensive UI redesign task spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/frontend/apple-ui-redesign-task.md
+    related_feature_ids: []
+  - sha: ef14829aa0e7e00796122bac6ba9763f2c233daf
+    short_sha: ef14829aa
+    authored_at: '2026-04-18T16:14:36+02:00'
+    subject: 'Merge pull request #373 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 8e26638d9f1271ae9fdab98c673338f843361514
+    short_sha: 8e26638d9
+    authored_at: '2026-04-18T16:08:35+02:00'
+    subject: 'chore(apple): gitignore bundled i18n JSON files'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/.gitignore
+    - apple/OpenMates/Resources/i18n/ar.json
+    - apple/OpenMates/Resources/i18n/cs.json
+    - apple/OpenMates/Resources/i18n/de.json
+    - apple/OpenMates/Resources/i18n/en.json
+    - apple/OpenMates/Resources/i18n/es.json
+    - apple/OpenMates/Resources/i18n/fr.json
+    - apple/OpenMates/Resources/i18n/he.json
+    - apple/OpenMates/Resources/i18n/hi.json
+    - apple/OpenMates/Resources/i18n/id.json
+    - apple/OpenMates/Resources/i18n/it.json
+    - apple/OpenMates/Resources/i18n/ja.json
+    - apple/OpenMates/Resources/i18n/ko.json
+    - apple/OpenMates/Resources/i18n/nl.json
+    - apple/OpenMates/Resources/i18n/pl.json
+    - apple/OpenMates/Resources/i18n/pt.json
+    - apple/OpenMates/Resources/i18n/ru.json
+    - apple/OpenMates/Resources/i18n/sv.json
+    - apple/OpenMates/Resources/i18n/th.json
+    - apple/OpenMates/Resources/i18n/tr.json
+    - apple/OpenMates/Resources/i18n/vi.json
+    - apple/OpenMates/Resources/i18n/zh.json
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a1ea15acf8d328e061456b4eaced60d758504c0b
+    short_sha: a1ea15acf
+    authored_at: '2026-04-18T15:57:53+02:00'
+    subject: 'feat(apple): initial build fixes, i18n bundling, and scaffolded navigation (WIP)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Resources/i18n/ar.json
+    - apple/OpenMates/Resources/i18n/cs.json
+    - apple/OpenMates/Resources/i18n/de.json
+    - apple/OpenMates/Resources/i18n/en.json
+    - apple/OpenMates/Resources/i18n/es.json
+    - apple/OpenMates/Resources/i18n/fr.json
+    - apple/OpenMates/Resources/i18n/he.json
+    - apple/OpenMates/Resources/i18n/hi.json
+    - apple/OpenMates/Resources/i18n/id.json
+    - apple/OpenMates/Resources/i18n/it.json
+    - apple/OpenMates/Resources/i18n/ja.json
+    - apple/OpenMates/Resources/i18n/ko.json
+    - apple/OpenMates/Resources/i18n/nl.json
+    - apple/OpenMates/Resources/i18n/pl.json
+    - apple/OpenMates/Resources/i18n/pt.json
+    - apple/OpenMates/Resources/i18n/ru.json
+    - apple/OpenMates/Resources/i18n/sv.json
+    - apple/OpenMates/Resources/i18n/th.json
+    - apple/OpenMates/Resources/i18n/tr.json
+    - apple/OpenMates/Resources/i18n/vi.json
+    - apple/OpenMates/Resources/i18n/zh.json
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/I18n/LocalizationManager.swift
+    - apple/OpenMates/Sources/Core/I18n/SupportedLanguage.swift
+    - apple/OpenMates/Sources/Core/Intents/OpenMatesShortcuts.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/SkillExecutor.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Services/HandoffManager.swift
+    - apple/OpenMates/Sources/Core/Services/SpotlightIndexer.swift
+    - apple/OpenMates/Sources/Core/Services/UnreadMessagesStore.swift
+    - apple/OpenMates/Sources/Core/StoreKit/StoreManager.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AccountRecoveryView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/DeviceVerificationView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasskeyLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsListView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageHighlightsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ReminderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContextMenuView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatListView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsEmailView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsStorageFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSupportView.swift
+    - apple/OpenMates/Sources/Shared/Components/CopyMessageFormatter.swift
+    - apple/OpenMates/Sources/Shared/Components/KeyboardShortcuts.swift
+    - apple/OpenMates/Sources/Shared/Extensions/AccessibilityModifiers.swift
+    - apple/OpenMates/Sources/Shared/Extensions/AnyCodable.swift
+    - apple/OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+    - apple/OpenMates/Sources/Shared/Extensions/FontRegistration.swift
+    - apple/OpenMatesShareExtension/Info.plist
+    - apple/OpenMatesShareExtension/OpenMatesShareExtension.entitlements
+    - apple/OpenMatesWidget/Info.plist
+    - apple/OpenMatesWidget/OpenMatesWidget.entitlements
+    - apple/OpenMatesWidget/OpenMatesWidget.swift
+    - apple/project.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 395e3bdf205e4da0b6b43522d5e14bcfc7e3fa62
+    short_sha: 395e3bdf2
+    authored_at: '2026-04-18T13:53:49+00:00'
+    subject: 'fix(newsletter): allow autoplay-video deep links for authenticated users'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: 44cd8d3ce15e7baf0a640e38aeff35a081410e15
+    short_sha: 44cd8d3ce
+    authored_at: '2026-04-18T13:47:07+00:00'
+    subject: 'fix(newsletter): separate email_body from chat message in i18n, restore video+CTA markers and absolute URLs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    related_feature_ids: []
+  - sha: 672f2200dcf0e5993168c8769d8129931a3e518d
+    short_sha: 672f2200d
+    authored_at: '2026-04-18T13:29:03+00:00'
+    subject: 'fix(newsletter): shorten title to OpenMates v0.9: New apps & skills, AI models, file upload & more'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    related_feature_ids: []
+  - sha: 972bc5ebfa2388cc8810606a2daf92747a880efe
+    short_sha: 972bc5ebf
+    authored_at: '2026-04-18T12:58:09+00:00'
+    subject: 'fix(seo): remove old layout.svelte replaced by layout@.svelte'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/+layout.svelte
+    related_feature_ids: []
+  - sha: 32fa7413d3e8d27dc441c1a0ae775d9cfc783d7b
+    short_sha: 32fa7413d
+    authored_at: '2026-04-18T12:57:54+00:00'
+    subject: 'fix(seo): reset layout chain for SEO route group to enable SSR'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/+layout@.svelte
+    related_feature_ids: []
+  - sha: 580bfba071d831b97b08fca33e099e37343de36b
+    short_sha: 580bfba07
+    authored_at: '2026-04-18T12:51:13+00:00'
+    subject: 'fix(seo): exclude announcements/tips from Vercel SPA catch-all rewrite'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/vercel.json
+    related_feature_ids: []
+  - sha: 59099bf6838f2aeb97664c79ead56d93c010054b
+    short_sha: 59099bf68
+    authored_at: '2026-04-18T12:46:06+00:00'
+    subject: 'fix(seo): switch announcement/tip pages from prerender to SSR'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.ts
+    - frontend/apps/web_app/src/routes/(seo)/tips/[slug]/+page.ts
+    related_feature_ids: []
+  - sha: 64ce3120fe1643258ef434938da2fb8ff142e875
+    short_sha: 64ce3120f
+    authored_at: '2026-04-18T12:36:54+00:00'
+    subject: 'fix(seo): force prerender for announcement pages'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.ts
+    related_feature_ids: []
+  - sha: 47b5fc5c44e6b69974715462e3b5ead8d6fd909e
+    short_sha: 47b5fc5c4
+    authored_at: '2026-04-18T12:36:34+00:00'
+    subject: 'fix(seo): force prerender for announcement and tip pages'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/tips/[slug]/+page.ts
+    related_feature_ids: []
+  - sha: 704d938a477e578c59513bdfb1c7afd346f5c6dc
+    short_sha: 704d938a4
+    authored_at: '2026-04-18T12:27:55+00:00'
+    subject: 'fix(newsletter): correct title to Introducing OpenMates v0.9, relativize links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    - backend/scripts/publish_newsletter.py
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    related_feature_ids: []
+  - sha: b78387a1e524402976361499435a579d4eeab69e
+    short_sha: b78387a1e
+    authored_at: '2026-04-18T12:17:33+00:00'
+    subject: 'feat(newsletter): update introducing-openmates-v09 manifest with CTA and subject'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    related_feature_ids: []
+  - sha: d73dfacc867e722694d4db50159224dc4b45ff99
+    short_sha: d73dfacc8
+    authored_at: '2026-04-18T12:17:18+00:00'
+    subject: 'feat(newsletter): update introducing-openmates-v09 manifest and DemoChat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/announcements_introducing_openmates_v09.ts
+    related_feature_ids: []
+  - sha: 7253d97937c308c16c8bc771b300ac91c17a250f
+    short_sha: 7253d9793
+    authored_at: '2026-04-18T12:16:07+00:00'
+    subject: 'feat(newsletter): update introducing-openmates-v09 with April 2026 content and CTA'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    related_feature_ids: []
+  - sha: 1abe82eec61260fe04c9485de147e8bf5cba25c7
+    short_sha: 1abe82eec
+    authored_at: '2026-04-18T12:15:55+00:00'
+    subject: 'fix(newsletter): use correct slug introducing-openmates-v09, remove duplicate april-2026-update'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/newsletters/issues/april-2026-update.yml
+    - frontend/packages/ui/src/demo_chats/data/announcements_april_2026_update.ts
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_april_2026_update.yml
+    related_feature_ids: []
+  - sha: a5c8989d6d304fd428a53ac70fcab92dfab716f5
+    short_sha: a5c8989d6
+    authored_at: '2026-04-18T12:07:18+00:00'
+    subject: 'fix(email): skip brand-name replacement inside existing anchor elements'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/email/html_processor.py
+    related_feature_ids: []
+  - sha: 023eae00b683171360dcad46303e2b704493d4d1
+    short_sha: 023eae00b
+    authored_at: '2026-04-18T12:06:55+00:00'
+    subject: 'fix(email): prevent brand-name mangling in CTA buttons + mount newsletter thumbnails'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.yml
+    related_feature_ids: []
+  - sha: a3540bf7e32b941b765a96491e29bf08456341e4
+    short_sha: a3540bf7e
+    authored_at: '2026-04-18T11:56:39+00:00'
+    subject: 'fix(email): move brand-name processing after MJML→HTML conversion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/email/renderer.py
+    related_feature_ids: []
+  - sha: 7fc8c874ee41eda929a739564df1b111f30cfc60
+    short_sha: 7fc8c874e
+    authored_at: '2026-04-18T11:52:39+00:00'
+    subject: 'docs: update compliance browser-storage/cookies docs and dependabot processed list'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - scripts/dependabot-processed.json
+    related_feature_ids: []
+  - sha: 4b38d1ad467c5b6cb84dec136f2786c14aa982b2
+    short_sha: 4b38d1ad4
+    authored_at: '2026-04-18T11:51:24+00:00'
+    subject: 'feat(newsletter): publish April 2026 update issue + CTA marker support'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/newsletters/issues/april-2026-update.yml
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - frontend/packages/ui/src/demo_chats/data/announcements_april_2026_update.ts
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    related_feature_ids: []
+  - sha: 8115f7907409dbef50dd28e0da4ccde2672d639e
+    short_sha: 8115f7907
+    authored_at: '2026-04-18T11:50:43+00:00'
+    subject: 'feat(apple): OPE-443 — remaining 8 accessibility files from settings agent'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsExportAccountView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsIncognitoInfoView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsStorageFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSupportView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f0cac0cee0f0b00eb4bc3ad4e2d14ebf5f682b14
+    short_sha: f0cac0cee
+    authored_at: '2026-04-18T11:50:17+00:00'
+    subject: 'feat(newsletter): publish April 2026 update, add CTA support'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_april_2026_update.yml
+    related_feature_ids: []
+  - sha: 32eec810117b4a96460e051be295b3c735e95085
+    short_sha: 32eec8101
+    authored_at: '2026-04-18T11:45:42+00:00'
+    subject: 'feat(apple): OPE-443 — full accessibility rollout across all 41 views'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Auth/Views/AccountRecoveryView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/BackupCodeView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/DeviceVerificationView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasskeyLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/RecoveryKeyView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatImportView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatPaginationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ForkProgressBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsListView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageEditView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ReminderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/ShareEmbedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsServerView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/AITypingIndicator.swift
+    - apple/OpenMates/Sources/Shared/Components/NotificationBanners.swift
+    - apple/OpenMates/Sources/Shared/Components/ToastNotification.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b2a1235c8352ba62c28f5be8104965d35d739f34
+    short_sha: b2a1235c8
+    authored_at: '2026-04-18T11:21:14+00:00'
+    subject: 'feat(apple): complete i18n sweep — all 169 hardcoded strings replaced across 53 files'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Auth/Views/AccountRecoveryView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/BackupCodeView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/DeviceVerificationView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasskeyLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/RecoveryKeyView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatImportView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatPaginationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ExampleChatsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ForkProgressBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsListView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageEditView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ReminderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchResultsRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/ShareEmbedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/NewsletterSettingsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAccountChatsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDevicesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsEmailView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsExportAccountView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsIncognitoInfoView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsLogsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProfilePictureView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsServerView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsShareDebugLogsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsStorageFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSupportView.swift
+    - apple/OpenMates/Sources/Shared/Components/AITypingIndicator.swift
+    - apple/OpenMates/Sources/Shared/Components/NotificationBanners.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 20f69633ff806f3e689e3cf6454b8d21549112df
+    short_sha: 20f69633f
+    authored_at: '2026-04-18T10:58:15+00:00'
+    subject: 'feat(apple): replace all web redirects with native settings, wire i18n across entire app'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 3f9300e09d1d8b32fe4e8685b7869c0cb5c962bb
+    short_sha: 3f9300e09
+    authored_at: '2026-04-18T10:36:30+00:00'
+    subject: 'fix(apple): wire embed updates, audio/video playback, hidden chats, fork nav, push badges, settings persistence,
+      offline queue'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsListView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: c4162e7b917ba40c402ff03d06836e273f668c84
+    short_sha: c4162e7b9
+    authored_at: '2026-04-18T09:47:31+00:00'
+    subject: 'fix(apple): wire E2EE decryption for chats, messages, and titles using PBKDF2 + per-chat keys'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageEditView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d9ccfc12494771d056265107e8d94585871f5b1f
+    short_sha: d9ccfc124
+    authored_at: '2026-04-18T01:14:48+00:00'
+    subject: 'feat(apple): add Handoff/Continuity, rich markdown, Lock Screen widget, Spotlight indexing, and keyboard shortcuts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/Services/HandoffManager.swift
+    - apple/OpenMates/Sources/Core/Services/SpotlightIndexer.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/KeyboardShortcuts.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMatesWidget/OpenMatesWidget.swift
+    - apple/project.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 8ddca9ca40b0bfeefbca31062c573e10e2b7d6cc
+    short_sha: 8ddca9ca4
+    authored_at: '2026-04-18T01:05:18+00:00'
+    subject: 'fix: add group-title testid and exclude /status from Vercel SPA rewrite'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/vercel.json
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: bc90dc668dc14812e8da0eef2d60d4ca4193f901
+    short_sha: bc90dc668
+    authored_at: '2026-04-18T01:03:34+00:00'
+    subject: 'feat(apple): add WidgetKit widget, message pagination, and 29 Siri Shortcuts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Intents/AskOpenMatesIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/ChatManagementIntents.swift
+    - apple/OpenMates/Sources/Core/Intents/MemoryIntents.swift
+    - apple/OpenMates/Sources/Core/Intents/OpenMatesShortcuts.swift
+    - apple/OpenMates/Sources/Core/Intents/ReadLastResponseIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/ReminderIntents.swift
+    - apple/OpenMates/Sources/Core/Intents/SearchChatsIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/EventsSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/HealthSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/HomeSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/ImageSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/MailSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/MapsSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/MathCalculateIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/NewsSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/NutritionSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/ShoppingSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/SkillExecutor.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/TravelSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/VideoSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/WebSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/StartChatIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/TodaysInspirationIntent.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Extensions/WidgetInspirationData.swift
+    - apple/OpenMatesWidget/Info.plist
+    - apple/OpenMatesWidget/OpenMatesWidget.entitlements
+    - apple/OpenMatesWidget/OpenMatesWidget.swift
+    - apple/project.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 077ec3f7b03984c2c4ef7ea7b6976b69d95f32dd
+    short_sha: 077ec3f7b
+    authored_at: '2026-04-18T01:02:48+00:00'
+    subject: 'feat(apple): add WidgetKit daily inspiration widget, message pagination, and 29 Siri Shortcuts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Intents/Skills/CodeDocsIntent.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ca76645004c9a99dc9ede4bb76b4bb47b367c9e7
+    short_sha: ca7664500
+    authored_at: '2026-04-18T00:40:11+00:00'
+    subject: 'fix: add missing testids for import-chats and docs-links, blur fix for incognito-mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/lib/components/docs/DocsMessage.svelte
+    - frontend/apps/web_app/tests/incognito-mode.spec.ts
+    - frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
+    related_feature_ids: []
+  - sha: df9ef4e95e0006346804a65761e1575f7b160383
+    short_sha: df9ef4e95
+    authored_at: '2026-04-18T00:04:01+00:00'
+    subject: 'fix: add showcase-body testid and blur input in recent-chats-dedup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced a more efficient reminder scheduling interface and significantly improved the web application's
+    SEO and social sharing capabilities. Meanwhile, extensive development continued on the unreleased Apple platform ecosystem,
+    including deep integration with iOS and macOS features.
+  released_changes:
+  - text: OpenMates added a quick 'When?' preset dropdown to the reminder settings, allowing users to select common times
+      or choose a custom schedule.
+    evidence:
+      commits:
+      - b0e4c71de
+    release_status: released_main
+  bug_fixes:
+  - text: OpenMates now allows autoplay-video deep links for authenticated users.
+    evidence:
+      commits:
+      - 395e3bdf2
+    release_status: released_main
+  - text: The web application improved SEO and social sharing by switching announcement and tip pages to Server-Side Rendering
+      (SSR) and refining layout chains.
+    evidence:
+      commits:
+      - 972bc5ebf
+      - 32fa7413d
+      - 580bfba07
+      - 59099bf68
+      - 64ce3120f
+      - 47b5fc5c4
+    release_status: released_main
+  - text: Several UI components received missing test identifiers to improve automated testing coverage for recent chats,
+      chat imports, and incognito mode.
+    evidence:
+      commits:
+      - 8ddca9ca4
+      - ca7664500
+      - df9ef4e95
+    release_status: released_main
+  unreleased_progress:
+  - text: Extensive work was performed on the unreleased iOS and macOS applications, including the implementation of 29 Siri
+      Shortcuts, Handoff support, Spotlight indexing, Lock Screen widgets, and end-to-end encryption (E2EE) for chats.
+    evidence:
+      commits:
+      - e81d879fa
+      - 78b2e4f8e
+      - a1ea15acf
+      - 8115f7907
+      - 32eec8101
+      - b2a1235c8
+      - 20f69633f
+      - d9ccfc124
+      - bc90dc668
+      - 077ec3f7b
+      - 3f9300e09
+      - c4162e7b9
+    release_status: released_main
+  - text: A comprehensive specification for the Apple UI redesign was added to the project documentation.
+    evidence:
+      commits:
+      - 6d9ddb617
+    release_status: released_main
+  internal_progress:
+  - text: The project updated internal newsletter publishing scripts, including improved brand-name processing in emails and
+      support for CTA markers.
+    evidence:
+      commits:
+      - 0d4c90e3c
+      - 4b38d1ad4
+      - 9db97b3be
+      - 649b4fa69
+      - 44cd8d3ce
+      - a5c8989d6
+      - 023eae00b
+      - a3540bf7e
+    release_status: released_main
+  - text: Content manifests and demo chats were prepared for the upcoming v0.9 announcement.
+    evidence:
+      commits:
+      - f7f23a7b9
+      - b78387a1e
+      - d73dfacc8
+      - 7253d9793
+      - f0cac0cee
+      - 672f2200d
+      - 704d938a4
+      - 1abe82eec
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New reminder preset dropdown for faster scheduling.
+      evidence:
+        commits:
+        - b0e4c71de
+      reason: Provides a concrete UI improvement for notification management.
+    - text: Enhanced SEO and social link sharing for announcements and tips.
+      evidence:
+        commits:
+        - 395e3bdf2
+        - 972bc5ebf
+        - 32fa7413d
+        - 580bfba07
+        - 59099bf68
+        - 64ce3120f
+        - 47b5fc5c4
+      reason: Improves the reliability of shared links and social previews.
+    exclude:
+    - text: Apple platform development (iOS/macOS)
+      evidence:
+        commits:
+        - e81d879fa
+        - 78b2e4f8e
+        - a1ea15acf
+        - 8115f7907
+        - 32eec8101
+        - b2a1235c8
+        - 20f69633f
+        - d9ccfc124
+        - bc90dc668
+        - 077ec3f7b
+        - 3f9300e09
+        - c4162e7b9
+      reason: The Apple (iOS and macOS) platforms are currently listed as disabled features.
+    rationale: The update focuses on refining the web experience and preparing the internal marketing engine, while the significant
+      work on Apple platforms remains unreleased.
+  social_video_recommendations:
+  - idea: A short clip showing the new reminder preset dropdown in action, highlighting how quickly a user can now schedule
+      a follow-up.
+    priority: medium
+    reason: This is a tangible UI improvement that demonstrates ease of use.
+    evidence:
+      commits:
+      - b0e4c71de
+  quality_notes:
+  - The unreleased Apple build underwent a massive accessibility audit, with 41 views updated for better screen reader support
+    (32eec8101).
+  - A complete internationalization sweep replaced 169 hardcoded strings across the Apple codebase (b2a1235c8).
+  validation_warnings: []

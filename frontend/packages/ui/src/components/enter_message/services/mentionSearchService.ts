@@ -457,6 +457,8 @@ function getModelMentionResults(): ModelMentionResult[] {
     modelsMetadata
       // Filter to only include models for the "ai.ask" skill (excludes image generation models)
       .filter((model) => model.for_app_skill === "ai.ask")
+      // Keep deprecated-but-routable models out of suggestions.
+      .filter((model) => model.show_in_mentions !== false)
       // Filter by provider health (offline-first: shows all if health data unavailable)
       .filter((model) => checkProviderHealthy(model.provider_id))
       // Filter out models that user has disabled in settings
@@ -496,7 +498,7 @@ const MODEL_ALIASES: {
   modelId: string;
   icon: string;
 }[] = [
-  { id: "best", modelId: "claude-opus-4-7", icon: "crown" },
+  { id: "best", modelId: "claude-fable-5", icon: "crown" },
   { id: "fast", modelId: "qwen3-235b-a22b-2507", icon: "lightning" },
 ];
 

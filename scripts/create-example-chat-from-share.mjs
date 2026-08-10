@@ -38,6 +38,8 @@ const DATA_REGISTRY_PATH = path.join(
   'frontend/packages/ui/src/demo_chats/exampleChatData.ts',
 );
 const EXTRACT_SCRIPT = path.join(REPO_ROOT, 'scripts/extract-shared-chat.mjs');
+const EMBEDS_MAP_VIEW_LANGUAGE = 'embeds_map_view';
+const CODE_IMAGE_TO_HTML_APP_SKILL = 'code.image_to_html';
 
 const LANGUAGES = [
   'en',
@@ -329,6 +331,9 @@ function extractEmbedRefsFromEmbeds(embeds) {
   const refs = new Set();
   const pattern = /^embed_ref:\s*"?([^\n"]+)"?\s*$/m;
   for (const embed of embeds) {
+    if (typeof embed.embed_id === 'string' && embed.embed_id.trim()) {
+      refs.add(embed.embed_id.trim());
+    }
     const match = String(embed.content || '').match(pattern);
     if (match) refs.add(match[1].trim());
   }
@@ -471,13 +476,15 @@ function normalizeRainRadarEmbedContent(content) {
 
 export function sanitizeEmbedContent(content) {
   const source = normalizeRainRadarEmbedContent(content) || String(content || '');
-  const privateFieldPattern = /^(vault_key_id|user_id|vault_wrapped_aes_key|aes_key|aes_nonce|s3_base_url|s3_key|docx_s3_key|screenshot_s3_keys):\s*/;
-  const blockFieldPattern = /^(files|screenshots):\s*/;
+  const isTaskSnapshot = /^type:\s*task\s*$/m.test(source) || /^parent_app_skill_type:\s*app_skill_use\s*$/m.test(source);
+  const privateFieldPattern = /^(vault_key_id|user_id|vault_wrapped_aes_key|aes_key|aes_nonce|s3_base_url|s3_key|docx_s3_key|screenshot_s3_keys|latest_screenshot_url|latest_screenshot_mime_type):\s*/;
+  const taskTransientFieldPattern = /^(task_id|short_id|task_update_job_id|pending_client_persistence):\s*/;
+  const blockFieldPattern = /^(files|screenshots|latest_screenshot):\s*/;
   const publicLines = [];
   let skippingPrivateBlock = false;
 
   for (const line of source.split('\n')) {
-    if (privateFieldPattern.test(line)) {
+    if (privateFieldPattern.test(line) || (isTaskSnapshot && taskTransientFieldPattern.test(line))) {
       skippingPrivateBlock = false;
       continue;
     }
@@ -527,14 +534,23 @@ function appSkillUseJsonBlock(embed) {
   return `\`\`\`json\n${JSON.stringify(publicPayload)}\n\`\`\``;
 }
 
+function appSkillUseMessageBlock(embed) {
+  if (appSkillExampleKey(embed) === CODE_IMAGE_TO_HTML_APP_SKILL) {
+    return appSkillUseJsonBlock(embed);
+  }
+  return `[!](embed:${embed.embed_id})`;
+}
+
 function appSkillUsesNeedingMessageRefs(chat) {
   const messageText = (chat.messages || []).map((message) => String(message.content || '')).join('\n');
   return (chat.embeds || []).filter(
-    (embed) => embed.type === 'app_skill_use' && !embed.parent_embed_id && !messageText.includes(embed.embed_id),
+    (embed) => embed.type === 'app_skill_use'
+      && !embed.parent_embed_id
+      && !messageText.includes(embed.embed_id),
   );
 }
 
-function withPromotedAppSkillUseMessages(chat) {
+export function withPromotedAppSkillUseMessages(chat) {
   const missingAppSkillUses = appSkillUsesNeedingMessageRefs(chat);
   if (missingAppSkillUses.length === 0) return chat;
 
@@ -545,7 +561,7 @@ function withPromotedAppSkillUseMessages(chat) {
 
   const messages = chat.messages.map((message, index) => {
     if (index !== firstAssistantIndex) return message;
-    const appSkillBlocks = missingAppSkillUses.map(appSkillUseJsonBlock).join('\n\n');
+    const appSkillBlocks = missingAppSkillUses.map(appSkillUseMessageBlock).join('\n\n');
     return {
       ...message,
       content: `${appSkillBlocks}\n\n${message.content || ''}`,
@@ -562,6 +578,64 @@ function appSkillExamplesFromEmbeds(embeds) {
         .filter(Boolean),
     ),
   ].sort();
+}
+
+function parseQuotedToonScalar(content, key) {
+  const value = parseToonScalar(content, key);
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value.replace(/^"|"$/g, '');
+  }
+}
+
+function embedsMapViewCodeContent(embed) {
+  if (!embed || embed.type !== 'code') return null;
+  const language = parseQuotedToonScalar(embed.content, 'language');
+  if (language !== EMBEDS_MAP_VIEW_LANGUAGE) return null;
+  const code = parseQuotedToonScalar(embed.content, 'code');
+  const decodedCode = typeof code === 'string' ? code.replace(/\\n/g, '\n') : '';
+  return decodedCode.trim() ? decodedCode.trim() : null;
+}
+
+function replaceEmbedsMapViewCodeRefs(content, mapViewCodeById) {
+  return String(content || '').replace(/```json\n([\s\S]*?)\n```/g, (block, jsonText) => {
+    try {
+      const embedRef = JSON.parse(jsonText.trim());
+      const mapViewCode = mapViewCodeById.get(embedRef?.embed_id);
+      if (embedRef?.type === 'code' && mapViewCode) {
+        return `\`\`\`${EMBEDS_MAP_VIEW_LANGUAGE}\n${mapViewCode}\n\`\`\``;
+      }
+    } catch {
+      return block;
+    }
+    return block;
+  });
+}
+
+export function inlineEmbedsMapViewCodeEmbeds(chat) {
+  const mapViewCodeById = new Map();
+  for (const embed of chat.embeds || []) {
+    const mapViewCode = embedsMapViewCodeContent(embed);
+    if (mapViewCode) mapViewCodeById.set(embed.embed_id, mapViewCode);
+  }
+  if (mapViewCodeById.size === 0) {
+    return {
+      ...chat,
+      sub_chats: (chat.sub_chats || []).map((subChat) => inlineEmbedsMapViewCodeEmbeds(subChat)),
+    };
+  }
+
+  return {
+    ...chat,
+    messages: (chat.messages || []).map((message) => ({
+      ...message,
+      content: replaceEmbedsMapViewCodeRefs(message.content, mapViewCodeById),
+    })),
+    embeds: (chat.embeds || []).filter((embed) => !mapViewCodeById.has(embed.embed_id)),
+    sub_chats: (chat.sub_chats || []).map((subChat) => inlineEmbedsMapViewCodeEmbeds(subChat)),
+  };
 }
 
 function validateExtractedChat(chat) {
@@ -660,6 +734,21 @@ function toPositiveInteger(value) {
   return Math.round(number);
 }
 
+function toNonNegativeInteger(value) {
+  const number = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(number) || number < 0) return null;
+  return Math.round(number);
+}
+
+function toFiniteNumber(value) {
+  const number = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function optionalString(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
 function usageEntriesFromPayload(payload, chatId = null) {
   if (!payload) return [];
   if (Array.isArray(payload)) {
@@ -692,6 +781,50 @@ function creditsByMessageId(entries) {
   return totals;
 }
 
+function withoutEmptyFields(entry) {
+  return Object.fromEntries(
+    Object.entries(entry).filter(([, value]) => value !== undefined && value !== null),
+  );
+}
+
+function normalizeUsageEntry(entry, chatId, index) {
+  const codeRunFilenames = Array.isArray(entry.code_run_filenames)
+    ? entry.code_run_filenames.filter((filename) => typeof filename === 'string' && filename.trim())
+    : null;
+
+  return withoutEmptyFields({
+    id: `${chatId}-usage-${index + 1}`,
+    type: optionalString(entry.type),
+    source: optionalString(entry.source),
+    app_id: optionalString(entry.app_id),
+    skill_id: optionalString(entry.skill_id),
+    model_used: optionalString(entry.model_used),
+    credits: toNonNegativeInteger(entry.credits ?? entry.credits_charged ?? entry.total_credits),
+    input_tokens: toNonNegativeInteger(entry.input_tokens),
+    output_tokens: toNonNegativeInteger(entry.output_tokens),
+    user_input_tokens: toNonNegativeInteger(entry.user_input_tokens),
+    system_prompt_tokens: toNonNegativeInteger(entry.system_prompt_tokens),
+    credits_system_prompt: toNonNegativeInteger(entry.credits_system_prompt),
+    credits_history: toNonNegativeInteger(entry.credits_history),
+    credits_response: toNonNegativeInteger(entry.credits_response),
+    server_provider: optionalString(entry.server_provider),
+    server_region: optionalString(entry.server_region),
+    chat_id: chatId,
+    message_id: optionalString(entry.message_id),
+    created_at: normalizeTimestamp(entry.created_at),
+    updated_at: entry.updated_at ? normalizeTimestamp(entry.updated_at) : null,
+    tool_inference_iterations: toNonNegativeInteger(entry.tool_inference_iterations),
+    code_run_filenames: codeRunFilenames && codeRunFilenames.length > 0 ? codeRunFilenames : null,
+    code_run_duration_seconds: toFiniteNumber(entry.code_run_duration_seconds),
+  });
+}
+
+function normalizeUsageEntries(entries, chatId) {
+  return (entries || [])
+    .filter((entry) => entry && typeof entry === 'object')
+    .map((entry, index) => normalizeUsageEntry(entry, chatId, index));
+}
+
 function annotateMessagesWithUsage(messages, entries) {
   const creditsByTrigger = creditsByMessageId(entries);
   let previousUserMessageId = null;
@@ -717,14 +850,20 @@ function annotateMessagesWithUsage(messages, entries) {
 
 export function annotateChatWithUsage(chat, usagePayload) {
   if (!usagePayload) return chat;
+  const usageEntries = usageEntriesFromPayload(usagePayload, chat.chat_id);
   return {
     ...chat,
-    messages: annotateMessagesWithUsage(chat.messages || [], usageEntriesFromPayload(usagePayload, chat.chat_id)),
+    messages: annotateMessagesWithUsage(chat.messages || [], usageEntries),
+    usage_entries: normalizeUsageEntries(usageEntries, chat.chat_id),
     sub_chats: (chat.sub_chats || []).map((subChat) => ({
       ...subChat,
       messages: annotateMessagesWithUsage(
         subChat.messages || [],
         usageEntriesFromPayload(usagePayload, subChat.chat_id),
+      ),
+      usage_entries: normalizeUsageEntries(
+        usageEntriesFromPayload(usagePayload, subChat.chat_id),
+        subChat.chat_id,
       ),
     })),
   };
@@ -777,6 +916,22 @@ function isDirectSystemContent(message) {
   return message.role === 'system' && typeof message.content === 'string' && message.content.trimStart().startsWith('{');
 }
 
+function isInternalTaskEventMessage(message) {
+  if (message.role !== 'system') return false;
+  const messageId = String(message.message_id || message.id || '');
+  if (messageId.startsWith('task-event-')) return true;
+  const content = String(message.content || '').trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} (created|updated|blocked|completed|moved|unblocked) /.test(content);
+}
+
+export function removeInternalTaskEventMessages(chat) {
+  return {
+    ...chat,
+    messages: (chat.messages || []).filter((message) => !isInternalTaskEventMessage(message)),
+    sub_chats: (chat.sub_chats || []).map((subChat) => removeInternalTaskEventMessages(subChat)),
+  };
+}
+
 export function sanitizeExampleMessageContent(content) {
   return String(content || '')
     .split('\n')
@@ -817,14 +972,41 @@ function formatEmbeds(embeds) {
   }));
 }
 
-function formatTs(chat, metadata) {
+function formatCompressionCheckpoints(checkpoints, chatId) {
+  return (checkpoints || []).map((checkpoint) => ({
+    id: checkpoint.id,
+    chat_id: chatId,
+    summary: checkpoint.summary || '',
+    compressed_up_to_timestamp: normalizeTimestamp(checkpoint.compressed_up_to_timestamp),
+    compressed_message_count: toPositiveInteger(checkpoint.compressed_message_count) ?? 0,
+    summary_token_estimate: toPositiveInteger(checkpoint.summary_token_estimate) ?? undefined,
+    key_version: checkpoint.key_version ?? null,
+    created_at: normalizeTimestamp(checkpoint.created_at),
+    updated_at: normalizeTimestamp(checkpoint.updated_at || checkpoint.created_at),
+  }));
+}
+
+function formatUsageEntries(entries, chatId) {
+  return normalizeUsageEntries(entries, chatId);
+}
+
+function totalUsageEntryCount(chat) {
+  return (chat.usage_entries || []).length
+    + (chat.sub_chats || []).reduce((sum, subChat) => sum + (subChat.usage_entries || []).length, 0);
+}
+
+export function formatTs(chat, metadata) {
   const varName = `${toCamel(metadata.slug)}Chat`;
   const messages = formatMessages(chat.messages, metadata, 'message');
   const embeds = formatEmbeds(chat.embeds);
+  const usageEntries = formatUsageEntries(chat.usage_entries || [], metadata.chatId);
+  const compressionCheckpoints = formatCompressionCheckpoints(chat.compression_checkpoints, metadata.chatId);
   const subChats = (chat.sub_chats || []).map((subChat, index) => {
     const keyPrefix = `sub_chat_${index + 1}`;
+    const subChatId = `${metadata.chatId}-${keyPrefix.replace(/_/g, '-')}`;
+    const subChatUsageEntries = formatUsageEntries(subChat.usage_entries || [], subChatId);
     return {
-      chat_id: `${metadata.chatId}-${keyPrefix.replace(/_/g, '-')}`,
+      chat_id: subChatId,
       title: `example_chats.${metadata.snake}.${keyPrefix}_title`,
       summary: `example_chats.${metadata.snake}.${keyPrefix}_summary`,
       icon: subChat.icon || metadata.icon,
@@ -834,13 +1016,19 @@ function formatTs(chat, metadata) {
       ),
       messages: formatMessages(subChat.messages || [], metadata, keyPrefix),
       embeds: formatEmbeds(subChat.embeds || []),
+      ...(subChatUsageEntries.length > 0 ? { usage_entries: subChatUsageEntries } : {}),
       parent_id: metadata.chatId,
       is_sub_chat: true,
       budget_limit: subChat.budget_limit ?? null,
       budget_spent: subChat.budget_spent ?? 0,
+      compression_checkpoints: formatCompressionCheckpoints(subChat.compression_checkpoints, subChatId),
     };
   });
   const subChatsLine = subChats.length > 0 ? `\n  sub_chats: ${JSON.stringify(subChats, null, 4)},` : '';
+  const usageEntriesLine = usageEntries.length > 0 ? `\n  usage_entries: ${JSON.stringify(usageEntries, null, 4)},` : '';
+  const compressionCheckpointsLine = compressionCheckpoints.length > 0
+    ? `\n  compression_checkpoints: ${JSON.stringify(compressionCheckpoints, null, 4)},`
+    : '';
   const appFocusLine = metadata.appFocusModeExamples.length > 0
     ? `\n    app_focus_mode_examples: ${tsArray(metadata.appFocusModeExamples)},`
     : '';
@@ -874,8 +1062,9 @@ export const ${varName}: ExampleChat = {
   category: ${tsString(metadata.category)},
   keywords: ${tsArray(metadata.keywords)},
   follow_up_suggestions: ${tsArray(metadata.followUps.map((_, i) => `example_chats.${metadata.snake}.follow_up_${i + 1}`))},
+  ${compressionCheckpointsLine ? compressionCheckpointsLine.trimStart() : ''}
   messages: ${JSON.stringify(messages, null, 4)},
-  embeds: ${JSON.stringify(embeds, null, 4)},${subChatsLine}
+  embeds: ${JSON.stringify(embeds, null, 4)},${usageEntriesLine}${subChatsLine}
   metadata: {
     featured: ${metadata.featured},
     order: ${metadata.order},${appSkillLine}${appFocusLine}${appMemoryLine}${contentEmbedLine}${activeFocusLine}
@@ -887,7 +1076,7 @@ export const ${varName}: ExampleChat = {
 function yamlScalar(value) {
   const text = String(value ?? '');
   if (text.includes('\n')) {
-    return `|\n${text.split('\n').map((line) => `    ${line}`).join('\n')}`;
+    return `|\n${text.split('\n').map((line) => (line ? `    ${line}` : '')).join('\n')}`;
   }
   return JSON.stringify(text);
 }
@@ -978,7 +1167,9 @@ function writeIfChanged(filePath, content, args) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const loadedChat = withPromotedAppSkillUseMessages(loadExtractedChat(args));
+  const loadedChat = inlineEmbedsMapViewCodeEmbeds(
+    removeInternalTaskEventMessages(withPromotedAppSkillUseMessages(loadExtractedChat(args))),
+  );
   const usagePayload = await loadUsagePayload(args, loadedChat);
   const chat = annotateChatWithUsage(loadedChat, usagePayload);
   validateExtractedChat(chat);
@@ -1020,6 +1211,7 @@ async function main() {
   console.log(`  messages: ${chat.messages.length}`);
   console.log(`  embeds: ${chat.embeds.length}`);
   console.log(`  sub_chats: ${(chat.sub_chats || []).length}`);
+  console.log(`  usage_entries: ${totalUsageEntryCount(chat)}`);
   console.log(`  priced responses: ${chat.messages.filter((message) => message.response_credits).length + (chat.sub_chats || []).reduce((sum, subChat) => sum + (subChat.messages || []).filter((message) => message.response_credits).length, 0)}`);
   console.log(`  order: ${metadata.order}`);
   console.log(`  data: ${path.relative(REPO_ROOT, dataPath)}`);

@@ -48,6 +48,12 @@ For every scenario and acceptance criterion, record:
 
 Pass only when:
 
+- Schema V3 contract references resolve, changed assertions have current
+  matching fingerprints, required surfaces have direct proof, and contract plus
+  documentation impact is resolved.
+- Changed contract bundles have a session-local explicit-user approval receipt
+  matching the exact current bundle hash.
+
 - Every completed acceptance criterion has green evidence.
 - Every required acceptance criterion is covered, waived, or blocked by an
   accepted user/external dependency; ambiguous and uncovered criteria fail.
@@ -60,9 +66,37 @@ Pass only when:
   reason, skipped with a reason, or not applicable.
 - Every required green/final check has passing, user-confirmed, waived, or
   accepted-blocker evidence.
+- Shared product surfaces have phase-gate evidence in order: CLI
+  implementation/testing against the dev server, npm SDK and pip SDK
+  parity/testing locally against the dev server when applicable, GitHub Actions
+  CI/daily-test reproduction only after local CLI and SDK success, web
+  implementation/testing, deployed Playwright visual smoke for larger web UI in
+  both laptop and mobile viewports, user confirmation for user-visible deployed
+  web behavior, then Apple parity/testing when applicable.
+- Larger user-visible web/UI work has a passing or explicitly skipped
+  `V-UI-VISUAL-SMOKE` artifact review before user confirmation or complete
+  status. The evidence must name the deployed route(s), both laptop and mobile
+  viewports, Playwright run/screenshot paths, obvious
+  rendering/error/loading/responsiveness findings, subject commit, and whether any
+  objective issue was fixed and rerun. Existing legacy `V-FIRECRAWL-VISUAL-SMOKE`
+  records are accepted, but new specs should use `V-UI-VISUAL-SMOKE`.
+- CLI and SDK phase-gate evidence shows real commands/SDK calls against the real
+  dev API/WebSocket path with real auth/test-account state. Mocked OpenMates API
+  calls, mocked SDK clients, stubbed servers, direct function calls, fixture
+  replay, and unit tests that bypass the API/WebSocket path fail the gate.
+- Schema V2 automated evidence records command, run ID, timestamp, and subject
+  commit; manual, skipped, waived, and blocked evidence records a reason and
+  follow-up or recheck condition.
+- Green evidence subject commits match the spec implementation-state subject
+  commit; a material source, contract, assertion, or assumption change invalidates
+  affected evidence until replacement evidence is recorded.
 - Privacy/security criteria have concrete code or test evidence.
 - Changed source files have related tests or an explicit skip reason.
 - Open questions are resolved or listed as accepted residual risk.
+- Required implementation demonstrations have current-commit privacy and
+  frame-only review evidence. The review bundle contains captions and selected
+  images but never the full video. `publication_pending` is reported separately
+  and does not invalidate a passed review.
 
 Failed required checks must not be treated as a summary-only issue. The report
 must identify the affected acceptance criteria and confirm that follow-up tasks
@@ -73,6 +107,12 @@ done or the user accepts a waiver/blocker.
 Playwright green evidence is only valid after the implementation has been
 deployed to dev, Vercel is Ready, and the spec has run against
 `app.dev.openmates.org`.
+
+For user-visible web behavior, Playwright green evidence is not enough to unblock
+Apple parity. Larger UI work must first include Playwright laptop/mobile
+visual-smoke evidence,
+then user-confirmation evidence or an explicit waiver before Apple implementation
+or verification can be marked ready.
 
 ### Step 4: Output Report
 
@@ -98,10 +138,14 @@ Deploy note:
 - Residual risk: <none or concise note>
 ```
 
-### Step 5: Stop On Failure
+### Step 5: Continue On Failure
 
-If status is `fail`, do not deploy. Fix the gap, update the spec if product
-intent changed, or ask the user to accept a documented risk.
+If status is `fail`, do not deploy or end the implementation session. Resume the
+smallest actionable task, fix the gap, and update the durable handoff. Ask the
+user only when the current task needs a genuinely unresolved decision; record a
+structured `handoff.blocker` with `task_id`, `requires_user_input: true`,
+`reason`, `question`, and `next_action`. A future-task gate, a failing test,
+context pressure, task size, or a concurrent worktree is not a valid stop reason.
 
 ## Rules
 
@@ -109,8 +153,12 @@ intent changed, or ask the user to accept a documented risk.
 - Do not weaken or remove acceptance criteria to make verification pass.
 - Do not mark ambiguous coverage as complete; normalize vague criteria into
   concrete checks first.
-- Prefer Playwright/pytest/vitest via repo-approved test commands over manual
-  browser checks.
+- Prefer Playwright/pytest/vitest via repo-approved test commands for repeatable
+  assertions; use Playwright visual smoke for larger deployed UI work, not as a
+  replacement for tests. Firecrawl is a fallback only when Playwright is
+  impractical or blocked.
 - Manual verification is allowed only when automation is impractical and the
   reason is documented.
 - Do not mark a full spec verified while required green evidence is missing.
+- Do not preserve green status from an earlier subject commit after a material
+  change, even when the earlier test result was genuinely passing.

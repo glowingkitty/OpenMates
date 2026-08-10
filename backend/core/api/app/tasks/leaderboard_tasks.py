@@ -97,7 +97,7 @@ async def _get_cached_leaderboard_async() -> Optional[Dict[str, Any]]:
         cached = await cache_service.get(LEADERBOARD_CACHE_KEY)
 
         if cached:
-            data = json.loads(cached)
+            data = cached if isinstance(cached, dict) else json.loads(cached)
             logger.debug(f"[LEADERBOARD] Retrieved {len(data.get('rankings', []))} models from cache")
             return data
 

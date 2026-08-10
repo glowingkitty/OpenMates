@@ -7,7 +7,7 @@ import { Extension } from "@tiptap/core";
 import { chatDB } from "../../../services/db";
 import { chatKeyManager } from "../../../services/encryption/ChatKeyManager";
 import { chatSyncService } from "../../../services/chatSyncService"; // Import chatSyncService
-import type { Chat, Message } from "../../../types/chat"; // Import Message type
+import type { Chat, Message, PIIMapping } from "../../../types/chat"; // Import Message type
 import { draftEditorUIState } from "../../../services/drafts/draftState";
 import {
   clearCurrentDraft,
@@ -30,10 +30,11 @@ import {
   detectPII,
   replacePIIWithPlaceholders,
   createPIIMappingsForStorage,
-  type PIIMappingForStorage,
   type PIIDetectionOptions,
   type PersonalDataForDetection,
 } from "../services/piiDetectionService"; // PII anonymization
+import { rewriteKnownPIIPlaceholders } from "../services/placeholderRewriteService";
+import { getActivePIIMappingsForRewrite } from "../../../stores/embedPIIStore";
 import {
   personalDataStore,
   type PersonalDataEntry,
@@ -41,6 +42,8 @@ import {
 } from "../../../stores/personalDataStore"; // Privacy settings store
 import { demoMode } from "../../../stores/demoModeStore";
 import { shouldDispatchDraftChatAsNewChat } from "./sendClassification";
+import { isPreflightAcknowledgementTimeout } from "../../../services/sendersChatMessages";
+import { selectAudioTranscriptUseCorrected } from "../../embeds/audio/audioTranscriptSelection";
 
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY = "chat.anonymous_free_usage.daily_credits_exhausted";
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_DEDUPE_KEY = "anonymous-daily-credits-exhausted";
@@ -206,13 +209,15 @@ async function processUrlsBeforeSend(markdown: string): Promise<string> {
   // Process URLs in parallel for better performance
   const embedPromises = urls.map(async (urlInfo) => {
     try {
-      console.debug("[sendHandlers] Creating embed for URL:", urlInfo.url);
+      console.debug("[sendHandlers] Creating embed for URL", {
+        urlLength: urlInfo.url.length,
+      });
       const embedResult = await createEmbedFromUrl(urlInfo.url);
       return { urlInfo, embedResult };
     } catch (error) {
       console.error(
         "[sendHandlers] Error creating embed for URL:",
-        urlInfo.url,
+        { urlLength: urlInfo.url.length },
         error,
       );
       return { urlInfo, embedResult: null };
@@ -231,13 +236,13 @@ async function processUrlsBeforeSend(markdown: string): Promise<string> {
     if (!embedResult) {
       console.warn(
         "[sendHandlers] Skipping URL - embed creation failed:",
-        urlInfo.url,
+        { urlLength: urlInfo.url.length },
       );
       continue;
     }
 
     console.info("[sendHandlers] Replacing URL with embed reference:", {
-      url: urlInfo.url,
+      urlLength: urlInfo.url.length,
       embed_id: embedResult.embed_id,
       type: embedResult.type,
     });
@@ -287,7 +292,7 @@ async function processUrlsBeforeSend(markdown: string): Promise<string> {
 function createMessagePayload(
   markdown: string,
   chatId: string,
-  piiMappings?: PIIMappingForStorage[],
+  piiMappings?: PIIMapping[],
 ): Message {
   // Validate markdown content
   if (!markdown || typeof markdown !== "string") {
@@ -376,6 +381,42 @@ let sendInProgress = false;
 
 const DRAFT_SAVE_IDLE_TIMEOUT_MS = 5000;
 
+function getExcludedOriginalsForCurrentSend(
+  markdown: string,
+  detectionOptions: PIIDetectionOptions,
+): Set<string> {
+  const excludedIds = detectionOptions.excludedIds;
+  if (!excludedIds || excludedIds.size === 0) return new Set<string>();
+
+  const matchesWithoutExclusions = detectPII(markdown, {
+    ...detectionOptions,
+    excludedIds: new Set<string>(),
+  });
+
+  return new Set(
+    matchesWithoutExclusions
+      .filter((match) => excludedIds.has(match.id))
+      .map((match) => match.match),
+  );
+}
+
+function mergePIIMappingsForStorage(
+  appliedMappings: PIIMapping[],
+  detectedMappings: PIIMapping[],
+): PIIMapping[] {
+  const merged: PIIMapping[] = [];
+  const seen = new Set<string>();
+
+  for (const mapping of [...appliedMappings, ...detectedMappings]) {
+    const key = `${mapping.placeholder}\u0000${mapping.original}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(mapping);
+  }
+
+  return merged;
+}
+
 function recordSendDebugStep(
   step: string,
   details: Record<string, unknown> = {},
@@ -388,6 +429,18 @@ function recordSendDebugStep(
     details,
     timestamp: new Date().toISOString(),
   };
+}
+
+function serializeSendDebugError(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack?.slice(0, 1000) ?? null,
+    };
+  }
+
+  return { message: String(error) };
 }
 
 async function waitForDraftSaveIdle(): Promise<void> {
@@ -440,22 +493,22 @@ export async function handleSend(
   currentChatId?: string,
   activePIIExclusions: Set<string> = new Set(),
   broadcastToSiblings: boolean = false,
+  isSendCancelled: (chatId: string) => boolean = () => false,
 ) {
-  const editorTextPreview = editor && !editor.isDestroyed ? editor.getText().slice(0, 120) : "";
+  const editorTextLength = editor && !editor.isDestroyed ? editor.getText().length : 0;
   console.info("[handleSend] Send invoked", {
     currentChatId,
     hasEditor: !!editor,
     editorDestroyed: editor?.isDestroyed ?? null,
     editorIsEmpty: editor?.isEmpty ?? null,
-    textLength: editorTextPreview.length,
-    textPreview: editorTextPreview,
+    textLength: editorTextLength,
   });
   recordSendDebugStep("send_invoked", {
     currentChatId,
     hasEditor: !!editor,
     editorDestroyed: editor?.isDestroyed ?? null,
     editorIsEmpty: editor?.isEmpty ?? null,
-    textLength: editorTextPreview.length,
+    textLength: editorTextLength,
   });
 
   if (!editor || !hasActualContent(editor)) {
@@ -464,8 +517,7 @@ export async function handleSend(
       hasEditor: !!editor,
       editorDestroyed: editor?.isDestroyed ?? null,
       editorIsEmpty: editor?.isEmpty ?? null,
-      textLength: editorTextPreview.length,
-      textPreview: editorTextPreview,
+      textLength: editorTextLength,
     });
     vibrateMessageField();
     return;
@@ -479,7 +531,7 @@ export async function handleSend(
   if (sendInProgress) {
     console.warn(
       "[handleSend] Send already in progress, ignoring duplicate call",
-      { currentChatId, textPreview: editorTextPreview },
+      { currentChatId, textLength: editorTextLength },
     );
     return;
   }
@@ -670,7 +722,7 @@ export async function handleSend(
     // reconstruct the final markdown later without needing the live editor.
     // The upload callbacks in embedHandlers.ts will store finished embed data in
     // EmbedStore (with contentRef). The deferred sender reads EmbedStore when it fires.
-    const { addPendingSend } =
+    const { addPendingSend, removePendingSend } =
       await import("../../../stores/pendingUploadStore");
     const embedSnapshots = new Map<
       string,
@@ -690,36 +742,52 @@ export async function handleSend(
       return true;
     });
 
+    // The upload can finish between the initial blocking scan and pending-send
+    // registration, which would otherwise miss the only embedUploadFinished event.
+    const stillBlockingEmbedIds = new Set(blockingEmbeds.map((e) => e.id));
+    for (const { id } of blockingEmbeds) {
+      const snapshot = embedSnapshots.get(id);
+      if (snapshot?.contentRef || snapshot?.uploadEmbedId) {
+        stillBlockingEmbedIds.delete(id);
+      }
+    }
+
     // Build per-embed progress map for the store.
     const embedProgressMap = new Map(
-      blockingEmbeds.map((e) => [
-        e.id,
-        {
-          embedId: e.id,
-          status: "uploading" as string,
-          uploadPercent: 0,
-          label: e.label,
-        },
-      ]),
+      blockingEmbeds.map((e) => {
+        const isStillBlocking = stillBlockingEmbedIds.has(e.id);
+        return [
+          e.id,
+          {
+            embedId: e.id,
+            status: isStillBlocking ? "uploading" : "finished",
+            uploadPercent: isStillBlocking ? 0 : 100,
+            label: e.label,
+          },
+        ];
+      }),
     );
+
+    const pendingContext = {
+      pendingId: `${deferredMessageId}-pending`,
+      chatId: deferredChatId,
+      messageId: deferredMessageId,
+      editorSnapshot: editor.getJSON(),
+      embedSnapshots,
+      blockingEmbedIds: stillBlockingEmbedIds,
+      embedProgress: embedProgressMap,
+      createdAt: Date.now(),
+      piiExclusions: new Set(activePIIExclusions),
+      piiRewriteMappings: getActivePIIMappingsForRewrite(),
+      partialMarkdown: "",
+    };
 
     // Register in pendingUploadStore.
     // The editor will be CLEARED after this — the user is free to navigate away.
     // When all blocking embeds finish (notified via embedUploadFinished), the
     // deferred sender reconstructs the final markdown from editorSnapshot +
     // EmbedStore data and sends the message without needing the live editor.
-    addPendingSend({
-      pendingId: `${deferredMessageId}-pending`,
-      chatId: deferredChatId,
-      messageId: deferredMessageId,
-      editorSnapshot: editor.getJSON(),
-      embedSnapshots,
-      blockingEmbedIds: new Set(blockingEmbeds.map((e) => e.id)),
-      embedProgress: embedProgressMap,
-      createdAt: Date.now(),
-      piiExclusions: new Set(activePIIExclusions),
-      partialMarkdown: "",
-    });
+    addPendingSend(pendingContext);
 
     // Optimistically show the stub message in the chat UI immediately.
     // The message stays at status "waiting_for_upload" until the deferred send fires.
@@ -734,8 +802,17 @@ export async function handleSend(
     editor.commands.blur();
 
     console.info(
-      `[handleSend] Deferred send queued for chat ${deferredChatId.slice(-6)}: blocking on ${blockingEmbeds.length} embed(s), editor cleared`,
+      `[handleSend] Deferred send queued for chat ${deferredChatId.slice(-6)}: blocking on ${stillBlockingEmbedIds.size} embed(s), editor cleared`,
     );
+    if (stillBlockingEmbedIds.size === 0) {
+      removePendingSend(deferredChatId, pendingContext.pendingId);
+      void executeDeferredSend(pendingContext).catch((error) => {
+        console.error(
+          `[handleSend] Immediate deferred send failed for chat ${deferredChatId.slice(-6)}:`,
+          error,
+        );
+      });
+    }
     rootSpan.setAttribute('message.send.deferred', true);
     rootSpan.end();
     return; // Exit — the actual send will happen when embedUploadFinished fires
@@ -907,18 +984,26 @@ export async function handleSend(
       // The backend audio skill (transcribe) expects this shape.
       // model is included so RecordingRenderer.ts can display "0:42 · voxtral-mini-2602"
       // in the read-only subtitle when loading from EmbedStore.
+      const selectedTranscript = selectAudioTranscriptUseCorrected({
+        transcript: attrs.transcript as string | null | undefined,
+        transcriptOriginal: attrs.transcriptOriginal as string | null | undefined,
+        transcriptCorrected: attrs.transcriptCorrected as string | null | undefined,
+        useCorrected: attrs.useCorrected as boolean | null | undefined,
+      });
       const embedContent = {
         app_id: "audio",
         skill_id: "transcribe",
         type: "audio-recording",
         status: "finished",
+        title: attrs.title || null,
         filename: attrs.filename || null,
         duration: attrs.duration || null,
+        waveform: attrs.waveform || null,
         mime_type: attrs.mimeType || null,
-        transcript: attrs.transcript || null,
+        transcript: selectedTranscript.transcript || null,
         transcript_original: attrs.transcriptOriginal || null,
         transcript_corrected: attrs.transcriptCorrected || null,
-        use_corrected: attrs.useCorrected !== undefined ? attrs.useCorrected : null,
+        use_corrected: typeof attrs.useCorrected === "boolean" ? selectedTranscript.useCorrected : null,
         correction_model: attrs.correctionModel || null,
         model: (attrs.model as string) || null,
         s3_base_url: attrs.s3BaseUrl || null,
@@ -937,6 +1022,7 @@ export async function handleSend(
 
       const now = Date.now();
       const textPreview =
+        (attrs.title as string) ||
         (attrs.transcript as string) ||
         (attrs.filename as string) ||
         "Voice note";
@@ -1001,7 +1087,7 @@ export async function handleSend(
   ) {
     console.warn("[handleSend] No editor content available", {
       currentChatId,
-      textPreview: editorTextPreview,
+      textLength: editorTextLength,
       editorContent,
     });
     vibrateMessageField();
@@ -1017,7 +1103,6 @@ export async function handleSend(
   console.info("[handleSend] Editor content converted to markdown", {
     currentChatId,
     markdownLength: markdown.length,
-    markdownPreview: markdown.slice(0, 160),
   });
 
   // Strip leading empty lines that were auto-prepended to allow cursor placement
@@ -1068,7 +1153,7 @@ export async function handleSend(
   // - If masterEnabled is false, skip ALL PII detection
   // - Disabled categories are skipped (user can toggle individual PII types)
   // - User-defined personal data entries (names, addresses, etc.) are also detected
-  let piiMappingsForStorage: PIIMappingForStorage[] = [];
+  let piiMappingsForStorage: PIIMapping[] = [];
   recordSendDebugStep("pii_detection_started", { currentChatId });
   try {
     // Read current privacy settings from the store
@@ -1121,8 +1206,16 @@ export async function handleSend(
       // be blocked with "missing embeds". We swap them out for opaque tokens, run PII on
       // the rest of the markdown, then restore the original blocks afterwards.
       const { safeMarkdown, restore } = protectEmbedRefsFromPII(markdown);
+      const rewriteResult = rewriteKnownPIIPlaceholders(safeMarkdown, {
+        mappings: getActivePIIMappingsForRewrite(),
+        excludedOriginals: getExcludedOriginalsForCurrentSend(
+          safeMarkdown,
+          detectionOptions,
+        ),
+      });
+      const rewrittenSafeMarkdown = rewriteResult.markdown;
 
-      const piiMatches = detectPII(safeMarkdown, detectionOptions);
+      const piiMatches = detectPII(rewrittenSafeMarkdown, detectionOptions);
       if (piiMatches.length > 0) {
         console.debug(
           "[handleSend] Detected PII to anonymize:",
@@ -1136,10 +1229,13 @@ export async function handleSend(
 
         // Create PII mappings for storage - these will be encrypted with the message
         // and used to restore original values when rendering messages
-        piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
+        piiMappingsForStorage = mergePIIMappingsForStorage(
+          rewriteResult.appliedMappings,
+          createPIIMappingsForStorage(piiMatches),
+        );
 
         markdown = restore(
-          replacePIIWithPlaceholders(safeMarkdown, piiMatches),
+          replacePIIWithPlaceholders(rewrittenSafeMarkdown, piiMatches),
         );
         console.debug(
           "[handleSend] PII anonymization complete, replaced",
@@ -1149,7 +1245,11 @@ export async function handleSend(
       } else {
         // No PII found, but still restore embed blocks (restore is a no-op if none
         // were protected, so this is always safe).
-        markdown = restore(safeMarkdown);
+        piiMappingsForStorage = mergePIIMappingsForStorage(
+          rewriteResult.appliedMappings,
+          [],
+        );
+        markdown = restore(rewrittenSafeMarkdown);
       }
     } else {
       console.debug(
@@ -1207,7 +1307,15 @@ export async function handleSend(
     }
   }
 
-  if (get(forcedLogoutInProgress)) {
+  const isForcedLogoutInProgress = get(forcedLogoutInProgress);
+  const isAuthenticatedForSend = get(authStore).isAuthenticated;
+  recordSendDebugStep("session_state_checked", {
+    currentChatId,
+    forcedLogoutInProgress: isForcedLogoutInProgress,
+    isAuthenticated: isAuthenticatedForSend,
+  });
+
+  if (isForcedLogoutInProgress) {
     console.error(
       "[handleSend] Cannot send message - forced logout in progress",
     );
@@ -1218,10 +1326,12 @@ export async function handleSend(
   let chatIdToUse = currentChatId;
   let chatToUpdate: import("../../../types/chat").Chat | null = null;
   let isNewChatCreation = false;
+  let didCreateMessagePayload = false;
   let messagePayload: Message; // Defined here to be accessible for sendNewMessage
 
   try {
-    if (!get(authStore).isAuthenticated) {
+    if (!isAuthenticatedForSend) {
+      recordSendDebugStep("anonymous_send_path_started", { currentChatId });
       const anonymousStatus = await refreshAnonymousFreeUsageStatus();
       if (anonymousStatus?.active !== true || anonymousStatus.can_send_text === false) {
         showAnonymousDailyCreditsExhaustedNotification();
@@ -1245,6 +1355,8 @@ export async function handleSend(
       void refreshAnonymousFreeUsageStatus();
       return;
     }
+
+    recordSendDebugStep("authenticated_send_path_started", { currentChatId });
 
     // Check if there's already a chat with a draft (created during typing)
     const draftState = get(draftEditorUIState);
@@ -1280,6 +1392,12 @@ export async function handleSend(
     // Check whether this ID already has a local chat record. ActiveChat stores a
     // temporary new-chat ID in draft state before the chat/key exists; that must
     // not be treated as an existing draft chat.
+    recordSendDebugStep("send_chat_classification_started", {
+      currentChatId,
+      chatIdToUse,
+      draftChatId: draftState.currentChatId,
+      isNewChatCreation,
+    });
     let existingChatCheck: import("../../../types/chat").Chat | null =
       await getRawChatForSendClassification(chatIdToUse);
     if (!existingChatCheck) {
@@ -1321,6 +1439,16 @@ export async function handleSend(
       chatIdToUse,
       existingChat: existingChatCheck,
       existingChatHasUsableKey,
+    });
+
+    recordSendDebugStep("send_chat_classification_complete", {
+      currentChatId,
+      chatIdToUse,
+      draftChatId: draftState.currentChatId,
+      hasExistingChat: !!existingChatCheck,
+      existingChatHasUsableKey,
+      isUsingDraftChat,
+      messagesV: existingChatCheck?.messages_v ?? null,
     });
 
     // Check if we're dealing with a temporary chat ID (not a real chat in local storage)
@@ -1392,6 +1520,7 @@ export async function handleSend(
       chatIdToUse,
       piiMappingsForStorage,
     );
+    didCreateMessagePayload = true;
     ((messagePayload as unknown) as Record<string, unknown>).broadcast = broadcastToSiblings;
 
     // Optimistically cache the last message so the chat list can show "Sending..." immediately
@@ -1558,6 +1687,10 @@ export async function handleSend(
         // This also ensures chatToUpdate has the correct messages_v (which is 1)
         chatToUpdate = await chatDB.getChat(chatIdToUse);
         if (!chatToUpdate) {
+          recordSendDebugStep("send_aborted_created_chat_missing", {
+            currentChatId,
+            chatIdToUse,
+          });
           console.error(
             `[handleSend] CRITICAL: Newly created chat ${chatIdToUse} not found in DB immediately after addChat and saveMessage.`,
           );
@@ -1662,6 +1795,11 @@ export async function handleSend(
             );
           }
         } else {
+          recordSendDebugStep("send_aborted_existing_chat_missing", {
+            currentChatId,
+            chatIdToUse,
+            isUsingDraftChat,
+          });
           console.error(
             `[handleSend] Existing chat ${chatIdToUse} not found when trying to add a message.`,
           );
@@ -1675,6 +1813,10 @@ export async function handleSend(
 
     // If chatToUpdate is null at this point, the local DB operation failed.
     if (!chatToUpdate) {
+      recordSendDebugStep("send_aborted_chat_update_missing", {
+        currentChatId,
+        chatIdToUse,
+      });
       console.error(
         `[handleSend] Failed to update local chat ${chatIdToUse} with new message. Aborting send.`,
       );
@@ -1733,12 +1875,28 @@ export async function handleSend(
       cancelEdit();
     }
 
+    if (isSendCancelled(chatIdToUse)) {
+      await chatDB.deleteMessage(messagePayload.message_id);
+      recordSendDebugStep("send_cancelled_before_dispatch", {
+        chatIdToUse,
+        messageId: messagePayload.message_id,
+      });
+      return;
+    }
+
     // OTel: UI dispatch span — the moment message becomes visible
     const uiSpan = tracer.startSpan('message.send.ui_dispatch');
     // Dispatch for UI update (ActiveChat will pick this up)
     // The messagePayload is already defined and includes the correct chat_id
     // If it's a new chat (isNewChatCreation is true) OR we're using an existing draft chat,
     // chatToUpdate will hold the Chat object.
+    recordSendDebugStep("local_message_dispatch_started", {
+      currentChatId,
+      chatIdToUse,
+      messageId: messagePayload.message_id,
+      isNewChatCreation,
+      isUsingDraftChat,
+    });
     dispatch("sendMessage", {
       message: messagePayload,
       newChat: isNewChatCreation || isUsingDraftChat ? chatToUpdate : undefined,
@@ -1751,6 +1909,13 @@ export async function handleSend(
       isNewChatCreation,
       isUsingDraftChat,
       contentLength: messagePayload.content.length,
+    });
+    recordSendDebugStep("local_message_dispatched", {
+      currentChatId,
+      chatIdToUse,
+      messageId: messagePayload.message_id,
+      isNewChatCreation,
+      isUsingDraftChat,
     });
 
     // chatToUpdate should be the definitive version of the chat from the DB
@@ -1790,6 +1955,15 @@ export async function handleSend(
 
     uiSpan.end();
 
+    if (isSendCancelled(chatIdToUse)) {
+      await chatDB.deleteMessage(messagePayload.message_id);
+      recordSendDebugStep("send_cancelled_after_dispatch", {
+        chatIdToUse,
+        messageId: messagePayload.message_id,
+      });
+      return;
+    }
+
     // OTel: WebSocket send span (encryption + WS dispatch happens inside sendNewMessage)
     const wsSpan = tracer.startSpan('message.send.ws_send');
     // CRITICAL: Notify backend about the active chat BEFORE sending the message
@@ -1802,6 +1976,16 @@ export async function handleSend(
       chatIdToUse,
     );
 
+    if (isSendCancelled(chatIdToUse)) {
+      await chatDB.deleteMessage(messagePayload.message_id);
+      recordSendDebugStep("send_cancelled_before_websocket", {
+        chatIdToUse,
+        messageId: messagePayload.message_id,
+      });
+      wsSpan.end();
+      return;
+    }
+
     // Send message to backend via chatSyncService
     // Include encrypted suggestion for deletion if one was clicked
     await chatSyncService.sendNewMessage(
@@ -1810,9 +1994,23 @@ export async function handleSend(
     );
     console.debug(
       "[handleSend] Message sent to chatSyncService:",
-      messagePayload,
-      encryptedSuggestionToDelete ? "(with suggestion to delete)" : "",
+      {
+        chatId: messagePayload.chat_id,
+        messageId: messagePayload.message_id,
+        contentLength: messagePayload.content?.length ?? 0,
+        hasSuggestionToDelete: !!encryptedSuggestionToDelete,
+      },
     );
+
+    const wasCancelledAfterSend = isSendCancelled(chatIdToUse);
+    if (wasCancelledAfterSend) {
+      await chatDB.deleteMessage(messagePayload.message_id);
+      await chatSyncService.sendDeleteMessage(chatIdToUse, messagePayload.message_id);
+      recordSendDebugStep("sent_message_deleted_after_cancellation", {
+        chatIdToUse,
+        messageId: messagePayload.message_id,
+      });
+    }
 
     wsSpan.end();
 
@@ -1821,7 +2019,7 @@ export async function handleSend(
     // After successfully sending the message, clear the draft for this chat
     // Ensure we only clear if the message was for the chat currently in the draft editor's context
     const currentDraftState = get(draftEditorUIState);
-    if (chatIdToUse && currentDraftState.currentChatId === chatIdToUse) {
+    if (!isSendCancelled(chatIdToUse) && chatIdToUse && currentDraftState.currentChatId === chatIdToUse) {
       console.info(
         `[handleSend] Message sent for chat ${chatIdToUse}, clearing its draft.`,
       );
@@ -1843,6 +2041,12 @@ export async function handleSend(
     }
     cleanupSpan.end();
   } catch (error) {
+    recordSendDebugStep("send_failed", {
+      currentChatId,
+      chatIdToUse,
+      hasMessagePayload: didCreateMessagePayload,
+      error: serializeSendDebugError(error),
+    });
     if (error instanceof AnonymousFreeUsageExhaustedError) {
       showAnonymousDailyCreditsExhaustedNotification();
       if (editor && !editor.isDestroyed) {
@@ -1852,7 +2056,11 @@ export async function handleSend(
       vibrateMessageField();
       return;
     }
-    console.error("Failed to handle message send:", error);
+    if (isPreflightAcknowledgementTimeout(error)) {
+      console.warn("Failed to handle message send; retrying after reconnect:", error);
+    } else {
+      console.error("Failed to handle message send:", error);
+    }
     vibrateMessageField();
   } finally {
     // CRITICAL: Always release the send guard, even on error,
@@ -1995,7 +2203,7 @@ export async function executeDeferredSend(
   // -------------------------------------------------------------------------
   // 5. PII anonymization
   // -------------------------------------------------------------------------
-  let piiMappingsForStorage: PIIMappingForStorage[] = [];
+  let piiMappingsForStorage: PIIMapping[] = [];
   try {
     const piiSettings: PIIDetectionSettings = get(personalDataStore.settings);
     if (piiSettings.masterEnabled) {
@@ -2038,16 +2246,33 @@ export async function executeDeferredSend(
       // handleSend: UUID segments can match phone/other PII patterns).
       const { safeMarkdown: safeMd, restore: restoreMd } =
         protectEmbedRefsFromPII(markdown);
+      const rewriteResult = rewriteKnownPIIPlaceholders(safeMd, {
+        mappings: readyCtx.piiRewriteMappings ?? [],
+        excludedOriginals: getExcludedOriginalsForCurrentSend(
+          safeMd,
+          detectionOptions,
+        ),
+      });
+      const rewrittenSafeMd = rewriteResult.markdown;
 
-      const piiMatches = detectPII(safeMd, detectionOptions);
+      const piiMatches = detectPII(rewrittenSafeMd, detectionOptions);
       if (piiMatches.length > 0) {
-        piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
-        markdown = restoreMd(replacePIIWithPlaceholders(safeMd, piiMatches));
+        piiMappingsForStorage = mergePIIMappingsForStorage(
+          rewriteResult.appliedMappings,
+          createPIIMappingsForStorage(piiMatches),
+        );
+        markdown = restoreMd(
+          replacePIIWithPlaceholders(rewrittenSafeMd, piiMatches),
+        );
         console.debug(
           `[executeDeferredSend] PII anonymization: replaced ${piiMatches.length} items`,
         );
       } else {
-        markdown = restoreMd(safeMd);
+        piiMappingsForStorage = mergePIIMappingsForStorage(
+          rewriteResult.appliedMappings,
+          [],
+        );
+        markdown = restoreMd(rewrittenSafeMd);
       }
     }
   } catch (error) {

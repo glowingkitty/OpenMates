@@ -33,23 +33,35 @@ def test_build_watch_command_targets_watch_scheme_and_simulator() -> None:
     command = apple_remote.build_watch_command("Apple Watch Series 11 (46mm)")
 
     assert "xcodebuild" in command
+    assert apple_remote.SIMULATOR_LOCK_PATH in command
+    assert "fcntl.flock" in command
     assert "-scheme OpenMatesWatch" in command
     assert "platform=watchOS Simulator,name=Apple Watch Series 11 (46mm)" in command
     assert command.endswith(" build")
 
 
-def test_test_watch_command_accepts_only_testing_filter() -> None:
+def test_test_watch_command_targets_dedicated_ui_test_scheme() -> None:
     apple_remote = load_apple_remote()
 
     command = apple_remote.test_watch_command(
         "Apple Watch Series 11 (46mm)",
-        "OpenMatesWatchTests/WatchPairLoginTests",
+        "OpenMatesWatchUITests/WatchChatLayoutUITests",
     )
 
     assert "xcodebuild test" in command
-    assert "-scheme OpenMatesWatch" in command
+    assert apple_remote.SIMULATOR_LOCK_PATH in command
+    assert "-scheme OpenMatesWatchUITests" in command
     assert "platform=watchOS Simulator,name=Apple Watch Series 11 (46mm)" in command
-    assert "-only-testing OpenMatesWatchTests/WatchPairLoginTests" in command
+    assert "-only-testing OpenMatesWatchUITests/WatchChatLayoutUITests" in command
+
+
+def test_project_declares_dedicated_watch_ui_test_target_and_scheme() -> None:
+    project = (ROOT / "apple" / "project.yml").read_text(encoding="utf-8")
+
+    assert "  OpenMatesWatchUITests:\n" in project
+    assert "      - path: OpenMatesWatchUITests\n" in project
+    assert "        TEST_TARGET_NAME: OpenMatesWatch\n" in project
+    assert "        - OpenMatesWatchUITests\n" in project
 
 
 def test_watch_commands_are_registered_in_parser() -> None:

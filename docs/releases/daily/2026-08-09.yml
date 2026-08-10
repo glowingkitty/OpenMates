@@ -1,0 +1,520 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-09'
+generated_at: '2026-08-09T15:09:15+00:00'
+range:
+  since: 24 hours ago
+  until: null
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 5
+  section_counts:
+    features: 0
+    bug_fixes: 4
+    improvements: 0
+    docs: 1
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 4
+  dev_only_items: 5
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: repair grouped bare embed source links'
+    section: bug_fixes
+    commits:
+    - 0689e579d
+    authored_at: '2026-08-08T17:34:16+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_grouped_bare_embed_refs.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: speed Phase 2 draft metadata sync'
+    section: bug_fixes
+    commits:
+    - e20ee6e17
+    authored_at: '2026-08-08T17:31:25+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate user init worker'
+    section: bug_fixes
+    commits:
+    - 0c7782005
+    authored_at: '2026-08-08T17:05:17+00:00'
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - backend/tests/test_billing_worker_compose.py
+    - docs/architecture/core/servers.md
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - scripts/api_tests/test_cloud_overlay_boot.py
+    - scripts/prepare_release_candidate.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep recovery continuations distinct'
+    section: bug_fixes
+    commits:
+    - 03293502a
+    authored_at: '2026-08-08T15:49:45+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_chat_completion_recovery_jobs.py
+    - backend/tests/test_stream_consumer_recovery.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: add chat sync startup contract'
+    section: docs
+    commits:
+    - d7c536d01
+    authored_at: '2026-08-08T16:16:38+00:00'
+    changed_paths:
+    - contracts/architecture/sync/contract.yml
+    - contracts/architecture/sync/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests: []
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: repair grouped bare embed source links'
+    commits:
+    - 0689e579d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: speed Phase 2 draft metadata sync'
+    commits:
+    - e20ee6e17
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: isolate user init worker'
+    commits:
+    - 0c7782005
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: add chat sync startup contract'
+    commits:
+    - d7c536d01
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep recovery continuations distinct'
+    commits:
+    - 03293502a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: repair grouped bare embed source links'
+    commits:
+    - 0689e579d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: speed Phase 2 draft metadata sync'
+    commits:
+    - e20ee6e17
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: isolate user init worker'
+    commits:
+    - 0c7782005
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep recovery continuations distinct'
+    commits:
+    - 03293502a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 0689e579db9f52c045ff7650ceefd2b30d2179f0
+    short_sha: 0689e579d
+    authored_at: '2026-08-08T17:34:16+00:00'
+    subject: 'fix: repair grouped bare embed source links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_grouped_bare_embed_refs.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    related_feature_ids:
+    - app:ai
+  - sha: e20ee6e17f9e1debc383153a29dd01834f471e2d
+    short_sha: e20ee6e17
+    authored_at: '2026-08-08T17:31:25+00:00'
+    subject: 'fix: speed Phase 2 draft metadata sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    related_feature_ids: []
+  - sha: 0c77820050dd4d75166307fd3cba5ab67cd1024b
+    short_sha: 0c7782005
+    authored_at: '2026-08-08T17:05:17+00:00'
+    subject: 'fix: isolate user init worker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/core/monitoring/prometheus/prometheus.yml
+    - backend/tests/test_billing_worker_compose.py
+    - docs/architecture/core/servers.md
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - scripts/api_tests/test_cloud_overlay_boot.py
+    - scripts/prepare_release_candidate.py
+    related_feature_ids: []
+  - sha: d7c536d011e88c58ea9de6a1ad5b9027160439ae
+    short_sha: d7c536d01
+    authored_at: '2026-08-08T16:16:38+00:00'
+    subject: 'docs: add chat sync startup contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/architecture/sync/contract.yml
+    - contracts/architecture/sync/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    related_feature_ids: []
+  - sha: 03293502abff2e37a74eb1628faa23148a07a52a
+    short_sha: 03293502a
+    authored_at: '2026-08-08T15:49:45+00:00'
+    subject: 'fix: keep recovery continuations distinct'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_chat_completion_recovery_jobs.py
+    - backend/tests/test_stream_consumer_recovery.py
+    related_feature_ids:
+    - app:ai
+llm_summary:
+  overview: Development focused on refining AI stream handling, optimizing synchronization performance, and improving infrastructure
+    isolation for self-hosted environments. These updates are currently in the development pipeline.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: OpenMates is improving AI reliability by repairing grouped bare embed source links and ensuring recovery continuations
+      remain distinct during stream consumption.
+    evidence:
+      commits:
+      - 0689e579d
+      - 03293502a
+    release_status: dev_only
+  - text: The project is optimizing synchronization speed for Phase 2 draft metadata.
+    evidence:
+      commits:
+      - e20ee6e17
+    release_status: dev_only
+  - text: Work is underway to isolate the user initialization worker within Docker configurations to improve system modularity.
+    evidence:
+      commits:
+      - 0c7782005
+    release_status: dev_only
+  internal_progress:
+  - text: Documentation was added for the chat sync startup contract.
+    evidence:
+      commits:
+      - d7c536d01
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: AI stream recovery and embed link repairs.
+      evidence:
+        commits:
+        - 0689e579d
+        - 03293502a
+      reason: These AI-related fixes are currently in development and not yet released to the main branch.
+    - text: Phase 2 draft metadata sync optimizations.
+      evidence:
+        commits:
+        - e20ee6e17
+      reason: Sync performance improvements are currently in development.
+    - text: User initialization worker isolation.
+      evidence:
+        commits:
+        - 0c7782005
+      reason: Infrastructure changes for worker isolation are not yet in the main release.
+    rationale: All updates from this period are currently in the development branch and have not yet reached the main release
+      or met the criteria for public communication.
+  social_video_recommendations: []
+  quality_notes:
+  - New tests were introduced to validate grouped bare embed references and stream consumer recovery logic.
+  - Sync performance optimizations target Phase 2 draft metadata handling.
+  validation_warnings: []

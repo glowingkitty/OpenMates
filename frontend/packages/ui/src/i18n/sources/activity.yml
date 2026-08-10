@@ -334,6 +334,30 @@ quick_action_ask:
   sv: Fråga
   he: שאל
   verified_by_human: []
+quick_action_record_request:
+  context: iOS home screen quick action title that opens a new chat and starts audio recording
+  en: Record request
+  de: Anfrage aufnehmen
+  zh: 录制请求
+  es: Grabar solicitud
+  fr: Enregistrer la demande
+  pt: Gravar pedido
+  ru: Записать запрос
+  ja: リクエストを録音
+  ko: 요청 녹음
+  it: Registra richiesta
+  tr: İsteği kaydet
+  vi: Ghi âm yêu cầu
+  id: Rekam permintaan
+  pl: Nagraj prośbę
+  nl: Verzoek opnemen
+  ar: تسجيل الطلب
+  hi: अनुरोध रिकॉर्ड करें
+  th: บันทึกคำขอ
+  cs: Nahrát požadavek
+  sv: Spela in begäran
+  he: הקלט בקשה
+  verified_by_human: []
 quick_action_ask_about_photo:
   context: iOS home screen quick action title that opens a new chat and launches the camera capture flow
   en: Ask About Photo

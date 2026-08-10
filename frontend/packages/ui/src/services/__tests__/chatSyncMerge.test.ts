@@ -4,14 +4,24 @@
 // was preserved from a different local key. That mixed state caused regular
 // content decryption errors after reload, before candidate fallback could help.
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Chat } from "../../types/chat";
 import {
   hasEncryptedChatKeyMismatch,
   mergeServerChatWithLocal,
 } from "../chatSyncMerge";
 
-function makeChat(overrides: Partial<Chat> = {}): Chat {
+const mocks = vi.hoisted(() => ({
+  decryptChatKeyWithMasterKey: vi.fn(),
+}));
+
+vi.mock("../encryption/MetadataEncryptor", () => ({
+  decryptChatKeyWithMasterKey: mocks.decryptChatKeyWithMasterKey,
+}));
+
+type VersionedChat = Chat & { metadata_v?: number };
+
+function makeChat(overrides: Partial<VersionedChat> = {}): VersionedChat {
   return {
     chat_id: "chat-1",
     user_id: "user-1",
@@ -34,6 +44,10 @@ function makeChat(overrides: Partial<Chat> = {}): Chat {
 }
 
 describe("chat sync merge", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("reproduces and prevents mixed-key merge when server key differs", async () => {
     const localChat = makeChat({
       candidate_encrypted_keys: ["local-candidate-k0"],
@@ -56,7 +70,9 @@ describe("chat sync merge", () => {
       last_edited_overall_timestamp: 300,
     };
 
-    expect(hasEncryptedChatKeyMismatch(serverChat, localChat)).toBe(true);
+    await expect(hasEncryptedChatKeyMismatch(serverChat, localChat)).resolves.toBe(
+      true,
+    );
 
     const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
 
@@ -90,7 +106,9 @@ describe("chat sync merge", () => {
       draft_v: 0,
     };
 
-    expect(hasEncryptedChatKeyMismatch(serverChat, localChat)).toBe(false);
+    await expect(hasEncryptedChatKeyMismatch(serverChat, localChat)).resolves.toBe(
+      false,
+    );
 
     const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
 
@@ -116,8 +134,149 @@ describe("chat sync merge", () => {
 
     expect(merged.encrypted_chat_key).toBe("local-key-k1");
     expect(merged.encrypted_title).toBe("local-title-k1");
-    expect(merged.encrypted_draft_md).toBe("local-draft-k1");
+    expect(merged.encrypted_draft_md).toBeUndefined();
     expect(merged.messages_v).toBe(6);
+  });
+
+  it("does not treat different encrypted key blobs as a mismatch when raw keys match", async () => {
+    const rawKey = new Uint8Array([7, 8, 9]);
+    mocks.decryptChatKeyWithMasterKey.mockResolvedValue(rawKey);
+    const localChat = makeChat({
+      encrypted_chat_key: "local-wrapper-with-random-iv",
+    });
+    const serverChat = {
+      id: "chat-1",
+      encrypted_chat_key: "server-wrapper-with-random-iv",
+      encrypted_title: "server-title-same-key",
+      messages_v: 6,
+      title_v: 10,
+      draft_v: 0,
+    };
+
+    await expect(hasEncryptedChatKeyMismatch(serverChat, localChat)).resolves.toBe(
+      false,
+    );
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.encrypted_chat_key).toBe("server-wrapper-with-random-iv");
+    expect(merged.candidate_encrypted_keys).toBeNull();
+    expect(merged.messages_v).toBe(6);
+  });
+
+  it("clears local draft ciphertext when server metadata explicitly deletes it", async () => {
+    const localChat = makeChat();
+    const serverChat = {
+      id: "chat-1",
+      encrypted_chat_key: "local-key-k1",
+      encrypted_draft_md: null,
+      encrypted_draft_preview: null,
+      messages_v: 6,
+      title_v: 10,
+      draft_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.encrypted_draft_md).toBeUndefined();
+    expect(merged.encrypted_draft_preview).toBeUndefined();
+    expect(merged.draft_v).toBe(0);
+  });
+
+  it("clears stale local draft when an IdeaBucket draft becomes a processed chat", async () => {
+    const localChat = makeChat({
+      ideabucket: true,
+      ideabucket_processing_window_id: "window-1",
+      messages_v: 0,
+      draft_v: 3,
+      encrypted_draft_md: "stale-ideabucket-draft",
+      encrypted_draft_preview: "stale-ideabucket-preview",
+    });
+    const serverChat = {
+      id: "chat-1",
+      encrypted_chat_key: "local-key-k1",
+      ideabucket: true,
+      ideabucket_processing_window_id: "window-1",
+      ideabucket_triggered_at: 1234,
+      messages_v: 2,
+      title_v: 10,
+      draft_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.messages_v).toBe(2);
+    expect(merged.encrypted_draft_md).toBeUndefined();
+    expect(merged.encrypted_draft_preview).toBeUndefined();
+    expect(merged.draft_v).toBe(0);
+    expect(merged.ideabucket_triggered_at).toBe(1234);
+  });
+
+  it("clears stale local IdeaBucket draft when durable chat metadata has messages", async () => {
+    const localChat = makeChat({
+      ideabucket: true,
+      ideabucket_processing_window_id: "window-1",
+      messages_v: 0,
+      draft_v: 3,
+      encrypted_draft_md: "stale-ideabucket-draft",
+      encrypted_draft_preview: "stale-ideabucket-preview",
+    });
+    const serverChat = {
+      id: "chat-1",
+      messages_v: 2,
+      title_v: 0,
+      draft_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.messages_v).toBe(2);
+    expect(merged.encrypted_draft_md).toBeUndefined();
+    expect(merged.encrypted_draft_preview).toBeUndefined();
+    expect(merged.draft_v).toBe(0);
+    expect(merged.ideabucket).toBe(true);
+  });
+
+  it("clears stale local draft shell when server omits draft version but has messages", async () => {
+    const localChat = makeChat({
+      messages_v: 0,
+      draft_v: 3,
+      encrypted_draft_md: "stale-draft-shell",
+      encrypted_draft_preview: "stale-preview-shell",
+    });
+    const serverChat = {
+      id: "chat-1",
+      messages_v: 2,
+      title_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.messages_v).toBe(2);
+    expect(merged.encrypted_draft_md).toBeUndefined();
+    expect(merged.encrypted_draft_preview).toBeUndefined();
+    expect(merged.draft_v).toBe(0);
+  });
+
+  it("clears stale local draft when server metadata explicitly reports no draft", async () => {
+    const localChat = makeChat({
+      messages_v: 0,
+      draft_v: 2,
+      encrypted_draft_md: "stale-draft",
+      encrypted_draft_preview: "stale-preview",
+    });
+    const serverChat = {
+      id: "chat-1",
+      messages_v: 2,
+      title_v: 0,
+      draft_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.encrypted_draft_md).toBeUndefined();
+    expect(merged.encrypted_draft_preview).toBeUndefined();
+    expect(merged.draft_v).toBe(0);
   });
 
   it("preserves local encrypted header metadata when Phase 1a sends partial cache data", async () => {
@@ -143,7 +302,26 @@ describe("chat sync merge", () => {
     expect(merged.encrypted_title).toBe("local-title-from-idb");
     expect(merged.encrypted_icon).toBe("local-icon-from-idb");
     expect(merged.encrypted_category).toBe("local-category-from-idb");
+    expect(merged.encrypted_draft_md).toBe("local-draft-k1");
     expect(merged.title_v).toBe(1);
+  });
+
+  it("preserves anonymous key fields while merging anonymous sync metadata", async () => {
+    const serverChat = {
+      id: "anonymous-chat-1",
+      encrypted_title: "anonymous-title",
+      anonymous_encrypted_chat_key: "anonymous-key",
+      is_anonymous: true,
+      messages_v: 1,
+      title_v: 1,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, null, undefined);
+
+    expect(merged.chat_id).toBe("anonymous-chat-1");
+    expect(merged.encrypted_chat_key).toBeUndefined();
+    expect(merged.anonymous_encrypted_chat_key).toBe("anonymous-key");
+    expect(merged.is_anonymous).toBe(true);
   });
 
   it("merges encrypted shared short URL from server for owner share UI restore", async () => {
@@ -166,5 +344,88 @@ describe("chat sync merge", () => {
 
     expect(merged.encrypted_shared_short_url).toBe("server-encrypted-short-url");
     expect(merged.is_shared).toBe(true);
+  });
+
+  it("uses newer metadata_v for encrypted title and summary as one metadata revision", async () => {
+    const localChat = makeChat({
+      encrypted_title: "local-title-v50",
+      encrypted_chat_summary: "local-summary-v4",
+      metadata_v: 4,
+      title_v: 50,
+    });
+    const serverChat = {
+      id: "chat-1",
+      encrypted_chat_key: "local-key-k1",
+      encrypted_title: "server-title-v8",
+      encrypted_chat_summary: "server-summary-v5",
+      metadata_v: 5,
+      messages_v: 6,
+      title_v: 8,
+      draft_v: 0,
+    };
+
+    const merged = (await mergeServerChatWithLocal(
+      serverChat,
+      localChat,
+      "user-1",
+    )) as VersionedChat;
+
+    expect(merged.metadata_v).toBe(5);
+    expect(merged.encrypted_title).toBe("server-title-v8");
+    expect(merged.encrypted_chat_summary).toBe("server-summary-v5");
+    expect(merged.title_v).toBe(8);
+  });
+
+  it("uses server metadata fields when metadata_v matches local stale cache", async () => {
+    const localChat = makeChat({
+      encrypted_title: "local-title-v7",
+      encrypted_chat_summary: "local-stale-summary-v7",
+      metadata_v: 7,
+      title_v: 3,
+    });
+    const serverChat = {
+      id: "chat-1",
+      encrypted_chat_key: "local-key-k1",
+      encrypted_title: "server-title-v7",
+      encrypted_chat_summary: "server-current-summary-v7",
+      metadata_v: 7,
+      messages_v: 6,
+      title_v: 3,
+      draft_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.metadata_v).toBe(7);
+    expect(merged.encrypted_title).toBe("server-title-v7");
+    expect(merged.encrypted_chat_summary).toBe("server-current-summary-v7");
+    expect(merged.title_v).toBe(3);
+  });
+
+  it("falls back to title_v for title and summary when metadata_v is absent", async () => {
+    const localChat = makeChat({
+      encrypted_title: "local-legacy-title-v12",
+      encrypted_chat_summary: "local-legacy-summary-v12",
+      title_v: 12,
+    });
+    const serverChat = {
+      id: "chat-1",
+      encrypted_chat_key: "local-key-k1",
+      encrypted_title: "server-legacy-title-v11",
+      encrypted_chat_summary: "server-legacy-summary-v11",
+      messages_v: 6,
+      title_v: 11,
+      draft_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(
+      serverChat,
+      localChat,
+      "user-1",
+    );
+
+    expect(merged.encrypted_title).toBe("local-legacy-title-v12");
+    expect(merged.encrypted_chat_summary).toBe("local-legacy-summary-v12");
+    expect(merged.title_v).toBe(12);
   });
 });

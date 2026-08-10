@@ -9,7 +9,7 @@
 import { getWebSocketUrl } from "../config/api";
 import { getSessionId } from "../utils/sessionId";
 import { getWebSocketToken } from "../utils/cookies"; // Use getWebSocketToken instead of getAuthRefreshToken
-import { authStore } from "../stores/authStore"; // To check login status
+import { authStore } from "../stores/authState"; // To check login status without aggregate-store cycles
 import { get } from "svelte/store"; // Import get
 import {
   isLoggingOut,
@@ -163,6 +163,10 @@ const SERIALIZED_PHASED_SYNC_MESSAGE_TYPES = new Set<string>([
   "phased_sync_complete",
 ]);
 
+const REPLAYABLE_EARLY_MESSAGE_TYPES = new Set<string>([
+  "recovery_jobs_available",
+]);
+
 type NetworkInformationLike = {
   addEventListener?: (type: "change", listener: () => void) => void;
 };
@@ -175,6 +179,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isRetryableRecoveryProtocolError(payload: unknown): boolean {
+  if (!isRecord(payload)) return false;
+  return (
+    ((payload.code === "version_conflict" || payload.code === "lease_conflict") &&
+      typeof payload.job_id === "string" &&
+      typeof payload.request_id === "string") ||
+    payload.code === "recovery_persistence_required"
+  );
+}
+
 class WebSocketService extends EventTarget {
   private ws: WebSocket | null = null;
   private url: string | null = null;
@@ -185,6 +199,7 @@ class WebSocketService extends EventTarget {
   private periodicRetryIntervalId: ReturnType<typeof setInterval> | null = null;
   private readonly PERIODIC_RETRY_INTERVAL = 30000; // 30 seconds between periodic retries after max attempts exhausted
   private messageHandlers: Map<string, MessageHandler[]> = new Map();
+  private earlyMessagesByType: Map<string, unknown[]> = new Map();
   private phasedSyncHandlerQueue: Promise<void> = Promise.resolve();
   private connectionPromise: Promise<void> | null = null;
   private resolveConnectionPromise: (() => void) | null = null;
@@ -213,6 +228,7 @@ class WebSocketService extends EventTarget {
   private readonly allowedNoHandlerTypes = new Set<string>([
     "active_chat_set_ack",
     "pong", // Pong responses to ping - handler registered in constructor
+    "draft_update_receipt", // Server acknowledgment that a draft update was processed successfully
     "draft_delete_receipt", // Server acknowledgment that draft deletion was processed successfully
     // Add more types here if needed
   ]);
@@ -227,47 +243,49 @@ class WebSocketService extends EventTarget {
     // the synchronous module-evaluation stack completes, at which point authStore
     // is fully initialized. Behaviour is identical — the initial auth check fires
     // before any user events, just one microtask later.
-    queueMicrotask(() => {
-      // Listen to auth changes to connect/disconnect
-      authStore.subscribe((auth) => {
-        if (auth.isAuthenticated) {
-          // Only attempt to connect if not already connected AND no connection attempt is in progress.
-          if (
-            !this.isConnected() &&
-            !this.connectionPromise &&
-            !this.isPreparingConnection
-          ) {
-            console.debug(
-              "[WebSocketService] Auth detected, no active connection or pending attempt, connecting...",
-            );
-            this.connect().catch((err) => {
-              // Catch errors from connect() here if it's called without await
-              // and we don't want them to be unhandled.
-              console.warn(
-                "[WebSocketService] Connection attempt triggered by authStore failed:",
-                err,
+    if (typeof window !== "undefined") {
+      queueMicrotask(() => {
+        // Listen to auth changes to connect/disconnect
+        authStore.subscribe((auth) => {
+          if (auth.isAuthenticated) {
+            // Only attempt to connect if not already connected AND no connection attempt is in progress.
+            if (
+              !this.isConnected() &&
+              !this.connectionPromise &&
+              !this.isPreparingConnection
+            ) {
+              console.debug(
+                "[WebSocketService] Auth detected, no active connection or pending attempt, connecting...",
               );
-            });
-          } else if (this.isConnected()) {
-            console.debug("[WebSocketService] Auth detected, already connected.");
-          } else if (this.connectionPromise) {
+              this.connect().catch((err) => {
+                // Catch errors from connect() here if it's called without await
+                // and we don't want them to be unhandled.
+                console.warn(
+                  "[WebSocketService] Connection attempt triggered by authStore failed:",
+                  err,
+                );
+              });
+            } else if (this.isConnected()) {
+              console.debug("[WebSocketService] Auth detected, already connected.");
+            } else if (this.connectionPromise) {
+              console.debug(
+                "[WebSocketService] Auth detected, connection attempt already in progress.",
+              );
+            }
+          } else if (
+            !auth.isAuthenticated &&
+            (this.isConnected() || this.connectionPromise)
+          ) {
+            // If no longer authenticated, and EITHER connected OR an attempt is in progress, then disconnect.
             console.debug(
-              "[WebSocketService] Auth detected, connection attempt already in progress.",
+              "[WebSocketService] No longer authenticated, disconnecting active/pending connection...",
             );
+            this.disconnect(); // disconnect() handles nulling out ws and connectionPromise
+            websocketStatus.setStatus("disconnected");
           }
-        } else if (
-          !auth.isAuthenticated &&
-          (this.isConnected() || this.connectionPromise)
-        ) {
-          // If no longer authenticated, and EITHER connected OR an attempt is in progress, then disconnect.
-          console.debug(
-            "[WebSocketService] No longer authenticated, disconnecting active/pending connection...",
-          );
-          this.disconnect(); // disconnect() handles nulling out ws and connectionPromise
-          websocketStatus.setStatus("disconnected");
-        }
+        });
       });
-    });
+    }
     this.registerDefaultErrorHandlers();
     this.registerPongHandler(); // Add call to new pong handler registration
     this.registerServerRestartingHandler();
@@ -475,6 +493,13 @@ class WebSocketService extends EventTarget {
 
   private registerDefaultErrorHandlers(): void {
     this.on("error", (payload: unknown) => {
+      if (isRetryableRecoveryProtocolError(payload)) {
+        console.debug(
+          "[WebSocketService] Received retryable recovery protocol error:",
+          payload,
+        );
+        return;
+      }
       console.error(
         "[WebSocketService] Received error message from server:",
         payload,
@@ -542,7 +567,8 @@ class WebSocketService extends EventTarget {
         console.info(
           `[WebSocketService] Refreshing auth session before WebSocket retry: ${reason}`,
         );
-        const isAuthenticated = await authStore.checkAuth(undefined, true);
+        const { checkAuth } = await import("../stores/authSessionActions");
+        const isAuthenticated = await checkAuth(undefined, true);
         const hasWebSocketToken = Boolean(getWebSocketToken());
         if (!isAuthenticated) {
           console.warn(
@@ -858,6 +884,8 @@ class WebSocketService extends EventTarget {
                 } else {
                   void executeHandlers();
                 }
+              } else if (REPLAYABLE_EARLY_MESSAGE_TYPES.has(messageType)) {
+                this.bufferEarlyMessage(messageType, messagePayload);
               } else if (!this.allowedNoHandlerTypes.has(messageType)) {
                 if (messageType !== "ping" && messageType !== "pong") {
                   console.warn(
@@ -1202,7 +1230,7 @@ class WebSocketService extends EventTarget {
               this.pongTimeoutId = null;
               return;
             }
-            console.error(
+            console.warn(
               "[WebSocketService] Pong not received within timeout after ping. Connection is likely stale. Attempting to close and trigger reconnect.",
             );
             if (this.ws) {
@@ -1348,6 +1376,51 @@ class WebSocketService extends EventTarget {
     });
   }
 
+  /**
+   * Force-close a socket that still reports OPEN but stopped acknowledging
+   * request/response messages, then immediately create a fresh connection.
+   */
+  public forceReconnect(reason: string): void {
+    if (!get(authStore).isAuthenticated) {
+      console.warn(
+        "[WebSocketService] forceReconnect: user not authenticated.",
+      );
+      return;
+    }
+
+    console.warn(`[WebSocketService] Force reconnect requested: ${reason}`);
+    this.stopPing();
+    this.stopPeriodicRetry();
+    this.reconnectAttempts = 0;
+
+    const staleSocket = this.ws;
+    if (staleSocket) {
+      staleSocket.onopen = null;
+      staleSocket.onmessage = null;
+      staleSocket.onerror = null;
+      staleSocket.onclose = null;
+      this.ws = null;
+      try {
+        staleSocket.close(1000, reason.slice(0, 120));
+      } catch (error) {
+        console.warn("[WebSocketService] forceReconnect: close failed:", error);
+      }
+    }
+
+    if (this.rejectConnectionPromise && this.connectionPromise) {
+      this.rejectConnectionPromise(new Error(reason));
+      this.connectionPromise = null;
+    }
+
+    websocketStatus.setStatus("reconnecting");
+    this.connect().catch((error) => {
+      console.warn(
+        "[WebSocketService] forceReconnect: connection attempt failed:",
+        error,
+      );
+    });
+  }
+
   public isConnected(): boolean {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
@@ -1449,6 +1522,7 @@ class WebSocketService extends EventTarget {
       console.debug(
         `[WebSocketService] Registered handler for messageType: "${messageType}". Total handlers: ${currentHandlers.length}`,
       );
+      this.replayEarlyMessages(messageType, messageHandler);
     } else if (currentHandlers) {
       console.warn(
         `[WebSocketService] ⚠️ Handler already registered for "${messageType}"! Skipping duplicate registration.`,
@@ -1491,6 +1565,32 @@ class WebSocketService extends EventTarget {
       `[WebSocketService] Cleared all handlers (${handlerCount} total)`,
     );
     this.dispatchEvent(new CustomEvent("handlers_cleared"));
+  }
+
+  private bufferEarlyMessage(messageType: string, payload: unknown): void {
+    const buffered = this.earlyMessagesByType.get(messageType) ?? [];
+    buffered.push(payload);
+    this.earlyMessagesByType.set(messageType, buffered.slice(-20));
+    console.warn(
+      `[WebSocketService] Buffered early message for type "${messageType}" until a handler registers.`,
+    );
+  }
+
+  private replayEarlyMessages(messageType: string, handler: MessageHandler): void {
+    const buffered = this.earlyMessagesByType.get(messageType);
+    if (!buffered?.length) return;
+    this.earlyMessagesByType.delete(messageType);
+    console.warn(
+      `[WebSocketService] Replaying ${buffered.length} buffered message(s) for type "${messageType}".`,
+    );
+    for (const payload of buffered) {
+      void Promise.resolve(handler(payload)).catch((error) => {
+        console.error(
+          `[WebSocketService] Error replaying buffered message for type "${messageType}":`,
+          error,
+        );
+      });
+    }
   }
 }
 

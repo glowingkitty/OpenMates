@@ -238,6 +238,102 @@ search:
   sv: Sök
   he: חיפוש
   verified_by_human: []
+maps.search.no_verified_amenities:
+  context: Heading shown in Maps fullscreen when strict amenity filters found no provider-verified matches
+  en: No verified amenity matches
+  de: No verified amenity matches
+  zh: No verified amenity matches
+  es: No verified amenity matches
+  fr: No verified amenity matches
+  pt: No verified amenity matches
+  ru: No verified amenity matches
+  ja: No verified amenity matches
+  ko: No verified amenity matches
+  it: No verified amenity matches
+  tr: No verified amenity matches
+  vi: No verified amenity matches
+  id: No verified amenity matches
+  pl: No verified amenity matches
+  nl: No verified amenity matches
+  ar: No verified amenity matches
+  hi: No verified amenity matches
+  th: No verified amenity matches
+  cs: No verified amenity matches
+  sv: No verified amenity matches
+  he: No verified amenity matches
+  verified_by_human: [en]
+maps.search.verified_matches:
+  context: Label after the number of Maps results verified by OSM/Geoapify amenity data
+  en: verified matches
+  de: verified matches
+  zh: verified matches
+  es: verified matches
+  fr: verified matches
+  pt: verified matches
+  ru: verified matches
+  ja: verified matches
+  ko: verified matches
+  it: verified matches
+  tr: verified matches
+  vi: verified matches
+  id: verified matches
+  pl: verified matches
+  nl: verified matches
+  ar: verified matches
+  hi: verified matches
+  th: verified matches
+  cs: verified matches
+  sv: verified matches
+  he: verified matches
+  verified_by_human: [en]
+maps.search.out_of_candidates:
+  context: Suffix after verified match count in Maps fullscreen; {count} is the number of checked candidates
+  en: out of {count} checked places
+  de: out of {count} checked places
+  zh: out of {count} checked places
+  es: out of {count} checked places
+  fr: out of {count} checked places
+  pt: out of {count} checked places
+  ru: out of {count} checked places
+  ja: out of {count} checked places
+  ko: out of {count} checked places
+  it: out of {count} checked places
+  tr: out of {count} checked places
+  vi: out of {count} checked places
+  id: out of {count} checked places
+  pl: out of {count} checked places
+  nl: out of {count} checked places
+  ar: out of {count} checked places
+  hi: out of {count} checked places
+  th: out of {count} checked places
+  cs: out of {count} checked places
+  sv: out of {count} checked places
+  he: out of {count} checked places
+  verified_by_human: [en]
+maps.search.required_amenities:
+  context: Label before the list of required amenity filters in Maps fullscreen
+  en: Required amenities
+  de: Required amenities
+  zh: Required amenities
+  es: Required amenities
+  fr: Required amenities
+  pt: Required amenities
+  ru: Required amenities
+  ja: Required amenities
+  ko: Required amenities
+  it: Required amenities
+  tr: Required amenities
+  vi: Required amenities
+  id: Required amenities
+  pl: Required amenities
+  nl: Required amenities
+  ar: Required amenities
+  hi: Required amenities
+  th: Required amenities
+  cs: Required amenities
+  sv: Required amenities
+  he: Required amenities
+  verified_by_human: [en]
 transcript:
   context: Transcript skill label
   en: Transcript
@@ -1294,6 +1390,342 @@ code_line_plural:
   cs: řádků
   sv: rader
   he: שורות
+  verified_by_human: []
+notebook_type:
+  context: Type label for Jupyter notebook embeds
+  en: Notebook
+  de: Notebook
+  zh: Notebook
+  es: Notebook
+  fr: Notebook
+  pt: Notebook
+  ru: Notebook
+  ja: Notebook
+  ko: Notebook
+  it: Notebook
+  tr: Notebook
+  vi: Notebook
+  id: Notebook
+  pl: Notebook
+  nl: Notebook
+  ar: Notebook
+  hi: Notebook
+  th: Notebook
+  cs: Notebook
+  sv: Notebook
+  he: Notebook
+  verified_by_human: []
+notebook_cell_singular:
+  context: Singular form of 'cell' for notebook embeds
+  en: cell
+  de: Zelle
+  zh: cell
+  es: cell
+  fr: cell
+  pt: cell
+  ru: cell
+  ja: cell
+  ko: cell
+  it: cell
+  tr: cell
+  vi: cell
+  id: cell
+  pl: cell
+  nl: cell
+  ar: cell
+  hi: cell
+  th: cell
+  cs: cell
+  sv: cell
+  he: cell
+  verified_by_human: []
+notebook_cell_plural:
+  context: Plural form of 'cells' for notebook embeds
+  en: cells
+  de: Zellen
+  zh: cells
+  es: cells
+  fr: cells
+  pt: cells
+  ru: cells
+  ja: cells
+  ko: cells
+  it: cells
+  tr: cells
+  vi: cells
+  id: cells
+  pl: cells
+  nl: cells
+  ar: cells
+  hi: cells
+  th: cells
+  cs: cells
+  sv: cells
+  he: cells
+  verified_by_human: []
+notebook_empty:
+  context: Empty state for a notebook preview with no cells
+  en: No notebook cells yet
+  de: Noch keine Notebook-Zellen
+  zh: No notebook cells yet
+  es: No notebook cells yet
+  fr: No notebook cells yet
+  pt: No notebook cells yet
+  ru: No notebook cells yet
+  ja: No notebook cells yet
+  ko: No notebook cells yet
+  it: No notebook cells yet
+  tr: No notebook cells yet
+  vi: No notebook cells yet
+  id: No notebook cells yet
+  pl: No notebook cells yet
+  nl: No notebook cells yet
+  ar: No notebook cells yet
+  hi: No notebook cells yet
+  th: No notebook cells yet
+  cs: No notebook cells yet
+  sv: No notebook cells yet
+  he: No notebook cells yet
+  verified_by_human: []
+notebook_saved_outputs:
+  context: Indicator that a notebook has saved run outputs
+  en: Saved outputs
+  de: Gespeicherte Ausgaben
+  zh: Saved outputs
+  es: Saved outputs
+  fr: Saved outputs
+  pt: Saved outputs
+  ru: Saved outputs
+  ja: Saved outputs
+  ko: Saved outputs
+  it: Saved outputs
+  tr: Saved outputs
+  vi: Saved outputs
+  id: Saved outputs
+  pl: Saved outputs
+  nl: Saved outputs
+  ar: Saved outputs
+  hi: Saved outputs
+  th: Saved outputs
+  cs: Saved outputs
+  sv: Saved outputs
+  he: Saved outputs
+  verified_by_human: []
+notebook_run:
+  context: Notebook run panel title
+  en: Notebook run
+  de: Notebook-Ausführung
+  zh: Notebook run
+  es: Notebook run
+  fr: Notebook run
+  pt: Notebook run
+  ru: Notebook run
+  ja: Notebook run
+  ko: Notebook run
+  it: Notebook run
+  tr: Notebook run
+  vi: Notebook run
+  id: Notebook run
+  pl: Notebook run
+  nl: Notebook run
+  ar: Notebook run
+  hi: Notebook run
+  th: Notebook run
+  cs: Notebook run
+  sv: Notebook run
+  he: Notebook run
+  verified_by_human: []
+notebook_run_all:
+  context: Button label to execute all Python notebook cells
+  en: Run all
+  de: Alle ausführen
+  zh: Run all
+  es: Run all
+  fr: Run all
+  pt: Run all
+  ru: Run all
+  ja: Run all
+  ko: Run all
+  it: Run all
+  tr: Run all
+  vi: Run all
+  id: Run all
+  pl: Run all
+  nl: Run all
+  ar: Run all
+  hi: Run all
+  th: Run all
+  cs: Run all
+  sv: Run all
+  he: Run all
+  verified_by_human: []
+notebook_run_cell:
+  context: Button label to execute one Python notebook cell
+  en: Run cell
+  de: Zelle ausführen
+  zh: Run cell
+  es: Run cell
+  fr: Run cell
+  pt: Run cell
+  ru: Run cell
+  ja: Run cell
+  ko: Run cell
+  it: Run cell
+  tr: Run cell
+  vi: Run cell
+  id: Run cell
+  pl: Run cell
+  nl: Run cell
+  ar: Run cell
+  hi: Run cell
+  th: Run cell
+  cs: Run cell
+  sv: Run cell
+  he: Run cell
+  verified_by_human: []
+notebook_python_only:
+  context: Disabled execution message for non-Python notebooks
+  en: Python notebooks only in v1
+  de: In v1 nur Python-Notebooks
+  zh: Python notebooks only in v1
+  es: Python notebooks only in v1
+  fr: Python notebooks only in v1
+  pt: Python notebooks only in v1
+  ru: Python notebooks only in v1
+  ja: Python notebooks only in v1
+  ko: Python notebooks only in v1
+  it: Python notebooks only in v1
+  tr: Python notebooks only in v1
+  vi: Python notebooks only in v1
+  id: Python notebooks only in v1
+  pl: Python notebooks only in v1
+  nl: Python notebooks only in v1
+  ar: Python notebooks only in v1
+  hi: Python notebooks only in v1
+  th: Python notebooks only in v1
+  cs: Python notebooks only in v1
+  sv: Python notebooks only in v1
+  he: Python notebooks only in v1
+  verified_by_human: []
+notebook_output:
+  context: Notebook cell output section label
+  en: Output
+  de: Ausgabe
+  zh: Output
+  es: Output
+  fr: Output
+  pt: Output
+  ru: Output
+  ja: Output
+  ko: Output
+  it: Output
+  tr: Output
+  vi: Output
+  id: Output
+  pl: Output
+  nl: Output
+  ar: Output
+  hi: Output
+  th: Output
+  cs: Output
+  sv: Output
+  he: Output
+  verified_by_human: []
+notebook_running:
+  context: Initial status line while a notebook run is queued
+  en: Starting notebook run...
+  de: Notebook-Ausführung wird gestartet...
+  zh: Starting notebook run...
+  es: Starting notebook run...
+  fr: Starting notebook run...
+  pt: Starting notebook run...
+  ru: Starting notebook run...
+  ja: Starting notebook run...
+  ko: Starting notebook run...
+  it: Starting notebook run...
+  tr: Starting notebook run...
+  vi: Starting notebook run...
+  id: Starting notebook run...
+  pl: Starting notebook run...
+  nl: Starting notebook run...
+  ar: Starting notebook run...
+  hi: Starting notebook run...
+  th: Starting notebook run...
+  cs: Starting notebook run...
+  sv: Starting notebook run...
+  he: Starting notebook run...
+  verified_by_human: []
+notebook_stale_outputs:
+  context: Notice that saved notebook outputs belong to an older source version
+  en: Saved outputs may be from an older notebook version.
+  de: Gespeicherte Ausgaben können von einer älteren Notebook-Version stammen.
+  zh: Saved outputs may be from an older notebook version.
+  es: Saved outputs may be from an older notebook version.
+  fr: Saved outputs may be from an older notebook version.
+  pt: Saved outputs may be from an older notebook version.
+  ru: Saved outputs may be from an older notebook version.
+  ja: Saved outputs may be from an older notebook version.
+  ko: Saved outputs may be from an older notebook version.
+  it: Saved outputs may be from an older notebook version.
+  tr: Saved outputs may be from an older notebook version.
+  vi: Saved outputs may be from an older notebook version.
+  id: Saved outputs may be from an older notebook version.
+  pl: Saved outputs may be from an older notebook version.
+  nl: Saved outputs may be from an older notebook version.
+  ar: Saved outputs may be from an older notebook version.
+  hi: Saved outputs may be from an older notebook version.
+  th: Saved outputs may be from an older notebook version.
+  cs: Saved outputs may be from an older notebook version.
+  sv: Saved outputs may be from an older notebook version.
+  he: Saved outputs may be from an older notebook version.
+  verified_by_human: []
+notebook_no_content:
+  context: Empty state for notebook fullscreen when no cells are available
+  en: No notebook content available.
+  de: Keine Notebook-Inhalte verfügbar.
+  zh: No notebook content available.
+  es: No notebook content available.
+  fr: No notebook content available.
+  pt: No notebook content available.
+  ru: No notebook content available.
+  ja: No notebook content available.
+  ko: No notebook content available.
+  it: No notebook content available.
+  tr: No notebook content available.
+  vi: No notebook content available.
+  id: No notebook content available.
+  pl: No notebook content available.
+  nl: No notebook content available.
+  ar: No notebook content available.
+  hi: No notebook content available.
+  th: No notebook content available.
+  cs: No notebook content available.
+  sv: No notebook content available.
+  he: No notebook content available.
+  verified_by_human: []
+notebook_cancel:
+  context: Button label to cancel a running notebook execution
+  en: Stop run
+  de: Ausführung stoppen
+  zh: Stop run
+  es: Stop run
+  fr: Stop run
+  pt: Stop run
+  ru: Stop run
+  ja: Stop run
+  ko: Stop run
+  it: Stop run
+  tr: Stop run
+  vi: Stop run
+  id: Stop run
+  pl: Stop run
+  nl: Stop run
+  ar: Stop run
+  hi: Stop run
+  th: Stop run
+  cs: Stop run
+  sv: Stop run
+  he: Stop run
   verified_by_human: []
 code_info:
   context: Text showing line count and language for code embeds, e.g. '5 lines, Python' or '1 line'
@@ -7028,6 +7460,781 @@ image_search.results_count:
   sv: "{count} bilder hittades"
   he: "נמצאו {count} תמונות"
   verified_by_human: []
+
+models3d.search.results_count:
+  context: Subtitle shown after 3D model search finishes, {count} is number of models found
+  en: "{count} models found"
+  de: "{count} Modelle gefunden"
+  zh: "{count} models found"
+  es: "{count} models found"
+  fr: "{count} models found"
+  pt: "{count} models found"
+  ru: "{count} models found"
+  ja: "{count} models found"
+  ko: "{count} models found"
+  it: "{count} models found"
+  tr: "{count} models found"
+  vi: "{count} models found"
+  id: "{count} models found"
+  pl: "{count} models found"
+  nl: "{count} models found"
+  ar: "{count} models found"
+  hi: "{count} models found"
+  th: "{count} models found"
+  cs: "{count} models found"
+  sv: "{count} models found"
+  he: "{count} models found"
+  verified_by_human: [en, de]
+
+models3d.search.no_results:
+  context: Empty state shown when no 3D model search results were found
+  en: No 3D models found
+  de: Keine 3D-Modelle gefunden
+  zh: No 3D models found
+  es: No 3D models found
+  fr: No 3D models found
+  pt: No 3D models found
+  ru: No 3D models found
+  ja: No 3D models found
+  ko: No 3D models found
+  it: No 3D models found
+  tr: No 3D models found
+  vi: No 3D models found
+  id: No 3D models found
+  pl: No 3D models found
+  nl: No 3D models found
+  ar: No 3D models found
+  hi: No 3D models found
+  th: No 3D models found
+  cs: No 3D models found
+  sv: No 3D models found
+  he: No 3D models found
+  verified_by_human: [en, de]
+
+models3d.search.open_to_view:
+  context: Hint shown when 3D model search child results are available only in fullscreen
+  en: Open to view model results
+  de: Öffnen, um Modellergebnisse anzusehen
+  zh: Open to view model results
+  es: Open to view model results
+  fr: Open to view model results
+  pt: Open to view model results
+  ru: Open to view model results
+  ja: Open to view model results
+  ko: Open to view model results
+  it: Open to view model results
+  tr: Open to view model results
+  vi: Open to view model results
+  id: Open to view model results
+  pl: Open to view model results
+  nl: Open to view model results
+  ar: Open to view model results
+  hi: Open to view model results
+  th: Open to view model results
+  cs: Open to view model results
+  sv: Open to view model results
+  he: Open to view model results
+  verified_by_human: [en, de]
+
+models3d.search.result_title:
+  context: Fallback title for a 3D model search result card
+  en: 3D model result
+  de: 3D-Modellergebnis
+  zh: 3D model result
+  es: 3D model result
+  fr: 3D model result
+  pt: 3D model result
+  ru: 3D model result
+  ja: 3D model result
+  ko: 3D model result
+  it: 3D model result
+  tr: 3D model result
+  vi: 3D model result
+  id: 3D model result
+  pl: 3D model result
+  nl: 3D model result
+  ar: 3D model result
+  hi: 3D model result
+  th: 3D model result
+  cs: 3D model result
+  sv: 3D model result
+  he: 3D model result
+  verified_by_human: [en, de]
+
+models3d.search.open_on_provider:
+  context: CTA label to open a 3D model result on its source provider; {provider} is the provider name
+  en: "Open on {provider}"
+  de: "Auf {provider} öffnen"
+  zh: "Open on {provider}"
+  es: "Open on {provider}"
+  fr: "Open on {provider}"
+  pt: "Open on {provider}"
+  ru: "Open on {provider}"
+  ja: "Open on {provider}"
+  ko: "Open on {provider}"
+  it: "Open on {provider}"
+  tr: "Open on {provider}"
+  vi: "Open on {provider}"
+  id: "Open on {provider}"
+  pl: "Open on {provider}"
+  nl: "Open on {provider}"
+  ar: "Open on {provider}"
+  hi: "Open on {provider}"
+  th: "Open on {provider}"
+  cs: "Open on {provider}"
+  sv: "Open on {provider}"
+  he: "Open on {provider}"
+  verified_by_human: [en, de]
+
+models3d.search.open_result:
+  context: Fallback CTA label when a 3D model result provider name is unknown
+  en: Open source page
+  de: Quellseite öffnen
+  zh: Open source page
+  es: Open source page
+  fr: Open source page
+  pt: Open source page
+  ru: Open source page
+  ja: Open source page
+  ko: Open source page
+  it: Open source page
+  tr: Open source page
+  vi: Open source page
+  id: Open source page
+  pl: Open source page
+  nl: Open source page
+  ar: Open source page
+  hi: Open source page
+  th: Open source page
+  cs: Open source page
+  sv: Open source page
+  he: Open source page
+  verified_by_human: [en, de]
+
+models3d.search.free:
+  context: Label for a free 3D model search result
+  en: Free
+  de: Kostenlos
+  zh: Free
+  es: Free
+  fr: Free
+  pt: Free
+  ru: Free
+  ja: Free
+  ko: Free
+  it: Free
+  tr: Free
+  vi: Free
+  id: Free
+  pl: Free
+  nl: Free
+  ar: Free
+  hi: Free
+  th: Free
+  cs: Free
+  sv: Free
+  he: Free
+  verified_by_human: [en, de]
+
+models3d.search.files_count:
+  context: Label for the number of files attached to a 3D model catalog item; {count} is a number
+  en: "{count} files"
+  de: "{count} Dateien"
+  zh: "{count} files"
+  es: "{count} files"
+  fr: "{count} files"
+  pt: "{count} files"
+  ru: "{count} files"
+  ja: "{count} files"
+  ko: "{count} files"
+  it: "{count} files"
+  tr: "{count} files"
+  vi: "{count} files"
+  id: "{count} files"
+  pl: "{count} files"
+  nl: "{count} files"
+  ar: "{count} files"
+  hi: "{count} files"
+  th: "{count} files"
+  cs: "{count} files"
+  sv: "{count} files"
+  he: "{count} files"
+  verified_by_human: [en, de]
+
+business.company_financials.results_count:
+  context: Subtitle shown after Business company financial lookup finishes; {count} is number of companies found
+  en: "{count} companies found"
+  de: "{count} Unternehmen gefunden"
+  zh: "{count} companies found"
+  es: "{count} companies found"
+  fr: "{count} companies found"
+  pt: "{count} companies found"
+  ru: "{count} companies found"
+  ja: "{count} companies found"
+  ko: "{count} companies found"
+  it: "{count} companies found"
+  tr: "{count} companies found"
+  vi: "{count} companies found"
+  id: "{count} companies found"
+  pl: "{count} companies found"
+  nl: "{count} companies found"
+  ar: "{count} companies found"
+  hi: "{count} companies found"
+  th: "{count} companies found"
+  cs: "{count} companies found"
+  sv: "{count} companies found"
+  he: "{count} companies found"
+  verified_by_human: [en, de]
+
+business.company_financials.no_results:
+  context: Empty state shown when no Business company financial results were found
+  en: No company financials found
+  de: Keine Unternehmenszahlen gefunden
+  zh: No company financials found
+  es: No company financials found
+  fr: No company financials found
+  pt: No company financials found
+  ru: No company financials found
+  ja: No company financials found
+  ko: No company financials found
+  it: No company financials found
+  tr: No company financials found
+  vi: No company financials found
+  id: No company financials found
+  pl: No company financials found
+  nl: No company financials found
+  ar: No company financials found
+  hi: No company financials found
+  th: No company financials found
+  cs: No company financials found
+  sv: No company financials found
+  he: No company financials found
+  verified_by_human: [en, de]
+
+business.company_financials.open_to_view:
+  context: Hint shown when Business child result embeds are available only in fullscreen
+  en: Open to view company financials
+  de: Öffnen, um Unternehmenszahlen anzusehen
+  zh: Open to view company financials
+  es: Open to view company financials
+  fr: Open to view company financials
+  pt: Open to view company financials
+  ru: Open to view company financials
+  ja: Open to view company financials
+  ko: Open to view company financials
+  it: Open to view company financials
+  tr: Open to view company financials
+  vi: Open to view company financials
+  id: Open to view company financials
+  pl: Open to view company financials
+  nl: Open to view company financials
+  ar: Open to view company financials
+  hi: Open to view company financials
+  th: Open to view company financials
+  cs: Open to view company financials
+  sv: Open to view company financials
+  he: Open to view company financials
+  verified_by_human: [en, de]
+
+business.company_financials.result_title:
+  context: Fallback title for a Business company financial result card
+  en: Company financial result
+  de: Unternehmenszahlen
+  zh: Company financial result
+  es: Company financial result
+  fr: Company financial result
+  pt: Company financial result
+  ru: Company financial result
+  ja: Company financial result
+  ko: Company financial result
+  it: Company financial result
+  tr: Company financial result
+  vi: Company financial result
+  id: Company financial result
+  pl: Company financial result
+  nl: Company financial result
+  ar: Company financial result
+  hi: Company financial result
+  th: Company financial result
+  cs: Company financial result
+  sv: Company financial result
+  he: Company financial result
+  verified_by_human: [en, de]
+
+business.company_financials.revenue:
+  context: Label for company revenue metric
+  en: Revenue
+  de: Umsatz
+  zh: 营收
+  es: Ingresos
+  fr: "Chiffre d'affaires"
+  pt: Receita
+  ru: Выручка
+  ja: 売上高
+  ko: 매출액
+  it: Fatturato
+  tr: Gelir
+  vi: Doanh thu
+  id: Pendapatan
+  pl: Przychody
+  nl: Omzet
+  ar: الإيرادات
+  hi: राजस्व
+  th: รายได้
+  cs: Tržby
+  sv: Omsättning
+  he: הכנסות
+  verified_by_human: [en, de]
+
+business.company_financials.gross_profit:
+  context: Label for company gross profit metric
+  en: Gross profit
+  de: Bruttogewinn
+  zh: 毛利润
+  es: Beneficio bruto
+  fr: Bénéfice brut
+  pt: Lucro bruto
+  ru: Валовая прибыль
+  ja: 売上総利益
+  ko: 매출총이익
+  it: Utile lordo
+  tr: Brüt kâr
+  vi: Lợi nhuận gộp
+  id: Laba kotor
+  pl: Zysk brutto
+  nl: Brutowinst
+  ar: إجمالي الربح
+  hi: सकल लाभ
+  th: กำไรขั้นต้น
+  cs: Hrubý zisk
+  sv: Bruttovinst
+  he: רווח גולמי
+  verified_by_human: [en, de]
+
+business.company_financials.operating_income:
+  context: Label for company operating income metric
+  en: Operating income
+  de: Operatives Ergebnis
+  zh: 营业收入
+  es: Ingresos operativos
+  fr: "Résultat d'exploitation"
+  pt: Lucro operacional
+  ru: Операционная прибыль
+  ja: 営業利益
+  ko: 영업이익
+  it: Risultato operativo
+  tr: Faaliyet kârı
+  vi: Thu nhập hoạt động
+  id: Pendapatan operasional
+  pl: Zysk operacyjny
+  nl: Bedrijfsresultaat
+  ar: الدخل التشغيلي
+  hi: परिचालन आय
+  th: กำไรจากการดำเนินงาน
+  cs: Provozní zisk
+  sv: Rörelseresultat
+  he: רווח תפעולי
+  verified_by_human: [en, de]
+
+business.company_financials.net_income:
+  context: Label for company net income metric
+  en: Net income
+  de: Nettogewinn
+  zh: 净利润
+  es: Ingresos netos
+  fr: Résultat net
+  pt: Lucro líquido
+  ru: Чистая прибыль
+  ja: 純利益
+  ko: 당기순이익
+  it: Utile netto
+  tr: Net gelir
+  vi: Thu nhập ròng
+  id: Laba bersih
+  pl: Zysk netto
+  nl: Nettowinst
+  ar: صافي الدخل
+  hi: शुद्ध आय
+  th: กำไรสุทธิ
+  cs: Čistý zisk
+  sv: Nettoresultat
+  he: רווח נקי
+  verified_by_human: [en, de]
+
+business.company_financials.operating_cash_flow:
+  context: Label for operating cash flow metric
+  en: Operating cash flow
+  de: Operativer Cashflow
+  zh: 经营性现金流
+  es: Flujo de caja operativo
+  fr: Flux de trésorerie opérationnel
+  pt: Fluxo de caixa operacional
+  ru: Операционный денежный поток
+  ja: 営業キャッシュフロー
+  ko: 영업활동 현금흐름
+  it: Flusso di cassa operativo
+  tr: İşletme nakit akışı
+  vi: Dòng tiền từ hoạt động kinh doanh
+  id: Arus kas operasional
+  pl: Operacyjne przepływy pieniężne
+  nl: Operationele kasstroom
+  ar: التدفق النقدي التشغيلي
+  hi: ऑपरेटिंग कैश फ्लो
+  th: กระแสเงินสดจากการดำเนินงาน
+  cs: Provozní cash flow
+  sv: Operativt kassaflöde
+  he: תזרים מזומנים מפעילות שוטפת
+  verified_by_human: [en, de]
+
+business.company_financials.assets:
+  context: Label for company assets metric
+  en: Assets
+  de: Vermögenswerte
+  zh: 资产
+  es: Activos
+  fr: Actifs
+  pt: Ativos
+  ru: Активы
+  ja: 資産
+  ko: 자산
+  it: Attività
+  tr: Varlıklar
+  vi: Tài sản
+  id: Aset
+  pl: Aktywa
+  nl: Activa
+  ar: الأصول
+  hi: संपत्ति
+  th: สินทรัพย์
+  cs: Aktiva
+  sv: Tillgångar
+  he: נכסים
+  verified_by_human: [en, de]
+
+business.company_financials.liabilities:
+  context: Label for company liabilities metric
+  en: Liabilities
+  de: Verbindlichkeiten
+  zh: 负债
+  es: Pasivos
+  fr: Passifs
+  pt: Passivos
+  ru: Обязательства
+  ja: 負債
+  ko: 부채
+  it: Passività
+  tr: Yükümlülükler
+  vi: Nợ phải trả
+  id: Liabilitas
+  pl: Zobowiązania
+  nl: Passiva
+  ar: الالتزامات المتداولة
+  hi: देनदारियां
+  th: หนี้สิน
+  cs: Závazky
+  sv: Skulder
+  he: התחייבויות
+  verified_by_human: [en, de]
+
+business.company_financials.equity:
+  context: Label for company equity metric
+  en: Equity
+  de: Eigenkapital
+  zh: 权益
+  es: Patrimonio neto
+  fr: Capitaux propres
+  pt: Patrimônio líquido
+  ru: Капитал
+  ja: 純資産
+  ko: 자본
+  it: Patrimonio netto
+  tr: Özkaynaklar
+  vi: Vốn chủ sở hữu
+  id: Ekuitas
+  pl: Kapitał własny
+  nl: Eigen vermogen
+  ar: حقوق الملكية
+  hi: इक्विटी
+  th: ส่วนของผู้ถือหุ้น
+  cs: Vlastní kapitál
+  sv: Eget kapital
+  he: הון עצמי
+  verified_by_human: [en, de]
+
+business.company_financials.filed:
+  context: Label prefix for SEC filing date
+  en: Filed
+  de: Eingereicht
+  zh: 提交日期
+  es: Presentado el
+  fr: Déposé
+  pt: Arquivado em
+  ru: Подано
+  ja: 提出日
+  ko: "제출일:"
+  it: Depositato il
+  tr: Dosyalandı
+  vi: Đã nộp
+  id: Dilaporkan pada
+  pl: Złożono
+  nl: Ingediend
+  ar: تاريخ الإيداع
+  hi: दायर किया गया
+  th: ยื่นเมื่อ
+  cs: Podáno
+  sv: Inlämnad
+  he: הוגש
+  verified_by_human: [en, de]
+
+business.company_financials.annual:
+  context: Label for annual financial periods
+  en: Annual
+  de: Jährlich
+  zh: 年度
+  es: Anual
+  fr: Annuel
+  pt: Anual
+  ru: Годовые
+  ja: 通期
+  ko: 연간
+  it: Annuale
+  tr: Yıllık
+  vi: Hàng năm
+  id: Tahunan
+  pl: Roczne
+  nl: Jaarlijks
+  ar: سنوي
+  hi: वार्षिक
+  th: รายปี
+  cs: Roční
+  sv: Årlig
+  he: שנתי
+  verified_by_human: [en, de]
+
+business.company_financials.quarterly:
+  context: Label for quarterly financial periods
+  en: Quarterly
+  de: Quartalsweise
+  zh: 季度
+  es: Trimestral
+  fr: Trimestriel
+  pt: Trimestral
+  ru: Квартальные
+  ja: 四半期
+  ko: 분기별
+  it: Trimestrale
+  tr: Çeyreklik
+  vi: Hàng quý
+  id: Kuartalan
+  pl: Kwartalne
+  nl: Kwartaalbasis
+  ar: ربع سنوي
+  hi: तिमाही
+  th: รายไตรมาส
+  cs: Čtvrtletní
+  sv: Kvartalsvis
+  he: רבעוני
+  verified_by_human: [en, de]
+
+business.company_financials.period:
+  context: Generic label for a financial period
+  en: Period
+  de: Zeitraum
+  zh: 期间
+  es: Periodo
+  fr: Période
+  pt: Período
+  ru: Период
+  ja: 期間名
+  ko: 기간
+  it: Periodo
+  tr: Dönem
+  vi: Kỳ hạn
+  id: Periode
+  pl: Okres
+  nl: Periode
+  ar: الفترة
+  hi: अवधि
+  th: รอบระยะเวลา
+  cs: Období
+  sv: Period
+  he: תקופה
+  verified_by_human: [en, de]
+
+business.company_financials.metrics:
+  context: Section heading for company financial metrics
+  en: Metrics
+  de: Kennzahlen
+  zh: 指标
+  es: Métricas
+  fr: Indicateurs
+  pt: Métricas
+  ru: Показатели
+  ja: 指標
+  ko: 지표
+  it: Metriche
+  tr: Metrikler
+  vi: Chỉ số tài chính
+  id: Metrik
+  pl: Wskaźniki
+  nl: Kengetallen
+  ar: المقاييس
+  hi: मीट्रिक
+  th: ตัวชี้วัด
+  cs: Metriky
+  sv: Nyckeltal
+  he: מדדים
+  verified_by_human: [en, de]
+
+business.company_financials.no_metrics:
+  context: Empty state when no standardized financial metrics are available
+  en: No standardized metrics were available in SEC facts.
+  de: In den SEC-Daten waren keine standardisierten Kennzahlen verfügbar.
+  zh: SEC 事实中没有可用的标准化指标。
+  es: No se encontraron métricas estandarizadas en los datos de la SEC.
+  fr: "Aucun indicateur standardisé n'était disponible dans les données de la SEC."
+  pt: Nenhuma métrica padronizada disponível nos fatos da SEC.
+  ru: В данных SEC не найдено стандартизированных показателей.
+  ja: SEC Factsに標準化された指標が見つかりませんでした。
+  ko: SEC 데이터에서 표준화된 지표를 찾을 수 없습니다.
+  it: Nessuna metrica standardizzata disponibile nei dati SEC.
+  tr: SEC verilerinde standartlaştırılmış metrik bulunamadı.
+  vi: Không có chỉ số tiêu chuẩn nào trong dữ liệu SEC.
+  id: Tidak ada metrik standar yang tersedia dalam fakta SEC.
+  pl: W danych SEC nie znaleziono ustandaryzowanych wskaźników.
+  nl: Geen gestandaardiseerde kengetallen beschikbaar in SEC-gegevens.
+  ar: لم تتوفر مقاييس موحدة في بيانات هيئة الأوراق المالية والبورصات (SEC).
+  hi: SEC तथ्यों में कोई मानकीकृत मीट्रिक उपलब्ध नहीं थे।
+  th: ไม่มีตัวชี้วัดมาตรฐานในข้อมูล SEC
+  cs: V datech SEC nebyly k dispozici žádné standardizované metriky.
+  sv: Inga standardiserade nyckeltal fanns tillgängliga i SEC-fakta.
+  he: לא היו מדדים סטנדרטיים זמינים בנתוני ה-SEC.
+  verified_by_human: [en, de]
+
+business.company_financials.source:
+  context: Section heading for source filing metadata
+  en: Source filing
+  de: Quelldokument
+  zh: 源申报文件
+  es: Informe de origen
+  fr: Dépôt source
+  pt: Arquivamento de origem
+  ru: Исходный отчет
+  ja: 提出書類ソース
+  ko: 원본 공시 자료
+  it: Deposito di origine
+  tr: Kaynak dosya
+  vi: Hồ sơ nguồn
+  id: Sumber pelaporan
+  pl: Zgłoszenie źródłowe
+  nl: Bron van de deponering
+  ar: إيداع المصدر
+  hi: स्रोत फाइलिंग
+  th: เอกสารต้นทาง
+  cs: Zdrojové podání
+  sv: Källarkivering
+  he: דיווח מקור
+  verified_by_human: [en, de]
+
+business.company_financials.sec_filing:
+  context: Kicker label identifying data as SEC filing data
+  en: SEC filing data
+  de: SEC-Filing-Daten
+  zh: SEC 申报数据
+  es: Datos de informes de la SEC
+  fr: Données de dépôt SEC
+  pt: Dados de arquivamento da SEC
+  ru: Данные отчетности SEC
+  ja: SEC提出データ
+  ko: SEC 공시 데이터
+  it: Dati deposito SEC
+  tr: SEC dosyalama verileri
+  vi: Dữ liệu hồ sơ SEC
+  id: Data pelaporan SEC
+  pl: Dane ze zgłoszenia SEC
+  nl: SEC-deponeringsgegevens
+  ar: بيانات إيداع SEC
+  hi: SEC फाइलिंग डेटा
+  th: ข้อมูลการยื่นต่อ SEC
+  cs: Data z podání SEC
+  sv: SEC-arkiveringsdata
+  he: נתוני דיווח SEC
+  verified_by_human: [en, de]
+
+business.company_financials.open_filing:
+  context: CTA label to open an SEC filing source
+  en: Open SEC filing
+  de: SEC-Filing öffnen
+  zh: 打开 SEC 申报文件
+  es: Abrir informe de la SEC
+  fr: Ouvrir le dépôt SEC
+  pt: Abrir arquivamento da SEC
+  ru: Открыть отчет SEC
+  ja: SEC提出書類を開く
+  ko: SEC 공시 자료 열기
+  it: Apri deposito SEC
+  tr: SEC dosyasını aç
+  vi: Mở hồ sơ SEC
+  id: Buka pelaporan SEC
+  pl: Otwórz zgłoszenie SEC
+  nl: Open SEC-deponering
+  ar: فتح إيداع SEC
+  hi: SEC फाइलिंग खोलें
+  th: เปิดเอกสารที่ยื่นต่อ SEC
+  cs: Otevřít podání SEC
+  sv: Öppna SEC-arkivering
+  he: פתיחת דיווח SEC
+  verified_by_human: [en, de]
+
+business.company_financials.notes:
+  context: Section heading for notes about missing standardized metrics
+  en: Notes
+  de: Hinweise
+  zh: 备注说明
+  es: Notas
+  fr: Notes
+  pt: Notas
+  ru: Примечания
+  ja: 備考
+  ko: 참고
+  it: Note
+  tr: Notlar
+  vi: Ghi chú
+  id: Catatan
+  pl: Uwagi
+  nl: Notities
+  ar: ملاحظات
+  hi: नोट्स
+  th: หมายเหตุ
+  cs: Poznámky
+  sv: Anteckningar
+  he: הערות
+  verified_by_human: [en, de]
+
+business.company_financials.not_available:
+  context: Fallback value when a financial metric is unavailable
+  en: N/A
+  de: N/V
+  zh: 不适用
+  es: N/D
+  fr: N/A
+  pt: N/D
+  ru: Н/Д
+  ja: N/A
+  ko: 해당 없음
+  it: N/D
+  tr: N/A
+  vi: N/A
+  id: T/A
+  pl: N/D
+  nl: n.v.t.
+  ar: غير متاح
+  hi: लागू नहीं
+  th: N/A
+  cs: N/A
+  sv: Ej tillgängligt
+  he: לא זמין
+  verified_by_human: [en, de]
 
 image_search.view_source:
   context: Link label to view the source page of an image result

@@ -57,6 +57,13 @@ DEFAULT_QUERY_LIMIT = 50
 SESSION_QUERY_LIMIT = 100
 RECENT_DEFAULT_LIMIT = 25
 
+# Error spans are not always marked with span_status=ERROR. FastAPI/ASGI spans
+# often leave span_status=UNSET and store the HTTP outcome separately.
+ERROR_TRACE_WHERE = (
+    "(span_status = 'ERROR' OR status_code = 2 OR "
+    "http_status_code >= 400 OR events LIKE '%exception%')"
+)
+
 # Unicode box-drawing characters for span tree rendering
 TREE_BRANCH = "\u251c\u2500"   # ├─  (middle child)
 TREE_LAST = "\u2514\u2500"     # └─  (last child)
@@ -365,6 +372,68 @@ def _search_traces_sql(
 _search_traces_legacy = _search_traces_sql
 
 
+def _sql_like_literal(value: str) -> str:
+    """Escape a value for use inside a single-quoted SQL LIKE pattern."""
+    return value.replace("'", "''")
+
+
+def _build_error_trace_sql(
+    route: Optional[str] = None,
+    fingerprint: Optional[str] = None,
+) -> str:
+    """Build the span query used by `trace errors` for direct and admin paths."""
+    filter_parts = [ERROR_TRACE_WHERE]
+    if route:
+        route_value = _sql_like_literal(route)
+        filter_parts.append(
+            "(operation_name LIKE '%{0}%' OR http_route LIKE '%{0}%' OR "
+            "http_target LIKE '%{0}%' OR http_url LIKE '%{0}%')".format(route_value)
+        )
+    if fingerprint:
+        fingerprint_value = _sql_like_literal(fingerprint)
+        filter_parts.append(
+            "(status_message LIKE '%{0}%' OR events LIKE '%{0}%')".format(fingerprint_value)
+        )
+    return (
+        f"SELECT DISTINCT trace_id FROM {TRACE_STREAM} "
+        f"WHERE {' AND '.join(filter_parts)} "
+        f"ORDER BY _timestamp DESC LIMIT {DEFAULT_QUERY_LIMIT}"
+    )
+
+
+def _http_status_code(span: Dict[str, Any]) -> Optional[int]:
+    """Return a parsed HTTP status code from a span, if present."""
+    value = span.get("http_status_code")
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_error_span(span: Dict[str, Any]) -> bool:
+    """Detect error spans across OTel status, HTTP status, and exception events."""
+    if span.get("span_status", "").upper() == "ERROR":
+        return True
+    if span.get("status_code") == 2:
+        return True
+    http_status = _http_status_code(span)
+    if http_status is not None and http_status >= 400:
+        return True
+    return "exception" in str(span.get("events", "")).lower()
+
+
+def _display_span_status(span: Dict[str, Any]) -> str:
+    """Return the most useful status label for trace tree output."""
+    http_status = _http_status_code(span)
+    if http_status is not None and http_status >= 400:
+        return f"HTTP {http_status}"
+    if span.get("status_code") == 2:
+        return "ERROR"
+    return span.get("span_status", "OK")
+
+
 def _collect_full_spans(
     traces: List[Dict[str, Any]],
     start_time_us: int,
@@ -467,7 +536,7 @@ def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
         # Determine overall status (ERROR if any span has error)
         overall_status = "OK"
         for span in trace_spans:
-            if span.get("span_status", "").upper() == "ERROR":
+            if _is_error_span(span):
                 overall_status = "ERROR"
                 break
 
@@ -505,7 +574,7 @@ def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
             duration_ms = duration_us / 1000.0
             service = span.get("service_name", span.get("service", "???"))
             operation = span.get("operation_name", span.get("name", "???"))
-            status = span.get("span_status", "OK")
+            status = _display_span_status(span)
 
             # Choose connector: └─ for last child, ├─ for middle children
             connector = TREE_LAST if is_last else TREE_BRANCH
@@ -689,10 +758,14 @@ def _main_via_admin_api(args, use_json: bool) -> None:
     elif args.command == "errors":
         duration_s = parse_duration(args.last)
         since_minutes = max(1, duration_s // 60)
-        filter_parts = ["span_status = 'ERROR'"]
-        if getattr(args, "route", None):
-            filter_parts.append(f"operation_name LIKE '%{args.route}%'")
-        traces = _admin_api_traces_latest(since_minutes, filter_str=" AND ".join(filter_parts), api_key=api_key)
+        traces = _admin_api_trace_sql(
+            _build_error_trace_sql(
+                route=getattr(args, "route", None),
+                fingerprint=getattr(args, "fingerprint", None),
+            ),
+            since_minutes,
+            api_key=api_key,
+        )
         spans = _collect_full_spans_via_admin_api(traces, since_minutes, api_key=api_key)
 
     elif args.command == "task":
@@ -785,13 +858,14 @@ def main(argv: Optional[List[str]] = None) -> None:
     elif args.command == "errors":
         duration_s = parse_duration(args.last)
         start_us, end_us = _time_range(duration_s)
-        # Get error trace summaries, then fetch full span trees for each
-        filter_parts = ["span_status = 'ERROR'"]
-        if getattr(args, "route", None):
-            filter_parts.append(f"operation_name LIKE '%{args.route}%'")
-        traces = _get_latest_traces(
+        # Query spans directly so HTTP errors and exception events are found
+        # even when OpenTelemetry leaves span_status as UNSET.
+        traces = _search_traces_sql(
+            _build_error_trace_sql(
+                route=getattr(args, "route", None),
+                fingerprint=getattr(args, "fingerprint", None),
+            ),
             start_us, end_us, base_url, auth,
-            filter_str=" AND ".join(filter_parts),
         )
         spans = _collect_full_spans(traces, start_us, end_us, base_url, auth)
 

@@ -33,7 +33,11 @@ export interface ServerConfig {
   composeFiles?: string[];
   /** Distribution mode: prebuilt images by default, source builds for contributors/forks. */
   installMode?: "image" | "source";
-  /** OpenMates image tag used by image-mode installs, e.g. v0.14.0. */
+  /** Deployment mode: self-host core by default, official cloud when OpenMatesCloud overlay is enabled. */
+  deploymentMode?: "self_host" | "official_cloud";
+  /** Absolute OpenMatesCloud overlay checkout path for official-cloud installs. */
+  openMatesCloudOverlayPath?: string;
+  /** OpenMates image tag used by image-mode installs, e.g. v0.15.0. */
   imageTag?: string;
   /** Image channel alias used by image-mode installs, e.g. dev or main. */
   imageChannel?: "dev" | "main";

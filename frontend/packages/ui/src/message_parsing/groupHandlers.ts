@@ -379,6 +379,7 @@ export class CodeCodeGroupHandler implements EmbedGroupHandler {
       contentRef: embed.contentRef,
       language: embed.language,
       filename: embed.filename,
+      code: embed.code,
     }));
 
     return {
@@ -1033,6 +1034,20 @@ export class GroupHandlerRegistry {
         "name",
         "owner_login",
         "description",
+      ]),
+    );
+    this.register(
+      new BaseGroupHandler("code-notebook", [
+        "id",
+        "type",
+        "status",
+        "contentRef",
+        "filename",
+        "language",
+        "cell_count",
+        "code_cell_count",
+        "markdown_cell_count",
+        "source_version",
       ]),
     );
     this.register(new DocsDocGroupHandler());

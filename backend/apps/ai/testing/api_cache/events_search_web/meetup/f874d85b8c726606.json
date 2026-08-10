@@ -1,0 +1,56 @@
+{
+  "fingerprint": "f874d85b8c726606",
+  "category": "meetup",
+  "group_id": "events_search_web",
+  "recorded_at": "2026-08-02T13:57:50.786710+00:00",
+  "request": {
+    "method": "POST",
+    "url": "https://www.meetup.com/gql2",
+    "body_preview": {
+      "operationName": "eventSearch",
+      "variables": {
+        "filter": {
+          "lat": 52.52,
+          "lon": 13.405,
+          "query": "tech",
+          "radius": 25.0,
+          "doConsolidateEvents": false,
+          "city": "Berlin",
+          "country": "de",
+          "startDateRange": "2026-06-20T00:00:00+02:00",
+          "endDateRange": "2026-06-21T23:59:59+02:00"
+        },
+        "sort": {
+          "sortField": "RELEVANCE"
+        },
+        "first": 20
+      },
+      "query": "\nquery eventSearch(\n    $filter: EventSearchFilter!,\n    $sort: KeywordSort,\n    $first: Int,\n    $after: String\n) {\n    eventSearch(filter: $filter, sort: $sort, first: $first, after: $after) {\n        pageInfo {\n            hasNextPage\n            endCursor\n        }\n        totalCount\n        edges {\n            node {\n                id\n                title\n                dateTime\n                endTime\n                eventType\n                eventUrl\n                description\n                featuredEventPhoto { highResUrl }\n                rsvps { totalCount }\n                venue {\n                    name\n                    address\n                    city\n                    state\n                    country\n                    lat\n                    lon\n                }\n                group {\n                    id\n                    name\n                    urlname\n                    timezone\n                    groupPhoto { highResUrl }\n                }\n                feeSettings {\n                    amount\n                    currency\n                }\n            }\n        }\n    }\n}\n"
+    }
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "connection": "keep-alive",
+      "content-length": "102",
+      "accept-ranges": "bytes",
+      "content-type": "application/json",
+      "date": "Sun, 02 Aug 2026 13:57:50 GMT",
+      "x-cache": "MISS, MISS",
+      "x-cache-hits": "0, 0",
+      "vary": "X-Test-Fastly-Refactor, Accept-Encoding",
+      "set-cookie": "MEETUP_BROWSER_ID=id=c7ead8c8-082b-4fb6-ac7a-99e6fa61d53d; expires=Sat, 28 Jul 2046 13:57:50 GMT; path=/; domain=.meetup.com; SameSite=None; Secure, SIFT_SESSION_ID=822f5780-72ec-4919-b14d-02a965424cb4; expires=Sun, 02 Aug 2026 17:57:50 GMT; path=/; domain=.meetup.com; SameSite=Strict; Secure",
+      "content-security-policy": "base-uri 'self'; connect-src * blob: data: *.crazyegg.com ; default-src 'self' *.meetup.com *.dev.meetup.com:8001 www.sjwoe.com *.crazyegg.com blob: ; font-src * data:; frame-ancestors 'self'; frame-src *; img-src * data: blob: *.crazyegg.com ;media-src *.meetup.com *.dev.meetup.com:8001 https://secure.meetupstatic.com www.sjwoe.com *.sendbird.com https://sendbird-us-3.s3.amazonaws.com; script-src * 'unsafe-eval' 'unsafe-inline' *.crazyegg.com; style-src * 'unsafe-inline' *.crazyegg.com ; object-src 'none'",
+      "x-frame-options": "SAMEORIGIN",
+      "x-xss-protection": "1; mode=block",
+      "x-content-type-options": "nosniff",
+      "strict-transport-security": "max-age=7776000",
+      "access-control-allow-methods": "POST, PUT, OPTIONS, PATCH, GET, DELETE",
+      "access-control-allow-headers": "x-meetup-unread-messages, last-settings-hash, x-meetup-variants, x-meetup-locale, apollographql-client-name, x-meetup-track-origin, x-meetup-external-track-uri, x-meetup-udid, x-meetup-agent, x-meetup-view, x-meetup-view-id, content-type, x-meetup-tos-current, x-meetup-request-flags, x-meetup-tapped-notification, x-meetup-location, x-bsp-id, bsp-id, x-meetup-hit, x-tracking-request-id, x-meetup-app-instance-id, x-meetup-external-track, x-meetup-unread-notifications, baggage, sentry-trace",
+      "access-control-max-age": "600",
+      "access-control-allow-credentials": "true",
+      "cache-control": "private, no-cache, no-store, max-age=0, must-revalidate"
+    },
+    "body": "{\"data\":{\"eventSearch\":{\"pageInfo\":{\"hasNextPage\":false,\"endCursor\":null},\"totalCount\":0,\"edges\":[]}}}"
+  }
+}

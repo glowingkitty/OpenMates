@@ -38,6 +38,11 @@ import { applyServerDarkMode } from "./theme";
 import { applyServerUiFont } from "./uiFont";
 import { promoteGuestTopicPreferencesIfNeeded } from "../services/topicPreferencesSync";
 import { markDeviceReceivedFreeTestingCredits } from "./serverStatusStore";
+import { isExampleChat } from "../demo_chats/exampleChatStore";
+import {
+  notificationStore,
+  SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY,
+} from "./notificationStore";
 
 // Import core auth state and related flags
 import {
@@ -101,13 +106,14 @@ export function resetLocalLogoutState(): void {
   resetUserAvailableSkills();
   workflowWorkspaceStore.reset();
   dailyInspirationStore.reset();
+  notificationStore.removeNotificationsByDedupeKey(
+    SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY,
+  );
   // Immediately repopulate public default inspirations in the same tab session.
   // We intentionally skip IndexedDB on logout because the master key was just
   // cleared and any personalized encrypted records are not usable anymore.
   void import("../demo_chats/loadDefaultInspirations")
-    .then(({ loadDefaultInspirations }) =>
-      loadDefaultInspirations({ allowIndexedDB: false }),
-    )
+    .then(({ loadGuestOnboardingInspirations }) => loadGuestOnboardingInspirations())
     .catch((error) => {
       console.error(
         "[AuthStore] Failed to reload public default inspirations after logout:",
@@ -125,8 +131,16 @@ export function resetLocalLogoutState(): void {
   const isOgImageModeLogout =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("og") === "1";
-  if (!isOgImageModeLogout) {
+  const activeChatId = activeChatStore.get();
+  const shouldPreserveExampleChat = activeChatId ? isExampleChat(activeChatId) : false;
+  if (!isOgImageModeLogout && !shouldPreserveExampleChat) {
     activeChatStore.clearActiveChat();
+  }
+  if (typeof window !== "undefined" && window.location.hash) {
+    window.location.hash = "";
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("forceCloseSettings"));
   }
 
   authStore.set({
@@ -585,25 +599,28 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     // established session. Database deletion is safe regardless (stale old-session data).
     (async () => {
       try {
-        // Delete local databases in the background
-        try {
-          await userDB.deleteDatabase();
-        } catch (dbError) {
-          console.error(
-            "[AuthStore] Failed to delete userDB database:",
-            dbError,
-          );
-          if (callbacks?.onError) await callbacks.onError(dbError);
+        if (typeof localStorage !== "undefined") {
+          localStorage.setItem("openmates_needs_cleanup", "true");
         }
-        try {
-          await chatDB.deleteDatabase();
-        } catch (dbError) {
-          console.error(
-            "[AuthStore] Failed to delete chatDB database:",
-            dbError,
-          );
-          if (callbacks?.onError) await callbacks.onError(dbError);
-        }
+
+        // Mark both databases as deleting before a fast re-login can start sync
+        // and advertise stale local chat or embed IDs to the server.
+        await Promise.all([
+          userDB.deleteDatabase().catch(async (dbError) => {
+            console.error(
+              "[AuthStore] Failed to delete userDB database:",
+              dbError,
+            );
+            if (callbacks?.onError) await callbacks.onError(dbError);
+          }),
+          chatDB.deleteDatabase().catch(async (dbError) => {
+            console.error(
+              "[AuthStore] Failed to delete chatDB database:",
+              dbError,
+            );
+            if (callbacks?.onError) await callbacks.onError(dbError);
+          }),
+        ]);
 
         // Clear any pending offline chat deletions from localStorage
         try {

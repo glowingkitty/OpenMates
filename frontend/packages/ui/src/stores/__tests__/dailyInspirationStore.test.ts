@@ -8,8 +8,22 @@ import { get } from "svelte/store";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   dailyInspirationStore,
+  hasCompleteAuthenticatedDailySet,
   type DailyInspiration,
 } from "../dailyInspirationStore";
+import {
+  getAuthenticatedFallbackInspirations,
+  getHardcodedInspirationsForSurface,
+} from "../../demo_chats/hardcodedInspirations";
+
+const GUEST_ONBOARDING_IDS = [
+  "openmates-intro",
+  "openmates-actionable-events",
+  "openmates-privacy-safety",
+  "openmates-mates-focus",
+  "openmates-provider-cross-platform",
+  "openmates-signup-cta",
+];
 
 const INSPIRATIONS: DailyInspiration[] = [
   {
@@ -46,6 +60,7 @@ describe("dailyInspirationStore", () => {
     dailyInspirationStore.reset();
   });
 
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.personalized-priority,daily-inspiration.opened-state
   it("preserves manual carousel index for duplicate authenticated deliveries", () => {
     dailyInspirationStore.setInspirations(INSPIRATIONS, { personalized: true });
     dailyInspirationStore.goTo(1);
@@ -63,5 +78,120 @@ describe("dailyInspirationStore", () => {
       is_opened: true,
       opened_chat_id: "chat-2",
     });
+    expect(state.source).toBe("personalized");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.authenticated-continuity
+  it("replaces guest onboarding with an authenticated public source", () => {
+    dailyInspirationStore.setSurfaceInspirations(
+      "chats",
+      [{ ...INSPIRATIONS[0], inspiration_id: "openmates-signup-cta" }],
+      { source: "guest-onboarding" },
+    );
+
+    dailyInspirationStore.setSurfaceInspirations("chats", INSPIRATIONS, {
+      source: "public-daily",
+    });
+
+    const state = get(dailyInspirationStore);
+    expect(state.source).toBe("public-daily");
+    expect(state.inspirations.map((item) => item.inspiration_id)).not.toContain(
+      "openmates-signup-cta",
+    );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.personalized-priority
+  it("does not let guest onboarding overwrite personalized records", () => {
+    dailyInspirationStore.setInspirations(INSPIRATIONS, {
+      personalized: true,
+      source: "personalized",
+    });
+
+    dailyInspirationStore.setSurfaceInspirations(
+      "chats",
+      [{ ...INSPIRATIONS[0], inspiration_id: "openmates-signup-cta" }],
+      { source: "guest-onboarding" },
+    );
+
+    const state = get(dailyInspirationStore);
+    expect(state.source).toBe("personalized");
+    expect(state.inspirations).toHaveLength(3);
+    expect(state.inspirations.map((item) => item.inspiration_id)).not.toContain(
+      "openmates-signup-cta",
+    );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated
+  it("forces the exact guest onboarding set after authenticated data races with logout", () => {
+    dailyInspirationStore.setInspirations(INSPIRATIONS, {
+      personalized: true,
+      source: "personalized",
+    });
+
+    dailyInspirationStore.restoreGuestOnboarding(
+      getHardcodedInspirationsForSurface("en", "chats"),
+    );
+
+    const state = get(dailyInspirationStore);
+    expect(state.source).toBe("guest-onboarding");
+    expect(state.inspirations.map((item) => item.inspiration_id)).toEqual(
+      GUEST_ONBOARDING_IDS,
+    );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated
+  it("preserves the guest source when local interest ranking rewrites its order", () => {
+    dailyInspirationStore.setSurfaceInspirations("chats", INSPIRATIONS, {
+      source: "guest-onboarding",
+    });
+
+    dailyInspirationStore.setSurfaceInspirations("chats", [...INSPIRATIONS].reverse());
+
+    expect(get(dailyInspirationStore).source).toBe("guest-onboarding");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.authenticated-fallback-content
+  it("provides an authenticated-only 3/3/4 fallback", () => {
+    const fallback = getAuthenticatedFallbackInspirations("en");
+    const counts = fallback.reduce<Record<string, number>>((result, inspiration) => {
+      result[inspiration.content_type] = (result[inspiration.content_type] ?? 0) + 1;
+      return result;
+    }, {});
+
+    expect(counts).toEqual({ video: 3, wiki: 3, feature: 4 });
+    expect(fallback.map((item) => item.inspiration_id)).not.toContain("openmates-signup-cta");
+    expect(fallback.filter((item) => item.content_type === "feature").every((item) => item.feature?.settings_path)).toBe(true);
+    expect(hasCompleteAuthenticatedDailySet(fallback)).toBe(true);
+    expect(hasCompleteAuthenticatedDailySet(fallback.slice(1))).toBe(false);
+    expect(
+      hasCompleteAuthenticatedDailySet(
+        fallback.map((item) => ({ ...item, content_type: "feature" })),
+      ),
+    ).toBe(false);
+    expect(
+      hasCompleteAuthenticatedDailySet([
+        { ...fallback[0], feature: { ...fallback[6].feature!, feature_id: "openmates-actionable-events" } },
+        ...fallback.slice(1),
+      ]),
+    ).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.authenticated-continuity,daily-inspiration.personalized-priority
+  it("allows authenticated fallback to replace incomplete personalized records", () => {
+    dailyInspirationStore.setInspirations(INSPIRATIONS, {
+      personalized: true,
+      source: "personalized",
+    });
+
+    dailyInspirationStore.setSurfaceInspirations(
+      "chats",
+      getAuthenticatedFallbackInspirations("en"),
+      { source: "authenticated-fallback" },
+    );
+
+    const state = get(dailyInspirationStore);
+    expect(state.source).toBe("authenticated-fallback");
+    expect(state.isPersonalized).toBe(false);
+    expect(hasCompleteAuthenticatedDailySet(state.inspirations)).toBe(true);
   });
 });

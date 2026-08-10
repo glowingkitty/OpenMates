@@ -48,11 +48,11 @@ claims:
 
 # Linear Auto-Processing Pipeline
 
-> Automatically picks up Linear tasks labeled `claude-fix`, `claude-research`, or `claude-plan`, spawns Claude Code sessions in Zellij, tracks their lifecycle, and cleans up when done. All runs on the dev server only.
+> Automatically picks up Linear tasks labeled `claude-fix`, `claude-research`, or `claude-plan`, spawns persisted OpenCode Web chats, tracks their lifecycle, and cleans up when done. The legacy label names remain for compatibility. All runs on the dev server only.
 
 ## Why This Exists
 
-Manual task pickup is slow — labeling a Linear task should be enough to kick off work. This pipeline turns Linear labels into running Claude sessions, monitors their progress, and reclaims resources when tasks complete or crash.
+Manual task pickup is slow — labeling a Linear task should be enough to kick off work. This pipeline turns Linear labels into running OpenCode chats, monitors their progress, and reclaims legacy resources when tasks complete or crash.
 
 ## How It Works
 
@@ -63,33 +63,31 @@ Manual task pickup is slow — labeling a Linear task should be enough to kick o
                     |
 2. Poller detects it (every 30s)
                     |
-3. Checks global session limit (max 6 Zellij sessions)
-   |                              |
-   | Under limit                  | At limit
-   v                              v
-4. Spawns Claude in Zellij    Posts "Queued" comment (once)
-   - Writes prompt file        Retries next cycle
-   - Captures session UUID
+3. Starts a persisted OpenCode Web chat
+   - Passes prompt directly through the running OpenCode server
    - Tracks in poller-sessions.json
    - Swaps labels: claude-fix -> claude-is-working
    - Sets status: In Progress
                     |
-5. Claude works (reads prompt, investigates, implements)
+4. OpenCode works (reads prompt, investigates, implements)
    - Posts progress comments to Linear via MCP
                     |
-6. Claude finishes
+5. OpenCode finishes
    - Sets status: In Review (or Todo if blocked)
    - Removes claude-is-working label
                     |
-7. Poller detects completion (next cycle, <=30s)
-   - Kills Zellij session
-   - Removes from tracking file
-   - Freed slot -> queued task auto-starts
+6. Poller detects completion (next cycle, <=30s)
+   - Removes tracking record
+   - Removes any legacy Zellij session with the same name
 ```
+
+Legacy records created before sidebar chat spawning may still point at Zellij
+sessions. Cleanup keeps reclaiming those records, but new work launches into the
+existing OpenCode Web project sidebar instead of creating terminal sessions.
 
 ### Labels
 
-| Label | Mode | Claude Permissions | What Happens |
+| Label | Mode | OpenCode Permissions | What Happens |
 |-------|------|-------------------|--------------|
 | `claude-fix` | execute | Full read/write | Investigate + implement fix + deploy |
 | `claude-research` | research | Read-only | Codebase + web research, post findings as comment |
@@ -97,18 +95,17 @@ Manual task pickup is slow — labeling a Linear task should be enough to kick o
 
 Priority order: fix > research > plan (if multiple labels exist).
 
-### Session Limits
+### Worker Limits
 
-- **Hard cap: 6 concurrent Zellij sessions** (server has 30GB RAM, each Claude session uses ~500MB)
-- The limit counts ALL Zellij sessions (manual claude1-4, poller-spawned, etc.)
-- When at capacity, tasks are queued — a single "Queued" comment is posted (deduped, no spam)
-- Queued tasks auto-start as slots free up
+- New poller workers launch as persisted OpenCode Web chats instead of consuming Zellij slots.
+- Legacy Zellij cleanup still enforces the historical session cap for older records and manual sessions.
+- If a future chat-worker cap is added, queued tasks should keep the existing deduped "Queued" comment behavior.
 
 ### Cleanup Layers
 
 | Trigger | What | When |
 |---------|------|------|
-| **Poller (30s)** | Detects tasks moved to "In Review"/"Done", kills their Zellij sessions | Every poll cycle |
+| **Poller (30s)** | Detects tasks moved to "In Review"/"Done", removes tracking, and kills any legacy Zellij session with the same name | Every poll cycle |
 | **session-cleanup.py (5 min)** | Catches crashed sessions (EXITED/disappeared in Zellij), updates Linear, removes tracking | Every 5 min via systemd timer |
 | **enforce_session_limit()** | Kills EXITED sessions first, then oldest idle sessions if over 6 | Called by both poller and cleanup |
 
@@ -116,10 +113,10 @@ Priority order: fix > research > plan (if multiple labels exist).
 
 ### `scripts/linear-poller.py`
 Main engine. Runs every 30s via systemd. Each cycle:
-1. `_cleanup_completed_sessions()` — kill sessions whose tasks are done
+1. `_cleanup_completed_sessions()` — clean tracking for tasks whose work is done
 2. `enforce_session_limit()` — free slots if over the cap
 3. Collect candidates from `claude-fix`, `claude-research`, `claude-plan` labels
-4. For each candidate under the limit: spawn session, track it, swap labels
+4. For each candidate: spawn an OpenCode Web chat, track it, swap labels
 
 ### `scripts/_linear_client.py`
 GraphQL client for the Linear API. All reads/writes go through `_graphql()`. Key functions:
@@ -128,10 +125,10 @@ GraphQL client for the Linear API. All reads/writes go through `_graphql()`. Key
 - `post_comment()`, `add_label()`, `remove_label()`, `update_issue_status()`
 
 ### `scripts/_zellij_utils.py`
-Zellij session management. Key functions:
-- `spawn_claude_session()` — creates KDL layout, launches Claude with `--dangerously-skip-permissions`
-- `count_active_sessions()` — counts all non-EXITED sessions (used for global limit)
-- `enforce_session_limit()` — kills excess sessions
+Legacy Zellij session management plus OpenCode chat launch. Key functions:
+- `spawn_opencode_session()` — launches a persisted OpenCode Web chat with explicit plan or execute mode
+- `count_active_sessions()` — counts all non-EXITED legacy Zellij sessions
+- `enforce_session_limit()` — kills excess legacy Zellij sessions
 - `list_sessions_with_state()` — returns `{name: "ACTIVE"|"EXITED"}` for cleanup
 
 ### `scripts/session-cleanup.py`

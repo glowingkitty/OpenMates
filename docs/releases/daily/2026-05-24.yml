@@ -1,0 +1,1100 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-24'
+generated_at: '2026-07-09T15:24:18+00:00'
+range:
+  since: '2026-05-24T00:00:00+00:00'
+  until: '2026-05-24T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 16
+  section_counts:
+    features: 1
+    bug_fixes: 15
+    improvements: 0
+    docs: 0
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 15
+  user_facing_items: 15
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add app store embed examples'
+    section: features
+    commits:
+    - 9759a632d
+    authored_at: '2026-05-24T18:11:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/store-examples/music-generate-1.mp3
+    - frontend/apps/web_app/static/store-examples/video-generate-1.mp4
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: use official provider icons'
+    section: bug_fixes
+    commits:
+    - 96124fc50
+    authored_at: '2026-05-24T23:16:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/static/icons/e2b.svg
+    - frontend/packages/ui/static/icons/flix.svg
+    - frontend/packages/ui/static/icons/jameda.svg
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: add provider privacy links'
+    section: bug_fixes
+    commits:
+    - c8a5da9fe
+    authored_at: '2026-05-24T21:52:58+00:00'
+    changed_paths:
+    - backend/apps/social_media/app.yml
+    - backend/providers/alibaba.yml
+    - backend/providers/amazon.yml
+    - backend/providers/anthropic.yml
+    - backend/providers/bfl.yml
+    - backend/providers/bluesky.yml
+    - backend/providers/brave.yml
+    - backend/providers/context7.yml
+    - backend/providers/deepseek.yml
+    - backend/providers/deutsche_bahn.yml
+    - backend/providers/doctolib.yml
+    - backend/providers/e2b.yml
+    - backend/providers/firecrawl.yml
+    - backend/providers/flix.yml
+    - backend/providers/github.yml
+    - backend/providers/google.yml
+    - backend/providers/google_maps.yml
+    - backend/providers/immoscout24.yml
+    - backend/providers/jameda.yml
+    - backend/providers/kleinanzeigen.yml
+    - backend/providers/luma.yml
+    - backend/providers/mastodon.yml
+    - backend/providers/meetup.yml
+    - backend/providers/mistral.yml
+    - backend/providers/moonshot.yml
+    - backend/providers/openai.yml
+    - backend/providers/protonmail.yml
+    - backend/providers/recraft.yml
+    - backend/providers/reddit.yml
+    - backend/providers/resident_advisor.yml
+    - backend/providers/rewe.yml
+    - backend/providers/wg-gesucht.yml
+    - backend/providers/youtube.yml
+    - backend/providers/zai.yml
+    - frontend/packages/ui/scripts/generate-providers-metadata.js
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/settings/AppSkillModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/components/settings/ProviderDetails.svelte
+    - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - frontend/packages/ui/static/icons/deutsche_bahn.svg
+    - frontend/packages/ui/static/icons/e2b.svg
+    - frontend/packages/ui/static/icons/flix.svg
+    - frontend/packages/ui/static/icons/jameda.svg
+    - shared/docs/privacy_policy.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show real svelte code repo example'
+    section: bug_fixes
+    commits:
+    - 85cd84cf4
+    authored_at: '2026-05-24T20:39:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: correct electronics component pricing'
+    section: bug_fixes
+    commits:
+    - ca8587606
+    authored_at: '2026-05-24T20:33:13+00:00'
+    changed_paths:
+    - backend/apps/electronics/app.yml
+    - backend/providers/texas_instruments.yml
+    - frontend/packages/ui/static/icons/texas_instruments.svg
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: avoid favicon observer mutation loop'
+    section: bug_fixes
+    commits:
+    - cfceaa70a
+    authored_at: '2026-05-24T18:54:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show selected providers while embeds process'
+    section: bug_fixes
+    commits:
+    - 1172d5fa6
+    authored_at: '2026-05-24T18:01:30+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/base_skill.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/apps/home/skills/search_skill.py
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_skill_preview_metadata.py
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: match web search placeholders by normalized ids'
+    section: bug_fixes
+    commits:
+    - afed6dc83
+    authored_at: '2026-05-24T17:23:52+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: guard app favicon links'
+    section: bug_fixes
+    commits:
+    - 0e59cff94
+    authored_at: '2026-05-24T17:14:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/packages/ui/src/components/MetaTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show Texas Instruments provider logo'
+    section: bug_fixes
+    commits:
+    - a2db1b089
+    authored_at: '2026-05-24T17:13:22+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/electronics/app.yml
+    - backend/core/api/app/routes/apps_api.py
+    - backend/providers/texas_instruments.yml
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/static/icons/texas_instruments.svg
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: derive mate category from topic area'
+    section: bug_fixes
+    commits:
+    - fe1de461b
+    authored_at: '2026-05-24T13:22:08+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/preprocessor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: rename video generate skill'
+    section: bug_fixes
+    commits:
+    - e697766c0
+    authored_at: '2026-05-24T13:18:56+00:00'
+    changed_paths:
+    - backend/apps/videos/app.yml
+    - frontend/packages/ui/src/i18n/sources/app_skills/videos.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent shopping product fullscreen crash'
+    section: bug_fixes
+    commits:
+    - f18d008d8
+    authored_at: '2026-05-24T13:16:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize mate topic routing'
+    section: bug_fixes
+    commits:
+    - bb257c922
+    authored_at: '2026-05-24T12:55:17+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore electronics embed icon and count'
+    section: bug_fixes
+    commits:
+    - 082471f86
+    authored_at: '2026-05-24T12:52:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/styles/icons.css
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: open shopping product embed fullscreen'
+    section: bug_fixes
+    commits:
+    - e8164d823
+    authored_at: '2026-05-24T12:41:07+00:00'
+    changed_paths:
+    - backend/apps/shopping/app.yml
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: add provider privacy links'
+    commits:
+    - c8a5da9fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct electronics component pricing'
+    commits:
+    - ca8587606
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show selected providers while embeds process'
+    commits:
+    - 1172d5fa6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show Texas Instruments provider logo'
+    commits:
+    - a2db1b089
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: rename video generate skill'
+    commits:
+    - e697766c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open shopping product embed fullscreen'
+    commits:
+    - e8164d823
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: add provider privacy links'
+    commits:
+    - c8a5da9fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show real svelte code repo example'
+    commits:
+    - 85cd84cf4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct electronics component pricing'
+    commits:
+    - ca8587606
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: avoid favicon observer mutation loop'
+    commits:
+    - cfceaa70a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add app store embed examples'
+    commits:
+    - 9759a632d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show selected providers while embeds process'
+    commits:
+    - 1172d5fa6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: match web search placeholders by normalized ids'
+    commits:
+    - afed6dc83
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: guard app favicon links'
+    commits:
+    - 0e59cff94
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show Texas Instruments provider logo'
+    commits:
+    - a2db1b089
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: derive mate category from topic area'
+    commits:
+    - fe1de461b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: rename video generate skill'
+    commits:
+    - e697766c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent shopping product fullscreen crash'
+    commits:
+    - f18d008d8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize mate topic routing'
+    commits:
+    - bb257c922
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore electronics embed icon and count'
+    commits:
+    - 082471f86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open shopping product embed fullscreen'
+    commits:
+    - e8164d823
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: add provider privacy links'
+    commits:
+    - c8a5da9fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show real svelte code repo example'
+    commits:
+    - 85cd84cf4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: correct electronics component pricing'
+    commits:
+    - ca8587606
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: avoid favicon observer mutation loop'
+    commits:
+    - cfceaa70a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add app store embed examples'
+    commits:
+    - 9759a632d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show selected providers while embeds process'
+    commits:
+    - 1172d5fa6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: match web search placeholders by normalized ids'
+    commits:
+    - afed6dc83
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: guard app favicon links'
+    commits:
+    - 0e59cff94
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show Texas Instruments provider logo'
+    commits:
+    - a2db1b089
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: derive mate category from topic area'
+    commits:
+    - fe1de461b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: rename video generate skill'
+    commits:
+    - e697766c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent shopping product fullscreen crash'
+    commits:
+    - f18d008d8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize mate topic routing'
+    commits:
+    - bb257c922
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore electronics embed icon and count'
+    commits:
+    - 082471f86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open shopping product embed fullscreen'
+    commits:
+    - e8164d823
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 96124fc50fc6c6a272fb75fedb6eb2312d786964
+    short_sha: 96124fc50
+    authored_at: '2026-05-24T23:16:15+00:00'
+    subject: 'fix: use official provider icons'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/static/icons/e2b.svg
+    - frontend/packages/ui/static/icons/flix.svg
+    - frontend/packages/ui/static/icons/jameda.svg
+    related_feature_ids: []
+  - sha: c8a5da9fe60dded48f881d0838ca9b8ca789df6e
+    short_sha: c8a5da9fe
+    authored_at: '2026-05-24T21:52:58+00:00'
+    subject: 'fix: add provider privacy links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/social_media/app.yml
+    - backend/providers/alibaba.yml
+    - backend/providers/amazon.yml
+    - backend/providers/anthropic.yml
+    - backend/providers/bfl.yml
+    - backend/providers/bluesky.yml
+    - backend/providers/brave.yml
+    - backend/providers/context7.yml
+    - backend/providers/deepseek.yml
+    - backend/providers/deutsche_bahn.yml
+    - backend/providers/doctolib.yml
+    - backend/providers/e2b.yml
+    - backend/providers/firecrawl.yml
+    - backend/providers/flix.yml
+    - backend/providers/github.yml
+    - backend/providers/google.yml
+    - backend/providers/google_maps.yml
+    - backend/providers/immoscout24.yml
+    - backend/providers/jameda.yml
+    - backend/providers/kleinanzeigen.yml
+    - backend/providers/luma.yml
+    - backend/providers/mastodon.yml
+    - backend/providers/meetup.yml
+    - backend/providers/mistral.yml
+    - backend/providers/moonshot.yml
+    - backend/providers/openai.yml
+    - backend/providers/protonmail.yml
+    - backend/providers/recraft.yml
+    - backend/providers/reddit.yml
+    - backend/providers/resident_advisor.yml
+    - backend/providers/rewe.yml
+    - backend/providers/wg-gesucht.yml
+    - backend/providers/youtube.yml
+    - backend/providers/zai.yml
+    - frontend/packages/ui/scripts/generate-providers-metadata.js
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/settings/AppSkillModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/components/settings/ProviderDetails.svelte
+    - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - frontend/packages/ui/static/icons/deutsche_bahn.svg
+    - frontend/packages/ui/static/icons/e2b.svg
+    - frontend/packages/ui/static/icons/flix.svg
+    - frontend/packages/ui/static/icons/jameda.svg
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+  - sha: 85cd84cf4bcad08172f299ec9bf967778b1e2c04
+    short_sha: 85cd84cf4
+    authored_at: '2026-05-24T20:39:09+00:00'
+    subject: 'fix: show real svelte code repo example'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
+    related_feature_ids: []
+  - sha: ca85876063caa6cc686cd58bca94bd83652f82e3
+    short_sha: ca8587606
+    authored_at: '2026-05-24T20:33:13+00:00'
+    subject: 'fix: correct electronics component pricing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/electronics/app.yml
+    - backend/providers/texas_instruments.yml
+    - frontend/packages/ui/static/icons/texas_instruments.svg
+    related_feature_ids: []
+  - sha: cfceaa70a7c99d411859ae3f2ba2eb71c038d974
+    short_sha: cfceaa70a
+    authored_at: '2026-05-24T18:54:15+00:00'
+    subject: 'fix: avoid favicon observer mutation loop'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    related_feature_ids: []
+  - sha: 9759a632d62ca2af6745f15f3c0cb72749d00524
+    short_sha: 9759a632d
+    authored_at: '2026-05-24T18:11:10+00:00'
+    subject: 'feat: add app store embed examples'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/store-examples/music-generate-1.mp3
+    - frontend/apps/web_app/static/store-examples/video-generate-1.mp4
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
+    related_feature_ids: []
+  - sha: 1172d5fa6196307da194d38ab2f810a2849adc02
+    short_sha: 1172d5fa6
+    authored_at: '2026-05-24T18:01:30+00:00'
+    subject: 'fix: show selected providers while embeds process'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/base_skill.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/apps/home/skills/search_skill.py
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_skill_preview_metadata.py
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    related_feature_ids: []
+  - sha: afed6dc839e7bbabb3ea72e4247fb87e07f7532e
+    short_sha: afed6dc83
+    authored_at: '2026-05-24T17:23:52+00:00'
+    subject: 'fix: match web search placeholders by normalized ids'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    related_feature_ids: []
+  - sha: 0e59cff948f12eb94791ca381b7d7f170b8403df
+    short_sha: 0e59cff94
+    authored_at: '2026-05-24T17:14:33+00:00'
+    subject: 'fix: guard app favicon links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/packages/ui/src/components/MetaTags.svelte
+    related_feature_ids: []
+  - sha: a2db1b089285c400079a02c644e917cb947c1b13
+    short_sha: a2db1b089
+    authored_at: '2026-05-24T17:13:22+00:00'
+    subject: 'fix: show Texas Instruments provider logo'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/electronics/app.yml
+    - backend/core/api/app/routes/apps_api.py
+    - backend/providers/texas_instruments.yml
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/static/icons/texas_instruments.svg
+    related_feature_ids: []
+  - sha: fe1de461b3335b2b8f3baca1ec69a55f7777b588
+    short_sha: fe1de461b
+    authored_at: '2026-05-24T13:22:08+00:00'
+    subject: 'fix: derive mate category from topic area'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/preprocessor.py
+    related_feature_ids: []
+  - sha: e697766c0a37a38326cee49387919c46a3d51e6b
+    short_sha: e697766c0
+    authored_at: '2026-05-24T13:18:56+00:00'
+    subject: 'fix: rename video generate skill'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/videos/app.yml
+    - frontend/packages/ui/src/i18n/sources/app_skills/videos.yml
+    related_feature_ids: []
+  - sha: f18d008d8d7acdf41da491e72ea06b0d967729cc
+    short_sha: f18d008d8
+    authored_at: '2026-05-24T13:16:26+00:00'
+    subject: 'fix: prevent shopping product fullscreen crash'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: bb257c922cf2e0c4f9fb5c61b168292e059938e7
+    short_sha: bb257c922
+    authored_at: '2026-05-24T12:55:17+00:00'
+    subject: 'fix: stabilize mate topic routing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    related_feature_ids: []
+  - sha: 082471f86c6a02b8fb661bae3e60d2dbd4fb6beb
+    short_sha: 082471f86
+    authored_at: '2026-05-24T12:52:49+00:00'
+    subject: 'fix: restore electronics embed icon and count'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/styles/icons.css
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    related_feature_ids: []
+  - sha: e8164d8230fcabcd6fed8015bf31fcebe03ccdab
+    short_sha: e8164d823
+    authored_at: '2026-05-24T12:41:07+00:00'
+    subject: 'fix: open shopping product embed fullscreen'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/shopping/app.yml
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced visual examples for the App Store to showcase embed capabilities and significantly improved
+    provider transparency by integrating privacy links for dozens of services. The update also refined the shopping experience
+    and stabilized AI routing logic.
+  released_changes:
+  - text: The App Store now includes visual examples for music, video, code, electronics, and social media embeds to demonstrate
+      functionality.
+    evidence:
+      commits:
+      - 9759a632d
+      - 85cd84cf4
+    release_status: released_main
+  - text: Added direct privacy policy links for a wide range of providers, including Anthropic, OpenAI, Google, and Amazon,
+      accessible within the provider details.
+    evidence:
+      commits:
+      - c8a5da9fe
+    release_status: released_main
+  - text: Shopping product embeds now support a fullscreen view for more detailed inspection.
+    evidence:
+      commits:
+      - e8164d823
+    release_status: released_main
+  - text: Renamed the video generation skill to improve clarity within the user interface.
+    evidence:
+      commits:
+      - e697766c0
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved a mutation loop in the favicon observer and added guards for app favicon links to improve stability.
+    evidence:
+      commits:
+      - cfceaa70a
+      - 0e59cff94
+    release_status: released_main
+  - text: Improved AI reliability by stabilizing mate topic routing, category derivation, and web search placeholder matching.
+    evidence:
+      commits:
+      - fe1de461b
+      - bb257c922
+      - afed6dc83
+    release_status: released_main
+  - text: Fixed UI and data issues in the electronics app, including restoring icons, counts, and correcting component pricing.
+    evidence:
+      commits:
+      - 082471f86
+      - ca8587606
+      - a2db1b089
+    release_status: released_main
+  - text: The interface now displays selected providers while embeds are still in the processing state.
+    evidence:
+      commits:
+      - 1172d5fa6
+    release_status: released_main
+  - text: Prevented a crash when attempting to view shopping product results in fullscreen mode.
+    evidence:
+      commits:
+      - f18d008d8
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: Updated several provider icons to their official versions.
+    evidence:
+      commits:
+      - 96124fc50
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New visual examples for the App Store.
+      evidence:
+        commits:
+        - 9759a632d
+      reason: Visual examples help users understand the capabilities of different apps before enabling them.
+    - text: Enhanced provider transparency with integrated privacy links.
+      evidence:
+        commits:
+        - c8a5da9fe
+      reason: Adding privacy links for dozens of providers increases transparency and user trust.
+    - text: Fullscreen support for shopping product embeds.
+      evidence:
+        commits:
+        - e8164d823
+      reason: Improves the shopping experience by allowing users to focus on specific products.
+    exclude:
+    - text: Official provider icon updates.
+      evidence:
+        commits:
+        - 96124fc50
+      reason: This is an internal branding update with no functional change for users.
+    rationale: The day's updates focus on improving the discoverability of features through the App Store and building trust
+      through better provider transparency.
+  social_video_recommendations:
+  - idea: A short clip scrolling through the new App Store examples to show the variety of supported content types.
+    priority: medium
+    reason: The new examples provide a high-quality visual way to demonstrate the platform's versatility.
+    evidence:
+      commits:
+      - 9759a632d
+  quality_notes:
+  - The fix for the favicon mutation loop addresses a potential performance bottleneck in the web application.
+  - Extensive updates to provider metadata ensure that legal and branding information is current across the platform.
+  validation_warnings: []

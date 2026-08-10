@@ -20,6 +20,7 @@
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
+  import { downloadCalendarFile, sanitizeCalendarFilename } from '../../../utils/calendarDownload';
   import { authStore } from '../../../stores/authStore';
   import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
   import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
@@ -302,6 +303,28 @@
     if (bookingUrl) window.open(bookingUrl, '_blank', 'noopener,noreferrer');
     promptToSaveEmbedMemory(buildSaveConfig());
   }
+
+  function buildCalendarDescription(): string {
+    return [
+      activeAppointment?.speciality ? `Speciality: ${activeAppointment.speciality}` : '',
+      activeAppointment?.service_name ? `Service: ${activeAppointment.service_name}` : '',
+      activeAppointment?.provider_platform ? `Provider: ${activeAppointment.provider_platform}` : '',
+      activeAppointment?.price != null ? `Price: ${activeAppointment.price} EUR` : '',
+      bookingUrl,
+    ].filter(Boolean).join('\n');
+  }
+
+  function handleAddToCalendar() {
+    const calendarTitle = [activeAppointment?.name, activeAppointment?.speciality].filter(Boolean).join(' - ') || 'Health appointment';
+    downloadCalendarFile({
+      title: calendarTitle,
+      start: effectiveSlotDatetime || '',
+      location: activeAppointment?.address,
+      description: buildCalendarDescription(),
+      url: bookingUrl,
+      filename: sanitizeCalendarFilename([calendarTitle, effectiveSlotDatetime?.slice(0, 10) || ''].filter(Boolean).join('-')),
+    });
+  }
 </script>
 
 {#if activeAppointment}
@@ -320,6 +343,7 @@
   {mapCenter}
   mapZoom={16}
   {mapMarkers}
+  onCalendar={effectiveSlotDatetime ? handleAddToCalendar : undefined}
 >
   {#snippet detailContent(_ctx)}
     <!-- Slot datetime — prominent -->

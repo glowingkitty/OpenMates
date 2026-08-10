@@ -1,10 +1,10 @@
 import os
 import time
 import yaml
-import random
-import string
+import secrets
 import requests
 import glob
+import hashlib
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -15,6 +15,7 @@ CMS_URL = 'http://cms:8055'
 ADMIN_EMAIL = os.getenv('DATABASE_ADMIN_EMAIL')
 ADMIN_PASSWORD = os.getenv('DATABASE_ADMIN_PASSWORD')
 DIRECTUS_TOKEN = os.getenv('DIRECTUS_TOKEN')
+INTERNAL_API_SHARED_TOKEN = os.getenv('INTERNAL_API_SHARED_TOKEN')
 
 # Print environment variables for debugging
 print("Environment variables loaded.")
@@ -24,6 +25,114 @@ print(f"DIRECTUS_TOKEN: {'*****' if DIRECTUS_TOKEN else 'Not set'}")
 
 # Schema directories - use environment variable or default
 SCHEMAS_DIR = os.getenv('SCHEMAS_DIR', '/usr/src/app/schemas')
+CHAT_RECOVERY_MIGRATION_PATH = os.getenv(
+    'CHAT_RECOVERY_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql',
+)
+CHAT_RECOVERY_INDEXES = (
+    'chat_turn_preflights_owner_chat_turn_uq',
+    'chat_turn_preflights_user_message_uq',
+    'chat_turn_preflights_task_uq',
+    'chat_turn_preflights_billing_uq',
+    'chat_inference_outbox_preflight_uq',
+    'chat_inference_outbox_task_uq',
+    'chat_inference_outbox_billing_uq',
+    'chat_recovery_jobs_owner_chat_turn_uq',
+    'chat_recovery_jobs_preflight_uq',
+    'chat_recovery_jobs_task_uq',
+    'chat_recovery_jobs_assistant_message_uq',
+)
+WORKFLOW_RUNTIME_MIGRATION_PATH = os.getenv(
+    'WORKFLOW_RUNTIME_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql',
+)
+WORKFLOW_RUNTIME_INDEXES = (
+    'workflow_triggers_due_claim_idx',
+    'workflow_triggers_due_owner_idx',
+    'workflow_versions_version_id_uq',
+    'workflow_runs_acceptance_identity_uq',
+    'workflow_event_receipts_trigger_event_uq',
+    'workflow_template_projections_workflow_uq',
+    'workflow_input_events_session_event_uq',
+    'workflow_input_sessions_owner_updated_idx',
+    'workflow_input_mutations_session_created_idx',
+    'workflow_assistant_proposals_proposal_id_uq',
+    'workflow_assistant_proposals_pending_expiry_idx',
+)
+USER_TASK_MIGRATION_PATH = os.getenv(
+    'USER_TASK_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_user_task_indexes.sql',
+)
+USER_TASK_INDEXES = (
+    'user_tasks_owner_status_position_idx',
+    'user_tasks_owner_priority_idx',
+    'user_tasks_owner_completed_idx',
+    'user_tasks_due_ai_idx',
+    'user_tasks_owner_chat_idx',
+    'user_tasks_project_hashes_gin_idx',
+    'user_tasks_label_hashes_gin_idx',
+    'user_task_key_wrappers_task_owner_idx',
+    'user_task_activity_task_created_idx',
+    'user_task_archives_owner_archived_idx',
+)
+USAGE_OVERVIEW_MIGRATION_PATH = os.getenv(
+    'USAGE_OVERVIEW_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_usage_overview_indexes.sql',
+)
+USAGE_OVERVIEW_INDEXES = (
+    'usage_period_rollups_user_granularity_period_idx',
+    'usage_period_rollups_user_period_start_idx',
+    'usage_user_created_idx',
+    'usage_monthly_chat_user_month_idx',
+    'usage_monthly_app_user_month_idx',
+    'usage_monthly_api_key_user_month_idx',
+    'usage_daily_chat_user_date_idx',
+    'usage_daily_app_user_date_idx',
+    'usage_daily_api_key_user_date_idx',
+    'usage_monthly_chat_user_chat_month_uq',
+    'usage_monthly_app_user_app_month_uq',
+    'usage_monthly_api_key_user_api_key_month_uq',
+    'usage_daily_chat_user_chat_date_uq',
+    'usage_daily_app_user_app_date_uq',
+    'usage_daily_api_key_user_api_key_date_uq',
+)
+PROJECT_OWNER_CONTEXT_MIGRATION_PATH = os.getenv(
+    'PROJECT_OWNER_CONTEXT_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_project_owner_context.sql',
+)
+PROJECT_OWNER_CONTEXT_INDEXES = (
+    'project_sources_personal_source_uq',
+    'project_sources_team_source_uq',
+    'project_folders_team_project_idx',
+    'project_items_team_project_idx',
+    'project_settings_team_project_idx',
+)
+SUB_CHAT_ORCHESTRATION_MIGRATION_PATH = os.getenv(
+    'SUB_CHAT_ORCHESTRATION_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql',
+)
+SUB_CHAT_ORCHESTRATION_INDEXES = (
+    'sub_chat_orchestrations_owner_root_turn_uq',
+    'sub_chat_orchestrations_owner_status_idx',
+    'sub_chat_children_chat_uq',
+    'sub_chat_children_orchestration_token_uq',
+    'sub_chat_children_inference_task_uq',
+    'sub_chat_children_orchestration_state_idx',
+    'sub_chat_batches_orchestration_parent_id_uq',
+    'sub_chat_batches_orchestration_claim_idx',
+    'sub_chat_operations_identity_uq',
+    'sub_chat_operations_orchestration_state_idx',
+    'sub_chat_operations_charge_idx',
+    'usage_charge_id_uq',
+    'usage_user_root_created_idx',
+    'usage_orchestration_created_idx',
+    'billing_charge_identities_charge_uq',
+    'billing_charge_identities_user_created_idx',
+    'team_credit_events_event_uq',
+    'team_usage_events_event_uq',
+)
+EMBED_HASH_INDEXES = ('embeds_hashed_embed_id_idx',)
+EMBED_HASH_BACKFILL_BATCH_SIZE = 500
 
 BACKEND_PERMISSION_COLLECTIONS = (
     'anonymous_free_usage_budget',
@@ -31,6 +140,8 @@ BACKEND_PERMISSION_COLLECTIONS = (
     'anonymous_free_usage_reservations',
     'free_testing_credit_grants',
     'free_testing_credits_budget',
+    'user_plan_key_wrappers',
+    'user_task_key_wrappers',
 )
 BACKEND_PERMISSION_ACTIONS = ('create', 'read', 'update', 'delete')
 BACKEND_PERMISSION_POLICY_NAMES = ('Backend API', 'Administrator')
@@ -590,9 +701,9 @@ def create_or_update_field(token, collection_name, field_name, field_config, is_
         return is_relation
 
 
-def create_collection(token, schema_file):
+def create_collection_from_config(token, collection_name, collection):
     """
-    Create collection from schema file, or update fields/relations for existing collections.
+    Create one collection from parsed schema config, or update missing fields/relations.
     
     Behavior:
     - For new collections: Creates the collection and all fields/relations
@@ -603,11 +714,6 @@ def create_collection(token, schema_file):
     Returns a tuple: (success: bool, newly_created: bool)
     """
     try:
-        with open(schema_file, 'r') as f:
-            schema = yaml.safe_load(f)
-        
-        # Get collection name from the first key in the schema
-        collection_name = list(schema.keys())[0]
         is_system_collection = collection_name.startswith('directus_')
         
         # Check if collection already exists
@@ -631,8 +737,6 @@ def create_collection(token, schema_file):
             else:
                 print(f"Creating new custom collection: {collection_name}")
                 create_new = True
-        
-        collection = schema[collection_name]
         
         # Create the collection if needed (non-system collections only)
         if create_new:
@@ -757,6 +861,43 @@ def create_collection(token, schema_file):
         return False, False # Not successful, not newly created
 
 
+def create_collection(token, schema_file):
+    """
+    Create collections from a schema file, or update fields/relations for existing collections.
+    A single YAML file may define multiple top-level collections.
+
+    Behavior:
+    - For new collections: Creates the collection and all fields/relations
+    - For system collections (directus_*): Updates existing fields and adds missing ones
+    - For existing custom collections: Only adds missing fields (does not update existing ones
+      to preserve user changes)
+
+    Returns a tuple: (success: bool, newly_created: bool)
+    """
+    try:
+        with open(schema_file, 'r') as f:
+            schema = yaml.safe_load(f) or {}
+
+        if not isinstance(schema, dict) or not schema:
+            print(f"Schema file {schema_file} does not define any collections")
+            return False, False
+
+        overall_success = True
+        any_newly_created = False
+        for collection_name, collection in schema.items():
+            success, newly_created = create_collection_from_config(token, collection_name, collection or {})
+            overall_success = overall_success and success
+            any_newly_created = any_newly_created or newly_created
+
+        return overall_success, any_newly_created
+    except Exception as e:
+        print(f'Error processing schema file {schema_file}: {str(e)}')
+        if hasattr(e, 'response') and e.response is not None:
+            print(f'Response status code: {e.response.status_code}')
+            print(f'Response body: {e.response.text}')
+        return False, False
+
+
 def check_if_database_initialized(token):
     """Check if database is already initialized by checking if key collections exist."""
     core_collections = ['invite_codes', 'chats', 'users']
@@ -789,12 +930,12 @@ def check_if_database_initialized(token):
 
 def generate_invite_code():
     """Generate an invite code in the format XXXX-XXXX-XXXX using only numbers."""
-    digits = string.digits  # Use only digits 0-9
+    digits = "123456789"
     
     # Generate 3 groups of 4 random digits
-    part1 = ''.join(random.choices(digits, k=4))
-    part2 = ''.join(random.choices(digits, k=4))
-    part3 = ''.join(random.choices(digits, k=4))
+    part1 = ''.join(secrets.choice(digits) for _ in range(4))
+    part2 = ''.join(secrets.choice(digits) for _ in range(4))
+    part3 = ''.join(secrets.choice(digits) for _ in range(4))
     
     # Format as XXXX-XXXX-XXXX
     invite_code = f"{part1}-{part2}-{part3}"
@@ -831,6 +972,324 @@ def store_invite_code(token, invite_code, is_admin=False):
 def signup_mode_uses_invites():
     mode = os.getenv("SELF_HOST_SIGNUP_MODE", "invite_only").strip().lower()
     return mode in {"invite_only", "invite_and_domain"}
+
+
+def connect_database():
+    """Create the setup-only PostgreSQL connection used for index migrations."""
+    import psycopg
+
+    return psycopg.connect(
+        host=os.getenv('DB_HOST', 'cms-database'),
+        port=int(os.getenv('DB_PORT', '5432')),
+        dbname=os.getenv('DB_DATABASE') or os.getenv('DATABASE_NAME'),
+        user=os.getenv('DB_USER') or os.getenv('DATABASE_USERNAME'),
+        password=os.getenv('DB_PASSWORD') or os.getenv('DATABASE_PASSWORD'),
+        connect_timeout=10,
+    )
+
+
+def apply_and_verify_embed_hash_contract():
+    """Backfill and index the embed hash used by shared-chat key lookups."""
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "ALTER TABLE public.embeds "
+                "ADD COLUMN IF NOT EXISTS hashed_embed_id varchar(255);"
+            )
+
+            backfilled = 0
+            while True:
+                cursor.execute(
+                    """
+                    SELECT id, embed_id
+                    FROM public.embeds
+                    WHERE embed_id IS NOT NULL
+                      AND (hashed_embed_id IS NULL OR hashed_embed_id = '')
+                    LIMIT %s
+                    """,
+                    (EMBED_HASH_BACKFILL_BATCH_SIZE,),
+                )
+                rows = cursor.fetchall()
+                if not rows:
+                    break
+
+                updates = [
+                    (hashlib.sha256(str(embed_id).encode()).hexdigest(), row_id)
+                    for row_id, embed_id in rows
+                ]
+                cursor.executemany(
+                    "UPDATE public.embeds SET hashed_embed_id = %s WHERE id = %s",
+                    updates,
+                )
+                backfilled += len(updates)
+
+            cursor.execute(
+                "CREATE INDEX CONCURRENTLY IF NOT EXISTS embeds_hashed_embed_id_idx "
+                "ON public.embeds (hashed_embed_id) WHERE hashed_embed_id IS NOT NULL;"
+            )
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(EMBED_HASH_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(EMBED_HASH_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Embed hash index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified embed hashed_embed_id contract; backfilled {backfilled} row(s)")
+
+
+def apply_and_verify_chat_recovery_indexes():
+    """Apply the idempotent recovery migration and require every unique index."""
+    if not os.path.isfile(CHAT_RECOVERY_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required chat recovery migration is missing: {CHAT_RECOVERY_MIGRATION_PATH}"
+        )
+
+    with open(CHAT_RECOVERY_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(CHAT_RECOVERY_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(CHAT_RECOVERY_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Chat recovery index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(CHAT_RECOVERY_INDEXES)} chat recovery indexes")
+
+
+def apply_and_verify_workflow_runtime_indexes():
+    """Apply the Workflow runtime migration before its scheduler can be enabled."""
+    if not os.path.isfile(WORKFLOW_RUNTIME_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required workflow runtime migration is missing: {WORKFLOW_RUNTIME_MIGRATION_PATH}"
+        )
+
+    with open(WORKFLOW_RUNTIME_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(WORKFLOW_RUNTIME_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(WORKFLOW_RUNTIME_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Workflow runtime index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(WORKFLOW_RUNTIME_INDEXES)} workflow runtime indexes")
+
+
+def apply_and_verify_user_task_indexes():
+    """Apply user task hot-path indexes before task boards and retention run."""
+    if not os.path.isfile(USER_TASK_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required user task migration is missing: {USER_TASK_MIGRATION_PATH}"
+        )
+
+    with open(USER_TASK_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(USER_TASK_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(USER_TASK_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "User task index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(USER_TASK_INDEXES)} user task indexes")
+
+
+def apply_and_verify_usage_overview_indexes():
+    """Apply usage overview rollup and hot-path read indexes."""
+    if not os.path.isfile(USAGE_OVERVIEW_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required usage overview migration is missing: {USAGE_OVERVIEW_MIGRATION_PATH}"
+        )
+
+    with open(USAGE_OVERVIEW_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(USAGE_OVERVIEW_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(USAGE_OVERVIEW_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Usage overview index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(USAGE_OVERVIEW_INDEXES)} usage overview indexes")
+
+
+def apply_and_verify_project_owner_context():
+    """Backfill exact Project ownership and require context-aware indexes."""
+    if not os.path.isfile(PROJECT_OWNER_CONTEXT_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required Project owner-context migration is missing: {PROJECT_OWNER_CONTEXT_MIGRATION_PATH}"
+        )
+    with open(PROJECT_OWNER_CONTEXT_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(PROJECT_OWNER_CONTEXT_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(PROJECT_OWNER_CONTEXT_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Project owner-context index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(PROJECT_OWNER_CONTEXT_INDEXES)} Project owner-context indexes")
+
+
+def apply_and_verify_sub_chat_orchestration_indexes():
+    """Apply and require durable sub-chat orchestration identity indexes."""
+    if not os.path.isfile(SUB_CHAT_ORCHESTRATION_MIGRATION_PATH):
+        raise RuntimeError(
+            "Required sub-chat orchestration migration is missing: "
+            f"{SUB_CHAT_ORCHESTRATION_MIGRATION_PATH}"
+        )
+    with open(SUB_CHAT_ORCHESTRATION_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(SUB_CHAT_ORCHESTRATION_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(SUB_CHAT_ORCHESTRATION_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Sub-chat orchestration index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(SUB_CHAT_ORCHESTRATION_INDEXES)} sub-chat orchestration indexes")
+
+
+def verify_chat_recovery_endpoint():
+    """Require the baked extension to answer an authenticated metadata-only read."""
+    if not INTERNAL_API_SHARED_TOKEN:
+        raise RuntimeError('INTERNAL_API_SHARED_TOKEN is required for Directus setup')
+    response = requests.post(
+        f"{CMS_URL}/chat-recovery-transaction/",
+        headers={"X-Internal-Service-Token": INTERNAL_API_SHARED_TOKEN},
+        json={
+            "operation": "list_available_jobs",
+            "data": {
+                "protocol_version": 1,
+                "hashed_user_id": "0" * 64,
+                "device_hash": "setup-health-check",
+            },
+        },
+        timeout=10,
+    )
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Chat recovery endpoint verification failed with HTTP {response.status_code}"
+        )
+    jobs = response.json().get('data', {}).get('jobs')
+    if not isinstance(jobs, list):
+        raise RuntimeError('Chat recovery endpoint returned an invalid health response')
+    print('Verified chat recovery Directus endpoint')
+
+
+def verify_sub_chat_orchestration_endpoint():
+    """Require the internal orchestration endpoint to pass its metadata-only health check."""
+    if not INTERNAL_API_SHARED_TOKEN:
+        raise RuntimeError('INTERNAL_API_SHARED_TOKEN is required for Directus setup')
+    response = requests.post(
+        f"{CMS_URL}/sub-chat-orchestration-transaction/",
+        headers={"X-Internal-Service-Token": INTERNAL_API_SHARED_TOKEN},
+        json={"operation": "health_check", "data": {"protocol_version": 1}},
+        timeout=10,
+    )
+    if response.status_code != 200:
+        raise RuntimeError(
+            "Sub-chat orchestration endpoint health check failed: "
+            f"HTTP {response.status_code}"
+        )
+    data = response.json().get('data', {})
+    if data.get('status') != 'ok' or data.get('protocol_version') != 1:
+        raise RuntimeError('Sub-chat orchestration endpoint returned an invalid health response')
+    print('Verified sub-chat orchestration Directus endpoint')
 
 def setup_schemas():
     """Main function to set up schemas."""
@@ -899,6 +1358,32 @@ def setup_schemas():
                 print("\n--- Ensuring backend collection permissions ---")
                 ensure_backend_collection_permissions(token)
 
+        print("\n--- Ensuring embed hash lookup contract ---")
+        apply_and_verify_embed_hash_contract()
+
+        print("\n--- Applying chat recovery database indexes ---")
+        apply_and_verify_chat_recovery_indexes()
+
+        print("\n--- Verifying chat recovery Directus endpoint ---")
+        verify_chat_recovery_endpoint()
+
+        print("\n--- Applying workflow runtime database indexes ---")
+        apply_and_verify_workflow_runtime_indexes()
+
+        print("\n--- Applying user task database indexes ---")
+        apply_and_verify_user_task_indexes()
+
+        print("\n--- Applying usage overview database indexes ---")
+        apply_and_verify_usage_overview_indexes()
+
+        print("\n--- Applying Project owner-context migration ---")
+        apply_and_verify_project_owner_context()
+
+        print("\n--- Applying sub-chat orchestration database indexes ---")
+        apply_and_verify_sub_chat_orchestration_indexes()
+
+        print("\n--- Verifying sub-chat orchestration Directus endpoint ---")
+        verify_sub_chat_orchestration_endpoint()
 
         # Only create the first signup invite code if the 'invite_codes'
         # collection was newly created during this run (i.e., first setup).

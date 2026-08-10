@@ -9,6 +9,90 @@ import XCTest
 
 @MainActor
 final class ChatStreamingLifecycleParityTests: XCTestCase {
+    func testNewTaskClearsPreviousTurnLifecycleState() {
+        var state = ChatStreamingLifecycleState()
+        state.apply(.preprocessingStep(chatId: "chat-1", step: "model_selected", data: nil))
+        state.apply(.thinkingChunk(chatId: "chat-1", messageId: "assistant-old", content: "Old reasoning"))
+        state.apply(.messageQueued(
+            chatId: "chat-1",
+            taskId: "task-old",
+            userMessageId: "user-old",
+            message: "Old queued text"
+        ))
+
+        state.apply(.taskInitiated(chatId: "chat-1", taskId: "task-new", userMessageId: "user-new"))
+
+        XCTAssertEqual(state.phase, .sending)
+        XCTAssertEqual(state.taskId, "task-new")
+        XCTAssertEqual(state.userMessageId, "user-new")
+        XCTAssertNil(state.messageId)
+        XCTAssertNil(state.preprocessingStep)
+        XCTAssertEqual(state.thinkingContent, "")
+        XCTAssertFalse(state.isThinkingStreaming)
+        XCTAssertNil(state.queuedMessageText)
+    }
+
+    func testThinkingChunksAccumulateForOneAssistantMessage() {
+        var state = ChatStreamingLifecycleState()
+
+        state.apply(.thinkingChunk(chatId: "chat-1", messageId: "assistant-1", content: "First "))
+        state.apply(.thinkingChunk(chatId: "chat-1", messageId: "assistant-1", content: "second"))
+
+        XCTAssertEqual(state.thinkingContent, "First second")
+        XCTAssertEqual(state.messageId, "assistant-1")
+        XCTAssertTrue(state.isThinkingStreaming)
+    }
+
+    func testStaleAndDuplicateChunksAreRejected() {
+        var state = ChatStreamingLifecycleState()
+        let newest = StreamingClient.StreamEvent.chunk(
+            chatId: "chat-1", messageId: "assistant-1", sequence: 2,
+            content: "newest", isFinal: false, userMessageId: "user-1",
+            category: nil, modelName: nil, rejectionReason: nil
+        )
+        let stale = StreamingClient.StreamEvent.chunk(
+            chatId: "chat-1", messageId: "assistant-1", sequence: 1,
+            content: "stale", isFinal: false, userMessageId: "user-1",
+            category: nil, modelName: nil, rejectionReason: nil
+        )
+
+        XCTAssertTrue(state.apply(newest))
+        XCTAssertFalse(state.apply(stale))
+        XCTAssertFalse(state.apply(newest))
+        XCTAssertEqual(state.phase, .streaming)
+    }
+
+    func testReplacingStreamKeepsNewestSubscriberRegistered() async {
+        let chatId = "fixture-stream-replacement-\(UUID().uuidString)"
+        let firstStream = await StreamingClient.shared.streamForChat(chatId)
+        let firstConsumer = Task.detached {
+            for await _ in firstStream {}
+        }
+        let secondStream = await StreamingClient.shared.streamForChat(chatId)
+        let received = expectation(description: "Newest stream receives chat event")
+        let secondConsumer = Task.detached {
+            for await event in secondStream {
+                if case .messageReady(let receivedChatId, _) = event,
+                   receivedChatId == chatId {
+                    received.fulfill()
+                    break
+                }
+            }
+        }
+
+        // Let the first continuation's asynchronous termination callback run.
+        try? await Task.sleep(for: .milliseconds(50))
+        await StreamingClient.shared.dispatch(
+            .messageReady(chatId: chatId, messageId: "fixture-assistant-1"),
+            for: chatId
+        )
+
+        await fulfillment(of: [received], timeout: 1)
+        firstConsumer.cancel()
+        secondConsumer.cancel()
+        await StreamingClient.shared.removeStream(chatId)
+    }
+
     func testLifecycleTransitionsThroughProcessingThinkingStreamingAndFinal() {
         var state = ChatStreamingLifecycleState()
 

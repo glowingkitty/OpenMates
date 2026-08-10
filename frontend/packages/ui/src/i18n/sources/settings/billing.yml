@@ -22,6 +22,295 @@ description:
   sv: Hantera dina krediter, köp och vad du använde krediter till
   he: נהל את הקרדיטים, המנויים ואמצעי התשלום שלך
   verified_by_human: []
+
+apple_support:
+  context: Native billing entry for support contributions
+  en: Support OpenMates
+  de: OpenMates unterstützen
+  zh: 支持 OpenMates
+  fr: Soutenir OpenMates
+  pt: Apoiar o OpenMates
+  ru: Поддержать OpenMates
+  ja: OpenMatesを支援する
+  ko: OpenMates 후원하기
+  it: Sostieni OpenMates
+  tr: "OpenMates'i Destekle"
+  vi: Ủng hộ OpenMates
+  id: Dukung OpenMates
+  pl: Wesprzyj OpenMates
+  nl: Steun OpenMates
+  ar: ادعم OpenMates
+  hi: OpenMates को सपोर्ट करें
+  th: สนับสนุน OpenMates
+  cs: Podpořit OpenMates
+  sv: Stöd OpenMates
+  es: Apoyar a OpenMates
+  he: תמיכה ב-OpenMates
+  verified_by_human: []
+apple_usage_details:
+  context: Native billing entry for detailed usage
+  en: View usage details
+  de: Nutzungsdetails anzeigen
+  zh: 查看使用详情
+  fr: "Voir les détails d'utilisation"
+  pt: Ver detalhes de utilização
+  ru: Подробности использования
+  ja: 利用状況の詳細を表示
+  ko: 사용 내역 보기
+  it: Visualizza dettagli di utilizzo
+  tr: Kullanım detaylarını görüntüle
+  vi: Xem chi tiết sử dụng
+  id: Lihat rincian penggunaan
+  pl: Wyświetl szczegóły użycia
+  nl: Verbruiksdetails bekijken
+  ar: عرض تفاصيل الاستخدام
+  hi: उपयोग विवरण देखें
+  th: ดูรายละเอียดการใช้งาน
+  cs: Zobrazit podrobnosti o využití
+  sv: Visa användningsinformation
+  es: Ver detalles de uso
+  he: צפייה בפרטי שימוש
+  verified_by_human: []
+apple_purchased_gift_cards:
+  context: Native gift card section for cards bought by the user
+  en: Purchased
+  de: Gekauft
+  zh: 已购买
+  fr: Achetées
+  pt: Comprados
+  ru: Купленные
+  ja: 購入済み
+  ko: 구매함
+  it: Acquistate
+  tr: Satın Alınanlar
+  vi: Đã mua
+  id: Dibeli
+  pl: Kupione
+  nl: Gekocht
+  ar: المشتريات
+  hi: खरीदे गए
+  th: ซื้อแล้ว
+  cs: Zakoupené
+  sv: Köpta
+  es: Compradas
+  he: נרכשו
+  verified_by_human: []
+apple_no_gift_cards:
+  context: Native gift card empty state
+  en: No gift cards yet
+  de: Noch keine Geschenkkarten
+  zh: 暂无礼品卡
+  fr: Pas encore de cartes-cadeaux
+  pt: Ainda sem cartões-presente
+  ru: Пока нет подарочных карт
+  ja: ギフトカードはまだありません
+  ko: 아직 기프트 카드가 없습니다
+  it: Ancora nessuna carta regalo
+  tr: Henüz hediye kartı yok
+  vi: Chưa có thẻ quà tặng nào
+  id: Belum ada kartu hadiah
+  pl: Brak kart podarunkowych
+  nl: Nog geen cadeaubonnen
+  ar: لا توجد بطاقات هدايا بعد
+  hi: अभी तक कोई गिफ्ट कार्ड नहीं है
+  th: ยังไม่มีบัตรของขวัญ
+  cs: Zatím žádné dárkové karty
+  sv: Inga presentkort ännu
+  es: Aún no hay tarjetas regalo
+  he: אין עדיין כרטיסי מתנה
+  verified_by_human: []
+apple_gift_card_purchase_unavailable:
+  context: Native gift card purchase cannot derive the required account email key
+  en: Gift card purchase is unavailable until your account email is fully synchronized.
+  de: Der Kauf von Geschenkkarten ist erst verfügbar, wenn deine E-Mail-Adresse vollständig synchronisiert ist.
+  zh: 在你的账户邮箱完全同步之前，无法购买礼品卡。
+  fr: "L'achat de cartes-cadeaux est indisponible tant que l'e-mail de ton compte n'est pas entièrement synchronisé."
+  pt: A compra de cartões-presente está indisponível até que o e-mail da tua conta esteja totalmente sincronizado.
+  ru: Покупка подарочных карт недоступна до полной синхронизации электронной почты аккаунта.
+  ja: アカウントのメールアドレスが完全に同期されるまで、ギフトカードの購入は利用できません。
+  ko: 계정 이메일이 완전히 동기화될 때까지 기프트 카드 구매를 이용할 수 없습니다.
+  it: "L'acquisto di carte regalo non è disponibile finché l'email del tuo account non è completamente sincronizzata."
+  tr: Hesap e-postanız tam olarak senkronize edilene kadar hediye kartı satın alımı yapılamaz.
+  vi: Tính năng mua thẻ quà tặng không khả dụng cho đến khi email tài khoản của bạn được đồng bộ hóa hoàn toàn.
+  id: Pembelian kartu hadiah tidak tersedia sampai email akunmu tersinkronisasi sepenuhnya.
+  pl: Zakup karty podarunkowej jest niedostępny do czasu pełnej synchronizacji adresu e-mail Twojego konta.
+  nl: Aankoop van cadeaubonnen is niet beschikbaar totdat je account-e-mail volledig is gesynchroniseerd.
+  ar: شراء بطاقات الهدايا غير متاح حتى تتم مزامنة بريد حسابك الإلكتروني بالكامل.
+  hi: जब तक आपके खाते का ईमेल पूरी तरह से सिंक्रोनाइज़ नहीं हो जाता, तब तक गिफ्ट कार्ड की खरीदारी उपलब्ध नहीं है।
+  th: ไม่สามารถซื้อบัตรของขวัญได้จนกว่าอีเมลบัญชีของคุณจะซิงโครไนซ์เสร็จสมบูรณ์
+  cs: Nákup dárkových karet není k dispozici, dokud nebude e-mail tvého účtu plně synchronizován.
+  sv: Köp av presentkort är inte tillgängligt förrän din e-postadress är helt synkroniserad.
+  es: La compra de tarjetas regalo no estará disponible hasta que el correo de tu cuenta esté totalmente sincronizado.
+  he: רכישת כרטיסי מתנה אינה זמינה עד שאימייל החשבון שלך יסונכרן במלואו.
+  verified_by_human: []
+apple_support_amount:
+  context: Native support contribution amount field
+  en: Amount in EUR
+  de: Betrag in EUR
+  zh: 金额 (欧元)
+  fr: Montant en EUR
+  pt: Montante em EUR
+  ru: Сумма в EUR
+  ja: 金額 (EUR)
+  ko: 금액 (EUR)
+  it: Importo in EUR
+  tr: EUR cinsinden tutar
+  vi: Số tiền (EUR)
+  id: Jumlah dalam EUR
+  pl: Kwota w EUR
+  nl: Bedrag in EUR
+  ar: المبلغ باليورو (EUR)
+  hi: EUR में राशि
+  th: จำนวนเงิน (EUR)
+  cs: Částka v EUR
+  sv: Belopp i EUR
+  es: Importe en EUR
+  he: סכום באירו
+  verified_by_human: []
+apple_create_bank_transfer:
+  context: Native support action to create SEPA transfer details
+  en: Create bank transfer
+  de: Banküberweisung erstellen
+  zh: 创建银行转账
+  fr: Créer un virement bancaire
+  pt: Criar transferência bancária
+  ru: Создать банковский перевод
+  ja: 銀行振込を作成
+  ko: 은행 송금 생성
+  it: Crea bonifico bancario
+  tr: Banka havalesi oluştur
+  vi: Tạo lệnh chuyển khoản ngân hàng
+  id: Buat transfer bank
+  pl: Utwórz przelew bankowy
+  nl: Bankoverschrijving aanmaken
+  ar: إنشاء تحويل بنكي
+  hi: बैंक ट्रांसफर बनाएं
+  th: สร้างรายการโอนเงินผ่านธนาคาร
+  cs: Vytvořit bankovní převod
+  sv: Skapa banköverföring
+  es: Crear transferencia bancaria
+  he: יצירת העברה בנקאית
+  verified_by_human: []
+apple_invalid_support_amount:
+  context: Native support validation error
+  en: Enter a valid amount and make sure your account has an email address.
+  de: Gib einen gültigen Betrag ein und stelle sicher, dass dein Konto eine E-Mail-Adresse hat.
+  zh: 请输入有效金额，并确保你的账户已绑定邮箱地址。
+  fr: Saisis un montant valide et assure-toi que ton compte possède une adresse e-mail.
+  pt: Introduz um montante válido e certifica-te de que a tua conta tem um endereço de e-mail.
+  ru: Введи корректную сумму и убедись, что в аккаунте указан адрес электронной почты.
+  ja: 有効な金額を入力し、アカウントにメールアドレスが設定されていることを確認してください。
+  ko: 유효한 금액을 입력하고 계정에 이메일 주소가 있는지 확인해 주세요.
+  it: Inserisci un importo valido e assicurati che il tuo account abbia un indirizzo email.
+  tr: Geçerli bir tutar girin ve hesabınızın bir e-posta adresine sahip olduğundan emin olun.
+  vi: Nhập số tiền hợp lệ và đảm bảo tài khoản của bạn đã có địa chỉ email.
+  id: Masukkan jumlah yang valid dan pastikan akunmu memiliki alamat email.
+  pl: Wprowadź poprawną kwotę i upewnij się, że do Twojego konta przypisany jest adres e-mail.
+  nl: Voer een geldig bedrag in en zorg ervoor dat je account een e-mailadres heeft.
+  ar: أدخل مبلغاً صالحاً وتأكد من وجود عنوان بريد إلكتروني لحسابك.
+  hi: एक मान्य राशि दर्ज करें और सुनिश्चित करें कि आपके खाते में एक ईमेल पता है।
+  th: โปรดระบุจำนวนเงินที่ถูกต้องและตรวจสอบให้แน่ใจว่าบัญชีของคุณมีที่อยู่อีเมลแล้ว
+  cs: Zadej platnou částku a ujisti se, že tvůj účet má e-mailovou adresu.
+  sv: Ange ett giltigt belopp och se till att ditt konto har en e-postadress.
+  es: Introduce un importe válido y asegúrate de que tu cuenta tenga una dirección de correo electrónico.
+  he: הזן סכום תקין וודא שלחשבונך יש כתובת אימייל.
+  verified_by_human: []
+apple_fulfillment_delayed:
+  context: StoreKit purchase succeeded but backend fulfillment must be retried
+  en: Your purchase is awaiting fulfillment. It remains retryable and will not be marked complete yet.
+  de: Dein Kauf wartet auf die Bereitstellung. Er kann erneut versucht werden und wird noch nicht als abgeschlossen markiert.
+  zh: 你的购买正在等待处理。可以重试，目前尚未标记为完成。
+  fr: Ton achat est en attente de traitement. Il peut être réessayé et ne sera pas encore marqué comme terminé.
+  pt: A tua compra está a aguardar processamento. Continua a ser possível tentar novamente e ainda não será marcada como concluída.
+  ru: Покупка ожидает обработки. Она будет повторена и пока не отмечена как завершенная.
+  ja: 購入手続きの完了を待機しています。再試行が可能であり、まだ完了としてマークされません。
+  ko: 구매 처리를 대기 중입니다. 나중에 다시 시도할 수 있으며 아직 완료로 표시되지 않습니다.
+  it: Il tuo acquisto è in attesa di completamento. Rimane riprovabile e non sarà ancora contrassegnato come completato.
+  tr: Satın alma işleminiz tamamlanmayı bekliyor. Tekrar denenebilir durumdadır ve henüz tamamlandı olarak işaretlenmeyecektir.
+  vi: Giao dịch của bạn đang chờ xử lý. Bạn có thể thử lại và giao dịch sẽ chưa được đánh dấu là hoàn tất.
+  id: Pembelianmu sedang menunggu pemenuhan. Ini tetap dapat dicoba lagi dan belum akan ditandai sebagai selesai.
+  pl: Twój zakup oczekuje na realizację. Można go ponowić i nie zostanie jeszcze oznaczony jako zakończony.
+  nl: Je aankoop wacht op verwerking. Deze kan opnieuw worden geprobeerd en wordt nog niet als voltooid gemarkeerd.
+  ar: عملية الشراء في انتظار التنفيذ. لا تزال قابلة لإعادة المحاولة ولن يتم وضع علامة اكتمال عليها بعد.
+  hi: आपकी खरीदारी पूरी होने की प्रतीक्षा में है। इसे फिर से आज़माया जा सकता है और अभी इसे पूरा नहीं माना जाएगा।
+  th: การซื้อของคุณกำลังรอการดำเนินการ จะยังไม่ถูกทำเครื่องหมายว่าเสร็จสิ้นและสามารถลองใหม่ได้
+  cs: Tvoje platba čeká na vyřízení. Pokus lze opakovat a zatím nebude označena jako dokončená.
+  sv: Ditt köp väntar på att slutföras. Det kan försöka igen och kommer inte att markeras som klart ännu.
+  es: Tu compra está pendiente de completarse. Se puede reintentar y aún no se marcará como finalizada.
+  he: הרכישה שלך ממתינה למימוש. ניתן לנסות שוב והיא לא תסומן כהושלמה עדיין.
+  verified_by_human: []
+apple_product_not_found:
+  context: StoreKit product is unavailable
+  en: This product is not available in the App Store.
+  de: Dieses Produkt ist im App Store nicht verfügbar.
+  zh: 此产品在 App Store 中不可用。
+  fr: "Ce produit n'est pas disponible dans l'App Store."
+  pt: Este produto não está disponível na App Store.
+  ru: Этот товар недоступен в App Store.
+  ja: この製品はApp Storeで利用できません。
+  ko: App Store에서 이 제품을 사용할 수 없습니다.
+  it: "Questo prodotto non è disponibile nell'App Store."
+  tr: "Bu ürün App Store'da mevcut değil."
+  vi: Sản phẩm này không có sẵn trên App Store.
+  id: Produk ini tidak tersedia di App Store.
+  pl: Ten produkt nie jest dostępny w App Store.
+  nl: Dit product is niet beschikbaar in de App Store.
+  ar: هذا المنتج غير متوفر في متجر التطبيقات.
+  hi: यह उत्पाद ऐप स्टोर में उपलब्ध नहीं है।
+  th: ผลิตภัณฑ์นี้ไม่มีให้บริการใน App Store
+  cs: Tento produkt není v App Store k dispozici.
+  sv: Denna produkt är inte tillgänglig i App Store.
+  es: Este producto no está disponible en la App Store.
+  he: מוצר זה אינו זמין ב-App Store.
+  verified_by_human: []
+apple_credits_count:
+  context: Native billing formatted credit count
+  en: "{credits} credits"
+  de: "{credits} Credits"
+  zh: "{credits} 积分"
+  fr: "{credits} crédits"
+  pt: "{credits} créditos"
+  ru: "Кредитов: {credits}"
+  ja: "{credits} クレジット"
+  ko: "{credits} 크레딧"
+  it: "{credits} crediti"
+  tr: "{credits} kredi"
+  vi: "{credits} tín dụng"
+  id: "{credits} kredit"
+  pl: "Kredyty: {credits}"
+  nl: "{credits} credits"
+  ar: "{credits} رصيد"
+  hi: "{credits} क्रेडिट्स"
+  th: "{credits} เครดิต"
+  cs: "{credits} kreditů"
+  sv: "{credits} krediter"
+  es: "{credits} créditos"
+  he: "{credits} קרדיטים"
+  verified_by_human: []
+apple_bank_transfer_reference:
+  context: Native invoice pending bank transfer reference
+  en: "Bank transfer reference: {reference}"
+  de: "Verwendungszweck: {reference}"
+  zh: "银行转账备注：{reference}"
+  fr: "Référence du virement bancaire : {reference}"
+  pt: "Referência da transferência bancária: {reference}"
+  ru: "Назначение платежа: {reference}"
+  ja: "銀行振込リファレンス: {reference}"
+  ko: "은행 송금 참조 번호: {reference}"
+  it: "Causale bonifico bancario: {reference}"
+  tr: "Banka havalesi referansı: {reference}"
+  vi: "Nội dung chuyển khoản: {reference}"
+  id: "Referensi transfer bank: {reference}"
+  pl: "Tytuł przelewu bankowego: {reference}"
+  nl: "Bankoverschrijving referentie: {reference}"
+  ar: "مرجع التحويل البنكي: {reference}"
+  hi: "बैंक ट्रांसफर संदर्भ: {reference}"
+  th: "รหัสอ้างอิงการโอนเงินผ่านธนาคาร: {reference}"
+  cs: "Reference bankovního převodu: {reference}"
+  sv: "Banköverföringsreferens: {reference}"
+  es: "Referencia de transferencia bancaria: {reference}"
+  he: "סימוכין להעברה בנקאית: {reference}"
+  verified_by_human: []
 billing:
   context: Billing settings menu item (now includes usage)
   en: Billing & Usage
@@ -2690,7 +2979,7 @@ bank_transfer_reference_hint_support:
   verified_by_human: []
 bank_transfer_reference_warning:
   context: Warning text emphasizing user must include the reference exactly as shown in their bank transfer
-  en: You must include this reference exactly as shown in your bank transfer. Without it, your payment cannot be matched to your account.
+  en: You must include this single-use reference exactly as shown in your bank transfer. Without it, your payment cannot be matched to your account. To buy more credits later, create a new purchase and use its new reference.
   de: Sie müssen diesen Verwendungszweck exakt wie angezeigt in Ihrer Überweisung angeben. Ohne ihn kann Ihre Zahlung nicht Ihrem Konto zugeordnet werden.
   zh: 您必须在银行转账中精确输入此参考号。没有它，您的付款将无法匹配到您的账户。
   es: Debe incluir esta referencia exactamente como se muestra en su transferencia bancaria. Sin ella, su pago no podrá asociarse a su cuenta.

@@ -142,7 +142,9 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 
 	await page.goto(sharedChatUrl);
 	await expect(page).toHaveURL(/#chat-id=/, { timeout: 45000 });
-	await expect(page.getByTestId('shared-chat-badge')).toHaveText('Shared chat', { timeout: 45000 });
+	await expect(page.getByTestId('chat-header-banner').getByTestId('shared-chat-badge')).toHaveText('Shared chat', {
+		timeout: 45000
+	});
 
 	const audioEmbed = page.locator(
 		'[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="transcribe"]'
@@ -166,6 +168,42 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 		`[data-testid="chat-item-wrapper"][data-chat-id="${activeChatId}"]`
 	);
 	await expect(sharedChatItem.getByTestId('shared-chat-public-icon')).toBeVisible({ timeout: 15000 });
+
+	await page.getByTestId('chat-details-button').click();
+	const settingsMenu = page.getByTestId('settings-menu');
+	await expect(settingsMenu).toBeVisible({ timeout: 15000 });
+	await expect(settingsMenu).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+$/, {
+		timeout: 10000
+	});
+	await expect(settingsMenu.getByTestId('chat-settings-page')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByText(/read-only/i)).toBeVisible({ timeout: 10000 });
+
+	await settingsMenu.getByTestId('chat-settings-tab-tasks').click();
+	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-tasks')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByText(/No shared tasks are available|Tasks/i)).toBeVisible({ timeout: 10000 });
+
+	await settingsMenu.getByTestId('chat-settings-tab-plan').click();
+	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-plan')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByText(/No shared plan is available|Untitled plan/i)).toBeVisible({ timeout: 10000 });
+
+	await settingsMenu.getByTestId('chat-settings-tab-usage').click();
+	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-usage')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(/\d+\s*credits/i, { timeout: 10000 });
+
+	await settingsMenu.getByTestId('chat-settings-tab-share').click();
+	await expect(settingsMenu.getByTestId('chat-settings-share-readonly')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByTestId('share-short-link-url')).toContainText(/\/share\/chat\/|\/s\//, {
+		timeout: 10000
+	});
+	await expect(settingsMenu.getByTestId('chat-settings-share-community')).not.toBeVisible();
+	await expect(settingsMenu.getByTestId('chat-settings-share-password')).not.toBeVisible();
+	await expect(settingsMenu.getByTestId('chat-settings-share-expire')).not.toBeVisible();
+	await expect(settingsMenu.getByTestId('chat-settings-share-stop')).not.toBeVisible();
+	// The visible close button overlays the profile container while settings are open.
+	// Click it directly so Playwright does not wait until the overall test timeout
+	// on a pointer-events interception from the close icon subtree.
+	await page.getByTestId('icon-button-close').click({ timeout: 5000 });
+	await expect(settingsMenu).not.toBeVisible({ timeout: 10000 });
 
 	const newChatButton = page.getByTestId('new-chat-button').or(page.getByTestId('new-chat-cta-fullwidth')).first();
 	await expect(newChatButton).toBeVisible({ timeout: 10000 });

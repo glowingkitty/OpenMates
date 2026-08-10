@@ -2,6 +2,7 @@
 
 > Status: Research complete, pending Omio affiliate application
 > Date: 2026-04-30
+> Updated: 2026-07-29 — DB Navigator host refreshed, DB/Flix train providers live, Transitous endpoint notes refreshed
 > Related: `backend/apps/travel/`, `backend/apps/travel/providers/transitous_provider.py`
 
 ## Goal
@@ -13,10 +14,12 @@ Find an API that returns full European train connection details (times, operator
 | Provider | What it does | Status |
 |----------|-------------|--------|
 | SerpAPI (Google Flights) | Flight search with prices + booking links | Production |
-| Transitous / MOTIS | Train routes & timetables, no prices, no booking | Stub (`transitous_provider.py`) |
+| Deutsche Bahn Navigator | German and selected cross-border train search with live DB prices + bahn.de deep links | Production |
+| Flix | FlixBus / FlixTrain search with prices + booking links | Production |
+| Transitous / MOTIS | European multimodal routes & timetables, no useful live prices/booking in sampled responses | Stub (`transitous_provider.py`) |
 | Duffel | Flights only | Test file exists |
 
-The `search_connections` skill already has `transport_methods: ["train"]` in the schema but returns empty results because `TransitousProvider` is a stub.
+The `search_connections` skill supports `transport_methods: ["train"]` through Deutsche Bahn and Flix. `TransitousProvider` remains a stub for future timetable/multimodal enrichment.
 
 ## Requirements
 
@@ -155,8 +158,9 @@ Deutsche Bahn has **no official public API for prices**. However, two internal A
 
 | API | Base URL | Used by | API Key | Prices |
 |-----|----------|---------|---------|--------|
-| Vendo Navigator API | `https://app.vendo.noncd.db.de/mob/` | DB Navigator app | No | Yes |
+| Vendo Navigator API | `https://app.services-bahn.de/mob/` | DB Navigator app | No | Yes |
 | Vendo bahn.de API | `https://int.bahn.de/web/api/` | bahn.de website | No | Yes |
+| Old Navigator host | `https://app.vendo.noncd.db.de/mob/` | DB Navigator app | - | DNS gone as of 2026-07-29 |
 | Old Sparpreis API | `https://ps.bahn.de/preissuche/` | (dead, DNS gone) | - | - |
 
 **Recommended: Navigator API** — more stable, used by the official app, no bot detection (unlike bahn.de which has aggressive Akamai protection).
@@ -259,10 +263,16 @@ The `L=` value is the EVA station number. Obtain via `/mob/location/search`.
 ```
 
 **Price fields:**
-- `angebotsPreis.betrag` — Flexpreis (full-price ticket)
-- `abPreis.betrag` — Starting from price (Sparpreis / cheapest)
-- `hasTeilpreis` — Partial fare flag (only covers part of the route)
+- `angebote.preise.gesamt.ab.betrag` — Starting from price in sampled Navigator responses
+- `angebote.preise.gesamt.ab.waehrung` — Currency, usually `EUR`
+- `angebote.preise.istTeilpreis` — Partial fare flag (only covers part of the route), useful when `deutschlandTicketVorhanden=true`
 - Use `rekontext` with `/mob/angebote/recon` to get detailed ticket options (Super Sparpreis, Sparpreis, Flexpreis with conditions)
+
+Observed 2026-07-29:
+- `Potsdam Hbf → München Hbf` without Deutschlandticket returned `80.99 EUR`, `istTeilpreis=false`, with S-Bahn + ICE sections.
+- The same route with `deutschlandTicketVorhanden=true` returned `67.99 EUR`, `istTeilpreis=true`; the quoted fare is the paid long-distance portion.
+- `Berlin Hbf → München Hbf` with Deutschlandticket returned `67.99 EUR`, `istTeilpreis=false`; the pass did not cover a separate regional feeder portion.
+- Product filters such as `REGIONAL`, `ICE`, `EC_IC`, and `SBAHN` returned HTTP 400 in sampled calls; keep using `verkehrsmittel: ["ALL"]` until the current filter contract is verified.
 
 ### Common EVA Station Numbers
 
@@ -278,10 +288,19 @@ The `L=` value is the EVA station number. Obtain via `/mob/location/search`.
 
 ### Rate Limiting & Anti-Bot Notes
 
-- **Navigator API** (`app.vendo.noncd.db.de`) — no known bot detection, designed for mobile app traffic. ~100 req/min seems safe.
+- **Navigator API** (`app.services-bahn.de`) — no known bot detection in low-volume tests, designed for mobile app traffic.
 - **bahn.de API** (`int.bahn.de`) — aggressive Akamai bot detection, returns 403/751 for automated browsers. Avoid for server-side use.
 - Use a realistic `User-Agent` (e.g., `DBNavigator/Android/25.18.2`).
 - No official rate limits documented. These are unofficial APIs — DB can change or block them at any time.
+
+### Transitous / MOTIS Notes
+
+Observed 2026-07-29:
+- Generic user agents are rejected with HTTP 403; set an application-specific `User-Agent` and follow the Transitous API usage policy.
+- Current endpoints are under `https://api.transitous.org/api/`, with geocoding at `/api/v1/geocode` and planning at `/api/v6/plan`.
+- `/api/v6/plan` supports useful timetable features: `via`, coordinate/radius searches, transit mode filters, transfer controls, realtime/cancelled flags, and GTFS source feed references.
+- `withFares=true` returned empty `effectiveFareLegProducts` arrays for sampled Germany and Germany-France routes, so do not treat Transitous as a pricing source.
+- Geocode ranking must prioritize textual and geographic match before mode richness; a naive station ranking can select a similarly named station in another country.
 
 ### Reference Implementation
 

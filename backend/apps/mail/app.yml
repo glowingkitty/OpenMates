@@ -83,10 +83,14 @@ embed_types:
     skill_id: search
     frontend_type: app-skill-use
     backend_type: app_skill_use
-    has_children: false
+    has_children: true
+    child_type: email
+    child_frontend_type: mail-email
     groupable: true
     preview_component: mail/MailSearchEmbedPreview.svelte
     fullscreen_component: mail/MailSearchEmbedFullscreen.svelte
+    child_preview_component: mail/MailEmbedPreview.svelte
+    child_fullscreen_component: mail/MailEmbedFullscreen.svelte
     icon: mail
     gradient_var: "--color-app-mail"
     i18n_namespace: embeds.mail.email
@@ -95,9 +99,14 @@ embed_types:
         type: string
       - name: provider
         type: string
+      - name: start_date
+        type: string
+      - name: end_date
+        type: string
+      - name: time_range
+        type: string
       - name: results
         type: array
-        required: true
       - name: result_count
         type: number
 instructions:
@@ -155,6 +164,12 @@ skills:
               mailbox:
                 type: string
                 description: Optional mailbox name (defaults to INBOX)
+              start_date:
+                type: string
+                description: Optional inclusive start date for the search range (YYYY-MM-DD)
+              end_date:
+                type: string
+                description: Optional inclusive end date for the search range (YYYY-MM-DD)
               limit:
                 type: integer
                 minimum: 1

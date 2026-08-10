@@ -27,6 +27,7 @@ try:
     from backend.apps.ai.utils.embed_display_text import (
         derive_display_text_from_embed_ref,
         derive_embed_display_title,
+        escape_markdown_link_label,
         is_bad_embed_display_text,
     )
 except ImportError as _exc:
@@ -130,6 +131,13 @@ class TestIsBadEmbedDisplayText:
     def test_display_partial_overlap_not_flagged(self):
         """Display text that partially overlaps but is clearly different content."""
         assert is_bad_embed_display_text("MacRumors Article About MvT", "macrumors.com-MvT") is False
+
+
+def test_escape_markdown_link_label():
+    assert (
+        escape_markdown_link_label("Research [Draft] <img src=x>\nUpdate")
+        == "Research \\[Draft\\] &lt;img src=x&gt; Update"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -469,3 +477,164 @@ class TestFixBadEmbedDisplayText:
             )
         )
         assert result == text
+
+    @pytest.mark.asyncio
+    async def test_converts_known_bare_embed_ref_without_other_bad_links(self, monkeypatch):
+        from backend.core.api.app.services import embed_service as embed_service_module
+        from toon_format import encode
+
+        parent_id = "parent-embed"
+        child_id = "child-embed"
+        embed_ref = "openai.com-Tm7"
+        encoded = {
+            parent_id: encode({"embed_ids": child_id}),
+            child_id: encode({"embed_ref": embed_ref, "title": "GPT-5.6 Launch"}),
+        }
+
+        class FakeEmbedService:
+            def __init__(self, **_kwargs):
+                pass
+
+            async def _get_cached_embed_toon(self, embed_id, *_args):
+                return encoded.get(embed_id)
+
+        monkeypatch.setattr(embed_service_module, "EmbedService", FakeEmbedService)
+
+        result = await _fix_bad_embed_display_text(
+            aggregated_response=f"See [{embed_ref}] for details.",
+            tool_calls_info=[{"embed_id": parent_id}],
+            cache_service=object(),
+            directus_service=None,
+            encryption_service=object(),
+            user_vault_key_id="vault-key",
+        )
+
+        assert result == "See [GPT-5.6 Launch](embed:openai.com-Tm7) for details."
+
+    @pytest.mark.asyncio
+    async def test_converts_grouped_known_cite_refs_to_inline_links(self, monkeypatch):
+        from backend.core.api.app.services import embed_service as embed_service_module
+        from toon_format import encode
+
+        parent_id = "parent-embed"
+        first_child_id = "first-child"
+        second_child_id = "second-child"
+        encoded = {
+            parent_id: encode({"embed_ids": f"{first_child_id}|{second_child_id}"}),
+            first_child_id: encode({
+                "type": "website",
+                "embed_ref": "cnbc.com-vcZ",
+                "title": "CNBC AI Infrastructure",
+            }),
+            second_child_id: encode({
+                "type": "website",
+                "embed_ref": "secondtalent.com-RFp",
+                "title": "Second Talent Market Report",
+            }),
+        }
+
+        class FakeEmbedService:
+            def __init__(self, **_kwargs):
+                pass
+
+            async def _get_cached_embed_toon(self, embed_id, *_args):
+                return encoded.get(embed_id)
+
+        monkeypatch.setattr(embed_service_module, "EmbedService", FakeEmbedService)
+
+        result = await _fix_bad_embed_display_text(
+            aggregated_response="Sources: [cite: cnbc.com-vcZ, secondtalent.com-RFp]",
+            tool_calls_info=[{"embed_id": parent_id}],
+            cache_service=object(),
+            directus_service=None,
+            encryption_service=object(),
+            user_vault_key_id="vault-key",
+        )
+
+        assert result == (
+            "Sources: [CNBC AI Infrastructure](embed:cnbc.com-vcZ), "
+            "[Second Talent Market Report](embed:secondtalent.com-RFp)"
+        )
+
+    @pytest.mark.asyncio
+    async def test_grouped_cites_preserve_markdown_literals_and_escape_titles(self, monkeypatch):
+        from backend.core.api.app.services import embed_service as embed_service_module
+        from toon_format import encode
+
+        parent_id = "parent-embed"
+        child_id = "child-embed"
+        embed_ref = "example.com-X7z"
+        title = "Research [Draft] <img src=x>"
+        encoded = {
+            parent_id: encode({"embed_ids": child_id}),
+            child_id: encode({"type": "website", "embed_ref": embed_ref, "title": title}),
+        }
+
+        class FakeEmbedService:
+            def __init__(self, **_kwargs):
+                pass
+
+            async def _get_cached_embed_toon(self, embed_id, *_args):
+                return encoded.get(embed_id)
+
+        monkeypatch.setattr(embed_service_module, "EmbedService", FakeEmbedService)
+        grouped_cite = f"[cite: {embed_ref}]"
+        response = (
+            f"Source: {grouped_cite}\n\n"
+            f"> Literal quote {grouped_cite}\n\n"
+            f"Inline code `{grouped_cite}`\n\n"
+            f"```text\nLiteral fenced code {grouped_cite}\n```"
+        )
+
+        result = await _fix_bad_embed_display_text(
+            aggregated_response=response,
+            tool_calls_info=[{"embed_id": parent_id}],
+            cache_service=object(),
+            directus_service=None,
+            encryption_service=object(),
+            user_vault_key_id="vault-key",
+        )
+
+        assert result == (
+            "Source: [Research \\[Draft\\] &lt;img src=x&gt;](embed:example.com-X7z)\n\n"
+            f"> Literal quote {grouped_cite}\n\n"
+            f"Inline code `{grouped_cite}`\n\n"
+            f"```text\nLiteral fenced code {grouped_cite}\n```"
+        )
+
+    @pytest.mark.asyncio
+    async def test_promotes_empty_known_image_ref_to_large_preview(self, monkeypatch):
+        from backend.core.api.app.services import embed_service as embed_service_module
+        from toon_format import encode
+
+        parent_id = "parent-embed"
+        child_id = "image-child"
+        image_ref = "images.example-I9x"
+        encoded = {
+            parent_id: encode({"embed_ids": child_id}),
+            child_id: encode({
+                "type": "image_result",
+                "embed_ref": image_ref,
+                "title": "Repairing a smartphone",
+            }),
+        }
+
+        class FakeEmbedService:
+            def __init__(self, **_kwargs):
+                pass
+
+            async def _get_cached_embed_toon(self, embed_id, *_args):
+                return encoded.get(embed_id)
+
+        monkeypatch.setattr(embed_service_module, "EmbedService", FakeEmbedService)
+
+        result = await _fix_bad_embed_display_text(
+            aggregated_response=f"Relevant image:\n\n[](embed:{image_ref})",
+            tool_calls_info=[{"embed_id": parent_id}],
+            cache_service=object(),
+            directus_service=None,
+            encryption_service=object(),
+            user_vault_key_id="vault-key",
+        )
+
+        assert result == f"Relevant image:\n\n[!](embed:{image_ref})"

@@ -57,6 +57,9 @@ async def invoke_direct_api(
         # Strip the model ID prefix (e.g. "eu.anthropic.") to normalise Bedrock IDs.
         bare_model = model_id.rsplit(".", 1)[-1] if model_id.startswith("eu.") else model_id
         temperature_unsupported = bare_model.startswith((
+            "claude-fable-5",
+            "claude-opus-5",
+            "claude-sonnet-5",
             "claude-opus-4-7",
             "claude-opus-4-8",
         ))

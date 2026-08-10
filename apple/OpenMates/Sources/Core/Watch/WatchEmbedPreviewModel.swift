@@ -57,6 +57,39 @@ struct WatchEmbedContinuation: Equatable, Sendable {
     }
 }
 
+struct WatchEmbedOpenRequest: Equatable, Sendable {
+    let chatId: String
+    let embedId: String
+
+    init?(chatId: String?, embedId: String) {
+        guard let chatId, !chatId.isEmpty, !embedId.isEmpty else { return nil }
+        self.chatId = chatId
+        self.embedId = embedId
+    }
+}
+
+enum WatchEmbedOpenConnectivityPayload {
+    static let kindKey = "kind"
+    static let chatIdKey = "chat_id"
+    static let embedIdKey = "embed_id"
+    static let watchEmbedOpenRequestKind = "openmates.watch.embed_open.request"
+
+    static func requestMessage(_ request: WatchEmbedOpenRequest) -> [String: Any] {
+        [
+            kindKey: watchEmbedOpenRequestKind,
+            chatIdKey: request.chatId,
+            embedIdKey: request.embedId,
+        ]
+    }
+
+    static func parseRequest(_ message: [String: Any]) -> WatchEmbedOpenRequest? {
+        guard message[kindKey] as? String == watchEmbedOpenRequestKind,
+              let chatId = message[chatIdKey] as? String,
+              let embedId = message[embedIdKey] as? String else { return nil }
+        return WatchEmbedOpenRequest(chatId: chatId, embedId: embedId)
+    }
+}
+
 struct WatchEmbedPreviewModel: Equatable, Identifiable, Sendable {
     static let cardWidth: Double = 156
     static let cardHeight: Double = 112
@@ -75,6 +108,37 @@ struct WatchEmbedPreviewModel: Equatable, Identifiable, Sendable {
 }
 
 enum WatchEmbedPreviewMapper {
+    static func makeModel(
+        for embedRef: WatchEmbedRef,
+        chatId: String?,
+        allEmbedRecords: [String: EmbedRecord] = [:]
+    ) -> WatchEmbedPreviewModel {
+        makeModel(
+            for: embedRecord(from: embedRef),
+            chatId: chatId,
+            allEmbedRecords: allEmbedRecords
+        )
+    }
+
+    static func embedRecord(from embedRef: WatchEmbedRef) -> EmbedRecord {
+        let raw = embedRef.data ?? [:]
+        let embedType = EmbedType.normalized(rawValue: embedRef.type)
+        let appId = string(raw, keys: ["app_id", "appId"]) ?? embedType?.appId
+        let skillId = string(raw, keys: ["skill_id", "skillId"])
+        let embedIds = string(raw, keys: ["embed_ids", "embedIds"])
+        return EmbedRecord(
+            id: embedRef.id,
+            type: embedType?.rawValue ?? embedRef.type,
+            status: embedRef.status.flatMap(EmbedStatus.init(rawValue:)) ?? .finished,
+            data: raw.isEmpty ? nil : .raw(raw),
+            parentEmbedId: string(raw, keys: ["parent_embed_id", "parentEmbedId"]),
+            appId: appId,
+            skillId: skillId,
+            embedIds: embedIds,
+            createdAt: nil
+        )
+    }
+
     static func makeModel(
         for embed: EmbedRecord,
         chatId: String?,
@@ -328,5 +392,218 @@ enum WatchEmbedPreviewMapper {
         case .reminder: return "reminder"
         case .unsupported: return "web"
         }
+    }
+}
+
+enum WatchMessageContentSanitizer {
+    static func inlineEmbedReferenceIds(content: String?) -> Set<String> {
+        guard let content else { return [] }
+        let pattern = #"\[([^\]\n]*)\]\(embed:([^\)\n]+)\)"#
+        guard let expression = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let matches = expression.matches(
+            in: content,
+            range: NSRange(content.startIndex..<content.endIndex, in: content)
+        )
+        return Set(matches.compactMap { match in
+            guard let labelRange = Range(match.range(at: 1), in: content),
+                  content[labelRange] != "!",
+                  let refRange = Range(match.range(at: 2), in: content) else { return nil }
+            return String(content[refRange])
+        })
+    }
+
+    static func inlineEmbedRefs(content: String?) -> [WatchEmbedRef] {
+        guard let content else { return [] }
+        let pattern = #"```(?:json_embed|json)\s*([\s\S]*?)\s*```"#
+        let nsRange = NSRange(content.startIndex..<content.endIndex, in: content)
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        var refsById: [String: (location: Int, ref: WatchEmbedRef)] = [:]
+        var seenIds = Set<String>()
+        func appendRef(_ ref: WatchEmbedRef, location: Int) {
+            guard seenIds.insert(ref.id).inserted else { return }
+            refsById[ref.id] = (location, ref)
+        }
+        func appendFallbackRef(id: String, location: Int) {
+            appendRef(WatchEmbedRef(id: id, type: EmbedType.webWebsite.rawValue, status: "finished", data: nil), location: location)
+        }
+
+        for match in regex.matches(in: content, range: nsRange) {
+            guard let jsonRange = Range(match.range(at: 1), in: content),
+                  let data = String(content[jsonRange]).data(using: .utf8),
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { continue }
+            guard let embedId = (object["embed_id"] as? String) ?? (object["embedId"] as? String),
+                  !seenIds.contains(embedId) else { continue }
+            let type = object["type"] as? String ?? "web-website"
+            let status = object["status"] as? String ?? "finished"
+            appendRef(WatchEmbedRef(
+                id: embedId,
+                type: type,
+                status: status,
+                data: previewSafeInlineData(from: object)
+            ), location: match.range.location)
+        }
+
+        for markerPattern in [#"\[\[embed(?:ref)?:([^\]]+)\]\]"#, #"\[!\]\(embed:([^\)]+)\)"#] {
+            guard let markerRegex = try? NSRegularExpression(pattern: markerPattern) else { continue }
+            for match in markerRegex.matches(in: content, range: nsRange) {
+                guard let idRange = Range(match.range(at: 1), in: content) else { continue }
+                appendFallbackRef(id: String(content[idRange]), location: match.range.location)
+            }
+        }
+
+        return refsById.values.sorted { lhs, rhs in lhs.location < rhs.location }.map { $0.ref }
+    }
+
+    private static func previewSafeInlineData(from object: [String: Any]) -> [String: AnyCodable] {
+        let allowedKeys = Set([
+            "app_id", "appId", "embed_id", "embedId", "type", "status", "title", "name",
+            "filename", "duration", "duration_seconds",
+            "page_count", "line_count", "language", "query", "result_count", "provider",
+        ])
+        return object.reduce(into: [:]) { result, item in
+            guard allowedKeys.contains(item.key) else { return }
+            result[item.key] = AnyCodable(item.value)
+        }
+    }
+
+    static func displayText(content: String?, embedRefs: [WatchEmbedRef]?) -> String? {
+        guard let content else { return nil }
+        let embedIds = Set((embedRefs ?? []).map(\.id))
+        var output: [String] = []
+        var fencedBlock: [String] = []
+        var isInFence = false
+
+        for line in content.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasPrefix("```") {
+                fencedBlock.append(line)
+                if isInFence {
+                    if !isEmbedOnlyBlock(fencedBlock.joined(separator: "\n"), embedIds: embedIds) {
+                        output.append(contentsOf: fencedBlock)
+                    }
+                    fencedBlock = []
+                }
+                isInFence.toggle()
+                continue
+            }
+
+            if isInFence {
+                fencedBlock.append(line)
+                continue
+            }
+
+            guard !isEmbedOnlyLine(line, embedIds: embedIds) else { continue }
+            output.append(replacingInlineEmbedLinks(in: line))
+        }
+
+        if !fencedBlock.isEmpty, !isEmbedOnlyBlock(fencedBlock.joined(separator: "\n"), embedIds: embedIds) {
+            output.append(contentsOf: fencedBlock)
+        }
+
+        let trimmed = output.joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func isEmbedOnlyBlock(_ block: String, embedIds: Set<String>) -> Bool {
+        let lowercased = block.lowercased()
+        if lowercased.contains("embed_id") || lowercased.contains("embed-id") { return true }
+        return embedIds.contains { block.contains("embed:\($0)") || block.contains($0) }
+    }
+
+    private static func isEmbedOnlyLine(_ line: String, embedIds: Set<String>) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        if trimmed.contains("\"embed_id\"") || trimmed.contains("embed_id:") { return true }
+        if trimmed.hasPrefix("[[embed:") || trimmed.hasPrefix("[[embedref:") || trimmed.hasPrefix("[!](embed:") { return true }
+        return embedIds.contains { trimmed == "embed:\($0)" || trimmed == $0 }
+    }
+
+    private static func replacingInlineEmbedLinks(in line: String) -> String {
+        let pattern = #"\[([^\]\n]*)\]\(embed:([^\)\n]+)\)"#
+        guard let expression = try? NSRegularExpression(pattern: pattern) else { return line }
+        let matches = expression.matches(
+            in: line,
+            range: NSRange(line.startIndex..<line.endIndex, in: line)
+        )
+        var output = line
+        for match in matches.reversed() {
+            guard let fullRange = Range(match.range(at: 0), in: output),
+                  let labelRange = Range(match.range(at: 1), in: line),
+                  let refRange = Range(match.range(at: 2), in: line) else { continue }
+            let label = String(line[labelRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let ref = String(line[refRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            output.replaceSubrange(fullRange, with: displayText(label: label, ref: ref))
+        }
+        return output
+    }
+
+    private static func displayText(label: String, ref: String) -> String {
+        let refBase = stripEmbedRefSuffix(ref)
+        let suffix = ref.replacingOccurrences(of: refBase, with: "")
+            .replacingOccurrences(of: "-", with: "", options: .anchored)
+        let isTechnicalLabel = label.isEmpty
+            || label == ref
+            || label == refBase
+            || (!suffix.isEmpty && label == suffix)
+        if !isTechnicalLabel, label.count > 3 { return label }
+        if let domainRange = ref.range(
+            of: #"^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?"#,
+            options: .regularExpression
+        ) {
+            return String(ref[domainRange])
+        }
+
+        let base = refBase.replacingOccurrences(of: #"\s*\(\d+\)$"#, with: "", options: .regularExpression)
+        if let expression = try? NSRegularExpression(pattern: #"^([a-zA-Z][a-zA-Z0-9_-]*)-(\d{4})$"#),
+           let match = expression.firstMatch(in: base, range: NSRange(base.startIndex..., in: base)),
+           let carrierRange = Range(match.range(at: 1), in: base),
+           let timeRange = Range(match.range(at: 2), in: base) {
+            let carrier = formatCarrierLabel(String(base[carrierRange]))
+            let rawTime = String(base[timeRange])
+            let splitIndex = rawTime.index(rawTime.startIndex, offsetBy: 2)
+            return "\(carrier) \(rawTime[..<splitIndex]):\(rawTime[splitIndex...])"
+        }
+
+        let words = base.split(whereSeparator: { $0 == "-" || $0 == "_" })
+        guard !words.isEmpty else { return ref }
+        return words.prefix(4).map { formatCarrierLabel(String($0)) }.joined(separator: " ")
+    }
+
+    private static func stripEmbedRefSuffix(_ ref: String) -> String {
+        ref.replacingOccurrences(
+            of: #"-[a-zA-Z0-9]{2,4}(?:\s*\(\d+\))?$"#,
+            with: "",
+            options: .regularExpression
+        )
+    }
+
+    private static func formatCarrierLabel(_ raw: String) -> String {
+        switch raw.lowercased() {
+        case "db": return "DB"
+        case "ice": return "ICE"
+        case "ic": return "IC"
+        case "ec": return "EC"
+        case "flixtrain", "flixzug": return "FlixTrain"
+        default:
+            return raw.count <= 4 ? raw.uppercased() : raw.capitalized
+        }
+    }
+}
+
+extension WatchChatMessage {
+    var watchEmbedRecords: [EmbedRecord] {
+        let inlineReferenceIds = WatchMessageContentSanitizer.inlineEmbedReferenceIds(content: content)
+        return (embedRefs ?? [])
+            .filter { ref in
+                guard !inlineReferenceIds.contains(ref.id) else { return false }
+                guard let embedRef = ref.data?["embed_ref"]?.value as? String else { return true }
+                return !inlineReferenceIds.contains(embedRef)
+            }
+            .map(WatchEmbedPreviewMapper.embedRecord(from:))
+    }
+
+    var watchDisplayContent: String? {
+        WatchMessageContentSanitizer.displayText(content: content, embedRefs: embedRefs)
     }
 }

@@ -6,6 +6,7 @@
 # that bypass prompt injection detection but are processed by LLMs.
 # See: docs/architecture/prompt_injection_protection.md
 
+import json
 import logging
 import re
 import time
@@ -40,6 +41,9 @@ from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     remove_audio_transcribe_for_transcribed_recordings,
 )
+from backend.apps.ai.processing.focus_mode_routing import (
+    resolve_subchat_enablement,
+)
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -62,9 +66,52 @@ SOFTWARE_DEVELOPMENT_CATEGORY = "software_development"
 ONBOARDING_FOCUS_ID = "openmates-welcome"  # active_focus_id when Welcome Onboarding is running
 USER_ROLE = "user"
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
-IMAGE_CHAT_SAFE_MODEL_ID = "anthropic/claude-sonnet-4-6"
-IMAGE_CHAT_SAFE_MODEL_NAME = "Claude Sonnet 4.6"
+IMAGE_CHAT_SAFE_MODEL_ID = "anthropic/claude-haiku-4-5-20251001"
+IMAGE_CHAT_SAFE_MODEL_NAME = "Claude Haiku 4.5"
 IMAGE_CHAT_EXCLUDED_PROVIDER_IDS = {"google"}
+IMAGE_UPLOAD_REF_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
+
+
+def _resolve_override_model_provider(model_id: str, override_provider: Optional[str], config_manager_obj: Any) -> Optional[str]:
+    """Return the canonical provider for a model override.
+
+    The web mention payload stores the selected server id in the provider slot
+    (for example cerebras/together). Billing and inference routing need the
+    creator/provider namespace (for example alibaba/moonshot) so downstream
+    code can resolve the configured default server and pricing.
+    """
+    if not model_id:
+        return override_provider
+
+    if not override_provider:
+        return config_manager_obj.find_provider_for_model(model_id)
+
+    provider_config = config_manager_obj.get_provider_config(override_provider)
+    if provider_config:
+        for model in provider_config.get("models", []):
+            if isinstance(model, dict) and (model.get("id") == model_id or model_id in model.get("aliases", [])):
+                return override_provider
+
+    resolved_provider = config_manager_obj.find_provider_for_model(model_id)
+    if not resolved_provider:
+        return override_provider
+
+    resolved_provider_config = config_manager_obj.get_provider_config(resolved_provider)
+    if not resolved_provider_config:
+        return override_provider
+
+    for model in resolved_provider_config.get("models", []):
+        if not isinstance(model, dict) or not (model.get("id") == model_id or model_id in model.get("aliases", [])):
+            continue
+        server_ids = {
+            str(server.get("id")).lower()
+            for server in model.get("servers", [])
+            if isinstance(server, dict) and server.get("id")
+        }
+        if override_provider.lower() in server_ids:
+            return resolved_provider
+
+    return override_provider
 
 REPO_SEARCH_ACTION_PATTERN = re.compile(
     r"\b(search|find|look\s+for|discover|show\s+me|list|recommend|suggest)\b",
@@ -94,16 +141,86 @@ MINDMAP_INTENT_PATTERN = re.compile(
     r"\b(?:mind[-\s]?map|brainstorm\s+map|topic\s+map|concept\s+map|hierarchical\s+idea\s+map)\b",
     re.IGNORECASE,
 )
+IMAGE_GENERATION_ACTION_PATTERN = re.compile(
+    r"\b(?:generate|create|make|design|draw|render|illustrate|paint|sketch|produce)\b",
+    re.IGNORECASE,
+)
+IMAGE_GENERATION_TARGET_PATTERN = re.compile(
+    r"\b(?:image|picture|photo|photograph|photo[-\s]?realistic|illustration|logo|icon|poster|banner|thumbnail|mockup|artwork|visual)\b",
+    re.IGNORECASE,
+)
+IMAGE_SEARCH_ACTION_PATTERN = re.compile(
+    r"\b(?:search|find|look\s+for|browse|image\s+search|photo\s+search)\b",
+    re.IGNORECASE,
+)
+IMAGE_TO_HTML_ACTION_PATTERN = re.compile(
+    r"\b(?:turn|convert|recreate|rebuild|make|create|generate|code|implement)\b",
+    re.IGNORECASE,
+)
+IMAGE_TO_HTML_SOURCE_PATTERN = re.compile(
+    r"\b(?:screenshot|mockup|ui\s+image|app\s+screen|screen|uploaded\s+image|image)\b",
+    re.IGNORECASE,
+)
+IMAGE_TO_HTML_TARGET_PATTERN = re.compile(
+    r"\b(?:html|index\.html|web\s?page|webpage|landing\s?page|css|code\s+embed|standalone|self[-\s]?contained)\b",
+    re.IGNORECASE,
+)
 MINDMAP_CONFLICTING_GENERATIVE_SKILLS = {"images-generate", "images-generate_draft"}
 
 SAME_TOPIC_SHIFT_VALUES = {"same_topic", "unclear"}
+FOLLOW_UP_CONTINUITY_TOPIC_AREAS = {"education_learning"}
 
 
-def _message_history_has_image_upload_embed(request_data: AskSkillRequest) -> bool:
-    """Return True when chat history contains a user-uploaded image embed."""
+def _content_has_image_upload_embed(content: Any) -> bool:
+    if not isinstance(content, str):
+        return False
+    if "app_id: images" in content and "skill_id: upload" in content:
+        return True
+    if '"embed_id"' not in content or '"type"' not in content or '"image"' not in content:
+        return False
+
+    for match in re.finditer(r"```(?:json|json_embed)\s*\n([\s\S]*?)\n```", content):
+        try:
+            embed_ref = json.loads(match.group(1).strip())
+        except json.JSONDecodeError:
+            continue
+        if (
+            isinstance(embed_ref, dict)
+            and embed_ref.get("type") == "image"
+            and isinstance(embed_ref.get("embed_id"), str)
+            and embed_ref["embed_id"].strip()
+        ):
+            return True
+    return False
+
+
+def _embed_ref_is_image_upload(embed_ref: Any) -> bool:
+    return isinstance(embed_ref, str) and embed_ref.lower().strip().endswith(IMAGE_UPLOAD_REF_EXTENSIONS)
+
+
+def _request_has_image_upload_embed(request_data: AskSkillRequest) -> bool:
+    """Return True when history or current-turn metadata references an uploaded image."""
+    if getattr(request_data, "has_image_upload_embed", False):
+        return True
+
     for msg in request_data.message_history:
         content = msg.content if hasattr(msg, "content") else (msg.get("content") if isinstance(msg, dict) else None)
-        if isinstance(content, str) and "app_id: images" in content and "skill_id: upload" in content:
+        if _content_has_image_upload_embed(content):
+            return True
+
+    if _content_has_image_upload_embed(getattr(request_data, "current_user_content", None)):
+        return True
+
+    embed_file_path_index = getattr(request_data, "embed_file_path_index", None) or {}
+    if any(_embed_ref_is_image_upload(embed_ref) for embed_ref in embed_file_path_index.keys()):
+        return True
+
+    for embed in getattr(request_data, "embeds", None) or []:
+        if not isinstance(embed, dict):
+            continue
+        if embed.get("app_id") == "images" and embed.get("skill_id") == "upload":
+            return True
+        if embed.get("type") == "image" or _embed_ref_is_image_upload(embed.get("embed_ref")):
             return True
     return False
 
@@ -270,6 +387,21 @@ def _normalize_task_area(raw_task_area: Any) -> Optional[str]:
     return normalized or None
 
 
+def _latest_assistant_category_from_history(message_history: List[Any]) -> Optional[str]:
+    """Return the most recent assistant category from chat history, if present."""
+    for msg in reversed(message_history or []):
+        if isinstance(msg, dict):
+            role = msg.get("role")
+            category = msg.get("category")
+        else:
+            role = getattr(msg, "role", None)
+            category = getattr(msg, "category", None)
+
+        if role == "assistant" and isinstance(category, str) and category.strip():
+            return category.strip()
+    return None
+
+
 def _resolve_category_from_topic_area(
     *,
     raw_topic_area: Any,
@@ -302,6 +434,9 @@ def _resolve_category_from_topic_area(
         return previous_category
 
     if previous_category and topic_area == "general_misc":
+        return previous_category
+
+    if previous_category and topic_area in FOLLOW_UP_CONTINUITY_TOPIC_AREAS:
         return previous_category
 
     return mapped_category
@@ -607,6 +742,61 @@ def _contains_mindmap_intent_in_user_history(message_history: List[AIHistoryMess
             continue
 
         if MINDMAP_INTENT_PATTERN.search(content):
+            return True
+
+    return False
+
+
+def _contains_image_generation_intent_in_user_history(message_history: List[AIHistoryMessage]) -> bool:
+    """Return True when user text asks to create a new image, not search existing ones."""
+    for message in message_history:
+        role = message.role if hasattr(message, "role") else (message.get("role") if isinstance(message, dict) else None)
+        if role != USER_ROLE:
+            continue
+
+        content = message.content if hasattr(message, "content") else (message.get("content") if isinstance(message, dict) else None)
+        if not isinstance(content, str):
+            continue
+
+        if IMAGE_GENERATION_ACTION_PATTERN.search(content) and IMAGE_GENERATION_TARGET_PATTERN.search(content):
+            return True
+
+    return False
+
+
+def _contains_image_search_intent_in_user_history(message_history: List[AIHistoryMessage]) -> bool:
+    """Return True when user text explicitly asks to search or browse existing images."""
+    for message in message_history:
+        role = message.role if hasattr(message, "role") else (message.get("role") if isinstance(message, dict) else None)
+        if role != USER_ROLE:
+            continue
+
+        content = message.content if hasattr(message, "content") else (message.get("content") if isinstance(message, dict) else None)
+        if not isinstance(content, str):
+            continue
+
+        if IMAGE_SEARCH_ACTION_PATTERN.search(content):
+            return True
+
+    return False
+
+
+def _contains_image_to_html_intent_in_user_history(message_history: List[AIHistoryMessage]) -> bool:
+    """Return True when user text asks to turn a screenshot/mockup image into HTML."""
+    for message in message_history:
+        role = message.role if hasattr(message, "role") else (message.get("role") if isinstance(message, dict) else None)
+        if role != USER_ROLE:
+            continue
+
+        content = message.content if hasattr(message, "content") else (message.get("content") if isinstance(message, dict) else None)
+        if not isinstance(content, str):
+            continue
+
+        if (
+            IMAGE_TO_HTML_ACTION_PATTERN.search(content)
+            and IMAGE_TO_HTML_SOURCE_PATTERN.search(content)
+            and IMAGE_TO_HTML_TARGET_PATTERN.search(content)
+        ):
             return True
 
     return False
@@ -1217,6 +1407,27 @@ async def handle_preprocessing(
     
     if payment_enabled and getattr(request_data, "is_anonymous", False):
         logger.info(f"{log_prefix} Anonymous free-usage request. Skipping user credit precheck; shared budget is enforced by the anonymous API route.")
+    elif payment_enabled and getattr(request_data, "team_id", None):
+        from backend.core.api.app.services.team_billing_service import TeamBillingService
+
+        team_billing_service = TeamBillingService(directus_service)
+        try:
+            team_account = await team_billing_service.get_billing_summary(request_data.team_id, request_data.user_id)
+        except Exception as exc:
+            logger.warning(f"{log_prefix} Team credit precheck failed closed for team request: {type(exc).__name__}")
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason="team_credit_precheck_failed",
+                error_message="Team credits could not be verified. Please try again later.",
+            )
+        if int(team_account.get("balance_credits") or 0) < 1:
+            logger.warning(f"{log_prefix} Team {request_data.team_id} has insufficient credits for minimum request cost.")
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason="insufficient_team_credits",
+                error_message="This team does not have enough credits to use OpenMates.",
+            )
+        logger.info(f"{log_prefix} Team credit precheck passed for team_id: {request_data.team_id}.")
     elif payment_enabled:
         MINIMUM_REQUEST_COST = 1
         logger.info(f"{log_prefix} Performing credit check for user_id: {request_data.user_id}. Minimum cost: {MINIMUM_REQUEST_COST}")
@@ -1809,7 +2020,15 @@ async def handle_preprocessing(
     # keeping the same mate/category unless the topic has clearly changed.
     # This prevents follow-up questions from falling back to 'general_knowledge'.
     previous_category: Optional[str] = None
-    if not is_first_message and cache_service and request_data.user_id and request_data.chat_id:
+    if not is_first_message:
+        previous_category = _latest_assistant_category_from_history(request_data.message_history)
+        if previous_category:
+            logger.info(
+                f"{log_prefix} Retrieved previous category '{previous_category}' from message history "
+                f"for follow-up category continuity."
+            )
+
+    if not is_first_message and not previous_category and cache_service and request_data.user_id and request_data.chat_id:
         try:
             chat_list_item = await cache_service.get_chat_list_item_data(
                 request_data.user_id, request_data.chat_id, refresh_ttl=False
@@ -2160,7 +2379,7 @@ async def handle_preprocessing(
             f"China-origin models will be excluded from selection."
         )
 
-    has_image_upload_embed = _message_history_has_image_upload_embed(request_data)
+    has_image_upload_embed = _request_has_image_upload_embed(request_data)
     if has_image_upload_embed:
         logger.info(
             f"{log_prefix} IMAGE_MODEL_GUARD: Detected uploaded image embed in chat history. "
@@ -2180,7 +2399,7 @@ async def handle_preprocessing(
     # Plan: later derive these dynamically from tokens_per_second in provider YAMLs.
     # See docs/architecture/model-aliases.md for design rationale.
     MODEL_ALIAS_TO_MODEL_ID = {
-        "best": "claude-opus-4-6",
+        "best": "claude-fable-5",
         "fast": "qwen3-235b-a22b-2507",
     }
     if user_overrides and user_overrides.best_model_category and not user_overrides.model_id:
@@ -2242,9 +2461,16 @@ async def handle_preprocessing(
                 )
         elif override_provider:
             # User provided model + provider (e.g., @ai-model:claude-opus-4-5:anthropic)
-            selected_llm_for_main_id = f"{override_provider}/{override_model_id}"
+            resolved_override_provider = _resolve_override_model_provider(override_model_id, override_provider, config_manager)
+            if resolved_override_provider and resolved_override_provider != override_provider:
+                logger.info(
+                    f"{log_prefix} USER_OVERRIDE: Normalized server override '{override_provider}' "
+                    f"to provider '{resolved_override_provider}' for model '{override_model_id}'."
+                )
+            selected_provider = resolved_override_provider or override_provider
+            selected_llm_for_main_id = f"{selected_provider}/{override_model_id}"
             # Look up human-readable name from config
-            selected_llm_for_main_name = config_manager.get_model_display_name(override_model_id, override_provider) or override_model_id
+            selected_llm_for_main_name = config_manager.get_model_display_name(override_model_id, selected_provider) or override_model_id
             model_override_applied = True
             model_selection_reason = f"User override with provider: {selected_llm_for_main_id}"
             logger.info(
@@ -2925,17 +3151,15 @@ async def handle_preprocessing(
         else:
             logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
 
-    if (
-        (
-            "web-research" in validated_relevant_focus_modes
-            or request_data.active_focus_id == "web-research"
-        )
-        and not enable_subchats_val
-    ):
-        enable_subchats_val = True
+    resolved_enable_subchats = resolve_subchat_enablement(
+        enable_subchats_val,
+        active_focus_id=request_data.active_focus_id,
+    )
+    if resolved_enable_subchats != enable_subchats_val:
+        enable_subchats_val = resolved_enable_subchats
         llm_analysis_args["enable_subchats"] = True
         logger.info(
-            f"{log_prefix} Deep research focus mode active or selected; enabling sub-chats deterministically."
+            f"{log_prefix} Deep research focus mode active; enabling sub-chats deterministically."
         )
     
     # --- Rule-based skill forcing based on embed type in message history ---
@@ -2965,7 +3189,7 @@ async def handle_preprocessing(
             if not isinstance(content, str):
                 continue
             # Quick substring checks — avoids YAML parsing overhead on plain-text messages
-            if not has_image_upload_embed and "app_id: images" in content and "skill_id: upload" in content:
+            if not has_image_upload_embed and _content_has_image_upload_embed(content):
                 has_image_upload_embed = True
             if not has_pdf_embed and "app_id: pdf" in content and "status: finished" in content:
                 has_pdf_embed = True
@@ -2996,6 +3220,65 @@ async def handle_preprocessing(
             else:
                 logger.debug(
                     f"{log_prefix} [RULE_BASED] 'images-view' already preselected by LLM — no override needed."
+                )
+
+        # --- code-image_to_html ---
+        # Screenshot/mockup-to-HTML requests contain image terms and can be
+        # misread as image search/generation. Force the Code skill so the main
+        # LLM receives the upload-reference schema needed to start the worker.
+        if (
+            "code-image_to_html" in available_skill_ids
+            and _contains_image_to_html_intent_in_user_history(request_data.message_history)
+        ):
+            validated_relevant_skills = [
+                "code-image_to_html",
+                *[
+                    skill
+                    for skill in validated_relevant_skills
+                    if skill not in {"code-image_to_html", "images-view", "images-search", "images-generate", "images-generate_draft"}
+                ],
+            ]
+            logger.info(
+                f"{log_prefix} [RULE_BASED] Forced 'code-image_to_html' into preselected skills: "
+                "detected screenshot/mockup-to-HTML intent. "
+                "(Prevents image search/generation from handling HTML recreation requests.)"
+            )
+
+        # --- images-generate ---
+        # Text-to-image requests are easy for the preprocessing LLM to confuse
+        # with images.search because both mention "image/photo". Force the
+        # generative skill for clear creation verbs so prompts like "Generate an
+        # image..." cannot be handled by image search.
+        if (
+            "images-generate" in available_skill_ids
+            and _contains_image_generation_intent_in_user_history(request_data.message_history)
+            and not _contains_image_to_html_intent_in_user_history(request_data.message_history)
+        ):
+            if "images-generate" not in validated_relevant_skills:
+                validated_relevant_skills = ["images-generate"] + validated_relevant_skills
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Forced 'images-generate' into preselected skills: "
+                    "detected text-to-image generation intent. "
+                    "(Prevents image search from handling generation requests.)"
+                )
+            else:
+                validated_relevant_skills = ["images-generate"] + [
+                    skill for skill in validated_relevant_skills if skill != "images-generate"
+                ]
+                logger.debug(
+                    f"{log_prefix} [RULE_BASED] Moved 'images-generate' to the front of preselected skills."
+                )
+
+            if (
+                "images-search" in validated_relevant_skills
+                and not _contains_image_search_intent_in_user_history(request_data.message_history)
+            ):
+                validated_relevant_skills = [
+                    skill for skill in validated_relevant_skills if skill != "images-search"
+                ]
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Removed 'images-search' from preselected skills: "
+                    "detected image generation intent without explicit image search intent."
                 )
 
         # --- pdf-read, pdf-search, pdf-view ---

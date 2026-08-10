@@ -287,7 +287,7 @@ def convert_tools_to_converse_format(
 
 
 def convert_tool_choice_to_converse_format(
-    tool_choice: Optional[str],
+    tool_choice: Any,
     has_tools: bool
 ) -> Optional[Dict[str, Any]]:
     """
@@ -300,6 +300,11 @@ def convert_tool_choice_to_converse_format(
     """
     if not has_tools or not tool_choice or tool_choice == "auto":
         return None
+
+    if isinstance(tool_choice, dict) and tool_choice.get("type") == "function":
+        function_choice = tool_choice.get("function")
+        if isinstance(function_choice, dict):
+            tool_choice = function_choice.get("name")
 
     if tool_choice == "required":
         return {"any": {}}

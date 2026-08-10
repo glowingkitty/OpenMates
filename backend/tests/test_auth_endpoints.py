@@ -21,13 +21,15 @@
 #   python -m pytest tests/test_auth_endpoints.py -v
 
 import pytest
+import base64
 import sys
 import hashlib
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
-from fastapi import Response
+from fastapi import BackgroundTasks, HTTPException, Response
+from starlette.requests import Request
 from starlette.datastructures import Headers
 
 # Add project root to Python path for imports (schemas use 'backend.core...' paths)
@@ -102,6 +104,245 @@ def mock_compliance_service():
 
 
 # ─── Test: hash_username is a module-level function ──────────────────────────
+
+
+class TestDevSignupCleanup:
+    """Verify failed-signup cleanup is dev-only and secret-gated."""
+
+    @staticmethod
+    def _request(api_key: str | None = "cleanup-key") -> Request:
+        headers = []
+        if api_key is not None:
+            headers.append((b"authorization", f"Bearer {api_key}".encode()))
+        return Request({
+            "type": "http",
+            "method": "POST",
+            "path": "/v1/auth/cleanup_failed_signup",
+            "headers": headers,
+            "client": ("127.0.0.1", 12345),
+        })
+
+    @pytest.mark.anyio
+    async def test_cleanup_rejects_production_environment(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes.auth_invite import cleanup_failed_signup
+        from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
+
+        monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
+        directus_service = AsyncMock()
+        cache_service = AsyncMock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await cleanup_failed_signup(
+                request=self._request(),
+                cleanup_request=DevSignupCleanupRequest(hashed_email="hash"),
+                directus_service=directus_service,
+                cache_service=cache_service,
+            )
+
+        assert exc_info.value.status_code == 404
+        directus_service.get_user_by_hashed_email.assert_not_called()
+
+    @pytest.mark.anyio
+    async def test_cleanup_requires_matching_dev_secret(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes.auth_invite import cleanup_failed_signup
+        from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
+
+        monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_API_KEY", "cleanup-key")
+        directus_service = AsyncMock()
+        cache_service = AsyncMock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await cleanup_failed_signup(
+                request=self._request("wrong-key"),
+                cleanup_request=DevSignupCleanupRequest(hashed_email="hash"),
+                directus_service=directus_service,
+                cache_service=cache_service,
+            )
+
+        assert exc_info.value.status_code == 403
+        directus_service.get_user_by_hashed_email.assert_not_called()
+
+    @pytest.mark.anyio
+    async def test_cleanup_refuses_configured_test_account_hash(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes.auth_invite import cleanup_failed_signup
+        from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
+
+        configured_email = "persistent@example.test"
+        configured_hash = base64.b64encode(hashlib.sha256(configured_email.encode()).digest()).decode()
+        monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_API_KEY", "cleanup-key")
+        monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_1_EMAIL", configured_email)
+        directus_service = AsyncMock()
+        cache_service = AsyncMock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await cleanup_failed_signup(
+                request=self._request(),
+                cleanup_request=DevSignupCleanupRequest(hashed_email=configured_hash),
+                directus_service=directus_service,
+                cache_service=cache_service,
+            )
+
+        assert exc_info.value.status_code == 403
+        directus_service.get_user_by_hashed_email.assert_not_called()
+
+    @pytest.mark.anyio
+    async def test_cleanup_returns_success_when_user_is_missing(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes.auth_invite import cleanup_failed_signup
+        from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
+
+        monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_API_KEY", "cleanup-key")
+        directus_service = AsyncMock()
+        directus_service.get_user_by_hashed_email = AsyncMock(return_value=(False, None, "User not found"))
+        cache_service = AsyncMock()
+
+        response = await cleanup_failed_signup(
+            request=self._request(),
+            cleanup_request=DevSignupCleanupRequest(hashed_email="hash"),
+            directus_service=directus_service,
+            cache_service=cache_service,
+        )
+
+        assert response.success is True
+        assert response.queued is False
+        assert response.deleted is False
+        cache_service.delete.assert_not_called()
+
+    @pytest.mark.anyio
+    async def test_cleanup_queues_account_deletion_and_clears_signup_cache(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes.auth_invite import cleanup_failed_signup
+        from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
+
+        monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_API_KEY", "cleanup-key")
+        send_task = MagicMock(return_value=SimpleNamespace(id="task-1"))
+        fake_tasks_package = ModuleType("backend.core.api.app.tasks")
+        fake_celery_config = ModuleType("backend.core.api.app.tasks.celery_config")
+        fake_celery_config.app = SimpleNamespace(send_task=send_task)
+        monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks", fake_tasks_package)
+        monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.celery_config", fake_celery_config)
+        directus_service = AsyncMock()
+        directus_service.get_user_by_hashed_email = AsyncMock(
+            return_value=(True, {"id": "target-user", "is_admin": False}, "User found")
+        )
+        cache_service = AsyncMock()
+
+        response = await cleanup_failed_signup(
+            request=self._request(),
+            cleanup_request=DevSignupCleanupRequest(
+                hashed_email="hash",
+                test_file="signup-flow-passkey.spec.ts",
+                reason="failed test",
+            ),
+            directus_service=directus_service,
+            cache_service=cache_service,
+        )
+
+        assert response.success is True
+        assert response.queued is True
+        assert response.task_id == "task-1"
+        send_task.assert_called_once()
+        _, kwargs = send_task.call_args
+        assert kwargs["name"] == "delete_user_account"
+        assert kwargs["kwargs"]["user_id"] == "target-user"
+        assert kwargs["kwargs"]["refund_invoices"] is False
+        cache_service.delete.assert_awaited_once_with("require_invite_code")
+
+    @pytest.mark.anyio
+    async def test_cleanup_accepts_rotating_api_key_for_configured_test_account(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes import auth_invite
+        from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
+        from backend.core.api.app.utils import api_key_auth
+
+        monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_API_KEY", "stale-cleanup-key")
+        monkeypatch.setattr(auth_invite, "_configured_test_account_hashes", lambda: {"configured-hash"})
+
+        async def fake_authenticate_api_key(_self, api_key, request=None):
+            assert api_key == "sk-api-rotated"
+            assert request is None
+            return {"user_id": "configured-user"}
+
+        monkeypatch.setattr(api_key_auth.ApiKeyAuthService, "authenticate_api_key", fake_authenticate_api_key)
+
+        directus_service = AsyncMock()
+        directus_service.get_user_by_hashed_email = AsyncMock(return_value=(False, None, "User not found"))
+        cache_service = AsyncMock()
+
+        response = await auth_invite.cleanup_failed_signup(
+            request=self._request("sk-api-rotated"),
+            cleanup_request=DevSignupCleanupRequest(hashed_email="disposable-hash"),
+            directus_service=directus_service,
+            cache_service=cache_service,
+        )
+
+        assert response.success is True
+        assert response.queued is False
+        directus_service.get_user_by_hashed_email.assert_awaited_once_with("disposable-hash")
+
+    @pytest.mark.anyio
+    async def test_cleanup_accepts_rotating_api_key_when_test_hashes_are_unconfigured(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes import auth_invite
+        from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
+        from backend.core.api.app.utils import api_key_auth
+
+        monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_API_KEY", "stale-cleanup-key")
+        monkeypatch.setattr(auth_invite, "_configured_test_account_hashes", lambda: set())
+
+        async def fake_authenticate_api_key(_self, api_key, request=None):
+            assert api_key == "sk-api-rotated"
+            return {"user_id": "configured-user"}
+
+        monkeypatch.setattr(api_key_auth.ApiKeyAuthService, "authenticate_api_key", fake_authenticate_api_key)
+
+        directus_service = AsyncMock()
+        directus_service.get_user_by_hashed_email = AsyncMock(return_value=(False, None, "User not found"))
+        cache_service = AsyncMock()
+
+        response = await auth_invite.cleanup_failed_signup(
+            request=self._request("sk-api-rotated"),
+            cleanup_request=DevSignupCleanupRequest(hashed_email="disposable-hash"),
+            directus_service=directus_service,
+            cache_service=cache_service,
+        )
+
+        assert response.success is True
+        assert response.queued is False
+        directus_service.get_user_by_hashed_email.assert_awaited_once_with("disposable-hash")
+
+    @pytest.mark.anyio
+    async def test_cleanup_rejects_invalid_rotating_api_key(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes import auth_invite
+        from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
+        from backend.core.api.app.utils import api_key_auth
+
+        monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_API_KEY", "stale-cleanup-key")
+        monkeypatch.setattr(auth_invite, "_configured_test_account_hashes", lambda: {"configured-hash"})
+
+        async def fake_authenticate_api_key(_self, api_key, request=None):
+            raise api_key_auth.ApiKeyNotFoundError("API key not found")
+
+        monkeypatch.setattr(api_key_auth.ApiKeyAuthService, "authenticate_api_key", fake_authenticate_api_key)
+
+        directus_service = AsyncMock()
+        directus_service.get_user_by_hashed_email = AsyncMock()
+        cache_service = AsyncMock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await auth_invite.cleanup_failed_signup(
+                request=self._request("sk-api-rotated"),
+                cleanup_request=DevSignupCleanupRequest(hashed_email="disposable-hash"),
+                directus_service=directus_service,
+                cache_service=cache_service,
+            )
+
+        assert exc_info.value.status_code == 403
+        directus_service.get_user_by_hashed_email.assert_not_called()
+
 
 class TestHashUsernameImport:
     """Verify hash_username is importable and callable as a standalone function.
@@ -302,6 +543,125 @@ class TestAuthClientVerification:
 
             assert found_paths == expected_paths
 
+    def test_passkey_assertion_rejects_wrong_account_credential(self):
+        repo_root = Path(__file__).parent.parent.parent
+        source = (repo_root / "backend/core/api/app/routes/auth_routes/auth_passkey.py").read_text()
+
+        assert "PASSKEY_WRONG_ACCOUNT_MESSAGE" in source
+        assert 'provided_user_id = user_data.get("id") if exists_result and user_data else None' in source
+        assert "provided_user_id != user_id" in source
+
+
+class TestLookupUserCacheWarmup:
+    """Regression coverage for login lookup latency under Directus pressure."""
+
+    @pytest.mark.anyio
+    async def test_lookup_returns_salt_before_profile_cache_warmup(self):
+        from backend.core.api.app.routes.auth_routes.auth_login import (
+            _cache_lookup_user_profile,
+            lookup_user,
+        )
+        from backend.core.api.app.schemas.auth import UserLookupRequest
+
+        directus_service = AsyncMock()
+        directus_service.get_user_by_hashed_email = AsyncMock(return_value=(
+            True,
+            {
+                "id": "user-lookup-latency",
+                "account_id": "account-lookup-latency",
+                "user_email_salt": "real-email-salt",
+            },
+            "User found",
+        ))
+        directus_service.get_user_profile = AsyncMock(
+            side_effect=AssertionError("lookup must not await profile warmup before returning salt")
+        )
+        metrics_service = MagicMock()
+        metrics_service.track_login_attempt = MagicMock()
+        cache_service = AsyncMock()
+        background_tasks = BackgroundTasks()
+
+        response = await lookup_user(
+            request=MagicMock(),
+            lookup_data=UserLookupRequest(hashed_email="hashed-email", stay_logged_in=True),
+            background_tasks=background_tasks,
+            directus_service=directus_service,
+            metrics_service=metrics_service,
+            cache_service=cache_service,
+            compliance_service=MagicMock(),
+        )
+
+        assert response.user_email_salt == "real-email-salt"
+        assert response.stay_logged_in is True
+        directus_service.get_user_profile.assert_not_called()
+        assert len(background_tasks.tasks) == 1
+        assert background_tasks.tasks[0].func is _cache_lookup_user_profile
+
+    @pytest.mark.anyio
+    async def test_lookup_returns_503_for_directus_lookup_error(self):
+        from backend.core.api.app.routes.auth_routes.auth_login import lookup_user
+        from backend.core.api.app.schemas.auth import UserLookupRequest
+
+        directus_service = AsyncMock()
+        directus_service.get_user_by_hashed_email = AsyncMock(return_value=(
+            False,
+            None,
+            "Failed to query user by hashed email: 503 - Service unavailable",
+        ))
+        metrics_service = MagicMock()
+        metrics_service.track_login_attempt = MagicMock()
+        background_tasks = BackgroundTasks()
+
+        response = await lookup_user(
+            request=MagicMock(),
+            lookup_data=UserLookupRequest(hashed_email="hashed-email", stay_logged_in=True),
+            background_tasks=background_tasks,
+            directus_service=directus_service,
+            metrics_service=metrics_service,
+            cache_service=AsyncMock(),
+            compliance_service=MagicMock(),
+        )
+
+        assert response.status_code == 503
+        assert b"temporarily unavailable" in response.body
+        metrics_service.track_login_attempt.assert_not_called()
+        assert background_tasks.tasks == []
+
+    @pytest.mark.anyio
+    async def test_lookup_cache_helper_writes_complete_profile(self):
+        from backend.core.api.app.routes.auth_routes.auth_login import _cache_lookup_user_profile
+
+        directus_service = AsyncMock()
+        directus_service.get_user_profile = AsyncMock(return_value=(
+            True,
+            {
+                "id": "user-cache-helper",
+                "user_id": "user-cache-helper",
+                "username": "testuser",
+                "vault_key_id": "vault-key",
+                "tfa_enabled": False,
+                "last_opened": "/chat/new",
+            },
+            "Profile found",
+        ))
+        cache_service = AsyncMock()
+        cache_service.is_user_cache_primed = AsyncMock(return_value=True)
+
+        payload = await _cache_lookup_user_profile(
+            user_id="user-cache-helper",
+            user_email_salt="real-email-salt",
+            user_data={"account_id": "account-cache-helper"},
+            directus_service=directus_service,
+            cache_service=cache_service,
+            source="test",
+        )
+
+        assert payload is not None
+        assert payload["username"] == "testuser"
+        assert payload["vault_key_id"] == "vault-key"
+        assert payload["account_id"] == "account-cache-helper"
+        assert payload["user_email_salt"] == "real-email-salt"
+        cache_service.set_user.assert_awaited_once_with(payload)
 
 class TestSignupGiftCardFreeTestingEligibility:
     @pytest.mark.anyio

@@ -1,10 +1,10 @@
 """
 Revolut Business Service — SEPA Bank Transfer Provider
 
-Handles incoming SEPA bank transfers via the Revolut Business API.
-Unlike card-payment providers, this service monitors
-the company's Revolut Business account for incoming transfers and matches
-them to pending orders by structured reference.
+Handles incoming SEPA bank transfers through Revolut Business webhooks.
+Unlike card-payment providers, this service does not poll the company account;
+Revolut pushes signed transaction events to OpenMates, and the payment route
+matches incoming transfers to pending orders by structured reference.
 
 Webhook events:
   - TransactionCreated: incoming transfer detected (may be in "pending" state)
@@ -26,12 +26,22 @@ import time
 from typing import Any, Dict, Optional
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.providers.revolut_business import RevolutBusinessClient, RevolutBusinessError
+from backend.shared.providers.revolut_business.oauth import (
+    RevolutBusinessTokenExchangeError,
+    exchange_revolut_business_refresh_token,
+)
 
 logger = logging.getLogger(__name__)
 
 # Revolut Business API base URLs
 REVOLUT_API_BASE_PRODUCTION = "https://b2b.revolut.com/api/1.0"
 REVOLUT_API_BASE_SANDBOX = "https://sandbox-b2b.revolut.com/api/1.0"
+REVOLUT_BUSINESS_SECRET_PATH = "kv/data/providers/revolut_business"
+REVOLUT_BUSINESS_COMPANY_REDIRECT_URIS = {
+    "production": "https://api.openmates.org/v1/payments/webhook",
+    "sandbox": "https://api.dev.openmates.org/v1/payments/webhook",
+}
 
 # Maximum allowed age for webhook timestamps (5 minutes) to prevent replay attacks
 WEBHOOK_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000
@@ -71,6 +81,11 @@ class RevolutBusinessService:
         self._account_holder_postal_code: Optional[str] = None
         self._account_holder_city: Optional[str] = None
         self._account_holder_country: Optional[str] = None
+        self._account_id: Optional[str] = None
+        self._client_id: Optional[str] = None
+        self._refresh_token: Optional[str] = None
+        self._private_key_pem: Optional[str] = None
+        self._client_assertion: Optional[str] = None
 
     async def initialize(self, is_production: bool) -> None:
         """
@@ -99,7 +114,7 @@ class RevolutBusinessService:
             REVOLUT_API_BASE_PRODUCTION if is_production else REVOLUT_API_BASE_SANDBOX
         )
         env = "production" if is_production else "sandbox"
-        secret_path = "kv/data/providers/revolut_business"
+        secret_path = REVOLUT_BUSINESS_SECRET_PATH
 
         self._webhook_secret = await self.secrets_manager.get_secret(
             secret_path=secret_path,
@@ -155,6 +170,23 @@ class RevolutBusinessService:
         self._account_holder_country = await self.secrets_manager.get_secret(
             secret_path=secret_path, secret_key=f"{env}_account_holder_country", log_missing=False
         )
+        self._account_id = await self.secrets_manager.get_secret(
+            secret_path=secret_path, secret_key=f"{env}_account_id", log_missing=False
+        )
+        self._client_id = await self.secrets_manager.get_secret(
+            secret_path=secret_path, secret_key=f"{env}_client_id", log_missing=False
+        )
+        self._refresh_token = await self.secrets_manager.get_secret(
+            secret_path=secret_path, secret_key=f"{env}_refresh_token", log_missing=False
+        )
+        self._private_key_pem = await self.secrets_manager.get_secret(
+            secret_path=secret_path, secret_key=f"{env}_private_key_pem", log_missing=False
+        )
+        self._client_assertion = await self.secrets_manager.get_secret(
+            secret_path=secret_path, secret_key=f"{env}_client_assertion", log_missing=False
+        )
+        if self._private_key_pem:
+            self._private_key_pem = self._private_key_pem.replace("\\n", "\n")
 
         logger.info(
             f"RevolutBusinessService initialized. Production: {is_production}, "
@@ -180,6 +212,149 @@ class RevolutBusinessService:
             "account_holder_city": self._account_holder_city or "",
             "account_holder_country": self._account_holder_country or "",
         }
+
+    def has_transaction_api_credentials(self) -> bool:
+        return bool(
+            self._client_id
+            and self._refresh_token
+            and self._account_id
+            and (self._private_key_pem or self._client_assertion)
+        )
+
+    async def fetch_confirmed_incoming_transfer(self, transaction_id: str) -> Dict[str, Any]:
+        """Fetch and validate the actual Revolut transaction before settlement."""
+        transaction_id = str(transaction_id or "").strip()
+        if not transaction_id:
+            raise RevolutBusinessTransactionConfirmationError(
+                "missing_transaction_id",
+                "Revolut webhook did not include a transaction ID",
+                alert_required=False,
+            )
+        if not self.has_transaction_api_credentials():
+            raise RevolutBusinessTransactionConfirmationError(
+                "api_credentials_missing",
+                "Revolut Business transaction API credentials are not configured",
+                alert_required=False,
+            )
+
+        environment = "production" if self._is_production else "sandbox"
+        envelope = {
+            "client_id": self._client_id,
+            "private_key_pem": self._private_key_pem,
+            "client_assertion": self._client_assertion,
+            "environment": environment,
+            "redirect_uri": REVOLUT_BUSINESS_COMPANY_REDIRECT_URIS[environment],
+        }
+        try:
+            refresh_token = await self._current_refresh_token_from_vault(environment)
+            token = await exchange_revolut_business_refresh_token(
+                refresh_token,
+                {"refresh_token_envelope": envelope},
+            )
+            await self._persist_rotated_refresh_token(token.get("rotated_refresh_token_bundle"), environment)
+            access_token = str(token.get("access_token") or "").strip()
+            if not access_token:
+                raise RevolutBusinessTokenExchangeError("Revolut Business token exchange returned no access token")
+
+            transaction = await RevolutBusinessClient(
+                access_token=access_token,
+                base_url=self._api_base,
+            ).get_transaction(transaction_id)
+        except (RevolutBusinessError, RevolutBusinessTokenExchangeError) as exc:
+            raise RevolutBusinessTransactionConfirmationError(
+                "provider_lookup_failed",
+                str(exc),
+            ) from exc
+
+        if transaction.id != transaction_id:
+            raise RevolutBusinessTransactionConfirmationError(
+                "transaction_id_mismatch",
+                "Revolut Business returned a different transaction ID than requested",
+            )
+        if transaction.state != "completed":
+            raise RevolutBusinessTransactionConfirmationError(
+                "transaction_not_completed",
+                f"Revolut Business transaction is {transaction.state}",
+                alert_required=False,
+                state=transaction.state,
+            )
+        if transaction.amount <= 0:
+            raise RevolutBusinessTransactionConfirmationError(
+                "not_incoming_transfer",
+                "Revolut Business transaction is not an incoming transfer",
+            )
+        if self._account_id and transaction.account_id != self._account_id:
+            raise RevolutBusinessTransactionConfirmationError(
+                "receiving_account_mismatch",
+                "Revolut Business transaction was not received on the configured company account",
+            )
+
+        reference = str(transaction.description or "").strip()
+        return {
+            "event_type": "TransactionCreated",
+            "transaction_id": transaction.id,
+            "state": transaction.state,
+            "reference": reference,
+            "amount_cents": int(round(transaction.amount * 100)),
+            "currency": transaction.currency.lower(),
+            "counterparty": {},
+            "created_at": transaction.completed_at or transaction.created_at,
+            "account_id": transaction.account_id,
+        }
+
+    async def _current_refresh_token_from_vault(self, environment: str) -> str:
+        """Use the latest company refresh token because Revolut rotates it on exchange."""
+
+        secret_key = f"{environment}_refresh_token"
+        try:
+            secrets = await self.secrets_manager.get_secrets_from_path(REVOLUT_BUSINESS_SECRET_PATH)
+            vault_refresh_token = (
+                secrets.get(secret_key)
+                if isinstance(secrets, dict)
+                else None
+            )
+        except Exception as exc:
+            logger.error(
+                "Revolut Business refresh token reload failed for %s environment: %s",
+                environment,
+                exc,
+                exc_info=True,
+            )
+            vault_refresh_token = None
+
+        if vault_refresh_token and vault_refresh_token != self._refresh_token:
+            logger.info("Revolut Business refresh token reloaded from Vault for %s environment", environment)
+            self._refresh_token = vault_refresh_token
+        return self._refresh_token or ""
+
+    async def _persist_rotated_refresh_token(self, rotated_bundle: Any, environment: str) -> None:
+        if not isinstance(rotated_bundle, dict):
+            return
+
+        rotated_refresh_token = str(rotated_bundle.get("refresh_token") or "").strip()
+        if not rotated_refresh_token or rotated_refresh_token == self._refresh_token:
+            return
+
+        # Keep this worker usable even if Vault persistence fails; other workers
+        # will pick up the token after the merged write succeeds.
+        self._refresh_token = rotated_refresh_token
+        secret_key = f"{environment}_refresh_token"
+        try:
+            existing = await self.secrets_manager.get_secrets_from_path(REVOLUT_BUSINESS_SECRET_PATH)
+            merged = dict(existing) if isinstance(existing, dict) else {}
+            merged[secret_key] = rotated_refresh_token
+            stored = await self.secrets_manager.store_secrets_at_path(REVOLUT_BUSINESS_SECRET_PATH, merged)
+            if not stored:
+                logger.error("Revolut Business rotated refresh token persistence failed for %s environment", environment)
+                return
+            logger.info("Revolut Business rotated refresh token persisted for %s environment", environment)
+        except Exception as exc:
+            logger.error(
+                "Revolut Business rotated refresh token persistence failed for %s environment: %s",
+                environment,
+                exc,
+                exc_info=True,
+            )
 
     async def verify_webhook(
         self,
@@ -366,3 +541,20 @@ class RevolutBusinessService:
     async def close(self) -> None:
         """Clean up resources. Currently a no-op (no persistent connections)."""
         pass
+
+
+class RevolutBusinessTransactionConfirmationError(RuntimeError):
+    """Sanitized failure while confirming a webhook transaction via Revolut API."""
+
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        *,
+        alert_required: bool = True,
+        state: str | None = None,
+    ) -> None:
+        self.code = code
+        self.alert_required = alert_required
+        self.state = state
+        super().__init__(message)

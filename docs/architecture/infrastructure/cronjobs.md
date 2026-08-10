@@ -8,6 +8,8 @@ key_files:
 - scripts/run_tests.py
 - scripts/auto_fix_failed_tests.py
 - scripts/nightly-dead-code-removal.sh
+- scripts/stale_code_daily.py
+- scripts/stale-code-cron-setup.sh
 - scripts/weekly-codebase-audit.sh
 - scripts/weekly-technical-debt.sh
 - scripts/technical_debt_scan.py
@@ -74,7 +76,7 @@ claims:
 
 ## Why This Exists
 
-Continuous automated maintenance reduces manual toil: deploy failures are auto-investigated, dead code is removed nightly, tests run daily, and security is audited twice weekly.
+Continuous automated maintenance reduces manual toil: deploy failures are monitored, stale-code candidates are reported without automatic edits, tests run daily, and security is audited twice weekly.
 
 ## How It Works
 
@@ -84,15 +86,16 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 |-------------------------------|----------------------------------------|-------------------------------------------|
 | `0 10 * * 1-5` UTC            | `daily-meeting.sh`                     | **Daily standup**: OpenCode chat + email link |
 | `*/2 * * * *`                 | `check-deploy-status.sh`               | Watch Vercel for build failures           |
-| `02:00 Mon-Fri`               | `nightly-dead-code-removal.sh`         | Remove detected dead code                 |
+| `02:00 daily`                  | `stale_code_daily.py`                  | Report deletion-ready stale code + Discord |
 | `02:00 Mon+Thu`               | `weekly-codebase-audit.sh`             | Top 5 improvement findings (plan only)    |
 | `02:15 Mon-Fri`               | `nightly-quick-wins.sh`                | Quick-win improvements (Haiku, plan only) |
 | `02:30 Tue+Fri`               | `security-audit.sh`                    | Security code review (plan only)          |
 | `02:30 Wed+Sat`               | `red-teaming.sh`                       | External attacker simulation (GET only)   |
 | `02:35 Mon-Fri`               | `nightly-pattern-consistency.sh`       | Pattern consistency scan (Haiku, plan only)|
 | `02:50 Mon-Fri`               | `nightly-code-structure.sh`            | Code structure cleanup suggestions        |
-| `03:00 Mon-Fri`               | `tests.py run --daily`                 | Full test suite (Playwright + pytest)     |
+| `03:00 daily`                 | `tests.py run --daily`                 | Full test suite (Playwright + pytest)     |
 | `00:20 daily`                 | `release-intelligence-cron.sh daily`   | Generate yesterday's daily release-intelligence changelog |
+| `01:45 daily`                 | `opencode_chat_improvement_review.py`  | Luna research over the previous 24h of OpenCode chats + Discord |
 | `00:45 Mon`                   | `release-intelligence-cron.sh weekly`  | Generate last-7-days weekly rollup + Discord summary |
 | `01:10 1st day`               | `release-intelligence-cron.sh monthly` | Generate previous-month monthly rollup    |
 | `04:10 Tue+Fri`               | `nightly-ui-design-review.sh`          | UI design system/code review (plan only)  |
@@ -101,22 +104,25 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 | `03:20 Sun`                   | `weekly-technical-debt.sh`             | Deterministic debt scan + OpenCode top 5 recommendations |
 | `05:15 Mon`                   | `weekly-contract-audits.sh`            | Deterministic contract audits + OpenCode recommendations |
 | `* * * * *`                   | `update_obsidian_daily_note.py`        | Refresh Obsidian daily note stats/activity |
-| `0 8-18 * * *` (GHA)          | `.github/workflows/prod-smoke.yml`     | Hourly **prod** smoke (reachability + signup+gift card + login+chat), 10–20 Berlin (OPE-76) |
+| hourly, 06–23 Berlin          | `tests.py run --prod-free-hourly`      | Free production reachability smoke; dispatches `prod-smoke.yml` and dev server sends alerts |
+| 07, 13, 19 Berlin             | `tests.py run --prod-paid-chat`        | Paid production CLI chat smoke with one tiny `PONG` prompt |
+| 09 Berlin                     | `tests.py run --prod-app-skill`        | Production CLI `apps web search` app-skill smoke |
 | `04:30 daily` (Dependabot)     | `.github/dependabot.yml`               | Daily npm/pnpm version update PRs with cooldown |
 | `*/1h (xx:30)`                | `check-dependabot-daily.sh`            | Process Dependabot security alerts        |
 | `*/1h (xx:35)`                | `check-eu-vulns-daily.sh`              | EU/OSV/NVD vulnerability detection        |
 | `02:00 Sun`                   | `docker-cleanup.sh`                    | Remove dangling images, build cache; aggressive mode at >90% disk |
 | `01:30 daily`                 | `cleanup-opencode-sessions.sh`         | Delete OpenCode chats older than 14 days, except TODO sessions |
+| `hourly`                      | `sessions.py worktree reconcile --apply-safe` | Delete safely classified agent worktrees after 48h idle and retain manifests for 30 days |
 
-> **Consolidated (2026-03-27):** `nightly-issues-check.sh` and `nightly-workflow-review.sh` have been folded into the daily meeting. Their helpers (`_issues_checker.py`, `_workflow_review_helper.py`) are kept as importable libraries.
+> **Workflow review:** `scripts/_workflow_review_helper.py collect` remains the explicit aggregate-only collector. The separate daily OpenCode improvement research job analyzes bounded local transcripts but cannot edit tracked files; implementation always requires a user-invoked skill in a new chat.
 
 ### Job Details
 
-**Daily standup meeting** (`10:00 UTC` weekdays): `daily-meeting.sh` creates a persisted OpenCode chat titled `daily-meeting YYYY-MM-DD`, asks the `daily-meeting` skill to gather data inline, and emails a deep link to the configured recipient. The OpenCode web URL is built as `${OPENCODE_WEB_BASE_URL}/${base64url(project_path)}/session/${session_id}`. No Claude launcher and no Zellij session are involved. The meeting remains interactive: it presents one agenda section at a time and saves `scripts/.daily-meeting-state.json` plus `scripts/.tmp/daily-meeting-summary-<date>.md` only after the user confirms priorities. Consolidates former `nightly-workflow-review.sh` and `nightly-issues-check.sh`. Manual: `./scripts/daily-meeting.sh` or `/daily-meeting` skill. Env: `DAILY_MEETING_NOTIFY_EMAIL` (or `SERVER_OWNER_EMAIL`/`ADMIN_NOTIFY_EMAIL` fallback), `OPENCODE_WEB_BASE_URL`, `INTERNAL_API_SHARED_TOKEN`, `INTERNAL_API_URL`.
+**Daily standup meeting** (`10:00 UTC` weekdays): `daily-meeting.sh` creates a persisted OpenCode chat titled `daily-meeting YYYY-MM-DD`, asks the `daily-meeting` skill to gather data inline, and emails a deep link to the configured recipient. The OpenCode web URL is built as `${OPENCODE_WEB_BASE_URL}/${base64url(project_path)}/session/${session_id}`. The meeting remains interactive: it presents one agenda section at a time and saves `scripts/.daily-meeting-state.json` plus `scripts/.tmp/daily-meeting-summary-<date>.md` only after the user confirms priorities. Manual: `./scripts/daily-meeting.sh` or `/daily-meeting` skill. Env: `DAILY_MEETING_NOTIFY_EMAIL` (or `SERVER_OWNER_EMAIL`/`ADMIN_NOTIFY_EMAIL` fallback), `OPENCODE_WEB_BASE_URL`, `INTERNAL_API_SHARED_TOKEN`, `INTERNAL_API_URL`.
 
 **Deploy status checker** (`*/2 min`): Checks git log for recent commits; if found, queries Vercel API for build status. On `ERROR`/`CANCELED`, dispatches an OpenCode repair chat with the build log. State: `scripts/.deploy-checker-state.json`. Env: `VERCEL_TOKEN`.
 
-**Dead code removal** (02:00): Runs `find_dead_code.py` (up to 50 items across Python/TypeScript/Svelte/CSS). Dispatches an OpenCode chat to remove and commit. Skips if HEAD unchanged. State: `scripts/.dead-code-removal-state.json`.
+**Deterministic stale-code report** (02:00 daily): Runs `find_dead_code.py` across Python, TypeScript, Svelte, and CSS. Only narrow Ruff safe-fix imports may be `deletion_ready`; ambiguous functions, classes, exports, components, and selectors are `review_only` or `suppressed`, including Vite glob, app metadata, computed class, generated, route, fixture, migration, public API, and compatibility cases. Writes gitignored `logs/nightly-reports/stale-code.json` and `.md`, then posts a redacted count/status summary through optional `DISCORD_WEBHOOK_DEV_NIGHTLY`. Cron never edits source or launches OpenCode. Install idempotently with `bash scripts/stale-code-cron-setup.sh`; manual cleanup uses the `remove-stale-code` skill, which revalidates the commit and fingerprints before editing. The legacy `nightly-dead-code-removal.sh` path is a report-only compatibility wrapper.
 
 **Codebase audit** (Mon+Thu 02:00): Uses 2 weeks of git history to find top 5 improvements (security, performance, reliability, quality). Plan mode only -- no implementation. State: `scripts/.audit-state.json`.
 
@@ -126,7 +132,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 **Obsidian daily note updater** (every minute): Refreshes today's local daily note under `vaults/memory/Daily Notes/` with changed note links, same-day git commits, and cached server stats. Preserves manual content outside `<!-- AUTO:* -->` sections. Log: `logs/obsidian-daily-note.log`. State: `vaults/memory/.obsidian-auto/daily-note-state/`.
 
-**Prod smoke** (GitHub Actions, hourly 10–20 Europe/Berlin): Runs three Playwright specs against the live production server: (1) reachability pre-flight, (2) fresh signup + reusable domain-bound gift card redemption + first chat (no Stripe), (3) login + chat on a persistent prod test account. On any failure, the shared composite action `.github/actions/notify-test-failure` posts to a Discord webhook **and** sends an email via Brevo — both sends independent so a single channel outage never masks the failure. No dependency on dev server uptime. Secrets: `PROD_BASE_URL`, `PROD_SMOKE_GIFT_CARD_CODE`, `PROD_SMOKE_EMAIL_DOMAIN`, `PROD_SMOKE_MAILOSAUR_API_KEY`, `PROD_SMOKE_MAILOSAUR_SERVER_ID`, `OPENMATES_PROD_TEST_ACCOUNT_{EMAIL,PASSWORD,OTP_KEY}`, `DISCORD_WEBHOOK_PROD_SMOKE`, `PROD_SMOKE_EMAIL_TO`, `BREVO_API_KEY`. The gift card's `allowed_email_domain` must exactly match the Mailosaur server subdomain — suffix matches would let any Mailosaur customer redeem the card.
+**Prod smoke** (dev-server cron + GitHub Actions): The dev server dispatches `.github/workflows/prod-smoke.yml`, polls the selected run, parses uploaded JSON artifacts, and sends failure-only Discord + email alerts. The workflow itself only executes the selected suite: free logged-out reachability hourly, paid CLI chat at 07/13/19 Berlin, or direct CLI `apps web search` app-skill daily. GitHub Actions secrets: `PROD_BASE_URL`, `OPENMATES_TEST_ACCOUNT_API_KEY`. Dev-server notification env: `DISCORD_WEBHOOK_PROD_SMOKE`, `ADMIN_NOTIFY_EMAIL`, and either `INTERNAL_API_SHARED_TOKEN` or `BREVO_API_KEY`.
 
 **Dependabot version updates** (GitHub native, daily 04:30 UTC): Opens npm/pnpm version-update PRs against `dev`. Routine patch/minor updates use a 48-hour cooldown (`cooldown.default-days: 2`) to avoid newly published malicious npm versions during supply-chain incidents; major updates use a 14-day cooldown for extra stability. This is separate from security-alert processing below, which remains immediate for critical/high/medium advisories. pnpm also enforces `minimumReleaseAge: 2880` minutes in `pnpm-workspace.yaml` so manual and CI dependency resolution follow the same 48-hour delay.
 
@@ -138,7 +144,9 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 **EU vulnerability check** (hourly at xx:35, 5 min after Dependabot): Queries OSV + NVD for vulnerabilities Dependabot misses. Cross-refs against `dependabot-processed.json`. No-ops in seconds when no new vulns found. Uses `sessions.py deploy` for commits. Resolved entries auto-pruned after 72h. State: `scripts/eu-vuln-processed.json`.
 
-**Workflow review**: _Consolidated into daily meeting (2026-03-27)._ Helper `_workflow_review_helper.py` still available as importable library.
+**Workflow review**: Maintainer-invoked only. Run `python3 scripts/_workflow_review_helper.py collect --since <UTC_ISO> --until <UTC_ISO>` to create a bounded OpenCode, git, and test evidence report under `test-results/workflow-review/`. It never schedules or launches an agent.
+
+**Daily OpenCode improvement research** (`01:45 UTC`): Reads bounded top-level and subagent transcript/tool evidence from the previous 24 hours in the local OpenCode SQLite store, excluding prior analyzer chats, then starts one persisted `openai/gpt-5.6-luna` session using the `opencode-improvement-research` skill and dedicated `cron-research` agent. That agent is enforced read-only: edit, Bash, child-agent, question, and todo tools are denied. Luna researches current skills, hooks, agents, instructions, deterministic guards, tests, and official tool documentation where needed. Latest plus dated JSON/Markdown reports are written under gitignored `logs/nightly-reports/opencode-improvements/`; a compact top-level nightly summary is available to the daily meeting, and a canonical-secret-scanned Markdown report is sent through optional `DISCORD_WEBHOOK_DEV_NIGHTLY`. Cron never edits tracked files, invokes an editing workflow, commits, or deploys. A maintainer later starts a new chat and explicitly invokes `implement-opencode-improvements` to select and revalidate report items before normal verified changes. Install idempotently with `python3 scripts/opencode_chat_improvement_review.py --install-cron`. Manual research: `python3 scripts/opencode_chat_improvement_review.py --hours 24 --dry-run-notify`.
 
 **Security audit** (Tue+Fri 02:30): Reviews files changed since last audit. Top 5 critical security issues with OWASP mapping. Monthly full sweep. Acknowledged findings suppressed via `_security_helper.py acknowledge`. State: `.claude/security-audit-state.json` (gitignored).
 
@@ -159,6 +167,8 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 **Docker cleanup** (Sun 02:00): `docker system prune` for dangling images, stopped containers, unused volumes.
 
 **OpenCode session cleanup** (01:30 daily): Deletes OpenCode chats older than 14 days when their title does not contain `TODO`, using `opencode session delete` so session storage is removed with the SQLite row. Logs to `logs/opencode-cleanup.log` and writes `logs/nightly-reports/session-cleanup.json` for daily meeting consumption. Manual: `./scripts/cleanup-opencode-sessions.sh`.
+
+**Agent worktree checkpoint integration and reconciliation** (hourly): Fetches `origin/dev`, runs `python3 scripts/sessions.py worktree auto-integrate`, then runs `python3 scripts/sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe`. Auto-integration processes only current local checkpoint refs from opted-in mutating sessions after the grace period and invokes the normal exact-base deploy path with no gate waivers. Holds, live edits, sensitive paths, changed patches, conflicts, and failed gates remain visible and recoverable. Legacy and uncheckpointed worktrees are never automatically integrated. Reconciliation without `--apply-safe` remains report-only; safe application deletes only worktrees proven integrated or duplicated, plus stale worktrees explicitly approved as obsolete. Deletions retain compact source-free manifests for 30 days. Install the tracked user timer with `bash scripts/worktree-reconciliation-setup.sh`. Manual dry run: `python3 scripts/sessions.py worktree auto-integrate --dry-run`. Manual reconciliation report: `python3 scripts/sessions.py worktree reconcile --target origin/dev`. Immediate reviewed cleanup must be explicitly scoped, for example `--only <SESSION_ID> --approve-obsolete <SESSION_ID> --idle-hours 0 --apply-safe`; never lower the threshold without `--only`.
 
 **Agent trigger watcher** (`@reboot`): Polls `scripts/.agent-triggers/` every 5s for JSON trigger files from admin sidecar. Dispatches OpenCode investigation chats; completed triggers moved to `done/`.
 
@@ -184,9 +194,10 @@ Most maintenance scripts support `--dry-run` (show prompt, skip agent) or `--for
 
 ```bash
 ./scripts/check-deploy-status.sh --dry-run
-./scripts/nightly-dead-code-removal.sh --force --category python
+python3 scripts/stale_code_daily.py --dry-run-notify
+python3 scripts/find_dead_code.py --category python --json
 ./scripts/run-tests-daily.sh --force
-REVIEW_DATE=2026-03-17 bash scripts/nightly-workflow-review.sh
+python3 scripts/_workflow_review_helper.py collect --since 2026-07-03T00:00:00Z --until 2026-07-10T00:00:00Z
 ```
 
 ### Adding a New Job

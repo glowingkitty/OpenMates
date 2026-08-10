@@ -1,0 +1,372 @@
+title:
+  context: "Title of example chat: Habit Garden Web Application"
+  en: "Habit Garden Web Application"
+  de: "Habit-Garten-Webanwendung"
+  zh: "Habit Garden Web Application"
+  es: "Habit Garden Web Application"
+  fr: "Habit Garden Web Application"
+  pt: "Habit Garden Web Application"
+  ru: "Habit Garden Web Application"
+  ja: "Habit Garden Web Application"
+  ko: "Habit Garden Web Application"
+  it: "Habit Garden Web Application"
+  tr: "Habit Garden Web Application"
+  vi: "Habit Garden Web Application"
+  id: "Habit Garden Web Application"
+  pl: "Habit Garden Web Application"
+  nl: "Habit Garden Web Application"
+  ar: "Habit Garden Web Application"
+  hi: "Habit Garden Web Application"
+  th: "Habit Garden Web Application"
+  cs: "Habit Garden Web Application"
+  sv: "Habit Garden Web Application"
+  he: "Habit Garden Web Application"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Habit Garden Web Application"
+  en: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  de: "Sophia erstellt eine interaktive Svelte-Habit-Garden-App mit Live-Anwendungsvorschau."
+  zh: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  es: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  fr: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  pt: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  ru: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  ja: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  ko: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  it: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  tr: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  vi: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  id: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  pl: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  nl: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  ar: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  hi: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  th: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  cs: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  sv: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  he: "Sophia creates an interactive Svelte Habit Garden app with a live application preview."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Habit Garden Web Application. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  de: "Erstelle eine hochwertige interaktive Svelte-Webanwendung fuer einen Habit Garden. Sie soll drei Gewohnheitskarten, ein Filterfeld, anklickbare Gewohnheitsauswahl und einen Button anzeigen, der einen sichtbaren Streak-Zaehler aktualisiert."
+  zh: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  es: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  fr: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  pt: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  ru: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  ja: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  ko: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  it: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  tr: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  vi: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  id: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  pl: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  nl: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  ar: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  hi: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  th: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  cs: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  sv: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  he: "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Habit Garden Web Application. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  de: |
+    Ich erstelle eine hochwertige, interaktive "Habit Garden"-Webanwendung mit Svelte 5. Sie nutzt die neue Svelte-5-Runes-Syntax (`$state` und `$derived`), um den reaktiven Zustand fuer Filterung, Auswahl und Streak-Zaehler zu verwalten.
+    
+    Hier ist die vollstaendig lauffaehige App:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Enthaltene Funktionen:
+    1. **Svelte 5 Runes**: Gebaut mit den modernen reaktiven Primitiven (`$state` und `$derived`), die UI und Daten automatisch synchron halten.
+    2. **Interaktive Auswahl**: Klicke eine der drei Gewohnheitskarten an, um sie zu fokussieren; sie hebt sich leicht an und bekommt einen hellgruenen Rahmen.
+    3. **Streak-Logik & Pflanzenwachstum**: Jeder Klick auf "Water Selected Habit" erhoeht den Streak. Bei Meilensteinen (3, 7, 15) zeigt das Textlabel, wie die Gewohnheit vom "New Seed" zum "Thriving Tree" waechst.
+    4. **Sofortige Filterung**: Tippe oben in das Suchfeld, um die Gewohnheitskarten dynamisch zu filtern.
+  zh: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  es: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  fr: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  pt: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  ru: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  ja: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  ko: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  it: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  tr: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  vi: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  id: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  pl: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  nl: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  ar: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  hi: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  th: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  cs: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  sv: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  he: |
+    I'll create a polished, interactive "Habit Garden" web application using Svelte 5. It uses the new Svelte 5 runic syntax (`$state` and `$derived`) to manage the reactive state for filtering, selection, and the streak counters.
+    
+    Here is the complete runnable app:
+    
+    ```json
+    {"type":"application","embed_id":"694ca97f-c920-48d0-a44f-59d566f013fc","app_id":"code","skill_id":"application"}
+    ```
+    
+    ### Features include:
+    1. **Svelte 5 Runes**: Built using the modern reactive primitives (`$state` and `$derived`) which automatically keep the UI and data in sync.
+    2. **Interactive Selection**: Click any of the three habit cards to "target" them-they'll elevate slightly and gain a bright green border.
+    3. **Streak Logic & Plant Growth**: Every time you click "Water Selected Habit", the streak increments. As your streak hits certain milestones (3, 7, 15), the text label shows your habit growing from a "New Seed" to a "Thriving Tree".
+    4. **Instant Filtering**: Type in the search box at the top to dynamically filter the habit cards.
+  verified_by_human: []

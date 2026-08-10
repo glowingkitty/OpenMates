@@ -48,6 +48,12 @@ def _hash_email(email: str) -> str:
     return base64.b64encode(hashlib.sha256(email.strip().lower().encode()).digest()).decode()
 
 
+def _redacted(value: str | None, enabled: bool, placeholder: str) -> str | None:
+    if value is None or not enabled:
+        return value
+    return placeholder
+
+
 async def main():
     from backend.core.api.app.services.cache import CacheService
     from backend.core.api.app.services.directus.directus import DirectusService
@@ -58,6 +64,7 @@ async def main():
     parser.add_argument("--from-env", action="store_true", help="Read the TOTP secret from env")
     parser.add_argument("--slot", type=int, help="Use OPENMATES_TEST_ACCOUNT_<slot>_* env vars")
     parser.add_argument("--user-id", help="Target a specific Directus user UUID")
+    parser.add_argument("--redact-output", action="store_true", help="Redact account identifiers in script output")
     args = parser.parse_args()
 
     otp_secret = args.otp_secret
@@ -95,7 +102,7 @@ async def main():
             print(f"ERROR: OPENMATES_TEST_ACCOUNT{slot_hint}_EMAIL not set (use --user-id instead)")
             sys.exit(1)
 
-        print(f"Looking up user by email: {test_email}")
+        print(f"Looking up user by email: {_redacted(test_email, args.redact_output, '<email>')}")
         email_hash = _hash_email(test_email)
         success, user, message = await directus_service.get_user_by_hashed_email(email_hash)
         if not success or not user:
@@ -104,8 +111,8 @@ async def main():
             sys.exit(1)
         user_id = user.get("id")
         vault_key_id = user.get("vault_key_id")
-    print(f"Found user: {user_id}")
-    print(f"Vault key ID: {vault_key_id}")
+    print(f"Found user: {_redacted(user_id, args.redact_output, '<user-id>')}")
+    print(f"Vault key ID: {_redacted(vault_key_id, args.redact_output, '<vault-key-id>')}")
 
     if not vault_key_id:
         # Fetch vault_key_id directly if not returned by lookup
@@ -116,7 +123,7 @@ async def main():
         if not vault_key_id:
             print("ERROR: User has no vault_key_id")
             sys.exit(1)
-        print(f"Vault key ID (fetched): {vault_key_id}")
+        print(f"Vault key ID (fetched): {_redacted(vault_key_id, args.redact_output, '<vault-key-id>')}")
 
     # Encrypt the new secret with the user's vault key
     encrypted_secret, _ = await encryption_service.encrypt_with_user_key(

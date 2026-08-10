@@ -1,0 +1,599 @@
+template_share.title:
+  context: Heading for the Workflow template sharing panel
+  en: Share as template
+  de: Als Vorlage teilen
+  zh: 作为模板共享修
+  es: Compartir como plantilla
+  fr: Partager comme modèle
+  pt: Partilhar como modelo
+  ru: Поделиться как шаблоном
+  ja: テンプレートとして共有
+  ko: 템플릿으로 공유
+  it: Condividi come modello
+  tr: Şablon olarak paylaş
+  vi: Chia sẻ dưới dạng mẫu
+  id: Bagikan sebagai templat
+  pl: Udostępnij jako szablon
+  nl: Delen als sjabloon
+  ar: مشاركة كقالب
+  hi: टेम्पलेट के रूप में साझा करें
+  th: แชร์เป็นเทมเพลต
+  cs: Sdílet jako šablonu
+  sv: Dela som mall
+  he: שיתוף כתבנית
+  verified_by_human: []
+
+template_share.create_link:
+  context: Button that creates a short Workflow template share link
+  en: Create template link
+  de: Vorlagen-Link erstellen
+  zh: 创建模板链接
+  es: Crear enlace de plantilla
+  fr: Créer un lien de modèle
+  pt: Criar link do modelo
+  ru: Создать ссылку на шаблон
+  ja: テンプレートリンクを作成
+  ko: 템플릿 링크 생성
+  it: Crea link del modello
+  tr: Şablon bağlantısı oluştur
+  vi: Tạo liên kết mẫu
+  id: Buat tautan templat
+  pl: Utwórz link do szablonu
+  nl: Sjabloonlink maken
+  ar: إنشاء رابط قالب
+  hi: टेम्पलेट लिंक बनाएं
+  th: สร้างลิงก์เทมเพลต
+  cs: Vytvořit odkaz na šablonu
+  sv: Skapa mall-länk
+  he: יצירת קישור לתבנית
+  verified_by_human: []
+
+template_share.import:
+  context: Button that imports a decrypted Workflow template
+  en: Import template
+  de: Vorlage importieren
+  zh: 导入模板
+  es: Importar plantilla
+  fr: Importer le modèle
+  pt: Importar modelo
+  ru: Импортировать шаблон
+  ja: テンプレートをインポート
+  ko: 템플릿 가져오기
+  it: Importa modello
+  tr: Şablonu içe aktar
+  vi: Nhập mẫu
+  id: Impor templat
+  pl: Importuj szablon
+  nl: Sjabloon importeren
+  ar: استيراد قالب
+  hi: टेम्पलेट इम्पोर्ट करें
+  th: นำเข้าเทมเพลต
+  cs: Importovat šablonu
+  sv: Importera mall
+  he: ייבוא תבנית
+  verified_by_human: []
+
+template_share.complete_bindings:
+  context: Button that confirms recipient bindings before enabling an imported Workflow
+  en: Complete requirements and enable
+  de: Anforderungen vervollständigen und aktivieren
+  zh: 完成要求并启用
+  es: Completar requisitos y activar
+  fr: Remplir les conditions et activer
+  pt: Concluir requisitos e ativar
+  ru: Выполнить требования и включить
+  ja: 要件を完了して有効化
+  ko: 요구 사항 완료 및 활성화
+  it: Completa i requisiti e abilita
+  tr: Gereksinimleri tamamla ve etkinleştir
+  vi: Hoàn tất yêu cầu và bật
+  id: Lengkapi persyaratan dan aktifkan
+  pl: Uzupełnij wymagania i włącz
+  nl: Vereisten voltooien en inschakelen
+  ar: إكمال المتطلبات والتفعيل
+  hi: आवश्यकताएं पूरी करें और सक्षम करें
+  th: ดำเนินการตามข้อกำหนดให้ครบถ้วนและเปิดใช้งาน
+  cs: Dokončit požadavky a povolit
+  sv: Slutför krav och aktivera
+  he: השלמת דרישות והפעלה
+  verified_by_human: []
+
+template_share.revoked:
+  context: Status shown after the owner revokes a Workflow template projection
+  en: Template access revoked.
+  de: Vorlagenzugriff widerrufen.
+  zh: 模板访问权限已撤销。
+  es: Acceso a la plantilla revocado.
+  fr: Accès au modèle révoqué.
+  pt: Acesso ao modelo revogado.
+  ru: Доступ к шаблону отозван.
+  ja: テンプレートへのアクセス権が取り消されました。
+  ko: 템플릿 액세스 권한이 취소되었습니다.
+  it: Accesso al modello revocato.
+  tr: Şablon erişimi iptal edildi.
+  vi: Quyền truy cập mẫu đã bị thu hồi.
+  id: Akses templat dicabut.
+  pl: Dostęp do szablonu został cofnięty.
+  nl: Toegang tot sjabloon ingetrokken.
+  ar: تم إلغاء الوصول إلى القالب.
+  hi: टेम्पलेट एक्सेस रद्द कर दिया गया।
+  th: การเข้าถึงเทมเพลตถูกเพิกถอนแล้ว
+  cs: Přístup k šabloně byl zrušen.
+  sv: Åtkomst till mallen återkallad.
+  he: הגישה לתבנית בוטלה.
+  verified_by_human: []
+
+version_history.title:
+  context: Heading for the immutable Workflow definition version history
+  en: Definition history
+  de: Definitionsverlauf
+  zh: 定义历史记录
+  es: Historial de definiciones
+  fr: Historique des définitions
+  pt: Histórico de definições
+  ru: История определений
+  ja: 定義履歴
+  ko: 정의 내역
+  it: Cronologia definizioni
+  tr: Tanım geçmişi
+  vi: Lịch sử định nghĩa
+  id: Riwayat definisi
+  pl: Historia definicji
+  nl: Definitiegeschiedenis
+  ar: سجل التعريفات
+  hi: परिभाषा इतिहास (Definition history)
+  th: ประวัติคำจำกัดความ
+  cs: Historie definic
+  sv: Definitionshistorik
+  he: היסטוריית הגדרות
+  verified_by_human: []
+
+version_history.retention:
+  context: Capped Workflow definition history retention label
+  en: Keeps up to {max} definitions
+  de: "Speichert bis zu {max} Definitionen"
+  zh: "最多保留 {max} 个定义版本"
+  es: "Mantiene hasta {max} definiciones"
+  fr: "Conserve jusqu'à {max} définitions"
+  pt: "Mantém até {max} definições"
+  ru: "Хранит до {max} определений"
+  ja: "最大 {max} 個の定義を保持します"
+  ko: "최대 {max}개의 정의 유지"
+  it: "Mantiene fino a {max} definizioni"
+  tr: "En fazla {max} tanım saklar"
+  vi: "Giữ tối đa {max} định nghĩa"
+  id: "Menyimpan hingga {max} definisi"
+  pl: "Przechowuje do {max} definicji"
+  nl: "Bewaart maximaal {max} definities"
+  ar: "يحتفظ بما يصل إلى {max} تعريفات"
+  hi: "अधिकतम {max} परिभाषाएं रखता है"
+  th: "เก็บคำจำกัดความไว้สูงสุด {max} รายการ"
+  cs: "Uchovává až {max} definic"
+  sv: "Sparar upp till {max} definitioner"
+  he: "שומר עד {max} הגדרות"
+  verified_by_human: []
+
+version_history.retention_loading:
+  context: Placeholder while Workflow history retention is loading
+  en: Loading retention...
+  de: Speicherdauer wird geladen...
+  zh: 正在加载保留策略...
+  es: Cargando retención...
+  fr: Chargement de la rétention...
+  pt: A carregar retenção...
+  ru: Загрузка лимитов...
+  ja: 保持設定を読み込み中...
+  ko: 보존 정책 로드 중...
+  it: Caricamento conservazione...
+  tr: Saklama bilgisi yükleniyor...
+  vi: Đang tải thời gian lưu trữ...
+  id: Memuat retensi...
+  pl: Ładowanie retencji...
+  nl: Retentie laden...
+  ar: جاري تحميل سياسة الاحتفاظ...
+  hi: रिटेंशन लोड हो रहा है...
+  th: กำลังโหลดการตั้งค่าการเก็บรักษา...
+  cs: Načítání nastavení uchovávání...
+  sv: Laddar lagring...
+  he: טוען הגדרות שמירה...
+  verified_by_human: []
+
+version_history.loading:
+  context: Loading state for Workflow definition history
+  en: Loading definition history...
+  de: Definitionsverlauf wird geladen...
+  zh: 正在加载定义历史记录...
+  es: Cargando historial de definiciones...
+  fr: "Chargement de l'historique des définitions..."
+  pt: A carregar histórico de definições...
+  ru: Загрузка истории определений...
+  ja: 定義履歴を読み込み中...
+  ko: 정의 내역 로드 중...
+  it: Caricamento cronologia definizioni...
+  tr: Tanım geçmişi yükleniyor...
+  vi: Đang tải lịch sử định nghĩa...
+  id: Memuat riwayat definisi...
+  pl: Ładowanie historii definicji...
+  nl: Definitiegeschiedenis laden...
+  ar: جاري تحميل سجل التعريفات...
+  hi: परिभाषा इतिहास लोड हो रहा है...
+  th: กำลังโหลดประวัติคำจำกัดความ...
+  cs: Načítání historie definic...
+  sv: Laddar definitionshistorik...
+  he: טוען היסטוריית הגדרות...
+  verified_by_human: []
+
+version_history.empty:
+  context: Empty state when a Workflow has no definition history
+  en: No definition history is available yet.
+  de: Noch kein Definitionsverlauf verfügbar.
+  zh: 尚无定义历史记录。
+  es: Aún no hay historial de definiciones disponible.
+  fr: Aucun historique de définition disponible pour le moment.
+  pt: Ainda não existe histórico de definições disponível.
+  ru: История определений пока недоступна.
+  ja: 定義履歴はまだありません。
+  ko: 사용 가능한 정의 내역이 아직 없습니다.
+  it: Nessuna cronologia delle definizioni ancora disponibile.
+  tr: Henüz tanım geçmişi mevcut değil.
+  vi: Chưa có lịch sử định nghĩa.
+  id: Belum ada riwayat definisi yang tersedia.
+  pl: Historia definicji nie jest jeszcze dostępna.
+  nl: Er is nog geen definitiegeschiedenis beschikbaar.
+  ar: لا يوجد سجل تعريفات متاح بعد.
+  hi: अभी तक कोई परिभाषा इतिहास उपलब्ध नहीं है।
+  th: ยังไม่มีประวัติคำจำกัดความ
+  cs: Zatím není k dispozici žádná historie definic.
+  sv: Ingen definitionshistorik är tillgänglig ännu.
+  he: אין עדיין היסטוריית הגדרות זמינה.
+  verified_by_human: []
+
+version_history.version:
+  context: Workflow definition version label
+  en: Version {version}
+  de: "Version {version}"
+  zh: "版本 {version}"
+  es: "Versión {version}"
+  fr: "Version {version}"
+  pt: "Versão {version}"
+  ru: "Версия {version}"
+  ja: "バージョン {version}"
+  ko: "버전 {version}"
+  it: "Versione {version}"
+  tr: "Sürüm {version}"
+  vi: "Phiên bản {version}"
+  id: "Versi {version}"
+  pl: "Wersja {version}"
+  nl: "Versie {version}"
+  ar: "الإصدار {version}"
+  hi: "वर्जन {version}"
+  th: "เวอร์ชัน {version}"
+  cs: "Verze {version}"
+  sv: "Version {version}"
+  he: "גרסה {version}"
+  verified_by_human: []
+
+version_history.current:
+  context: Marker for the current immutable Workflow definition version
+  en: Current
+  de: Aktuell
+  zh: 当前版本
+  es: Actual
+  fr: Actuelle
+  pt: Atual
+  ru: Текущая
+  ja: 現在
+  ko: 현재
+  it: Attuale
+  tr: Güncel
+  vi: Hiện tại
+  id: Saat ini
+  pl: Aktualna
+  nl: Huidig
+  ar: الحالي
+  hi: वर्तमान
+  th: ปัจจุบัน
+  cs: Aktuální
+  sv: Nuvarande
+  he: נוכחית
+  verified_by_human: []
+
+version_history.restored:
+  context: Marker for a Workflow definition created by restoring an earlier version
+  en: Restored
+  de: Wiederhergestellt
+  zh: 已恢复版本
+  es: Restaurada
+  fr: Restaurée
+  pt: Restaurado
+  ru: Восстановлено
+  ja: 復元済み
+  ko: 복원됨
+  it: Ripristinata
+  tr: Geri yüklendi
+  vi: Đã khôi phục
+  id: Dipulihkan
+  pl: Przywrócona
+  nl: Hersteld
+  ar: مستعاد
+  hi: रिस्टोर किया गया
+  th: กู้คืนแล้ว
+  cs: Obnoveno
+  sv: Återställd
+  he: שוחזרה
+  verified_by_human: []
+
+version_history.inspecting:
+  context: Loading state for a selected historical Workflow graph
+  en: Loading definition...
+  de: Definition wird geladen...
+  zh: 正在加载定义...
+  es: Cargando definición...
+  fr: Chargement de la définition...
+  pt: A carregar definição...
+  ru: Загрузка определения...
+  ja: 定義を読み込み中...
+  ko: 정의 로드 중...
+  it: Caricamento definizione...
+  tr: Tanım yükleniyor...
+  vi: Đang tải định nghĩa...
+  id: Memuat definisi...
+  pl: Ładowanie definicji...
+  nl: Definitie laden...
+  ar: جاري تحميل التعريف...
+  hi: परिभाषा लोड हो रही है...
+  th: กำลังโหลดคำจำกัดความ...
+  cs: Načítání definice...
+  sv: Laddar definition...
+  he: טוען הגדרה...
+  verified_by_human: []
+
+version_history.inspecting_version:
+  context: Heading for the read-only graph inspection of a Workflow version
+  en: Version {version} graph
+  de: "Graph von Version {version}"
+  zh: "版本 {version} 图表"
+  es: "Gráfico de la versión {version}"
+  fr: "Graphe de la version {version}"
+  pt: "Gráfico da versão {version}"
+  ru: "Граф версии {version}"
+  ja: "バージョン {version} のグラフ"
+  ko: "버전 {version} 그래프"
+  it: "Grafico versione {version}"
+  tr: "Sürüm {version} grafiği"
+  vi: "Sơ đồ phiên bản {version}"
+  id: "Grafik Versi {version}"
+  pl: "Graf wersji {version}"
+  nl: "Versie {version} grafiek"
+  ar: "مخطط الإصدار {version}"
+  hi: "वर्जन {version} ग्राफ़"
+  th: "กราฟเวอร์ชัน {version}"
+  cs: "Graf verze {version}"
+  sv: "Graf för version {version}"
+  he: "תרשים גרסה {version}"
+  verified_by_human: []
+
+version_history.nodes:
+  context: Label following a count of nodes in a historical Workflow graph
+  en: nodes
+  de: Knoten
+  zh: 节点
+  es: nodos
+  fr: nœuds
+  pt: nós
+  ru: узлов
+  ja: 個のノード
+  ko: 노드
+  it: nodi
+  tr: düğüm
+  vi: nút
+  id: node
+  pl: węzłów
+  nl: nodes
+  ar: عقد
+  hi: नोड्स
+  th: โหนด
+  cs: uzlů
+  sv: noder
+  he: צמתים
+  verified_by_human: []
+
+version_history.restore_as_new:
+  context: Action to restore a selected Workflow definition as a new current version
+  en: Restore version {version} as new current version
+  de: "Version {version} als neue aktuelle Version wiederherstellen"
+  zh: "将版本 {version} 恢复为新的当前版本"
+  es: "Restaurar la versión {version} como nueva versión actual"
+  fr: "Restaurer la version {version} comme nouvelle version actuelle"
+  pt: "Restaurar versão {version} como nova versão atual"
+  ru: "Восстановить версию {version} как новую текущую версию"
+  ja: "バージョン {version} を新しい現在のバージョンとして復元"
+  ko: "버전 {version}을(를) 새 현재 버전으로 복원"
+  it: "Ripristina la versione {version} come nuova versione corrente"
+  tr: "{version} sürümünü yeni güncel sürüm olarak geri yükle"
+  vi: "Khôi phục phiên bản {version} làm phiên bản hiện tại mới"
+  id: "Pulihkan versi {version} sebagai versi saat ini yang baru"
+  pl: "Przywróć wersję {version} jako nową aktualną wersję"
+  nl: "Versie {version} herstellen als nieuwe huidige versie"
+  ar: "استعادة الإصدار {version} كإصدار حالي جديد"
+  hi: "वर्शन {version} को नए वर्तमान वर्शन के रूप में रीस्टोर करें"
+  th: "คืนค่าเวอร์ชัน {version} เป็นเวอร์ชันปัจจุบันใหม่"
+  cs: "Obnovit verzi {version} jako novou aktuální verzi"
+  sv: "Återställ version {version} som ny aktuell version"
+  he: "שחזור גרסה {version} כגרסה נוכחית חדשה"
+  verified_by_human: []
+
+version_history.restore_explanation:
+  context: Confirmation explanation that a Workflow restore adds a new immutable version
+  en: This creates a new current version. The selected and existing versions remain unchanged.
+  de: Dies erstellt eine neue aktuelle Version. Die ausgewählte und die bestehenden Versionen bleiben unverändert.
+  zh: 这将创建一个新的当前版本。所选版本和现有版本将保持不变。
+  es: Esto crea una nueva versión actual. La versión seleccionada y las existentes no cambiarán.
+  fr: Cela crée une nouvelle version actuelle. Les versions sélectionnées et existantes restent inchangées.
+  pt: Isto cria uma nova versão atual. As versões selecionada e existente permanecem inalteradas.
+  ru: Будет создана новая текущая версия. Выбранная и существующие версии останутся без изменений.
+  ja: これにより、新しい現在のバージョンが作成されます。選択されたバージョンおよび既存のバージョンは変更されません。
+  ko: 이렇게 하면 새 현재 버전이 생성됩니다. 선택한 버전과 기존 버전은 변경되지 않은 상태로 유지됩니다.
+  it: Verrà creata una nuova versione corrente. La versione selezionata e quelle esistenti rimarranno invariate.
+  tr: Bu işlem yeni bir güncel sürüm oluşturur. Seçilen ve mevcut sürümler değişmeden kalır.
+  vi: Thao tác này sẽ tạo một phiên bản hiện tại mới. Các phiên bản đã chọn và hiện có sẽ không thay đổi.
+  id: Ini akan membuat versi saat ini yang baru. Versi yang dipilih dan versi yang sudah ada tetap tidak berubah.
+  pl: To spowoduje utworzenie nowej aktualnej wersji. Wybrana i istniejące wersje pozostaną bez zmian.
+  nl: Hiermee wordt een nieuwe huidige versie gemaakt. De geselecteerde en bestaande versies blijven ongewijzigd.
+  ar: سيؤدي هذا إلى إنشاء إصدار حالي جديد. ستبقى الإصدارات المحددة والحالية دون تغيير.
+  hi: यह एक नया वर्तमान वर्शन बनाता है। चुने गए और मौजूदा वर्शन अपरिवर्तित रहते हैं।
+  th: การดำเนินการนี้จะสร้างเวอร์ชันปัจจุบันใหม่ โดยเวอร์ชันที่เลือกและเวอร์ชันที่มีอยู่จะไม่มีการเปลี่ยนแปลง
+  cs: Tímto se vytvoří nová aktuální verze. Vybraná i stávající verze zůstanou nezměněny.
+  sv: Detta skapar en ny aktuell version. Den valda och befintliga versioner förblir oförändrade.
+  he: פעולה זו יוצרת גרסה נוכחית חדשה. הגרסה שנבחרה והגרסאות הקיימות יישארו ללא שינוי.
+  verified_by_human: []
+
+version_history.confirm_restore:
+  context: Confirmation action for restoring a Workflow definition as a new version
+  en: Create new current version
+  de: Neue aktuelle Version erstellen
+  zh: 创建新的当前版本
+  es: Crear nueva versión actual
+  fr: Créer une nouvelle version actuelle
+  pt: Criar nova versão atual
+  ru: Создать новую текущую версию
+  ja: 新しい現在のバージョンを作成
+  ko: 새 현재 버전 만들기
+  it: Crea nuova versione corrente
+  tr: Yeni güncel sürüm oluştur
+  vi: Tạo phiên bản hiện tại mới
+  id: Buat versi saat ini yang baru
+  pl: Utwórz nową aktualną wersję
+  nl: Nieuwe huidige versie maken
+  ar: إنشاء إصدار حالي جديد
+  hi: नया वर्तमान वर्शन बनाएं
+  th: สร้างเวอร์ชันปัจจุบันใหม่
+  cs: Vytvořit novou aktuální verzi
+  sv: Skapa ny aktuell version
+  he: יצירת גרסה נוכחית חדשה
+  verified_by_human: []
+
+version_history.restoring:
+  context: Loading label while restoring a Workflow definition version
+  en: Restoring...
+  de: Wird wiederhergestellt...
+  zh: 正在恢复...
+  es: Restaurando...
+  fr: Restauration...
+  pt: Restaurando...
+  ru: Восстановление...
+  ja: 復元中...
+  ko: 복원 중...
+  it: Ripristino in corso...
+  tr: Geri yükleniyor...
+  vi: Đang khôi phục...
+  id: Memulihkan...
+  pl: Przywracanie...
+  nl: Herstellen...
+  ar: جاري الاستعادة...
+  hi: रीस्टोर किया जा रहा है...
+  th: กำลังคืนค่า...
+  cs: Obnovování...
+  sv: Återställer...
+  he: משחזר...
+  verified_by_human: []
+
+version_history.restore_success:
+  context: Success message after a Workflow definition is restored as a new current version
+  en: Restored version {version} as a new current version.
+  de: "Version {version} wurde als neue aktuelle Version wiederhergestellt."
+  zh: "已将版本 {version} 恢复为新的当前版本。"
+  es: "Se ha restaurado la versión {version} como nueva versión actual."
+  fr: "Version {version} restaurée comme nouvelle version actuelle."
+  pt: "Versão {version} restaurada como uma nova versão atual."
+  ru: "Версия {version} восстановлена как новая текущая версия."
+  ja: "バージョン {version} を新しい現在のバージョンとして復元しました。"
+  ko: "버전 {version}을(를) 새 현재 버전으로 복원했습니다."
+  it: "Versione {version} ripristinata come nuova versione corrente."
+  tr: "{version} sürümü yeni güncel sürüm olarak geri yüklendi."
+  vi: "Đã khôi phục phiên bản {version} làm phiên bản hiện tại mới."
+  id: "Berhasil memulihkan versi {version} sebagai versi saat ini yang baru."
+  pl: "Przywrócono wersję {version} jako nową aktualną wersję."
+  nl: "Versie {version} hersteld als nieuwe huidige versie."
+  ar: "تمت استعادة الإصدار {version} كإصدار حالي جديد."
+  hi: "वर्शन {version} को नए वर्तमान वर्शन के रूप में रीस्टोर किया गया।"
+  th: "คืนค่าเวอร์ชัน {version} เป็นเวอร์ชันปัจจุบันใหม่แล้ว"
+  cs: "Verze {version} byla obnovena jako nová aktuální verze."
+  sv: "Återställde version {version} som en ny aktuell version."
+  he: "גרסה {version} שוחזרה כגרסה נוכחית חדשה."
+  verified_by_human: []
+
+version_history.load_failed:
+  context: Visible failure when Workflow definition history cannot load
+  en: Failed to load definition history.
+  de: Definitionsverlauf konnte nicht geladen werden.
+  zh: 无法加载定义历史记录。
+  es: Error al cargar el historial de definiciones.
+  fr: "Échec du chargement de l'historique des définitions."
+  pt: Falha ao carregar o histórico de definições.
+  ru: Не удалось загрузить историю определений.
+  ja: 定義履歴の読み込みに失敗しました。
+  ko: 정의 기록을 불러오지 못했습니다.
+  it: Impossibile caricare la cronologia delle definizioni.
+  tr: Tanım geçmişi yüklenemedi.
+  vi: Không thể tải lịch sử định nghĩa.
+  id: Gagal memuat riwayat definisi.
+  pl: Nie udało się załadować historii definicji.
+  nl: Laden van definitiegeschiedenis mislukt.
+  ar: تعذر تحميل سجل التعريفات.
+  hi: डेफिनिशन हिस्ट्री लोड करने में विफल।
+  th: โหลดประวัติคำจำกัดความไม่สำเร็จ
+  cs: Nepodařilo se načíst historii definic.
+  sv: Det gick inte att läsa in definitions-historiken.
+  he: טעינת היסטוריית ההגדרות נכשלה.
+  verified_by_human: []
+
+version_history.inspect_failed:
+  context: Visible failure when a historical Workflow graph cannot load
+  en: Failed to load the selected definition.
+  de: Ausgewählte Definition konnte nicht geladen werden.
+  zh: 无法加载所选定义。
+  es: Error al cargar la definición seleccionada.
+  fr: Échec du chargement de la définition sélectionnée.
+  pt: Falha ao carregar a definição selecionada.
+  ru: Не удалось загрузить выбранное определение.
+  ja: 選択した定義の読み込みに失敗しました。
+  ko: 선택한 정의를 불러오지 못했습니다.
+  it: Impossibile caricare la definizione selezionata.
+  tr: Seçilen tanım yüklenemedi.
+  vi: Không thể tải định nghĩa đã chọn.
+  id: Gagal memuat definisi yang dipilih.
+  pl: Nie udało się załadować wybranej definicji.
+  nl: Laden van de geselecteerde definitie mislukt.
+  ar: تعذر تحميل التعريف المحدد.
+  hi: चुनी गई परिभाषा लोड करने में विफल।
+  th: โหลดคำจำกัดความที่เลือกไม่สำเร็จ
+  cs: Nepodařilo se načíst vybranou definici.
+  sv: Det gick inte att läsa in den valda definitionen.
+  he: טעינת ההגדרה שנבחרה נכשלה.
+  verified_by_human: []
+
+version_history.restore_failed:
+  context: Visible failure when restoring a Workflow definition version fails
+  en: Failed to restore the selected definition.
+  de: Ausgewählte Definition konnte nicht wiederhergestellt werden.
+  zh: 无法恢复所选定义。
+  es: Error al restaurar la definición seleccionada.
+  fr: Échec de la restauration de la définition sélectionnée.
+  pt: Falha ao restaurar a definição selecionada.
+  ru: Не удалось восстановить выбранное определение.
+  ja: 選択した定義の復元に失敗しました。
+  ko: 선택한 정의를 복원하지 못했습니다.
+  it: Impossibile ripristinare la definizione selezionata.
+  tr: Seçilen tanım geri yüklenemedi.
+  vi: Không thể khôi phục định nghĩa đã chọn.
+  id: Gagal memulihkan definisi yang dipilih.
+  pl: Nie udało się przywrócić wybranej definicji.
+  nl: Herstellen van de geselecteerde definitie mislukt.
+  ar: تعذر استعادة التعريف المحدد.
+  hi: चुनी गई परिभाषा को रीस्टोर करने में विफल।
+  th: คืนค่าคำจำกัดความที่เลือกไม่สำเร็จ
+  cs: Nepodařilo se obnovit vybranou definici.
+  sv: Det gick inte att återställa den valda definitionen.
+  he: שחזור ההגדרה שנבחרה נכשל.
+  verified_by_human: []

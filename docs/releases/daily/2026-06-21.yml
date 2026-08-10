@@ -1,0 +1,3476 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-21'
+generated_at: '2026-07-09T15:48:58+00:00'
+range:
+  since: '2026-06-21T00:00:00+00:00'
+  until: '2026-06-21T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 74
+  section_counts:
+    features: 6
+    bug_fixes: 44
+    improvements: 0
+    docs: 3
+    tests: 20
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 44
+  user_facing_items: 46
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: improve guest feature inspirations'
+    section: features
+    commits:
+    - 841ec7b80
+    authored_at: '2026-06-21T22:28:08+00:00'
+    changed_paths:
+    - docs/architecture/frontend/daily-inspiration.md
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/data/product_features.yml
+    - frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: verify Vault-imported server secrets'
+    section: features
+    commits:
+    - 1b55cf511
+    authored_at: '2026-06-21T16:02:13+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add connected account CLI import'
+    section: features
+    commits:
+    - 2176194cf
+    authored_at: '2026-06-21T15:25:52+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/connected_accounts.py
+    - backend/tests/test_connected_accounts_permissions.py
+    - docs/specs/connected-account-cli-import/spec.yml
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/connectedAccountImport.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/connectedAccountImport.test.ts
+    - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/privacy.yml
+    - frontend/packages/ui/src/services/connectedAccountCliTransfer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add mind map example chat'
+    section: features
+    commits:
+    - 2891fd5c9
+    authored_at: '2026-06-21T10:34:33+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-product-launch-mind-map.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/privacy_first_product_launch_mind_map.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add guest interests and mindmap embeds'
+    section: features
+    commits:
+    - c9a2d7dfd
+    authored_at: '2026-06-21T07:34:50+00:00'
+    changed_paths:
+    - docs/specs/unified-server-cli-management/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add guest interests and mindmap embeds'
+    section: features
+    commits:
+    - bec2f6c51
+    authored_at: '2026-06-21T07:31:55+00:00'
+    changed_paths:
+    - .github/workflows/publish-selfhost-images.yml
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MindMapEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/mindmap_fences.py
+    - backend/apps/mindmaps/app.yml
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/settings_software_update.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/preview/docker-compose.selfhost.yml
+    - backend/tests/test_mindmap_embed_streaming.py
+    - backend/upload/docker-compose.selfhost.yml
+    - docs/architecture/frontend/web-app.md
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - docs/specs/mindmap-embeds/spec.yml
+    - docs/specs/unified-server-cli-management/spec.yml
+    - docs/user-guide/daily-inspiration.md
+    - frontend/apps/web_app/tests/account-interests-settings.spec.ts
+    - frontend/apps/web_app/tests/fixtures/launch-plan.ommindmap
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/caddy/core/Caddyfile
+    - frontend/packages/openmates-cli/templates/caddy/preview/Caddyfile
+    - frontend/packages/openmates-cli/templates/caddy/upload/Caddyfile
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/templates/preview/docker-compose.preview.yml
+    - frontend/packages/openmates-cli/templates/upload/docker-compose.yml
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/__tests__/mindMapContent.test.ts
+    - frontend/packages/ui/src/components/embeds/mindmaps/mindMapContent.ts
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/mindMapUploadDetection.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    - frontend/packages/ui/src/components/enter_message/services/mindMapUploadDetection.ts
+    - frontend/packages/ui/src/components/settings/SettingsAccount.svelte
+    - frontend/packages/ui/src/components/settings/account/SettingsDeleteAccount.svelte
+    - frontend/packages/ui/src/components/settings/account/SettingsInterests.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsCheckboxList.svelte
+    - frontend/packages/ui/src/components/settings/server/SettingsSoftwareUpdate.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/data/__tests__/embedTextRenderers.test.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
+    - frontend/packages/ui/src/demo_chats/defaultNewChatSuggestions.ts
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    - frontend/packages/ui/src/demo_chats/guestSmartSelection.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    - frontend/packages/ui/src/i18n/sources/chat/new_chat_suggestions.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/settings/account.yml
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/services/topicPreferencesSync.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/__tests__/topicPreferencesStore.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authMiscActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    - frontend/packages/ui/src/stores/topicPreferencesStore.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos, platform:projects'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos, platform:projects'
+  bug_fixes:
+  - title: 'fix: align guest intro icons'
+    section: bug_fixes
+    commits:
+    - e82629f85
+    authored_at: '2026-06-21T23:49:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: improve guest feature card readability'
+    section: bug_fixes
+    commits:
+    - c948dc18c
+    authored_at: '2026-06-21T22:43:40+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow mobile guest tag rail to reach end'
+    section: bug_fixes
+    commits:
+    - e71a26af7
+    authored_at: '2026-06-21T20:44:33+00:00'
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show guest interest prompt while selecting'
+    section: bug_fixes
+    commits:
+    - aede718cf
+    authored_at: '2026-06-21T19:43:15+00:00'
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: adjust guest intro timing and tag shuffle'
+    section: bug_fixes
+    commits:
+    - 10223d465
+    authored_at: '2026-06-21T19:27:41+00:00'
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: center next guest interest tag'
+    section: bug_fixes
+    commits:
+    - 3d81680f3
+    authored_at: '2026-06-21T18:39:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: improve guest onboarding responsiveness'
+    section: bug_fixes
+    commits:
+    - 2f10903a5
+    authored_at: '2026-06-21T18:19:16+00:00'
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show guest suggestions after interests'
+    section: bug_fixes
+    commits:
+    - 6326d998b
+    authored_at: '2026-06-21T17:04:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: trim guest tag rail end padding'
+    section: bug_fixes
+    commits:
+    - d1e118c32
+    authored_at: '2026-06-21T16:50:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use parent preview metadata in search fullscreen'
+    section: bug_fixes
+    commits:
+    - 542de2079
+    authored_at: '2026-06-21T16:45:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideosSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore guest carousel intro card'
+    section: bug_fixes
+    commits:
+    - 916bda87d
+    authored_at: '2026-06-21T16:38:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve parent embed preview metadata'
+    section: bug_fixes
+    commits:
+    - b7453bc40
+    authored_at: '2026-06-21T16:16:52+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImagesSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebSearchEmbedRenderer.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_skill_preview_metadata.py
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideosSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: polish guest interest onboarding visuals'
+    section: bug_fixes
+    commits:
+    - d4146ae3d
+    authored_at: '2026-06-21T16:15:49+00:00'
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: return auth back action to new chat'
+    section: bug_fixes
+    commits:
+    - 7f6c7cd04
+    authored_at: '2026-06-21T15:50:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/auth-back-to-demo.spec.ts
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: refine guest interest selection flow'
+    section: bug_fixes
+    commits:
+    - 14d96124f
+    authored_at: '2026-06-21T15:31:43+00:00'
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: link Mind Maps example chat'
+    section: bug_fixes
+    commits:
+    - 92b5c6cf3
+    authored_at: '2026-06-21T15:31:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/__tests__/privacy-first-product-launch-mind-map.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-product-launch-mind-map.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: restore guest tag rail after focus scroll'
+    section: bug_fixes
+    commits:
+    - 030b36b06
+    authored_at: '2026-06-21T14:28:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep guest interest tag scroll stable'
+    section: bug_fixes
+    commits:
+    - 01cea21e8
+    authored_at: '2026-06-21T14:05:33+00:00'
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep guest tag rail stable'
+    section: bug_fixes
+    commits:
+    - 53debd201
+    authored_at: '2026-06-21T13:49:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: recenter guest rail after selection'
+    section: bug_fixes
+    commits:
+    - 8ef19004f
+    authored_at: '2026-06-21T13:33:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: apply guest rail spacer directly'
+    section: bug_fixes
+    commits:
+    - f154c8baa
+    authored_at: '2026-06-21T13:21:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: center guest rail with spacers'
+    section: bug_fixes
+    commits:
+    - ef8193ba1
+    authored_at: '2026-06-21T13:09:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: measure guest tag rail centering'
+    section: bug_fixes
+    commits:
+    - c5c940e8c
+    authored_at: '2026-06-21T12:58:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: center guest interest rail'
+    section: bug_fixes
+    commits:
+    - e81cafa54
+    authored_at: '2026-06-21T12:47:23+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: apply guest interest filtering'
+    section: bug_fixes
+    commits:
+    - 4811ca044
+    authored_at: '2026-06-21T12:28:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/demo_chats/guestSmartSelection.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore guest intro banner height'
+    section: bug_fixes
+    commits:
+    - aeb9ad21b
+    authored_at: '2026-06-21T11:16:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep guest intro copy responsive'
+    section: bug_fixes
+    commits:
+    - 2d38c0a0b
+    authored_at: '2026-06-21T11:01:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: size guest intro hero for large copy'
+    section: bug_fixes
+    commits:
+    - b6f3ec010
+    authored_at: '2026-06-21T10:50:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent guest intro hero clipping'
+    section: bug_fixes
+    commits:
+    - 6fed02db4
+    authored_at: '2026-06-21T10:38:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: match guest intro hero proportions'
+    section: bug_fixes
+    commits:
+    - e2253e3f5
+    authored_at: '2026-06-21T10:28:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide cloud-only routes before auth'
+    section: bug_fixes
+    commits:
+    - 63bdd6b1f
+    authored_at: '2026-06-21T10:18:08+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/routes/payments.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route mind map requests away from images'
+    section: bug_fixes
+    commits:
+    - 7336f979a
+    authored_at: '2026-06-21T10:17:21+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: gate guest recommendations behind continue'
+    section: bug_fixes
+    commits:
+    - a8cc8498d
+    authored_at: '2026-06-21T10:10:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore guest inspiration carousel'
+    section: bug_fixes
+    commits:
+    - 328f2c845
+    authored_at: '2026-06-21T10:04:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/components/GuestIntroHero.svelte
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide collapsed mindmap descendants'
+    section: bug_fixes
+    commits:
+    - 93bb79377
+    authored_at: '2026-06-21T09:43:29+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stop existing services during selfhost restore'
+    section: bug_fixes
+    commits:
+    - a921f3ea8
+    authored_at: '2026-06-21T09:24:43+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: refine guest interest welcome'
+    section: bug_fixes
+    commits:
+    - 5a28de32b
+    authored_at: '2026-06-21T09:10:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/components/GuestIntroHero.svelte
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow mindmap collapse control clicks'
+    section: bug_fixes
+    commits:
+    - 8f2644922
+    authored_at: '2026-06-21T09:08:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove unintended pcb app placeholders'
+    section: bug_fixes
+    commits:
+    - a78cc0bbe
+    authored_at: '2026-06-21T09:06:51+00:00'
+    changed_paths:
+    - backend/apps/mindmaps/app.yml
+    - backend/apps/pcb_design/app.yml
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.ar.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.cs.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.de.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.es.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.fr.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.he.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.hi.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.id.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.it.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.ja.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.ko.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.nl.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.pl.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.pt.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.ru.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.sv.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.th.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.tr.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.vi.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.zh.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.ar.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.cs.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.de.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.es.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.fr.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.he.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.hi.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.id.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.it.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.ja.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.ko.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.nl.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.pl.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.pt.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.ru.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.sv.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.th.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.tr.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.vi.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.zh.md
+    - docs/specs/pcb-schematic-embed/spec.yml
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/pcb_design.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/pcb_design_create_layout.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/pcb_design_create_schematic.yml
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: handle larger selfhost backups'
+    section: bug_fixes
+    commits:
+    - 8040ae074
+    authored_at: '2026-06-21T08:59:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve mindmap embeds when sending'
+    section: bug_fixes
+    commits:
+    - e7c8ca085
+    authored_at: '2026-06-21T08:41:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/serializers.test.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: simplify guest interest welcome'
+    section: bug_fixes
+    commits:
+    - 742a5edd0
+    authored_at: '2026-06-21T08:33:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show guest product inspirations'
+    section: bug_fixes
+    commits:
+    - da433aac5
+    authored_at: '2026-06-21T07:58:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep guest homepage on welcome screen'
+    section: bug_fixes
+    commits:
+    - b5ce66a82
+    authored_at: '2026-06-21T07:46:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: verify mind map embed spec'
+    section: docs
+    commits:
+    - 2cc13c81a
+    authored_at: '2026-06-21T10:43:35+00:00'
+    changed_paths:
+    - docs/specs/mindmap-embeds/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record guest interest test evidence'
+    section: docs
+    commits:
+    - ebf6c9478
+    authored_at: '2026-06-21T10:19:20+00:00'
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: update self-host server management'
+    section: docs
+    commits:
+    - 6362ac7ea
+    authored_at: '2026-06-21T07:35:03+00:00'
+    changed_paths:
+    - docs/architecture/core/servers.md
+    - docs/self-hosting/setup.md
+    - docs/user-guide/cli/server-management.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: restore guest rail scroll after gap check'
+    section: tests
+    commits:
+    - a459f98c0
+    authored_at: '2026-06-21T18:28:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align guest tag assertion with selected-left rail'
+    section: tests
+    commits:
+    - c11143f28
+    authored_at: '2026-06-21T15:43:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: accept compact guest continue cards'
+    section: tests
+    commits:
+    - 24c07971b
+    authored_at: '2026-06-21T14:56:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: make guest tag setup scroll immediate'
+    section: tests
+    commits:
+    - 508dddc1f
+    authored_at: '2026-06-21T14:46:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert guest tag visual stability'
+    section: tests
+    commits:
+    - 512220e51
+    authored_at: '2026-06-21T14:37:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize guest interest scroll assertion'
+    section: tests
+    commits:
+    - f923fb365
+    authored_at: '2026-06-21T14:15:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: count only guest interest buttons'
+    section: tests
+    commits:
+    - bc587d0aa
+    authored_at: '2026-06-21T12:36:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover guest interest filtering flow'
+    section: tests
+    commits:
+    - 0e945962d
+    authored_at: '2026-06-21T12:10:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: close mindmap fullscreen by test id'
+    section: tests
+    commits:
+    - e233200ab
+    authored_at: '2026-06-21T09:59:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: reorder selfhost smoke restore assertions'
+    section: tests
+    commits:
+    - 550274bed
+    authored_at: '2026-06-21T09:52:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for guest suggestions after continue'
+    section: tests
+    commits:
+    - c6830babc
+    authored_at: '2026-06-21T09:41:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: click mindmap preview target'
+    section: tests
+    commits:
+    - 6bab3b3ed
+    authored_at: '2026-06-21T09:33:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: expose guest carousel test id'
+    section: tests
+    commits:
+    - be76f567e
+    authored_at: '2026-06-21T09:28:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: open mindmap fullscreen without navigation wait'
+    section: tests
+    commits:
+    - ef2dccf68
+    authored_at: '2026-06-21T09:23:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: target mindmap fullscreen header'
+    section: tests
+    commits:
+    - f262cfaa8
+    authored_at: '2026-06-21T08:54:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: verify selfhost backup restore smoke'
+    section: tests
+    commits:
+    - cc89a4cc6
+    authored_at: '2026-06-21T08:35:33+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: accept temporary new chat ids in e2e helper'
+    section: tests
+    commits:
+    - d5b481fae
+    authored_at: '2026-06-21T08:26:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: avoid pointer wait in guest carousel spec'
+    section: tests
+    commits:
+    - 6a12a7bce
+    authored_at: '2026-06-21T08:22:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: include mindmaps in content catalog expectation'
+    section: tests
+    commits:
+    - e5a07f6db
+    authored_at: '2026-06-21T08:12:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize guest interest carousel check'
+    section: tests
+    commits:
+    - c48da60e9
+    authored_at: '2026-06-21T08:10:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'ci: run selfhost smoke for cloud route changes'
+    section: infrastructure
+    commits:
+    - d68cc5acb
+    authored_at: '2026-06-21T10:19:32+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: preserve parent embed preview metadata'
+    commits:
+    - b7453bc40
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: remove unintended pcb app placeholders'
+    commits:
+    - a78cc0bbe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add guest interests and mindmap embeds'
+    commits:
+    - bec2f6c51
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+marketing_candidates:
+  newsletter:
+  - title: 'fix: align guest intro icons'
+    commits:
+    - e82629f85
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve guest feature card readability'
+    commits:
+    - c948dc18c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: improve guest feature inspirations'
+    commits:
+    - 841ec7b80
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: allow mobile guest tag rail to reach end'
+    commits:
+    - e71a26af7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show guest interest prompt while selecting'
+    commits:
+    - aede718cf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: adjust guest intro timing and tag shuffle'
+    commits:
+    - 10223d465
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: center next guest interest tag'
+    commits:
+    - 3d81680f3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve guest onboarding responsiveness'
+    commits:
+    - 2f10903a5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show guest suggestions after interests'
+    commits:
+    - 6326d998b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: trim guest tag rail end padding'
+    commits:
+    - d1e118c32
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use parent preview metadata in search fullscreen'
+    commits:
+    - 542de2079
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore guest carousel intro card'
+    commits:
+    - 916bda87d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: polish guest interest onboarding visuals'
+    commits:
+    - d4146ae3d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: verify Vault-imported server secrets'
+    commits:
+    - 1b55cf511
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: return auth back action to new chat'
+    commits:
+    - 7f6c7cd04
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: refine guest interest selection flow'
+    commits:
+    - 14d96124f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add connected account CLI import'
+    commits:
+    - 2176194cf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore guest tag rail after focus scroll'
+    commits:
+    - 030b36b06
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep guest interest tag scroll stable'
+    commits:
+    - 01cea21e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep guest tag rail stable'
+    commits:
+    - 53debd201
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: recenter guest rail after selection'
+    commits:
+    - 8ef19004f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: apply guest rail spacer directly'
+    commits:
+    - f154c8baa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: center guest rail with spacers'
+    commits:
+    - ef8193ba1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: measure guest tag rail centering'
+    commits:
+    - c5c940e8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: center guest interest rail'
+    commits:
+    - e81cafa54
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: apply guest interest filtering'
+    commits:
+    - 4811ca044
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore guest intro banner height'
+    commits:
+    - aeb9ad21b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep guest intro copy responsive'
+    commits:
+    - 2d38c0a0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: size guest intro hero for large copy'
+    commits:
+    - b6f3ec010
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent guest intro hero clipping'
+    commits:
+    - 6fed02db4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: match guest intro hero proportions'
+    commits:
+    - e2253e3f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide cloud-only routes before auth'
+    commits:
+    - 63bdd6b1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: route mind map requests away from images'
+    commits:
+    - 7336f979a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: gate guest recommendations behind continue'
+    commits:
+    - a8cc8498d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore guest inspiration carousel'
+    commits:
+    - 328f2c845
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide collapsed mindmap descendants'
+    commits:
+    - 93bb79377
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stop existing services during selfhost restore'
+    commits:
+    - a921f3ea8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: refine guest interest welcome'
+    commits:
+    - 5a28de32b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: allow mindmap collapse control clicks'
+    commits:
+    - 8f2644922
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: remove unintended pcb app placeholders'
+    commits:
+    - a78cc0bbe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: handle larger selfhost backups'
+    commits:
+    - 8040ae074
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: simplify guest interest welcome'
+    commits:
+    - 742a5edd0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show guest product inspirations'
+    commits:
+    - da433aac5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep guest homepage on welcome screen'
+    commits:
+    - b5ce66a82
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: align guest intro icons'
+    commits:
+    - e82629f85
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve guest feature card readability'
+    commits:
+    - c948dc18c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: improve guest feature inspirations'
+    commits:
+    - 841ec7b80
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: allow mobile guest tag rail to reach end'
+    commits:
+    - e71a26af7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show guest interest prompt while selecting'
+    commits:
+    - aede718cf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: adjust guest intro timing and tag shuffle'
+    commits:
+    - 10223d465
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: center next guest interest tag'
+    commits:
+    - 3d81680f3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve guest onboarding responsiveness'
+    commits:
+    - 2f10903a5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show guest suggestions after interests'
+    commits:
+    - 6326d998b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: trim guest tag rail end padding'
+    commits:
+    - d1e118c32
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use parent preview metadata in search fullscreen'
+    commits:
+    - 542de2079
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore guest carousel intro card'
+    commits:
+    - 916bda87d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve parent embed preview metadata'
+    commits:
+    - b7453bc40
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: polish guest interest onboarding visuals'
+    commits:
+    - d4146ae3d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: verify Vault-imported server secrets'
+    commits:
+    - 1b55cf511
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: return auth back action to new chat'
+    commits:
+    - 7f6c7cd04
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: refine guest interest selection flow'
+    commits:
+    - 14d96124f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add connected account CLI import'
+    commits:
+    - 2176194cf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore guest tag rail after focus scroll'
+    commits:
+    - 030b36b06
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep guest interest tag scroll stable'
+    commits:
+    - 01cea21e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep guest tag rail stable'
+    commits:
+    - 53debd201
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: recenter guest rail after selection'
+    commits:
+    - 8ef19004f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: apply guest rail spacer directly'
+    commits:
+    - f154c8baa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: center guest rail with spacers'
+    commits:
+    - ef8193ba1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: measure guest tag rail centering'
+    commits:
+    - c5c940e8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: center guest interest rail'
+    commits:
+    - e81cafa54
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: apply guest interest filtering'
+    commits:
+    - 4811ca044
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore guest intro banner height'
+    commits:
+    - aeb9ad21b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep guest intro copy responsive'
+    commits:
+    - 2d38c0a0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: size guest intro hero for large copy'
+    commits:
+    - b6f3ec010
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent guest intro hero clipping'
+    commits:
+    - 6fed02db4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: match guest intro hero proportions'
+    commits:
+    - e2253e3f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide cloud-only routes before auth'
+    commits:
+    - 63bdd6b1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: route mind map requests away from images'
+    commits:
+    - 7336f979a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: gate guest recommendations behind continue'
+    commits:
+    - a8cc8498d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore guest inspiration carousel'
+    commits:
+    - 328f2c845
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide collapsed mindmap descendants'
+    commits:
+    - 93bb79377
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stop existing services during selfhost restore'
+    commits:
+    - a921f3ea8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: refine guest interest welcome'
+    commits:
+    - 5a28de32b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: allow mindmap collapse control clicks'
+    commits:
+    - 8f2644922
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: remove unintended pcb app placeholders'
+    commits:
+    - a78cc0bbe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: handle larger selfhost backups'
+    commits:
+    - 8040ae074
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: simplify guest interest welcome'
+    commits:
+    - 742a5edd0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show guest product inspirations'
+    commits:
+    - da433aac5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep guest homepage on welcome screen'
+    commits:
+    - b5ce66a82
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add guest interests and mindmap embeds'
+    commits:
+    - bec2f6c51
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: e82629f85a417d69c46c3bf700bf2e0d6b93498c
+    short_sha: e82629f85
+    authored_at: '2026-06-21T23:49:22+00:00'
+    subject: 'fix: align guest intro icons'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: c948dc18c08c028f38c8a15083ecd6ae6677d33f
+    short_sha: c948dc18c
+    authored_at: '2026-06-21T22:43:40+00:00'
+    subject: 'fix: improve guest feature card readability'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 841ec7b802918a99fe4bf0583a2aaddf3951d2a9
+    short_sha: 841ec7b80
+    authored_at: '2026-06-21T22:28:08+00:00'
+    subject: 'feat: improve guest feature inspirations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/frontend/daily-inspiration.md
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/data/product_features.yml
+    - frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    related_feature_ids: []
+  - sha: e71a26af7dcfc19a97eba9944ef21ae45cafa5c4
+    short_sha: e71a26af7
+    authored_at: '2026-06-21T20:44:33+00:00'
+    subject: 'fix: allow mobile guest tag rail to reach end'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    related_feature_ids: []
+  - sha: aede718cf52c77e07ee3f31d4ba105c940e97be7
+    short_sha: aede718cf
+    authored_at: '2026-06-21T19:43:15+00:00'
+    subject: 'fix: show guest interest prompt while selecting'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    related_feature_ids: []
+  - sha: 10223d46511a9b3c3650a8049e1a8a35b281b514
+    short_sha: 10223d465
+    authored_at: '2026-06-21T19:27:41+00:00'
+    subject: 'fix: adjust guest intro timing and tag shuffle'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    related_feature_ids: []
+  - sha: 3d81680f36b024e5d8a62ff02cfa65da66a6b01b
+    short_sha: 3d81680f3
+    authored_at: '2026-06-21T18:39:59+00:00'
+    subject: 'fix: center next guest interest tag'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    related_feature_ids: []
+  - sha: a459f98c07bee9f284ef696c952e9555af149cfe
+    short_sha: a459f98c0
+    authored_at: '2026-06-21T18:28:22+00:00'
+    subject: 'test: restore guest rail scroll after gap check'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: 2f10903a5263ce7a6f7155f08875d5608a294a7d
+    short_sha: 2f10903a5
+    authored_at: '2026-06-21T18:19:16+00:00'
+    subject: 'fix: improve guest onboarding responsiveness'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    related_feature_ids: []
+  - sha: 6326d998b76bc36b06c63004f39283eabddb1fb3
+    short_sha: 6326d998b
+    authored_at: '2026-06-21T17:04:56+00:00'
+    subject: 'fix: show guest suggestions after interests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: d1e118c3274e53a5236f5bfe9bb0c83916da7831
+    short_sha: d1e118c32
+    authored_at: '2026-06-21T16:50:46+00:00'
+    subject: 'fix: trim guest tag rail end padding'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    related_feature_ids: []
+  - sha: 542de2079ea9d07d797f16194866223cce7b1c60
+    short_sha: 542de2079
+    authored_at: '2026-06-21T16:45:43+00:00'
+    subject: 'fix: use parent preview metadata in search fullscreen'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideosSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    related_feature_ids: []
+  - sha: 916bda87db3572ead716ffdf8609c80c8de47e0c
+    short_sha: 916bda87d
+    authored_at: '2026-06-21T16:38:46+00:00'
+    subject: 'fix: restore guest carousel intro card'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: b7453bc407375d9bff82d8a952ff9866973bdf8c
+    short_sha: b7453bc40
+    authored_at: '2026-06-21T16:16:52+00:00'
+    subject: 'fix: preserve parent embed preview metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImagesSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebSearchEmbedRenderer.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_skill_preview_metadata.py
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideosSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d4146ae3d0ba50d08bb5089584a08c2e7d813e87
+    short_sha: d4146ae3d
+    authored_at: '2026-06-21T16:15:49+00:00'
+    subject: 'fix: polish guest interest onboarding visuals'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    related_feature_ids: []
+  - sha: 1b55cf511e91ef32424b3d83397e6150778b2d52
+    short_sha: 1b55cf511
+    authored_at: '2026-06-21T16:02:13+00:00'
+    subject: 'feat: verify Vault-imported server secrets'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    related_feature_ids: []
+  - sha: 7f6c7cd046d5468513f46bfd98a2c4caf8590770
+    short_sha: 7f6c7cd04
+    authored_at: '2026-06-21T15:50:50+00:00'
+    subject: 'fix: return auth back action to new chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/auth-back-to-demo.spec.ts
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    related_feature_ids: []
+  - sha: c11143f284297993a109ce957d93956981886cfa
+    short_sha: c11143f28
+    authored_at: '2026-06-21T15:43:57+00:00'
+    subject: 'test: align guest tag assertion with selected-left rail'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: 14d96124f475d58bc7e4630b50a124717df97e24
+    short_sha: 14d96124f
+    authored_at: '2026-06-21T15:31:43+00:00'
+    subject: 'fix: refine guest interest selection flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    related_feature_ids: []
+  - sha: 92b5c6cf364e5f4d98c0b88c3d5cdf179b687f89
+    short_sha: 92b5c6cf3
+    authored_at: '2026-06-21T15:31:00+00:00'
+    subject: 'fix: link Mind Maps example chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/__tests__/privacy-first-product-launch-mind-map.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-product-launch-mind-map.ts
+    related_feature_ids: []
+  - sha: 2176194cffbf3b8a71d17c4da56c46887a79ac91
+    short_sha: 2176194cf
+    authored_at: '2026-06-21T15:25:52+00:00'
+    subject: 'feat: add connected account CLI import'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/connected_accounts.py
+    - backend/tests/test_connected_accounts_permissions.py
+    - docs/specs/connected-account-cli-import/spec.yml
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/connectedAccountImport.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/connectedAccountImport.test.ts
+    - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/privacy.yml
+    - frontend/packages/ui/src/services/connectedAccountCliTransfer.ts
+    related_feature_ids: []
+  - sha: 24c07971b55dd9e7cc1642e48a8f477c6bfe20af
+    short_sha: 24c07971b
+    authored_at: '2026-06-21T14:56:35+00:00'
+    subject: 'test: accept compact guest continue cards'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: 508dddc1fb300abf916e3443e9ab53ce96a00131
+    short_sha: 508dddc1f
+    authored_at: '2026-06-21T14:46:16+00:00'
+    subject: 'test: make guest tag setup scroll immediate'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: 512220e51c152c800560efdf30df0c29070306e9
+    short_sha: 512220e51
+    authored_at: '2026-06-21T14:37:19+00:00'
+    subject: 'test: assert guest tag visual stability'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: 030b36b065903025ea577d4bf7ca60eecd5754b5
+    short_sha: 030b36b06
+    authored_at: '2026-06-21T14:28:16+00:00'
+    subject: 'fix: restore guest tag rail after focus scroll'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    related_feature_ids: []
+  - sha: f923fb365cf5724e486d44ff9ec8f168d99021b5
+    short_sha: f923fb365
+    authored_at: '2026-06-21T14:15:57+00:00'
+    subject: 'test: stabilize guest interest scroll assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    related_feature_ids: []
+  - sha: 01cea21e8847d68d43b733187806e8f67f6cfdb5
+    short_sha: 01cea21e8
+    authored_at: '2026-06-21T14:05:33+00:00'
+    subject: 'fix: keep guest interest tag scroll stable'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    related_feature_ids: []
+  - sha: 53debd20126f203709386665a61752464c7e77e3
+    short_sha: 53debd201
+    authored_at: '2026-06-21T13:49:10+00:00'
+    subject: 'fix: keep guest tag rail stable'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    related_feature_ids: []
+  - sha: 8ef19004f21603cd1e536afcf15b69dea3b08257
+    short_sha: 8ef19004f
+    authored_at: '2026-06-21T13:33:17+00:00'
+    subject: 'fix: recenter guest rail after selection'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    related_feature_ids: []
+  - sha: f154c8baa6927f36d9428a16004c0d0567c272d7
+    short_sha: f154c8baa
+    authored_at: '2026-06-21T13:21:25+00:00'
+    subject: 'fix: apply guest rail spacer directly'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    related_feature_ids: []
+  - sha: ef8193ba1a7bcd465f3a1e7dbc388932e3820628
+    short_sha: ef8193ba1
+    authored_at: '2026-06-21T13:09:31+00:00'
+    subject: 'fix: center guest rail with spacers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    related_feature_ids: []
+  - sha: c5c940e8c116d556aacaeb95c9600023f2122ee4
+    short_sha: c5c940e8c
+    authored_at: '2026-06-21T12:58:14+00:00'
+    subject: 'fix: measure guest tag rail centering'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    related_feature_ids: []
+  - sha: e81cafa5439f09f074ed9cb6dbab54bf4535e68b
+    short_sha: e81cafa54
+    authored_at: '2026-06-21T12:47:23+00:00'
+    subject: 'fix: center guest interest rail'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    related_feature_ids: []
+  - sha: bc587d0aaf48ec622f7e97338241efc9196fa191
+    short_sha: bc587d0aa
+    authored_at: '2026-06-21T12:36:51+00:00'
+    subject: 'test: count only guest interest buttons'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: 4811ca0443f2404c37cc0ef22dd5b1d7d37a4a64
+    short_sha: 4811ca044
+    authored_at: '2026-06-21T12:28:21+00:00'
+    subject: 'fix: apply guest interest filtering'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/demo_chats/guestSmartSelection.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    related_feature_ids: []
+  - sha: 0e945962d9c677e1219d313eed1396ba94ff3cad
+    short_sha: 0e945962d
+    authored_at: '2026-06-21T12:10:06+00:00'
+    subject: 'test: cover guest interest filtering flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: aeb9ad21b8be88db2347315f72e10cbe61c2263c
+    short_sha: aeb9ad21b
+    authored_at: '2026-06-21T11:16:14+00:00'
+    subject: 'fix: restore guest intro banner height'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 2d38c0a0b2a7e8bbf421f9cc7399b3f8936e7e79
+    short_sha: 2d38c0a0b
+    authored_at: '2026-06-21T11:01:21+00:00'
+    subject: 'fix: keep guest intro copy responsive'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: b6f3ec010dbf87a8b7ad49feaa24afe40265a12c
+    short_sha: b6f3ec010
+    authored_at: '2026-06-21T10:50:27+00:00'
+    subject: 'fix: size guest intro hero for large copy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 2cc13c81ab5b1cc84011770c995b7e4fb9e46607
+    short_sha: 2cc13c81a
+    authored_at: '2026-06-21T10:43:35+00:00'
+    subject: 'docs: verify mind map embed spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/mindmap-embeds/spec.yml
+    related_feature_ids: []
+  - sha: 6fed02db40a9bcd346219f06d3223c51780c8290
+    short_sha: 6fed02db4
+    authored_at: '2026-06-21T10:38:55+00:00'
+    subject: 'fix: prevent guest intro hero clipping'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 2891fd5c9475c5205092e4e4ba0ecf0f3d50627b
+    short_sha: 2891fd5c9
+    authored_at: '2026-06-21T10:34:33+00:00'
+    subject: 'feat: add mind map example chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-product-launch-mind-map.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/privacy_first_product_launch_mind_map.yml
+    related_feature_ids: []
+  - sha: e2253e3f5a6c649b89b0ea47aba4f9018f55abd9
+    short_sha: e2253e3f5
+    authored_at: '2026-06-21T10:28:01+00:00'
+    subject: 'fix: match guest intro hero proportions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: d68cc5acb1c55b110870ddd07199b62571f163fc
+    short_sha: d68cc5acb
+    authored_at: '2026-06-21T10:19:32+00:00'
+    subject: 'ci: run selfhost smoke for cloud route changes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    related_feature_ids: []
+  - sha: ebf6c9478d3c215cba02c27651fa60dda48fec96
+    short_sha: ebf6c9478
+    authored_at: '2026-06-21T10:19:20+00:00'
+    subject: 'docs: record guest interest test evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    related_feature_ids: []
+  - sha: 63bdd6b1f4f2e16054d7d44ec96e18f9857ad97e
+    short_sha: 63bdd6b1f
+    authored_at: '2026-06-21T10:18:08+00:00'
+    subject: 'fix: hide cloud-only routes before auth'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/routes/payments.py
+    related_feature_ids: []
+  - sha: 7336f979ad561600c4f86aa7fb5c28e8e1d1c6b5
+    short_sha: 7336f979a
+    authored_at: '2026-06-21T10:17:21+00:00'
+    subject: 'fix: route mind map requests away from images'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    related_feature_ids: []
+  - sha: a8cc8498d2e71953cb0bee710f5d03d3cd95a2ca
+    short_sha: a8cc8498d
+    authored_at: '2026-06-21T10:10:59+00:00'
+    subject: 'fix: gate guest recommendations behind continue'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    related_feature_ids: []
+  - sha: 328f2c845730e6b05b8c781b1920276613ef8dcd
+    short_sha: 328f2c845
+    authored_at: '2026-06-21T10:04:01+00:00'
+    subject: 'fix: restore guest inspiration carousel'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/components/GuestIntroHero.svelte
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    related_feature_ids: []
+  - sha: e233200ab350f511bf1d203d80e496e208b88306
+    short_sha: e233200ab
+    authored_at: '2026-06-21T09:59:16+00:00'
+    subject: 'test: close mindmap fullscreen by test id'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    related_feature_ids: []
+  - sha: 550274bed5dc48249764235a389f393343122827
+    short_sha: 550274bed
+    authored_at: '2026-06-21T09:52:35+00:00'
+    subject: 'test: reorder selfhost smoke restore assertions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    related_feature_ids: []
+  - sha: 93bb79377623298e4d0be74912c540058524447e
+    short_sha: 93bb79377
+    authored_at: '2026-06-21T09:43:29+00:00'
+    subject: 'fix: hide collapsed mindmap descendants'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: c6830babc9412cc395cc54f2cf880a991a55d1e3
+    short_sha: c6830babc
+    authored_at: '2026-06-21T09:41:21+00:00'
+    subject: 'test: wait for guest suggestions after continue'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: 6bab3b3edb88e33b2ee2593947c20eccaad4ad8d
+    short_sha: 6bab3b3ed
+    authored_at: '2026-06-21T09:33:03+00:00'
+    subject: 'test: click mindmap preview target'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    related_feature_ids: []
+  - sha: be76f567e9b51d3139dccd3a02bc784e735cd78d
+    short_sha: be76f567e
+    authored_at: '2026-06-21T09:28:03+00:00'
+    subject: 'test: expose guest carousel test id'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: a921f3ea8908915cfc5ff3fc793d40594db56ad2
+    short_sha: a921f3ea8
+    authored_at: '2026-06-21T09:24:43+00:00'
+    subject: 'fix: stop existing services during selfhost restore'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    related_feature_ids: []
+  - sha: ef2dccf687f352229209e1ed46c52df020e1056b
+    short_sha: ef2dccf68
+    authored_at: '2026-06-21T09:23:37+00:00'
+    subject: 'test: open mindmap fullscreen without navigation wait'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    related_feature_ids: []
+  - sha: 5a28de32b77ba99c36667444c0d9a1478309ce17
+    short_sha: 5a28de32b
+    authored_at: '2026-06-21T09:10:36+00:00'
+    subject: 'fix: refine guest interest welcome'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/components/GuestIntroHero.svelte
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    related_feature_ids: []
+  - sha: 8f2644922066d5a2bdb3769731eca364002c2fa2
+    short_sha: 8f2644922
+    authored_at: '2026-06-21T09:08:41+00:00'
+    subject: 'fix: allow mindmap collapse control clicks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: a78cc0bbea7c5eb3d7762e2d2a089a5f58dd8c9e
+    short_sha: a78cc0bbe
+    authored_at: '2026-06-21T09:06:51+00:00'
+    subject: 'fix: remove unintended pcb app placeholders'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/mindmaps/app.yml
+    - backend/apps/pcb_design/app.yml
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.ar.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.cs.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.de.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.es.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.fr.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.he.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.hi.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.id.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.it.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.ja.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.ko.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.nl.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.pl.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.pt.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.ru.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.sv.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.th.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.tr.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.vi.md
+    - backend/apps/pcb_design/focus_modes/create-layout/SKILL.zh.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.ar.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.cs.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.de.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.es.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.fr.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.he.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.hi.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.id.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.it.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.ja.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.ko.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.nl.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.pl.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.pt.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.ru.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.sv.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.th.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.tr.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.vi.md
+    - backend/apps/pcb_design/focus_modes/create-schematic/SKILL.zh.md
+    - docs/specs/pcb-schematic-embed/spec.yml
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/pcb_design.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/pcb_design_create_layout.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/pcb_design_create_schematic.yml
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    related_feature_ids: []
+  - sha: 8040ae0742606a200bc63d40a5aa05538ca8595c
+    short_sha: 8040ae074
+    authored_at: '2026-06-21T08:59:39+00:00'
+    subject: 'fix: handle larger selfhost backups'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    related_feature_ids: []
+  - sha: f262cfaa80b8c82ed74fc6c7be534d507fd6b232
+    short_sha: f262cfaa8
+    authored_at: '2026-06-21T08:54:58+00:00'
+    subject: 'test: target mindmap fullscreen header'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    related_feature_ids: []
+  - sha: e7c8ca085f314c58e85b00eae9b5bf81bc883e42
+    short_sha: e7c8ca085
+    authored_at: '2026-06-21T08:41:59+00:00'
+    subject: 'fix: preserve mindmap embeds when sending'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/serializers.test.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    related_feature_ids: []
+  - sha: cc89a4cc6f06b859d82270b9b1ec46bc057785b2
+    short_sha: cc89a4cc6
+    authored_at: '2026-06-21T08:35:33+00:00'
+    subject: 'test: verify selfhost backup restore smoke'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    related_feature_ids: []
+  - sha: 742a5edd0ce1ad70796a18c7e8832bcd6b1d0fe7
+    short_sha: 742a5edd0
+    authored_at: '2026-06-21T08:33:04+00:00'
+    subject: 'fix: simplify guest interest welcome'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    related_feature_ids: []
+  - sha: d5b481fae3714db7ca1d1bb868ae7bfd4d36fbc6
+    short_sha: d5b481fae
+    authored_at: '2026-06-21T08:26:46+00:00'
+    subject: 'test: accept temporary new chat ids in e2e helper'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: 6a12a7bceebe5925977635ef14d34ca46f09c73a
+    short_sha: 6a12a7bce
+    authored_at: '2026-06-21T08:22:04+00:00'
+    subject: 'test: avoid pointer wait in guest carousel spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: e5a07f6db6096c5555dd4c6f7b9c19ad84260cf1
+    short_sha: e5a07f6db
+    authored_at: '2026-06-21T08:12:34+00:00'
+    subject: 'test: include mindmaps in content catalog expectation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    related_feature_ids: []
+  - sha: c48da60e93a0fa1589d5cc587aabb4f5a7a22bd6
+    short_sha: c48da60e9
+    authored_at: '2026-06-21T08:10:30+00:00'
+    subject: 'test: stabilize guest interest carousel check'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: da433aac5228fb5646800971cde1f47d48605e33
+    short_sha: da433aac5
+    authored_at: '2026-06-21T07:58:59+00:00'
+    subject: 'fix: show guest product inspirations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: b5ce66a82ab2abd954229754e2ab9a37d65ede5d
+    short_sha: b5ce66a82
+    authored_at: '2026-06-21T07:46:57+00:00'
+    subject: 'fix: keep guest homepage on welcome screen'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: 6362ac7ea43b8fff5b1147764cb9849ac6749626
+    short_sha: 6362ac7ea
+    authored_at: '2026-06-21T07:35:03+00:00'
+    subject: 'docs: update self-host server management'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/core/servers.md
+    - docs/self-hosting/setup.md
+    - docs/user-guide/cli/server-management.md
+    related_feature_ids: []
+  - sha: c9a2d7dfd7d84f59681b7dcbaf23aeb54533f877
+    short_sha: c9a2d7dfd
+    authored_at: '2026-06-21T07:34:50+00:00'
+    subject: 'feat: add guest interests and mindmap embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/unified-server-cli-management/spec.yml
+    related_feature_ids: []
+  - sha: bec2f6c5159330dafae6eaa8374fdcf6b2efc75c
+    short_sha: bec2f6c51
+    authored_at: '2026-06-21T07:31:55+00:00'
+    subject: 'feat: add guest interests and mindmap embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-selfhost-images.yml
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MindMapEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/mindmap_fences.py
+    - backend/apps/mindmaps/app.yml
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/settings_software_update.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/preview/docker-compose.selfhost.yml
+    - backend/tests/test_mindmap_embed_streaming.py
+    - backend/upload/docker-compose.selfhost.yml
+    - docs/architecture/frontend/web-app.md
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - docs/specs/mindmap-embeds/spec.yml
+    - docs/specs/unified-server-cli-management/spec.yml
+    - docs/user-guide/daily-inspiration.md
+    - frontend/apps/web_app/tests/account-interests-settings.spec.ts
+    - frontend/apps/web_app/tests/fixtures/launch-plan.ommindmap
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/caddy/core/Caddyfile
+    - frontend/packages/openmates-cli/templates/caddy/preview/Caddyfile
+    - frontend/packages/openmates-cli/templates/caddy/upload/Caddyfile
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/templates/preview/docker-compose.preview.yml
+    - frontend/packages/openmates-cli/templates/upload/docker-compose.yml
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/mindmaps/__tests__/mindMapContent.test.ts
+    - frontend/packages/ui/src/components/embeds/mindmaps/mindMapContent.ts
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/mindMapUploadDetection.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    - frontend/packages/ui/src/components/enter_message/services/mindMapUploadDetection.ts
+    - frontend/packages/ui/src/components/settings/SettingsAccount.svelte
+    - frontend/packages/ui/src/components/settings/account/SettingsDeleteAccount.svelte
+    - frontend/packages/ui/src/components/settings/account/SettingsInterests.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsCheckboxList.svelte
+    - frontend/packages/ui/src/components/settings/server/SettingsSoftwareUpdate.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/data/__tests__/embedTextRenderers.test.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
+    - frontend/packages/ui/src/demo_chats/defaultNewChatSuggestions.ts
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    - frontend/packages/ui/src/demo_chats/guestSmartSelection.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+    - frontend/packages/ui/src/i18n/sources/chat/new_chat_suggestions.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/settings/account.yml
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/services/topicPreferencesSync.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/__tests__/topicPreferencesStore.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authMiscActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    - frontend/packages/ui/src/stores/topicPreferencesStore.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+    - platform:projects
+llm_summary:
+  overview: OpenMates significantly overhauled the guest onboarding experience, introducing a dynamic interest selection flow
+    and improved feature inspirations. The update also strengthens the self-hosting toolkit with new CLI capabilities for
+    secret verification and account data migration.
+  released_changes:
+  - text: Improved guest feature inspirations with smart selection based on user interests.
+    evidence:
+      commits:
+      - 841ec7b80
+    release_status: released_main
+  - text: The CLI now verifies server secrets imported from Vault to ensure configuration integrity.
+    evidence:
+      commits:
+      - 1b55cf511
+    release_status: released_main
+  - text: Added support for importing connected accounts directly via the CLI.
+    evidence:
+      commits:
+      - 2176194cf
+    release_status: released_main
+  bug_fixes:
+  - text: Extensive polish of the guest onboarding experience, including icon alignment, responsive hero sizing, and visual
+      stability for the interest tag rail.
+    evidence:
+      commits:
+      - e82629f85
+      - c948dc18c
+      - e71a26af7
+      - aede718cf
+      - 10223d465
+      - 3d81680f3
+      - 2f10903a5
+      - 6326d998b
+      - d1e118c32
+      - 916bda87d
+      - d4146ae3d
+      - 14d96124f
+      - 030b36b06
+      - 01cea21e8
+      - 53debd201
+      - 8ef19004f
+      - f154c8baa
+      - ef8193ba1
+      - c5c940e8c
+      - e81cafa54
+      - 4811ca044
+      - aeb9ad21b
+      - 2d38c0a0b
+      - b6f3ec010
+      - 6fed02db4
+      - e2253e3f5
+      - a8cc8498d
+      - 328f2c845
+      - 5a28de32b
+      - 742a5edd0
+      - da433aac5
+      - b5ce66a82
+    release_status: released_main
+  - text: Restored the back action during authentication to return users to the new chat screen.
+    evidence:
+      commits:
+      - 7f6c7cd04
+    release_status: released_main
+  - text: Cloud-only routes for administration and payments are now hidden before user authentication.
+    evidence:
+      commits:
+      - 63bdd6b1f
+    release_status: released_main
+  - text: Improved self-hosting reliability by ensuring existing services stop during a restore and increasing the capacity
+      for larger backups.
+    evidence:
+      commits:
+      - a921f3ea8
+      - 8040ae074
+    release_status: released_main
+  - text: Search results now correctly preserve parent preview metadata when viewed in fullscreen mode.
+    evidence:
+      commits:
+      - 542de2079
+    release_status: released_main
+  - text: Removed unintended placeholder elements from the PCB design application.
+    evidence:
+      commits:
+      - a78cc0bbe
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continues on Mind Map embeds, including fullscreen navigation and collapse controls, though these remain
+      gated by platform availability.
+    evidence:
+      commits:
+      - bec2f6c51
+      - 93bb79377
+      - 8f2644922
+      - 7336f979a
+    release_status: released_main
+  - text: Work on preserving parent embed preview metadata for iOS and macOS platforms.
+    evidence:
+      commits:
+      - b7453bc40
+    release_status: released_main
+  - text: Added a privacy-first product launch mind map as an example chat for internal testing.
+    evidence:
+      commits:
+      - 2891fd5c9
+      - 92b5c6cf3
+    release_status: released_main
+  internal_progress:
+  - text: Updated CI workflows to trigger self-host smoke tests upon changes to cloud-specific routes.
+    evidence:
+      commits:
+      - d68cc5acb
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Enhanced guest feature inspirations and smart selection.
+      evidence:
+        commits:
+        - 841ec7b80
+      reason: Directly improves the first-time user experience for guests.
+    - text: Verification for Vault-imported server secrets.
+      evidence:
+        commits:
+        - 1b55cf511
+      reason: Critical security improvement for self-hosters using Vault.
+    - text: Connected account import via CLI.
+      evidence:
+        commits:
+        - 2176194cf
+      reason: Simplifies account management for CLI users.
+    exclude:
+    - text: Mind map embeds and associated UI controls.
+      evidence:
+        commits:
+        - bec2f6c51
+        - 93bb79377
+        - 8f2644922
+        - 7336f979a
+      reason: Mind map features are currently gated by disabled platform dependencies (iOS, macOS, and Projects).
+    rationale: The focus of this update is the guest experience and self-hosting infrastructure. Mind map features are excluded
+      as they rely on platforms currently disabled in the configuration.
+  social_video_recommendations:
+  - idea: A walkthrough of the new guest interest selection flow, showing how it dynamically updates chat suggestions.
+    priority: High
+    reason: This is the most visible user-facing change and demonstrates the project's focus on a smooth first-time experience.
+    evidence:
+      commits:
+      - 841ec7b80
+      - 14d96124f
+  quality_notes:
+  - A high volume of commits (over 30) was dedicated specifically to refining the visual and functional stability of the guest
+    interest selection rail.
+  - Self-hosting reliability was addressed through improved backup handling and service management during restores.
+  validation_warnings: []

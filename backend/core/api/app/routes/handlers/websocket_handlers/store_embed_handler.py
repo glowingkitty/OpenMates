@@ -86,6 +86,7 @@ async def handle_store_embed(
             if not embed_id:
                 logger.error(f"Missing embed_id in store_embed payload from user {user_id}")
                 return
+            request_id = payload.pop("request_id", None)
 
             logger.info(f"Processing store_embed for embed {embed_id} from user {user_id}")
 
@@ -238,6 +239,16 @@ async def handle_store_embed(
                 exclude_device_hash=device_fingerprint_hash
             )
             logger.debug(f"Broadcasted embed_update for {embed_id} to other devices")
+
+            if request_id:
+                await manager.send_personal_message(
+                    {
+                        "type": "store_embed_confirmed",
+                        "payload": {"request_id": request_id, "embed_id": embed_id},
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
 
         except Exception as e:
             logger.error(f"Error handling store_embed for user {user_id}: {e}", exc_info=True)

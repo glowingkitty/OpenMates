@@ -33,6 +33,13 @@ describe("E2E provisioning command surface", () => {
 
   it("allows the reserved auth-test slot range", () => {
     const output = runCli(["e2e", "--help"]);
-    assert.ok(output.includes("--slot <15-20>"));
+    assert.ok(output.includes("--slot <14-20>"));
+  });
+
+  it("requires the secret-backed invite before provisioning", () => {
+    assert.throws(
+      () => runCli(["--api-url", "https://api.dev.openmates.org", "e2e", "provision-auth-accounts", "--slot", "14"]),
+      /OPENMATES_CLI_SIGNUP_INVITE_CODE is required/,
+    );
   });
 });

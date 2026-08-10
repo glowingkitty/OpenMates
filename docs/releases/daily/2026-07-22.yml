@@ -1,0 +1,5047 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-22'
+generated_at: '2026-08-06T13:17:21+00:00'
+range:
+  since: '2026-07-22T00:00:00+00:00'
+  until: '2026-07-23T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 97
+  section_counts:
+    features: 11
+    bug_fixes: 33
+    improvements: 0
+    docs: 13
+    tests: 37
+    infrastructure: 3
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 39
+  dev_only_items: 97
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add privacy-first local AI example chat'
+    section: features
+    commits:
+    - ba97aefd7
+    authored_at: '2026-07-22T23:45:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/__tests__/chatHistoryWindowPruning.test.ts
+    - frontend/packages/ui/src/utils/messageWindowPruning.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add privacy-first local AI example chat'
+    section: features
+    commits:
+    - f5bb22ca8
+    authored_at: '2026-07-22T23:39:39+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/tests/test_message_received_active_chat.py
+    - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-local-ai-workspace.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/privacy_first_local_ai_workspace.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add bounded long-chat message windows'
+    section: features
+    commits:
+    - c79041d73
+    authored_at: '2026-07-22T23:19:56+00:00'
+    changed_paths:
+    - .agents/skills/realistic-long-chat-validation/SKILL.md
+    - .claude/skills/realistic-long-chat-validation/SKILL.md
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/tests/test_chat_compression_checkpoint_handler.py
+    - backend/tests/test_chat_compressor.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_native_chats_api.py
+    - backend/tests/test_sdk_chat_fork_rewind.py
+    - backend/tests/test_sdk_chat_recovery.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - backend/tests/test_share_chat_window_loading.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/specs/cli-sdk-chat-fork-rewind/spec.yml
+    - docs/specs/long-chat-compression-history/spec.yml
+    - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    - docs/specs/scalable-chat-message-windowing/spec.yml
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/__tests__/chatHistoryWindowPruning.test.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/utils/messageWindowPruning.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add chat settings page'
+    section: features
+    commits:
+    - a05c760b4
+    authored_at: '2026-07-22T20:08:39+00:00'
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/chats/ChatDetailsSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/components/chats/chatSettingsFiles.ts
+    - frontend/packages/ui/src/components/chats/chatUsageRows.ts
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsTabs.svelte
+    - frontend/packages/ui/src/stores/chatSettingsStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add expanded landing intro'
+    section: features
+    commits:
+    - 5d55e594b
+    authored_at: '2026-07-22T19:19:48+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: support Finance sheet embed inputs'
+    section: features
+    commits:
+    - 52f131ec4
+    authored_at: '2026-07-22T18:54:27+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/base_app.py
+    - backend/apps/finance/app.yml
+    - backend/apps/finance/skills/check_accounts.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_finance_check_accounts_skill.py
+    - backend/tests/test_finance_privacy_redaction.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_sdk_chat_recovery.py
+    - docs/specs/finance-check-accounts-v1/spec.yml
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedPreview.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/finance-cash-flow-overview.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/finance_cash_flow_overview.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: embed:finance:check_accounts
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:finance, embed:finance:check_accounts, skill:finance:check_accounts'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add generated audio transcript titles'
+    section: features
+    commits:
+    - 23d0bdf28
+    authored_at: '2026-07-22T17:03:51+00:00'
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/scripts/test_audio_transcript_correction_real.py
+    - backend/tests/test_audio_transcribe_ascii_sanitization.py
+    - backend/tests/test_transcribe_skill.py
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/RecordingRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-transcribe-voice-note.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio, embed:audio:recording, embed:audio:transcribe, skill:audio:transcribe'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add ideabucket processing settings'
+    section: features
+    commits:
+    - ea00f89fb
+    authored_at: '2026-07-22T13:35:15+00:00'
+    changed_paths:
+    - backend/apps/ideabucket/app.yml
+    - backend/core/api/app/routes/ideabucket.py
+    - backend/tests/test_ideabucket_processing_window_cache.py
+    - backend/tests/test_ideabucket_scheduled_send.py
+    - frontend/packages/openmates-cli/tests/ideabucket.test.ts
+    - frontend/packages/ui/src/i18n/sources/settings/app_settings_memories.yml
+    - scripts/sdk_cli_parity_live_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ideabucket
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ideabucket/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ideabucket'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: improve code image-to-html generation'
+    section: features
+    commits:
+    - 6edac50aa
+    authored_at: '2026-07-22T13:34:15+00:00'
+    changed_paths:
+    - backend/apps/base_app.py
+    - backend/apps/code/skills/image_to_html_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/workflow_capabilities.yml
+    - backend/shared/providers/e2b_html_renderer.py
+    - backend/shared/providers/image_to_html_generator.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_code_image_to_html_skill.py
+    - backend/tests/test_e2b_image_to_html_renderer.py
+    - backend/tests/test_image_to_html_generator.py
+    - backend/tests/test_openai_compatible_tools_contract.py
+    - docs/specs/code-image-to-html/spec.yml
+    - scripts/eval_code_image_to_html.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:code:image_to_html
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:code, platform:workflows, skill:code:image_to_html'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: change audio recording shortcut'
+    section: features
+    commits:
+    - 6f1242343
+    authored_at: '2026-07-22T13:33:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/KeyboardShortcuts.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/keyboardShortcutHandler.ts
+    - frontend/packages/ui/src/i18n/sources/enter_message/placeholder.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: update Gemini model routing'
+    section: features
+    commits:
+    - d8cf2defc
+    authored_at: '2026-07-22T11:33:51+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/testing/fixtures/focus_career_1.json
+    - backend/apps/ai/testing/fixtures/focus_career_2.json
+    - backend/apps/ai/utils/model_selector.py
+    - backend/apps/code/app.yml
+    - backend/data/models_leaderboard.yml
+    - backend/providers/google.yml
+    - backend/scripts/test_gemini_ai_studio_models.py
+    - backend/shared/providers/image_to_html_generator.py
+    - backend/tests/test_code_image_to_html_billing.py
+    - backend/tests/test_image_to_html_generator.py
+    - backend/tests/test_model_selection.py
+    - backend/tests/test_workspace_ask_pipeline.py
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/ui/src/utils/__tests__/modelDisplayName.test.ts
+    - frontend/packages/ui/src/utils/modelDisplayName.ts
+    - shared/config/costs.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:code'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: improve landing intro iPad layout'
+    section: bug_fixes
+    commits:
+    - ad5b60b91
+    authored_at: '2026-07-22T23:44:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hydrate CLI chat history through message windows'
+    section: bug_fixes
+    commits:
+    - 98540c641
+    authored_at: '2026-07-22T23:23:04+00:00'
+    changed_paths:
+    - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: block Chinese server provider routes'
+    section: bug_fixes
+    commits:
+    - a4947c8f3
+    authored_at: '2026-07-22T23:14:53+00:00'
+    changed_paths:
+    - scripts/audit_app_provider_contracts.py
+    - scripts/tests/test_audit_app_provider_contracts.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: fit landing intro on iPad landscape'
+    section: bug_fixes
+    commits:
+    - b33846293
+    authored_at: '2026-07-22T23:14:40+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refine landing intro mobile animation'
+    section: bug_fixes
+    commits:
+    - d51aeb67a
+    authored_at: '2026-07-22T22:54:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render chat share link before persistence'
+    section: bug_fixes
+    commits:
+    - 502629ed4
+    authored_at: '2026-07-22T22:41:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refine landing intro rail animation'
+    section: bug_fixes
+    commits:
+    - 35eb37aa4
+    authored_at: '2026-07-22T22:03:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refine landing intro mobile layout'
+    section: bug_fixes
+    commits:
+    - 2ec20374e
+    authored_at: '2026-07-22T21:28:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: start guest landing intro first'
+    section: bug_fixes
+    commits:
+    - d2ca5bb4d
+    authored_at: '2026-07-22T20:16:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refine expanded landing intro layout'
+    section: bug_fixes
+    commits:
+    - a3ac209e1
+    authored_at: '2026-07-22T19:57:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent detail header edit button overlap'
+    section: bug_fixes
+    commits:
+    - 5c5fb1b6b
+    authored_at: '2026-07-22T17:04:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-header.spec.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: improve Finance example quality'
+    section: bug_fixes
+    commits:
+    - '252088986'
+    authored_at: '2026-07-22T14:46:55+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_finance_privacy_redaction.py
+    - docs/specs/finance-example-quality/spec.yml
+    - frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+    - frontend/packages/ui/src/components/embeds/finance/financeCheckAccountsContent.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:finance:check_accounts
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:finance:check_accounts'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align Apple keyboard audio recording controls'
+    section: bug_fixes
+    commits:
+    - 6f4c58b18
+    authored_at: '2026-07-22T14:28:27+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: center compact composer stop button'
+    section: bug_fixes
+    commits:
+    - 39cd63012
+    authored_at: '2026-07-22T14:23:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: mark hydrated compressed exports complete'
+    section: bug_fixes
+    commits:
+    - f06a96fa4
+    authored_at: '2026-07-22T14:16:22+00:00'
+    changed_paths:
+    - docs/specs/long-chat-compression-history/spec.yml
+    - frontend/packages/ui/src/services/__tests__/chatExportService.test.ts
+    - frontend/packages/ui/src/services/chatExportService.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clarify keyboard audio recording controls'
+    section: bug_fixes
+    commits:
+    - 92ab70b44
+    authored_at: '2026-07-22T13:59:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/KeyboardShortcuts.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/placeholder.yml
+    - frontend/packages/ui/src/i18n/sources/enter_message/record_audio.yml
+    - frontend/packages/ui/src/utils/platform.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow longer issue report titles'
+    section: bug_fixes
+    commits:
+    - d4561114e
+    authored_at: '2026-07-22T13:36:35+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve chat and task sync metadata'
+    section: bug_fixes
+    commits:
+    - 4c1d62414
+    authored_at: '2026-07-22T13:36:04+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/core/api/app/services/user_task_update_job_service.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_task_update_jobs.py
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use chat window start for older paging'
+    section: bug_fixes
+    commits:
+    - '164776556'
+    authored_at: '2026-07-22T13:24:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: page older chat history from rendered cursor'
+    section: bug_fixes
+    commits:
+    - 2506eeb1e
+    authored_at: '2026-07-22T13:04:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: seed long-chat fixture as normal chat'
+    section: bug_fixes
+    commits:
+    - d5a933f8a
+    authored_at: '2026-07-22T12:43:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore long-chat history boundaries'
+    section: bug_fixes
+    commits:
+    - 63b66e60f
+    authored_at: '2026-07-22T12:25:29+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+    - backend/core/api/app/routes/share.py
+    - backend/tests/test_chat_compression_checkpoint_handler.py
+    - backend/tests/test_chat_compressor.py
+    - backend/tests/test_share_chat_window_loading.py
+    - docs/specs/long-chat-compression-history/spec.yml
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/__tests__/chatExportService.test.ts
+    - frontend/packages/ui/src/services/chatExportService.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: release workspace nav gates'
+    section: bug_fixes
+    commits:
+    - 69b2a5c94
+    authored_at: '2026-07-22T12:23:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
+    - frontend/packages/ui/src/config/workspaceFeatureGates.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: suppress notifications for visible chats'
+    section: bug_fixes
+    commits:
+    - 25652c99c
+    authored_at: '2026-07-22T12:11:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/background-chat-notification.spec.ts
+    - frontend/packages/ui/src/components/ChatMessageNotification.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatNotificationVisibility.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersWebhooks.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve assistant category for learning follow-ups'
+    section: bug_fixes
+    commits:
+    - '787077715'
+    authored_at: '2026-07-22T11:58:11+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: dedupe Code Run dependency installs'
+    section: bug_fixes
+    commits:
+    - 494ad2810
+    authored_at: '2026-07-22T11:57:37+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/code_execution.py
+    - backend/tests/test_code_execution.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: trim Apple thinking accessibility labels'
+    section: bug_fixes
+    commits:
+    - 6fbd38706
+    authored_at: '2026-07-22T11:36:22+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize Apple live chat accessibility'
+    section: bug_fixes
+    commits:
+    - 337b929b5
+    authored_at: '2026-07-22T11:23:35+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatWindowLoadingTests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - docs/specs/apple-live-chat-accessibility-fixes/spec.yml
+    - scripts/apple_ui_contracts.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep guest interest tags below prompt'
+    section: bug_fixes
+    commits:
+    - ed2d1b3f5
+    authored_at: '2026-07-22T11:06:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore audio transcription output safety'
+    section: bug_fixes
+    commits:
+    - 7a0d7d4cf
+    authored_at: '2026-07-22T10:52:19+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_app_skill_rest_context.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stop metadata sync from hiding chats'
+    section: bug_fixes
+    commits:
+    - 1a8153986
+    authored_at: '2026-07-22T10:38:23+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore IdeaBucket confirmation cache contract'
+    section: bug_fixes
+    commits:
+    - b808c8b38
+    authored_at: '2026-07-22T10:20:13+00:00'
+    changed_paths:
+    - backend/core/api/app/services/cache_chat_mixin.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: polish Finance check accounts example'
+    section: bug_fixes
+    commits:
+    - 03b758fce
+    authored_at: '2026-07-22T01:18:27+00:00'
+    changed_paths:
+    - backend/providers/revolut_business.yml
+    - frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedPreview.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/finance-cash-flow-overview.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/finance_cash_flow_overview.yml
+    - frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - frontend/packages/ui/src/styles/icons.css
+    - frontend/packages/ui/src/utils/iconNameResolver.ts
+    - frontend/packages/ui/static/icons/finance.svg
+    - frontend/packages/ui/static/icons/revolut_business.svg
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:finance:check_accounts
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:finance:check_accounts, skill:finance:check_accounts'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: fix chat share evidence placement'
+    section: docs
+    commits:
+    - 6cdbdf70d
+    authored_at: '2026-07-22T23:24:23+00:00'
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record chat share flow evidence'
+    section: docs
+    commits:
+    - 517ebf292
+    authored_at: '2026-07-22T23:21:51+00:00'
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record landing intro green evidence'
+    section: docs
+    commits:
+    - d8b20a3d4
+    authored_at: '2026-07-22T20:37:01+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record landing intro verification'
+    section: docs
+    commits:
+    - 057df6ba8
+    authored_at: '2026-07-22T19:41:28+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Finance example verification evidence'
+    section: docs
+    commits:
+    - 5f47d65c6
+    authored_at: '2026-07-22T16:33:34+00:00'
+    changed_paths:
+    - docs/specs/finance-example-quality/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record long-chat deployment evidence'
+    section: docs
+    commits:
+    - ae435588e
+    authored_at: '2026-07-22T13:50:18+00:00'
+    changed_paths:
+    - docs/specs/long-chat-compression-history/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record long-chat fixture hardening'
+    section: docs
+    commits:
+    - 9b2016227
+    authored_at: '2026-07-22T13:43:42+00:00'
+    changed_paths:
+    - docs/specs/long-chat-compression-history/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: refresh compliance inventories'
+    section: docs
+    commits:
+    - 6196f4e2f
+    authored_at: '2026-07-22T13:38:38+00:00'
+    changed_paths:
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record long-chat deploy readiness'
+    section: docs
+    commits:
+    - 7e72d4435
+    authored_at: '2026-07-22T13:10:28+00:00'
+    changed_paths:
+    - docs/specs/long-chat-compression-history/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record long-chat history verification attempts'
+    section: docs
+    commits:
+    - 08cd00bdd
+    authored_at: '2026-07-22T13:07:01+00:00'
+    changed_paths:
+    - docs/specs/long-chat-compression-history/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Apple live chat verification'
+    section: docs
+    commits:
+    - fcda623b4
+    authored_at: '2026-07-22T13:03:06+00:00'
+    changed_paths:
+    - docs/specs/apple-live-chat-accessibility-fixes/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Apple live chat evidence setup'
+    section: docs
+    commits:
+    - 9500b0b9b
+    authored_at: '2026-07-22T11:29:48+00:00'
+    changed_paths:
+    - docs/specs/apple-live-chat-accessibility-fixes/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Finance check accounts evidence'
+    section: docs
+    commits:
+    - 36a3f46f4
+    authored_at: '2026-07-22T01:31:27+00:00'
+    changed_paths:
+    - docs/specs/finance-check-accounts-v1/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - 'matches feature availability gates: skill:finance:check_accounts'
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: use dom click for chat share generation'
+    section: tests
+    commits:
+    - be2639d27
+    authored_at: '2026-07-22T22:53:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: skip hydrated preview wait in chat share flow'
+    section: tests
+    commits:
+    - 462aeeec7
+    authored_at: '2026-07-22T22:26:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: dispatch chat share copy controls'
+    section: tests
+    commits:
+    - 62484ad96
+    authored_at: '2026-07-22T22:09:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: dispatch chat share generation click'
+    section: tests
+    commits:
+    - 8125becc2
+    authored_at: '2026-07-22T21:58:08+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use share link fallback in chat flow'
+    section: tests
+    commits:
+    - d399663fb
+    authored_at: '2026-07-22T21:44:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: dispatch chat share click in flow'
+    section: tests
+    commits:
+    - 8b2fbfbaf
+    authored_at: '2026-07-22T21:27:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: avoid chat share screenshot hangs'
+    section: tests
+    commits:
+    - 9ed06ca2f
+    authored_at: '2026-07-22T21:15:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: skip chat share response screenshot'
+    section: tests
+    commits:
+    - 08d5f5fcb
+    authored_at: '2026-07-22T21:02:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize chat share settings click'
+    section: tests
+    commits:
+    - 571d441b0
+    authored_at: '2026-07-22T20:49:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert chat settings credit count'
+    section: tests
+    commits:
+    - '355388134'
+    authored_at: '2026-07-22T20:26:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: fix chat settings breadcrumb assertion'
+    section: tests
+    commits:
+    - ca81d3113
+    authored_at: '2026-07-22T20:17:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize landing intro assertion'
+    section: tests
+    commits:
+    - 6a33dcae6
+    authored_at: '2026-07-22T19:32:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: retarget unified detail header spec'
+    section: tests
+    commits:
+    - fd0e3d08c
+    authored_at: '2026-07-22T17:34:08+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-header.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: load all examples for Finance focus check'
+    section: tests
+    commits:
+    - 49b870cf2
+    authored_at: '2026-07-22T16:18:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: load more Finance focus example'
+    section: tests
+    commits:
+    - afb98ebff
+    authored_at: '2026-07-22T16:09:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize Finance focus example search'
+    section: tests
+    commits:
+    - 5c054e19d
+    authored_at: '2026-07-22T15:58:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: select Finance example from sidebar'
+    section: tests
+    commits:
+    - 12f589f4c
+    authored_at: '2026-07-22T15:45:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: navigate focus example via header controls'
+    section: tests
+    commits:
+    - 899beea78
+    authored_at: '2026-07-22T15:36:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: keep focus example chat hash first'
+    section: tests
+    commits:
+    - cad866321
+    authored_at: '2026-07-22T15:26:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: correct Finance example title wait'
+    section: tests
+    commits:
+    - a940dda58
+    authored_at: '2026-07-22T15:17:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize Finance focus example navigation'
+    section: tests
+    commits:
+    - 5d7d0dbc4
+    authored_at: '2026-07-22T15:06:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: export long-chat fixture from active chat'
+    section: tests
+    commits:
+    - 5c280a371
+    authored_at: '2026-07-22T14:30:24+00:00'
+    changed_paths:
+    - docs/specs/long-chat-compression-history/spec.yml
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for long-chat forgotten fade'
+    section: tests
+    commits:
+    - 2d895157f
+    authored_at: '2026-07-22T14:01:25+00:00'
+    changed_paths:
+    - docs/specs/long-chat-compression-history/spec.yml
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert long-chat loaded window size'
+    section: tests
+    commits:
+    - fa31e9a0f
+    authored_at: '2026-07-22T13:39:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add chat settings redesign contract'
+    section: tests
+    commits:
+    - 485fdba90
+    authored_at: '2026-07-22T13:39:27+00:00'
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: harden ci and backend helpers'
+    section: tests
+    commits:
+    - 9271a203e
+    authored_at: '2026-07-22T13:38:25+00:00'
+    changed_paths:
+    - .github/workflows/vitest.yml
+    - backend/tests/test_cache_base.py
+    - backend/tests/test_teams_routes.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover cli finance plans and usage surfaces'
+    section: tests
+    commits:
+    - 45662a73f
+    authored_at: '2026-07-22T13:37:16+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: dismiss security reminder in long-chat history spec'
+    section: tests
+    commits:
+    - 762d9c2bf
+    authored_at: '2026-07-22T13:36:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover projects setup timeout'
+    section: tests
+    commits:
+    - 5bba4b94e
+    authored_at: '2026-07-22T13:05:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align projects nav gate assertion'
+    section: tests
+    commits:
+    - '901026086'
+    authored_at: '2026-07-22T12:56:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: extend projects flow timeout'
+    section: tests
+    commits:
+    - cfbb8d6c1
+    authored_at: '2026-07-22T12:42:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add Vitest window event target stub'
+    section: tests
+    commits:
+    - b058f8249
+    authored_at: '2026-07-22T12:12:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/test-setup.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: include Apple welcome recent chat rows'
+    section: tests
+    commits:
+    - 5b4aae25b
+    authored_at: '2026-07-22T11:54:20+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: restore pdf active chat locator'
+    section: tests
+    commits:
+    - '514163588'
+    authored_at: '2026-07-22T11:53:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for Apple chat sync before rows'
+    section: tests
+    commits:
+    - ce448d6a0
+    authored_at: '2026-07-22T11:49:42+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for chat readiness in send specs'
+    section: tests
+    commits:
+    - d75f96f20
+    authored_at: '2026-07-22T11:22:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    - frontend/apps/web_app/tests/skill-images-generate-safety-upload.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reveal synced chat in encryption spec'
+    section: tests
+    commits:
+    - f7d9dd8bc
+    authored_at: '2026-07-22T10:58:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'build: address security dependency alerts'
+    section: infrastructure
+    commits:
+    - a3c35865d
+    authored_at: '2026-07-22T23:34:33+00:00'
+    changed_paths:
+    - backend/core/api/requirements.txt
+    - backend/preview/requirements.txt
+    - backend/upload/requirements.txt
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: polish finance cash flow example chat'
+    section: infrastructure
+    commits:
+    - e10248e0b
+    authored_at: '2026-07-22T13:38:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/finance-cash-flow-overview.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/finance_cash_flow_overview.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: ignore local tmp and findings artifacts'
+    section: infrastructure
+    commits:
+    - 66924d6da
+    authored_at: '2026-07-22T13:34:01+00:00'
+    changed_paths:
+    - .gitignore
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'feat: add privacy-first local AI example chat'
+    commits:
+    - ba97aefd7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: improve landing intro iPad layout'
+    commits:
+    - ad5b60b91
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add privacy-first local AI example chat'
+    commits:
+    - f5bb22ca8
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'build: address security dependency alerts'
+    commits:
+    - a3c35865d
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: fix chat share evidence placement'
+    commits:
+    - 6cdbdf70d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: hydrate CLI chat history through message windows'
+    commits:
+    - 98540c641
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record chat share flow evidence'
+    commits:
+    - 517ebf292
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add bounded long-chat message windows'
+    commits:
+    - c79041d73
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: block Chinese server provider routes'
+    commits:
+    - a4947c8f3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: fit landing intro on iPad landscape'
+    commits:
+    - b33846293
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: refine landing intro mobile animation'
+    commits:
+    - d51aeb67a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: use dom click for chat share generation'
+    commits:
+    - be2639d27
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: render chat share link before persistence'
+    commits:
+    - 502629ed4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: skip hydrated preview wait in chat share flow'
+    commits:
+    - 462aeeec7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: dispatch chat share copy controls'
+    commits:
+    - 62484ad96
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: refine landing intro rail animation'
+    commits:
+    - 35eb37aa4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: dispatch chat share generation click'
+    commits:
+    - 8125becc2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use share link fallback in chat flow'
+    commits:
+    - d399663fb
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: refine landing intro mobile layout'
+    commits:
+    - 2ec20374e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: dispatch chat share click in flow'
+    commits:
+    - 8b2fbfbaf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: avoid chat share screenshot hangs'
+    commits:
+    - 9ed06ca2f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: skip chat share response screenshot'
+    commits:
+    - 08d5f5fcb
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize chat share settings click'
+    commits:
+    - 571d441b0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record landing intro green evidence'
+    commits:
+    - d8b20a3d4
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: assert chat settings credit count'
+    commits:
+    - '355388134'
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: fix chat settings breadcrumb assertion'
+    commits:
+    - ca81d3113
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: start guest landing intro first'
+    commits:
+    - d2ca5bb4d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add chat settings page'
+    commits:
+    - a05c760b4
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: refine expanded landing intro layout'
+    commits:
+    - a3ac209e1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record landing intro verification'
+    commits:
+    - 057df6ba8
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize landing intro assertion'
+    commits:
+    - 6a33dcae6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add expanded landing intro'
+    commits:
+    - 5d55e594b
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: support Finance sheet embed inputs'
+    commits:
+    - 52f131ec4
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: embed:finance:check_accounts
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+  - title: 'test: retarget unified detail header spec'
+    commits:
+    - fd0e3d08c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prevent detail header edit button overlap'
+    commits:
+    - 5c5fb1b6b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add generated audio transcript titles'
+    commits:
+    - 23d0bdf28
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'docs: record Finance example verification evidence'
+    commits:
+    - 5f47d65c6
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: load all examples for Finance focus check'
+    commits:
+    - 49b870cf2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: load more Finance focus example'
+    commits:
+    - afb98ebff
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize Finance focus example search'
+    commits:
+    - 5c054e19d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: select Finance example from sidebar'
+    commits:
+    - 12f589f4c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: navigate focus example via header controls'
+    commits:
+    - 899beea78
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: keep focus example chat hash first'
+    commits:
+    - cad866321
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: correct Finance example title wait'
+    commits:
+    - a940dda58
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize Finance focus example navigation'
+    commits:
+    - 5d7d0dbc4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: improve Finance example quality'
+    commits:
+    - '252088986'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:finance:check_accounts
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+  - title: 'test: export long-chat fixture from active chat'
+    commits:
+    - 5c280a371
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align Apple keyboard audio recording controls'
+    commits:
+    - 6f4c58b18
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: center compact composer stop button'
+    commits:
+    - 39cd63012
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: mark hydrated compressed exports complete'
+    commits:
+    - f06a96fa4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for long-chat forgotten fade'
+    commits:
+    - 2d895157f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clarify keyboard audio recording controls'
+    commits:
+    - 92ab70b44
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record long-chat deployment evidence'
+    commits:
+    - ae435588e
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record long-chat fixture hardening'
+    commits:
+    - 9b2016227
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: assert long-chat loaded window size'
+    commits:
+    - fa31e9a0f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add chat settings redesign contract'
+    commits:
+    - 485fdba90
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: refresh compliance inventories'
+    commits:
+    - 6196f4e2f
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: harden ci and backend helpers'
+    commits:
+    - 9271a203e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: polish finance cash flow example chat'
+    commits:
+    - e10248e0b
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover cli finance plans and usage surfaces'
+    commits:
+    - 45662a73f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: allow longer issue report titles'
+    commits:
+    - d4561114e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: dismiss security reminder in long-chat history spec'
+    commits:
+    - 762d9c2bf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve chat and task sync metadata'
+    commits:
+    - 4c1d62414
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat: add ideabucket processing settings'
+    commits:
+    - ea00f89fb
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ideabucket
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ideabucket/app.yml
+  - title: 'feat: improve code image-to-html generation'
+    commits:
+    - 6edac50aa
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:code:image_to_html
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'chore: ignore local tmp and findings artifacts'
+    commits:
+    - 66924d6da
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: change audio recording shortcut'
+    commits:
+    - 6f1242343
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: use chat window start for older paging'
+    commits:
+    - '164776556'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record long-chat deploy readiness'
+    commits:
+    - 7e72d4435
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record long-chat history verification attempts'
+    commits:
+    - 08cd00bdd
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover projects setup timeout'
+    commits:
+    - 5bba4b94e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: page older chat history from rendered cursor'
+    commits:
+    - 2506eeb1e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record Apple live chat verification'
+    commits:
+    - fcda623b4
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align projects nav gate assertion'
+    commits:
+    - '901026086'
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: seed long-chat fixture as normal chat'
+    commits:
+    - d5a933f8a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: extend projects flow timeout'
+    commits:
+    - cfbb8d6c1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore long-chat history boundaries'
+    commits:
+    - 63b66e60f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: release workspace nav gates'
+    commits:
+    - 69b2a5c94
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add Vitest window event target stub'
+    commits:
+    - b058f8249
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: suppress notifications for visible chats'
+    commits:
+    - 25652c99c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve assistant category for learning follow-ups'
+    commits:
+    - '787077715'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: dedupe Code Run dependency installs'
+    commits:
+    - 494ad2810
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: include Apple welcome recent chat rows'
+    commits:
+    - 5b4aae25b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: restore pdf active chat locator'
+    commits:
+    - '514163588'
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for Apple chat sync before rows'
+    commits:
+    - ce448d6a0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: trim Apple thinking accessibility labels'
+    commits:
+    - 6fbd38706
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: update Gemini model routing'
+    commits:
+    - d8cf2defc
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+  - title: 'docs: record Apple live chat evidence setup'
+    commits:
+    - 9500b0b9b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize Apple live chat accessibility'
+    commits:
+    - 337b929b5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: wait for chat readiness in send specs'
+    commits:
+    - d75f96f20
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep guest interest tags below prompt'
+    commits:
+    - ed2d1b3f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: reveal synced chat in encryption spec'
+    commits:
+    - f7d9dd8bc
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore audio transcription output safety'
+    commits:
+    - 7a0d7d4cf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stop metadata sync from hiding chats'
+    commits:
+    - 1a8153986
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore IdeaBucket confirmation cache contract'
+    commits:
+    - b808c8b38
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record Finance check accounts evidence'
+    commits:
+    - 36a3f46f4
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+  - title: 'fix: polish Finance check accounts example'
+    commits:
+    - 03b758fce
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:finance:check_accounts
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: support Finance sheet embed inputs'
+    commits:
+    - 52f131ec4
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: embed:finance:check_accounts
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+  - title: 'fix: preserve chat and task sync metadata'
+    commits:
+    - 4c1d62414
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat: add ideabucket processing settings'
+    commits:
+    - ea00f89fb
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ideabucket
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ideabucket/app.yml
+  - title: 'feat: update Gemini model routing'
+    commits:
+    - d8cf2defc
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat: add privacy-first local AI example chat'
+    commits:
+    - ba97aefd7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: improve landing intro iPad layout'
+    commits:
+    - ad5b60b91
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add privacy-first local AI example chat'
+    commits:
+    - f5bb22ca8
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hydrate CLI chat history through message windows'
+    commits:
+    - 98540c641
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add bounded long-chat message windows'
+    commits:
+    - c79041d73
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: fit landing intro on iPad landscape'
+    commits:
+    - b33846293
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refine landing intro mobile animation'
+    commits:
+    - d51aeb67a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: render chat share link before persistence'
+    commits:
+    - 502629ed4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refine landing intro rail animation'
+    commits:
+    - 35eb37aa4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refine landing intro mobile layout'
+    commits:
+    - 2ec20374e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: start guest landing intro first'
+    commits:
+    - d2ca5bb4d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add chat settings page'
+    commits:
+    - a05c760b4
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refine expanded landing intro layout'
+    commits:
+    - a3ac209e1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add expanded landing intro'
+    commits:
+    - 5d55e594b
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: support Finance sheet embed inputs'
+    commits:
+    - 52f131ec4
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: embed:finance:check_accounts
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    newsletter_ready: false
+  - title: 'fix: prevent detail header edit button overlap'
+    commits:
+    - 5c5fb1b6b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add generated audio transcript titles'
+    commits:
+    - 23d0bdf28
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:transcribe
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: improve Finance example quality'
+    commits:
+    - '252088986'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:finance:check_accounts
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    newsletter_ready: false
+  - title: 'fix: align Apple keyboard audio recording controls'
+    commits:
+    - 6f4c58b18
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: center compact composer stop button'
+    commits:
+    - 39cd63012
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: clarify keyboard audio recording controls'
+    commits:
+    - 92ab70b44
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: allow longer issue report titles'
+    commits:
+    - d4561114e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve chat and task sync metadata'
+    commits:
+    - 4c1d62414
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add ideabucket processing settings'
+    commits:
+    - ea00f89fb
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ideabucket
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ideabucket/app.yml
+    newsletter_ready: false
+  - title: 'feat: improve code image-to-html generation'
+    commits:
+    - 6edac50aa
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: skill:code:image_to_html
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'feat: change audio recording shortcut'
+    commits:
+    - 6f1242343
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: use chat window start for older paging'
+    commits:
+    - '164776556'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: page older chat history from rendered cursor'
+    commits:
+    - 2506eeb1e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: seed long-chat fixture as normal chat'
+    commits:
+    - d5a933f8a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore long-chat history boundaries'
+    commits:
+    - 63b66e60f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: suppress notifications for visible chats'
+    commits:
+    - 25652c99c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve assistant category for learning follow-ups'
+    commits:
+    - '787077715'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: dedupe Code Run dependency installs'
+    commits:
+    - 494ad2810
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: trim Apple thinking accessibility labels'
+    commits:
+    - 6fbd38706
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: update Gemini model routing'
+    commits:
+    - d8cf2defc
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix: stabilize Apple live chat accessibility'
+    commits:
+    - 337b929b5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: keep guest interest tags below prompt'
+    commits:
+    - ed2d1b3f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore audio transcription output safety'
+    commits:
+    - 7a0d7d4cf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: polish Finance check accounts example'
+    commits:
+    - 03b758fce
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:finance:check_accounts
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    - id: skill:finance:check_accounts
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:finance
+      source: backend/apps/finance/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: ba97aefd77439a1f0583c8c55a15f5c868dd0f3f
+    short_sha: ba97aefd7
+    authored_at: '2026-07-22T23:45:26+00:00'
+    subject: 'feat: add privacy-first local AI example chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/__tests__/chatHistoryWindowPruning.test.ts
+    - frontend/packages/ui/src/utils/messageWindowPruning.ts
+    related_feature_ids: []
+  - sha: ad5b60b915ca351f1ec3365a86ac18cbfe5d0d49
+    short_sha: ad5b60b91
+    authored_at: '2026-07-22T23:44:36+00:00'
+    subject: 'fix: improve landing intro iPad layout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: f5bb22ca822c9838b3d31b5dcc48bb7dd094945f
+    short_sha: f5bb22ca8
+    authored_at: '2026-07-22T23:39:39+00:00'
+    subject: 'feat: add privacy-first local AI example chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/tests/test_message_received_active_chat.py
+    - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-local-ai-workspace.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/privacy_first_local_ai_workspace.yml
+    related_feature_ids: []
+  - sha: a3c35865dcf79de3c40371b1f92014f6dfa7424a
+    short_sha: a3c35865d
+    authored_at: '2026-07-22T23:34:33+00:00'
+    subject: 'build: address security dependency alerts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/requirements.txt
+    - backend/preview/requirements.txt
+    - backend/upload/requirements.txt
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    related_feature_ids: []
+  - sha: 6cdbdf70ddd8387b0bd4a5fa70eaba8d36e2f6d5
+    short_sha: 6cdbdf70d
+    authored_at: '2026-07-22T23:24:23+00:00'
+    subject: 'docs: fix chat share evidence placement'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    related_feature_ids: []
+  - sha: 98540c64109aa632cf1328df2cffa4e403ea812e
+    short_sha: 98540c641
+    authored_at: '2026-07-22T23:23:04+00:00'
+    subject: 'fix: hydrate CLI chat history through message windows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    related_feature_ids: []
+  - sha: 517ebf2925462b4328efd2a5e6a466e414f891a3
+    short_sha: 517ebf292
+    authored_at: '2026-07-22T23:21:51+00:00'
+    subject: 'docs: record chat share flow evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    related_feature_ids: []
+  - sha: c79041d73d0a9a351a6af32c965d30c6bf423fdf
+    short_sha: c79041d73
+    authored_at: '2026-07-22T23:19:56+00:00'
+    subject: 'feat: add bounded long-chat message windows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/realistic-long-chat-validation/SKILL.md
+    - .claude/skills/realistic-long-chat-validation/SKILL.md
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/tests/test_chat_compression_checkpoint_handler.py
+    - backend/tests/test_chat_compressor.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_native_chats_api.py
+    - backend/tests/test_sdk_chat_fork_rewind.py
+    - backend/tests/test_sdk_chat_recovery.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - backend/tests/test_share_chat_window_loading.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/specs/cli-sdk-chat-fork-rewind/spec.yml
+    - docs/specs/long-chat-compression-history/spec.yml
+    - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    - docs/specs/scalable-chat-message-windowing/spec.yml
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/__tests__/chatHistoryWindowPruning.test.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/utils/messageWindowPruning.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    related_feature_ids:
+    - app:ai
+  - sha: a4947c8f323a10f4a6e4c8f6c85e1491d1dd756e
+    short_sha: a4947c8f3
+    authored_at: '2026-07-22T23:14:53+00:00'
+    subject: 'fix: block Chinese server provider routes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/audit_app_provider_contracts.py
+    - scripts/tests/test_audit_app_provider_contracts.py
+    related_feature_ids: []
+  - sha: b33846293f9608a0fa6e7e59508d55dbeb064810
+    short_sha: b33846293
+    authored_at: '2026-07-22T23:14:40+00:00'
+    subject: 'fix: fit landing intro on iPad landscape'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: d51aeb67ab1b16f482d16c94affac50b63c74d59
+    short_sha: d51aeb67a
+    authored_at: '2026-07-22T22:54:05+00:00'
+    subject: 'fix: refine landing intro mobile animation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: be2639d27e4f0fe6bdf69b2799a4f810800c3d49
+    short_sha: be2639d27
+    authored_at: '2026-07-22T22:53:07+00:00'
+    subject: 'test: use dom click for chat share generation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 502629ed441e0c8c5dfcd3b61e59a957bcdd3a89
+    short_sha: 502629ed4
+    authored_at: '2026-07-22T22:41:55+00:00'
+    subject: 'fix: render chat share link before persistence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    related_feature_ids: []
+  - sha: 462aeeec7821fb8703c28fff0c06efdbfa91c706
+    short_sha: 462aeeec7
+    authored_at: '2026-07-22T22:26:42+00:00'
+    subject: 'test: skip hydrated preview wait in chat share flow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 62484ad96a745490534a08b3b6d02452c75feb9b
+    short_sha: 62484ad96
+    authored_at: '2026-07-22T22:09:48+00:00'
+    subject: 'test: dispatch chat share copy controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 35eb37aa41f23493f87b0dd565c45a1446f5b978
+    short_sha: 35eb37aa4
+    authored_at: '2026-07-22T22:03:30+00:00'
+    subject: 'fix: refine landing intro rail animation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 8125becc2ada4f7726655fd4328da1ab1fcdb272
+    short_sha: 8125becc2
+    authored_at: '2026-07-22T21:58:08+00:00'
+    subject: 'test: dispatch chat share generation click'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: d399663fb9ce9b2340ff787ef02a56de4484bc0f
+    short_sha: d399663fb
+    authored_at: '2026-07-22T21:44:30+00:00'
+    subject: 'test: use share link fallback in chat flow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 2ec20374e115e24037021e994e387bdb9ce3f2c4
+    short_sha: 2ec20374e
+    authored_at: '2026-07-22T21:28:56+00:00'
+    subject: 'fix: refine landing intro mobile layout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 8b2fbfbafed04784be45a6172561a1fbecde6693
+    short_sha: 8b2fbfbaf
+    authored_at: '2026-07-22T21:27:44+00:00'
+    subject: 'test: dispatch chat share click in flow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 9ed06ca2fc5c0bcdce0b95e1e4743107dcef5220
+    short_sha: 9ed06ca2f
+    authored_at: '2026-07-22T21:15:14+00:00'
+    subject: 'test: avoid chat share screenshot hangs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 08d5f5fcb92ed2fe21486826f5d508f5ee671602
+    short_sha: 08d5f5fcb
+    authored_at: '2026-07-22T21:02:34+00:00'
+    subject: 'test: skip chat share response screenshot'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 571d441b0e468fbe009f8386fe5a223630cbf48a
+    short_sha: 571d441b0
+    authored_at: '2026-07-22T20:49:42+00:00'
+    subject: 'test: stabilize chat share settings click'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: d8b20a3d4e049b56ab94f577e0f629939b3cd382
+    short_sha: d8b20a3d4
+    authored_at: '2026-07-22T20:37:01+00:00'
+    subject: 'docs: record landing intro green evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    related_feature_ids: []
+  - sha: 355388134c9dba279573d45cc9c52e844cbf7247
+    short_sha: '355388134'
+    authored_at: '2026-07-22T20:26:44+00:00'
+    subject: 'test: assert chat settings credit count'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    related_feature_ids: []
+  - sha: ca81d31138f2a3b7d6172d4d59a4913152eb35f5
+    short_sha: ca81d3113
+    authored_at: '2026-07-22T20:17:34+00:00'
+    subject: 'test: fix chat settings breadcrumb assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    related_feature_ids: []
+  - sha: d2ca5bb4d96c100299c3f20354f42b9fca1354bb
+    short_sha: d2ca5bb4d
+    authored_at: '2026-07-22T20:16:34+00:00'
+    subject: 'fix: start guest landing intro first'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: a05c760b495334fd618820fbe1fce12e7c72a66f
+    short_sha: a05c760b4
+    authored_at: '2026-07-22T20:08:39+00:00'
+    subject: 'feat: add chat settings page'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/chats/ChatDetailsSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+    - frontend/packages/ui/src/components/chats/chatSettingsFiles.ts
+    - frontend/packages/ui/src/components/chats/chatUsageRows.ts
+    - frontend/packages/ui/src/components/settings/ChatSettingsHeader.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsTabs.svelte
+    - frontend/packages/ui/src/stores/chatSettingsStore.ts
+    related_feature_ids: []
+  - sha: a3ac209e1b3d8cce6498fd240e6aad16cf1d9808
+    short_sha: a3ac209e1
+    authored_at: '2026-07-22T19:57:12+00:00'
+    subject: 'fix: refine expanded landing intro layout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 057df6ba818883a5587e743105f238276db982bd
+    short_sha: 057df6ba8
+    authored_at: '2026-07-22T19:41:28+00:00'
+    subject: 'docs: record landing intro verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    related_feature_ids: []
+  - sha: 6a33dcae663f730eae2cb768d45dd45dfa62b6d8
+    short_sha: 6a33dcae6
+    authored_at: '2026-07-22T19:32:13+00:00'
+    subject: 'test: stabilize landing intro assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    related_feature_ids: []
+  - sha: 5d55e594bb0b1f6186c192bd95ee8cee918075b7
+    short_sha: 5d55e594b
+    authored_at: '2026-07-22T19:19:48+00:00'
+    subject: 'feat: add expanded landing intro'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    related_feature_ids: []
+  - sha: 52f131ec42174e658d792f1fa9b392b756621239
+    short_sha: 52f131ec4
+    authored_at: '2026-07-22T18:54:27+00:00'
+    subject: 'feat: support Finance sheet embed inputs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/base_app.py
+    - backend/apps/finance/app.yml
+    - backend/apps/finance/skills/check_accounts.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_finance_check_accounts_skill.py
+    - backend/tests/test_finance_privacy_redaction.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_sdk_chat_recovery.py
+    - docs/specs/finance-check-accounts-v1/spec.yml
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedPreview.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/finance-cash-flow-overview.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/finance_cash_flow_overview.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids:
+    - app:ai
+    - app:finance
+    - embed:finance:check_accounts
+    - skill:finance:check_accounts
+  - sha: fd0e3d08c8e4b31b5c229ff9d8c246451047bdc0
+    short_sha: fd0e3d08c
+    authored_at: '2026-07-22T17:34:08+00:00'
+    subject: 'test: retarget unified detail header spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-header.spec.ts
+    related_feature_ids: []
+  - sha: 5c5fb1b6bab7b76353a602e90f2dd3a046bf8e42
+    short_sha: 5c5fb1b6b
+    authored_at: '2026-07-22T17:04:52+00:00'
+    subject: 'fix: prevent detail header edit button overlap'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-header.spec.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
+    related_feature_ids: []
+  - sha: 23d0bdf289fac15a12c154964b82253ca9d4c3c4
+    short_sha: 23d0bdf28
+    authored_at: '2026-07-22T17:03:51+00:00'
+    subject: 'feat: add generated audio transcript titles'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/scripts/test_audio_transcript_correction_real.py
+    - backend/tests/test_audio_transcribe_ascii_sanitization.py
+    - backend/tests/test_transcribe_skill.py
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/RecordingRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-transcribe-voice-note.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    related_feature_ids:
+    - app:audio
+    - embed:audio:recording
+    - embed:audio:transcribe
+    - skill:audio:transcribe
+  - sha: 5f47d65c69e343fa8aef55afdf7f4fdc449aa757
+    short_sha: 5f47d65c6
+    authored_at: '2026-07-22T16:33:34+00:00'
+    subject: 'docs: record Finance example verification evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/finance-example-quality/spec.yml
+    related_feature_ids: []
+  - sha: 49b870cf253e1d3e3638b75e89fa5252ce38076c
+    short_sha: 49b870cf2
+    authored_at: '2026-07-22T16:18:35+00:00'
+    subject: 'test: load all examples for Finance focus check'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    related_feature_ids: []
+  - sha: afb98ebff28555740588d7cc144b2652fd070ad4
+    short_sha: afb98ebff
+    authored_at: '2026-07-22T16:09:19+00:00'
+    subject: 'test: load more Finance focus example'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    related_feature_ids: []
+  - sha: 5c054e19def28196b0666062a59b46d331f4f10c
+    short_sha: 5c054e19d
+    authored_at: '2026-07-22T15:58:20+00:00'
+    subject: 'test: stabilize Finance focus example search'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    related_feature_ids: []
+  - sha: 12f589f4ca0a9263636900fd16750e5f859e048a
+    short_sha: 12f589f4c
+    authored_at: '2026-07-22T15:45:36+00:00'
+    subject: 'test: select Finance example from sidebar'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    related_feature_ids: []
+  - sha: 899beea7889de61326ca50a8815fc79ef13f9f5e
+    short_sha: 899beea78
+    authored_at: '2026-07-22T15:36:11+00:00'
+    subject: 'test: navigate focus example via header controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    related_feature_ids: []
+  - sha: cad86632163cff79926b7239fdd7f8837a116a76
+    short_sha: cad866321
+    authored_at: '2026-07-22T15:26:11+00:00'
+    subject: 'test: keep focus example chat hash first'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    related_feature_ids: []
+  - sha: a940dda585035646a340329d5b3f0f870c780940
+    short_sha: a940dda58
+    authored_at: '2026-07-22T15:17:03+00:00'
+    subject: 'test: correct Finance example title wait'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    related_feature_ids: []
+  - sha: 5d7d0dbc481ed550ce5986c2544b5251332a8372
+    short_sha: 5d7d0dbc4
+    authored_at: '2026-07-22T15:06:28+00:00'
+    subject: 'test: stabilize Finance focus example navigation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 25208898686fa524072f3e034f20c9eb65fefc85
+    short_sha: '252088986'
+    authored_at: '2026-07-22T14:46:55+00:00'
+    subject: 'fix: improve Finance example quality'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_finance_privacy_redaction.py
+    - docs/specs/finance-example-quality/spec.yml
+    - frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+    - frontend/packages/ui/src/components/embeds/finance/financeCheckAccountsContent.ts
+    related_feature_ids:
+    - embed:finance:check_accounts
+  - sha: 5c280a37169241998b41029491a974077a1c77bb
+    short_sha: 5c280a371
+    authored_at: '2026-07-22T14:30:24+00:00'
+    subject: 'test: export long-chat fixture from active chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/long-chat-compression-history/spec.yml
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 6f4c58b182d8490d96da56e5fa4fdf4859989ee2
+    short_sha: 6f4c58b18
+    authored_at: '2026-07-22T14:28:27+00:00'
+    subject: 'fix: align Apple keyboard audio recording controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 39cd63012e2237735f31e5abe8038cd4a4f60817
+    short_sha: 39cd63012
+    authored_at: '2026-07-22T14:23:50+00:00'
+    subject: 'fix: center compact composer stop button'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    related_feature_ids: []
+  - sha: f06a96fa4011383f83c18ba12d81cb1aea764295
+    short_sha: f06a96fa4
+    authored_at: '2026-07-22T14:16:22+00:00'
+    subject: 'fix: mark hydrated compressed exports complete'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/long-chat-compression-history/spec.yml
+    - frontend/packages/ui/src/services/__tests__/chatExportService.test.ts
+    - frontend/packages/ui/src/services/chatExportService.ts
+    related_feature_ids: []
+  - sha: 2d895157fc9ffd53b1266e624ca73acf00da5b31
+    short_sha: 2d895157f
+    authored_at: '2026-07-22T14:01:25+00:00'
+    subject: 'test: wait for long-chat forgotten fade'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/long-chat-compression-history/spec.yml
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    related_feature_ids: []
+  - sha: 92ab70b448b37f747d1ba05230b5877379ede7af
+    short_sha: 92ab70b44
+    authored_at: '2026-07-22T13:59:15+00:00'
+    subject: 'fix: clarify keyboard audio recording controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/KeyboardShortcuts.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/placeholder.yml
+    - frontend/packages/ui/src/i18n/sources/enter_message/record_audio.yml
+    - frontend/packages/ui/src/utils/platform.ts
+    related_feature_ids: []
+  - sha: ae435588e33a92a7f3cc96ca4dee3457b1509302
+    short_sha: ae435588e
+    authored_at: '2026-07-22T13:50:18+00:00'
+    subject: 'docs: record long-chat deployment evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/long-chat-compression-history/spec.yml
+    related_feature_ids: []
+  - sha: 9b2016227414888abab3bce3befc5a683c31358e
+    short_sha: 9b2016227
+    authored_at: '2026-07-22T13:43:42+00:00'
+    subject: 'docs: record long-chat fixture hardening'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/long-chat-compression-history/spec.yml
+    related_feature_ids: []
+  - sha: fa31e9a0f83d620f63bf2a46bffa675509082c43
+    short_sha: fa31e9a0f
+    authored_at: '2026-07-22T13:39:27+00:00'
+    subject: 'test: assert long-chat loaded window size'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    related_feature_ids: []
+  - sha: 485fdba901e163fe42967c5280f4beeacb556584
+    short_sha: 485fdba90
+    authored_at: '2026-07-22T13:39:27+00:00'
+    subject: 'test: add chat settings redesign contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/chat-settings-redesign/spec.yml
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    related_feature_ids: []
+  - sha: 6196f4e2f9585422f3271a3dd1fd1ceb814ca156
+    short_sha: 6196f4e2f
+    authored_at: '2026-07-22T13:38:38+00:00'
+    subject: 'docs: refresh compliance inventories'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    related_feature_ids: []
+  - sha: 9271a203e07278831b6873c786238585fe9128f2
+    short_sha: 9271a203e
+    authored_at: '2026-07-22T13:38:25+00:00'
+    subject: 'test: harden ci and backend helpers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/vitest.yml
+    - backend/tests/test_cache_base.py
+    - backend/tests/test_teams_routes.py
+    related_feature_ids: []
+  - sha: e10248e0b6ba4010977afa7932b4df5ec843eae4
+    short_sha: e10248e0b
+    authored_at: '2026-07-22T13:38:04+00:00'
+    subject: 'chore: polish finance cash flow example chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/finance-cash-flow-overview.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/finance_cash_flow_overview.yml
+    related_feature_ids: []
+  - sha: 45662a73f542e19f35c1d1eee7c551f26684b6f2
+    short_sha: 45662a73f
+    authored_at: '2026-07-22T13:37:16+00:00'
+    subject: 'test: cover cli finance plans and usage surfaces'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: d4561114e8c95be7cbba7082af320d4cb28cfc85
+    short_sha: d4561114e
+    authored_at: '2026-07-22T13:36:35+00:00'
+    subject: 'fix: allow longer issue report titles'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    related_feature_ids: []
+  - sha: 762d9c2bf33c8a1dd927106cb87dc9d989ceff46
+    short_sha: 762d9c2bf
+    authored_at: '2026-07-22T13:36:11+00:00'
+    subject: 'test: dismiss security reminder in long-chat history spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    related_feature_ids: []
+  - sha: 4c1d62414c13ce42a1bf202418f5c32269e268ba
+    short_sha: 4c1d62414
+    authored_at: '2026-07-22T13:36:04+00:00'
+    subject: 'fix: preserve chat and task sync metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/core/api/app/services/user_task_update_job_service.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_task_update_jobs.py
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids:
+    - platform:tasks
+  - sha: ea00f89fb5d1c2704b8b0d012e6cfafac15207e6
+    short_sha: ea00f89fb
+    authored_at: '2026-07-22T13:35:15+00:00'
+    subject: 'feat: add ideabucket processing settings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ideabucket/app.yml
+    - backend/core/api/app/routes/ideabucket.py
+    - backend/tests/test_ideabucket_processing_window_cache.py
+    - backend/tests/test_ideabucket_scheduled_send.py
+    - frontend/packages/openmates-cli/tests/ideabucket.test.ts
+    - frontend/packages/ui/src/i18n/sources/settings/app_settings_memories.yml
+    - scripts/sdk_cli_parity_live_smoke.py
+    related_feature_ids:
+    - app:ideabucket
+  - sha: 6edac50aa396dbfad77cdf5f12775089fc960a64
+    short_sha: 6edac50aa
+    authored_at: '2026-07-22T13:34:15+00:00'
+    subject: 'feat: improve code image-to-html generation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/base_app.py
+    - backend/apps/code/skills/image_to_html_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/workflow_capabilities.yml
+    - backend/shared/providers/e2b_html_renderer.py
+    - backend/shared/providers/image_to_html_generator.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_code_image_to_html_skill.py
+    - backend/tests/test_e2b_image_to_html_renderer.py
+    - backend/tests/test_image_to_html_generator.py
+    - backend/tests/test_openai_compatible_tools_contract.py
+    - docs/specs/code-image-to-html/spec.yml
+    - scripts/eval_code_image_to_html.py
+    related_feature_ids:
+    - app:code
+    - platform:workflows
+    - skill:code:image_to_html
+  - sha: 66924d6da1480f0de0b257f48be25473dd4ad225
+    short_sha: 66924d6da
+    authored_at: '2026-07-22T13:34:01+00:00'
+    subject: 'chore: ignore local tmp and findings artifacts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .gitignore
+    related_feature_ids: []
+  - sha: 6f1242343c88bd914d31baba80fc8693196dc3b6
+    short_sha: 6f1242343
+    authored_at: '2026-07-22T13:33:35+00:00'
+    subject: 'feat: change audio recording shortcut'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/KeyboardShortcuts.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/keyboardShortcutHandler.ts
+    - frontend/packages/ui/src/i18n/sources/enter_message/placeholder.yml
+    related_feature_ids: []
+  - sha: 16477655684c1e67fed8d225b81ea9756091b0e2
+    short_sha: '164776556'
+    authored_at: '2026-07-22T13:24:55+00:00'
+    subject: 'fix: use chat window start for older paging'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 7e72d443559e5facffbb79106e403b510f99f4e9
+    short_sha: 7e72d4435
+    authored_at: '2026-07-22T13:10:28+00:00'
+    subject: 'docs: record long-chat deploy readiness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/long-chat-compression-history/spec.yml
+    related_feature_ids: []
+  - sha: 08cd00bdd6fb3a6bd43b575c0b568cfd125d749e
+    short_sha: 08cd00bdd
+    authored_at: '2026-07-22T13:07:01+00:00'
+    subject: 'docs: record long-chat history verification attempts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/long-chat-compression-history/spec.yml
+    related_feature_ids: []
+  - sha: 5bba4b94eca1bc2ecac162f59ec4bf77a5f6a282
+    short_sha: 5bba4b94e
+    authored_at: '2026-07-22T13:05:25+00:00'
+    subject: 'test: cover projects setup timeout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    related_feature_ids: []
+  - sha: 2506eeb1eabcc9887912365676fecd796d7867c6
+    short_sha: 2506eeb1e
+    authored_at: '2026-07-22T13:04:17+00:00'
+    subject: 'fix: page older chat history from rendered cursor'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: fcda623b49d8b00d189e584cd1a1448a97d4c69b
+    short_sha: fcda623b4
+    authored_at: '2026-07-22T13:03:06+00:00'
+    subject: 'docs: record Apple live chat verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-live-chat-accessibility-fixes/spec.yml
+    related_feature_ids: []
+  - sha: 90102608606b080827aa3db9ea6392940419641d
+    short_sha: '901026086'
+    authored_at: '2026-07-22T12:56:13+00:00'
+    subject: 'test: align projects nav gate assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    related_feature_ids: []
+  - sha: d5a933f8a2dcf87c6e349f6197ab4f5157438808
+    short_sha: d5a933f8a
+    authored_at: '2026-07-22T12:43:28+00:00'
+    subject: 'fix: seed long-chat fixture as normal chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    related_feature_ids: []
+  - sha: cfbb8d6c1b28f321de8aba86592e5a77db17c4f9
+    short_sha: cfbb8d6c1
+    authored_at: '2026-07-22T12:42:05+00:00'
+    subject: 'test: extend projects flow timeout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    related_feature_ids: []
+  - sha: 63b66e60f242417625595522b784f183c287980b
+    short_sha: 63b66e60f
+    authored_at: '2026-07-22T12:25:29+00:00'
+    subject: 'fix: restore long-chat history boundaries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+    - backend/core/api/app/routes/share.py
+    - backend/tests/test_chat_compression_checkpoint_handler.py
+    - backend/tests/test_chat_compressor.py
+    - backend/tests/test_share_chat_window_loading.py
+    - docs/specs/long-chat-compression-history/spec.yml
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/__tests__/chatExportService.test.ts
+    - frontend/packages/ui/src/services/chatExportService.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 69b2a5c94ace09045964e70907667b727ee678f4
+    short_sha: 69b2a5c94
+    authored_at: '2026-07-22T12:23:53+00:00'
+    subject: 'fix: release workspace nav gates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/config/__tests__/workspaceFeatureGates.test.ts
+    - frontend/packages/ui/src/config/workspaceFeatureGates.ts
+    related_feature_ids: []
+  - sha: b058f8249f1ecdeb07bc9837784e976029c920fc
+    short_sha: b058f8249
+    authored_at: '2026-07-22T12:12:22+00:00'
+    subject: 'test: add Vitest window event target stub'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/test-setup.ts
+    related_feature_ids: []
+  - sha: 25652c99cac04f01025aa81e960ba60b1fc3fa62
+    short_sha: 25652c99c
+    authored_at: '2026-07-22T12:11:49+00:00'
+    subject: 'fix: suppress notifications for visible chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/background-chat-notification.spec.ts
+    - frontend/packages/ui/src/components/ChatMessageNotification.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatNotificationVisibility.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersWebhooks.ts
+    related_feature_ids: []
+  - sha: 7870777157274434d29ef7c300c6338bef0aa89d
+    short_sha: '787077715'
+    authored_at: '2026-07-22T11:58:11+00:00'
+    subject: 'fix: preserve assistant category for learning follow-ups'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    related_feature_ids:
+    - app:ai
+  - sha: 494ad2810d55a3dabde6d6ef2d0c523da31ae716
+    short_sha: 494ad2810
+    authored_at: '2026-07-22T11:57:37+00:00'
+    subject: 'fix: dedupe Code Run dependency installs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/code_execution.py
+    - backend/tests/test_code_execution.py
+    related_feature_ids: []
+  - sha: 5b4aae25b4c696676f1ac2e374b4aeeb626ba949
+    short_sha: 5b4aae25b
+    authored_at: '2026-07-22T11:54:20+00:00'
+    subject: 'test: include Apple welcome recent chat rows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 5141635883d6c6b8356ebfc1a585c18d1adac036
+    short_sha: '514163588'
+    authored_at: '2026-07-22T11:53:44+00:00'
+    subject: 'test: restore pdf active chat locator'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    related_feature_ids: []
+  - sha: ce448d6a0cc85d32e8b58addbde33814c0ecf61c
+    short_sha: ce448d6a0
+    authored_at: '2026-07-22T11:49:42+00:00'
+    subject: 'test: wait for Apple chat sync before rows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6fbd38706e048ff65e2d4cff927b0414ed1e4ace
+    short_sha: 6fbd38706
+    authored_at: '2026-07-22T11:36:22+00:00'
+    subject: 'fix: trim Apple thinking accessibility labels'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d8cf2defcdaf1ed157e88fa653c6ebcecac8fb7b
+    short_sha: d8cf2defc
+    authored_at: '2026-07-22T11:33:51+00:00'
+    subject: 'feat: update Gemini model routing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/testing/fixtures/focus_career_1.json
+    - backend/apps/ai/testing/fixtures/focus_career_2.json
+    - backend/apps/ai/utils/model_selector.py
+    - backend/apps/code/app.yml
+    - backend/data/models_leaderboard.yml
+    - backend/providers/google.yml
+    - backend/scripts/test_gemini_ai_studio_models.py
+    - backend/shared/providers/image_to_html_generator.py
+    - backend/tests/test_code_image_to_html_billing.py
+    - backend/tests/test_image_to_html_generator.py
+    - backend/tests/test_model_selection.py
+    - backend/tests/test_workspace_ask_pipeline.py
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/ui/src/utils/__tests__/modelDisplayName.test.ts
+    - frontend/packages/ui/src/utils/modelDisplayName.ts
+    - shared/config/costs.yml
+    related_feature_ids:
+    - app:ai
+    - app:code
+  - sha: 9500b0b9b9132da78c16ac4e0650ff9ba6d32287
+    short_sha: 9500b0b9b
+    authored_at: '2026-07-22T11:29:48+00:00'
+    subject: 'docs: record Apple live chat evidence setup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-live-chat-accessibility-fixes/spec.yml
+    related_feature_ids: []
+  - sha: 337b929b543be7a8d8dd13aa13e43f04ed477a30
+    short_sha: 337b929b5
+    authored_at: '2026-07-22T11:23:35+00:00'
+    subject: 'fix: stabilize Apple live chat accessibility'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatWindowLoadingTests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - docs/specs/apple-live-chat-accessibility-fixes/spec.yml
+    - scripts/apple_ui_contracts.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d75f96f2065fb49487eed24f8ac78916f8c6a825
+    short_sha: d75f96f20
+    authored_at: '2026-07-22T11:22:39+00:00'
+    subject: 'test: wait for chat readiness in send specs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    - frontend/apps/web_app/tests/skill-images-generate-safety-upload.spec.ts
+    related_feature_ids: []
+  - sha: ed2d1b3f590d968679f4ff08e8ea6c9037b9f7a3
+    short_sha: ed2d1b3f5
+    authored_at: '2026-07-22T11:06:10+00:00'
+    subject: 'fix: keep guest interest tags below prompt'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+    short_sha: f7d9dd8bc
+    authored_at: '2026-07-22T10:58:50+00:00'
+    subject: 'test: reveal synced chat in encryption spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    related_feature_ids: []
+  - sha: 7a0d7d4cff283d62e77bc9e50e84ecb2366ae1b1
+    short_sha: 7a0d7d4cf
+    authored_at: '2026-07-22T10:52:19+00:00'
+    subject: 'fix: restore audio transcription output safety'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_app_skill_rest_context.py
+    related_feature_ids: []
+  - sha: 1a81539866262347c2d4db2450ebd66009ec790a
+    short_sha: 1a8153986
+    authored_at: '2026-07-22T10:38:23+00:00'
+    subject: 'fix: stop metadata sync from hiding chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    related_feature_ids: []
+  - sha: b808c8b381a7e333e17f9b6e2bf6613bb721d792
+    short_sha: b808c8b38
+    authored_at: '2026-07-22T10:20:13+00:00'
+    subject: 'fix: restore IdeaBucket confirmation cache contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/cache_chat_mixin.py
+    related_feature_ids: []
+  - sha: 36a3f46f4009005ff068cb47265bfcc5b403f9eb
+    short_sha: 36a3f46f4
+    authored_at: '2026-07-22T01:31:27+00:00'
+    subject: 'docs: record Finance check accounts evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/finance-check-accounts-v1/spec.yml
+    related_feature_ids:
+    - skill:finance:check_accounts
+  - sha: 03b758fcec7649cda75f63e5e26588916b06056f
+    short_sha: 03b758fce
+    authored_at: '2026-07-22T01:18:27+00:00'
+    subject: 'fix: polish Finance check accounts example'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/providers/revolut_business.yml
+    - frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedPreview.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/finance-cash-flow-overview.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/finance_cash_flow_overview.yml
+    - frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - frontend/packages/ui/src/styles/icons.css
+    - frontend/packages/ui/src/utils/iconNameResolver.ts
+    - frontend/packages/ui/static/icons/finance.svg
+    - frontend/packages/ui/static/icons/revolut_business.svg
+    related_feature_ids:
+    - embed:finance:check_accounts
+    - skill:finance:check_accounts
+llm_summary:
+  overview: OpenMates focused on significant architectural and UI improvements for long-form chat history, the Finance application,
+    and the guest onboarding experience. Key updates include the introduction of bounded message windows for scalable chat
+    history, enhanced Finance sheet embeds, and a refreshed landing page intro. All updates are currently in development.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: OpenMates added bounded message windows and history compression to support scalable long-form chats across the web
+      app and CLI.
+    evidence:
+      commits:
+      - c79041d73
+      - 98540c641
+      - '164776556'
+      - 2506eeb1e
+      - 63b66e60f
+    release_status: dev_only
+  - text: The Finance app now supports sheet embed inputs and features improved account check examples.
+    evidence:
+      commits:
+      - 52f131ec4
+      - '252088986'
+      - 03b758fce
+    release_status: dev_only
+  - text: A refreshed landing page intro was implemented with expanded animations and optimized layouts for mobile and iPad.
+    evidence:
+      commits:
+      - 5d55e594b
+      - ad5b60b91
+      - b33846293
+      - d51aeb67a
+      - 35eb37aa4
+      - 2ec20374e
+      - d2ca5bb4d
+    release_status: dev_only
+  - text: A new chat settings page was added, and chat share link rendering was improved to ensure links are visible before
+      persistence.
+    evidence:
+      commits:
+      - a05c760b4
+      - 502629ed4
+    release_status: dev_only
+  - text: Audio features were enhanced with generated transcript titles, a new recording shortcut, and clarified keyboard
+      controls.
+    evidence:
+      commits:
+      - 23d0bdf28
+      - 6f1242343
+      - 92ab70b44
+    release_status: dev_only
+  - text: AI capabilities were updated with improved image-to-HTML generation, refined Gemini model routing, and new IdeaBucket
+      processing settings.
+    evidence:
+      commits:
+      - 6edac50aa
+      - d8cf2defc
+      - ea00f89fb
+    release_status: dev_only
+  - text: Accessibility and recording controls were stabilized for the unreleased iOS and macOS platforms.
+    evidence:
+      commits:
+      - 337b929b5
+      - 6f4c58b18
+      - 6fbd38706
+    release_status: dev_only
+  internal_progress:
+  - text: Security dependency alerts were addressed across backend and frontend packages.
+    evidence:
+      commits:
+      - a3c35865d
+    release_status: dev_only
+  - text: Audit scripts now block specific Chinese server provider routes.
+    evidence:
+      commits:
+      - a4947c8f3
+    release_status: dev_only
+  - text: Internal synchronization logic was refined for workspace navigation gates, IdeaBucket cache contracts, and chat
+      metadata.
+    evidence:
+      commits:
+      - 69b2a5c94
+      - b808c8b38
+      - 1a8153986
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Bounded long-chat message windows and history compression.
+      evidence:
+        commits:
+        - c79041d73
+        - 63b66e60f
+      reason: Feature is currently in development and not yet released to the main branch.
+    - text: Finance app sheet embed inputs and account check improvements.
+      evidence:
+        commits:
+        - 52f131ec4
+        - 03b758fce
+      reason: Feature is currently in development and not yet released to the main branch.
+    - text: Expanded landing page onboarding and intro animations.
+      evidence:
+        commits:
+        - 5d55e594b
+        - a3ac209e1
+      reason: Feature is currently in development and not yet released to the main branch.
+    - text: iOS and macOS accessibility and recording control updates.
+      evidence:
+        commits:
+        - 337b929b5
+        - 6f4c58b18
+      reason: Apple platform support is currently disabled and unreleased.
+    rationale: All user-facing changes from this period are currently in development (dev_only) and have not been merged to
+      the main branch for public release.
+  social_video_recommendations:
+  - idea: Showcase the new landing page onboarding flow and animations.
+    priority: medium
+    reason: The refreshed landing intro features new animations and a more engaging guest experience that is highly visual.
+    evidence:
+      commits:
+      - 5d55e594b
+      - d51aeb67a
+      - 35eb37aa4
+  - idea: Demonstrate the Finance app's ability to process sheet embed inputs.
+    priority: low
+    reason: The Finance app updates provide a concrete example of skill-based data processing within the chat interface.
+    evidence:
+      commits:
+      - 52f131ec4
+      - 03b758fce
+  quality_notes:
+  - Extensive test coverage was added for the new chat settings flow and long-chat history boundaries.
+  - Accessibility audits were performed for live chat components on Apple platforms.
+  validation_warnings: []

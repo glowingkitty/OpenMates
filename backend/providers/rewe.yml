@@ -10,6 +10,12 @@ logo_svg: "icons/rewe.svg"
 region: "EU" # REWE HQ is in Cologne, Germany
 privacy_policy: "https://www.rewe.de/service/datenschutz/"
 
+optional_keys:
+  - env_key: "SECRET__REWE__COOKIE_POOL"
+    vault_path: "kv/data/providers/rewe"
+    vault_key: "cookie_pool"
+    description: "Optional harvested browser cookie pool for REWE pricing sessions."
+
 
 # API access
 # REWE product search uses a Playwright-harvested cookie pool stored in Vault.

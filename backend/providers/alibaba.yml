@@ -8,6 +8,16 @@ description: "Alibaba Cloud AI - Qwen models"
 logo_svg: "logos/alibaba.svg"
 privacy_policy: "https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-privacy-policy"
 
+optional_keys:
+  - env_key: "SECRET__CEREBRAS__API_KEY"
+    vault_path: "kv/data/providers/cerebras"
+    vault_key: "api_key"
+    description: "Optional Cerebras gateway key for Qwen model hosting."
+  - env_key: "SECRET__OPENROUTER__API_KEY"
+    vault_path: "kv/data/providers/openrouter"
+    vault_key: "api_key"
+    description: "Optional OpenRouter fallback key for Qwen model hosting."
+
 models:
   - id: "qwen3-235b-a22b-2507"
     name: "Qwen 3 256b"

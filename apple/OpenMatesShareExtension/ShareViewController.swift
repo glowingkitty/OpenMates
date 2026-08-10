@@ -13,7 +13,6 @@
 
 import UIKit
 import UniformTypeIdentifiers
-import WebKit
 
 final class ShareViewController: UIViewController {
     fileprivate enum Layout {
@@ -50,81 +49,91 @@ final class ShareViewController: UIViewController {
     private let previewLabel = UILabel()
     private let messageComposerView = UIView()
     private let messageFieldView = UIView()
-    private lazy var messageEditorWebView: WKWebView = {
-        let contentController = WKUserContentController()
-        contentController.add(self, name: "openmatesComposer")
-        let configuration = WKWebViewConfiguration()
-        configuration.userContentController = contentController
-        let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.navigationDelegate = self
-        webView.isOpaque = false
-        webView.backgroundColor = .clear
-        webView.scrollView.backgroundColor = .clear
-        webView.scrollView.isScrollEnabled = false
-        webView.accessibilityIdentifier = "message-editor"
-        webView.accessibilityLabel = "Message editor"
-        return webView
+    private let composerSession = NativeComposerSession()
+    private lazy var composerAdapter: NativeComposerTextView = {
+        NativeComposerTextView(
+            controller: composerSession.controller,
+            accessibilityLabel: "Message editor",
+            accessibilityHint: "Add instructions to the shared content.",
+            embedAccessibilityLabel: { node in node.display?.title ?? "Shared attachment" },
+            embedAccessibilityActions: { _ in [] },
+            onCanonicalMarkdownChange: { [weak self] markdown in
+                self?.composerSession.publishControllerState(canonicalMarkdown: markdown)
+                self?.updateSendButtonState()
+            },
+            onFocusChange: { _ in },
+            onSubmit: { [weak self] in self?.sendTapped() },
+            accessibilityIdentifier: "share-extension-message-input"
+        )
+    }()
+    private lazy var messageEditorTextView: UITextView = {
+        let textView = composerAdapter.makePlatformView()
+        textView.backgroundColor = .clear
+        textView.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 48, right: 12)
+        return textView
     }()
     private let newChatButton = UIButton(type: .system)
     private let chatTableView = UITableView(frame: .zero, style: .plain)
     private let statusLabel = UILabel()
     private let spinner = UIActivityIndicatorView(style: .medium)
     private var tableHeightConstraint: NSLayoutConstraint?
-    private var messageText = ""
-    private var isMessageEditorReady = false
 
     private struct SharedPart {
+        let inputIndex: Int
         let text: String
         let isURL: Bool
     }
 
     private struct SharedAttachment {
+        let inputIndex: Int
         let data: Data
         let filename: String
         let contentType: String
+
+        var nodeID: String { "share:attachment:\(inputIndex)" }
     }
 
     private final class SharedPartCollector: @unchecked Sendable {
-        private var parts: [SharedPart] = []
-        private var attachments: [SharedAttachment] = []
-        private var unsupported: [String] = []
+        private var parts: [Int: SharedPart] = [:]
+        private var attachments: [Int: SharedAttachment] = [:]
+        private var unsupported: [Int: String] = [:]
         private let lock = NSLock()
 
-        func append(_ part: SharedPart) {
+        func append(_ part: SharedPart, at inputIndex: Int) {
             lock.lock()
-            parts.append(part)
+            parts[inputIndex] = part
             lock.unlock()
         }
 
-        func append(_ attachment: SharedAttachment) {
+        func append(_ attachment: SharedAttachment, at inputIndex: Int) {
             lock.lock()
-            attachments.append(attachment)
+            attachments[inputIndex] = attachment
             lock.unlock()
         }
 
-        func appendUnsupported(_ filename: String) {
+        func appendUnsupported(_ filename: String, at inputIndex: Int) {
             lock.lock()
-            unsupported.append(filename)
+            unsupported[inputIndex] = filename
             lock.unlock()
         }
 
         func values() -> [SharedPart] {
             lock.lock()
-            let snapshot = parts
+            let snapshot = parts.keys.sorted().compactMap { parts[$0] }
             lock.unlock()
             return snapshot
         }
 
         func attachmentValues() -> [SharedAttachment] {
             lock.lock()
-            let snapshot = attachments
+            let snapshot = attachments.keys.sorted().compactMap { attachments[$0] }
             lock.unlock()
             return snapshot
         }
 
         func unsupportedValues() -> [String] {
             lock.lock()
-            let snapshot = unsupported
+            let snapshot = unsupported.keys.sorted().compactMap { unsupported[$0] }
             lock.unlock()
             return snapshot
         }
@@ -262,14 +271,14 @@ final class ShareViewController: UIViewController {
         messageFieldView.layer.shadowOpacity = 0.08
         messageFieldView.layer.shadowRadius = 12
         messageFieldView.layer.shadowOffset = CGSize(width: 0, height: 4)
-        messageEditorWebView.translatesAutoresizingMaskIntoConstraints = false
+        messageEditorTextView.translatesAutoresizingMaskIntoConstraints = false
         messageFieldView.translatesAutoresizingMaskIntoConstraints = false
         sendButton.backgroundColor = .omButtonPrimary
         sendButton.tintColor = .white
         sendButton.layer.cornerRadius = 20
         sendButton.contentEdgeInsets = UIEdgeInsets(top: 6, left: 16, bottom: 6, right: 16)
         sendButton.translatesAutoresizingMaskIntoConstraints = false
-        messageFieldView.addSubview(messageEditorWebView)
+        messageFieldView.addSubview(messageEditorTextView)
         messageFieldView.addSubview(sendButton)
         messageComposerView.addSubview(messageFieldView)
         stackView.addArrangedSubview(messageComposerView)
@@ -328,10 +337,10 @@ final class ShareViewController: UIViewController {
             messageFieldView.trailingAnchor.constraint(equalTo: messageComposerView.trailingAnchor),
             messageFieldView.bottomAnchor.constraint(equalTo: messageComposerView.bottomAnchor),
             messageFieldView.heightAnchor.constraint(equalToConstant: Layout.composerHeight),
-            messageEditorWebView.topAnchor.constraint(equalTo: messageFieldView.topAnchor),
-            messageEditorWebView.leadingAnchor.constraint(equalTo: messageFieldView.leadingAnchor),
-            messageEditorWebView.trailingAnchor.constraint(equalTo: messageFieldView.trailingAnchor),
-            messageEditorWebView.bottomAnchor.constraint(equalTo: messageFieldView.bottomAnchor),
+            messageEditorTextView.topAnchor.constraint(equalTo: messageFieldView.topAnchor),
+            messageEditorTextView.leadingAnchor.constraint(equalTo: messageFieldView.leadingAnchor),
+            messageEditorTextView.trailingAnchor.constraint(equalTo: messageFieldView.trailingAnchor),
+            messageEditorTextView.bottomAnchor.constraint(equalTo: messageFieldView.bottomAnchor),
             sendButton.trailingAnchor.constraint(equalTo: messageFieldView.trailingAnchor, constant: -Layout.composerSendTrailing),
             sendButton.bottomAnchor.constraint(equalTo: messageFieldView.bottomAnchor, constant: -Layout.composerSendBottom),
             sendButton.heightAnchor.constraint(equalToConstant: Layout.composerSendHeight),
@@ -340,7 +349,6 @@ final class ShareViewController: UIViewController {
         sendButton.accessibilityIdentifier = "share-extension-send"
         cancelButton.accessibilityIdentifier = "share-extension-cancel"
         view.accessibilityIdentifier = "share-extension-root"
-        loadMessageEditorResource()
     }
 
     private func extractSharedContent() {
@@ -352,23 +360,26 @@ final class ShareViewController: UIViewController {
         let group = DispatchGroup()
         let collector = SharedPartCollector()
 
+        var inputIndex = 0
         for item in extensionItems {
-            item.attachments?.forEach { provider in
+            for provider in item.attachments ?? [] {
+                let currentInputIndex = inputIndex
+                inputIndex += 1
                 if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
                     group.enter()
                     provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { value, _ in
                         defer { group.leave() }
                         guard let url = Self.sharedFileURL(from: value), Self.isAllowedAttachmentSize(url), let data = try? Data(contentsOf: url) else {
-                            collector.appendUnsupported(provider.suggestedName ?? "Shared Attachment")
+                            collector.appendUnsupported(provider.suggestedName ?? "Shared Attachment", at: currentInputIndex)
                             return
                         }
                         let filename = url.lastPathComponent
                         let contentType = Self.attachmentContentType(typeIdentifier: UTType.fileURL.identifier, fallbackFilename: filename)
                         guard BackgroundAttachmentClassifier.classification(filename: filename, contentType: contentType) != nil else {
-                            collector.appendUnsupported(filename)
+                            collector.appendUnsupported(filename, at: currentInputIndex)
                             return
                         }
-                        collector.append(SharedAttachment(data: data, filename: filename, contentType: contentType))
+                        collector.append(SharedAttachment(inputIndex: currentInputIndex, data: data, filename: filename, contentType: contentType), at: currentInputIndex)
                     }
                 } else if let attachmentType = Self.firstSupportedAttachmentType(from: provider) {
                     group.enter()
@@ -377,17 +388,17 @@ final class ShareViewController: UIViewController {
                     provider.loadDataRepresentation(forTypeIdentifier: attachmentType) { data, _ in
                         defer { group.leave() }
                         guard let data, data.count <= BackgroundAttachmentClassifier.maxFileSizeBytes else {
-                            collector.appendUnsupported(filename)
+                            collector.appendUnsupported(filename, at: currentInputIndex)
                             return
                         }
-                        collector.append(SharedAttachment(data: data, filename: filename, contentType: contentType))
+                        collector.append(SharedAttachment(inputIndex: currentInputIndex, data: data, filename: filename, contentType: contentType), at: currentInputIndex)
                     }
                 } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
                     group.enter()
                     provider.loadItem(forTypeIdentifier: UTType.url.identifier) { value, _ in
                         defer { group.leave() }
                         if let text = Self.sharedURLText(from: value) {
-                            collector.append(SharedPart(text: text, isURL: true))
+                            collector.append(SharedPart(inputIndex: currentInputIndex, text: text, isURL: true), at: currentInputIndex)
                         }
                     }
                 } else if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
@@ -395,11 +406,11 @@ final class ShareViewController: UIViewController {
                     provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) { value, _ in
                         defer { group.leave() }
                         if let text = Self.sharedPlainText(from: value) {
-                            collector.append(SharedPart(text: text, isURL: false))
+                            collector.append(SharedPart(inputIndex: currentInputIndex, text: text, isURL: false), at: currentInputIndex)
                         }
                     }
                 } else if let name = provider.suggestedName {
-                    collector.appendUnsupported(name)
+                    collector.appendUnsupported(name, at: currentInputIndex)
                 }
             }
         }
@@ -414,7 +425,7 @@ final class ShareViewController: UIViewController {
     }
 
     private func updatePreview() {
-        let sharedText = sharedParts.map(\.text).joined(separator: "\n")
+        let sharedText = sharedPartMarkdown()
         var previewLines: [String] = []
         if !sharedText.isEmpty { previewLines.append(sharedText) }
         if !sharedAttachments.isEmpty {
@@ -424,8 +435,7 @@ final class ShareViewController: UIViewController {
             previewLines.append("Unsupported: \(unsupportedAttachments.joined(separator: ", "))")
         }
         previewLabel.text = previewLines.isEmpty ? "No supported URL, text, or file was found." : previewLines.joined(separator: "\n")
-        messageText = sharedText
-        syncMessageEditorText()
+        loadSharedContentDocument()
         updateSendButtonState()
     }
 
@@ -498,17 +508,23 @@ final class ShareViewController: UIViewController {
     }
 
     private func buildFinalMessage() throws -> String {
-        let userText = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let sharedText = sharedParts.map(\.text).joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-        let message = userText.isEmpty ? sharedText : userText
-        guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !sharedAttachments.isEmpty else {
+        let message = try normalizedMessageMarkdown()
+        guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !activeSharedAttachments.isEmpty else {
             throw BackgroundChatSendError.emptyMessage
         }
         return message
     }
 
+    private func normalizedMessageMarkdown() throws -> String {
+        try composerSession.controller.canonicalMarkdown()
+    }
+
+    private func sharedPartMarkdown() -> String {
+        sharedParts.map(\.text).joined(separator: "\n")
+    }
+
     private func draftDestinationForAttachments() -> BackgroundChatSender.DestinationChat? {
-        guard !sharedAttachments.isEmpty, selectedChat == nil else { return selectedChat }
+        guard !activeSharedAttachments.isEmpty, selectedChat == nil else { return selectedChat }
         return BackgroundChatSender.DestinationChat(
             id: UUID().uuidString.lowercased(),
             title: "New Chat",
@@ -526,10 +542,11 @@ final class ShareViewController: UIViewController {
     }
 
     private func prepareSharedAttachments(destination: BackgroundChatSender.DestinationChat?) async throws -> [BackgroundPreparedEmbed] {
-        guard !sharedAttachments.isEmpty else { return [] }
+        let attachments = activeSharedAttachments
+        guard !attachments.isEmpty else { return [] }
         let chatId = destination?.id ?? UUID().uuidString.lowercased()
         var embeds: [BackgroundPreparedEmbed] = []
-        for attachment in sharedAttachments {
+        for attachment in attachments {
             let embed = try await sender.prepareAttachment(
                 data: attachment.data,
                 filename: attachment.filename,
@@ -548,68 +565,59 @@ final class ShareViewController: UIViewController {
     }
 
     private func updateSendButtonState() {
-        let hasText = !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        sendButton.isEnabled = !isSubmitting && (hasText || !sharedAttachments.isEmpty)
+        let hasText = composerSession.controller.document.nodes.contains { node in
+            node.kind == "text" && !(node.source ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        sendButton.isEnabled = !isSubmitting && (hasText || !activeSharedAttachments.isEmpty)
         sendButton.alpha = sendButton.isEnabled ? 1 : 0.6
     }
 
-    private func syncMessageEditorText() {
-        guard isMessageEditorReady else { return }
-        messageEditorWebView.accessibilityValue = messageText
-        sendMessageEditorCommand(["type": "setPlaceholder", "placeholder": "Add a message"])
-        sendMessageEditorCommand(["type": "setContent", "text": messageText])
+    private var activeSharedAttachments: [SharedAttachment] {
+        let activeNodeIDs = Set(composerSession.controller.document.nodes.map(\.id))
+        return sharedAttachments.filter { activeNodeIDs.contains($0.nodeID) }
     }
 
-    private func loadMessageEditorResource() {
-        guard let url = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "TiptapComposer") else {
-            showFailure("Message editor failed to load.")
-            return
-        }
-        messageEditorWebView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
-    }
+    private func loadSharedContentDocument() {
+        enum SharedInput {
+            case text(SharedPart)
+            case attachment(SharedAttachment)
 
-    private func sendMessageEditorCommand(_ command: [String: Any]) {
-        guard let data = try? JSONSerialization.data(withJSONObject: command),
-              let json = String(data: data, encoding: .utf8) else {
-            return
+            var inputIndex: Int {
+                switch self {
+                case .text(let part): part.inputIndex
+                case .attachment(let attachment): attachment.inputIndex
+                }
+            }
         }
-        messageEditorWebView.evaluateJavaScript("window.OpenMatesComposer && window.OpenMatesComposer.receive(\(json));")
+
+        let inputs = sharedParts.map(SharedInput.text) + sharedAttachments.map(SharedInput.attachment)
+        let nodes = inputs.sorted { $0.inputIndex < $1.inputIndex }.map { input -> ComposerNodeV1 in
+            switch input {
+            case .text(let part):
+                // Share payloads are literal text and must not be reparsed as composer markup.
+                .text(id: "share:text:\(part.inputIndex)", source: part.text)
+            case .attachment(let attachment):
+                .embed(
+                    id: attachment.nodeID,
+                    embedType: "share-attachment",
+                    canonicalSource: "",
+                    referenceOnly: true,
+                    display: ComposerEmbedDisplayV1(title: attachment.filename, mediaKind: attachment.contentType)
+                )
+            }
+        }
+
+        do {
+            try composerSession.loadDocument(ComposerDocumentV1(version: 1, nodes: nodes))
+            composerAdapter.synchronize(messageEditorTextView)
+        } catch {
+            showFailure("Could not prepare the shared content.")
+        }
     }
 
     private func showFailure(_ message: String) {
         statusLabel.textColor = .systemRed
         statusLabel.text = message
-    }
-}
-
-extension ShareViewController: WKScriptMessageHandler, WKNavigationDelegate {
-    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
-        switch type {
-        case "ready":
-            isMessageEditorReady = true
-            syncMessageEditorText()
-        case "contentChanged":
-            messageText = body["text"] as? String ?? ""
-            messageEditorWebView.accessibilityValue = messageText
-            updateSendButtonState()
-        case "submit":
-            sendTapped()
-        default:
-            break
-        }
-    }
-
-    func webView(
-        _ webView: WKWebView,
-        decidePolicyFor navigationAction: WKNavigationAction,
-        decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
-    ) {
-        guard let url = navigationAction.request.url else {
-            decisionHandler(.cancel)
-            return
-        }
-        decisionHandler((url.isFileURL || url.scheme == "about") ? .allow : .cancel)
     }
 }
 

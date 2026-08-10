@@ -304,6 +304,7 @@ def _run_folder_session(
         linear_task=False,
         use_zellij=False,
         model="haiku",
+        requires_human_approval=True,
     )
 
     return returncode, session_id

@@ -114,6 +114,10 @@ promises:
       - kind: e2e
         path: frontend/apps/web_app/tests/pii-detection-flow.spec.ts
         marker: pii-placeholder-substitution
+      - kind: e2e
+        path: frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+        marker: pii-placeholder-substitution
+        assertion: "Follow-up sends rewrite previously mapped PII originals to placeholders before outbound inference payloads leave the browser"
     architecture_doc: docs/architecture/privacy/pii-protection.md
     surfaced_in_policy: true
 

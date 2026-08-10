@@ -23,6 +23,9 @@
  */
 
 import { fetchWithPresignedUrl } from "../../../services/presignedUrlService";
+import {
+  decryptMediaPayload,
+} from "../../../services/encryption/mediaEncryption";
 
 /**
  * In-memory cache: maps S3 key -> blob URL.
@@ -111,6 +114,7 @@ export async function fetchAndDecryptImage(
   s3Key: string,
   aesKeyBase64: string,
   nonceBase64: string,
+  variant: unknown = {},
 ): Promise<Blob> {
   // 0. Check cache first — return existing blob if we already decrypted this image
   const cached = imageCache.get(s3Key);
@@ -124,45 +128,12 @@ export async function fetchAndDecryptImage(
   // 1. Fetch the encrypted blob via presigned URL (with automatic 403 retry)
   const encryptedData = await fetchWithPresignedUrl(s3Key);
 
-  // 2. Resolve nonce and ciphertext.
-  //    When nonceBase64 is empty the nonce is embedded as the first 12 bytes of
-  //    the ciphertext (PDF artefact format introduced to prevent nonce reuse).
-  //    When nonceBase64 is non-empty the legacy format is used (images, audio).
-  const NONCE_BYTES = 12;
-  let nonceBuffer: ArrayBuffer;
-  let ciphertext: ArrayBuffer;
-  if (nonceBase64 === "") {
-    // Nonce-prefixed format: first 12 bytes = nonce, remainder = ciphertext+tag
-    nonceBuffer = encryptedData.slice(0, NONCE_BYTES);
-    ciphertext = encryptedData.slice(NONCE_BYTES);
-  } else {
-    nonceBuffer = base64ToArrayBuffer(nonceBase64);
-    ciphertext = encryptedData;
-  }
-
-  // 3. Decode the base64 AES key
-  const aesKeyBytes = base64ToArrayBuffer(aesKeyBase64);
-
-  // 4. Import the AES key for Web Crypto API
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    aesKeyBytes,
-    { name: "AES-GCM" },
-    false, // not extractable
-    ["decrypt"],
-  );
-
-  // 5. Decrypt using AES-256-GCM
-  // Note: AES-GCM ciphertext includes the 16-byte auth tag at the end
-  const decryptedData = await crypto.subtle.decrypt(
-    {
-      name: "AES-GCM",
-      iv: nonceBuffer,
-      // No additional data (AAD) — matches server-side encrypt(nonce, content, None)
-    },
-    cryptoKey,
-    ciphertext,
-  );
+  const decryptedData = await decryptMediaPayload({
+    encryptedData,
+    aesKeyBase64,
+    variant,
+    legacyNonceBase64: nonceBase64,
+  });
 
   // 6. Determine MIME type from the s3_key extension
   const mimeType = s3Key.endsWith(".png") ? "image/png" : "image/webp";
@@ -174,19 +145,4 @@ export async function fetchAndDecryptImage(
   imageCache.set(s3Key, { blobUrl, refCount: 0, revokeTimer: null });
 
   return blob;
-}
-
-/**
- * Convert a base64 string to an ArrayBuffer.
- * Handles both standard and URL-safe base64.
- */
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  // Normalize URL-safe base64 to standard base64
-  const normalized = base64.replace(/-/g, "+").replace(/_/g, "/");
-  const binaryString = atob(normalized);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
 }

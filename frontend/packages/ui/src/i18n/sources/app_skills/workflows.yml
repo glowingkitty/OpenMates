@@ -1,0 +1,96 @@
+skills.create_or_modify:
+  context: Skill name for creating or modifying workflows
+  en: Create or Modify Workflow
+  de: Workflow erstellen oder ändern
+  zh: 创建或修改工作流
+  es: Crear o modificar flujo de trabajo
+  fr: Créer ou modifier un workflow
+  pt: Criar ou modificar fluxo de trabalho
+  ru: Создать или изменить рабочий процесс
+  ja: ワークフローを作成または変更
+  ko: 워크플로 생성 또는 수정
+  it: Crea o modifica workflow
+  tr: İş akışı oluştur veya değiştir
+  vi: Tạo hoặc chỉnh sửa quy trình công việc
+  id: Buat atau ubah alur kerja
+  pl: Utwórz lub zmodyfikuj przepływ pracy
+  nl: Workflow maken of wijzigen
+  ar: إنشاء سير عمل أو تعديله
+  hi: वर्कफ़्लो बनाएं या बदलें
+  th: สร้างหรือแก้ไขเวิร์กโฟลว์
+  cs: Vytvořit nebo upravit pracovní postup
+  sv: Skapa eller ändra arbetsflöde
+  he: יצירה או שינוי של תהליך עבודה
+  verified_by_human: []
+skills.create_or_modify.description:
+  context: Description for creating or modifying workflows
+  en: Create a new workflow or update an existing one from chat.
+  de: Erstelle einen neuen Workflow oder aktualisiere einen bestehenden aus dem Chat.
+  zh: 从聊天中创建新工作流或更新现有工作流。
+  es: Crea un flujo de trabajo nuevo o actualiza uno existente desde el chat.
+  fr: Créez un nouveau workflow ou mettez à jour un workflow existant depuis le chat.
+  pt: Crie um novo fluxo de trabalho ou atualize um existente a partir do chat.
+  ru: Создайте новый рабочий процесс или обновите существующий из чата.
+  ja: チャットから新しいワークフローを作成するか、既存のものを更新します。
+  ko: 채팅에서 새 워크플로를 만들거나 기존 워크플로를 업데이트합니다.
+  it: Crea un nuovo workflow o aggiorna uno esistente dalla chat.
+  tr: Sohbetten yeni bir iş akışı oluşturun veya mevcut olanı güncelleyin.
+  vi: Tạo quy trình công việc mới hoặc cập nhật quy trình hiện có từ cuộc trò chuyện.
+  id: Buat alur kerja baru atau perbarui yang sudah ada dari chat.
+  pl: Utwórz nowy przepływ pracy lub zaktualizuj istniejący z czatu.
+  nl: Maak een nieuwe workflow of werk een bestaande bij vanuit chat.
+  ar: أنشئ سير عمل جديدًا أو حدّث سير عمل موجودًا من الدردشة.
+  hi: चैट से नया वर्कफ़्लो बनाएं या मौजूदा को अपडेट करें।
+  th: สร้างเวิร์กโฟลว์ใหม่หรืออัปเดตเวิร์กโฟลว์ที่มีอยู่จากแชต
+  cs: Vytvořte nový pracovní postup nebo aktualizujte stávající z chatu.
+  sv: Skapa ett nytt arbetsflöde eller uppdatera ett befintligt från chatten.
+  he: צרו תהליך עבודה חדש או עדכנו תהליך קיים מהצ'אט.
+  verified_by_human: []
+skills.search:
+  context: Skill name for finding user workflows
+  en: Search Workflows
+  de: Workflows suchen
+  zh: 搜索工作流
+  es: Buscar flujos de trabajo
+  fr: Rechercher des workflows
+  pt: Pesquisar fluxos de trabalho
+  ru: Поиск рабочих процессов
+  ja: ワークフローを検索
+  ko: 워크플로 검색
+  it: Cerca workflow
+  tr: İş akışlarında ara
+  vi: Tìm quy trình công việc
+  id: Cari alur kerja
+  pl: Szukaj przepływów pracy
+  nl: Workflows zoeken
+  ar: البحث في سير العمل
+  hi: वर्कफ़्लो खोजें
+  th: ค้นหาเวิร์กโฟลว์
+  cs: Hledat pracovní postupy
+  sv: Sök arbetsflöden
+  he: חיפוש תהליכי עבודה
+  verified_by_human: [en, de]
+skills.search.description:
+  context: Description for finding user workflows
+  en: Find user-owned workflows that match a chat intent.
+  de: Nutzer-Workflows finden, die zu einer Chat-Absicht passen.
+  zh: 查找符合聊天意图的用户自有工作流。
+  es: Encuentra flujos de trabajo del usuario que coincidan con una intención del chat.
+  fr: Trouver les workflows appartenant à l'utilisateur qui correspondent à une intention de chat.
+  pt: Encontre fluxos de trabalho do usuário que correspondam a uma intenção do chat.
+  ru: Найти рабочие процессы пользователя, соответствующие намерению чата.
+  ja: チャットの意図に一致するユーザー所有のワークフローを見つけます。
+  ko: 채팅 의도와 일치하는 사용자 소유 워크플로를 찾습니다.
+  it: Trova workflow dell'utente che corrispondono a un intento della chat.
+  tr: Sohbet amacına uyan kullanıcıya ait iş akışlarını bulun.
+  vi: Tìm các quy trình công việc do người dùng sở hữu phù hợp với ý định trò chuyện.
+  id: Temukan alur kerja milik pengguna yang cocok dengan maksud chat.
+  pl: Znajdź przepływy pracy użytkownika pasujące do intencji czatu.
+  nl: Vind workflows van de gebruiker die passen bij een chatintentie.
+  ar: ابحث عن سير العمل المملوك للمستخدم والذي يطابق هدف الدردشة.
+  hi: चैट इरादे से मेल खाने वाले उपयोगकर्ता-स्वामित्व वाले वर्कफ़्लो खोजें।
+  th: ค้นหาเวิร์กโฟลว์ของผู้ใช้ที่ตรงกับเจตนาในแชต
+  cs: Najděte pracovní postupy vlastněné uživatelem, které odpovídají záměru chatu.
+  sv: Hitta användarägda arbetsflöden som matchar en chattavsikt.
+  he: מציאת תהליכי עבודה בבעלות המשתמש שמתאימים לכוונת הצ'אט.
+  verified_by_human: [en, de]

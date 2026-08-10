@@ -9,6 +9,7 @@ description: "Stoffe.de fabric and sewing supply storefront with live product da
 logo_svg: "icons/stoffe.svg"
 region: "EU" # Stoffe.de is operated from Germany
 privacy_policy: "https://www.stoffe.de/privacy-policy/" # verified 2026-05-25
+no_api_key: true
 
 
 # API access

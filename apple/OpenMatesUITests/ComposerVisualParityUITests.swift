@@ -23,6 +23,9 @@ final class ComposerVisualParityUITests: XCTestCase {
     }
 
     func testChatPreviewComposerUsesSharedIdentifiersAndWidthCap() throws {
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-opening"]
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
@@ -35,6 +38,27 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCTAssertLessThanOrEqual(editor.frame.width, maxComposerWidth + widthTolerance)
 
         editor.tap()
+        let field = element(in: app, identifier: "message-field")
+        let fullscreenButton = app.buttons["message-input-fullscreen-button"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            fullscreenButton.waitForExistence(timeout: 5),
+            "Expected the focused production composer to expose fullscreen. Visible UI: \(app.debugDescription)"
+        )
+        let collapsedPortraitHeight = field.frame.height
+
+        fullscreenButton.tap()
+        XCTAssertTrue(waitForHeight(field, atLeast: collapsedPortraitHeight + 80))
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertTrue(fullscreenButton.waitForExistence(timeout: 5))
+        let window = app.windows.firstMatch.frame
+        XCTAssertGreaterThanOrEqual(field.frame.minY, window.minY)
+        XCTAssertLessThanOrEqual(field.frame.maxY, window.maxY)
+        let expandedLandscapeHeight = field.frame.height
+
+        fullscreenButton.tap()
+        XCTAssertLessThan(field.frame.height, expandedLandscapeHeight - 80)
         XCTAssertFalse(app.tables.firstMatch.exists, "Product composer UI must not render default List/table chrome")
 
         attachScreenshot(name: "Shared composer chat preview width cap")
@@ -70,7 +94,7 @@ final class ComposerVisualParityUITests: XCTestCase {
         )
     }
 
-    func testFocusedWelcomeLocationSelectionInsertsSendableContent() throws {
+    func testFocusedWelcomeLocationSelectionInsertsMapsEmbedPreview() throws {
         let app = launchFocusedWelcomeComposer(
             extraArguments: ["--ui-test-location-preselected"],
             environment: ["UI_TEST_LOCATION_PRESELECTED": "1"]
@@ -82,9 +106,130 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
         let editor = waitForMessageEditor(in: app)
         XCTAssertTrue(
-            (editor.value as? String)?.localizedCaseInsensitiveContains("Selected") == true,
-            "Expected selected location text in message editor; value=\(String(describing: editor.value))"
+            element(in: app, identifier: "native-composer-preview-maps-finished").waitForExistence(timeout: 5),
+            "Expected selected location to insert a maps embed preview; value=\(String(describing: editor.value))"
         )
+        XCTAssertFalse(
+            (editor.value as? String)?.localizedCaseInsensitiveContains("Selected location (") == true,
+            "Location selection must not append plain coordinate text"
+        )
+    }
+
+    func testSeededImageAndAudioPreviewsStayLeftAlignedAcrossRotation() throws {
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+
+        let app = launchFocusedWelcomeComposer(
+            extraArguments: ["--ui-test-welcome-seed-pending-content"]
+        )
+        let field = element(in: app, identifier: "message-field")
+        let image = element(in: app, identifier: "native-composer-image-content")
+        let audio = element(in: app, identifier: "native-composer-audio-content")
+        let imageCard = element(in: app, identifier: "native-composer-preview-image-finished")
+        let audioCard = element(in: app, identifier: "native-composer-preview-recording-finished")
+
+        XCTAssertTrue(image.waitForExistence(timeout: 5), "Expected image-specific composer preview content")
+        XCTAssertTrue(audio.waitForExistence(timeout: 5), "Expected audio-specific composer preview content")
+        XCTAssertTrue(imageCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(audioCard.waitForExistence(timeout: 5))
+        assertEmbed(imageCard, isLeftAlignedIn: field)
+        assertEmbed(audioCard, isLeftAlignedIn: field)
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertTrue(image.waitForExistence(timeout: 5))
+        XCTAssertTrue(audio.waitForExistence(timeout: 5))
+        assertEmbed(imageCard, isLeftAlignedIn: field)
+        assertEmbed(audioCard, isLeftAlignedIn: field)
+    }
+
+    func testWelcomeComposerExpandsAndCollapsesAcrossRotation() throws {
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+
+        let app = launchFocusedWelcomeComposer()
+        let field = element(in: app, identifier: "message-field")
+        let button = app.buttons["message-input-fullscreen-button"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(button.waitForExistence(timeout: 5))
+        attachScreenshot(name: "Welcome composer fullscreen button hit testing")
+        XCTAssertTrue(
+            button.isHittable,
+            "Fullscreen button must be hittable. button=\(button.debugDescription) field=\(field.debugDescription) UI=\(app.debugDescription)"
+        )
+
+        let collapsedPortraitHeight = field.frame.height
+        let expandLabel = button.label
+        button.tap()
+
+        XCTAssertNotEqual(button.label, expandLabel)
+        XCTAssertTrue(waitForHeight(field, atLeast: collapsedPortraitHeight + 80))
+
+        button.tap()
+        XCTAssertEqual(button.label, expandLabel)
+        XCTAssertLessThanOrEqual(field.frame.height, collapsedPortraitHeight + 8)
+
+        button.tap()
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertTrue(button.waitForExistence(timeout: 5))
+        XCTAssertTrue(button.isHittable)
+        let window = app.windows.firstMatch.frame
+        XCTAssertGreaterThanOrEqual(field.frame.minY, window.minY)
+        XCTAssertLessThanOrEqual(field.frame.maxY, window.maxY)
+        let expandedLandscapeHeight = field.frame.height
+
+        button.tap()
+        XCTAssertEqual(button.label, expandLabel)
+        XCTAssertLessThan(field.frame.height, expandedLandscapeHeight - 80)
+    }
+
+    func testSketchToolExposesWebControlsInLandscape() throws {
+        let app = launchFocusedWelcomeComposer(
+            extraArguments: ["--ui-test-welcome-sketch-enabled"]
+        )
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let sketchButton = app.buttons["sketch-button"]
+        XCTAssertTrue(sketchButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            sketchButton.isHittable,
+            "Sketch button must be hittable before opening the tool. button=\(sketchButton.debugDescription) UI=\(app.debugDescription)"
+        )
+        sketchButton.tap()
+
+        let canvas = element(in: app, identifier: "sketch-canvas")
+        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Sketch canvas must render after the action. UI=\(app.debugDescription)")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        attachScreenshot(name: "Landscape sketch overlay after action")
+        XCTAssertTrue(
+            canvas.waitForExistence(timeout: 5),
+            "Sketch canvas must survive rotation. UI=\(app.debugDescription)"
+        )
+        for identifier in ["sketch-eraser-button", "sketch-fullscreen-button"] {
+            let control = app.buttons[identifier]
+            XCTAssertTrue(control.waitForExistence(timeout: 2), "Missing web-parity drawing control: \(identifier)")
+            XCTAssertTrue(control.isHittable, "Drawing control is clipped: \(identifier)")
+        }
+
+        let toolbar = app.scrollViews["sketch-toolbar-scroll"]
+        let undo = app.buttons["sketch-undo-button"]
+        let save = app.buttons["sketch-save-button"]
+        XCTAssertTrue(toolbar.waitForExistence(timeout: 2))
+        XCTAssertTrue(undo.waitForExistence(timeout: 2))
+        XCTAssertTrue(save.waitForExistence(timeout: 2))
+        XCTAssertFalse(undo.isEnabled, "Undo must stay disabled until the canvas has a stroke")
+        XCTAssertFalse(save.isEnabled, "Save must stay disabled until the canvas has a stroke")
+
+        let strokeStart = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.35))
+        let strokeEnd = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.65))
+        strokeStart.press(forDuration: 0.1, thenDragTo: strokeEnd)
+
+        toolbar.swipeLeft()
+        for identifier in ["sketch-zoom-in-button", "sketch-clear-button"] {
+            let control = app.buttons[identifier]
+            XCTAssertTrue(control.waitForExistence(timeout: 2), "Missing web-parity drawing control: \(identifier)")
+            XCTAssertTrue(control.isHittable, "Drawing control remains unreachable after scrolling: \(identifier)")
+        }
+        XCTAssertTrue(waitForEnabled(undo), "Undo must become actionable after drawing")
+        XCTAssertTrue(waitForEnabled(save), "Save must become actionable after drawing")
     }
 
     func testQuickCaptureComposerUsesSameSharedIdentifierContract() throws {
@@ -124,6 +269,37 @@ final class ComposerVisualParityUITests: XCTestCase {
         let predicate = NSPredicate(format: "exists == false")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    private func waitForHeight(
+        _ element: XCUIElement,
+        atLeast minimumHeight: CGFloat,
+        timeout: TimeInterval = 5
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.frame.height >= minimumHeight { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return false
+    }
+
+    private func waitForEnabled(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let predicate = NSPredicate(format: "isEnabled == true")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    private func assertEmbed(
+        _ embed: XCUIElement,
+        isLeftAlignedIn field: XCUIElement,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertGreaterThan(embed.frame.width, 100, file: file, line: line)
+        XCTAssertGreaterThan(embed.frame.height, 100, file: file, line: line)
+        XCTAssertEqual(embed.frame.minX, field.frame.minX + 10, accuracy: 12, file: file, line: line)
+        XCTAssertTrue(field.frame.intersects(embed.frame), file: file, line: line)
     }
 
     private func waitForMessageEditor(in app: XCUIApplication) -> XCUIElement {

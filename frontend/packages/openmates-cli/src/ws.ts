@@ -16,9 +16,35 @@ const WebSocket = require("ws");
 
 type RawData = Buffer | ArrayBuffer | Buffer[];
 
+const DEFAULT_ASYNC_EMBED_WAIT_MS = 300_000;
+
 export interface WsEnvelope<T = unknown> {
   type: string;
   payload: T;
+}
+
+export interface ForceLogoutPayload {
+  reason?: string;
+  revoked_session_id?: string | null;
+}
+
+export interface ProjectRemoteAccessRequestFrame {
+  request_id: string;
+  project_id: string;
+  source_id: string;
+  source_session_id: string;
+  requesting_client_id: string;
+  operation: "list" | "search" | "read_text";
+  key_epoch: number;
+  encrypted_envelope: string;
+  routing_identity?: {
+    context_type: string;
+    context_id_hash: string;
+    host_member_hash: string;
+    host_device_fingerprint_hash: string;
+    requester_member_hash: string;
+    requester_device_fingerprint_hash: string;
+  };
 }
 
 /** Streaming event dispatched for each chunk or lifecycle event. */
@@ -31,6 +57,28 @@ export interface StreamEvent {
   category: string | null;
   /** Human-readable model name. */
   modelName: string | null;
+}
+
+export type AiResponseTokenUsage = {
+  promptTokens?: number;
+  completionTokens?: number;
+  userInputTokens?: number;
+  systemPromptTokens?: number;
+  totalCredits?: number;
+};
+
+export type AiResponsePromptBudget = {
+  systemPromptTokens?: number;
+};
+
+export interface ChatCompressionCheckpointEvent {
+  chatId: string;
+  taskId: string | null;
+  checkpointId: string;
+  summaryContent: string;
+  compressedUpToTimestamp: number;
+  compressedMessageCount: number;
+  summaryTokenEstimate: number | null;
 }
 
 export interface SendEmbedDataFrame {
@@ -83,6 +131,60 @@ export interface AppSettingsMemoriesRequestEvent {
   payload: Record<string, unknown>;
 }
 
+export interface TaskProposalEvent {
+  title: string;
+  description?: string | null;
+  status?: "backlog" | "todo" | "in_progress" | "blocked" | "done";
+  assignee_type?: "ai" | "user";
+}
+
+export interface TaskUpdateProposalEvent {
+  task_id: string;
+  title?: string | null;
+  description?: string | null;
+  status?: "backlog" | "todo" | "in_progress" | "blocked" | "done" | null;
+  assignee_type?: "ai" | "user" | null;
+}
+
+export interface TaskEventFrame {
+  event_id: string;
+  chat_id: string;
+  task_id: string;
+  short_id?: string | null;
+  event_type: string;
+  title?: string | null;
+  status?: string | null;
+  reason?: string | null;
+  created_at?: number | null;
+  task_update_job_id?: string | null;
+}
+
+export interface PendingTaskUpdateJobFrame {
+  job_id: string;
+  task_id: string;
+  chat_id?: string | null;
+  revision: number;
+  task_key_version: number;
+  expires_at: number;
+}
+
+export interface LocalConnectorRequestFrame {
+  type: "local_connector_request";
+  connector_session_id: string;
+  connected_account_id: string;
+  request_id: string;
+  action: string;
+  arguments?: Record<string, unknown>;
+}
+
+interface AvailableRecoveryJobFrame {
+  job_id: string;
+  chat_id: string;
+  turn_id: string;
+  assistant_message_id: string;
+  chat_key_version: number;
+}
+
 const SUB_CHAT_EVENT_TYPES = new Set<string>([
   "spawn_sub_chats",
   "sub_chat_progress",
@@ -96,9 +198,201 @@ const SUB_CHAT_EVENT_TYPES = new Set<string>([
 const SUB_CHAT_PARENT_STATUS_MESSAGE =
   "I've started the sub-chats and will continue once they finish.";
 const SUB_CHAT_COMPLETION_TIMEOUT_MS = 10 * 60_000;
+const CLIENT_UPDATE_REQUIRED_GUIDANCE =
+  "OpenMates CLI update required. Run `openmates upgrade` and retry.";
+const TASK_STATUSES = new Set(["backlog", "todo", "in_progress", "blocked", "done"]);
+const TASK_ASSIGNEES = new Set(["ai", "user"]);
+
+export class WebSocketProtocolError extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "WebSocketProtocolError";
+    this.code = code;
+  }
+}
+
+function websocketProtocolError(envelope: WsEnvelope): Error | null {
+  const payload = envelope.payload && typeof envelope.payload === "object"
+    ? envelope.payload as Record<string, unknown>
+    : {};
+  const code = envelope.type === "client_update_required"
+    ? envelope.type
+    : envelope.type === "error" && typeof payload.code === "string"
+      ? payload.code
+      : null;
+  if (code === "client_update_required") {
+    return new WebSocketProtocolError(code, CLIENT_UPDATE_REQUIRED_GUIDANCE);
+  }
+  if (envelope.type === "error") {
+    return new WebSocketProtocolError(
+      code ?? "websocket_error",
+      typeof payload.message === "string" ? payload.message : "Unknown WebSocket error",
+    );
+  }
+  return null;
+}
+
+function numberMetric(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function errorFrameBelongsToAiResponse(
+  envelope: WsEnvelope<Record<string, unknown>>,
+  userMessageId: string,
+  chatId: string,
+  recoveryTurnId?: string | null,
+): boolean {
+  if (envelope.type === "client_update_required") return true;
+  if (envelope.type !== "error") return true;
+  const payload = envelope.payload && typeof envelope.payload === "object"
+    ? envelope.payload as Record<string, unknown>
+    : {};
+  let scoped = false;
+  const errorChatId = typeof payload.chat_id === "string" ? payload.chat_id : null;
+  if (errorChatId) {
+    scoped = true;
+    if (errorChatId !== chatId) return false;
+  }
+  const errorMessageId = typeof payload.user_message_id === "string"
+    ? payload.user_message_id
+    : typeof payload.userMessageId === "string"
+      ? payload.userMessageId
+      : typeof payload.message_id === "string"
+        ? payload.message_id
+        : null;
+  if (errorMessageId) {
+    scoped = true;
+    if (errorMessageId !== userMessageId) return false;
+  }
+  const errorTurnId = typeof payload.turn_id === "string" ? payload.turn_id : null;
+  if (errorTurnId) {
+    scoped = true;
+    if (recoveryTurnId !== errorTurnId) return false;
+  }
+  if (typeof payload.job_id === "string") {
+    scoped = true;
+  }
+  return !scoped || Boolean(errorChatId || errorMessageId || errorTurnId);
+}
+
+function scopedErrorMissesPredicate(
+  envelope: WsEnvelope,
+  predicate?: (payload: unknown) => boolean,
+): boolean {
+  if (envelope.type !== "error" || !predicate) return false;
+  const payload = envelope.payload && typeof envelope.payload === "object"
+    ? envelope.payload as Record<string, unknown>
+    : {};
+  const hasScope = typeof payload.turn_id === "string"
+    || typeof payload.chat_id === "string"
+    || typeof payload.message_id === "string"
+    || typeof payload.user_message_id === "string"
+    || typeof payload.userMessageId === "string"
+    || typeof payload.job_id === "string";
+  if (!hasScope) return false;
+  try {
+    return !predicate(payload);
+  } catch {
+    return false;
+  }
+}
+
+function parseTaskProposals(value: unknown): TaskProposalEvent[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): TaskProposalEvent[] => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const raw = item as Record<string, unknown>;
+    if (typeof raw.title !== "string" || raw.title.trim().length === 0) return [];
+    const proposal: TaskProposalEvent = { title: raw.title };
+    if (typeof raw.description === "string" || raw.description === null) proposal.description = raw.description;
+    if (typeof raw.status === "string" && TASK_STATUSES.has(raw.status)) proposal.status = raw.status as TaskProposalEvent["status"];
+    if (typeof raw.assignee_type === "string" && TASK_ASSIGNEES.has(raw.assignee_type)) proposal.assignee_type = raw.assignee_type as TaskProposalEvent["assignee_type"];
+    return [proposal];
+  });
+}
+
+function parseTaskUpdateProposals(value: unknown): TaskUpdateProposalEvent[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): TaskUpdateProposalEvent[] => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const raw = item as Record<string, unknown>;
+    if (typeof raw.task_id !== "string" || raw.task_id.trim().length === 0) return [];
+    const proposal: TaskUpdateProposalEvent = { task_id: raw.task_id };
+    if (typeof raw.title === "string" || raw.title === null) proposal.title = raw.title;
+    if (typeof raw.description === "string" || raw.description === null) proposal.description = raw.description;
+    if ((typeof raw.status === "string" && TASK_STATUSES.has(raw.status)) || raw.status === null) proposal.status = raw.status as TaskUpdateProposalEvent["status"];
+    if ((typeof raw.assignee_type === "string" && TASK_ASSIGNEES.has(raw.assignee_type)) || raw.assignee_type === null) proposal.assignee_type = raw.assignee_type as TaskUpdateProposalEvent["assignee_type"];
+    return [proposal];
+  });
+}
+
+function parseTaskEvent(value: unknown): TaskEventFrame | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.event_id !== "string" || typeof raw.chat_id !== "string") return null;
+  if (typeof raw.task_id !== "string" || typeof raw.event_type !== "string") return null;
+  const event: TaskEventFrame = {
+    event_id: raw.event_id,
+    chat_id: raw.chat_id,
+    task_id: raw.task_id,
+    event_type: raw.event_type,
+  };
+  if (typeof raw.short_id === "string" || raw.short_id === null) event.short_id = raw.short_id;
+  if (typeof raw.title === "string" || raw.title === null) event.title = raw.title;
+  if (typeof raw.status === "string" || raw.status === null) event.status = raw.status;
+  if (typeof raw.reason === "string" || raw.reason === null) event.reason = raw.reason;
+  if (typeof raw.created_at === "number" || raw.created_at === null) event.created_at = raw.created_at;
+  if (typeof raw.task_update_job_id === "string" || raw.task_update_job_id === null) event.task_update_job_id = raw.task_update_job_id;
+  return event;
+}
+
+function parsePendingTaskUpdateJobs(value: unknown): PendingTaskUpdateJobFrame[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): PendingTaskUpdateJobFrame[] => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const raw = item as Record<string, unknown>;
+    if (typeof raw.job_id !== "string" || typeof raw.task_id !== "string") return [];
+    if (typeof raw.revision !== "number" || typeof raw.task_key_version !== "number" || typeof raw.expires_at !== "number") return [];
+    const job: PendingTaskUpdateJobFrame = {
+      job_id: raw.job_id,
+      task_id: raw.task_id,
+      revision: raw.revision,
+      task_key_version: raw.task_key_version,
+      expires_at: raw.expires_at,
+    };
+    if (typeof raw.chat_id === "string" || raw.chat_id === null) job.chat_id = raw.chat_id;
+    return [job];
+  });
+}
+
+function parseAvailableRecoveryJobs(value: unknown): AvailableRecoveryJobFrame[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): AvailableRecoveryJobFrame[] => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const raw = item as Record<string, unknown>;
+    if (
+      typeof raw.job_id !== "string" ||
+      typeof raw.chat_id !== "string" ||
+      typeof raw.turn_id !== "string" ||
+      typeof raw.assistant_message_id !== "string" ||
+      typeof raw.chat_key_version !== "number"
+    ) return [];
+    return [{
+      job_id: raw.job_id,
+      chat_id: raw.chat_id,
+      turn_id: raw.turn_id,
+      assistant_message_id: raw.assistant_message_id,
+      chat_key_version: raw.chat_key_version,
+    }];
+  });
+}
 
 export class OpenMatesWsClient {
   private readonly socket: InstanceType<typeof WebSocket>;
+  private readonly passiveTaskUpdateJobs = new Map<string, PendingTaskUpdateJobFrame>();
+  private activeResponseCollectors = 0;
 
   constructor(options: {
     apiUrl: string;
@@ -107,6 +401,8 @@ export class OpenMatesWsClient {
     refreshToken: string | null;
     userAgent?: string;
     cookies?: Record<string, string>;
+    taskUpdateJobs?: boolean;
+    onForceLogout?: (payload: ForceLogoutPayload) => void | Promise<void>;
   }) {
     const wsBase = options.apiUrl.replace(/^http/, "ws").replace(/\/$/, "");
     // Use || (not ??) so empty-string wsToken falls through to refreshToken.
@@ -116,6 +412,9 @@ export class OpenMatesWsClient {
       sessionId: options.sessionId,
       token,
     });
+    if (options.taskUpdateJobs !== false) {
+      query.set("client_capabilities", "task_update_jobs");
+    }
     // Pass the same User-Agent as the HTTP login call so the device fingerprint
     // hash (SHA256(OS:Country:UserID)) matches the one registered at login time.
     // Also forward cookies — Node.js ws library doesn't auto-send HTTP cookies,
@@ -134,6 +433,11 @@ export class OpenMatesWsClient {
     }
     this.socket = new WebSocket(`${wsBase}/v1/ws?${query.toString()}`, {
       headers: wsHeaders,
+    });
+    this.socket.on("message", (rawData: RawData) => {
+      if (this.handleForceLogout(rawData, options.onForceLogout)) return;
+      if (this.activeResponseCollectors > 0) return;
+      this.bufferPassiveTaskUpdateJobs(rawData);
     });
   }
 
@@ -188,19 +492,123 @@ export class OpenMatesWsClient {
     });
   }
 
+  onLocalConnectorRequest(handler: (payload: LocalConnectorRequestFrame) => void | Promise<void>): () => void {
+    const onMessage = (rawData: RawData) => {
+      try {
+        const parsed = JSON.parse(rawData.toString()) as WsEnvelope<Record<string, unknown>>;
+        if (parsed.type !== "local_connector_request") return;
+        const payload = (parsed.payload ?? {}) as Record<string, unknown>;
+        if (
+          payload.type !== "local_connector_request" ||
+          typeof payload.connector_session_id !== "string" ||
+          typeof payload.connected_account_id !== "string" ||
+          typeof payload.request_id !== "string" ||
+          typeof payload.action !== "string"
+        ) {
+          return;
+        }
+        void handler(payload as unknown as LocalConnectorRequestFrame);
+      } catch {
+        // Ignore malformed frames.
+      }
+    };
+    this.socket.on("message", onMessage);
+    return () => this.socket.off("message", onMessage);
+  }
+
+  onProjectRemoteAccessRequest(
+    handler: (payload: ProjectRemoteAccessRequestFrame) => void | Promise<void>,
+  ): () => void {
+    const onMessage = (rawData: RawData) => {
+      try {
+        const parsed = JSON.parse(rawData.toString()) as WsEnvelope<Record<string, unknown>>;
+        if (parsed.type !== "project_remote_access_request") return;
+        const payload = (parsed.payload ?? {}) as Record<string, unknown>;
+        if (
+          typeof payload.request_id !== "string"
+          || typeof payload.project_id !== "string"
+          || typeof payload.source_id !== "string"
+          || typeof payload.source_session_id !== "string"
+          || typeof payload.requesting_client_id !== "string"
+          || !["list", "search", "read_text"].includes(String(payload.operation))
+          || typeof payload.key_epoch !== "number"
+          || typeof payload.encrypted_envelope !== "string"
+        ) return;
+        void handler(payload as unknown as ProjectRemoteAccessRequestFrame);
+      } catch {
+        // Ignore malformed frames.
+      }
+    };
+    this.socket.on("message", onMessage);
+    return () => this.socket.off("message", onMessage);
+  }
+
+  waitForClose(): Promise<{ code: number; reason: string }> {
+    return new Promise((resolve) => {
+      this.socket.once("close", (code: number, reason: Buffer) => {
+        resolve({ code, reason: reason.toString("utf-8") });
+      });
+    });
+  }
+
+  private bufferPassiveTaskUpdateJobs(rawData: RawData): void {
+    try {
+      const parsed = JSON.parse(rawData.toString()) as WsEnvelope<Record<string, unknown>>;
+      if (parsed.type !== "task_update_jobs_available") return;
+      const payload = (parsed.payload ?? {}) as Record<string, unknown>;
+      for (const job of parsePendingTaskUpdateJobs(payload.jobs)) {
+        this.passiveTaskUpdateJobs.set(job.job_id, job);
+      }
+    } catch {
+      // Ignore non-JSON frames.
+    }
+  }
+
+  private handleForceLogout(
+    rawData: RawData,
+    onForceLogout?: (payload: ForceLogoutPayload) => void | Promise<void>,
+  ): boolean {
+    try {
+      const parsed = JSON.parse(rawData.toString()) as WsEnvelope<ForceLogoutPayload>;
+      if (parsed.type !== "force_logout") return false;
+      void onForceLogout?.(parsed.payload ?? {});
+      this.close();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  drainPassiveTaskUpdateJobs(): PendingTaskUpdateJobFrame[] {
+    const jobs = [...this.passiveTaskUpdateJobs.values()];
+    this.passiveTaskUpdateJobs.clear();
+    return jobs;
+  }
+
   waitForMessage(
     expectedType: string,
     predicate?: (payload: unknown) => boolean,
     timeoutMs = 20_000,
   ): Promise<WsEnvelope> {
     return new Promise<WsEnvelope>((resolve, reject) => {
+      const seenTypes = new Set<string>();
+      let predicateMisses = 0;
       const onMessage = (rawData: RawData) => {
         try {
           const parsed = JSON.parse(rawData.toString()) as WsEnvelope;
+          if (typeof parsed.type === "string") seenTypes.add(parsed.type);
+          const protocolError = websocketProtocolError(parsed);
+          if (protocolError) {
+            if (scopedErrorMissesPredicate(parsed, predicate)) return;
+            cleanup();
+            reject(protocolError);
+            return;
+          }
           if (parsed.type !== expectedType) {
             return;
           }
           if (predicate && !predicate(parsed.payload)) {
+            predicateMisses += 1;
             return;
           }
           cleanup();
@@ -222,7 +630,13 @@ export class OpenMatesWsClient {
 
       const timeout = setTimeout(() => {
         cleanup();
-        reject(new Error(`Timeout waiting for '${expectedType}'`));
+        const observed = [...seenTypes].sort().join(", ") || "none";
+        reject(
+          new Error(
+            `Timeout waiting for '${expectedType}' ` +
+              `(seen types: ${observed}; predicate misses: ${predicateMisses})`,
+          ),
+        );
       }, timeoutMs);
 
       const cleanup = () => {
@@ -250,6 +664,12 @@ export class OpenMatesWsClient {
       const onMessage = (rawData: RawData) => {
         try {
           const parsed = JSON.parse(rawData.toString()) as WsEnvelope;
+          const protocolError = websocketProtocolError(parsed);
+          if (protocolError) {
+            cleanup();
+            reject(protocolError);
+            return;
+          }
           if (parsed.type === terminatorType) {
             cleanup();
             resolve(collected);
@@ -309,6 +729,7 @@ export class OpenMatesWsClient {
       onAppSettingsMemoriesRequest?: (
         event: AppSettingsMemoriesRequestEvent,
       ) => void | Promise<void>;
+      recoveryTurnId?: string | null;
     },
   ): Promise<{
     status: "completed" | "waiting_for_user";
@@ -319,12 +740,23 @@ export class OpenMatesWsClient {
     modelName: string | null;
     followUpSuggestions: string[];
     newChatSuggestions: string[];
+    chatSummary: string | null;
+    chatTags: string[];
+    updatedChatTitle: string | null;
+    taskProposals: TaskProposalEvent[];
+    taskUpdateProposals: TaskUpdateProposalEvent[];
+    taskEvents: TaskEventFrame[];
+    pendingTaskUpdateJobs: PendingTaskUpdateJobFrame[];
     embeds: SendEmbedDataFrame[];
     subChatEvents: SubChatEvent[];
+    recoveryJobId: string | null;
+    compressionCheckpoints: ChatCompressionCheckpointEvent[];
+    tokenUsage: AiResponseTokenUsage | null;
+    promptBudget: AiResponsePromptBudget | null;
   }> {
     const timeoutMs = options?.timeoutMs ?? 90_000;
     const onStream = options?.onStream;
-    const asyncEmbedWaitMs = options?.asyncEmbedWaitMs ?? 120_000;
+    const asyncEmbedWaitMs = options?.asyncEmbedWaitMs ?? DEFAULT_ASYNC_EMBED_WAIT_MS;
 
     return new Promise((resolve, reject) => {
       let latestContent = "";
@@ -332,8 +764,25 @@ export class OpenMatesWsClient {
       let taskId: string | null = null;
       let category: string | null = null;
       let modelName: string | null = null;
+      let tokenUsage: AiResponseTokenUsage | null = null;
+      let promptBudget: AiResponsePromptBudget | null = null;
+      let recoveryJobId: string | null = null;
+      const compressionCheckpoints: ChatCompressionCheckpointEvent[] = [];
       let followUpSuggestions: string[] = [];
       let newChatSuggestions: string[] = [];
+      let chatSummary: string | null = null;
+      let chatTags: string[] = [];
+      let updatedChatTitle: string | null = null;
+      let taskProposals: TaskProposalEvent[] = [];
+      let taskUpdateProposals: TaskUpdateProposalEvent[] = [];
+      const taskEvents: TaskEventFrame[] = [];
+      this.activeResponseCollectors += 1;
+      let pendingTaskUpdateJobs: PendingTaskUpdateJobFrame[] = this.drainPassiveTaskUpdateJobs();
+      const mergePendingTaskUpdateJobs = (jobs: PendingTaskUpdateJobFrame[]) => {
+        const byId = new Map(pendingTaskUpdateJobs.map((job) => [job.job_id, job]));
+        for (const job of jobs) byId.set(job.job_id, job);
+        pendingTaskUpdateJobs = [...byId.values()];
+      };
       const subChatEvents: SubChatEvent[] = [];
       const pendingSubChatHandlers = new Set<Promise<void>>();
       const pendingMemoryRequestHandlers = new Set<Promise<void>>();
@@ -356,6 +805,7 @@ export class OpenMatesWsClient {
         }, ms);
       let timeout = startTimeout(timeoutMs);
       let awaitingSubChatsCompletion = false;
+      let awaitingFocusModeContinuation = false;
 
       const resetTimeout = (ms: number) => {
         clearTimeout(timeout);
@@ -369,6 +819,34 @@ export class OpenMatesWsClient {
         if (typeof p.category === "string" && p.category) category = p.category;
         if (typeof p.model_name === "string" && p.model_name)
           modelName = p.model_name;
+        const promptTokens = numberMetric(p.prompt_tokens);
+        const completionTokens = numberMetric(p.completion_tokens);
+        const userInputTokens = numberMetric(p.user_input_tokens);
+        const systemPromptTokens = numberMetric(p.system_prompt_tokens);
+        const totalCredits = numberMetric(p.total_credits);
+        const hasTokenUsage = promptTokens !== null
+          || completionTokens !== null
+          || userInputTokens !== null
+          || systemPromptTokens !== null
+          || totalCredits !== null;
+        if (hasTokenUsage) {
+          tokenUsage = {
+            ...(promptTokens !== null ? { promptTokens } : {}),
+            ...(completionTokens !== null ? { completionTokens } : {}),
+            ...(userInputTokens !== null ? { userInputTokens } : {}),
+            ...(systemPromptTokens !== null ? { systemPromptTokens } : {}),
+            ...(totalCredits !== null ? { totalCredits } : {}),
+          };
+        }
+        if (systemPromptTokens !== null) {
+          promptBudget = { systemPromptTokens };
+        }
+        if (
+          typeof p.recovery_job_id === "string"
+          && p.recovery_job_id
+          && p.recovery_protocol_version === 1
+        )
+          recoveryJobId = p.recovery_job_id;
       };
 
       const extractMessageContent = (message: Record<string, unknown>): string => {
@@ -404,12 +882,24 @@ export class OpenMatesWsClient {
             modelName,
             followUpSuggestions,
             newChatSuggestions,
+            chatSummary,
+            chatTags,
+            updatedChatTitle,
+            taskProposals,
+            taskUpdateProposals,
+            taskEvents,
+            pendingTaskUpdateJobs,
             embeds: [...embeds.values()],
             subChatEvents,
+            recoveryJobId,
+            compressionCheckpoints,
+            tokenUsage,
+            promptBudget,
           });
           return;
         }
         if (!aiResponseDone || !postProcessingDone) return;
+        if (options?.recoveryTurnId && !recoveryJobId) return;
         if (pendingSubChatHandlers.size > 0) return;
         if (pendingMemoryRequestHandlers.size > 0) return;
         if (processingEmbedIds.size > 0 && !asyncEmbedTimer) {
@@ -424,8 +914,19 @@ export class OpenMatesWsClient {
               modelName,
               followUpSuggestions,
               newChatSuggestions,
+              chatSummary,
+              chatTags,
+              updatedChatTitle,
+              taskProposals,
+              taskUpdateProposals,
+              taskEvents,
+              pendingTaskUpdateJobs,
               embeds: [...embeds.values()],
               subChatEvents,
+              recoveryJobId,
+              compressionCheckpoints,
+              tokenUsage,
+              promptBudget,
             });
           }, asyncEmbedWaitMs);
           return;
@@ -441,8 +942,19 @@ export class OpenMatesWsClient {
           modelName,
           followUpSuggestions,
           newChatSuggestions,
+          chatSummary,
+          chatTags,
+          updatedChatTitle,
+          taskProposals,
+          taskUpdateProposals,
+          taskEvents,
+          pendingTaskUpdateJobs,
           embeds: [...embeds.values()],
           subChatEvents,
+          recoveryJobId,
+          compressionCheckpoints,
+          tokenUsage,
+          promptBudget,
         });
       };
 
@@ -472,6 +984,7 @@ export class OpenMatesWsClient {
         }
         if (type === "awaiting_sub_chats_completion") {
           awaitingSubChatsCompletion = true;
+          taskId = typeof eventPayload.task_id === "string" ? eventPayload.task_id : taskId;
           resetTimeout(SUB_CHAT_COMPLETION_TIMEOUT_MS);
         }
         const handler = options?.onSubChatEvent;
@@ -526,11 +1039,15 @@ export class OpenMatesWsClient {
       // Called once AI response is done. Start a short window to wait for
       // post_processing_metadata which may carry follow-up suggestions.
       const scheduleResolve = (content: string) => {
-        if (
-          awaitingSubChatsCompletion &&
-          content.trim().startsWith(SUB_CHAT_PARENT_STATUS_MESSAGE)
-        ) {
-          latestContent = "";
+        if (awaitingFocusModeContinuation) {
+          latestContent = content;
+          resetTimeout(timeoutMs);
+          return;
+        }
+        if (awaitingSubChatsCompletion) {
+          latestContent = content.trim().startsWith(SUB_CHAT_PARENT_STATUS_MESSAGE)
+            ? ""
+            : content;
           return;
         }
         aiResponseDone = true;
@@ -538,6 +1055,35 @@ export class OpenMatesWsClient {
         clearTimeout(timeout);
         // Start the post-processing window — resolve early if we get suggestions.
         postProcessingTimer = setTimeout(finishPostProcessingWait, POST_PROCESSING_WINDOW_MS);
+      };
+
+      const beginSubChatContinuation = (payload: Record<string, unknown>) => {
+        if (!awaitingSubChatsCompletion) return;
+        if (payload.is_sub_chat_continuation !== true) return;
+
+        awaitingSubChatsCompletion = false;
+        aiResponseDone = false;
+        postProcessingDone = false;
+        latestContent = "";
+        if (postProcessingTimer) {
+          clearTimeout(postProcessingTimer);
+          postProcessingTimer = null;
+        }
+        resetTimeout(timeoutMs);
+      };
+
+      const beginFocusModeContinuation = () => {
+        if (!awaitingFocusModeContinuation) return;
+
+        awaitingFocusModeContinuation = false;
+        aiResponseDone = false;
+        postProcessingDone = false;
+        latestContent = "";
+        if (postProcessingTimer) {
+          clearTimeout(postProcessingTimer);
+          postProcessingTimer = null;
+        }
+        resetTimeout(timeoutMs);
       };
 
       const onMessage = (rawData: RawData) => {
@@ -548,15 +1094,13 @@ export class OpenMatesWsClient {
           const p = (parsed.payload ?? {}) as Record<string, unknown>;
           const type = parsed.type;
 
-          if (type === "error") {
+          const protocolError = websocketProtocolError(parsed);
+          if (protocolError) {
+            if (!errorFrameBelongsToAiResponse(parsed, userMessageId, chatId, options?.recoveryTurnId)) {
+              return;
+            }
             cleanup();
-            reject(
-              new Error(
-                typeof p.message === "string"
-                  ? p.message
-                  : "Unknown chat error",
-              ),
-            );
+            reject(protocolError);
             return;
           }
 
@@ -567,6 +1111,27 @@ export class OpenMatesWsClient {
 
           if (type === "request_app_settings_memories") {
             handleAppSettingsMemoriesRequest(p);
+            return;
+          }
+
+          if (type === "chat_compression_completed") {
+            if (p.chat_id !== chatId || p.error) return;
+            if (typeof p.summary_message_id !== "string" || typeof p.summary_content !== "string") return;
+            compressionCheckpoints.push({
+              chatId,
+              taskId: typeof p.task_id === "string" ? p.task_id : null,
+              checkpointId: p.summary_message_id,
+              summaryContent: p.summary_content,
+              compressedUpToTimestamp: typeof p.compressed_up_to_timestamp === "number"
+                ? p.compressed_up_to_timestamp
+                : 0,
+              compressedMessageCount: typeof p.compressed_message_count === "number"
+                ? p.compressed_message_count
+                : 0,
+              summaryTokenEstimate: typeof p.summary_token_estimate === "number"
+                ? p.summary_token_estimate
+                : null,
+            });
             return;
           }
 
@@ -591,15 +1156,49 @@ export class OpenMatesWsClient {
             return;
           }
 
+          if (type === "task_event") {
+            const event = parseTaskEvent(p);
+            if (!event || event.chat_id !== chatId) return;
+            taskEvents.push(event);
+            maybeResolve();
+            return;
+          }
+
+          if (type === "task_update_jobs_available") {
+            mergePendingTaskUpdateJobs(parsePendingTaskUpdateJobs(p.jobs));
+            maybeResolve();
+            return;
+          }
+
+          if (type === "recovery_jobs_available") {
+            const job = parseAvailableRecoveryJobs(p.jobs).find(
+              (candidate) =>
+                candidate.chat_id === chatId &&
+                (!options?.recoveryTurnId || candidate.turn_id === options.recoveryTurnId),
+            );
+            if (!job) return;
+            recoveryJobId = job.job_id;
+            messageId = job.assistant_message_id;
+            if (awaitingSubChatsCompletion) return;
+            if (aiResponseDone) maybeResolve();
+            else scheduleResolve(latestContent);
+            return;
+          }
+
           // Active-chat streaming: incremental chunks
           if (type === "ai_message_update") {
             const msgId = p.user_message_id ?? p.userMessageId;
             if (msgId !== userMessageId && p.chat_id !== chatId) return;
+            if (p.is_focus_mode_continuation === true) beginFocusModeContinuation();
+            beginSubChatContinuation(p);
             capture(p);
             if (typeof p.full_content_so_far === "string") {
               latestContent = p.full_content_so_far;
             }
             if (p.is_final_chunk === true) {
+              if (p.awaiting_focus_mode_continuation === true) {
+                awaitingFocusModeContinuation = true;
+              }
               onStream?.({
                 kind: "done",
                 content: latestContent,
@@ -623,11 +1222,16 @@ export class OpenMatesWsClient {
             const msgId = p.user_message_id ?? p.userMessageId;
             if (msgId && msgId !== userMessageId && p.chat_id !== chatId) return;
             if (!msgId && p.chat_id !== chatId) return;
+            if (p.is_focus_mode_continuation === true) beginFocusModeContinuation();
+            beginSubChatContinuation(p);
             capture(p);
             const content =
               typeof p.full_content === "string"
                 ? p.full_content
                 : latestContent;
+            if (p.awaiting_focus_mode_continuation === true) {
+              awaitingFocusModeContinuation = true;
+            }
             onStream?.({ kind: "done", content, category, modelName });
             scheduleResolve(content);
             return;
@@ -684,6 +1288,20 @@ export class OpenMatesWsClient {
                 (s): s is string => typeof s === "string" && s.length > 0,
               );
             }
+            if (typeof p.chat_summary === "string" && p.chat_summary.trim()) {
+              chatSummary = p.chat_summary.trim();
+            }
+            const rawChatTags = p.chat_tags;
+            if (Array.isArray(rawChatTags) && rawChatTags.length > 0) {
+              chatTags = (rawChatTags as unknown[]).filter(
+                (tag): tag is string => typeof tag === "string" && tag.trim().length > 0,
+              ).slice(0, 10);
+            }
+            if (typeof p.updated_chat_title === "string" && p.updated_chat_title.trim()) {
+              updatedChatTitle = p.updated_chat_title.trim();
+            }
+            taskProposals = parseTaskProposals(p.task_proposals);
+            taskUpdateProposals = parseTaskUpdateProposals(p.task_update_proposals);
             // If AI response already done, resolve immediately with suggestions.
             if (aiResponseDone) {
               if (postProcessingTimer) {
@@ -716,8 +1334,19 @@ export class OpenMatesWsClient {
             modelName,
             followUpSuggestions,
             newChatSuggestions,
+            chatSummary,
+            chatTags,
+            updatedChatTitle,
+            taskProposals,
+            taskUpdateProposals,
+            taskEvents,
+            pendingTaskUpdateJobs,
             embeds: [...embeds.values()],
             subChatEvents,
+            recoveryJobId,
+            compressionCheckpoints,
+            tokenUsage,
+            promptBudget,
           });
           return;
         }
@@ -738,6 +1367,7 @@ export class OpenMatesWsClient {
         this.socket.off("message", onMessage);
         this.socket.off("error", onError);
         this.socket.off("close", onClose);
+        this.activeResponseCollectors = Math.max(0, this.activeResponseCollectors - 1);
       };
 
       this.socket.on("message", onMessage);

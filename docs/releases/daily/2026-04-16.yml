@@ -1,0 +1,1900 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-16'
+generated_at: '2026-07-09T15:08:07+00:00'
+range:
+  since: '2026-04-16T00:00:00+00:00'
+  until: '2026-04-16T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 38
+  section_counts:
+    features: 13
+    bug_fixes: 22
+    improvements: 1
+    docs: 0
+    tests: 2
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 29
+  user_facing_items: 29
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat(newsletter): MD-to-demo-chat publisher + /announcements/<slug> + /tips/<slug> SEO routes'
+    section: features
+    commits:
+    - d2e0f21f4
+    authored_at: '2026-04-16T22:44:45+00:00'
+    changed_paths:
+    - backend/core/docker-compose.override.yml
+    - backend/newsletters/issues/april-2026-first-update.yml
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/tips/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/tips/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/packages/ui/src/demo_chats/data/announcements_april_2026_first_update.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    - frontend/packages/ui/src/demo_chats/resolveI18nServer.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_april_2026_first_update.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(chat): floating selection toolbar for touch-device highlights'
+    section: features
+    commits:
+    - 7ab11aa2b
+    authored_at: '2026-04-16T21:17:23+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(newsletter): per-category opt-in toggles (Part B)'
+    section: features
+    commits:
+    - 59ce4d70d
+    authored_at: '2026-04-16T21:02:52+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/newsletter.py
+    - backend/core/api/app/utils/newsletter_utils.py
+    - backend/core/directus/schemas/newsletter_subscribers.yml
+    - backend/scripts/send_newsletter.py
+    - frontend/apps/web_app/tests/newsletter-categories.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsNewsletter.svelte
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(chat): wire message highlights end-to-end'
+    section: features
+    commits:
+    - 19e0062b6
+    authored_at: '2026-04-16T19:31:24+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_highlight_handlers.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/directus/schemas/message_highlights.yml
+    - backend/shared/python_schemas/message_highlights.py
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/HighlightCommentPopover.svelte
+    - frontend/packages/ui/src/components/HighlightNavigationOverlay.svelte
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/messageHighlights.ts
+    - frontend/packages/ui/src/services/handlersMessageHighlights.ts
+    - frontend/packages/ui/src/services/sendersMessageHighlights.ts
+    - frontend/packages/ui/src/stores/highlightNavigationStore.ts
+    - frontend/packages/ui/src/stores/messageHighlightsStore.ts
+    - scripts/lint_changed.sh
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(newsletter): MD-driven send pipeline + privacy policy for direct marketing basis'
+    section: features
+    commits:
+    - 63b9979b4
+    authored_at: '2026-04-16T19:28:55+00:00'
+    changed_paths:
+    - backend/core/api/app/services/email/brevo_provider.py
+    - backend/core/api/requirements.txt
+    - backend/core/docker-compose.override.yml
+    - backend/scripts/newsletter_md_renderer.py
+    - backend/scripts/send_newsletter.py
+    - frontend/apps/web_app/src/lib/newsletters.ts
+    - frontend/apps/web_app/src/routes/newsletter/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/newsletter/[slug]/+page.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(chat): foundation for message highlights (E2EE, per-row storage)'
+    section: features
+    commits:
+    - '301970372'
+    authored_at: '2026-04-16T18:31:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/services/encryption/MessageEncryptor.ts
+    - frontend/packages/ui/src/tokens/sources/colors.yml
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/utils/messageHighlights.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add Claude Opus 4.7 as new model alongside 4.6'
+    section: features
+    commits:
+    - 52cfa6f7a
+    authored_at: '2026-04-16T16:25:10+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/directus/schemas/users.yml
+    - backend/providers/anthropic.yml
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - scripts/_claude_utils.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(ui): support deep linking to All Apps with filter applied'
+    section: features
+    commits:
+    - eb8d3d30a
+    authored_at: '2026-04-16T14:53:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add newsletter subscriber breakdown to server stats'
+    section: features
+    commits:
+    - cd55b58c8
+    authored_at: '2026-04-16T12:00:01+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/api/app/routes/newsletter.py
+    - backend/scripts/server_stats_query.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(legal): render per-provider training policy table in privacy policy'
+    section: features
+    commits:
+    - 8a6c1b889
+    authored_at: '2026-04-16T11:33:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/scripts/generate-training-policies.js
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/trainingPolicies.generated.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat(ui): add locale-specific title frames to intro chat slideshow'
+    section: features
+    commits:
+    - 7dc3ef36d
+    authored_at: '2026-04-16T11:27:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/intro-frames/frame-00_DE.webp
+    - frontend/apps/web_app/static/intro-frames/frame-00_EN.webp
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(legal): add per-provider training policy audit with verification dates'
+    section: features
+    commits:
+    - 1219b1039
+    authored_at: '2026-04-16T11:15:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - shared/docs/privacy_promises.yml
+    - shared/docs/provider_training_policies.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat(ui): per-frame Ken Burns directions and dark slideshow background'
+    section: features
+    commits:
+    - 3cba10323
+    authored_at: '2026-04-16T10:49:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix(chats): replace CommonJS require() with ESM import in demo_chats/index.ts'
+    section: bug_fixes
+    commits:
+    - 2b724a264
+    authored_at: '2026-04-16T23:34:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/index.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(newsletter): add +page.ts with prerender+entries for /announcements + /tips'
+    section: bug_fixes
+    commits:
+    - e0d0cb067
+    authored_at: '2026-04-16T22:51:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.ts
+    - frontend/apps/web_app/src/routes/(seo)/tips/[slug]/+page.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(chat): anchor highlights to rendered text; gate on shared-chat ownership'
+    section: bug_fixes
+    commits:
+    - 43f7504fd
+    authored_at: '2026-04-16T21:47:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    - frontend/packages/ui/src/utils/messageHighlights.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(chat): commit selection snapshot at tap time for touch highlights'
+    section: bug_fixes
+    commits:
+    - 80e1d112b
+    authored_at: '2026-04-16T21:35:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add missing SettingsItem component (Vercel build)'
+    section: bug_fixes
+    commits:
+    - 94e569217
+    authored_at: '2026-04-16T21:12:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/elements/SettingsItem.svelte
+    - frontend/packages/ui/src/components/settings/elements/index.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(chat): track locally-created highlight ids for reliable isAuthor'
+    section: bug_fixes
+    commits:
+    - 912e2125a
+    authored_at: '2026-04-16T20:55:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/sendersMessageHighlights.ts
+    - frontend/packages/ui/src/stores/messageHighlightsStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(tests): highlight spec — evaluate-based scroll, longer timeout'
+    section: bug_fixes
+    commits:
+    - 6949380ed
+    authored_at: '2026-04-16T20:41:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(chat): highlight boxes above text so clicks land on them'
+    section: bug_fixes
+    commits:
+    - fb035d477
+    authored_at: '2026-04-16T20:29:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(chat): highlight popover no longer wipes comment draft on store upsert'
+    section: bug_fixes
+    commits:
+    - 49bbbb4f3
+    authored_at: '2026-04-16T20:16:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/HighlightCommentPopover.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(tests): atomic select + contextmenu in highlight spec'
+    section: bug_fixes
+    commits:
+    - bbfd7b5cd
+    authored_at: '2026-04-16T19:56:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(chat): highlight spec uses real right-click; add OTel to handlers'
+    section: bug_fixes
+    commits:
+    - 01a0d9461
+    authored_at: '2026-04-16T19:39:46+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_highlight_handlers.py
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(ui): harden chat header paint stability against embed-close compositor glitches'
+    section: bug_fixes
+    commits:
+    - 64cc3ec41
+    authored_at: '2026-04-16T18:33:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(ui): chat header text hidden by orb compositor layer after embed close'
+    section: bug_fixes
+    commits:
+    - ae024a6f9
+    authored_at: '2026-04-16T18:19:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(ui): chat header content invisible after closing fullscreen embed offscreen'
+    section: bug_fixes
+    commits:
+    - df41c0377
+    authored_at: '2026-04-16T16:57:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(ui): chat header nav picks up new chats + no flicker on embed close'
+    section: bug_fixes
+    commits:
+    - f5950189c
+    authored_at: '2026-04-16T16:31:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(ui): allow #settings/ai deep link for unauthenticated users'
+    section: bug_fixes
+    commits:
+    - 05403433a
+    authored_at: '2026-04-16T15:04:08+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(legal): correct OpenAI training policy source to Services Agreement'
+    section: bug_fixes
+    commits:
+    - f221830fd
+    authored_at: '2026-04-16T12:04:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/legal/trainingPolicies.generated.ts
+    - shared/docs/provider_training_policies.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(pii): require qualifier suffix for vat/tin/steuer TAX_ID keywords (OPE-433)'
+    section: bug_fixes
+    commits:
+    - 0efbf371c
+    authored_at: '2026-04-16T11:33:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(legal): correct translation key for website_vs_webapp in privacy policy'
+    section: bug_fixes
+    commits:
+    - 0255d603b
+    authored_at: '2026-04-16T11:02:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(ai): broaden quote detection to catch non-canonical blockquote formats (OPE-431)'
+    section: bug_fixes
+    commits:
+    - 215b1f73a
+    authored_at: '2026-04-16T11:01:12+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_quote_verification.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(ai): normalize typography in quote verification to prevent false-positive stripping (OPE-431)'
+    section: bug_fixes
+    commits:
+    - 2ab31da0b
+    authored_at: '2026-04-16T10:39:01+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_quote_verification.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: upgrade dompurify to 3.4.0 (GHSA-39q2-94rc-95cp)'
+    section: bug_fixes
+    commits:
+    - fac833003
+    authored_at: '2026-04-16T04:33:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - pnpm-lock.yaml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements:
+  - title: 'refactor(chat): anchor highlights to text-quotes, not offsets'
+    section: improvements
+    commits:
+    - 8bcdb0c01
+    authored_at: '2026-04-16T22:39:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    - frontend/packages/ui/src/services/handlersMessageHighlights.ts
+    - frontend/packages/ui/src/services/sendersMessageHighlights.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/utils/messageHighlights.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  docs: []
+  tests:
+  - title: 'test(chat): touch-device highlights spec with geometry overlap check'
+    section: tests
+    commits:
+    - acf0967b0
+    authored_at: '2026-04-16T22:02:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights-touch.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test(chat): cover the selection-toolbar (touch) entry point'
+    section: tests
+    commits:
+    - 18c012ace
+    authored_at: '2026-04-16T21:21:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix(newsletter): add +page.ts with prerender+entries for /announcements + /tips'
+    commits:
+    - e0d0cb067
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(newsletter): MD-to-demo-chat publisher + /announcements/<slug> + /tips/<slug> SEO routes'
+    commits:
+    - d2e0f21f4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'refactor(chat): anchor highlights to text-quotes, not offsets'
+    commits:
+    - 8bcdb0c01
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(chat): anchor highlights to rendered text; gate on shared-chat ownership'
+    commits:
+    - 43f7504fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(chat): commit selection snapshot at tap time for touch highlights'
+    commits:
+    - 80e1d112b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(chat): floating selection toolbar for touch-device highlights'
+    commits:
+    - 7ab11aa2b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add missing SettingsItem component (Vercel build)'
+    commits:
+    - 94e569217
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(newsletter): per-category opt-in toggles (Part B)'
+    commits:
+    - 59ce4d70d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(chat): track locally-created highlight ids for reliable isAuthor'
+    commits:
+    - 912e2125a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(tests): highlight spec — evaluate-based scroll, longer timeout'
+    commits:
+    - 6949380ed
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(chat): highlight boxes above text so clicks land on them'
+    commits:
+    - fb035d477
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(chat): highlight popover no longer wipes comment draft on store upsert'
+    commits:
+    - 49bbbb4f3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(tests): atomic select + contextmenu in highlight spec'
+    commits:
+    - bbfd7b5cd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(chat): highlight spec uses real right-click; add OTel to handlers'
+    commits:
+    - 01a0d9461
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(chat): wire message highlights end-to-end'
+    commits:
+    - 19e0062b6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(newsletter): MD-driven send pipeline + privacy policy for direct marketing basis'
+    commits:
+    - 63b9979b4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(ui): harden chat header paint stability against embed-close compositor glitches'
+    commits:
+    - 64cc3ec41
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(chat): foundation for message highlights (E2EE, per-row storage)'
+    commits:
+    - '301970372'
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(ui): chat header text hidden by orb compositor layer after embed close'
+    commits:
+    - ae024a6f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(ui): chat header content invisible after closing fullscreen embed offscreen'
+    commits:
+    - df41c0377
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(ui): chat header nav picks up new chats + no flicker on embed close'
+    commits:
+    - f5950189c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Claude Opus 4.7 as new model alongside 4.6'
+    commits:
+    - 52cfa6f7a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(ui): allow #settings/ai deep link for unauthenticated users'
+    commits:
+    - 05403433a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add newsletter subscriber breakdown to server stats'
+    commits:
+    - cd55b58c8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(pii): require qualifier suffix for vat/tin/steuer TAX_ID keywords (OPE-433)'
+    commits:
+    - 0efbf371c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(ui): add locale-specific title frames to intro chat slideshow'
+    commits:
+    - 7dc3ef36d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(ai): broaden quote detection to catch non-canonical blockquote formats (OPE-431)'
+    commits:
+    - 215b1f73a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(ui): per-frame Ken Burns directions and dark slideshow background'
+    commits:
+    - 3cba10323
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: upgrade dompurify to 3.4.0 (GHSA-39q2-94rc-95cp)'
+    commits:
+    - fac833003
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix(newsletter): add +page.ts with prerender+entries for /announcements + /tips'
+    commits:
+    - e0d0cb067
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(newsletter): MD-to-demo-chat publisher + /announcements/<slug> + /tips/<slug> SEO routes'
+    commits:
+    - d2e0f21f4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'refactor(chat): anchor highlights to text-quotes, not offsets'
+    commits:
+    - 8bcdb0c01
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(chat): anchor highlights to rendered text; gate on shared-chat ownership'
+    commits:
+    - 43f7504fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(chat): commit selection snapshot at tap time for touch highlights'
+    commits:
+    - 80e1d112b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(chat): floating selection toolbar for touch-device highlights'
+    commits:
+    - 7ab11aa2b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add missing SettingsItem component (Vercel build)'
+    commits:
+    - 94e569217
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(newsletter): per-category opt-in toggles (Part B)'
+    commits:
+    - 59ce4d70d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(chat): track locally-created highlight ids for reliable isAuthor'
+    commits:
+    - 912e2125a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(tests): highlight spec — evaluate-based scroll, longer timeout'
+    commits:
+    - 6949380ed
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(chat): highlight boxes above text so clicks land on them'
+    commits:
+    - fb035d477
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(chat): highlight popover no longer wipes comment draft on store upsert'
+    commits:
+    - 49bbbb4f3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(tests): atomic select + contextmenu in highlight spec'
+    commits:
+    - bbfd7b5cd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(chat): highlight spec uses real right-click; add OTel to handlers'
+    commits:
+    - 01a0d9461
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(chat): wire message highlights end-to-end'
+    commits:
+    - 19e0062b6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(newsletter): MD-driven send pipeline + privacy policy for direct marketing basis'
+    commits:
+    - 63b9979b4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(ui): harden chat header paint stability against embed-close compositor glitches'
+    commits:
+    - 64cc3ec41
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(chat): foundation for message highlights (E2EE, per-row storage)'
+    commits:
+    - '301970372'
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(ui): chat header text hidden by orb compositor layer after embed close'
+    commits:
+    - ae024a6f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(ui): chat header content invisible after closing fullscreen embed offscreen'
+    commits:
+    - df41c0377
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(ui): chat header nav picks up new chats + no flicker on embed close'
+    commits:
+    - f5950189c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Claude Opus 4.7 as new model alongside 4.6'
+    commits:
+    - 52cfa6f7a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(ui): allow #settings/ai deep link for unauthenticated users'
+    commits:
+    - 05403433a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add newsletter subscriber breakdown to server stats'
+    commits:
+    - cd55b58c8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(pii): require qualifier suffix for vat/tin/steuer TAX_ID keywords (OPE-433)'
+    commits:
+    - 0efbf371c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(ui): add locale-specific title frames to intro chat slideshow'
+    commits:
+    - 7dc3ef36d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(ai): broaden quote detection to catch non-canonical blockquote formats (OPE-431)'
+    commits:
+    - 215b1f73a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(ui): per-frame Ken Burns directions and dark slideshow background'
+    commits:
+    - 3cba10323
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: upgrade dompurify to 3.4.0 (GHSA-39q2-94rc-95cp)'
+    commits:
+    - fac833003
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 2b724a264153bff45cc867ae2000a65b4a417055
+    short_sha: 2b724a264
+    authored_at: '2026-04-16T23:34:56+00:00'
+    subject: 'fix(chats): replace CommonJS require() with ESM import in demo_chats/index.ts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/index.ts
+    related_feature_ids: []
+  - sha: e0d0cb0675fb687ba2b46bda05f6757f7eddc075
+    short_sha: e0d0cb067
+    authored_at: '2026-04-16T22:51:47+00:00'
+    subject: 'fix(newsletter): add +page.ts with prerender+entries for /announcements + /tips'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.ts
+    - frontend/apps/web_app/src/routes/(seo)/tips/[slug]/+page.ts
+    related_feature_ids: []
+  - sha: d2e0f21f475628334e672d4fa9113b26484f8795
+    short_sha: d2e0f21f4
+    authored_at: '2026-04-16T22:44:45+00:00'
+    subject: 'feat(newsletter): MD-to-demo-chat publisher + /announcements/<slug> + /tips/<slug> SEO routes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.override.yml
+    - backend/newsletters/issues/april-2026-first-update.yml
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/tips/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/tips/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/packages/ui/src/demo_chats/data/announcements_april_2026_first_update.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    - frontend/packages/ui/src/demo_chats/resolveI18nServer.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_april_2026_first_update.yml
+    related_feature_ids: []
+  - sha: 8bcdb0c0191b4ae6de6ca353dcf8526f6fc4a322
+    short_sha: 8bcdb0c01
+    authored_at: '2026-04-16T22:39:15+00:00'
+    subject: 'refactor(chat): anchor highlights to text-quotes, not offsets'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    - frontend/packages/ui/src/services/handlersMessageHighlights.ts
+    - frontend/packages/ui/src/services/sendersMessageHighlights.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/utils/messageHighlights.ts
+    related_feature_ids: []
+  - sha: acf0967b01ec35ecc69b7fa94363a8217df17303
+    short_sha: acf0967b0
+    authored_at: '2026-04-16T22:02:50+00:00'
+    subject: 'test(chat): touch-device highlights spec with geometry overlap check'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights-touch.spec.ts
+    related_feature_ids: []
+  - sha: 43f7504fdb0bd51981165ce55f7359f85c0efa88
+    short_sha: 43f7504fd
+    authored_at: '2026-04-16T21:47:58+00:00'
+    subject: 'fix(chat): anchor highlights to rendered text; gate on shared-chat ownership'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    - frontend/packages/ui/src/utils/messageHighlights.ts
+    related_feature_ids: []
+  - sha: 80e1d112b13a73fbf251488eeda48e1009de3086
+    short_sha: 80e1d112b
+    authored_at: '2026-04-16T21:35:12+00:00'
+    subject: 'fix(chat): commit selection snapshot at tap time for touch highlights'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    related_feature_ids: []
+  - sha: 18c012aceadb26b0858a0b9e7cf621616f7f5c99
+    short_sha: 18c012ace
+    authored_at: '2026-04-16T21:21:23+00:00'
+    subject: 'test(chat): cover the selection-toolbar (touch) entry point'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    related_feature_ids: []
+  - sha: 7ab11aa2bdf0336c7426a6b79b21372a8f3ffa0b
+    short_sha: 7ab11aa2b
+    authored_at: '2026-04-16T21:17:23+00:00'
+    subject: 'feat(chat): floating selection toolbar for touch-device highlights'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+    related_feature_ids: []
+  - sha: 94e5692170caffd889aff7db1e7dae94bbdbb5dd
+    short_sha: 94e569217
+    authored_at: '2026-04-16T21:12:24+00:00'
+    subject: 'fix: add missing SettingsItem component (Vercel build)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/elements/SettingsItem.svelte
+    - frontend/packages/ui/src/components/settings/elements/index.ts
+    related_feature_ids: []
+  - sha: 59ce4d70d50647f35f4172f7105960cc8bcaa39c
+    short_sha: 59ce4d70d
+    authored_at: '2026-04-16T21:02:52+00:00'
+    subject: 'feat(newsletter): per-category opt-in toggles (Part B)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/newsletter.py
+    - backend/core/api/app/utils/newsletter_utils.py
+    - backend/core/directus/schemas/newsletter_subscribers.yml
+    - backend/scripts/send_newsletter.py
+    - frontend/apps/web_app/tests/newsletter-categories.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsNewsletter.svelte
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    related_feature_ids: []
+  - sha: 912e2125a61fe51ca9f1d0945d70f0d2aefc3f50
+    short_sha: 912e2125a
+    authored_at: '2026-04-16T20:55:15+00:00'
+    subject: 'fix(chat): track locally-created highlight ids for reliable isAuthor'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/sendersMessageHighlights.ts
+    - frontend/packages/ui/src/stores/messageHighlightsStore.ts
+    related_feature_ids: []
+  - sha: 6949380eddb981098400600ac4f2669c4d2055e9
+    short_sha: 6949380ed
+    authored_at: '2026-04-16T20:41:45+00:00'
+    subject: 'fix(tests): highlight spec — evaluate-based scroll, longer timeout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    related_feature_ids: []
+  - sha: fb035d4770239e3723d91abe4d78e12c15a5aeeb
+    short_sha: fb035d477
+    authored_at: '2026-04-16T20:29:31+00:00'
+    subject: 'fix(chat): highlight boxes above text so clicks land on them'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    related_feature_ids: []
+  - sha: 49bbbb4f338adfba26514378f76f5335703e00d6
+    short_sha: 49bbbb4f3
+    authored_at: '2026-04-16T20:16:47+00:00'
+    subject: 'fix(chat): highlight popover no longer wipes comment draft on store upsert'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/HighlightCommentPopover.svelte
+    related_feature_ids: []
+  - sha: bbfd7b5cd8c595d28a858cf05a151d77a1438c6d
+    short_sha: bbfd7b5cd
+    authored_at: '2026-04-16T19:56:48+00:00'
+    subject: 'fix(tests): atomic select + contextmenu in highlight spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    related_feature_ids: []
+  - sha: 01a0d946103c8040cf0ee27556009382f0dae820
+    short_sha: 01a0d9461
+    authored_at: '2026-04-16T19:39:46+00:00'
+    subject: 'fix(chat): highlight spec uses real right-click; add OTel to handlers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_highlight_handlers.py
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    related_feature_ids: []
+  - sha: 19e0062b6cf27591aa7cb8dbdd70b65495141b26
+    short_sha: 19e0062b6
+    authored_at: '2026-04-16T19:31:24+00:00'
+    subject: 'feat(chat): wire message highlights end-to-end'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_highlight_handlers.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/directus/schemas/message_highlights.yml
+    - backend/shared/python_schemas/message_highlights.py
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/HighlightCommentPopover.svelte
+    - frontend/packages/ui/src/components/HighlightNavigationOverlay.svelte
+    - frontend/packages/ui/src/components/MessageHighlightOverlay.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/messageHighlights.ts
+    - frontend/packages/ui/src/services/handlersMessageHighlights.ts
+    - frontend/packages/ui/src/services/sendersMessageHighlights.ts
+    - frontend/packages/ui/src/stores/highlightNavigationStore.ts
+    - frontend/packages/ui/src/stores/messageHighlightsStore.ts
+    - scripts/lint_changed.sh
+    related_feature_ids: []
+  - sha: 63b9979b4aa52fbe0164f14fde677af6adc36e92
+    short_sha: 63b9979b4
+    authored_at: '2026-04-16T19:28:55+00:00'
+    subject: 'feat(newsletter): MD-driven send pipeline + privacy policy for direct marketing basis'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/email/brevo_provider.py
+    - backend/core/api/requirements.txt
+    - backend/core/docker-compose.override.yml
+    - backend/scripts/newsletter_md_renderer.py
+    - backend/scripts/send_newsletter.py
+    - frontend/apps/web_app/src/lib/newsletters.ts
+    - frontend/apps/web_app/src/routes/newsletter/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/newsletter/[slug]/+page.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    related_feature_ids: []
+  - sha: 64cc3ec41b968bb4b6a3910f1f50a81495b226a1
+    short_sha: 64cc3ec41
+    authored_at: '2026-04-16T18:33:11+00:00'
+    subject: 'fix(ui): harden chat header paint stability against embed-close compositor glitches'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 3019703725cf58b8864a243986dba51811be4aee
+    short_sha: '301970372'
+    authored_at: '2026-04-16T18:31:19+00:00'
+    subject: 'feat(chat): foundation for message highlights (E2EE, per-row storage)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/services/encryption/MessageEncryptor.ts
+    - frontend/packages/ui/src/tokens/sources/colors.yml
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/utils/messageHighlights.ts
+    related_feature_ids: []
+  - sha: ae024a6f965d6b03a17689a58efc1b43944ab77d
+    short_sha: ae024a6f9
+    authored_at: '2026-04-16T18:19:20+00:00'
+    subject: 'fix(ui): chat header text hidden by orb compositor layer after embed close'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: df41c037793b945e9a5319719944cafe72e779b3
+    short_sha: df41c0377
+    authored_at: '2026-04-16T16:57:18+00:00'
+    subject: 'fix(ui): chat header content invisible after closing fullscreen embed offscreen'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: f5950189c313f15e0c4cdf466d4f960e8d67b9f3
+    short_sha: f5950189c
+    authored_at: '2026-04-16T16:31:05+00:00'
+    subject: 'fix(ui): chat header nav picks up new chats + no flicker on embed close'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts
+    related_feature_ids: []
+  - sha: 52cfa6f7a7ad01b200a0a092bd6b52d3deae897f
+    short_sha: 52cfa6f7a
+    authored_at: '2026-04-16T16:25:10+00:00'
+    subject: 'feat: add Claude Opus 4.7 as new model alongside 4.6'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/directus/schemas/users.yml
+    - backend/providers/anthropic.yml
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - scripts/_claude_utils.py
+    related_feature_ids: []
+  - sha: 05403433ad0e6c53fe6a0e5c901088c3f271289f
+    short_sha: 05403433a
+    authored_at: '2026-04-16T15:04:08+00:00'
+    subject: 'fix(ui): allow #settings/ai deep link for unauthenticated users'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: eb8d3d30aede7b14d01a252a20915c817b487cc2
+    short_sha: eb8d3d30a
+    authored_at: '2026-04-16T14:53:24+00:00'
+    subject: 'feat(ui): support deep linking to All Apps with filter applied'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    related_feature_ids: []
+  - sha: f221830fdae5e49347c8f593e3e27cdc8b34bb38
+    short_sha: f221830fd
+    authored_at: '2026-04-16T12:04:53+00:00'
+    subject: 'fix(legal): correct OpenAI training policy source to Services Agreement'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/legal/trainingPolicies.generated.ts
+    - shared/docs/provider_training_policies.yml
+    related_feature_ids: []
+  - sha: cd55b58c893ffb5c3d0bacfaffc7f6817c90a077
+    short_sha: cd55b58c8
+    authored_at: '2026-04-16T12:00:01+00:00'
+    subject: 'feat: add newsletter subscriber breakdown to server stats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/api/app/routes/newsletter.py
+    - backend/scripts/server_stats_query.py
+    related_feature_ids: []
+  - sha: 0efbf371c665a77827e33e52217f94dda78caa6b
+    short_sha: 0efbf371c
+    authored_at: '2026-04-16T11:33:13+00:00'
+    subject: 'fix(pii): require qualifier suffix for vat/tin/steuer TAX_ID keywords (OPE-433)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+    related_feature_ids: []
+  - sha: 8a6c1b889bf1781846a18e8d1030b5ccae01a17a
+    short_sha: 8a6c1b889
+    authored_at: '2026-04-16T11:33:06+00:00'
+    subject: 'feat(legal): render per-provider training policy table in privacy policy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/scripts/generate-training-policies.js
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/trainingPolicies.generated.ts
+    related_feature_ids: []
+  - sha: 7dc3ef36d802f205d6c20c6c9b74720ace29be3c
+    short_sha: 7dc3ef36d
+    authored_at: '2026-04-16T11:27:16+00:00'
+    subject: 'feat(ui): add locale-specific title frames to intro chat slideshow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/intro-frames/frame-00_DE.webp
+    - frontend/apps/web_app/static/intro-frames/frame-00_EN.webp
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 1219b1039cb855921e5b099561cc574261f07ded
+    short_sha: 1219b1039
+    authored_at: '2026-04-16T11:15:54+00:00'
+    subject: 'feat(legal): add per-provider training policy audit with verification dates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - shared/docs/privacy_promises.yml
+    - shared/docs/provider_training_policies.yml
+    related_feature_ids: []
+  - sha: 0255d603b7cac6108c7d40b741617025db432089
+    short_sha: 0255d603b
+    authored_at: '2026-04-16T11:02:22+00:00'
+    subject: 'fix(legal): correct translation key for website_vs_webapp in privacy policy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    related_feature_ids: []
+  - sha: 215b1f73aa2e7b3ef5850bf21c37d9bbf7365a50
+    short_sha: 215b1f73a
+    authored_at: '2026-04-16T11:01:12+00:00'
+    subject: 'fix(ai): broaden quote detection to catch non-canonical blockquote formats (OPE-431)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_quote_verification.py
+    related_feature_ids: []
+  - sha: 3cba1032334cab78bb064155e7e2ad8109afeb0c
+    short_sha: 3cba10323
+    authored_at: '2026-04-16T10:49:02+00:00'
+    subject: 'feat(ui): per-frame Ken Burns directions and dark slideshow background'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 2ab31da0ba94478724943974abea26db7144ca70
+    short_sha: 2ab31da0b
+    authored_at: '2026-04-16T10:39:01+00:00'
+    subject: 'fix(ai): normalize typography in quote verification to prevent false-positive stripping (OPE-431)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_quote_verification.py
+    related_feature_ids: []
+  - sha: fac833003ba01295ab9994b1fdbdcdfb6493c12b
+    short_sha: fac833003
+    authored_at: '2026-04-16T04:33:26+00:00'
+    subject: 'fix: upgrade dompurify to 3.4.0 (GHSA-39q2-94rc-95cp)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - pnpm-lock.yaml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced end-to-end encrypted message highlights, added support for Claude Opus 4.7, and deployed
+    significant infrastructure for newsletter management and SEO-optimized announcements. The update also includes critical
+    UI stability fixes for chat headers and security patches.
+  released_changes:
+  - text: Launched message highlights with end-to-end encryption. The feature includes a floating selection toolbar for touch
+      devices, quote-based anchoring for reliability, and per-row storage.
+    evidence:
+      commits:
+      - 19e0062b6
+      - '301970372'
+      - 7ab11aa2b
+      - 8bcdb0c01
+      - 43f7504fd
+      - 80e1d112b
+      - 912e2125a
+      - fb035d477
+      - 49bbbb4f3
+    release_status: released_main
+  - text: Added Claude Opus 4.7 as an available model.
+    evidence:
+      commits:
+      - 52cfa6f7a
+    release_status: released_main
+  - text: Deployed a new newsletter pipeline including per-category opt-in toggles, Markdown-to-demo-chat publishing, and
+      SEO-friendly routes for announcements and tips.
+    evidence:
+      commits:
+      - 59ce4d70d
+      - 63b9979b4
+      - d2e0f21f4
+      - e0d0cb067
+    release_status: released_main
+  - text: Updated the intro slideshow with locale-specific title frames (English and German), Ken Burns animation directions,
+      and a dark background theme.
+    evidence:
+      commits:
+      - 7dc3ef36d
+      - 3cba10323
+    release_status: released_main
+  - text: Enabled deep linking to AI settings for unauthenticated users.
+    evidence:
+      commits:
+      - 05403433a
+    release_status: released_main
+  - text: Added newsletter subscriber breakdowns to the administrative server statistics.
+    evidence:
+      commits:
+      - cd55b58c8
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved several UI glitches in the chat header, including flickering, invisible content, and compositor layer issues
+      that occurred after closing fullscreen embeds.
+    evidence:
+      commits:
+      - 64cc3ec41
+      - ae024a6f9
+      - df41c0377
+      - f5950189c
+    release_status: released_main
+  - text: Improved AI quote verification by broadening detection for non-canonical blockquote formats and normalizing typography
+      to prevent false-positive stripping.
+    evidence:
+      commits:
+      - 215b1f73a
+      - 2ab31da0b
+    release_status: released_main
+  - text: Refined PII detection to require qualifier suffixes for tax ID keywords, reducing false positives.
+    evidence:
+      commits:
+      - 0efbf371c
+    release_status: released_main
+  - text: Upgraded DOMPurify to version 3.4.0 to address a security vulnerability.
+    evidence:
+      commits:
+      - fac833003
+    release_status: released_main
+  - text: Fixed a build error by restoring a missing settings component.
+    evidence:
+      commits:
+      - 94e569217
+    release_status: released_main
+  unreleased_progress:
+  - text: Internal work on per-provider training policy audits and privacy policy rendering logic.
+    evidence:
+      commits:
+      - 8a6c1b889
+      - 1219b1039
+      - f221830fd
+      - 0255d603b
+    release_status: released_main
+  - text: Development of deep link filtering for the All Apps view.
+    evidence:
+      commits:
+      - eb8d3d30a
+    release_status: released_main
+  internal_progress:
+  - text: Expanded test coverage for message highlights, specifically focusing on touch-device geometry and selection workflows.
+    evidence:
+      commits:
+      - acf0967b0
+      - 18c012ace
+      - 6949380ed
+      - bbfd7b5cd
+      - 01a0d9461
+    release_status: released_main
+  - text: Migrated demo chat indexing from CommonJS to ESM.
+    evidence:
+      commits:
+      - 2b724a264
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: End-to-end message highlights with end-to-end encryption and touch-optimized selection tools.
+      evidence:
+        commits:
+        - 19e0062b6
+        - '301970372'
+        - 7ab11aa2b
+        - 8bcdb0c01
+      reason: Major user-facing feature addition with cross-platform support.
+    - text: Support for Claude Opus 4.7.
+      evidence:
+        commits:
+        - 52cfa6f7a
+      reason: New model availability is a high-interest update.
+    - text: Granular newsletter opt-in toggles by category.
+      evidence:
+        commits:
+        - 59ce4d70d
+      reason: Gives users more control over their communication preferences.
+    - text: Enhanced intro slideshow with locale-specific frames and improved animations.
+      evidence:
+        commits:
+        - 7dc3ef36d
+        - 3cba10323
+      reason: Visual improvement to the first-time user experience.
+    exclude:
+    - text: Per-provider AI training policy audit and privacy policy table rendering.
+      evidence:
+        commits:
+        - 8a6c1b889
+        - 1219b1039
+        - f221830fd
+        - 0255d603b
+      reason: These legal updates are currently marked as not user-facing or internal audits.
+    - text: Deep linking support for filtered app views.
+      evidence:
+        commits:
+        - eb8d3d30a
+      reason: Marked as not user-facing.
+    rationale: The update is headlined by the launch of message highlights and the addition of Claude 4.7, both of which provide
+      immediate value to active users. Improvements to newsletter controls and the onboarding slideshow further polish the
+      user experience.
+  social_video_recommendations:
+  - idea: A short clip showing a user highlighting text in a chat on a mobile device using the new floating toolbar.
+    priority: high
+    reason: Demonstrates a tangible, high-quality mobile UX improvement.
+    evidence:
+      commits:
+      - 7ab11aa2b
+      - 19e0062b6
+  quality_notes:
+  - The message highlight feature includes comprehensive touch-device support, including a custom floating toolbar.
+  - UI stability around fullscreen embeds has been hardened against compositor glitches.
+  validation_warnings: []

@@ -28,7 +28,6 @@ class RunSkill(BaseSkill):
         self,
         workflow_id: str,
         input: dict[str, Any] | None = None,
-        high_risk: bool = False,
         user_id: str | None = None,
         workflow_assistant_service: Any = None,
         workflow_service: Any = None,
@@ -36,7 +35,7 @@ class RunSkill(BaseSkill):
     ) -> RunWorkflowResponse:
         try:
             assistant = get_assistant_service(workflow_assistant_service, workflow_service)
-            pending = assistant.create_pending_run(require_user_id(user_id), workflow_id, input_payload=input or {}, high_risk=high_risk)
+            pending = assistant.create_pending_run(require_user_id(user_id), workflow_id, input_payload=input or {})
             return RunWorkflowResponse(success=True, pending_run=pending)
         except Exception as exc:
             logger.error("Workflow run skill failed: %s", exc, exc_info=True)

@@ -5,6 +5,7 @@ import os
 import yaml
 import time
 import re
+import json
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from backend.core.api.app.services.directus.gift_card_methods import (
 )
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.utils.payment_environment import should_enforce_eu_revenue_threshold
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
@@ -34,6 +36,13 @@ from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.payment_tier_service import PaymentTierService
 from backend.core.api.app.services.referral_service import ReferralService
 from backend.core.api.app.utils.server_mode import validate_request_domain
+from backend.core.api.app.utils.bank_transfer_references import (
+    bank_transfer_reference_lookup_variants,
+    generate_bank_transfer_reference,
+)
+from backend.shared.python_utils.invoice_ciphertext_versions import (
+    select_latest_invoice_ciphertext,
+)
 from fastapi.responses import StreamingResponse
 import hashlib
 from datetime import datetime, timezone, timedelta
@@ -85,6 +94,11 @@ def _require_official_cloud(request: Request) -> None:
             detail="Feature not available on this server edition",
         )
 
+
+def _is_official_cloud_request(request: Request) -> bool:
+    _, is_self_hosted, _ = validate_request_domain(request)
+    return not is_self_hosted
+
 class PaymentConfigResponse(BaseModel):
     provider: str
     public_key: str
@@ -101,6 +115,15 @@ EU_REVENUE_THRESHOLD_EUR_CENTS = 990_000
 EU_REVENUE_CACHE_KEY = "stripe_eu_revenue_eur_cents_ytd"
 EU_REVENUE_CACHE_TTL = 3600  # refresh from Stripe every hour
 PAID_SIGNUP_COMPLETION_LAST_OPENED = "/chat/new"
+BANK_TRANSFER_PARTIAL_EXTENSION_DAYS = 7
+BANK_TRANSFER_AMOUNT_NOTICE_TASK = (
+    "app.tasks.email_tasks.bank_transfer_amount_notice_email_task."
+    "send_bank_transfer_amount_notice"
+)
+BANK_TRANSFER_DUPLICATE_REFERENCE_EMAIL_TASK = (
+    "app.tasks.email_tasks.bank_transfer_duplicate_reference_email_task."
+    "send_bank_transfer_duplicate_reference"
+)
 
 
 def _paid_signup_completion_update_payload(**extra_fields: Any) -> Dict[str, Any]:
@@ -534,7 +557,7 @@ async def get_payment_config(
             logger.error(f"Stripe public key '{secret_key_name}' not found in Vault.")
             raise HTTPException(status_code=503, detail="Payment configuration unavailable.")
 
-        bank_transfer_available = payment_service.is_bank_transfer_available and is_eu
+        bank_transfer_available = payment_service.is_bank_transfer_available and is_eu and _is_official_cloud_request(request)
         logger.info(
             f"Payment config: country={country_code}, is_eu={is_eu}, "
             f"use_managed_payments={use_managed_payments}, environment={environment}, "
@@ -836,8 +859,9 @@ async def create_payment_order(
     use_managed_payments = not is_eu
     order_provider_name = "stripe_managed" if use_managed_payments else "stripe"
 
-    # EU threshold guard: block EU payments if YTD EUR revenue >= 9,900 EUR
-    if is_eu:
+    # EU threshold guard: block production EU payments if YTD EUR revenue >= 9,900 EUR.
+    # Dev/test Stripe runs use test-mode transactions and must not trip the real compliance guard.
+    if should_enforce_eu_revenue_threshold(is_eu):
         try:
             cached_revenue = await cache_service.get(EU_REVENUE_CACHE_KEY)
             if cached_revenue is None:
@@ -1160,6 +1184,7 @@ class PendingBankTransferSummary(BaseModel):
 async def create_bank_transfer_order(
     request: Request,
     order_data: CreateBankTransferOrderRequest,
+    _official_cloud: None = Depends(_require_official_cloud),
     payment_service: PaymentService = Depends(get_payment_service),
     cache_service: CacheService = Depends(get_cache_service),
     directus_service: DirectusService = Depends(get_directus_service),
@@ -1178,6 +1203,8 @@ async def create_bank_transfer_order(
     available to all users regardless of tier, including Tier 0.
     """
     import uuid
+
+    _require_official_cloud(request)
 
     # Validate bank transfer is available
     if not payment_service.is_bank_transfer_available:
@@ -1241,7 +1268,7 @@ async def create_bank_transfer_order(
     # Reference format: OM-{account_id_prefix}-{order_id_short}
     # Short enough to fit in SEPA remittance info (max 140 chars)
     account_id = str(current_user.account_id) if hasattr(current_user, "account_id") else str(current_user.id)[:8]
-    reference = f"OM-{account_id}-{order_id[3:11]}"
+    reference = generate_bank_transfer_reference("OM", account_id, middle_length=len(account_id))
 
     expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
     created_at = datetime.now(timezone.utc).isoformat()
@@ -1374,6 +1401,7 @@ async def create_gift_card_bank_transfer_order(
 async def create_support_bank_transfer_order(
     request: Request,
     order_data: CreateSupportBankTransferRequest,
+    _official_cloud: None = Depends(_require_official_cloud),
     payment_service: PaymentService = Depends(get_payment_service),
     cache_service: CacheService = Depends(get_cache_service),
     directus_service: DirectusService = Depends(get_directus_service),
@@ -1388,6 +1416,8 @@ async def create_support_bank_transfer_order(
     - Uses support_email (plaintext) instead of email_encryption_key
     """
     import uuid
+
+    _require_official_cloud(request)
 
     if not payment_service.is_bank_transfer_available:
         raise HTTPException(
@@ -1408,7 +1438,7 @@ async def create_support_bank_transfer_order(
 
     order_id = f"bt_{uuid.uuid4().hex[:16]}"
     user_id = str(current_user.id) if current_user else "guest"
-    reference = f"OM-SUP-{order_id[3:11]}"
+    reference = generate_bank_transfer_reference("OM", "SUP")
 
     expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
     created_at = datetime.now(timezone.utc).isoformat()
@@ -1478,11 +1508,14 @@ async def create_support_bank_transfer_order(
 async def get_bank_transfer_status(
     request: Request,
     order_id: str,
+    _official_cloud: None = Depends(_require_official_cloud),
     cache_service: CacheService = Depends(get_cache_service),
     directus_service: DirectusService = Depends(get_directus_service),
     current_user: User = Depends(get_current_user),
 ):
     """Get the current status of a pending bank transfer order."""
+    _require_official_cloud(request)
+
     # Try cache first, fall back to Directus
     order = await cache_service.get_bank_transfer_by_order_id(order_id)
 
@@ -1561,11 +1594,14 @@ async def get_gift_card_purchase_status(
 @limiter.limit("30/minute")
 async def get_pending_bank_transfers(
     request: Request,
+    _official_cloud: None = Depends(_require_official_cloud),
     cache_service: CacheService = Depends(get_cache_service),
     directus_service: DirectusService = Depends(get_directus_service),
     current_user: User = Depends(get_current_user),
 ):
     """Get all pending bank transfer orders for the current user."""
+    _require_official_cloud(request)
+
     # Try cache first
     pending = await cache_service.get_user_pending_bank_transfers(str(current_user.id))
 
@@ -3761,69 +3797,6 @@ async def list_payment_methods(
         logger.error(f"Error listing payment methods for user {current_user.id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-class UserAuthMethodsResponse(BaseModel):
-    has_passkey: bool
-    has_2fa: bool
-    has_password: bool  # Whether user has password login method configured
-    has_recovery_key: bool  # Whether user has recovery key configured
-
-@router.get("/user-auth-methods", response_model=UserAuthMethodsResponse)
-@limiter.limit("30/minute")  # Less sensitive read operation
-async def get_user_auth_methods(
-    request: Request,
-    current_user: User = Depends(get_current_user),
-    directus_service: DirectusService = Depends(get_directus_service)
-):
-    """
-    Check what authentication methods are available for the user.
-    Returns whether user has passkey, 2FA, and/or password configured.
-    """
-    logger.info(f"Checking authentication methods for user {current_user.id}")
-    
-    try:
-        # Check for passkeys
-        has_passkey = False
-        try:
-            passkeys = await directus_service.get_user_passkeys_by_user_id(current_user.id)
-            has_passkey = len(passkeys) > 0
-        except Exception as e:
-            logger.warning(f"Error checking passkeys for user {current_user.id}: {e}")
-        
-        # Check for 2FA - verify encrypted_tfa_secret exists
-        has_2fa = False
-        try:
-            user_fields = await directus_service.get_user_fields_direct(current_user.id, ["encrypted_tfa_secret"])
-            has_2fa = bool(user_fields and user_fields.get("encrypted_tfa_secret"))
-        except Exception as e:
-            logger.warning(f"Error checking 2FA for user {current_user.id}: {e}")
-        
-        # Check for password login method by querying encryption_keys table
-        has_password = False
-        try:
-            import hashlib
-            hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
-            encryption_key = await directus_service.get_encryption_key(hashed_user_id, "password")
-            has_password = encryption_key is not None
-        except Exception as e:
-            logger.warning(f"Error checking password for user {current_user.id}: {e}")
-        
-        # Check for recovery key
-        has_recovery_key = False
-        try:
-            import hashlib
-            hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
-            recovery_key = await directus_service.get_encryption_key(hashed_user_id, "recovery_key")
-            has_recovery_key = recovery_key is not None
-        except Exception as e:
-            logger.warning(f"Error checking recovery key for user {current_user.id}: {e}")
-        
-        logger.info(f"User {current_user.id} auth methods - passkey: {has_passkey}, 2FA: {has_2fa}, password: {has_password}, recovery_key: {has_recovery_key}")
-        return UserAuthMethodsResponse(has_passkey=has_passkey, has_2fa=has_2fa, has_password=has_password, has_recovery_key=has_recovery_key)
-        
-    except Exception as e:
-        logger.error(f"Error checking auth methods for user {current_user.id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
 @router.post("/process-payment-with-saved-method", response_model=ProcessPaymentWithSavedMethodResponse)
 @limiter.limit("5/minute")  # Sensitive operation - prevent abuse
 async def process_payment_with_saved_method(
@@ -4437,7 +4410,7 @@ def generate_gift_card_code() -> str:
     Returns:
         A unique gift card code string
     """
-    import random
+    import secrets
     import string
     
     # Use alphanumeric characters, excluding ambiguous ones (0, O, I, 1)
@@ -4445,9 +4418,9 @@ def generate_gift_card_code() -> str:
     charset = string.ascii_uppercase.replace('O', '').replace('I', '') + string.digits.replace('0', '').replace('1', '')
     
     # Generate 3 groups of 4 random characters
-    part1 = ''.join(random.choices(charset, k=4))
-    part2 = ''.join(random.choices(charset, k=4))
-    part3 = ''.join(random.choices(charset, k=4))
+    part1 = ''.join(secrets.choice(charset) for _ in range(4))
+    part2 = ''.join(secrets.choice(charset) for _ in range(4))
+    part3 = ''.join(secrets.choice(charset) for _ in range(4))
     
     # Format as XXXX-XXXX-XXXX
     gift_card_code = f"{part1}-{part2}-{part3}"
@@ -4772,6 +4745,23 @@ async def get_invoices(
             }
         )
 
+        if invoices_data:
+            invoice_versions = await directus_service.get_items(
+                collection="invoice_ciphertext_versions",
+                params={
+                    "filter": {
+                        "invoice_id": {"_in": [invoice["id"] for invoice in invoices_data]},
+                        "user_id_hash": {"_eq": user_id_hash},
+                        "verified_at": {"_nnull": True},
+                    },
+                    "sort": "-version_number",
+                },
+            )
+            invoices_data = select_latest_invoice_ciphertext(
+                invoices_data,
+                invoice_versions or [],
+            )
+
         bank_transfer_rows = await directus_service.get_items(
             collection="pending_bank_transfers",
             params={
@@ -4984,6 +4974,21 @@ async def download_invoice(
             raise HTTPException(status_code=404, detail="Invoice not found")
 
         invoice = invoice_data[0]
+        invoice_versions = await directus_service.get_items(
+            collection="invoice_ciphertext_versions",
+            params={
+                "filter": {
+                    "invoice_id": {"_eq": invoice_id},
+                    "user_id_hash": {"_eq": user_id_hash},
+                    "verified_at": {"_nnull": True},
+                },
+                "sort": "-version_number",
+            },
+        )
+        invoice = select_latest_invoice_ciphertext(
+            [invoice],
+            invoice_versions or [],
+        )[0]
         vault_key_id = current_user.vault_key_id
         if not vault_key_id:
             logger.error(f"Vault key ID missing for user {current_user.id}")
@@ -5963,6 +5968,166 @@ async def request_refund(
 # Revolut Business webhook handler (SEPA bank transfers)
 # ──────────────────────────────────────────────────────────────────────
 
+def _format_eur_cents(amount_cents: int) -> str:
+    return f"{int(amount_cents or 0) / 100:.2f}"
+
+
+def _parse_bank_transfer_transaction_ledger(value: Any) -> List[Dict[str, Any]]:
+    if isinstance(value, list):
+        return [tx for tx in value if isinstance(tx, dict)]
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return []
+        if isinstance(parsed, list):
+            return [tx for tx in parsed if isinstance(tx, dict)]
+    return []
+
+
+def _bank_transfer_received_summary(
+    order: Dict[str, Any],
+    *,
+    transaction_id: str,
+    amount_cents: int,
+    currency: str,
+    created_at: Optional[str],
+    expected_amount_cents: int,
+    source: Optional[str] = None,
+) -> Dict[str, Any]:
+    ledger = _parse_bank_transfer_transaction_ledger(order.get("revolut_transactions"))
+    existing_ids = {str(tx.get("transaction_id") or "") for tx in ledger}
+    if transaction_id and transaction_id in existing_ids:
+        return {
+            "duplicate": True,
+            "ledger": ledger,
+            "received_total_cents": int(order.get("received_amount_cents") or sum(int(tx.get("amount_cents") or 0) for tx in ledger)),
+            "remaining_amount_cents": int(order.get("remaining_amount_cents") or 0),
+            "overpaid_amount_cents": int(order.get("overpaid_amount_cents") or 0),
+        }
+
+    prior_total = sum(int(tx.get("amount_cents") or 0) for tx in ledger)
+    if not ledger:
+        prior_total = int(order.get("received_amount_cents") or 0)
+        legacy_transaction_id = str(order.get("revolut_transaction_id") or "")
+        if legacy_transaction_id and legacy_transaction_id == transaction_id and prior_total > 0:
+            return {
+                "duplicate": True,
+                "ledger": ledger,
+                "received_total_cents": prior_total,
+                "remaining_amount_cents": int(order.get("remaining_amount_cents") or max(0, int(expected_amount_cents or 0) - prior_total)),
+                "overpaid_amount_cents": int(order.get("overpaid_amount_cents") or max(0, prior_total - int(expected_amount_cents or 0))),
+            }
+        if legacy_transaction_id and legacy_transaction_id != transaction_id and prior_total > 0:
+            ledger.append(
+                {
+                    "transaction_id": legacy_transaction_id,
+                    "amount_cents": prior_total,
+                    "currency": str(order.get("currency") or "eur").lower(),
+                    "received_at": order.get("completed_at") or order.get("created_at"),
+                    "source": "legacy_summary",
+                }
+            )
+
+    new_transaction = {
+        "transaction_id": transaction_id,
+        "amount_cents": int(amount_cents or 0),
+        "currency": currency,
+        "received_at": created_at or datetime.now(timezone.utc).isoformat(),
+    }
+    if source:
+        new_transaction["source"] = source
+    ledger.append(new_transaction)
+    received_total_cents = prior_total + int(amount_cents or 0)
+    return {
+        "duplicate": False,
+        "ledger": ledger,
+        "received_total_cents": received_total_cents,
+        "remaining_amount_cents": max(0, int(expected_amount_cents or 0) - received_total_cents),
+        "overpaid_amount_cents": max(0, received_total_cents - int(expected_amount_cents or 0)),
+    }
+
+
+def _queue_bank_transfer_amount_notice(
+    *,
+    notice_type: str,
+    order_id: str,
+    user_id: str,
+    email_encryption_key: Optional[str],
+    credits_amount: int,
+    reference: str,
+    expected_amount_cents: int,
+    received_amount_cents: int,
+    remaining_amount_cents: int,
+    overpaid_amount_cents: int,
+    expires_at: Optional[str] = None,
+) -> None:
+    if not email_encryption_key:
+        logger.warning("Cannot queue bank-transfer %s notice for %s: missing email key", notice_type, order_id)
+        return
+    try:
+        app.send_task(
+            name=BANK_TRANSFER_AMOUNT_NOTICE_TASK,
+            kwargs={
+                "notice_type": notice_type,
+                "user_id": user_id,
+                "order_id": order_id,
+                "email_encryption_key": email_encryption_key,
+                "credits_amount": credits_amount,
+                "reference": reference,
+                "expected_amount_eur": _format_eur_cents(expected_amount_cents),
+                "received_amount_eur": _format_eur_cents(received_amount_cents),
+                "remaining_amount_eur": _format_eur_cents(remaining_amount_cents),
+                "overpaid_amount_eur": _format_eur_cents(overpaid_amount_cents),
+                "expires_at": expires_at or "",
+                "support_email": "support@openmates.org",
+            },
+            queue="email",
+        )
+    except Exception as exc:
+        logger.error("Failed to dispatch bank-transfer %s notice for %s: %s", notice_type, order_id, exc)
+
+
+def _queue_bank_transfer_duplicate_reference_email(
+    *,
+    order_id: str,
+    user_id: str,
+    email_encryption_key: Optional[str],
+    credits_amount: int,
+    reference: str,
+    expected_amount_cents: int,
+    received_amount_cents: int,
+    total_received_cents: int,
+    overpaid_amount_cents: int,
+    transaction_id: str,
+) -> bool:
+    if not email_encryption_key:
+        logger.warning("Cannot queue bank-transfer duplicate-reference email for %s: missing email key", order_id)
+        return False
+    try:
+        app.send_task(
+            name=BANK_TRANSFER_DUPLICATE_REFERENCE_EMAIL_TASK,
+            kwargs={
+                "user_id": user_id,
+                "order_id": order_id,
+                "email_encryption_key": email_encryption_key,
+                "credits_amount": credits_amount,
+                "reference": reference,
+                "expected_amount_eur": _format_eur_cents(expected_amount_cents),
+                "received_amount_eur": _format_eur_cents(received_amount_cents),
+                "total_received_eur": _format_eur_cents(total_received_cents),
+                "overpaid_amount_eur": _format_eur_cents(overpaid_amount_cents),
+                "transaction_id": transaction_id,
+                "support_email": "support@openmates.org",
+            },
+            queue="email",
+        )
+        return True
+    except Exception as exc:
+        logger.error("Failed to dispatch bank-transfer duplicate-reference email for %s: %s", order_id, exc)
+        return False
+
+
 def _notify_admin_bank_transfer(subject: str, body: str) -> None:
     """
     Send an alert email to the admin address for bank transfer issues
@@ -6006,43 +6171,94 @@ async def _handle_revolut_business_webhook(
     Flow:
     1. Parse the incoming transfer from the webhook event
     2. Match it to a pending bank transfer order by reference
-    3. Validate the amount (±€0.50 tolerance for intermediary fees)
-    4. Apply credits to the user's account
-    5. Dispatch invoice email task
-    6. Broadcast WebSocket payment_completed event
+    3. Accumulate matched Revolut transactions and classify under/exact/overpayment
+    4. Apply credits only once the selected pack price has been fully received
+    5. Dispatch invoice or amount-notice email tasks
+    6. Broadcast WebSocket payment_completed event after settlement
 
     This is invoked as an early-return branch from payment_webhook() when
     the Revolut-Signature header is detected.
     """
-    from backend.core.api.app.services.payment.revolut_business_service import RevolutBusinessService
+    from backend.core.api.app.services.payment.revolut_business_service import (
+        RevolutBusinessService,
+        RevolutBusinessTransactionConfirmationError,
+    )
 
     revolut_service = payment_service.revolut_business
     if not revolut_service:
         logger.error("Revolut Business webhook received but service not initialized")
         return {"status": "provider_not_configured"}
 
-    # Parse the event into a normalized transfer dict
-    transfer = RevolutBusinessService.parse_incoming_transfer(event_payload)
-    if not transfer:
+    if event_type not in {"TransactionCreated", "TransactionStateChanged"}:
         logger.info(f"Revolut Business event '{event_type}' is not a relevant incoming transfer — ignoring")
         return {"status": "ignored_irrelevant_event"}
 
-    if transfer["event_type"] == "TransactionStateChanged":
-        # State change events (e.g. pending → completed/reverted).
-        # We only process TransactionCreated for credit granting.
-        # TransactionStateChanged with new_state="reverted" could trigger cleanup,
-        # but for Phase 1 we just log it.
-        new_state = transfer.get("new_state", "")
-        logger.info(
-            f"Revolut Business transaction {transfer['transaction_id']} "
-            f"state changed: {transfer.get('old_state')} → {new_state}"
-        )
-        if new_state == "reverted":
+    webhook_hint = RevolutBusinessService.parse_incoming_transfer(event_payload) or {}
+    transaction_id_from_webhook = str((event_payload.get("data") or {}).get("id") or "").strip()
+    if not transaction_id_from_webhook:
+        logger.warning("Revolut Business %s webhook did not include a transaction ID", event_type)
+        return {"status": "missing_transaction_id"}
+
+    try:
+        transfer = await revolut_service.fetch_confirmed_incoming_transfer(transaction_id_from_webhook)
+    except RevolutBusinessTransactionConfirmationError as exc:
+        if exc.code == "api_credentials_missing":
             logger.warning(
-                f"Revolut Business transaction {transfer['transaction_id']} was reverted. "
-                f"If credits were already granted, manual review may be needed."
+                "Revolut Business transaction %s could not be auto-settled because API credentials are missing",
+                transaction_id_from_webhook,
             )
-        return {"status": f"state_changed_{new_state}"}
+            return {"status": "transaction_confirmation_unavailable"}
+
+        if exc.code == "transaction_not_completed":
+            transaction_state = exc.state or "not_completed"
+            logger.info(
+                "Revolut Business transaction %s is %s; waiting for a completed state before settlement",
+                transaction_id_from_webhook,
+                transaction_state,
+            )
+            return {"status": f"transaction_{transaction_state}"}
+
+        reference_hint = str(webhook_hint.get("reference") or "").strip()
+        logger.error(
+            "Revolut Business transaction confirmation failed for %s: code=%s",
+            transaction_id_from_webhook,
+            exc.code,
+        )
+        if exc.alert_required:
+            _notify_admin_bank_transfer(
+                subject=f"Bank transfer auto-settlement failed — {transaction_id_from_webhook}",
+                body=(
+                    "A signed Revolut Business webhook was received, but OpenMates could not "
+                    "confirm the transaction through the Revolut Business API. No credits were granted.\n\n"
+                    f"Transaction ID: {transaction_id_from_webhook}\n"
+                    f"Reference hint from webhook: {reference_hint or '(none)'}\n"
+                    f"Failure code: {exc.code}\n\n"
+                    "Action required: fetch the transaction in Revolut Business, verify the OM reference and amount, "
+                    "then manually settle or investigate the matching pending_bank_transfers row."
+                ),
+            )
+        return {"status": "transaction_confirmation_failed"}
+
+    if webhook_hint.get("event_type") == "TransactionStateChanged":
+        new_state = webhook_hint.get("new_state", "")
+        logger.info(
+            "Revolut Business transaction %s state changed %s -> %s and API state is completed",
+            transfer["transaction_id"],
+            webhook_hint.get("old_state"),
+            new_state,
+        )
+
+    webhook_reference = str(webhook_hint.get("reference") or "").strip()
+    api_reference = str(transfer.get("reference") or "").strip()
+    if webhook_reference and not api_reference:
+        transfer["reference"] = webhook_reference
+    elif not api_reference and webhook_hint.get("event_type") == "TransactionStateChanged":
+        logger.info(
+            "Revolut Business transaction %s state-change event has no reference in webhook or API response; "
+            "waiting for TransactionCreated event",
+            transfer.get("transaction_id"),
+        )
+        return {"status": "transaction_reference_unavailable"}
 
     async def _update_bank_transfer(
         order_id: str, data: dict, ds=directus_service
@@ -6093,24 +6309,138 @@ async def _handle_revolut_business_webhook(
         return {"status": "non_eur_currency_flagged"}
 
     # Match by reference — try Redis cache first, fall back to Directus
-    pending_order = await cache_service.get_bank_transfer_by_reference(reference)
+    pending_order = None
+    for candidate_reference in bank_transfer_reference_lookup_variants(reference):
+        pending_order = await cache_service.get_bank_transfer_by_reference(candidate_reference)
+        if pending_order:
+            break
 
     if not pending_order:
         # Cache miss — query Directus
-        try:
-            results = await directus_service.get_items(
-                "pending_bank_transfers",
-                params={
-                    "filter[reference][_eq]": reference,
-                    "filter[status][_eq]": "pending",
-                    "limit": 1,
-                }
-            )
-            if results:
-                pending_order = results[0]
-                logger.info(f"Found pending bank transfer in Directus for reference '{reference}'")
-        except Exception as db_err:
-            logger.error(f"Error querying Directus for bank transfer reference '{reference}': {db_err}")
+        for candidate_reference in bank_transfer_reference_lookup_variants(reference):
+            try:
+                results = await directus_service.get_items(
+                    "pending_bank_transfers",
+                    params={
+                        "filter[reference][_eq]": candidate_reference,
+                        "filter[status][_eq]": "pending",
+                        "limit": 1,
+                    }
+                )
+                if results:
+                    pending_order = results[0]
+                    logger.info(f"Found pending bank transfer in Directus for reference '{candidate_reference}'")
+                    break
+            except Exception as db_err:
+                logger.error(f"Error querying Directus for bank transfer reference '{candidate_reference}': {db_err}")
+
+    completed_order = None
+    if pending_order and pending_order.get("status") == "completed":
+        completed_order = pending_order
+        pending_order = None
+
+    if not pending_order and not completed_order:
+        for candidate_reference in bank_transfer_reference_lookup_variants(reference):
+            try:
+                results = await directus_service.get_items(
+                    "pending_bank_transfers",
+                    params={
+                        "filter[reference][_eq]": candidate_reference,
+                        "filter[status][_eq]": "completed",
+                        "limit": 1,
+                    }
+                )
+                if results:
+                    completed_order = results[0]
+                    logger.info(
+                        "Found completed bank transfer in Directus for reused reference '%s'",
+                        candidate_reference,
+                    )
+                    break
+            except Exception as db_err:
+                logger.error(
+                    "Error querying Directus for completed bank transfer reference '%s': %s",
+                    candidate_reference,
+                    db_err,
+                )
+
+    if completed_order and completed_order.get("order_type", "credit_purchase") in {
+        "credit_purchase",
+        "team_credit_purchase",
+        "gift_card_purchase",
+    }:
+        order_id = completed_order.get("order_id", "")
+        reference = completed_order.get("reference") or reference
+        expected_amount_cents = int(completed_order.get("amount_expected_cents") or 0)
+        user_id = completed_order.get("user_id", "")
+        credits_amount = int(completed_order.get("credits_amount") or 0)
+        received_summary = _bank_transfer_received_summary(
+            completed_order,
+            transaction_id=transaction_id,
+            amount_cents=received_amount_cents,
+            currency=received_currency,
+            created_at=transfer.get("created_at"),
+            expected_amount_cents=expected_amount_cents,
+            source="duplicate_completed_reference",
+        )
+        if received_summary["duplicate"]:
+            logger.info("Duplicate Revolut transaction %s for completed bank transfer %s ignored", transaction_id, order_id)
+            return {"status": "duplicate_transaction_ignored"}
+
+        received_total_cents = int(received_summary["received_total_cents"])
+        overpaid_amount_cents = int(received_summary["overpaid_amount_cents"])
+        await _update_bank_transfer(order_id, {
+            "status": "completed",
+            "received_amount_cents": received_total_cents,
+            "remaining_amount_cents": int(received_summary["remaining_amount_cents"]),
+            "overpaid_amount_cents": overpaid_amount_cents,
+            "revolut_transaction_id": transaction_id,
+            "revolut_transactions": received_summary["ledger"],
+            "admin_note": (
+                "Distinct Revolut transfer reused an already-completed bank-transfer reference; "
+                "no duplicate credits were granted automatically."
+            ),
+        })
+
+        email_queued = _queue_bank_transfer_duplicate_reference_email(
+            order_id=order_id,
+            user_id=user_id,
+            email_encryption_key=completed_order.get("email_encryption_key"),
+            credits_amount=credits_amount,
+            reference=reference,
+            expected_amount_cents=expected_amount_cents,
+            received_amount_cents=int(received_amount_cents or 0),
+            total_received_cents=received_total_cents,
+            overpaid_amount_cents=overpaid_amount_cents,
+            transaction_id=transaction_id,
+        )
+        _notify_admin_bank_transfer(
+            subject=f"Duplicate completed bank-transfer reference received — {reference}",
+            body=(
+                "A SEPA bank transfer arrived with an OpenMates reference that already belongs "
+                "to a completed credit purchase. No duplicate credits, team credits, gift cards, "
+                "or purchase confirmation were created automatically.\n\n"
+                f"Order ID: {order_id}\n"
+                f"Reference: {reference}\n"
+                f"Duplicate transfer amount: €{_format_eur_cents(int(received_amount_cents or 0))}\n"
+                f"Total recorded under reference: €{_format_eur_cents(received_total_cents)}\n"
+                f"Unresolved amount above selected pack: €{_format_eur_cents(overpaid_amount_cents)}\n"
+                f"Transaction ID: {transaction_id}\n\n"
+                "Action required: wait for the user's reply, then issue a credits gift card or "
+                "refund the transfer using the IBAN/account holder details they provide."
+            ),
+        )
+        logger.warning(
+            "Bank transfer reused completed reference %s for order %s; duplicate amount=%s transaction_id=%s",
+            reference,
+            order_id,
+            received_amount_cents,
+            transaction_id,
+        )
+        return {
+            "status": "duplicate_completed_reference_emailed"
+            if email_queued else "duplicate_completed_reference_flagged"
+        }
 
     if not pending_order:
         logger.warning(
@@ -6134,6 +6464,7 @@ async def _handle_revolut_business_webhook(
         return {"status": "unmatched_transfer_flagged"}
 
     order_id = pending_order.get("order_id", "")
+    reference = pending_order.get("reference") or reference
     order_status = pending_order.get("status", "")
     expected_amount_cents = pending_order.get("amount_expected_cents", 0)
     user_id = pending_order.get("user_id", "")
@@ -6145,20 +6476,21 @@ async def _handle_revolut_business_webhook(
         logger.info(f"Bank transfer order {order_id} already completed. Skipping duplicate webhook.")
         return {"status": "already_completed"}
 
-    # Amount tolerance check
-    if not RevolutBusinessService.is_amount_within_tolerance(expected_amount_cents, received_amount_cents):
+    if order_type == "support_contribution" and not RevolutBusinessService.is_amount_within_tolerance(
+        int(expected_amount_cents or 0), int(received_amount_cents or 0)
+    ):
         logger.warning(
-            f"Bank transfer amount mismatch for order {order_id}: "
-            f"expected={expected_amount_cents} cents, received={received_amount_cents} cents. "
-            f"Flagging for admin review."
+            "Support bank transfer amount mismatch for order %s: expected=%s received=%s. Flagging for admin review.",
+            order_id,
+            expected_amount_cents,
+            received_amount_cents,
         )
-        # Update status in Directus and cache
         try:
             await _update_bank_transfer(order_id, {
                 "status": "admin_review",
                 "received_amount_cents": received_amount_cents,
                 "revolut_transaction_id": transaction_id,
-                "admin_note": f"Amount mismatch: expected {expected_amount_cents}, received {received_amount_cents}",
+                "admin_note": f"Support contribution amount mismatch: expected {expected_amount_cents}, received {received_amount_cents}",
             })
             await cache_service.update_bank_transfer_status(
                 order_id=order_id,
@@ -6167,23 +6499,83 @@ async def _handle_revolut_business_webhook(
                 extra_fields={"received_amount_cents": received_amount_cents},
             )
         except Exception as update_err:
-            logger.error(f"Error updating bank transfer {order_id} to admin_review: {update_err}")
+            logger.error("Error updating support bank transfer %s to admin_review: %s", order_id, update_err)
         _notify_admin_bank_transfer(
-            subject=f"Bank transfer amount mismatch — order {order_id}",
+            subject=f"Support bank transfer amount mismatch — order {order_id}",
             body=(
-                f"A bank transfer arrived with an amount outside the ±€0.50 tolerance.\n\n"
+                f"A support-contribution bank transfer arrived with an amount outside tolerance.\n\n"
                 f"Order ID: {order_id}\n"
-                f"Expected: €{expected_amount_cents / 100:.2f}\n"
-                f"Received: €{received_amount_cents / 100:.2f}\n"
-                f"Difference: €{abs(expected_amount_cents - received_amount_cents) / 100:.2f}\n"
+                f"Expected: €{_format_eur_cents(int(expected_amount_cents or 0))}\n"
+                f"Received: €{_format_eur_cents(int(received_amount_cents or 0))}\n"
                 f"Transaction ID: {transaction_id}\n"
-                f"Reference: {reference}\n\n"
-                f"Order status set to 'admin_review'. Action required:\n"
-                f"- If acceptable (e.g. small bank fee), grant credits manually via gift card\n"
-                f"- Otherwise, refund the difference or contact the sender"
+                f"Reference: {reference}"
             ),
         )
-        return {"status": "amount_mismatch_flagged"}
+        return {"status": "support_amount_mismatch_flagged"}
+
+    received_summary = _bank_transfer_received_summary(
+        pending_order,
+        transaction_id=transaction_id,
+        amount_cents=received_amount_cents,
+        currency=received_currency,
+        created_at=transfer.get("created_at"),
+        expected_amount_cents=int(expected_amount_cents or 0),
+    )
+    if received_summary["duplicate"]:
+        logger.info("Duplicate Revolut transaction %s for bank transfer %s ignored", transaction_id, order_id)
+        return {"status": "duplicate_transaction_ignored"}
+
+    received_total_cents = int(received_summary["received_total_cents"])
+    remaining_amount_cents = int(received_summary["remaining_amount_cents"])
+    overpaid_amount_cents = int(received_summary["overpaid_amount_cents"])
+    settlement_fields = {
+        "received_amount_cents": received_total_cents,
+        "remaining_amount_cents": remaining_amount_cents,
+        "overpaid_amount_cents": overpaid_amount_cents,
+        "revolut_transaction_id": transaction_id,
+        "revolut_transactions": received_summary["ledger"],
+    }
+
+    if received_total_cents < int(expected_amount_cents or 0):
+        partial_expires_at = (datetime.now(timezone.utc) + timedelta(days=BANK_TRANSFER_PARTIAL_EXTENSION_DAYS)).isoformat()
+        logger.info(
+            "Bank transfer %s underpaid: expected=%s received_total=%s remaining=%s. Keeping pending.",
+            order_id,
+            expected_amount_cents,
+            received_total_cents,
+            remaining_amount_cents,
+        )
+        try:
+            await _update_bank_transfer(order_id, {
+                "status": "pending",
+                "expires_at": partial_expires_at,
+                "admin_note": "Partial bank-transfer payment received; waiting for remaining amount with the same reference.",
+                **settlement_fields,
+            })
+            await cache_service.update_bank_transfer_status(
+                order_id=order_id,
+                reference=reference,
+                status="pending",
+                extra_fields={**settlement_fields, "expires_at": partial_expires_at},
+            )
+        except Exception as update_err:
+            logger.error("Error updating underpaid bank transfer %s: %s", order_id, update_err)
+            raise HTTPException(status_code=500, detail="Bank transfer partial payment update failed")
+
+        _queue_bank_transfer_amount_notice(
+            notice_type="underpaid",
+            order_id=order_id,
+            user_id=user_id,
+            email_encryption_key=pending_order.get("email_encryption_key"),
+            credits_amount=int(credits_amount or 0),
+            reference=reference,
+            expected_amount_cents=int(expected_amount_cents or 0),
+            received_amount_cents=received_total_cents,
+            remaining_amount_cents=remaining_amount_cents,
+            overpaid_amount_cents=0,
+            expires_at=partial_expires_at,
+        )
+        return {"status": "bank_transfer_underpaid"}
 
     # ── Support contribution path (no credits) ───────────────────────
     if order_type == "support_contribution":
@@ -6192,8 +6584,7 @@ async def _handle_revolut_business_webhook(
             await _update_bank_transfer(order_id, {
                 "status": "completed",
                 "completed_at": completed_at,
-                "received_amount_cents": received_amount_cents,
-                "revolut_transaction_id": transaction_id,
+                **settlement_fields,
             })
             await cache_service.update_bank_transfer_status(
                 order_id=order_id,
@@ -6201,7 +6592,7 @@ async def _handle_revolut_business_webhook(
                 status="completed",
                 extra_fields={
                     "completed_at": completed_at,
-                    "received_amount_cents": received_amount_cents,
+                    **settlement_fields,
                 },
             )
 
@@ -6214,7 +6605,7 @@ async def _handle_revolut_business_webhook(
                     kwargs={
                         "order_id": order_id,
                         "support_email": support_email,
-                        "amount": received_amount_cents,
+                        "amount": received_total_cents,
                         "currency": "eur",
                         "sender_addressline1": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline1"),
                         "sender_addressline2": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline2"),
@@ -6266,8 +6657,7 @@ async def _handle_revolut_business_webhook(
             await _update_bank_transfer(order_id, {
                 "status": "completed",
                 "completed_at": completed_at,
-                "received_amount_cents": received_amount_cents,
-                "revolut_transaction_id": transaction_id,
+                **settlement_fields,
                 "gift_card_code": gift_card_code,
             })
             await cache_service.update_bank_transfer_status(
@@ -6276,7 +6666,7 @@ async def _handle_revolut_business_webhook(
                 status="completed",
                 extra_fields={
                     "completed_at": completed_at,
-                    "received_amount_cents": received_amount_cents,
+                    **settlement_fields,
                     "gift_card_code": gift_card_code,
                 },
             )
@@ -6387,6 +6777,21 @@ async def _handle_revolut_business_webhook(
             except Exception as compliance_err:
                 logger.error(f"Error logging gift-card bank transfer compliance for {order_id}: {compliance_err}")
 
+            if overpaid_amount_cents > 0:
+                _queue_bank_transfer_amount_notice(
+                    notice_type="overpaid",
+                    order_id=order_id,
+                    user_id=user_id,
+                    email_encryption_key=pending_order.get("email_encryption_key"),
+                    credits_amount=int(credits_amount or 0),
+                    reference=reference,
+                    expected_amount_cents=int(expected_amount_cents or 0),
+                    received_amount_cents=received_total_cents,
+                    remaining_amount_cents=0,
+                    overpaid_amount_cents=overpaid_amount_cents,
+                    expires_at=pending_order.get("expires_at"),
+                )
+
             logger.info(
                 f"Gift-card bank transfer {order_id} completed successfully. "
                 f"Created gift card for {credits_amount} credits. Revolut txn: {transaction_id}"
@@ -6403,6 +6808,87 @@ async def _handle_revolut_business_webhook(
             if final_cache_data.get("pending_order_id") == order_id:
                 final_cache_data.pop("pending_order_id", None)
             await cache_service.set_user(final_cache_data, user_id=user_id)
+
+    if order_type == "team_credit_purchase":
+        team_id = pending_order.get("team_id")
+        if not team_id:
+            logger.error(f"Team bank transfer {order_id} is missing team_id")
+            return {"status": "processing_error"}
+
+        completed_at = datetime.now(timezone.utc).isoformat()
+        try:
+            from backend.core.api.app.services.team_billing_service import TeamBillingService
+
+            await TeamBillingService(directus_service).add_credits(
+                team_id=str(team_id),
+                actor_user_id=str(user_id),
+                event_id=f"bank-transfer:{order_id}",
+                credits=int(credits_amount),
+                event_type="purchase",
+                encrypted_metadata=None,
+            )
+            await _update_bank_transfer(order_id, {
+                "status": "completed",
+                "completed_at": completed_at,
+                **settlement_fields,
+            })
+            await cache_service.update_bank_transfer_status(
+                order_id=order_id,
+                reference=reference,
+                status="completed",
+                extra_fields={
+                    "completed_at": completed_at,
+                    **settlement_fields,
+                },
+            )
+            try:
+                await cache_service.increment_stat("income_eur_cents", int(expected_amount_cents or 0))
+                await cache_service.increment_stat("credits_sold", int(credits_amount))
+                await cache_service.update_liability(int(credits_amount))
+                await cache_service.increment_stat("purchase_count")
+                await cache_service.increment_json_stat("purchases_by_provider", "team_bank_transfer")
+            except Exception as stats_err:
+                logger.error(f"Error updating stats for team bank transfer {order_id}: {stats_err}")
+            try:
+                ComplianceService.log_financial_transaction(
+                    user_id=user_id,
+                    transaction_type="team_credit_purchase",
+                    amount=int(credits_amount),
+                    currency="eur",
+                    status="success",
+                    details={
+                        "order_id": order_id,
+                        "team_id": team_id,
+                        "provider": "team_bank_transfer",
+                        "revolut_transaction_id": transaction_id,
+                        "received_amount_cents": received_total_cents,
+                        "overpaid_amount_cents": overpaid_amount_cents,
+                    },
+                )
+            except Exception as compliance_err:
+                logger.error(f"Error logging team bank transfer compliance for {order_id}: {compliance_err}")
+            if overpaid_amount_cents > 0:
+                _queue_bank_transfer_amount_notice(
+                    notice_type="overpaid",
+                    order_id=order_id,
+                    user_id=user_id,
+                    email_encryption_key=pending_order.get("email_encryption_key"),
+                    credits_amount=int(credits_amount or 0),
+                    reference=reference,
+                    expected_amount_cents=int(expected_amount_cents or 0),
+                    received_amount_cents=received_total_cents,
+                    remaining_amount_cents=0,
+                    overpaid_amount_cents=overpaid_amount_cents,
+                    expires_at=pending_order.get("expires_at"),
+                )
+            logger.info(
+                f"Team bank transfer {order_id} completed successfully. "
+                f"Granted {credits_amount} credits to team {team_id}. Revolut txn: {transaction_id}"
+            )
+            return {"status": "team_bank_transfer_completed"}
+        except Exception as e:
+            logger.error(f"Error processing team bank transfer {order_id}: {e}", exc_info=True)
+            return {"status": "processing_error"}
 
     # ── Credit purchase path ─────────────────────────────────────────
     user_cache_data = await cache_service.get_user_by_id(user_id)
@@ -6455,7 +6941,7 @@ async def _handle_revolut_business_webhook(
             referred_current_credits=new_total_credits,
             referred_vault_key_id=vault_key_id,
             order_id=order_id,
-            purchase_amount_cents=received_amount_cents,
+            purchase_amount_cents=int(expected_amount_cents or 0),
         )
         if referral_reward_result.awarded and referral_reward_result.referred_new_total is not None:
             new_total_credits = referral_reward_result.referred_new_total
@@ -6470,14 +6956,13 @@ async def _handle_revolut_business_webhook(
         await _update_bank_transfer(order_id, {
             "status": "completed",
             "completed_at": completed_at,
-            "received_amount_cents": received_amount_cents,
-            "revolut_transaction_id": transaction_id,
+            **settlement_fields,
         })
         await cache_service.update_bank_transfer_status(
             order_id=order_id,
             reference=reference,
             status="completed",
-            extra_fields={"completed_at": completed_at, "received_amount_cents": received_amount_cents},
+            extra_fields={"completed_at": completed_at, **settlement_fields},
         )
 
         # Update tier system (SEPA is tier-unrestricted, but we still track for analytics)
@@ -6596,6 +7081,21 @@ async def _handle_revolut_business_webhook(
             queue="email",
         )
 
+        if overpaid_amount_cents > 0:
+            _queue_bank_transfer_amount_notice(
+                notice_type="overpaid",
+                order_id=order_id,
+                user_id=user_id,
+                email_encryption_key=email_encryption_key,
+                credits_amount=int(credits_amount or 0),
+                reference=reference,
+                expected_amount_cents=int(expected_amount_cents or 0),
+                received_amount_cents=received_total_cents,
+                remaining_amount_cents=0,
+                overpaid_amount_cents=overpaid_amount_cents,
+                expires_at=pending_order.get("expires_at"),
+            )
+
         # Log compliance
         try:
             ComplianceService.log_financial_transaction(
@@ -6610,6 +7110,8 @@ async def _handle_revolut_business_webhook(
                     "previous_credits": current_credits,
                     "new_credits": new_total_credits,
                     "revolut_transaction_id": transaction_id,
+                    "received_amount_cents": received_total_cents,
+                    "overpaid_amount_cents": overpaid_amount_cents,
                 },
             )
         except Exception as compliance_err:

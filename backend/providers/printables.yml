@@ -1,0 +1,11 @@
+# backend/providers/printables.yml
+#
+# Metadata for the Printables catalog used by models3d.search.
+# The integration reads public browser-facing catalog data without API keys.
+
+provider_id: printables
+name: Printables
+description: Public 3D model catalog operated by Prusa.
+logo_svg: icons/printables.svg
+region: EU
+privacy_policy: https://www.prusa3d.com/page/privacy-policy_231258/ # covers printables.com, verified 2026-08-08

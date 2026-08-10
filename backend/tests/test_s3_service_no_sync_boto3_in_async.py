@@ -47,6 +47,10 @@ BLOCKING_BOTO3_METHODS: Set[str] = {
     "download_fileobj",
     "list_objects_v2",
     "delete_objects",
+    "create_multipart_upload",
+    "upload_part",
+    "complete_multipart_upload",
+    "abort_multipart_upload",
 }
 
 # Methods in S3UploadService that are synchronous by design (not async def)
@@ -209,6 +213,18 @@ def test_no_sync_boto3_calls_in_async_methods():
     )
 
 
+def test_multipart_boto3_calls_must_use_a_thread() -> None:
+    method = ast.parse(
+        "async def upload_part(self):\n"
+        "    self.upload_client.upload_part(Bucket='bucket')\n"
+    ).body[0]
+
+    assert isinstance(method, ast.AsyncFunctionDef)
+    assert _find_sync_boto3_violations_in_async_method(method) == [
+        (2, "self.upload_client.upload_part(...) called without asyncio.to_thread")
+    ]
+
+
 def test_known_async_methods_are_covered():
     """
     Meta-test: if S3UploadService gains a new async method in the future,
@@ -223,8 +239,10 @@ def test_known_async_methods_are_covered():
         "initialize",
         "_initialize_buckets",
         "upload_file",
+        "upload_file_stream",
         "delete_file",
         "get_file",
+        "get_file_stream",
     }
 
     tree = ast.parse(SERVICE_FILE.read_text(), filename=str(SERVICE_FILE))

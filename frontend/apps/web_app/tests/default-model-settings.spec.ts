@@ -54,6 +54,9 @@ const {
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const MODEL_CHANGE_NOTIFICATION_RE = /Changed model for/i;
+const MISTRAL_SELECTED_NOTIFICATION = "Changed model for Simple requests from 'Auto' to 'Mistral Small 3.2'";
+const AUTO_SELECTED_NOTIFICATION = "Changed model for Simple requests from 'Mistral Small 3.2' to 'Auto'";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -113,6 +116,14 @@ async function closeSettings(
 	} else {
 		logCheckpoint('Settings already closed.');
 	}
+}
+
+function modelChangeNotifications(page: any) {
+	return page.getByTestId('notification').filter({ hasText: MODEL_CHANGE_NOTIFICATION_RE });
+}
+
+function modelChangeNotification(page: any, expectedText: string) {
+	return modelChangeNotifications(page).filter({ hasText: expectedText });
 }
 
 /**
@@ -233,7 +244,7 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 	await takeStepScreenshot(page, '02-auto-select-off');
 
 	// Toggling OFF auto-select without changing any values should NOT trigger save/notification
-	const noChangeNotification = page.getByTestId('notification');
+	const noChangeNotification = modelChangeNotifications(page);
 	await page.waitForTimeout(1200);
 	await expect(noChangeNotification).toHaveCount(0);
 	logCheckpoint('No notification after toggling auto-select OFF with unchanged values (expected).');
@@ -259,11 +270,9 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 	await takeStepScreenshot(page, '02-mistral-small-selected');
 
 	// Verify success notification appears with descriptive change text
-	const notification2 = page.getByTestId('notification');
+	const notification2 = modelChangeNotification(page, MISTRAL_SELECTED_NOTIFICATION);
 	await expect(notification2).toBeVisible({ timeout: 5000 });
-	await expect(notification2).toContainText(
-		"Changed model for Simple requests from 'Auto' to 'Mistral Small 3.2'"
-	);
+	await expect(notification2).toContainText(MISTRAL_SELECTED_NOTIFICATION);
 	logCheckpoint('Descriptive success notification appeared after selecting Mistral Small 3.2.');
 
 	// Wait for notification to disappear
@@ -327,11 +336,9 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 		logCheckpoint('Toggled auto-select back ON.');
 
 		// Assert before taking screenshots so the transient toast cannot expire first.
-		const notification3 = page.getByTestId('notification');
+		const notification3 = modelChangeNotification(page, AUTO_SELECTED_NOTIFICATION);
 		await expect(notification3).toBeVisible({ timeout: 5000 });
-		await expect(notification3).toContainText(
-			"Changed model for Simple requests from 'Mistral Small 3.2' to 'Auto'"
-		);
+		await expect(notification3).toContainText(AUTO_SELECTED_NOTIFICATION);
 		logCheckpoint('Descriptive success notification appeared after toggling auto-select ON.');
 	}
 

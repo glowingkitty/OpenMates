@@ -21,16 +21,22 @@ const AES_IV_LENGTH = 12;
 // ============================================================================
 
 /**
- * Cache for imported CryptoKey objects, keyed by key fingerprint.
+ * Cache for imported CryptoKey objects, bucketed by fingerprint and matched by
+ * exact raw key bytes so colliding 32-bit fingerprints cannot share keys.
  * Avoids redundant crypto.subtle.importKey() calls when encrypting/decrypting
  * multiple fields with the same chat key (e.g., 7 fields per message).
  *
  * Two separate caches for encrypt vs decrypt usage flags since importKey
  * requires specifying the allowed operations upfront.
  */
+interface CachedCryptoKey {
+  rawKey: Uint8Array;
+  cryptoKey: CryptoKey;
+}
+
 const cryptoKeyCache = {
-  encrypt: new Map<string, CryptoKey>(),
-  decrypt: new Map<string, CryptoKey>(),
+  encrypt: new Map<string, CachedCryptoKey[]>(),
+  decrypt: new Map<string, CachedCryptoKey[]>(),
 };
 
 // Simple FNV-1a fingerprint for cache keying (matches ChatKeyManager's approach)
@@ -43,6 +49,15 @@ function chatKeyFingerprint(key: Uint8Array): string {
   return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
+function rawKeysEqual(first: Uint8Array, second: Uint8Array): boolean {
+  if (first.length !== second.length) return false;
+  let difference = 0;
+  for (let index = 0; index < first.length; index++) {
+    difference |= first[index] ^ second[index];
+  }
+  return difference === 0;
+}
+
 /**
  * Get or import a CryptoKey for the given raw key bytes, using cache.
  */
@@ -52,8 +67,9 @@ async function getOrImportCryptoKey(
 ): Promise<CryptoKey> {
   const fp = chatKeyFingerprint(rawKey);
   const cache = cryptoKeyCache[usage];
-  const cached = cache.get(fp);
-  if (cached) return cached;
+  const bucket = cache.get(fp) ?? [];
+  const cached = bucket.find((entry) => rawKeysEqual(entry.rawKey, rawKey));
+  if (cached) return cached.cryptoKey;
 
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
@@ -62,7 +78,8 @@ async function getOrImportCryptoKey(
     false,
     [usage],
   );
-  cache.set(fp, cryptoKey);
+  bucket.push({ rawKey: new Uint8Array(rawKey), cryptoKey });
+  cache.set(fp, bucket);
   return cryptoKey;
 }
 
@@ -166,9 +183,10 @@ export async function encryptWithChatKey(
 ): Promise<string> {
   const encoder = new TextEncoder();
   const dataBytes = encoder.encode(data);
+  const rawChatKey = new Uint8Array(chatKey);
 
   // Use cached CryptoKey to avoid redundant importKey calls
-  const cryptoKey = await getOrImportCryptoKey(chatKey, "encrypt");
+  const cryptoKey = await getOrImportCryptoKey(rawChatKey, "encrypt");
 
   const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
   const encrypted = await crypto.subtle.encrypt(
@@ -178,7 +196,7 @@ export async function encryptWithChatKey(
   );
 
   // New format: [magic 2B][fingerprint 4B][IV 12B][ciphertext]
-  const fingerprint = computeKeyFingerprint4Bytes(chatKey);
+  const fingerprint = computeKeyFingerprint4Bytes(rawChatKey);
   const combined = new Uint8Array(
     CIPHERTEXT_HEADER_LENGTH + iv.length + encrypted.byteLength,
   );
@@ -213,7 +231,7 @@ export async function decryptWithChatKey(
 ): Promise<string | null> {
   try {
     const combined = base64ToUint8Array(encryptedDataWithIV);
-    let decryptionKey = chatKey;
+    let decryptionKey: Uint8Array = new Uint8Array(chatKey);
     let recoveredCandidate: import("./ChatKeyManager").CandidateChatKey | null =
       null;
 

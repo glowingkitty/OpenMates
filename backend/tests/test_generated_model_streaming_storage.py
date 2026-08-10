@@ -1,0 +1,487 @@
+# backend/tests/test_generated_model_streaming_storage.py
+#
+# Contract tests for versioned streamed master-model decryption. A model master
+# must not be converted back into a whole-object plaintext buffer at download.
+
+import asyncio
+import sys
+import types
+
+import pytest
+from fastapi import HTTPException, Request
+from fastapi.responses import StreamingResponse
+
+if "boto3" not in sys.modules:
+    boto3_module = types.ModuleType("boto3")
+    boto3_module.client = lambda *_args, **_kwargs: None
+    sys.modules["boto3"] = boto3_module
+
+if "botocore" not in sys.modules:
+    botocore_module = types.ModuleType("botocore")
+    botocore_config_module = types.ModuleType("botocore.config")
+    botocore_config_module.Config = lambda *_args, **_kwargs: None
+    botocore_exceptions_module = types.ModuleType("botocore.exceptions")
+    botocore_exceptions_module.ClientError = Exception
+    botocore_exceptions_module.ReadTimeoutError = Exception
+    botocore_exceptions_module.ConnectTimeoutError = Exception
+    botocore_exceptions_module.EndpointConnectionError = Exception
+    sys.modules["botocore"] = botocore_module
+    sys.modules["botocore.config"] = botocore_config_module
+    sys.modules["botocore.exceptions"] = botocore_exceptions_module
+
+if "slowapi" not in sys.modules:
+    slowapi_module = types.ModuleType("slowapi")
+
+    class _Limiter:
+        def __init__(self, *_args, **_kwargs) -> None:
+            pass
+
+        def limit(self, *_args, **_kwargs):
+            return lambda function: function
+
+    slowapi_module.Limiter = _Limiter
+    sys.modules["slowapi"] = slowapi_module
+    slowapi_util_module = types.ModuleType("slowapi.util")
+    slowapi_util_module.get_remote_address = lambda _request: "test-client"
+    sys.modules["slowapi.util"] = slowapi_util_module
+
+from backend.core.api.app.routes.generated_assets_api import download_generated_asset
+from backend.shared.python_utils.generated_assets import (
+    decrypt_generated_asset_variant,
+    encrypt_chunked_stream,
+)
+from backend.core.api.app.services.s3.service import S3UploadService
+from backend.shared.python_utils.generated_assets import create_download_token
+from backend.shared.python_utils.generated_assets.service import _token_secret
+from backend.shared.python_utils.media_encryption import MEDIA_ENCRYPTION_V2
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+
+async def _source(*chunks: bytes):
+    for chunk in chunks:
+        yield chunk
+
+
+async def _collect(source) -> bytes:
+    return b"".join([chunk async for chunk in source])
+
+
+@pytest.mark.asyncio
+async def test_chunked_master_variant_decrypts_from_fragmented_s3_stream() -> None:
+    key = b"\x8a" * 32
+    original = b"glTF" + (b"model-data" * 100_000)
+    encrypted = await _collect(encrypt_chunked_stream(_source(original), key=key, chunk_size=64 * 1024))
+
+    decrypted = await _collect(
+        decrypt_generated_asset_variant(
+            {"encryption": "chunked-aes-256-gcm-v1"},
+            _source(encrypted[:17], encrypted[17:333], encrypted[333:]),
+            aes_key=key,
+        )
+    )
+
+    assert decrypted == original
+
+
+@pytest.mark.asyncio
+async def test_unknown_generated_asset_encryption_version_fails_closed() -> None:
+    with pytest.raises(ValueError, match="Unsupported generated asset encryption"):
+        await _collect(
+            decrypt_generated_asset_variant(
+                {"encryption": "future-version"},
+                _source(b"ciphertext"),
+                aes_key=b"\x8a" * 32,
+            )
+        )
+
+
+class _FakeStreamingBody:
+    def __init__(self, content: bytes) -> None:
+        self._content = content
+        self._offset = 0
+        self.closed = False
+
+    def read(self, size: int) -> bytes:
+        chunk = self._content[self._offset : self._offset + size]
+        self._offset += len(chunk)
+        return chunk
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class _FakeS3Client:
+    def __init__(self, body: _FakeStreamingBody) -> None:
+        self.body = body
+
+    def get_object(self, **_kwargs):
+        return {"Body": self.body}
+
+
+@pytest.mark.asyncio
+async def test_s3_stream_reads_fixed_chunks_and_closes_body() -> None:
+    body = _FakeStreamingBody(b"abcdefghijklmnopqrstuvwxyz")
+    service = S3UploadService(secrets_manager=None)
+    service.client = _FakeS3Client(body)
+
+    chunks = [
+        chunk
+        async for chunk in service.get_file_stream(
+            bucket_name="chatfiles",
+            object_key="models/master.glb",
+            chunk_size=8,
+        )
+    ]
+
+    assert chunks == [b"abcdefgh", b"ijklmnop", b"qrstuvwx", b"yz"]
+    assert body.closed is True
+
+
+class _FakeMultipartUploadClient:
+    def __init__(self) -> None:
+        self.parts = []
+        self.completed = None
+        self.aborted = False
+
+    def create_multipart_upload(self, **_kwargs):
+        return {"UploadId": "upload-1"}
+
+    def upload_part(self, **kwargs):
+        self.parts.append(kwargs["Body"])
+        return {"ETag": f"etag-{kwargs['PartNumber']}"}
+
+    def complete_multipart_upload(self, **kwargs):
+        self.completed = kwargs
+
+    def abort_multipart_upload(self, **_kwargs):
+        self.aborted = True
+
+
+class _FakeS3MetadataClient:
+    def generate_presigned_url(self, *_args, **_kwargs):
+        return "https://s3.example.test/signed"
+
+
+@pytest.mark.asyncio
+async def test_s3_stream_upload_uses_bounded_multipart_parts() -> None:
+    part_size = 5 * 1024 * 1024
+    upload_client = _FakeMultipartUploadClient()
+    service = S3UploadService(secrets_manager=None)
+    service.client = _FakeS3MetadataClient()
+    service.upload_client = upload_client
+    service.base_domain = "s3.example.test"
+    service.environment = "development"
+
+    async def source():
+        yield b"a" * (2 * 1024 * 1024)
+        yield b"b" * (3 * 1024 * 1024)
+        yield b"c" * (1024 * 1024)
+
+    result = await service.upload_file_stream(
+        bucket_key="chatfiles",
+        file_key="models/master.glb",
+        source=source(),
+        content_type="application/octet-stream",
+        part_size=part_size,
+    )
+
+    assert [len(part) for part in upload_client.parts] == [part_size, 1024 * 1024]
+    assert upload_client.completed["MultipartUpload"]["Parts"] == [
+        {"PartNumber": 1, "ETag": "etag-1"},
+        {"PartNumber": 2, "ETag": "etag-2"},
+    ]
+    assert result["url"].endswith("models/master.glb")
+    assert upload_client.aborted is False
+
+
+@pytest.mark.asyncio
+async def test_s3_stream_upload_aborts_on_cancellation() -> None:
+    upload_client = _FakeMultipartUploadClient()
+    service = S3UploadService(secrets_manager=None)
+    service.client = _FakeS3MetadataClient()
+    service.upload_client = upload_client
+    service.base_domain = "s3.example.test"
+    service.environment = "development"
+
+    async def source():
+        yield b"a" * 1024
+        raise asyncio.CancelledError()
+
+    with pytest.raises(asyncio.CancelledError):
+        await service.upload_file_stream(
+            bucket_key="chatfiles",
+            file_key="models/master.glb",
+            source=source(),
+            content_type="application/octet-stream",
+        )
+
+    assert upload_client.aborted is True
+
+
+@pytest.mark.asyncio
+async def test_s3_stream_closes_body_when_consumer_stops_early() -> None:
+    body = _FakeStreamingBody(b"abcdefghijklmnopqrstuvwxyz")
+    service = S3UploadService(secrets_manager=None)
+    service.client = _FakeS3Client(body)
+    stream = service.get_file_stream(bucket_name="chatfiles", object_key="models/master.glb", chunk_size=8)
+
+    assert await anext(stream) == b"abcdefgh"
+    await stream.aclose()
+
+    assert body.closed is True
+
+
+class _FakeDirectus:
+    def __init__(self, record, user_profile=None) -> None:
+        self.record = record
+        self.user_profile = user_profile
+
+    async def get_items(self, *_args, **_kwargs):
+        return [self.record]
+
+    async def get_user_profile(self, user_id):
+        assert user_id == "user-1"
+        return True, self.user_profile, "ok"
+
+
+class _FakeEncryption:
+    async def decrypt_with_user_key(self, wrapped_key, vault_key_id):
+        assert wrapped_key == "wrapped-media-key"
+        assert vault_key_id == "vault-key-1"
+        return __import__("base64").b64encode(b"\x73" * 32).decode()
+
+
+class _FakeGeneratedAssetS3:
+    environment = "development"
+
+    async def get_file(self, *_args, **_kwargs):
+        raise AssertionError("chunked masters must not use whole-object get_file")
+
+    async def get_file_stream(self, *_args, **_kwargs):
+        for chunk in self.encrypted_chunks:
+            yield chunk
+
+
+class _FakeBoundedAssetS3:
+    environment = "development"
+
+    def __init__(self, encrypted: bytes) -> None:
+        self.encrypted = encrypted
+
+    async def get_file(self, *_args, **_kwargs):
+        return self.encrypted
+
+
+@pytest.mark.asyncio
+async def test_chunked_master_download_uses_streaming_response() -> None:
+    key = b"\x71" * 32
+    original = b"glTF" + b"x" * 128_000
+    encrypted = await _collect(encrypt_chunked_stream(_source(original), key=key, chunk_size=32 * 1024))
+    s3 = _FakeGeneratedAssetS3()
+    s3.encrypted_chunks = (encrypted[:64], encrypted[64:])
+    token = create_download_token(asset_id="model-1", user_id="user-1", variant="master")
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
+    directus = _FakeDirectus(
+        {
+            "content_type": "model/gltf-binary",
+            "files_metadata": {
+                "master": {
+                    "s3_key": "models/master.glb",
+                    "format": "glb",
+                    "mime_type": "model/gltf-binary",
+                    "encryption": "chunked-aes-256-gcm-v1",
+                }
+            },
+            "aes_key": __import__("base64").b64encode(key).decode(),
+            "aes_nonce": "",
+            "original_filename": "model.glb",
+        }
+    )
+
+    response = await download_generated_asset(
+        asset_id="model-1",
+        variant="master",
+        request=request,
+        token=token,
+        directus_service=directus,
+        s3_service=s3,
+    )
+
+    assert isinstance(response, StreamingResponse)
+    assert await _collect(response.body_iterator) == original
+
+
+@pytest.mark.asyncio
+async def test_unknown_master_encryption_is_rejected_before_response() -> None:
+    token = create_download_token(asset_id="model-1", user_id="user-1", variant="master")
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
+    directus = _FakeDirectus(
+        {
+            "content_type": "model/gltf-binary",
+            "files_metadata": {
+                "master": {"s3_key": "models/master.glb", "encryption": "unknown-version"}
+            },
+            "aes_key": __import__("base64").b64encode(b"\x71" * 32).decode(),
+            "aes_nonce": "",
+            "original_filename": "model.glb",
+        }
+    )
+
+    with pytest.raises(HTTPException, match="unsupported encryption"):
+        await download_generated_asset(
+            asset_id="model-1",
+            variant="master",
+            request=request,
+            token=token,
+            directus_service=directus,
+            s3_service=_FakeGeneratedAssetS3(),
+        )
+
+
+@pytest.mark.asyncio
+async def test_bounded_variant_uses_its_own_nonce_not_legacy_record_nonce() -> None:
+    key = b"\x72" * 32
+    variant_nonce = b"\x31" * 12
+    encrypted = AESGCM(key).encrypt(variant_nonce, b"provider-poster", None)
+    token = create_download_token(asset_id="model-1", user_id="user-1", variant="poster")
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
+    directus = _FakeDirectus(
+        {
+            "content_type": "model/gltf-binary",
+            "files_metadata": {
+                "poster": {
+                    "s3_key": "models/poster.webp.enc",
+                    "format": "webp",
+                    "mime_type": "image/webp",
+                    "aes_nonce": __import__("base64").b64encode(variant_nonce).decode(),
+                }
+            },
+            "aes_key": __import__("base64").b64encode(key).decode(),
+            "aes_nonce": __import__("base64").b64encode(b"\x32" * 12).decode(),
+            "original_filename": "model.glb",
+        }
+    )
+
+    response = await download_generated_asset(
+        asset_id="model-1",
+        variant="poster",
+        request=request,
+        token=token,
+        directus_service=directus,
+        s3_service=_FakeBoundedAssetS3(encrypted),
+    )
+
+    assert response.body == b"provider-poster"
+    assert response.media_type == "image/webp"
+
+
+@pytest.mark.asyncio
+async def test_v2_bounded_variant_uses_prefixed_nonce() -> None:
+    key = b"\x73" * 32
+    nonce = b"\x33" * 12
+    plaintext = b"v2-provider-poster"
+    encrypted = nonce + AESGCM(key).encrypt(nonce, plaintext, None)
+    token = create_download_token(asset_id="model-1", user_id="user-1", variant="poster")
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
+    directus = _FakeDirectus(
+        {
+            "content_type": "model/gltf-binary",
+            "files_metadata": {
+                "poster": {
+                    "s3_key": "models/poster.webp.enc",
+                    "format": "webp",
+                    "mime_type": "image/webp",
+                    "encryption": MEDIA_ENCRYPTION_V2,
+                }
+            },
+            "aes_key": __import__("base64").b64encode(key).decode(),
+            "aes_nonce": __import__("base64").b64encode(b"\x34" * 12).decode(),
+            "original_filename": "model.glb",
+        }
+    )
+
+    response = await download_generated_asset(
+        asset_id="model-1",
+        variant="poster",
+        request=request,
+        token=token,
+        directus_service=directus,
+        s3_service=_FakeBoundedAssetS3(encrypted),
+    )
+
+    assert response.body == plaintext
+
+
+@pytest.mark.asyncio
+async def test_v2_bounded_variant_unwraps_key_when_raw_key_is_absent() -> None:
+    key = b"\x73" * 32
+    nonce = b"\x35" * 12
+    plaintext = b"wrapped-key-provider-poster"
+    encrypted = nonce + AESGCM(key).encrypt(nonce, plaintext, None)
+    token = create_download_token(asset_id="model-1", user_id="user-1", variant="poster")
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
+    directus = _FakeDirectus(
+        {
+            "content_type": "model/gltf-binary",
+            "files_metadata": {
+                "poster": {
+                    "s3_key": "models/poster.webp.enc",
+                    "format": "webp",
+                    "mime_type": "image/webp",
+                    "encryption": MEDIA_ENCRYPTION_V2,
+                }
+            },
+            "vault_wrapped_aes_key": "wrapped-media-key",
+            "aes_nonce": "",
+            "original_filename": "model.glb",
+        },
+        user_profile={"vault_key_id": "vault-key-1"},
+    )
+
+    response = await download_generated_asset(
+        asset_id="model-1",
+        variant="poster",
+        request=request,
+        token=token,
+        directus_service=directus,
+        s3_service=_FakeBoundedAssetS3(encrypted),
+        encryption_service=_FakeEncryption(),
+    )
+
+    assert response.body == plaintext
+
+
+def test_download_token_issuance_fails_closed_in_production_without_secret(monkeypatch) -> None:
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
+    monkeypatch.delenv("GENERATED_ASSET_TOKEN_SECRET", raising=False)
+    monkeypatch.delenv("INTERNAL_API_SHARED_TOKEN", raising=False)
+
+    with pytest.raises(RuntimeError, match="token secret"):
+        _token_secret()
+
+
+@pytest.mark.asyncio
+async def test_chunked_master_rejects_invalid_key_and_unsafe_filename_before_streaming() -> None:
+    token = create_download_token(asset_id="model-1", user_id="user-1", variant="master")
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
+    directus = _FakeDirectus(
+        {
+            "content_type": "model/gltf-binary",
+            "files_metadata": {
+                "master": {"s3_key": "models/master.glb", "encryption": "chunked-aes-256-gcm-v1"}
+            },
+            "aes_key": "not-a-valid-key",
+            "aes_nonce": "",
+            "original_filename": "model\r\nInjected: value.glb",
+        }
+    )
+
+    with pytest.raises(HTTPException, match="Failed to decrypt"):
+        await download_generated_asset(
+            asset_id="model-1",
+            variant="master",
+            request=request,
+            token=token,
+            directus_service=directus,
+            s3_service=_FakeGeneratedAssetS3(),
+        )

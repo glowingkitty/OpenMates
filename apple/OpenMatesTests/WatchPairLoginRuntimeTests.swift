@@ -47,6 +47,21 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertEqual(custom.webSocketBaseURL.absoluteString, "wss://api.selfhosted.example/v1/ws")
     }
 
+    func testSelfHostedURLValidationAcceptsHTTPSAndRejectsInsecureURLs() throws {
+        XCTAssertEqual(
+            try ServerProfile.validatedSelfHostedURL("app.dev.openmates.org"),
+            ServerProfile.custom(domain: "app.dev.openmates.org")
+        )
+        XCTAssertEqual(
+            try ServerProfile.validatedSelfHostedURL("https://app.selfhosted.example"),
+            ServerProfile.custom(domain: "app.selfhosted.example")
+        )
+        XCTAssertThrowsError(try ServerProfile.validatedSelfHostedURL("http://app.selfhosted.example"))
+        XCTAssertThrowsError(try ServerProfile.validatedSelfHostedURL("https://app.selfhosted.example:8443"))
+        XCTAssertThrowsError(try ServerProfile.validatedSelfHostedURL("https://app.selfhosted.example/login"))
+        XCTAssertThrowsError(try ServerProfile.validatedSelfHostedURL(""))
+    }
+
     func testPairCompleteFailureNormalizesBackendMessages() {
         XCTAssertEqual(PairLoginRuntime.failureKind(for: "too_many_attempts"), .tooManyAttempts)
         XCTAssertEqual(PairLoginRuntime.failureKind(for: "invalid_pin:2"), .invalidPIN(attemptsRemaining: "2"))
@@ -113,6 +128,108 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
 
         XCTAssertTrue(WatchPairLoginConnectivityPayload.requestMatchesCurrentServer(request, currentProfile: .production))
         XCTAssertFalse(WatchPairLoginConnectivityPayload.requestMatchesCurrentServer(request, currentProfile: .development))
+
+        let manuallyEnteredDevelopment = WatchPairLoginRequest(
+            token: "def456",
+            pairURLString: "https://app.dev.openmates.org/#pair=DEF456",
+            deviceName: "OpenMates Apple Watch app",
+            serverProfile: .custom(domain: "app.dev.openmates.org"),
+            createdAt: 1_777_777_780
+        )
+        XCTAssertTrue(WatchPairLoginConnectivityPayload.requestMatchesCurrentServer(
+            manuallyEnteredDevelopment,
+            currentProfile: .development
+        ))
+    }
+
+    func testWatchPairAttemptDefaultsToOneImmutableProductionAttempt() throws {
+        var state = WatchPairAttemptState()
+
+        let generation = state.begin(serverProfile: .production)
+        let duplicateGeneration = state.ensureCurrentAttempt(serverProfile: .production)
+        let initiation = PairLoginInitiation(
+            token: "abc123",
+            pairURLString: "https://openmates.org/#pair=ABC123"
+        )
+
+        XCTAssertEqual(generation, 1)
+        XCTAssertEqual(duplicateGeneration, generation)
+        XCTAssertTrue(state.accept(initiation, generation: generation, serverProfile: .production))
+        XCTAssertEqual(state.serverProfile, .production)
+        XCTAssertEqual(state.token, "ABC123")
+        XCTAssertEqual(state.pairURLString, "https://openmates.org/#pair=ABC123")
+    }
+
+    func testWatchPairAttemptRejectsStaleCallbacksAfterSelfHostedReplacement() {
+        var state = WatchPairAttemptState()
+        let productionGeneration = state.begin(serverProfile: .production)
+        let development = ServerProfile.custom(domain: "app.dev.openmates.org")
+        let developmentGeneration = state.begin(serverProfile: development)
+
+        XCTAssertFalse(state.accept(
+            PairLoginInitiation(token: "old111", pairURLString: "https://openmates.org/#pair=OLD111"),
+            generation: productionGeneration,
+            serverProfile: .production
+        ))
+        XCTAssertTrue(state.accept(
+            PairLoginInitiation(token: "new222", pairURLString: "https://app.dev.openmates.org/#pair=NEW222"),
+            generation: developmentGeneration,
+            serverProfile: development
+        ))
+        XCTAssertEqual(state.serverProfile, development)
+        XCTAssertEqual(state.token, "NEW222")
+    }
+
+    func testWatchServerProfileStorePersistsOnlyExplicitSuccessfulLogin() throws {
+        let suiteName = "WatchPairLoginRuntimeTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = WatchServerProfileStore(defaults: defaults)
+        let development = ServerProfile.custom(domain: "app.dev.openmates.org")
+
+        XCTAssertEqual(store.currentProfile(), .production)
+        XCTAssertEqual(store.currentProfile(), .production, "Selecting a server must not persist it before login succeeds")
+
+        store.saveSuccessfulProfile(development)
+        XCTAssertEqual(store.currentProfile(), development)
+
+        store.resetToProduction()
+        XCTAssertEqual(store.currentProfile(), .production)
+    }
+
+    func testIPhoneApprovalEligibilityRequiresAuthenticationAndExactServer() {
+        let request = WatchPairLoginRequest(
+            token: "abc123",
+            pairURLString: "https://openmates.org/#pair=ABC123",
+            deviceName: "OpenMates Apple Watch app",
+            serverProfile: .production,
+            createdAt: 1_777_777_779
+        )
+
+        XCTAssertTrue(WatchPairLoginConnectivityPayload.shouldOfferApproval(
+            for: request,
+            currentProfile: .production,
+            isAuthenticated: true,
+            now: request.createdAt
+        ))
+        XCTAssertFalse(WatchPairLoginConnectivityPayload.shouldOfferApproval(
+            for: request,
+            currentProfile: .development,
+            isAuthenticated: true,
+            now: request.createdAt
+        ))
+        XCTAssertFalse(WatchPairLoginConnectivityPayload.shouldOfferApproval(
+            for: request,
+            currentProfile: .production,
+            isAuthenticated: false,
+            now: request.createdAt
+        ))
+        XCTAssertFalse(WatchPairLoginConnectivityPayload.shouldOfferApproval(
+            for: request,
+            currentProfile: .production,
+            isAuthenticated: true,
+            now: request.createdAt + 301
+        ))
     }
 
     func testWatchConnectivityApprovalPayloadContainsOnlyPinAndToken() {
@@ -126,6 +243,32 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertNil(message["encrypted_bundle"])
         XCTAssertNil(message["session_token"])
         XCTAssertNil(message["master_key"])
+    }
+
+    func testWatchSendLoginRequestDoesNotInstallOffActorReplyHandler() throws {
+        let appleRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let runtimeURL = appleRoot.appendingPathComponent(
+            "OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift"
+        )
+        let source = try String(contentsOf: runtimeURL, encoding: .utf8)
+        let methodStart = try XCTUnwrap(source.range(of: "func sendLoginRequest(_ request: WatchPairLoginRequest) -> Bool"))
+        let methodEnd = try XCTUnwrap(
+            source.range(of: "private nonisolated func dispatchToMain", range: methodStart.upperBound..<source.endIndex)
+        )
+        let methodSource = source[methodStart.lowerBound..<methodEnd.lowerBound]
+
+        XCTAssertTrue(methodSource.contains("replyHandler: nil"))
+        XCTAssertTrue(methodSource.contains("errorHandler: nil"))
+        XCTAssertFalse(methodSource.contains("replyHandler: {"))
+        XCTAssertFalse(methodSource.contains("errorHandler: {"))
+
+        let delegateStart = try XCTUnwrap(
+            source.range(of: "nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any])", range: methodEnd.upperBound..<source.endIndex)
+        )
+        let watchSectionEnd = try XCTUnwrap(source.range(of: "#endif", range: delegateStart.upperBound..<source.endIndex))
+        let delegateSource = source[delegateStart.lowerBound..<watchSectionEnd.lowerBound]
+        XCTAssertTrue(delegateSource.contains("WatchPairLoginConnectivityPayload.parseApproval(message)"))
+        XCTAssertTrue(delegateSource.contains("bridge.approvalHandler?(approval)"))
     }
 
     func testDecryptLoginBundleReturnsBundleAndMasterKey() async throws {
@@ -142,7 +285,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
             }
             """.utf8
         )
-        let pairKey = await CryptoManager.shared.derivePairLoginKey(pin: pin, token: token)
+        let pairKey = try await CryptoManager.shared.derivePairLoginKey(pin: pin, token: token)
         let encrypted = try await CryptoManager.shared.encrypt(bundleJSON, using: pairKey)
         let response = PairCompleteResponse(
             success: true,

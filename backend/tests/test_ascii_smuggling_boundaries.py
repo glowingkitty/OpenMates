@@ -95,6 +95,10 @@ def lightweight_provider_stubs():
             setattr(module, attr_name, attr_value)
         install(module_name, module)
 
+    team_chat_stub = types.ModuleType("backend.core.api.app.services.team_chat_ai_service")
+    team_chat_stub.format_sender_attributed_content = lambda content, sender_name: f"{sender_name}: {content}"
+    install("backend.core.api.app.services.team_chat_ai_service", team_chat_stub)
+
     directus_stub = types.ModuleType("backend.core.api.app.services.directus")
     directus_stub.DirectusService = type("DirectusService", (), {})
     install("backend.core.api.app.services.directus", directus_stub)
@@ -188,6 +192,35 @@ def test_llm_message_transform_sanitizes_tool_and_regular_text() -> None:
     assert transformed[0]["content"] == encode({"content": "Tool visible "})
     assert transformed[1]["content"] == "User visible "
     assert transformed[2]["content"] == "Assistant visible "
+
+
+def test_llm_message_transform_strips_assistant_render_only_sub_chat_marker() -> None:
+    from backend.apps.ai.utils.llm_utils import _transform_message_history_for_llm
+
+    sub_chat_marker = (
+        '```json\n'
+        '{"type":"sub_chat_batch","batch_id":"batch-1","chat_id":"parent-1",'
+        '"sub_chat_ids":["child-1"]}\n'
+        '```'
+    )
+    app_skill_marker = (
+        '```json\n'
+        '{"type":"app_skill_use","embed_id":"embed-1","app_id":"web","skill_id":"search"}\n'
+        '```'
+    )
+
+    transformed = _transform_message_history_for_llm(
+        [
+            {"role": "assistant", "content": f"Before\n\n{sub_chat_marker}\n\nAfter"},
+            {"role": "assistant", "content": f"Keep app skill\n\n{app_skill_marker}"},
+            {"role": "user", "content": f"User pasted marker\n\n{sub_chat_marker}"},
+        ]
+    )
+
+    assert transformed[0]["content"] == "Before\n\nAfter"
+    assert "sub_chat_batch" not in transformed[0]["content"]
+    assert "app_skill_use" in transformed[1]["content"]
+    assert "sub_chat_batch" in transformed[2]["content"]
 
 
 async def test_main_llm_stream_sanitizes_system_prompt_before_provider_call(monkeypatch) -> None:

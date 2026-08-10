@@ -11,7 +11,6 @@ final class WatchEmbedPreviewTests: XCTestCase {
             "watch-pair-login",
             "watch-pair-confirm-iphone-title",
             "watch-pair-confirm-iphone-description",
-            "watch-pair-login-without-iphone-button",
             "watch-pair-manual-fallback",
             "watch-pair-token",
             "watch-pair-url",
@@ -22,8 +21,17 @@ final class WatchEmbedPreviewTests: XCTestCase {
             "watch-pair-waiting-label",
             "watch-pair-pin-input",
             "watch-pair-refresh-button",
+            "watch-pair-self-host-button",
+            "watch-pair-self-host-input",
+            "watch-pair-self-host-connect-button",
+            "watch-pair-self-host-cancel-button",
+            "watch-pair-self-host-error",
+            "watch-pair-use-production-button",
         ])
         XCTAssertNoDuplicates(WatchUIContract.pairLoginIdentifiers)
+        XCTAssertFalse(WatchUIContract.pairLoginIdentifiers.contains("watch-pair-server-production-button"))
+        XCTAssertFalse(WatchUIContract.pairLoginIdentifiers.contains("watch-pair-server-development-button"))
+        XCTAssertFalse(WatchUIContract.pairLoginIdentifiers.contains("watch-pair-server-selector"))
     }
 
     func testWatchChatAndAudioComposerUIContractIdentifiersAreStable() {
@@ -52,6 +60,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
             "watch-embed-continuation",
             "watch-embed-open-device",
             "watch-embed-qr-payload",
+            "watch-embed-notification-request",
         ])
         XCTAssertNoDuplicates(WatchUIContract.embedPreviewIdentifiers)
     }
@@ -61,12 +70,30 @@ final class WatchEmbedPreviewTests: XCTestCase {
             "List",
             "Form",
             "NavigationStack",
+            "TabView",
             "navigationTitle",
             "toolbar",
         ])
         XCTAssertTrue(WatchUIContract.designEvidence.contains { $0.contains("Color.grey100") })
         XCTAssertTrue(WatchUIContract.designEvidence.contains { $0.contains("ScrollView/LazyVStack") })
         XCTAssertTrue(WatchUIContract.designEvidence.contains { $0.contains("pending audio-recording embed") })
+    }
+
+    func testWatchChatThreadClaimsFullDisplayWithoutPagedTabChrome() throws {
+        let source = try watchSource(named: "WatchChatViews.swift")
+
+        XCTAssertFalse(source.contains("TabView("))
+        XCTAssertFalse(source.contains(".tabViewStyle(.page"))
+        XCTAssertTrue(source.contains(".frame(maxWidth: .infinity, maxHeight: .infinity)"))
+        XCTAssertTrue(source.contains(".ignoresSafeArea(edges: .bottom)"))
+    }
+
+    func testWatchEmbedPreviewUsesFixedWatchCardWidth() throws {
+        let source = try watchSource(named: "WatchEmbedViews.swift")
+
+        XCTAssertEqual(WatchEmbedPreviewModel.cardWidth, 156)
+        XCTAssertTrue(source.contains("width: CGFloat(WatchEmbedPreviewModel.cardWidth)"))
+        XCTAssertTrue(source.contains("gradient(forAppId: model.appId)"))
     }
 
     func testMapsSupportedV1EmbedFamiliesToCompactPreviewModels() throws {
@@ -140,6 +167,119 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertEqual(model.continuation.qrPayload, model.continuation.universalLink)
     }
 
+    func testWatchEmbedOpenRequestPayloadContainsOnlyRoutingIds() throws {
+        let request = try XCTUnwrap(WatchEmbedOpenRequest(chatId: "chat-secure", embedId: "embed-secure"))
+
+        let payload = WatchEmbedOpenConnectivityPayload.requestMessage(request)
+        let parsed = WatchEmbedOpenConnectivityPayload.parseRequest(payload)
+
+        XCTAssertEqual(parsed, request)
+        XCTAssertEqual(payload[WatchEmbedOpenConnectivityPayload.kindKey] as? String, WatchEmbedOpenConnectivityPayload.watchEmbedOpenRequestKind)
+        XCTAssertEqual(payload[WatchEmbedOpenConnectivityPayload.chatIdKey] as? String, "chat-secure")
+        XCTAssertEqual(payload[WatchEmbedOpenConnectivityPayload.embedIdKey] as? String, "embed-secure")
+        XCTAssertFalse(payload.keys.contains("title"))
+        XCTAssertFalse(payload.keys.contains("subtitle"))
+        XCTAssertFalse(payload.keys.contains("content"))
+    }
+
+    func testWatchMessageDisplayTextRemovesEmbedOnlyBlocks() throws {
+        let refs = [WatchEmbedRef(id: "embed-a", type: EmbedType.webWebsite.rawValue, status: "finished", data: nil)]
+        let content = """
+        Here is the result.
+
+        ```json
+        {"type":"web-website","embed_id":"embed-a"}
+        ```
+        """
+
+        let displayText = WatchMessageContentSanitizer.displayText(content: content, embedRefs: refs)
+
+        XCTAssertEqual(displayText, "Here is the result.")
+    }
+
+    func testWatchExtractsInlineEmbedMarkersWhenApiOmitsRefs() throws {
+        let content = """
+        [[embed:embed-inline]]
+
+        ```json
+        {"type":"web-website","embed_id":"embed-json","title":"Safe title","transcript":"private transcript","aes_key":"secret-key","vault_wrapped_aes_key":"secret-wrapped"}
+        ```
+
+        [!](embed:embed-large)
+        """
+
+        let refs = WatchMessageContentSanitizer.inlineEmbedRefs(content: content)
+
+        XCTAssertEqual(refs.map(\.id), ["embed-inline", "embed-json", "embed-large"])
+        XCTAssertEqual(refs.map(\.type), [EmbedType.webWebsite.rawValue, EmbedType.webWebsite.rawValue, EmbedType.webWebsite.rawValue])
+        XCTAssertEqual(refs[1].data?["title"]?.value as? String, "Safe title")
+        XCTAssertNil(refs[1].data?["transcript"])
+        XCTAssertNil(refs[1].data?["aes_key"])
+        XCTAssertNil(refs[1].data?["vault_wrapped_aes_key"])
+        XCTAssertNil(WatchMessageContentSanitizer.displayText(content: content, embedRefs: refs))
+    }
+
+    func testWatchRendersMarkdownEmbedReferencesWithoutLeakingSyntax() throws {
+        let content = "See [CSD Magdeburg](embed:csd-deutschland.de-NXT) for details."
+
+        let refs = WatchMessageContentSanitizer.inlineEmbedRefs(content: content)
+        let displayText = WatchMessageContentSanitizer.displayText(content: content, embedRefs: refs)
+
+        XCTAssertTrue(refs.isEmpty, "Inline reference links must not be promoted to generic preview cards")
+        XCTAssertEqual(displayText, "See CSD Magdeburg for details.")
+    }
+
+    func testWatchDerivesReadableTravelEmbedReferenceLabels() {
+        XCTAssertEqual(
+            WatchMessageContentSanitizer.displayText(
+                content: "[ice-0800-PsB](embed:ice-0800-PsB)",
+                embedRefs: nil
+            ),
+            "ICE 08:00"
+        )
+        XCTAssertEqual(
+            WatchMessageContentSanitizer.displayText(
+                content: "[](embed:flixtrain-1423-3VT)",
+                embedRefs: nil
+            ),
+            "FlixTrain 14:23"
+        )
+    }
+
+    func testWatchReplacesMultipleUnicodeEmbedReferenceLabels() {
+        let content = "[Café Köln](embed:cafe.example-AbC) and [Zürich HB](embed:ice-1730-XyZ)"
+
+        XCTAssertEqual(
+            WatchMessageContentSanitizer.displayText(content: content, embedRefs: nil),
+            "Café Köln and Zürich HB"
+        )
+    }
+
+    func testWatchDoesNotRenderApiEmbedRecordAsCardWhenConsumedByInlineReference() {
+        let ref = WatchEmbedRef(
+            id: "embed-uuid",
+            type: EmbedType.webWebsite.rawValue,
+            status: "finished",
+            data: [
+                "embed_ref": AnyCodable("csd-deutschland.de-NXT"),
+                "title": AnyCodable("CSD Magdeburg"),
+            ]
+        )
+        let message = WatchChatMessage(
+            id: "message-1",
+            chatId: "chat-1",
+            role: .assistant,
+            content: "See [CSD Magdeburg](embed:csd-deutschland.de-NXT) for details.",
+            encryptedContent: nil,
+            embedRefs: [ref],
+            createdAt: "2026-08-03T00:00:00Z",
+            isPending: false
+        )
+
+        XCTAssertEqual(message.watchDisplayContent, "See CSD Magdeburg for details.")
+        XCTAssertTrue(message.watchEmbedRecords.isEmpty)
+    }
+
     private static func embed(
         id: String = "embed-1",
         type: String,
@@ -157,6 +297,14 @@ final class WatchEmbedPreviewTests: XCTestCase {
             embedIds: nil,
             createdAt: "2026-07-07T00:00:00Z"
         )
+    }
+
+    private func watchSource(named filename: String) throws -> String {
+        let appleRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sourceURL = appleRoot.appendingPathComponent("OpenMatesWatch/Sources/\(filename)")
+        return try String(contentsOf: sourceURL, encoding: .utf8)
     }
 
     private func XCTAssertNoDuplicates(

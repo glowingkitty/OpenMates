@@ -119,3 +119,32 @@ def test_vercel_project_mutation_guard_allows_read_only_project_fetch():
     ])
 
     assert issues == []
+
+
+def test_generic_cli_app_skill_guard_blocks_generic_runner():
+    guard = load_guard_module()
+
+    issues = guard._audit_generic_cli_app_skill_execution([
+        (
+            "frontend/packages/openmates-cli/src/cli.ts",
+            123,
+            "const data = await client.runSkill({ app, skill, inputData, apiKey });",
+        )
+    ])
+
+    assert len(issues) == 1
+    assert "generic `openmates apps <app> <skill>` execution is forbidden" in issues[0]
+
+
+def test_generic_cli_app_skill_guard_allows_typed_code_run():
+    guard = load_guard_module()
+
+    issues = guard._audit_generic_cli_app_skill_execution([
+        (
+            "frontend/packages/openmates-cli/src/cli.ts",
+            123,
+            'const response = await client.runSkill({ app: "code", skill: "run", inputData, apiKey });',
+        )
+    ])
+
+    assert issues == []

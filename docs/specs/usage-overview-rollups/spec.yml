@@ -1,0 +1,1225 @@
+schema_version: 2
+id: usage-overview-rollups
+title: Fast Usage Overview Rollups
+status: implementing
+
+goal: >
+  Give users, CLI callers, and SDK callers a fast, trustworthy overview of
+  OpenMates usage by day, week, and month, including total credits, token totals,
+  model breakdowns, app and skill breakdowns, source breakdowns, and freshness
+  metadata, without weakening the existing encrypted usage privacy model.
+
+scope:
+  in:
+    - A canonical usage overview API for authenticated session clients.
+    - API-key SDK access to the same overview through the billing-safe SDK surface.
+    - Fast daily, weekly, and monthly usage periods with explicit range parameters.
+    - Totals for credits, entries, input tokens, output tokens, total tokens, user input tokens, system prompt tokens, tool inference iterations, and entries without token data.
+    - Breakdowns by model, app, skill, source, provider, region, and top chat/API/device buckets where safe and useful.
+    - Encrypted per-user rollup payloads so model names, provider names, region names, credits, and token aggregates remain protected at rest.
+    - Near-real-time freshness target of 30-60 seconds after raw usage row creation.
+    - Deterministic reconciliation and backfill from authoritative Directus usage rows and archived S3 monthly usage files.
+    - Directus schema and index migrations for rollups and existing usage summary lookup hot paths.
+    - CLI command and formatted table/JSON output for daily, weekly, and monthly overview.
+    - npm SDK and pip SDK parity methods for the overview contract.
+    - Web Settings > Usage overview upgrade to use the canonical API for aggregate cards and charts while preserving existing drilldowns.
+    - Documentation updates for billing usage, CLI settings, SDK usage, and privacy behavior.
+  out:
+    - Changing the authoritative raw usage row contract for existing entries beyond additive fields needed for future token persistence.
+    - Server-side plaintext storage of user model names, token totals, credit totals, provider names, region names, chat titles, or API key labels.
+    - Exact real-time dashboard guarantees in the billing write path.
+    - Repricing historical credits or recalculating already charged usage.
+    - Team billing usage rollups, unless a later task explicitly extends the personal usage overview contract to teams.
+    - Browser-only payment purchase flows, invoices, refunds, gift cards, or auto-topup behavior.
+    - Public/global product analytics; this spec is for user-owned private usage overviews.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP `get_me` returned 401 Bad credentials, so tracker search could not be completed in this session.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/user-guide/billing/usage.md
+    - docs/user-guide/cli/settings.md
+    - docs/architecture/platforms/cli-feature-parity.md
+    - docs/specs/sdk-packages-v1/spec.yml
+    - docs/specs/sdk-cli-parity-v1/spec.yml
+    - docs/specs/apple-settings-billing-parity/spec.yml
+    - docs/specs/cli-model-benchmarks/spec.yml
+    - docs/specs/free-testing-credits-budget/spec.yml
+    - docs/specs/anonymous-free-usage-budget/spec.yml
+  code_patterns:
+    - backend/core/api/app/services/directus/usage.py creates raw usage rows, encrypts sensitive fields, updates daily/monthly summaries, and decrypts rows for detail views.
+    - backend/core/directus/schemas/usage.yml defines encrypted token, model, credit, provider, region, and code-run usage fields.
+    - backend/core/directus/schemas/usage_daily_*_summaries.yml and usage_monthly_*_summaries.yml currently store only total_credits and entry_count.
+    - backend/core/api/app/routes/settings.py exposes /v1/settings/usage, summaries, details, daily-overview, chat-entries, message-cost, and export.
+    - backend/core/api/app/routes/sdk.py maps /v1/sdk/billing/usage, summaries, daily, and export to settings routes.
+    - backend/core/api/app/services/usage_archive_service.py archives old raw usage rows to encrypted S3 files and marks monthly summaries archived.
+    - backend/core/api/app/tasks/usage_archive_tasks.py runs monthly archive work for rows older than about 3 months.
+    - backend/core/api/app/services/billing_service.py passes AI Ask token usage details to usage row creation.
+    - backend/core/api/app/routes/openai_compat.py calculates credits from OpenAI-compatible usage metadata but currently does not pass token counts into usage_details.
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte fetches existing daily overview and drilldown endpoints and displays per-entry token breakdowns.
+    - frontend/packages/openmates-cli/src/cli.ts exposes settings billing usage, summaries, daily, and export commands as raw settings endpoint wrappers.
+    - frontend/packages/openmates-cli/src/sdk.ts exposes OpenMatesBilling usage methods for npm SDK callers.
+    - packages/openmates-python/openmates/sdk.py exposes matching Python billing usage methods.
+  tests:
+    - backend/tests/test_usage_entries.py
+    - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+    - scripts/audit_sdk_cli_parity.py
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Settings/**
+    - apple/OpenMatesTests/SettingsBillingParityTests.swift
+    - apple/OpenMatesUITests/SettingsBillingStoreKitParityUITests.swift
+  parity_expectations:
+    - Apple settings billing parity includes usage tabs, drilldowns, and exports under docs/specs/apple-settings-billing-parity/spec.yml.
+    - This spec changes the shared billing usage API contract; Apple must continue to display correct usage data or record an explicit no-UI-change waiver for the first backend/CLI/SDK slice.
+    - Apple can adopt the new aggregate overview after CLI, SDK, and web evidence is green unless the product owner waives native UI parity for this slice.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios or targeted Settings billing usage test after CLI, SDK, web, and user-confirmation gates, unless waived.
+  intentional_native_differences:
+    - Native chart rendering may differ from web as long as period totals, breakdown labels, stale-state messaging, and drilldown entry details remain equivalent.
+
+clarification:
+  rounds:
+    - question: How fresh must the overview be after a chat/API request completes?
+      answer: Use near-real-time rollups with deterministic reconciliation; do not make the billing write path fragile for immediate dashboard consistency.
+  vision_summary: >
+    Raw AI Ask usage rows already persist encrypted token fields, but the fast
+    daily/monthly summaries do not include token or model aggregates and there is
+    no weekly rollup. The new overview should be fast, privacy-preserving, and
+    shared by CLI, npm SDK, pip SDK, web, and eventually Apple, with rollups
+    typically fresh within 30-60 seconds and exact raw rows remaining the
+    authoritative billing record.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: "3f964af8c53b0184681ff2321d54ab1ed9dfa95d"
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-20T00:00:00Z"
+    reason: User approved continuing with implementation and testing.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-20T00:00:00Z"
+    reason: User approved the full plan/spec and requested implementation.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Store fast overview payloads in a new per-user encrypted rollup collection rather than adding cleartext model/token aggregate columns.
+    reason: Model names, token totals, provider/region, and credit totals are documented as sensitive encrypted usage details.
+    decided_at: "2026-07-20T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Treat raw usage rows as authoritative and rollups as near-real-time cached evidence with freshness metadata.
+    reason: Billing writes should remain reliable; dashboards can tolerate short lag when stale state is explicit and reconciliation is deterministic.
+    decided_at: "2026-07-20T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Use ISO week keys in the format YYYY-Www for weekly rollups.
+    reason: ISO weeks are unambiguous for CLI, SDK, CSV, and chart consumers.
+    decided_at: "2026-07-20T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: >
+      Preserve current raw row token semantics for historical data: token fields
+      are complete for AI Ask rows, and missing token data is reported explicitly
+      instead of inferred.
+    reason: Non-AI app skills may charge by unit/request/duration and older rows cannot be retroactively tokenized.
+    decided_at: "2026-07-20T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Use GitHub MCP to search existing tracker entries before drafting.
+    outcome: blocked
+    recorded_at: "2026-07-20T00:00:00Z"
+    evidence: GitHub MCP returned 401 Bad credentials for get_me.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Reuse existing daily/monthly summary rows for the full overview.
+    outcome: rejected
+    recorded_at: "2026-07-20T00:00:00Z"
+    evidence: Existing usage_daily_* and usage_monthly_* summary schemas only store total_credits and entry_count, not model or token breakdowns.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Continue remaining web settings, documentation, archive backfill, and Apple parity tasks after the CLI/SDK backend slice.
+  command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --max-overview-seconds 10 --max-usage-wait-seconds 90 --skip-build
+  expected_outcome: Real CLI, npm SDK, and pip SDK usage overview calls return real usage data under the 10 second overview budget.
+  blocker: null
+  last_verified_commit: "3f964af8c53b0184681ff2321d54ab1ed9dfa95d"
+
+scenarios:
+  - id: S-1
+    title: User sees fast daily usage overview
+    given:
+      - Alice is logged in and has AI Ask usage today with token data.
+      - Alice also has at least one app skill usage row without token data.
+    when:
+      - Alice runs `openmates settings billing usage overview --period daily --days 7 --json`.
+    then:
+      - The command returns seven daily periods in newest-first order.
+      - Each period includes credits, entry_count, input_tokens, output_tokens, total_tokens, and entries_without_token_data.
+      - Missing token data is counted explicitly and does not make token totals look complete.
+      - The response includes freshness metadata and does not require scanning every raw row in the CLI process.
+
+  - id: S-2
+    title: User switches between daily, weekly, and monthly periods
+    given:
+      - Alice has usage across multiple weeks and months.
+    when:
+      - Alice requests daily, weekly, and monthly overview periods through CLI, web, npm SDK, or pip SDK.
+    then:
+      - Daily periods use YYYY-MM-DD keys.
+      - Weekly periods use ISO YYYY-Www keys with period_start and period_end.
+      - Monthly periods use YYYY-MM keys.
+      - Totals for a weekly or monthly period equal the sum of authoritative raw rows in that period after reconciliation.
+
+  - id: S-3
+    title: User sees model, app, skill, source, and provider breakdowns
+    given:
+      - Alice has usage with at least two models, multiple app skills, and both chat and API key sources.
+    when:
+      - Alice requests the overview with breakdowns enabled.
+    then:
+      - by_model groups AI Ask token and credit totals by model_used.
+      - by_app and by_skill group credits and entry counts by app_id and app_id/skill_id.
+      - by_source groups chat, api_key, direct, and benchmark usage.
+      - by_provider and by_region use decrypted provider/region data when present.
+      - Breakdown totals never double-count the same raw usage row within one breakdown dimension.
+
+  - id: S-4
+    title: New usage becomes visible near-real-time
+    given:
+      - Alice sends a chat message that creates a raw usage row.
+    when:
+      - Alice requests the daily overview immediately and again after up to 60 seconds.
+    then:
+      - The raw usage row remains authoritative immediately after billing completes.
+      - The overview response either includes the row or marks the relevant period stale/updating.
+      - Within the freshness target, the daily rollup includes the row unless an explicit backlog/error state is reported.
+
+  - id: S-5
+    title: Reconciliation repairs stale or missing rollups
+    given:
+      - A raw usage row was created but incremental rollup update failed.
+    when:
+      - The reconciliation job processes the affected day/week/month.
+    then:
+      - The encrypted rollup is rebuilt from authoritative raw usage rows for recent periods.
+      - Freshness metadata records the recompute time and source_max_created_at.
+      - The overview no longer reports stale once the rebuild succeeds.
+
+  - id: S-6
+    title: Historical archived usage can be backfilled
+    given:
+      - Alice has monthly usage entries archived to encrypted S3 by the existing archive service.
+    when:
+      - A backfill/rebuild command processes the archived month.
+    then:
+      - The command retrieves and decrypts the archive with Alice's user vault key.
+      - Daily, weekly, and monthly encrypted rollups are rebuilt for that month.
+      - Existing monthly chat/app/API summaries keep their archived flags and archive_s3_key behavior.
+
+  - id: S-7
+    title: SDK callers get parity with CLI
+    given:
+      - Alice has an approved API key with billing read scope.
+    when:
+      - Developer code calls `om.billing.usageOverview(...)` in npm or `om.billing.usage_overview(...)` in Python.
+    then:
+      - Both SDKs call `/v1/sdk/billing/usage/overview` with the same query semantics as CLI.
+      - Responses use the same JSON contract as the session API.
+      - Missing or insufficient billing scope returns a typed permission error.
+
+  - id: S-8
+    title: Web settings uses the canonical overview while preserving drilldowns
+    given:
+      - Alice opens Settings > Usage in the web app.
+    when:
+      - The overview tab loads.
+    then:
+      - The aggregate overview is loaded from the canonical usage overview endpoint.
+      - Existing chat/app/API drilldowns still use raw decrypted rows for per-entry receipts.
+      - The UI shows stale/updating metadata when rollups are behind.
+
+  - id: S-9
+    title: OpenAI-compatible API persists token data for future overview accuracy
+    given:
+      - Alice uses an OpenAI-compatible API key request that returns provider usage metadata.
+    when:
+      - OpenMates charges credits for that request.
+    then:
+      - The raw usage row stores encrypted input_tokens and output_tokens when usage metadata is available.
+      - The row remains tagged as app_id ai, skill_id ask, and source api_key.
+      - Future rollups include those token totals.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Daily overview periods return fast credit and token totals with explicit token coverage metadata.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-PYTEST-001
+      - T-CLI-LIVE-001
+  - id: AC-2
+    scenario: S-2
+    text: Daily, ISO-weekly, and monthly period keys and boundaries are stable across API, CLI, npm SDK, pip SDK, and web.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-001
+      - T-CLI-LIVE-001
+      - T-NPM-LIVE-001
+      - T-PIP-LIVE-001
+      - T-WEB-001
+  - id: AC-3
+    scenario: S-3
+    text: Overview responses include non-double-counted breakdowns by model, app, skill, source, provider, and region.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-001
+      - T-NPM-LIVE-001
+      - T-PIP-LIVE-001
+      - T-WEB-001
+  - id: AC-4
+    scenario: S-4
+    text: Rollups are near-real-time with a 30-60 second freshness target and explicit stale/updating metadata.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-PYTEST-002
+      - T-CLI-LIVE-001
+  - id: AC-5
+    scenario: S-5
+    text: Reconciliation rebuilds stale or missing recent rollups from authoritative raw usage rows.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-002
+  - id: AC-6
+    scenario: S-6
+    text: Backfill can rebuild rollups from archived S3 monthly usage files without changing archive semantics.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-003
+  - id: AC-7
+    scenario: S-7
+    text: npm and pip SDKs expose the usage overview contract with CLI parity and billing-scope enforcement.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-NPM-UNIT-001
+      - T-PIP-UNIT-001
+      - T-NPM-LIVE-001
+      - T-PIP-LIVE-001
+      - T-PARITY-001
+  - id: AC-8
+    scenario: S-8
+    text: Web Settings > Usage uses the canonical overview endpoint for aggregate views and preserves exact raw-row drilldowns.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-001
+      - V-USER-001
+  - id: AC-9
+    scenario: S-9
+    text: OpenAI-compatible API usage rows persist token counts when provider usage metadata is available.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-004
+  - id: AC-10
+    scenario: S-1
+    text: Sensitive aggregate fields remain encrypted at rest and are not moved into cleartext summary tables.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-005
+
+assumptions:
+  - id: A-1
+    text: Raw AI Ask usage rows already persist encrypted input/output/user/system token fields when usage_details includes those values.
+    category: data_contract
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/directus/schemas/usage.yml
+        summary: encrypted_input_tokens, encrypted_output_tokens, encrypted_user_input_tokens, and encrypted_system_prompt_tokens exist.
+      - source: backend/core/api/app/services/directus/usage.py
+        summary: create_usage_entry encrypts token fields when app_id is ai and skill_id is ask.
+  - id: A-2
+    text: Existing daily and monthly usage summaries do not include token totals or model breakdowns.
+    category: data_contract
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/directus/schemas/usage_daily_app_summaries.yml
+        summary: Daily app summaries define total_credits and entry_count only.
+      - source: backend/core/directus/schemas/usage_monthly_app_summaries.yml
+        summary: Monthly app summaries define total_credits and entry_count only.
+  - id: A-3
+    text: API-key SDK billing routes can safely expose private usage overview data when the key has billing read scope.
+    category: auth
+    required_before: task_execution
+    status: unchecked
+    evidence: []
+  - id: A-4
+    text: The existing Directus schema migration/setup path can add a new usage_period_rollups collection and indexes without manual production SQL.
+    category: migration
+    required_before: task_execution
+    status: unchecked
+    evidence: []
+
+contracts:
+  api:
+    - route: GET /v1/settings/usage/overview
+      auth: authenticated session, same user boundary as existing /v1/settings/usage endpoints
+      query: >
+        granularity=daily|weekly|monthly, days?, weeks?, months?, from?, to?,
+        include_breakdowns=true|false, include_top_buckets=true|false
+      response: >
+        { granularity, periods: UsageOverviewPeriod[], totals, freshness,
+        generated_at, range, token_coverage }
+      errors:
+        - 400 for invalid granularity or invalid range.
+        - 401 when unauthenticated.
+        - 503 when rollup rebuild is unavailable and no cached rollup can be returned.
+    - route: GET /v1/sdk/billing/usage/overview
+      auth: API key with billing read scope and approved device
+      query: Same as /v1/settings/usage/overview.
+      response: Same JSON shape as /v1/settings/usage/overview.
+      errors:
+        - 401 for missing/invalid API key.
+        - 403 for unapproved device or missing billing read scope.
+        - 400 for invalid query.
+  data:
+    - collection: usage_period_rollups
+      fields:
+        - id uuid primary key
+        - user_id_hash string indexed
+        - granularity string indexed, one of daily, weekly, monthly
+        - period_key string indexed, YYYY-MM-DD, YYYY-Www, or YYYY-MM
+        - period_start integer Unix seconds
+        - period_end integer Unix seconds exclusive
+        - rollup_version integer
+        - encrypted_rollup_json text
+        - entry_count integer cleartext for cheap completeness checks only
+        - source_min_created_at integer nullable
+        - source_max_created_at integer nullable
+        - computed_at integer
+        - stale_reason string nullable
+        - created_at timestamp or integer consistent with Directus conventions
+        - updated_at timestamp or integer consistent with Directus conventions
+    - indexes:
+        - unique user_id_hash, granularity, period_key
+        - user_id_hash, granularity, period_start desc
+        - user_id_hash, period_start desc on existing usage rows if missing
+        - user_id_hash, year_month on existing usage_monthly_*_summaries tables
+        - user_id_hash, date on existing usage_daily_*_summaries tables
+  rollup_json:
+    - version: 1
+    - totals: credits, entries, input_tokens, output_tokens, total_tokens, user_input_tokens, system_prompt_tokens, tool_inference_iterations, entries_without_token_data
+    - token_coverage: entries_with_token_data, entries_without_token_data, coverage_ratio
+    - by_model: model_used, credits, entries, input_tokens, output_tokens, total_tokens
+    - by_app: app_id, credits, entries, token totals where present
+    - by_skill: app_id, skill_id, credits, entries, token totals where present
+    - by_source: source, credits, entries, token totals where present
+    - by_provider: server_provider, credits, entries, token totals where present
+    - by_region: server_region, credits, entries, token totals where present
+    - top_buckets: optional chat_id/api_key_hash/device_hash buckets with credits and entry_count but no decrypted chat titles or API key labels in the backend payload
+  cli:
+    - command: >
+        openmates settings billing usage overview
+        [--period daily|weekly|monthly] [--days N] [--weeks N] [--months N]
+        [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--json]
+      behavior:
+        - Defaults to --period daily --days 30 for human output.
+        - Human output shows totals, top models, top skills, and freshness in a compact table.
+        - JSON output returns the canonical API response without lossy formatting.
+  npm_sdk:
+    - method: >
+        om.billing.usageOverview(options?: { granularity?: "daily" | "weekly" | "monthly",
+        days?: number, weeks?: number, months?: number, from?: string, to?: string,
+        includeBreakdowns?: boolean, includeTopBuckets?: boolean })
+      response: Canonical usage overview JSON.
+  pip_sdk:
+    - method: >
+        om.billing.usage_overview(granularity="daily", days=None, weeks=None,
+        months=None, from_date=None, to_date=None, include_breakdowns=True,
+        include_top_buckets=False)
+      response: Canonical usage overview dict.
+  privacy_security:
+    - Rollup JSON is encrypted with the same user vault key boundary used by raw usage fields.
+    - Cleartext rollup rows may contain only user_id_hash, period keys, timestamps, rollup version, and entry_count.
+    - API responses are returned only to the owning authenticated user or approved API-key SDK device with billing read scope.
+    - Logs must not include decrypted rollup JSON, model names, token totals, credit totals, provider names, region names, chat IDs tied to titles, or API key hashes beyond existing safe truncated diagnostics.
+    - Rollup rebuild failure must be visible through stale/error metadata and logs; no silent success with incomplete totals.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_usage_overview_rollups.py
+    command: python3 -m pytest backend/tests/test_usage_overview_rollups.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - daily, weekly, and monthly period keys are generated with correct boundaries.
+      - rollup aggregation sums credits and token fields from decrypted raw rows.
+      - by_model, by_app, by_skill, by_source, by_provider, and by_region do not double-count rows.
+      - entries_without_token_data is incremented for rows without token fields.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 -m pytest backend/tests/test_usage_overview_rollups.py
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pass
+        command: python3 -m pytest backend/tests/test_setup_schemas.py backend/tests/test_usage_overview_rollups.py backend/tests/test_usage_overview_privacy.py backend/tests/test_usage_entries.py -q
+        run_id: local-20260721T000314Z
+        subject_commit: 3f964af8c53b0184681ff2321d54ab1ed9dfa95d
+        timestamp: "2026-07-21T00:03:14Z"
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_usage_overview_reconciliation.py
+    command: python3 -m pytest backend/tests/test_usage_overview_reconciliation.py
+    covers:
+      - AC-4
+      - AC-5
+    assertions:
+      - incremental rollup failure leaves raw usage creation successful and marks the period stale/updating.
+      - reconciliation rebuilds affected recent periods from raw usage rows.
+      - freshness metadata includes generated_at, source_max_created_at, is_stale, and staleness_seconds.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 -m pytest backend/tests/test_usage_overview_reconciliation.py
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: python3 -m pytest backend/tests/test_usage_overview_reconciliation.py
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_usage_overview_archive_backfill.py
+    command: python3 -m pytest backend/tests/test_usage_overview_archive_backfill.py
+    covers:
+      - AC-6
+    assertions:
+      - archived S3 usage payloads can be decrypted and aggregated into period rollups.
+      - backfill does not clear existing archive_s3_key or is_archived flags on monthly summaries.
+      - backfill is idempotent for the same user/month.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 -m pytest backend/tests/test_usage_overview_archive_backfill.py
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: python3 -m pytest backend/tests/test_usage_overview_archive_backfill.py
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-PYTEST-004
+    type: pytest
+    file: backend/tests/test_openai_compat_usage_tokens.py
+    command: python3 -m pytest backend/tests/test_openai_compat_usage_tokens.py
+    covers:
+      - AC-9
+    assertions:
+      - OpenAI-compatible usage metadata is passed into usage_details as input_tokens and output_tokens.
+      - created raw usage rows for OpenAI-compatible requests retain app_id ai and skill_id ask.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 -m pytest backend/tests/test_openai_compat_usage_tokens.py
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: python3 -m pytest backend/tests/test_openai_compat_usage_tokens.py
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-PYTEST-005
+    type: pytest
+    file: backend/tests/test_usage_overview_privacy.py
+    command: python3 -m pytest backend/tests/test_usage_overview_privacy.py
+    covers:
+      - AC-10
+    assertions:
+      - usage_period_rollups stores aggregate payload in encrypted_rollup_json only.
+      - model names, provider names, regions, token totals, and credit totals are not stored as cleartext rollup columns.
+      - API logging paths do not log decrypted rollup payloads.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 -m pytest backend/tests/test_usage_overview_privacy.py
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pass
+        command: python3 -m pytest backend/tests/test_setup_schemas.py backend/tests/test_usage_overview_rollups.py backend/tests/test_usage_overview_privacy.py backend/tests/test_usage_entries.py -q
+        run_id: local-20260721T000314Z
+        subject_commit: 3f964af8c53b0184681ff2321d54ab1ed9dfa95d
+        timestamp: "2026-07-21T00:03:14Z"
+  - id: T-NPM-UNIT-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk.test.ts
+    covers:
+      - AC-7
+    assertions:
+      - npm billing.usageOverview routes to /v1/sdk/billing/usage/overview with query parameters.
+      - response shape is returned without lossy renaming.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk.test.ts
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pass
+        command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern "routes previously blocked SDK parity surfaces" tests/sdk.test.ts
+        run_id: local-20260720T233613Z
+        subject_commit: 930399a965ce0b811c7339b28d8cb5adb068369a
+        timestamp: "2026-07-20T23:36:13Z"
+  - id: T-PIP-UNIT-001
+    type: unit
+    file: packages/openmates-python/tests/test_sdk.py
+    command: python3 -m pytest packages/openmates-python/tests/test_sdk.py
+    covers:
+      - AC-7
+    assertions:
+      - Python billing.usage_overview routes to /v1/sdk/billing/usage/overview with query parameters.
+      - response dict is returned without lossy renaming.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk.py
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pass
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk.py -q
+        run_id: local-20260720T233613Z
+        subject_commit: 930399a965ce0b811c7339b28d8cb5adb068369a
+        timestamp: "2026-07-20T23:36:13Z"
+  - id: T-CLI-LIVE-001
+    type: unit
+    file: scripts/verify_usage_overview_cli_sdk.py
+    command: python3 scripts/verify_usage_overview_cli_sdk.py --surface cli --api-url https://api.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+    assertions:
+      - real CLI command against dev returns daily, weekly, and monthly overview JSON.
+      - totals include token coverage metadata and freshness metadata.
+      - command uses real dev auth/test-account state, not mocked API calls.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pass
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --max-overview-seconds 10 --max-usage-wait-seconds 90 --skip-build
+        run_id: live-20260721T000314Z
+        subject_commit: 3f964af8c53b0184681ff2321d54ab1ed9dfa95d
+        timestamp: "2026-07-21T00:03:14Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface cli --api-url https://api.dev.openmates.org
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-NPM-LIVE-001
+    type: unit
+    file: scripts/verify_usage_overview_cli_sdk.py
+    command: python3 scripts/verify_usage_overview_cli_sdk.py --surface npm --api-url https://api.dev.openmates.org
+    covers:
+      - AC-2
+      - AC-3
+      - AC-7
+    assertions:
+      - npm SDK usageOverview returns the same canonical fields as CLI.
+      - API-key auth uses a real approved dev SDK device and real billing scope.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pass
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --max-overview-seconds 10 --max-usage-wait-seconds 90 --skip-build
+        run_id: live-20260721T000314Z
+        subject_commit: 3f964af8c53b0184681ff2321d54ab1ed9dfa95d
+        timestamp: "2026-07-21T00:03:14Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface npm --api-url https://api.dev.openmates.org
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-PIP-LIVE-001
+    type: unit
+    file: scripts/verify_usage_overview_cli_sdk.py
+    command: python3 scripts/verify_usage_overview_cli_sdk.py --surface pip --api-url https://api.dev.openmates.org
+    covers:
+      - AC-2
+      - AC-3
+      - AC-7
+    assertions:
+      - Python SDK usage_overview returns the same canonical fields as CLI.
+      - API-key auth uses a real approved dev SDK device and real billing scope.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pass
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --max-overview-seconds 10 --max-usage-wait-seconds 90 --skip-build
+        run_id: live-20260721T000314Z
+        subject_commit: 3f964af8c53b0184681ff2321d54ab1ed9dfa95d
+        timestamp: "2026-07-21T00:03:14Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface pip --api-url https://api.dev.openmates.org
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-PARITY-001
+    type: unit
+    file: scripts/audit_sdk_cli_parity.py
+    command: python3 scripts/audit_sdk_cli_parity.py
+    covers:
+      - AC-7
+    assertions:
+      - CLI usage overview command is classified with npm and pip SDK parity.
+      - SDK methods are not missing from the parity matrix.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 scripts/audit_sdk_cli_parity.py
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: python3 scripts/audit_sdk_cli_parity.py
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-WEB-001
+    type: playwright
+    file: frontend/apps/web_app/tests/usage-overview-rollups.spec.ts
+    command: python3 scripts/tests.py run --spec usage-overview-rollups.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-2
+      - AC-3
+      - AC-8
+    assertions:
+      - Settings > Usage aggregate overview shows daily, weekly, and monthly totals from canonical endpoint.
+      - stale/updating metadata is visible when provided.
+      - clicking an aggregate item still opens raw-row drilldown with existing token receipt details.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --spec usage-overview-rollups.spec.ts
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --spec usage-overview-rollups.spec.ts
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+verifications:
+  - id: V-USER-001
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-8
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+  - id: V-APPLE-001
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-8
+    status: pending
+    evidence:
+      status: ""
+      summary: "Apple billing usage impact checked with scripts/apple_remote.py status plus build/test, or waived with explicit reason."
+      timestamp: ""
+
+implementation_plan:
+  spec_path: docs/specs/usage-overview-rollups/spec.yml
+  existing_patterns:
+    - backend/core/api/app/services/directus/usage.py for usage row encryption/decryption and summary updates.
+    - backend/core/api/app/routes/settings.py for authenticated billing usage routes.
+    - backend/core/api/app/routes/sdk.py for SDK billing surface dispatch.
+    - frontend/packages/openmates-cli/src/cli.ts for settings billing command routing.
+    - frontend/packages/openmates-cli/src/sdk.ts and packages/openmates-python/openmates/sdk.py for SDK billing methods.
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte for web usage overview/drilldown rendering.
+  architecture: >
+    Add a private encrypted rollup layer fed by raw usage rows. Raw usage rows
+    remain authoritative. Incremental rollup update is best effort and near-real
+    time; reconciliation and backfill rebuild rollups deterministically from raw
+    rows or archived S3 month files. One canonical overview endpoint serves CLI,
+    SDKs, and web, with client-specific formatting only at the edge.
+  data_flow:
+    - Billing writes a raw usage row with encrypted sensitive fields.
+    - The usage service enqueues or performs a non-blocking rollup update for the affected day, ISO week, and month.
+    - If incremental update fails, the raw row remains valid and the affected period is marked stale or queued for reconciliation.
+    - Reconciliation rebuilds recent rollups from Directus raw rows.
+    - Backfill rebuilds historical rollups from encrypted S3 archives.
+    - Overview APIs fetch matching rollup rows, decrypt rollup JSON for the current user, and return periods plus freshness metadata.
+  affected_files:
+    - path: backend/core/directus/schemas/usage_period_rollups.yml
+      reason: New encrypted rollup collection.
+    - path: backend/core/directus/setup/migrate_usage_overview_indexes.sql
+      reason: Unique rollup and hot-path usage summary indexes.
+    - path: backend/core/api/app/services/directus/usage.py
+      reason: Raw-row aggregation helpers, rollup update hooks, decrypt/aggregate behavior.
+    - path: backend/core/api/app/services/usage_overview_service.py
+      reason: Canonical period rollup aggregation, freshness, reconciliation, and backfill orchestration.
+    - path: backend/core/api/app/tasks/usage_overview_tasks.py
+      reason: Async rollup update, reconciliation, and backfill jobs.
+    - path: backend/core/api/app/routes/settings.py
+      reason: /v1/settings/usage/overview route.
+    - path: backend/core/api/app/routes/sdk.py
+      reason: /v1/sdk/billing/usage/overview dispatch and scope enforcement.
+    - path: backend/core/api/app/routes/usage_api.py
+      reason: OpenAPI visibility for new usage overview route.
+    - path: backend/core/api/app/routes/openai_compat.py
+      reason: Persist token counts for OpenAI-compatible requests when available.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Typed client helper for usage overview route.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: New CLI command and formatted output.
+    - path: frontend/packages/openmates-cli/src/sdk.ts
+      reason: npm SDK billing.usageOverview.
+    - path: packages/openmates-python/openmates/sdk.py
+      reason: pip SDK billing.usage_overview.
+    - path: frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+      reason: Web aggregate overview uses canonical endpoint.
+    - path: frontend/packages/ui/src/config/api.ts
+      reason: Add endpoint constant.
+    - path: frontend/packages/ui/src/i18n/sources/settings/usage.yml
+      reason: Labels for token totals, freshness, stale states, and weekly/monthly toggles.
+    - path: docs/user-guide/billing/usage.md
+      reason: Document daily/weekly/monthly token and model overviews.
+    - path: docs/user-guide/cli/settings.md
+      reason: Document CLI usage overview command.
+    - path: packages/openmates-python/README.md
+      reason: Document Python usage overview helper.
+  verification_strategy:
+    - Validate spec before implementation.
+    - Add backend red tests for aggregation, freshness/reconciliation, archive backfill, privacy, and OpenAI-compatible token persistence.
+    - Add CLI and SDK unit tests for command/method routing.
+    - Add real dev-server CLI, npm SDK, and pip SDK smoke script before web implementation.
+    - Run SDK/CLI parity audit after CLI and SDK methods are added.
+    - Deploy backend/web changes before Playwright green verification.
+    - Get user confirmation for deployed web usage overview.
+    - Run or waive Apple billing settings parity check last.
+  verification_order:
+    - Backend unit tests for rollup contract and privacy.
+    - Real CLI command against https://api.dev.openmates.org with real auth/test-account state.
+    - npm SDK and pip SDK real calls against https://api.dev.openmates.org with real approved API key/device state.
+    - python3 scripts/audit_sdk_cli_parity.py.
+    - Web Playwright after deploy to app.dev.openmates.org.
+    - User confirmation of deployed web overview behavior.
+    - Apple remote status/build/test or explicit waiver.
+
+tasks:
+  - id: TASK-1
+    title: Add backend rollup schema, indexes, and aggregation tests
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-10
+    expected_files:
+      - backend/core/directus/schemas/usage_period_rollups.yml
+      - backend/core/directus/setup/migrate_usage_overview_indexes.sql
+      - backend/tests/test_usage_overview_rollups.py
+      - backend/tests/test_usage_overview_privacy.py
+    verification:
+      - T-PYTEST-001
+      - T-PYTEST-005
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-005
+    dependencies: []
+    ownership:
+      files:
+        - backend/core/directus/schemas/usage_period_rollups.yml
+        - backend/core/directus/setup/migrate_usage_overview_indexes.sql
+        - backend/tests/test_usage_overview_rollups.py
+        - backend/tests/test_usage_overview_privacy.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement backend overview service, API route, and SDK dispatch
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-7
+        - AC-10
+    expected_files:
+      - backend/core/api/app/services/usage_overview_service.py
+      - backend/core/api/app/services/directus/usage.py
+      - backend/core/api/app/routes/settings.py
+      - backend/core/api/app/routes/sdk.py
+      - backend/core/api/app/routes/usage_api.py
+      - backend/tests/test_usage_overview_rollups.py
+      - backend/tests/test_usage_overview_privacy.py
+    verification:
+      - T-PYTEST-001
+      - T-PYTEST-005
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-005
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - backend/core/api/app/services/usage_overview_service.py
+        - backend/core/api/app/services/directus/usage.py
+        - backend/core/api/app/routes/settings.py
+        - backend/core/api/app/routes/sdk.py
+        - backend/core/api/app/routes/usage_api.py
+      shared_files:
+        - backend/core/api/app/services/directus/usage.py
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Add freshness, reconciliation, and archive backfill
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+        - AC-6
+    expected_files:
+      - backend/core/api/app/services/usage_overview_service.py
+      - backend/core/api/app/tasks/usage_overview_tasks.py
+      - backend/core/api/app/services/usage_archive_service.py
+      - backend/tests/test_usage_overview_reconciliation.py
+      - backend/tests/test_usage_overview_archive_backfill.py
+    verification:
+      - T-PYTEST-002
+      - T-PYTEST-003
+    verification_ids:
+      - T-PYTEST-002
+      - T-PYTEST-003
+    dependencies:
+      - TASK-2
+    ownership:
+      files:
+        - backend/core/api/app/services/usage_overview_service.py
+        - backend/core/api/app/tasks/usage_overview_tasks.py
+        - backend/tests/test_usage_overview_reconciliation.py
+        - backend/tests/test_usage_overview_archive_backfill.py
+      shared_files:
+        - backend/core/api/app/services/usage_archive_service.py
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Persist OpenAI-compatible API token counts
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-9
+      acceptance_criteria:
+        - AC-9
+    expected_files:
+      - backend/core/api/app/routes/openai_compat.py
+      - backend/tests/test_openai_compat_usage_tokens.py
+    verification:
+      - T-PYTEST-004
+    verification_ids:
+      - T-PYTEST-004
+    dependencies:
+      - TASK-2
+    ownership:
+      files:
+        - backend/core/api/app/routes/openai_compat.py
+        - backend/tests/test_openai_compat_usage_tokens.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-5
+    title: Add CLI command and real dev-server CLI verification
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+    expected_files:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+      - scripts/verify_usage_overview_cli_sdk.py
+    verification:
+      - T-CLI-LIVE-001
+    verification_ids:
+      - T-CLI-LIVE-001
+    dependencies:
+      - TASK-3
+      - TASK-4
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/tests/cli.test.ts
+        - scripts/verify_usage_overview_cli_sdk.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-6
+    title: Add npm and pip SDK parity methods and live verification
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-7
+      acceptance_criteria:
+        - AC-7
+    expected_files:
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/sdk.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_sdk.py
+      - scripts/verify_usage_overview_cli_sdk.py
+    verification:
+      - T-NPM-UNIT-001
+      - T-PIP-UNIT-001
+      - T-NPM-LIVE-001
+      - T-PIP-LIVE-001
+      - T-PARITY-001
+    verification_ids:
+      - T-NPM-UNIT-001
+      - T-PIP-UNIT-001
+      - T-NPM-LIVE-001
+      - T-PIP-LIVE-001
+      - T-PARITY-001
+    dependencies:
+      - TASK-5
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - frontend/packages/openmates-cli/tests/sdk.test.ts
+        - packages/openmates-python/openmates/sdk.py
+        - packages/openmates-python/tests/test_sdk.py
+        - scripts/verify_usage_overview_cli_sdk.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-7
+    title: Update web usage overview and Playwright coverage
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-8
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+        - AC-8
+    expected_files:
+      - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+      - frontend/packages/ui/src/config/api.ts
+      - frontend/packages/ui/src/i18n/sources/settings/usage.yml
+      - frontend/apps/web_app/tests/usage-overview-rollups.spec.ts
+    verification:
+      - T-WEB-001
+      - V-USER-001
+    verification_ids:
+      - T-WEB-001
+      - V-USER-001
+    dependencies:
+      - TASK-6
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+        - frontend/packages/ui/src/config/api.ts
+        - frontend/packages/ui/src/i18n/sources/settings/usage.yml
+        - frontend/apps/web_app/tests/usage-overview-rollups.spec.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-8
+    title: Update docs and Apple parity record
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-7
+        - AC-8
+    expected_files:
+      - docs/user-guide/billing/usage.md
+      - docs/user-guide/cli/settings.md
+      - packages/openmates-python/README.md
+      - docs/architecture/platforms/cli-feature-parity.md
+      - docs/specs/apple-settings-billing-parity/spec.yml
+    verification:
+      - V-APPLE-001
+    verification_ids:
+      - V-APPLE-001
+    dependencies:
+      - TASK-7
+    ownership:
+      files:
+        - docs/user-guide/billing/usage.md
+        - docs/user-guide/cli/settings.md
+        - packages/openmates-python/README.md
+        - docs/architecture/platforms/cli-feature-parity.md
+      shared_files:
+        - docs/specs/apple-settings-billing-parity/spec.yml
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true

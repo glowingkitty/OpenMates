@@ -121,26 +121,21 @@
     actionButton
   }: Props = $props();
   
-  // Local reactive state for status - can be updated when embedUpdated fires
-  // This overrides the prop when we receive updates from the server
-  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
+  type EmbedStatus = 'processing' | 'finished' | 'error' | 'cancelled';
+
+  // Local reactive state for status updates received after mount. When no
+  // override exists, render directly from the prop so finished preview fixtures
+  // are clickable on the first paint.
+  let localStatus = $state<EmbedStatus | null>(null);
 
   // Track whether the store has resolved a definitive status for this embed.
   // Once the store says "finished", the $effect must NOT revert to statusProp
   // (which may still be "processing" from the HTML attribute baked during streaming).
   let storeResolved = $state(false);
 
-  // Initialize local status from prop — but only when the store hasn't resolved yet.
-  // After refetchFromStore() or an embedUpdated event sets a terminal status,
-  // the prop is ignored to prevent re-mount from reverting "finished" → "processing".
-  $effect(() => {
-    if (!storeResolved) {
-      localStatus = statusProp || 'processing';
-    }
-  });
-
   // Use local status as the source of truth (allows updates from embed events)
-  let status = $derived(localStatus);
+  let status = $derived(localStatus ?? statusProp ?? 'processing');
+  let isInteractive = $derived(status === 'finished' || status === 'error');
 
   let isDirectContentEmbed = $derived.by(() => (
     appId === skillId
@@ -267,7 +262,7 @@
           if (decodedContent) {
             needsContentRecovery = false; // Content delivered — cancel pending retries
             onEmbedDataUpdated({
-              status: embedData.status || localStatus,
+              status: embedData.status || status,
               decodedContent
             });
           }
@@ -296,7 +291,7 @@
    */
   async function requestStaleEmbedUpdate() {
     // Only request if still processing and not a legacy/synthetic ID
-    if (localStatus !== 'processing' || id.startsWith('legacy-')) return;
+    if (status !== 'processing' || id.startsWith('legacy-')) return;
 
     await requestEmbedFromServerOnce(id, 'preview-stale-recovery');
   }
@@ -744,9 +739,12 @@
     }
     
     
+    // Stop default link navigation/prose marks before opening fullscreen through
+    // the unified controller. Large previews originate from markdown links; if
+    // their default action runs, the hash can change without a fullscreen host.
+    e.preventDefault();
     // Stop event propagation to prevent the click from bubbling to ReadOnlyMessage
-    // which would show the context menu instead of opening fullscreen
-    // NOTE: We don't call preventDefault() here because it might interfere with the click
+    // which would show the context menu instead of opening fullscreen.
     e.stopPropagation();
     
     if ((status === 'finished' || status === 'error') && onFullscreen) {
@@ -847,7 +845,7 @@
     // so the embed will remain visually cancelled but won't actually be. This is
     // acceptable: the user wanted to stop, and the worst case is a stale UI state
     // that would resolve on next reload. No silent data loss occurs.
-    if (localStatus === 'processing') {
+    if (status === 'processing') {
       localStatus = 'cancelled';
     }
   }
@@ -861,7 +859,7 @@
   class:desktop={!useMobileLayout}
   class:processing={status === 'processing'}
   class:finished={status === 'finished'}
-  class:clickable={status === 'finished' || status === 'error'}
+  class:clickable={isInteractive}
   class:hovering={isHovering && status === 'finished'}
   class:scroll-tilting={isScrollTilting}
   class:error={status === 'error'}
@@ -869,18 +867,16 @@
   data-app-id={appId}
   data-skill-id={skillId}
   data-status={status}
+  data-embed-status={status}
   style={[
     tiltTransform ? `transform: ${tiltTransform};` : '',
     (!useMobileLayout && customHeight) ? `height: ${customHeight}px; min-height: ${customHeight}px; max-height: ${customHeight}px;` : ''
   ].filter(Boolean).join(' ')}
-  {...((status === 'finished' || status === 'error') ? {
-    role: 'button',
-    tabindex: 0,
-    onclick: handleClick,
-    onkeydown: handleKeydown
-  } : {
-    role: 'presentation'
-  })}
+  role="button"
+  aria-disabled={!isInteractive}
+  tabindex={isInteractive ? 0 : -1}
+  onclick={handleClick}
+  onkeydown={handleKeydown}
   onpointerdown={handlePointerDown}
   onmousedown={handleMouseDown}
   onmouseenter={handleMouseEnter}

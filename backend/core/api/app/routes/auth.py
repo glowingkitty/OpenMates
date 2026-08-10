@@ -21,6 +21,7 @@ from backend.core.api.app.routes.auth_routes.auth_recovery import router as reco
 from backend.core.api.app.routes.auth_routes.auth_sessions import router as sessions_router
 # Import pair login router (magic QR / token-based cross-device login)
 from backend.core.api.app.routes.auth_routes.auth_pair import router as pair_router
+from backend.core.api.app.routes.auth_routes.auth_methods import router as auth_methods_router
 
 # IMPORTANT INSTRUCTION START (DO NOT DELETE/MODIFY)
 #
@@ -89,3 +90,4 @@ router.include_router(recovery_router)
 router.include_router(sessions_router)
 # Include pair login router
 router.include_router(pair_router)
+router.include_router(auth_methods_router)

@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 # backend/tests/test_mock_replay.py
 #
 # Unit tests for E2E mock replay timing helpers.
@@ -6,15 +7,53 @@
 # streaming. These tests keep the default timing contract explicit so replay
 # fixtures do not race ahead of the browser's active-chat subscription setup.
 
+import asyncio
+
 import pytest
 
 try:
     from backend.apps.ai.testing.mock_replay import (
         DEFAULT_INITIAL_CHUNK_DELAY_MS,
+        _build_mock_pending_focus_activation_context,
         get_fixture_initial_delay_seconds,
+        replay_fixture,
     )
+    from backend.apps.ai.testing import mock_replay
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.core.api.app.schemas.chat import AIHistoryMessage
+    from backend.shared.python_utils.chat_completion_recovery import derive_recovery_keypair
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
+
+
+class _StubCacheService:
+    def __init__(self) -> None:
+        self.events = []
+
+    async def publish_event(self, channel: str, payload: dict) -> None:
+        self.events.append((channel, payload))
+
+
+class _StubDirectusResponse:
+    status_code = 200
+
+    def __init__(self, data: dict) -> None:
+        self._data = data
+
+    def json(self) -> dict:
+        return self._data
+
+
+class _StubDirectusService:
+    base_url = "http://directus.test"
+
+    def __init__(self) -> None:
+        self.requests = []
+
+    async def _make_api_request(self, method: str, url: str, **kwargs) -> _StubDirectusResponse:
+        request_json = kwargs["json"]
+        self.requests.append({"method": method, "url": url, **request_json})
+        return _StubDirectusResponse({"data": {"job_id": request_json["data"]["job_id"]}})
 
 
 def test_fixture_initial_delay_defaults_to_readiness_delay() -> None:
@@ -27,3 +66,243 @@ def test_fixture_initial_delay_can_be_overridden_to_zero() -> None:
 
 def test_fixture_initial_delay_uses_fixture_value() -> None:
     assert get_fixture_initial_delay_seconds({"initial_delay_ms": 750}) == 0.75
+
+
+def test_mock_focus_activation_context_uses_deferred_production_contract() -> None:
+    request_data = AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="55555555-5555-4555-8555-555555555555",
+        user_id="11111111-1111-4111-8111-111111111111",
+        user_id_hash="owner-hash",
+        message_history=[AIHistoryMessage(role="user", content="career help", created_at=1)],
+    )
+
+    context = _build_mock_pending_focus_activation_context(
+        request_data,
+        focus_id="jobs-career_insights",
+        embed_id="33333333-3333-4333-8333-333333333333",
+        task_id="66666666-6666-4666-8666-666666666666",
+    )
+
+    assert context["focus_id"] == "jobs-career_insights"
+    assert context["chat_id"] == request_data.chat_id
+    assert context["message_id"] == request_data.message_id
+    assert context["embed_id"] == "33333333-3333-4333-8333-333333333333"
+
+
+def test_mock_focus_activation_parent_seals_recovery_job(monkeypatch) -> None:
+    task_id = "66666666-6666-4666-8666-666666666666"
+    chat_id = "22222222-2222-4222-8222-222222222222"
+    _, public_key = derive_recovery_keypair(
+        "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+        chat_id,
+        7,
+    )
+    fixture = {
+        "response": '```json\n{"type":"focus_mode_activation","embed_id":"33333333-3333-4333-8333-333333333333"}\n```',
+        "initial_delay_ms": 0,
+        "preprocessing": {"category": "general_knowledge"},
+    }
+    request_data = AskSkillRequest(
+        chat_id=chat_id,
+        message_id="55555555-5555-4555-8555-555555555555",
+        user_id="11111111-1111-4111-8111-111111111111",
+        user_id_hash="owner-hash",
+        message_history=[AIHistoryMessage(role="user", content="research this", created_at=1)],
+        recovery_task_id=task_id,
+        recovery_preflight_id="77777777-7777-4777-8777-777777777777",
+        recovery_turn_id="88888888-8888-4888-8888-888888888888",
+        recovery_public_key=public_key,
+        chat_key_version=7,
+    )
+    cache_service = _StubCacheService()
+    directus_service = _StubDirectusService()
+
+    async def keep_fixture_response(response: str, *_args, **_kwargs) -> str:
+        return response
+
+    monkeypatch.setattr(mock_replay, "load_fixture", lambda _fixture_id: fixture)
+    monkeypatch.setattr(mock_replay, "_recreate_fixture_embeds", keep_fixture_response)
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-token")
+
+    asyncio.run(
+        replay_fixture(
+            fixture_id="focus_activation",
+            task_id=task_id,
+            request_data=request_data,
+            cache_service=cache_service,
+            directus_service=directus_service,
+        )
+    )
+
+    final_chunks = [
+        payload
+        for _channel, payload in cache_service.events
+        if payload.get("type") == "ai_message_chunk" and payload.get("is_final_chunk")
+    ]
+    assert len(final_chunks) == 1
+    assert final_chunks[0]["recovery_protocol_version"] == 1
+    assert final_chunks[0]["recovery_job_id"] == directus_service.requests[0]["data"]["job_id"]
+
+
+def test_travel_train_web_fixture_has_renderable_connection_results() -> None:
+    fixture = mock_replay.load_fixture("travel_train_web")
+    embed = fixture["embeds"]["11111111-1111-4111-8111-111111111111"]
+    results = embed["results"]
+
+    assert embed["type"] == "app_skill_use"
+    assert embed["app_id"] == "travel"
+    assert embed["skill_id"] == "search_connections"
+    assert len(results) >= 1
+    assert results[0]["transport_method"] == "train"
+    assert results[0]["total_price"]
+    assert results[0]["booking_url"]
+    assert results[0]["booking_provider"] == "Deutsche Bahn"
+    assert results[0]["legs"][0]["segments"][0]["departure_station"]
+
+
+@pytest.mark.parametrize(
+    ("recovery_fields", "expected_inference_task_id"),
+    [
+        (
+            {"recovery_task_id": "66666666-6666-4666-8666-666666666666"},
+            "66666666-6666-4666-8666-666666666666",
+        ),
+        (
+            {
+                "recovery_inference_task_id": "88888888-8888-4888-8888-888888888888",
+                "is_focus_mode_continuation": True,
+            },
+            "88888888-8888-4888-8888-888888888888",
+        ),
+    ],
+)
+def test_replay_fixture_recovery_final_chunk_includes_sealed_job_metadata(
+    monkeypatch,
+    recovery_fields: dict,
+    expected_inference_task_id: str,
+) -> None:
+    chat_id = "22222222-2222-4222-8222-222222222222"
+    task_id = "66666666-6666-4666-8666-666666666666"
+    _, public_key = derive_recovery_keypair(
+        "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+        chat_id,
+        7,
+    )
+    fixture = {
+        "response": "Recovered hello",
+        "initial_delay_ms": 0,
+        "preprocessing": {
+            "category": "general_knowledge",
+            "selected_model_name": "Mock model",
+        },
+        "usage": {"model_name": "Mock model", "total_credits": 1},
+    }
+    request_data = AskSkillRequest(
+        chat_id=chat_id,
+        message_id="55555555-5555-4555-8555-555555555555",
+        user_id="11111111-1111-4111-8111-111111111111",
+        user_id_hash="owner-hash",
+        message_history=[
+            AIHistoryMessage(role="user", content="hello", created_at=1),
+        ],
+        recovery_preflight_id="77777777-7777-4777-8777-777777777777",
+        recovery_turn_id="33333333-3333-4333-8333-333333333333",
+        recovery_public_key=public_key,
+        chat_key_version=7,
+        **recovery_fields,
+    )
+    cache_service = _StubCacheService()
+    directus_service = _StubDirectusService()
+
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-token")
+    monkeypatch.setattr(mock_replay, "load_fixture", lambda _fixture_id: fixture)
+
+    asyncio.run(
+        replay_fixture(
+            fixture_id="connection_resilience",
+            task_id=task_id,
+            request_data=request_data,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=object(),
+            user_vault_key_id="vault-key",
+        )
+    )
+
+    final_chunks = [
+        payload
+        for _channel, payload in cache_service.events
+        if payload.get("type") == "ai_message_chunk" and payload.get("is_final_chunk")
+    ]
+    assert len(final_chunks) == 1
+    assert directus_service.requests[0]["operation"] == "create_sealed_job"
+    assert directus_service.requests[0]["data"]["inference_task_id"] == expected_inference_task_id
+    assert "Recovered hello" not in str(directus_service.requests[0]["data"])
+
+    final_chunk = final_chunks[0]
+    assert final_chunk["recovery_provisional"] is False
+    assert final_chunk["recovery_turn_id"] == "33333333-3333-4333-8333-333333333333"
+    assert final_chunk["chat_key_version"] == 7
+    assert final_chunk["recovery_protocol_version"] == 1
+    assert final_chunk["recovery_job_id"] == directus_service.requests[0]["data"]["job_id"]
+
+
+def test_replay_fixture_publishes_fixture_postprocessing_metadata(monkeypatch) -> None:
+    fixture = {
+        "response": "Berlin weather response",
+        "initial_delay_ms": 0,
+        "preprocessing": {
+            "category": "general_knowledge",
+            "title": "Search for Berlin weather",
+            "icon_names": ["globe", "sun"],
+            "chat_summary": "User requested Berlin weather information.",
+            "chat_tags": ["weather", "Berlin"],
+        },
+    }
+    request_data = AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="55555555-5555-4555-8555-555555555555",
+        user_id="11111111-1111-4111-8111-111111111111",
+        user_id_hash="owner-hash",
+        message_history=[AIHistoryMessage(role="user", content="hello", created_at=1)],
+    )
+    cache_service = _StubCacheService()
+
+    monkeypatch.setattr(mock_replay, "load_fixture", lambda _fixture_id: fixture)
+
+    asyncio.run(
+        replay_fixture(
+            fixture_id="share_embed_flow",
+            task_id="66666666-6666-4666-8666-666666666666",
+            request_data=request_data,
+            cache_service=cache_service,
+        )
+    )
+
+    postprocessing_events = [
+        payload
+        for channel, payload in cache_service.events
+        if channel == "ai_typing_indicator_events::owner-hash"
+        and payload.get("type") == "post_processing_completed"
+    ]
+    assert postprocessing_events == [
+        {
+            "type": "post_processing_completed",
+            "event_for_client": "post_processing_completed",
+            "task_id": "66666666-6666-4666-8666-666666666666",
+            "chat_id": "22222222-2222-4222-8222-222222222222",
+            "user_id_uuid": "11111111-1111-4111-8111-111111111111",
+            "user_id_hash": "owner-hash",
+            "follow_up_request_suggestions": [],
+            "new_chat_request_suggestions": [],
+            "chat_summary": "User requested Berlin weather information.",
+            "share_cta_text": "User requested Berlin weather information.",
+            "chat_tags": ["weather", "Berlin"],
+            "harmful_response": 1,
+            "top_recommended_apps_for_user": [],
+            "quick_tip_slugs": [],
+            "task_proposals": [],
+            "task_update_proposals": [],
+        }
+    ]

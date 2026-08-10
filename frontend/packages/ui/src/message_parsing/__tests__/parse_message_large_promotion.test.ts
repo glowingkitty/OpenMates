@@ -7,8 +7,9 @@
 // Architecture: docs/architecture/embeds.md
 // Related parser: frontend/packages/ui/src/message_parsing/parse_message.ts
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { parse_message } from "../parse_message";
+import { embedStore } from "../../services/embedStore";
 
 function parseAssistant(markdown: string): any {
   return parse_message(markdown, "read", {
@@ -26,7 +27,20 @@ function findInlineEmbeds(nodes: any[]): any[] {
   return out;
 }
 
+function findNodesByType(nodes: any[], type: string): any[] {
+  const out: any[] = [];
+  for (const node of nodes || []) {
+    if (node?.type === type) out.push(node);
+    if (Array.isArray(node?.content)) out.push(...findNodesByType(node.content, type));
+  }
+  return out;
+}
+
 describe("parse_message assistant large promotion", () => {
+  afterEach(() => {
+    embedStore.clearEmbedRefIndex();
+  });
+
   it("promotes a single sheet embed to embedPreviewLarge", () => {
     const doc = parseAssistant(
       '```json\n{"type":"sheet","embed_id":"sheet-1"}\n```',
@@ -106,6 +120,35 @@ describe("parse_message assistant large promotion", () => {
     expect(largeNodes[1].attrs.carouselTotal).toBe(2);
   });
 
+  it("hoists consecutive image preview links before trailing punctuation into one carousel", () => {
+    const markdown = [
+      "[!](embed:e95be006-767b-4db8-9124-19d7f8c66285)",
+      "[!](embed:9515ef2b-222c-4f66-af3a-6f99e76c157b)",
+      "[!](embed:064fe57f-136e-44a3-a852-419a9324d64f)",
+      "!",
+    ].join("");
+
+    const doc = parseAssistant(markdown);
+    const largeNodes = (doc.content || []).filter(
+      (node: any) => node.type === "embedPreviewLarge",
+    );
+
+    expect(largeNodes).toHaveLength(3);
+    expect(largeNodes[0].attrs.carouselTotal).toBe(3);
+    expect(largeNodes[1].attrs.carouselTotal).toBe(3);
+    expect(largeNodes[2].attrs.carouselTotal).toBe(3);
+    expect(largeNodes[0].attrs.carouselIndex).toBe(0);
+    expect(largeNodes[1].attrs.carouselIndex).toBe(1);
+    expect(largeNodes[2].attrs.carouselIndex).toBe(2);
+    expect(largeNodes[0].attrs.runRef).toBe(
+      "e95be006-767b-4db8-9124-19d7f8c66285",
+    );
+    expect(doc.content?.at(-1)).toEqual({
+      type: "paragraph",
+      content: [{ type: "text", text: "!" }],
+    });
+  });
+
   it("hoists trailing [!](embed:ref) from list items with text and groups into carousel", () => {
     // Real-world pattern: LLM writes a bullet list where each item has text
     // followed by one or more [!](embed:ref) links on separate lines.
@@ -169,6 +212,129 @@ describe("parse_message assistant large promotion", () => {
     expect(firstNode?.type).toBe("paragraph");
     expect(firstNode?.content?.[0]?.type).toBe("embed");
     expect(firstNode?.content?.[0]?.attrs?.type).toBe("app-skill-use");
+  });
+
+  it("keeps registered app-skill refs compact even when [!] large syntax is used", () => {
+    embedStore.registerStaticEmbed({
+      embedId: "skill-1",
+      type: "app_skill_use",
+      content: [
+        "app_id: travel",
+        "skill_id: search_connections",
+        "embed_ref: travel-search-parent",
+      ].join("\n"),
+      appId: "travel",
+      skillId: "search_connections",
+    });
+    embedStore.registerEmbedRef("travel-search-parent", "skill-1", "travel");
+
+    const doc = parseAssistant("[!](embed:travel-search-parent)");
+
+    expect(
+      (doc.content || []).some(
+        (node: any) => node.type === "embedPreviewLarge",
+      ),
+    ).toBe(false);
+
+    const firstNode = doc.content?.[0];
+    expect(firstNode?.type).toBe("paragraph");
+    expect(firstNode?.content?.[0]?.type).toBe("embed");
+    expect(firstNode?.content?.[0]?.attrs).toMatchObject({
+      id: "skill-1",
+      type: "app-skill-use",
+      status: "finished",
+      contentRef: "embed:skill-1",
+      app_id: "travel",
+      skill_id: "search_connections",
+    });
+  });
+
+  it("keeps direct app-skill embed IDs compact when [!] large syntax is used", () => {
+    embedStore.registerStaticEmbed({
+      embedId: "events-search-parent-id",
+      type: "app_skill_use",
+      content: [
+        "app_id: events",
+        "skill_id: search",
+        "embed_ref: events-search-parent-ref",
+      ].join("\n"),
+      appId: "events",
+      skillId: "search",
+    });
+    embedStore.registerEmbedRef(
+      "events-search-parent-ref",
+      "events-search-parent-id",
+      "events",
+    );
+
+    const doc = parseAssistant("[!](embed:events-search-parent-id)");
+
+    expect(findNodesByType(doc.content || [], "embedPreviewLarge")).toHaveLength(0);
+    const compactEmbeds = findNodesByType(doc.content || [], "embed");
+    expect(compactEmbeds).toHaveLength(1);
+    expect(compactEmbeds[0].attrs).toMatchObject({
+      id: "events-search-parent-id",
+      type: "app-skill-use",
+      contentRef: "embed:events-search-parent-id",
+      app_id: "events",
+      skill_id: "search",
+    });
+  });
+
+  it("keeps multiple registered app-skill [!] refs compact and grouped", () => {
+    embedStore.registerStaticEmbed({
+      embedId: "maps-search-1",
+      type: "app_skill_use",
+      content: [
+        "app_id: maps",
+        "skill_id: search",
+        "embed_ref: maps-search-parent-1",
+      ].join("\n"),
+      appId: "maps",
+      skillId: "search",
+    });
+    embedStore.registerEmbedRef("maps-search-parent-1", "maps-search-1", "maps");
+    embedStore.registerStaticEmbed({
+      embedId: "maps-search-2",
+      type: "app_skill_use",
+      content: [
+        "app_id: maps",
+        "skill_id: search",
+        "embed_ref: maps-search-parent-2",
+      ].join("\n"),
+      appId: "maps",
+      skillId: "search",
+    });
+    embedStore.registerEmbedRef("maps-search-parent-2", "maps-search-2", "maps");
+
+    const doc = parseAssistant([
+      "[!](embed:maps-search-parent-1)",
+      "",
+      "[!](embed:maps-search-parent-2)",
+    ].join("\n"));
+
+    expect(findNodesByType(doc.content || [], "embedPreviewLarge")).toHaveLength(0);
+
+    const embeds = findNodesByType(doc.content || [], "embed");
+    expect(embeds).toHaveLength(1);
+    expect(embeds[0].attrs).toMatchObject({
+      type: "app-skill-use-group",
+      groupCount: 2,
+    });
+    expect(embeds[0].attrs.groupedItems).toEqual([
+      expect.objectContaining({
+        id: "maps-search-1",
+        type: "app-skill-use",
+        app_id: "maps",
+        skill_id: "search",
+      }),
+      expect.objectContaining({
+        id: "maps-search-2",
+        type: "app-skill-use",
+        app_id: "maps",
+        skill_id: "search",
+      }),
+    ]);
   });
 
   it("renders focus mode activation before app skill previews", () => {

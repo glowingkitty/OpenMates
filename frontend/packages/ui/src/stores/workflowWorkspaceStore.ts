@@ -37,15 +37,44 @@ export type WorkflowGraph = {
 export type WorkflowSummary = {
   id: string;
   title: string;
+  description?: string | null;
   status: string;
   enabled: boolean;
   trigger_summary?: string | null;
+  next_run_at?: number | null;
   last_run_status?: string | null;
   run_content_retention?: "last_5" | "none";
   current_version_id: string;
+  created_at?: number | null;
+  updated_at?: number | null;
+  version?: number;
 };
 
 export type WorkflowDetail = WorkflowSummary & { graph: WorkflowGraph };
+
+export type WorkflowVersionSummary = {
+  version_id: string;
+  version_number: number;
+  created_at: number;
+  created_by_client: string;
+  graph_hash: string;
+  restored_from_version_id?: string | null;
+  current: boolean;
+  change_summary?: Record<string, unknown> | null;
+};
+
+export type WorkflowVersionDetail = WorkflowVersionSummary & {
+  graph: WorkflowGraph;
+};
+
+export type WorkflowVersionHistory = {
+  versions: WorkflowVersionSummary[];
+  current_version_id: string;
+  retention: {
+    mode: string;
+    max_versions: number;
+  };
+};
 
 export type WorkflowRun = {
   id: string;
@@ -159,8 +188,8 @@ function setSelectedFromCaches(workflowId: string | null): void {
     return {
       ...state,
       selectedWorkflowId: workflowId,
-      selectedWorkflow: state.detailsById[workflowId] ?? state.selectedWorkflow,
-      runs: state.runsByWorkflowId[workflowId] ?? state.runs,
+      selectedWorkflow: state.detailsById[workflowId] ?? null,
+      runs: state.runsByWorkflowId[workflowId] ?? [],
     };
   });
 }
@@ -335,6 +364,28 @@ export const workflowWorkspaceStore = {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
+    assertCurrentGeneration(requestGeneration);
+    this.upsertWorkflow(data.workflow);
+    return data.workflow;
+  },
+
+  async getWorkflowVersions(workflowId: string): Promise<WorkflowVersionHistory> {
+    return workflowApiRequest<WorkflowVersionHistory>(`/v1/workflows/${encodeURIComponent(workflowId)}/versions`);
+  },
+
+  async getWorkflowVersion(workflowId: string, versionId: string): Promise<WorkflowVersionDetail> {
+    const data = await workflowApiRequest<{ version: WorkflowVersionDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/versions/${encodeURIComponent(versionId)}`,
+    );
+    return data.version;
+  },
+
+  async restoreWorkflowVersion(workflowId: string, versionId: string): Promise<WorkflowDetail> {
+    const requestGeneration = cacheGeneration;
+    const data = await workflowApiRequest<{ workflow: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/versions/${encodeURIComponent(versionId)}/restore`,
+      { method: "POST", body: JSON.stringify({}) },
+    );
     assertCurrentGeneration(requestGeneration);
     this.upsertWorkflow(data.workflow);
     return data.workflow;

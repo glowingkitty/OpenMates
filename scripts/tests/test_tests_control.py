@@ -14,6 +14,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TESTS_CONTROL_PATH = PROJECT_ROOT / "scripts" / "tests.py"
@@ -38,6 +40,7 @@ def load_tests_control(tmp_path, monkeypatch):
     monkeypatch.setattr(module, "LEASE_LOCK_FILE", tmp_path / "leases.lock")
     monkeypatch.setattr(module, "PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(module, "SPEC_DIR", tmp_path / "frontend" / "apps" / "web_app" / "tests")
+    monkeypatch.setattr(module, "TEST_STORE", module.InMemoryTestControlStore())
     return module
 
 
@@ -85,16 +88,106 @@ def test_record_run_updates_state_history_and_run_archive(tmp_path, monkeypatch)
 
     tests_control.record_run_result(sample_run())
 
-    state = json.loads(tests_control.STATE_FILE.read_text(encoding="utf-8"))
+    state = tests_control.load_state()
     assert state["latest_run_id"] == "2026-06-19T03:00:02Z"
     assert state["summary"]["failed"] == 2
     assert state["tests"]["playwright::chat-flow.spec.ts"]["status"] == "failed"
     assert state["tests"]["playwright::settings-flow.spec.ts"]["status"] == "passed"
 
-    history = tests_control.HISTORY_FILE.read_text(encoding="utf-8").splitlines()
+    history = tests_control.load_history_events()
     assert len(history) == 3
-    assert any('"event": "failed"' in line and "chat-flow.spec.ts" in line for line in history)
-    assert (tests_control.RUNS_DIR / "20260619T030002Z.json").is_file()
+    assert any(event["event"] == "failed" and event["test"] == "chat-flow.spec.ts" for event in history)
+    assert not tests_control.STATE_FILE.exists()
+    assert not (tests_control.RUNS_DIR / "20260619T030002Z.json").is_file()
+
+    store = tests_control.get_store()
+    assert "playwright::chat-flow.spec.ts" in store.test_catalog
+    assert "2026-06-19T03:00:02Z" in store.test_runs
+    assert any(result["test_key"] == "playwright::chat-flow.spec.ts" for result in store.test_results.values())
+
+
+def test_record_run_preserves_passing_flake_metadata(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    run = sample_run()
+    run["summary"] = {"total": 1, "passed": 1, "failed": 0, "skipped": 0}
+    run["suites"] = {"playwright": {"status": "passed", "tests": [{
+        "name": "chat-flow.spec.ts", "file": "chat-flow.spec.ts", "status": "passed",
+        "flaky": True, "retries": 1, "attempt_statuses": ["failed", "passed"],
+    }]}}
+
+    tests_control.record_run_result(run)
+
+    record = tests_control.load_state()["tests"]["playwright::chat-flow.spec.ts"]
+    assert record["status"] == "passed"
+    assert record["flaky"] is True
+    assert record["retries"] == 1
+    assert record["attempt_statuses"] == ["failed", "passed"]
+
+
+def test_import_normalizes_raw_playwright_json_report(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    raw_report = {
+        "config": {
+            "metadata": {
+                "gitCommit": {"hash": "abc123", "branch": "HEAD"},
+            },
+        },
+        "suites": [
+            {
+                "title": "file-attachment-flow.spec.ts",
+                "file": "file-attachment-flow.spec.ts",
+                "specs": [
+                    {
+                        "title": "passes first",
+                        "file": "file-attachment-flow.spec.ts",
+                        "tests": [{"results": [{"status": "passed", "duration": 1200, "startTime": "2026-07-28T21:16:13.746Z"}]}],
+                    },
+                    {
+                        "title": "fails after retry",
+                        "file": "file-attachment-flow.spec.ts",
+                        "tests": [{
+                            "results": [
+                                {"status": "failed", "duration": 2000, "retry": 0},
+                                {
+                                    "status": "failed",
+                                    "duration": 3000,
+                                    "retry": 1,
+                                    "error": {"message": "Error: Login email lookup did not store the email salt."},
+                                },
+                            ],
+                        }],
+                    },
+                ],
+            },
+        ],
+        "errors": [],
+    }
+
+    normalized = tests_control.normalize_import_run_data(
+        raw_report,
+        tmp_path / "playwright.json",
+        external_run_id="30399876387",
+        workflow="Playwright: Single Spec",
+    )
+
+    test = normalized["suites"]["playwright"]["tests"][0]
+    assert normalized["run_id"] == "30399876387"
+    assert normalized["summary"] == {
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "dispatch_error": 0,
+        "timeout": 0,
+        "result_unknown": 0,
+        "skipped": 0,
+        "not_started": 0,
+    }
+    assert test["file"] == "file-attachment-flow.spec.ts"
+    assert test["status"] == "failed"
+    assert test["retries"] == 1
+    assert test["attempt_statuses"] == ["passed", "failed", "failed"]
+    assert test["github_run_url"] == "https://github.com/glowingkitty/OpenMates/actions/runs/30399876387"
+    assert "Login email lookup" in test["error"]
 
 
 def test_triage_ranks_account_and_chat_failures_with_linked_files(tmp_path, monkeypatch):
@@ -133,6 +226,115 @@ def test_classification_avoids_authenticity_false_positive(tmp_path, monkeypatch
     }) == "cli_auth"
 
 
+def test_api_key_device_approval_is_environment_blocked(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    assert tests_control.classify_failure({
+        "suite": "playwright",
+        "test": "cli-skills-pdf.spec.ts",
+        "error": "Locator: getByTestId('message-assistant')",
+        "debug_output_summary": "A new device attempted to use your API key. Please review and approve it in Developer Settings.",
+    }) == "environment_blocked"
+
+
+def test_run_args_consume_expected_commit_before_forwarding(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    forwarded, expected = tests_control.parse_control_run_args([
+        "--spec",
+        "cli-skills-pdf.spec.ts",
+        "--expected-commit",
+        "abc123",
+        "--no-fail-fast",
+    ])
+
+    assert forwarded == ["--spec", "cli-skills-pdf.spec.ts", "--no-fail-fast"]
+    assert expected == "abc123"
+
+
+def test_run_options_consume_gate_and_lease_flags(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    options = tests_control.parse_control_run_options([
+        "--spec",
+        "chat-flow.spec.ts",
+        "--gate-deploy",
+        "--lease-required",
+        "--lease-id",
+        "lease-chat-123",
+        "--expected-commit=abc123",
+    ])
+
+    assert options.forwarded_args == ["--spec", "chat-flow.spec.ts"]
+    assert options.gate_deploy is True
+    assert options.lease_required is True
+    assert options.lease_id == "lease-chat-123"
+    assert options.expected_commit == "abc123"
+
+
+def test_subject_commit_accepts_current_integrated_dev_after_session_deploy(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "old-worktree-commit")
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: "deployed-commit-123")
+
+    assert tests_control.resolve_test_subject_commit("deployed-commit") == "deployed-commit-123"
+
+
+def test_subject_commit_rejects_sha_outside_checkout_and_integrated_dev(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "old-worktree-commit")
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: "deployed-commit-123")
+
+    with pytest.raises(RuntimeError, match="moving target"):
+        tests_control.resolve_test_subject_commit("unrelated-commit")
+
+
+def test_seeded_only_failed_files_from_non_spec_lease(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    lease = {
+        "entry": {
+            "test": "scripts/run_tests.py",
+            "key": "playwright::scripts/run_tests.py",
+        }
+    }
+
+    assert tests_control.seeded_only_failed_files_from_lease(lease, ["--only-failed"]) == [
+        "scripts/run_tests.py"
+    ]
+    assert tests_control.seeded_only_failed_files_from_lease(lease, ["--spec", "chat-flow.spec.ts"]) == []
+
+
+def test_seeded_only_failed_files_ignores_real_specs(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    lease = {"entry": {"test": "chat-flow.spec.ts"}}
+
+    assert tests_control.seeded_only_failed_files_from_lease(lease, ["--only-failed"]) == []
+
+
+def test_main_strips_run_passthrough_sentinel(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    seen_args = []
+
+    def fake_command_run(args):
+        seen_args.append(args)
+        return 0
+
+    monkeypatch.setattr(tests_control, "command_run", fake_command_run)
+
+    assert tests_control.main(["run", "--", "--suite", "vitest"]) == 0
+    assert seen_args == [["--suite", "vitest"]]
+
+
+def test_commit_prefix_matching_accepts_short_or_long_sha(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    assert tests_control._matches_commit_prefix("abcdef123456", "abcdef1") is True
+    assert tests_control._matches_commit_prefix("abcdef1", "abcdef123456") is True
+    assert tests_control._matches_commit_prefix("abcdef123456", "1234567") is False
+
+
 def test_next_lease_claims_different_groups_for_parallel_workers(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     tests_control.record_run_result(sample_run())
@@ -147,8 +349,9 @@ def test_next_lease_claims_different_groups_for_parallel_workers(tmp_path, monke
     assert first["entry"]["test"] == "account-recovery-flow.spec.ts"
     assert second["entry"]["test"] == "chat-flow.spec.ts"
 
-    leases = json.loads(tests_control.LEASES_FILE.read_text(encoding="utf-8"))["leases"]
+    leases = tests_control.get_store().list_claims()
     assert [lease["status"] for lease in leases] == ["active", "active"]
+    assert not tests_control.LEASES_FILE.exists()
 
 
 def test_complete_and_release_update_lease_status(tmp_path, monkeypatch):
@@ -160,12 +363,76 @@ def test_complete_and_release_update_lease_status(tmp_path, monkeypatch):
     tests_control.complete_lease(first["lease_id"], commit="abc123d")
     tests_control.release_lease(second["lease_id"], reason="blocked infra")
 
-    leases = json.loads(tests_control.LEASES_FILE.read_text(encoding="utf-8"))["leases"]
-    by_id = {lease["lease_id"]: lease for lease in leases}
+    claims = tests_control.get_store().list_claims()
+    by_id = {lease["lease_id"]: lease for lease in claims}
     assert by_id[first["lease_id"]]["status"] == "completed"
     assert by_id[first["lease_id"]]["commit"] == "abc123d"
     assert by_id[second["lease_id"]]["status"] == "released"
     assert by_id[second["lease_id"]]["release_reason"] == "blocked infra"
+
+
+def test_completed_lease_blocks_same_stale_run_but_not_new_failure(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    run = sample_run()
+    run["summary"] = {"total": 1, "passed": 0, "failed": 1, "skipped": 0}
+    run["suites"]["playwright"]["tests"] = [run["suites"]["playwright"]["tests"][1]]
+    tests_control.record_run_result(run)
+
+    first = tests_control.claim_next(session_id="s1")
+    assert first is not None
+    tests_control.complete_lease(first["lease_id"], commit="abc123d")
+
+    assert tests_control.claim_next(session_id="s2") is None
+
+    rerun = sample_run()
+    rerun["run_id"] = "2026-06-19T04:00:02Z"
+    rerun["summary"] = {"total": 1, "passed": 0, "failed": 1, "skipped": 0}
+    rerun["suites"]["playwright"]["tests"] = [rerun["suites"]["playwright"]["tests"][1]]
+    tests_control.record_run_result(rerun)
+
+    second = tests_control.claim_next(session_id="s3")
+    assert second is not None
+    assert second["entry"]["test"] == "account-recovery-flow.spec.ts"
+
+
+def test_completed_lease_blocks_same_run_sibling_group_entries(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    lease = {
+        "status": "completed",
+        "group_id": "auth_signup-same",
+        "entry": {"key": "playwright::first.spec.ts", "run_id": "run-1"},
+    }
+
+    assert tests_control.lease_blocks_entry(
+        lease,
+        {"group_id": "auth_signup-same", "key": "playwright::second.spec.ts", "run_id": "run-1"},
+    )
+    assert not tests_control.lease_blocks_entry(
+        lease,
+        {"group_id": "auth_signup-same", "key": "playwright::second.spec.ts", "run_id": "run-2"},
+    )
+
+
+def test_released_lease_blocks_same_test_until_expiry(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    run = sample_run()
+    run["summary"] = {"total": 1, "passed": 0, "failed": 1, "skipped": 0}
+    run["suites"]["playwright"]["tests"] = [run["suites"]["playwright"]["tests"][1]]
+    tests_control.record_run_result(run)
+
+    first = tests_control.claim_next(session_id="s1")
+    assert first is not None
+    tests_control.release_lease(first["lease_id"], reason="ignored elsewhere")
+
+    assert tests_control.claim_next(session_id="s2") is None
+
+    rerun = sample_run()
+    rerun["run_id"] = "2026-06-19T04:00:02Z"
+    rerun["summary"] = {"total": 1, "passed": 0, "failed": 1, "skipped": 0}
+    rerun["suites"]["playwright"]["tests"] = [rerun["suites"]["playwright"]["tests"][1]]
+    tests_control.record_run_result(rerun)
+
+    assert tests_control.claim_next(session_id="s3") is None
 
 
 def test_mark_running_adds_started_history_event(tmp_path, monkeypatch):
@@ -177,8 +444,285 @@ def test_mark_running_adds_started_history_event(tmp_path, monkeypatch):
         command=["python3", "scripts/tests.py", "run", "--spec", "chat-flow.spec.ts"],
     )
 
-    state = json.loads(tests_control.STATE_FILE.read_text(encoding="utf-8"))
+    state = tests_control.load_state()
     assert state["tests"]["playwright::chat-flow.spec.ts"]["status"] == "running"
-    history = tests_control.HISTORY_FILE.read_text(encoding="utf-8")
-    assert '"event": "started"' in history
-    assert "chat-flow.spec.ts" in history
+    history = tests_control.load_history_events()
+    assert any(event["event"] == "started" and event["test"] == "chat-flow.spec.ts" for event in history)
+
+
+def test_mark_running_preserves_previous_stable_failure(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result(sample_run())
+
+    tests_control.mark_running(
+        suite="playwright",
+        tests=["chat-flow.spec.ts"],
+        command=["python3", "scripts/tests.py", "run", "--spec", "chat-flow.spec.ts"],
+    )
+
+    record = tests_control.load_state()["tests"]["playwright::chat-flow.spec.ts"]
+    assert record["status"] == "failed"
+    assert record["stable_status"] == "failed"
+    assert record["active_status"] == "running"
+    assert record["stable_run_id"] == "2026-06-19T03:00:02Z"
+    assert record["active_run_id"].startswith("manual-")
+    assert tests_control.get_store().test_runs[record["active_run_id"]]["status"] == "running"
+    assert tests_control.load_state()["summary"]["failed"] == 2
+    assert tests_control.load_state()["summary"]["running"] == 1
+
+
+def test_record_run_clears_suite_running_marker_after_results(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.mark_running(
+        suite="pytest_unit",
+        tests=[],
+        command=["python3", "scripts/tests.py", "run", "--suite", "pytest"],
+    )
+
+    tests_control.record_run_result({
+        "run_id": "2026-06-19T04:30:02Z",
+        "git_sha": "def456abc",
+        "git_branch": "dev",
+        "environment": "development",
+        "summary": {"total": 1, "passed": 1, "failed": 0, "skipped": 0},
+        "suites": {"pytest_unit": {"status": "passed", "tests": [{"name": "tests/test_ok.py::test_ok", "status": "passed"}]}},
+    })
+
+    state = tests_control.load_state()
+    assert state["tests"]["pytest_unit::pytest_unit"]["status"] == "passed"
+    assert state["tests"]["pytest_unit::pytest_unit"]["active_status"] is None
+    assert state["summary"]["running"] == 0
+
+
+def test_passed_suite_without_rows_clears_stale_suite_failures(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result({
+        "run_id": "2026-06-19T03:00:02Z",
+        "git_sha": "abc123def",
+        "git_branch": "dev",
+        "environment": "development",
+        "summary": {"total": 1, "passed": 0, "failed": 1, "skipped": 0},
+        "suites": {"pytest_unit": {"status": "failed", "tests": [{"name": "tests/test_old.py::test_old", "status": "failed", "error": "old failure"}]}},
+    })
+
+    tests_control.record_run_result({
+        "run_id": "2026-06-19T04:00:02Z",
+        "git_sha": "def456abc",
+        "git_branch": "dev",
+        "environment": "development",
+        "summary": {"total": 0, "passed": 0, "failed": 0, "skipped": 0},
+        "suites": {"pytest_unit": {"status": "passed", "tests": []}},
+    })
+
+    state = tests_control.load_state()
+    record = state["tests"]["pytest_unit::tests/test_old.py::test_old"]
+    assert record["status"] == "passed"
+    assert record["error"] is None
+    assert state["summary"]["failed"] == 0
+
+
+def test_import_run_accepts_raw_pytest_json_report(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    report_path = tmp_path / "pytest-results.json"
+    report_path.write_text(json.dumps({
+        "created": 1784322951.0,
+        "duration": 1.25,
+        "summary": {"total": 2, "passed": 1, "failed": 1, "skipped": 0},
+        "tests": [
+            {"nodeid": "tests/test_ok.py::test_ok", "outcome": "passed", "duration": 0.1},
+            {"nodeid": "tests/test_bad.py::test_bad", "outcome": "failed", "duration": 0.2, "call": {"longrepr": "assert False"}},
+        ],
+    }), encoding="utf-8")
+
+    tests_control.import_run_artifact(report_path, source="github_actions", external_run_id="29613991033", workflow="pytest-unit.yml")
+
+    state = tests_control.load_state()
+    assert state["tests"]["pytest_unit::tests/test_ok.py::test_ok"]["status"] == "passed"
+    failed = state["tests"]["pytest_unit::tests/test_bad.py::test_bad"]
+    assert failed["status"] == "failed"
+    assert failed["error"] == "assert False"
+    assert tests_control.get_store().test_runs["29613991033"]["workflow"] == "pytest-unit.yml"
+
+
+def test_full_unit_suite_retires_absent_stale_failures(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result({
+        "run_id": "2026-06-19T03:00:02Z",
+        "git_sha": "abc123def",
+        "git_branch": "dev",
+        "environment": "development",
+        "summary": {"total": 1, "passed": 0, "failed": 1, "skipped": 0},
+        "suites": {"pytest_unit": {"status": "failed", "tests": [{"name": "tests/test_old.py::test_old_name", "status": "failed", "error": "old failure"}]}},
+    })
+
+    tests_control.record_run_result({
+        "run_id": "2026-06-19T04:00:02Z",
+        "git_sha": "def456abc",
+        "git_branch": "dev",
+        "environment": "development",
+        "flags": {"suite": "pytest", "only_failed": False},
+        "summary": {"total": 1, "passed": 1, "failed": 0, "skipped": 0},
+        "suites": {"pytest_unit": {"status": "passed", "tests": [{"name": "tests/test_old.py::test_new_name", "status": "passed"}]}},
+    })
+
+    state = tests_control.load_state()
+    stale = state["tests"]["pytest_unit::tests/test_old.py::test_old_name"]
+    assert stale["status"] == "not_started"
+    assert stale["error"] is None
+    assert state["tests"]["pytest_unit::tests/test_old.py::test_new_name"]["status"] == "passed"
+    assert state["summary"]["failed"] == 0
+
+
+def test_triage_supports_limit_category_and_suite_filters(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result(sample_run())
+
+    triage = tests_control.build_triage(category_filter="chat_send_receive", suite_filter="playwright", limit=1)
+
+    assert len(triage["entries"]) == 1
+    assert triage["entries"][0]["category"] == "chat_send_receive"
+    assert triage["entries"][0]["suite"] == "playwright"
+
+    assert tests_control.build_triage(suite_filter="pytest")["entries"] == []
+
+
+def test_require_active_lease_blocks_when_failures_exist(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result(sample_run())
+
+    with pytest.raises(RuntimeError, match="No active failed-test lease"):
+        tests_control.require_active_lease(session_id="s1")
+
+    lease = tests_control.claim_next(session_id="s1")
+
+    assert tests_control.require_active_lease(session_id="s1")["lease_id"] == lease["lease_id"]
+    assert tests_control.active_lease_for_session(lease_id=lease["lease_id"])["lease_id"] == lease["lease_id"]
+
+
+def test_e2e_deploy_gate_checks_playwright_targets(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    options = tests_control.ControlRunOptions(forwarded_args=["--spec", "chat-flow.spec.ts"], gate_deploy=True)
+
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "abcdef123456")
+    monkeypatch.setattr(tests_control, "check_vercel_ready_for_commit", lambda commit: [])
+    monkeypatch.setattr(tests_control, "check_dev_health_urls", lambda: [])
+
+    tests_control.run_e2e_deploy_gate(options)
+
+
+def test_e2e_deploy_gate_blocks_stale_vercel_commit(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    options = tests_control.ControlRunOptions(
+        forwarded_args=["--spec", "chat-flow.spec.ts"],
+        expected_commit="abcdef1",
+        gate_deploy=True,
+    )
+
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "abcdef123456")
+    monkeypatch.setattr(tests_control, "check_vercel_ready_for_commit", lambda commit: ["not deployed"])
+    monkeypatch.setattr(tests_control, "check_dev_health_urls", lambda: [])
+
+    with pytest.raises(RuntimeError, match="not deployed"):
+        tests_control.run_e2e_deploy_gate(options)
+
+
+def test_e2e_deploy_gate_skips_non_playwright_targets(tmp_path, monkeypatch, capsys):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    options = tests_control.ControlRunOptions(forwarded_args=["--suite", "pytest"], gate_deploy=True)
+
+    tests_control.run_e2e_deploy_gate(options)
+
+    assert "SKIPPED" in capsys.readouterr().out
+
+
+def test_complete_lease_require_passing_blocks_active_failure_group(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result(sample_run())
+    lease = tests_control.claim_next(session_id="s1")
+
+    with pytest.raises(RuntimeError, match="still failing"):
+        tests_control.complete_lease(lease["lease_id"], commit="abc123d", require_passing=True)
+
+    fixed_run = {
+        "run_id": "2026-06-19T04:00:02Z",
+        "git_sha": "def456abc",
+        "git_branch": "dev",
+        "environment": "development",
+        "summary": {"total": 1, "passed": 1, "failed": 0, "skipped": 0},
+        "suites": {"playwright": {"status": "passed", "tests": [{"name": "account-recovery-flow.spec.ts", "file": "account-recovery-flow.spec.ts", "status": "passed"}]}},
+    }
+    tests_control.record_run_result(fixed_run)
+
+    completed = tests_control.complete_lease(lease["lease_id"], commit="def456a", require_passing=True)
+
+    assert completed["status"] == "completed"
+    assert completed["completed_commit"] == "def456a"
+
+
+def test_command_run_falls_back_to_timestamped_run_artifact(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    monkeypatch.setattr(tests_control, "RUN_TESTS_SCRIPT", tmp_path / "run_tests.py")
+
+    run_data = {
+        "run_id": "2026-06-19T05:00:02Z",
+        "git_sha": "abc123def",
+        "git_branch": "dev",
+        "summary": {"total": 0, "passed": 0, "failed": 0, "skipped": 0},
+        "suites": {},
+    }
+
+    def fake_run(command, cwd=None, env=None):
+        tests_control.RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        (tests_control.RESULTS_DIR / "last-run.json").write_text(json.dumps(run_data), encoding="utf-8")
+        (tests_control.RESULTS_DIR / "run-20260619T050002Z.json").write_text(json.dumps(run_data), encoding="utf-8")
+        return tests_control.subprocess.CompletedProcess(command, 0)
+
+    recorded_run_ids = []
+
+    def fake_record_run_result(data):
+        recorded_run_ids.append(data["run_id"])
+        if len(recorded_run_ids) == 1:
+            raise RuntimeError("temporary Directus failure")
+        return {"summary": {}, "tests": {}}
+
+    monkeypatch.setattr(tests_control.subprocess, "run", fake_run)
+    monkeypatch.setattr(tests_control, "record_run_result", fake_record_run_result)
+
+    assert tests_control.command_run(["--suite", "pytest"]) == 0
+    assert recorded_run_ids == ["2026-06-19T05:00:02Z", "2026-06-19T05:00:02Z"]
+
+
+def test_docker_resources_only_cover_dev_stack_dependent_runs(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    assert tests_control.docker_resources_for_run(["--spec", "chat-flow.spec.ts"]) == {"dev-stack"}
+    assert tests_control.docker_resources_for_run(["--suite", "playwright"]) == {"dev-stack"}
+    assert tests_control.docker_resources_for_run(["--suite", "cli"]) == {"dev-stack"}
+    assert tests_control.docker_resources_for_run(["--suite", "pytest"]) == set()
+    assert tests_control.docker_resources_for_run(["--suite", "vitest"]) == set()
+
+
+def test_command_run_releases_docker_test_lease_after_runner_failure(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    monkeypatch.setattr(tests_control, "RUN_TESTS_SCRIPT", tmp_path / "run_tests.py")
+    monkeypatch.setattr(tests_control, "preflight_test_control_plane", lambda: None)
+    monkeypatch.setattr(tests_control, "mark_running", lambda **_kwargs: None)
+    monkeypatch.setattr(tests_control, "record_latest_run_artifact", lambda **_kwargs: "")
+    acquired = []
+    released = []
+    monkeypatch.setattr(
+        tests_control,
+        "acquire_docker_test_lease",
+        lambda lease_id, owner, resources: acquired.append((lease_id, owner, resources)),
+    )
+    monkeypatch.setattr(tests_control, "release_docker_test_lease", lambda lease_id: released.append(lease_id))
+    monkeypatch.setattr(
+        tests_control.subprocess,
+        "run",
+        lambda command, cwd=None, env=None: tests_control.subprocess.CompletedProcess(command, 1),
+    )
+
+    assert tests_control.command_run(["--suite", "cli"]) == 1
+    assert len(acquired) == 1
+    assert acquired[0][2] == {"dev-stack"}
+    assert released == [acquired[0][0]]

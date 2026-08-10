@@ -32,7 +32,7 @@ Analyze the user's input and determine:
    - `UI`, `Backend`, `DevOps`, `testing`, `docs`, `marketing`, `payment`
    - `cronjob`, `user-feedback`, `SEO`
 6. **Project**: Suggest Web App or CLI based on content
-7. **Milestone**: Suggest the current product line for ongoing work (for example `v0.14`) or the next minor product line for larger features (for example `v0.15`). Patch numbers such as `0.14.1` are artifact revisions, not user-facing milestones.
+7. **Milestone**: Suggest the current product line for ongoing work (for example `v0.15`) or the next minor product line for larger features (for example `v0.16`). Alpha artifact numbers such as `0.15.0-alpha.1` are package revisions, not user-facing milestones.
 8. **Spec size**: Decide `none`, `inline`, or `full` using `docs/contributing/guides/spec-driven-development.md`
 
 ### Step 2: Present the Suggested Task
@@ -47,7 +47,7 @@ Show the user what will be created:
 **Priority:** High (2)
 **Labels:** Bug, UI
 **Project:** Web App
-**Milestone:** v0.14
+**Milestone:** v0.15
 
 ### Description
 The create reminder UI is broken — [expanded description based on user input].
@@ -99,7 +99,10 @@ For Linear-only tasks, show the `OPE-XXX` identifier returned by `scripts/linear
 ### Title Cleanup Rules
 - `"Fix: Fix Show More chats: pagination broken"` → `"Fix: Show More chats pagination broken"`
 - `"Feat: Feat: test auto-create"` → `"Feat: test auto-create linear issue"`
-- `"fix it"` → Ask user to clarify
+- `"fix it"` → Ask user to clarify. Every clarifying question must include
+  `Recommendation:` with the evidence-based preferred answer and rationale plus
+  `Examples:` with task-specific options or outcomes; if uncertain, recommend
+  the safest reversible default and state the uncertainty.
 - Questions → Keep as-is but add `Idea` label if no clear action
 
 ### Description Templates

@@ -19,6 +19,8 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { mount, unmount } from "svelte";
 import EmbedPreviewLarge from "../../embeds/EmbedPreviewLarge.svelte";
+import { hasStableLargePreviewIdentity } from "./streamingNodeIdentity";
+import { incrementStreamingRenderMetric } from "../../../message_parsing/streamingRenderMetrics";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface EmbedPreviewLargeNodeOptions {}
@@ -145,22 +147,26 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
       dom.classList.add("embed-preview-large-node");
 
       let svelteInstance: Record<string, unknown> | null = null;
+      function componentProps() {
+        return {
+          embedRef: node.attrs.embedRef as string,
+          embedId: node.attrs.embedId as string | null,
+          appId: node.attrs.appId as string | null,
+          receiver: node.attrs.receiver as string | null,
+          subject: node.attrs.subject as string | null,
+          content: node.attrs.content as string | null,
+          footer: node.attrs.footer as string | null,
+          carouselIndex: node.attrs.carouselIndex as number,
+          carouselTotal: node.attrs.carouselTotal as number,
+          runRef: node.attrs.runRef as string,
+        };
+      }
       function mountComponent() {
         try {
+          incrementStreamingRenderMetric("nodeViewMounts");
           svelteInstance = mount(EmbedPreviewLarge, {
             target: dom,
-            props: {
-              embedRef: node.attrs.embedRef as string,
-              embedId: node.attrs.embedId as string | null,
-              appId: node.attrs.appId as string | null,
-              receiver: node.attrs.receiver as string | null,
-              subject: node.attrs.subject as string | null,
-              content: node.attrs.content as string | null,
-              footer: node.attrs.footer as string | null,
-              carouselIndex: node.attrs.carouselIndex as number,
-              carouselTotal: node.attrs.carouselTotal as number,
-              runRef: node.attrs.runRef as string,
-            },
+            props: componentProps(),
           }) as Record<string, unknown>;
         } catch (err) {
           console.error(
@@ -176,41 +182,20 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
         dom,
         update(updatedNode) {
           if (updatedNode.type.name !== "embedPreviewLarge") return false;
-
-          const attrsMatch =
-            updatedNode.attrs.embedRef === node.attrs.embedRef &&
-            updatedNode.attrs.embedId === node.attrs.embedId &&
-            updatedNode.attrs.appId === node.attrs.appId &&
-            updatedNode.attrs.receiver === node.attrs.receiver &&
-            updatedNode.attrs.subject === node.attrs.subject &&
-            updatedNode.attrs.content === node.attrs.content &&
-            updatedNode.attrs.footer === node.attrs.footer &&
-            updatedNode.attrs.carouselIndex === node.attrs.carouselIndex &&
-            updatedNode.attrs.carouselTotal === node.attrs.carouselTotal &&
-            updatedNode.attrs.runRef === node.attrs.runRef;
-          if (attrsMatch) {
-            node = updatedNode;
-            return true;
-          }
-
+          if (!hasStableLargePreviewIdentity(node.attrs, updatedNode.attrs)) return false;
           node = updatedNode;
-          if (svelteInstance) {
-            try {
-              unmount(svelteInstance);
-            } catch {
-              /* ignore */
-            }
+          const updatePresentation = svelteInstance?.updatePresentation;
+          if (typeof updatePresentation === "function") {
+            updatePresentation(componentProps());
           }
-          dom.innerHTML = "";
-          mountComponent();
           return true;
         },
         destroy() {
           if (svelteInstance) {
             try {
               unmount(svelteInstance);
-            } catch {
-              /* ignore */
+            } catch (err) {
+              console.error("[EmbedPreviewLargeNode] Failed to unmount EmbedPreviewLarge:", err);
             }
             svelteInstance = null;
           }

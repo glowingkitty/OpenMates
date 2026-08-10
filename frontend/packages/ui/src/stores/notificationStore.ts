@@ -97,6 +97,8 @@ const initialState: NotificationState = {
 
 const { subscribe, update } = writable<NotificationState>(initialState);
 
+export const SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY = "security-reminder";
+
 let notificationIdCounter = 0;
 
 // Track auto-dismiss timeouts so they can be paused/cancelled per notification
@@ -216,6 +218,26 @@ export const notificationStore = {
     update((state) => {
       return {
         notifications: state.notifications.filter((n) => n.id !== id),
+      };
+    });
+  },
+
+  removeNotificationsByDedupeKey: (dedupeKey: string) => {
+    update((state) => {
+      const removedIds = state.notifications
+        .filter((notification) => notification.dedupeKey === dedupeKey)
+        .map((notification) => notification.id);
+      for (const id of removedIds) {
+        const timer = autoDismissTimers.get(id);
+        if (timer) {
+          clearTimeout(timer);
+          autoDismissTimers.delete(id);
+        }
+      }
+      return {
+        notifications: state.notifications.filter(
+          (notification) => notification.dedupeKey !== dedupeKey,
+        ),
       };
     });
   },

@@ -1,0 +1,2760 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-13'
+generated_at: '2026-07-09T15:05:21+00:00'
+range:
+  since: '2026-04-13T12:11:31+00:00'
+  until: '2026-04-13T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 62
+  section_counts:
+    features: 8
+    bug_fixes: 42
+    improvements: 2
+    docs: 0
+    tests: 5
+    infrastructure: 1
+    internal: 1
+    other: 3
+  newsletter_ready_items: 46
+  user_facing_items: 46
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat(privacy): Phase 3 — E2E privacy-promise markers + auditor cross-check'
+    section: features
+    commits:
+    - 9ad249aae
+    authored_at: '2026-04-13T23:59:45+00:00'
+    changed_paths:
+    - .claude/agents/legal-compliance-auditor.md
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/helpers/cookie-audit.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - shared/docs/privacy_promises.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(privacy): auto-generate privacy policy measures section from registry'
+    section: features
+    commits:
+    - 153ecc388
+    authored_at: '2026-04-13T23:53:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/scripts/generate-privacy-promises.js
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/privacyPromises.test.ts
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - frontend/packages/ui/src/legal/privacyPromises.generated.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add privacy promises registry with meta-test and pre-edit hook'
+    section: features
+    commits:
+    - cdb9ce2e8
+    authored_at: '2026-04-13T23:47:16+00:00'
+    changed_paths:
+    - .claude/hooks/privacy-promise-guard.sh
+    - backend/core/api/app/utils/__tests__/test_text_sanitization.py
+    - backend/tests/test_content_sanitization.py
+    - backend/tests/test_encryption_service.py
+    - backend/tests/test_payment_provider_routing.py
+    - backend/tests/test_privacy_promises.py
+    - backend/tests/test_rest_api_auth.py
+    - backend/tests/test_tracing/test_privacy_filter.py
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    - frontend/packages/ui/src/services/encryption/__tests__/ChatKeyManager.test.ts
+    - shared/docs/privacy_promises.schema.json
+    - shared/docs/privacy_promises.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add git-stats command for commit activity and quality analytics'
+    section: features
+    commits:
+    - 6e56fc141
+    authored_at: '2026-04-13T23:08:28+00:00'
+    changed_paths:
+    - scripts/git_stats.py
+    - scripts/sessions.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add Wikipedia inline links - full implementation'
+    section: features
+    commits:
+    - ab832b2f7
+    authored_at: '2026-04-13T21:23:38+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/shared/providers/wikipedia/__init__.py
+    - backend/shared/providers/wikipedia/wikipedia_api.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/WikiInlineNode.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/artemis-ii-mission.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/eu-chat-control-law-criticisms.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/common.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add Wikipedia/Wikidata inline link integration'
+    section: features
+    commits:
+    - 66a02e216
+    authored_at: '2026-04-13T21:20:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add SEO auditor subagent for deep site-wide SEO analysis'
+    section: features
+    commits:
+    - '179701512'
+    authored_at: '2026-04-13T19:46:43+00:00'
+    changed_paths:
+    - .claude/agents/seo-auditor.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add SEO health check to daily meeting data pipeline'
+    section: features
+    commits:
+    - 88a06be5d
+    authored_at: '2026-04-13T19:29:29+00:00'
+    changed_paths:
+    - scripts/_daily_meeting_helper.py
+    - scripts/prompts/daily-meeting.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: full-size badge gradient + CTA in header like other embeds'
+    section: bug_fixes
+    commits:
+    - 7deb43ff1
+    authored_at: '2026-04-13T23:35:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use study app colors for wiki links + side-by-side layout'
+    section: bug_fixes
+    commits:
+    - ec5c1034a
+    authored_at: '2026-04-13T22:55:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    - frontend/packages/ui/src/styles/icons.css
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: apply wiki topic links to TipTap JSON content path'
+    section: bug_fixes
+    commits:
+    - ced6bae40
+    authored_at: '2026-04-13T22:27:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use wikiTopicsStore to bypass prop chain timing issue'
+    section: bug_fixes
+    commits:
+    - d2f78acb4
+    authored_at: '2026-04-13T22:16:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/stores/wikiTopicsStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: scroll to message text before checking wiki links in spec'
+    section: bug_fixes
+    commits:
+    - c41e40917
+    authored_at: '2026-04-13T21:49:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: track wikipediaTopics in ReadOnlyMessage effect for re-render'
+    section: bug_fixes
+    commits:
+    - 718fd66f3
+    authored_at: '2026-04-13T21:44:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: navigate to example chat via card click instead of direct hash'
+    section: bug_fixes
+    commits:
+    - 702fb5180
+    authored_at: '2026-04-13T21:37:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: include wikipedia topics in ReadOnlyMessage cache key'
+    section: bug_fixes
+    commits:
+    - 15590e6d3
+    authored_at: '2026-04-13T21:28:52+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: make Polar purchase email non-blocking, reduce timeout to 60s'
+    section: bug_fixes
+    commits:
+    - 2bd6bfc2f
+    authored_at: '2026-04-13T20:21:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: update 11 E2E specs for two-step login flow + remove deleted demo_tasks from smoke test'
+    section: bug_fixes
+    commits:
+    - 92c8411b0
+    authored_at: '2026-04-13T20:19:25+00:00'
+    changed_paths:
+    - backend/tests/test_task_smoke.py
+    - frontend/apps/web_app/tests/a11y-keyboard-nav.spec.ts
+    - frontend/apps/web_app/tests/a11y-modal-dialogs.spec.ts
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/incognito-mode.spec.ts
+    - frontend/apps/web_app/tests/language-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
+    - frontend/apps/web_app/tests/reminder-email.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: update 11 E2E specs for two-step login flow + remove deleted demo_tasks from smoke test'
+    section: bug_fixes
+    commits:
+    - b0de31df7
+    authored_at: '2026-04-13T20:18:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: increase test timeouts to prevent GHA runner timeout failures'
+    section: bug_fixes
+    commits:
+    - 792377d89
+    authored_at: '2026-04-13T20:02:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: duplicate polarFrame const causing SyntaxError'
+    section: bug_fixes
+    commits:
+    - 04092ea4c
+    authored_at: '2026-04-13T19:31:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use iframe locators with proper event dispatch for all Polar billing fields'
+    section: bug_fixes
+    commits:
+    - b7aa20818
+    authored_at: '2026-04-13T19:26:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use selectOption/JS for Polar state field instead of keyboard autocomplete'
+    section: bug_fixes
+    commits:
+    - 2ccfbb119
+    authored_at: '2026-04-13T18:54:02+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: type full ''New York'' for Polar state autocomplete (partial matches wrong state)'
+    section: bug_fixes
+    commits:
+    - 1fa8fc4f6
+    authored_at: '2026-04-13T18:45:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: type full state name for Polar autocomplete dropdown (NY matched Nebraska)'
+    section: bug_fixes
+    commits:
+    - dc41e3650
+    authored_at: '2026-04-13T18:37:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stop saving demo messages to IDB, add message count assertion, fix Polar tab order'
+    section: bug_fixes
+    commits:
+    - e19d34abf
+    authored_at: '2026-04-13T18:29:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: SEO improvements — sitemap, meta tags, and OG image coverage'
+    section: bug_fixes
+    commits:
+    - 48b69e03a
+    authored_at: '2026-04-13T18:24:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/docs/+page.svelte
+    - frontend/apps/web_app/src/routes/docs/[...slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/docs/api/+page.svelte
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: scroll Polar iframe to bottom before clicking Pay now button'
+    section: bug_fixes
+    commits:
+    - 1858b9414
+    authored_at: '2026-04-13T18:08:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: force click Pay now button and retry with focus+Enter for Polar iframe'
+    section: bug_fixes
+    commits:
+    - db005491c
+    authored_at: '2026-04-13T18:00:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: target ''Pay now'' button specifically and scroll before click in Polar checkout'
+    section: bug_fixes
+    commits:
+    - 26af3c11d
+    authored_at: '2026-04-13T17:51:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use Tab navigation for Polar billing fields instead of locator guessing'
+    section: bug_fixes
+    commits:
+    - 4d6cc5d70
+    authored_at: '2026-04-13T17:43:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: scroll Polar iframe and add fallback locators for billing city/state/zip'
+    section: bug_fixes
+    commits:
+    - 0e2b3a652
+    authored_at: '2026-04-13T17:22:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use broader locators for Polar billing address fields'
+    section: bug_fixes
+    commits:
+    - dd6bca10b
+    authored_at: '2026-04-13T16:58:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: signup-flow-polar billing address fields and tfa-input selector'
+    section: bug_fixes
+    commits:
+    - 0008ebc6f
+    authored_at: '2026-04-13T16:42:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: ActiveChat bleed-through guards, chat-flow header checks, polar billing + tfa selector'
+    section: bug_fixes
+    commits:
+    - c25da59bd
+    authored_at: '2026-04-13T16:42:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: chat header testids, ActiveChat bleed-through guards, polar billing fields, tfa selector'
+    section: bug_fixes
+    commits:
+    - 69d6e3257
+    authored_at: '2026-04-13T16:41:10+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: demo message ordering, chat header testids, polar billing fields, tfa-input selector'
+    section: bug_fixes
+    commits:
+    - 9f9844d80
+    authored_at: '2026-04-13T16:39:37+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/convertToChat.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: increment messages_v for focus mode activation + improve debug tool server labeling'
+    section: bug_fixes
+    commits:
+    - 2d3ca79b7
+    authored_at: '2026-04-13T15:59:10+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/scripts/debug_chat.py
+    - backend/scripts/debug_embed.py
+    - backend/scripts/debug_issue.py
+    - frontend/packages/ui/src/services/debugUtils.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use getByTestId for tfa-input in signup-flow delete step (was CSS class selector)'
+    section: bug_fixes
+    commits:
+    - 19e26343c
+    authored_at: '2026-04-13T15:20:02+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: increase signup-flow test timeout to 600s (longest spec with email+deletion)'
+    section: bug_fixes
+    commits:
+    - 4525f41cd
+    authored_at: '2026-04-13T15:12:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add data-testid=''credits-amount'' to SettingsMainHeader credits span'
+    section: bug_fixes
+    commits:
+    - e183a2a39
+    authored_at: '2026-04-13T14:53:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsMainHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: wait for phased sync before navigating to chat in chat-flow Phase 7'
+    section: bug_fixes
+    commits:
+    - 8c911aa10
+    authored_at: '2026-04-13T14:44:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add 10s timeout to credits-amount visibility check in signup specs'
+    section: bug_fixes
+    commits:
+    - 7ce43d9e7
+    authored_at: '2026-04-13T14:40:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: scope encryption assertions to phase-specific console logs in chat-flow spec'
+    section: bug_fixes
+    commits:
+    - 6bcde04ea
+    authored_at: '2026-04-13T14:20:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add missing chat_flow_capital fixture for chat-flow.spec.ts'
+    section: bug_fixes
+    commits:
+    - 8485ac703
+    authored_at: '2026-04-13T13:50:25+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/chat_flow_capital.json
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: wait for Stripe iframe load after Polar→Stripe switch in signup specs'
+    section: bug_fixes
+    commits:
+    - b2b823354
+    authored_at: '2026-04-13T13:43:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add isFromSync guard to prevent chat key corruption during sync'
+    section: bug_fixes
+    commits:
+    - 018488ebd
+    authored_at: '2026-04-13T13:19:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: geocode listing addresses to street-level instead of city center'
+    section: bug_fixes
+    commits:
+    - fc1c13f5d
+    authored_at: '2026-04-13T12:46:41+00:00'
+    changed_paths:
+    - backend/apps/home/skills/search_skill.py
+    - backend/shared/python_utils/geo_utils.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: replace hardcoded English strings in health appointment embed with i18n keys'
+    section: bug_fixes
+    commits:
+    - 9c0fcd98b
+    authored_at: '2026-04-13T12:35:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add switch-to-stripe in signup-flow-passkey (same Polar mismatch on US runners)'
+    section: bug_fixes
+    commits:
+    - 2d8733879
+    authored_at: '2026-04-13T12:30:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements:
+  - title: 'perf: reduce signup-flow-polar.spec.ts timeouts to match other specs'
+    section: improvements
+    commits:
+    - 6081288ae
+    authored_at: '2026-04-13T14:00:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'perf: reduce signup spec timeouts to 10s default (30s for 3rd-party iframes, 60s for payment confirmation)'
+    section: improvements
+    commits:
+    - 3fddb5b00
+    authored_at: '2026-04-13T13:59:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  docs: []
+  tests:
+  - title: 'test: update wiki spec to not expect W letter (now uses study icon)'
+    section: tests
+    commits:
+    - 6a39e8daa
+    authored_at: '2026-04-13T22:59:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'debug: embed diagnostics in assertion error message'
+    section: tests
+    commits:
+    - 4755a017d
+    authored_at: '2026-04-13T22:09:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'debug: add page.evaluate diagnostics to wiki spec'
+    section: tests
+    commits:
+    - 33c9faadf
+    authored_at: '2026-04-13T22:01:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add Wikipedia inline links E2E test for unauthenticated users'
+    section: tests
+    commits:
+    - e0a78c2ef
+    authored_at: '2026-04-13T21:31:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add encryption key integrity assertions to chat-flow.spec.ts'
+    section: tests
+    commits:
+    - 96f9e165b
+    authored_at: '2026-04-13T13:45:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: remove debug logging, clean up wiki spec'
+    section: infrastructure
+    commits:
+    - 9e9d513c5
+    authored_at: '2026-04-13T22:32:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal:
+  - title: 'debug: capture console.warn wiki diagnostics in spec error message'
+    section: internal
+    commits:
+    - 8e7ce7b95
+    authored_at: '2026-04-13T22:22:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  other:
+  - title: 'debug: trace currentChat.wikipedia_topics in ActiveChat'
+    section: other
+    commits:
+    - 69a63808f
+    authored_at: '2026-04-13T21:56:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'debug: add console.debug tracing for wiki topic flow'
+    section: other
+    commits:
+    - 10784701a
+    authored_at: '2026-04-13T21:55:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'Merge pull request #366 from glowingkitty/dev'
+    section: other
+    commits:
+    - 3075939b9
+    authored_at: '2026-04-13T19:13:22+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat(privacy): Phase 3 — E2E privacy-promise markers + auditor cross-check'
+    commits:
+    - 9ad249aae
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add privacy promises registry with meta-test and pre-edit hook'
+    commits:
+    - cdb9ce2e8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: full-size badge gradient + CTA in header like other embeds'
+    commits:
+    - 7deb43ff1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use study app colors for wiki links + side-by-side layout'
+    commits:
+    - ec5c1034a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: apply wiki topic links to TipTap JSON content path'
+    commits:
+    - ced6bae40
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use wikiTopicsStore to bypass prop chain timing issue'
+    commits:
+    - d2f78acb4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'debug: trace currentChat.wikipedia_topics in ActiveChat'
+    commits:
+    - 69a63808f
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: scroll to message text before checking wiki links in spec'
+    commits:
+    - c41e40917
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: track wikipediaTopics in ReadOnlyMessage effect for re-render'
+    commits:
+    - 718fd66f3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: navigate to example chat via card click instead of direct hash'
+    commits:
+    - 702fb5180
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: include wikipedia topics in ReadOnlyMessage cache key'
+    commits:
+    - 15590e6d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Wikipedia inline links - full implementation'
+    commits:
+    - ab832b2f7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: make Polar purchase email non-blocking, reduce timeout to 60s'
+    commits:
+    - 2bd6bfc2f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: update 11 E2E specs for two-step login flow + remove deleted demo_tasks from smoke test'
+    commits:
+    - 92c8411b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: update 11 E2E specs for two-step login flow + remove deleted demo_tasks from smoke test'
+    commits:
+    - b0de31df7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: increase test timeouts to prevent GHA runner timeout failures'
+    commits:
+    - 792377d89
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: duplicate polarFrame const causing SyntaxError'
+    commits:
+    - 04092ea4c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use iframe locators with proper event dispatch for all Polar billing fields'
+    commits:
+    - b7aa20818
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use selectOption/JS for Polar state field instead of keyboard autocomplete'
+    commits:
+    - 2ccfbb119
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: type full ''New York'' for Polar state autocomplete (partial matches wrong state)'
+    commits:
+    - 1fa8fc4f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: type full state name for Polar autocomplete dropdown (NY matched Nebraska)'
+    commits:
+    - dc41e3650
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stop saving demo messages to IDB, add message count assertion, fix Polar tab order'
+    commits:
+    - e19d34abf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: SEO improvements — sitemap, meta tags, and OG image coverage'
+    commits:
+    - 48b69e03a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: scroll Polar iframe to bottom before clicking Pay now button'
+    commits:
+    - 1858b9414
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: force click Pay now button and retry with focus+Enter for Polar iframe'
+    commits:
+    - db005491c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: target ''Pay now'' button specifically and scroll before click in Polar checkout'
+    commits:
+    - 26af3c11d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use Tab navigation for Polar billing fields instead of locator guessing'
+    commits:
+    - 4d6cc5d70
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: scroll Polar iframe and add fallback locators for billing city/state/zip'
+    commits:
+    - 0e2b3a652
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use broader locators for Polar billing address fields'
+    commits:
+    - dd6bca10b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: signup-flow-polar billing address fields and tfa-input selector'
+    commits:
+    - 0008ebc6f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: ActiveChat bleed-through guards, chat-flow header checks, polar billing + tfa selector'
+    commits:
+    - c25da59bd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: chat header testids, ActiveChat bleed-through guards, polar billing fields, tfa selector'
+    commits:
+    - 69d6e3257
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: increment messages_v for focus mode activation + improve debug tool server labeling'
+    commits:
+    - 2d3ca79b7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use getByTestId for tfa-input in signup-flow delete step (was CSS class selector)'
+    commits:
+    - 19e26343c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: increase signup-flow test timeout to 600s (longest spec with email+deletion)'
+    commits:
+    - 4525f41cd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add data-testid=''credits-amount'' to SettingsMainHeader credits span'
+    commits:
+    - e183a2a39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: wait for phased sync before navigating to chat in chat-flow Phase 7'
+    commits:
+    - 8c911aa10
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add 10s timeout to credits-amount visibility check in signup specs'
+    commits:
+    - 7ce43d9e7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: scope encryption assertions to phase-specific console logs in chat-flow spec'
+    commits:
+    - 6bcde04ea
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'perf: reduce signup-flow-polar.spec.ts timeouts to match other specs'
+    commits:
+    - 6081288ae
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'perf: reduce signup spec timeouts to 10s default (30s for 3rd-party iframes, 60s for payment confirmation)'
+    commits:
+    - 3fddb5b00
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add missing chat_flow_capital fixture for chat-flow.spec.ts'
+    commits:
+    - 8485ac703
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: wait for Stripe iframe load after Polar→Stripe switch in signup specs'
+    commits:
+    - b2b823354
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: geocode listing addresses to street-level instead of city center'
+    commits:
+    - fc1c13f5d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: replace hardcoded English strings in health appointment embed with i18n keys'
+    commits:
+    - 9c0fcd98b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add switch-to-stripe in signup-flow-passkey (same Polar mismatch on US runners)'
+    commits:
+    - 2d8733879
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat(privacy): Phase 3 — E2E privacy-promise markers + auditor cross-check'
+    commits:
+    - 9ad249aae
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add privacy promises registry with meta-test and pre-edit hook'
+    commits:
+    - cdb9ce2e8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: full-size badge gradient + CTA in header like other embeds'
+    commits:
+    - 7deb43ff1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use study app colors for wiki links + side-by-side layout'
+    commits:
+    - ec5c1034a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: apply wiki topic links to TipTap JSON content path'
+    commits:
+    - ced6bae40
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use wikiTopicsStore to bypass prop chain timing issue'
+    commits:
+    - d2f78acb4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'debug: trace currentChat.wikipedia_topics in ActiveChat'
+    commits:
+    - 69a63808f
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: scroll to message text before checking wiki links in spec'
+    commits:
+    - c41e40917
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: track wikipediaTopics in ReadOnlyMessage effect for re-render'
+    commits:
+    - 718fd66f3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: navigate to example chat via card click instead of direct hash'
+    commits:
+    - 702fb5180
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: include wikipedia topics in ReadOnlyMessage cache key'
+    commits:
+    - 15590e6d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Wikipedia inline links - full implementation'
+    commits:
+    - ab832b2f7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: make Polar purchase email non-blocking, reduce timeout to 60s'
+    commits:
+    - 2bd6bfc2f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: update 11 E2E specs for two-step login flow + remove deleted demo_tasks from smoke test'
+    commits:
+    - 92c8411b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: update 11 E2E specs for two-step login flow + remove deleted demo_tasks from smoke test'
+    commits:
+    - b0de31df7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: increase test timeouts to prevent GHA runner timeout failures'
+    commits:
+    - 792377d89
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: duplicate polarFrame const causing SyntaxError'
+    commits:
+    - 04092ea4c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use iframe locators with proper event dispatch for all Polar billing fields'
+    commits:
+    - b7aa20818
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use selectOption/JS for Polar state field instead of keyboard autocomplete'
+    commits:
+    - 2ccfbb119
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: type full ''New York'' for Polar state autocomplete (partial matches wrong state)'
+    commits:
+    - 1fa8fc4f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: type full state name for Polar autocomplete dropdown (NY matched Nebraska)'
+    commits:
+    - dc41e3650
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stop saving demo messages to IDB, add message count assertion, fix Polar tab order'
+    commits:
+    - e19d34abf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: SEO improvements — sitemap, meta tags, and OG image coverage'
+    commits:
+    - 48b69e03a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: scroll Polar iframe to bottom before clicking Pay now button'
+    commits:
+    - 1858b9414
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: force click Pay now button and retry with focus+Enter for Polar iframe'
+    commits:
+    - db005491c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: target ''Pay now'' button specifically and scroll before click in Polar checkout'
+    commits:
+    - 26af3c11d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use Tab navigation for Polar billing fields instead of locator guessing'
+    commits:
+    - 4d6cc5d70
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: scroll Polar iframe and add fallback locators for billing city/state/zip'
+    commits:
+    - 0e2b3a652
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use broader locators for Polar billing address fields'
+    commits:
+    - dd6bca10b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: signup-flow-polar billing address fields and tfa-input selector'
+    commits:
+    - 0008ebc6f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: ActiveChat bleed-through guards, chat-flow header checks, polar billing + tfa selector'
+    commits:
+    - c25da59bd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: chat header testids, ActiveChat bleed-through guards, polar billing fields, tfa selector'
+    commits:
+    - 69d6e3257
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: increment messages_v for focus mode activation + improve debug tool server labeling'
+    commits:
+    - 2d3ca79b7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use getByTestId for tfa-input in signup-flow delete step (was CSS class selector)'
+    commits:
+    - 19e26343c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: increase signup-flow test timeout to 600s (longest spec with email+deletion)'
+    commits:
+    - 4525f41cd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add data-testid=''credits-amount'' to SettingsMainHeader credits span'
+    commits:
+    - e183a2a39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wait for phased sync before navigating to chat in chat-flow Phase 7'
+    commits:
+    - 8c911aa10
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add 10s timeout to credits-amount visibility check in signup specs'
+    commits:
+    - 7ce43d9e7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: scope encryption assertions to phase-specific console logs in chat-flow spec'
+    commits:
+    - 6bcde04ea
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'perf: reduce signup-flow-polar.spec.ts timeouts to match other specs'
+    commits:
+    - 6081288ae
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'perf: reduce signup spec timeouts to 10s default (30s for 3rd-party iframes, 60s for payment confirmation)'
+    commits:
+    - 3fddb5b00
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add missing chat_flow_capital fixture for chat-flow.spec.ts'
+    commits:
+    - 8485ac703
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wait for Stripe iframe load after Polar→Stripe switch in signup specs'
+    commits:
+    - b2b823354
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: geocode listing addresses to street-level instead of city center'
+    commits:
+    - fc1c13f5d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: replace hardcoded English strings in health appointment embed with i18n keys'
+    commits:
+    - 9c0fcd98b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add switch-to-stripe in signup-flow-passkey (same Polar mismatch on US runners)'
+    commits:
+    - 2d8733879
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 9ad249aae2d25039d6cd602e1f9667a3ef7e1134
+    short_sha: 9ad249aae
+    authored_at: '2026-04-13T23:59:45+00:00'
+    subject: 'feat(privacy): Phase 3 — E2E privacy-promise markers + auditor cross-check'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/agents/legal-compliance-auditor.md
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/helpers/cookie-audit.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - shared/docs/privacy_promises.yml
+    related_feature_ids: []
+  - sha: 153ecc3888294d89f8279b368d86e65d8d496ef0
+    short_sha: 153ecc388
+    authored_at: '2026-04-13T23:53:58+00:00'
+    subject: 'feat(privacy): auto-generate privacy policy measures section from registry'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/scripts/generate-privacy-promises.js
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/privacyPromises.test.ts
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - frontend/packages/ui/src/legal/privacyPromises.generated.ts
+    related_feature_ids: []
+  - sha: cdb9ce2e8b5d0cadf035b98eae5d46fbdf564ec2
+    short_sha: cdb9ce2e8
+    authored_at: '2026-04-13T23:47:16+00:00'
+    subject: 'feat: add privacy promises registry with meta-test and pre-edit hook'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/privacy-promise-guard.sh
+    - backend/core/api/app/utils/__tests__/test_text_sanitization.py
+    - backend/tests/test_content_sanitization.py
+    - backend/tests/test_encryption_service.py
+    - backend/tests/test_payment_provider_routing.py
+    - backend/tests/test_privacy_promises.py
+    - backend/tests/test_rest_api_auth.py
+    - backend/tests/test_tracing/test_privacy_filter.py
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    - frontend/packages/ui/src/services/encryption/__tests__/ChatKeyManager.test.ts
+    - shared/docs/privacy_promises.schema.json
+    - shared/docs/privacy_promises.yml
+    related_feature_ids: []
+  - sha: 7deb43ff1daaceac93c2d5bf599094e627a04329
+    short_sha: 7deb43ff1
+    authored_at: '2026-04-13T23:35:26+00:00'
+    subject: 'fix: full-size badge gradient + CTA in header like other embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    related_feature_ids: []
+  - sha: 6e56fc1412d6b16e08a870f277b2b43914fefeec
+    short_sha: 6e56fc141
+    authored_at: '2026-04-13T23:08:28+00:00'
+    subject: 'feat: add git-stats command for commit activity and quality analytics'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/git_stats.py
+    - scripts/sessions.py
+    related_feature_ids: []
+  - sha: 6a39e8daa5e6f9796d5d27f48370e85e64e89cab
+    short_sha: 6a39e8daa
+    authored_at: '2026-04-13T22:59:44+00:00'
+    subject: 'test: update wiki spec to not expect W letter (now uses study icon)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: ec5c1034a986721ca5e1a33bfe6b7e36e53d4f86
+    short_sha: ec5c1034a
+    authored_at: '2026-04-13T22:55:16+00:00'
+    subject: 'fix: use study app colors for wiki links + side-by-side layout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    - frontend/packages/ui/src/styles/icons.css
+    related_feature_ids: []
+  - sha: 9e9d513c5af4eef572c054692fef14770a4b28ae
+    short_sha: 9e9d513c5
+    authored_at: '2026-04-13T22:32:29+00:00'
+    subject: 'chore: remove debug logging, clean up wiki spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    related_feature_ids: []
+  - sha: ced6bae40445132d5cbd944bf82a7bbff86a506f
+    short_sha: ced6bae40
+    authored_at: '2026-04-13T22:27:13+00:00'
+    subject: 'fix: apply wiki topic links to TipTap JSON content path'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    related_feature_ids: []
+  - sha: 8e7ce7b9545356db948cfb94d12780b3ad6d373b
+    short_sha: 8e7ce7b95
+    authored_at: '2026-04-13T22:22:15+00:00'
+    subject: 'debug: capture console.warn wiki diagnostics in spec error message'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: d2f78acb467fb0d195201c90733967be906a4576
+    short_sha: d2f78acb4
+    authored_at: '2026-04-13T22:16:55+00:00'
+    subject: 'fix: use wikiTopicsStore to bypass prop chain timing issue'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/stores/wikiTopicsStore.ts
+    related_feature_ids: []
+  - sha: 4755a017dd7b44679dec84eca4d7c067fd8af0aa
+    short_sha: 4755a017d
+    authored_at: '2026-04-13T22:09:49+00:00'
+    subject: 'debug: embed diagnostics in assertion error message'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 33c9faadfa2650663cff9c86658756c10c4a86c7
+    short_sha: 33c9faadf
+    authored_at: '2026-04-13T22:01:10+00:00'
+    subject: 'debug: add page.evaluate diagnostics to wiki spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 69a63808fb8c166553d22ac1e744b2021ce1d18f
+    short_sha: 69a63808f
+    authored_at: '2026-04-13T21:56:46+00:00'
+    subject: 'debug: trace currentChat.wikipedia_topics in ActiveChat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 10784701ad761e2cffed0ab6596b0a8a0eb399ce
+    short_sha: 10784701a
+    authored_at: '2026-04-13T21:55:39+00:00'
+    subject: 'debug: add console.debug tracing for wiki topic flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    related_feature_ids: []
+  - sha: c41e40917154cbd455006caa44d8f56bc0313ecf
+    short_sha: c41e40917
+    authored_at: '2026-04-13T21:49:26+00:00'
+    subject: 'fix: scroll to message text before checking wiki links in spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 718fd66f36dd781c3663c882ab33a2459e63790c
+    short_sha: 718fd66f3
+    authored_at: '2026-04-13T21:44:41+00:00'
+    subject: 'fix: track wikipediaTopics in ReadOnlyMessage effect for re-render'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: 702fb51805bc5205d12116ef1e3fcb169bb233a9
+    short_sha: 702fb5180
+    authored_at: '2026-04-13T21:37:09+00:00'
+    subject: 'fix: navigate to example chat via card click instead of direct hash'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: e0a78c2ef82c5976947c8a8e93f1cb01ee9d4995
+    short_sha: e0a78c2ef
+    authored_at: '2026-04-13T21:31:52+00:00'
+    subject: 'test: add Wikipedia inline links E2E test for unauthenticated users'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    related_feature_ids: []
+  - sha: 15590e6d3c4cb89d56911ddd48382abba0fbeb1b
+    short_sha: 15590e6d3
+    authored_at: '2026-04-13T21:28:52+00:00'
+    subject: 'fix: include wikipedia topics in ReadOnlyMessage cache key'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    related_feature_ids: []
+  - sha: ab832b2f700c7a77497276c6513f4770a2b50faa
+    short_sha: ab832b2f7
+    authored_at: '2026-04-13T21:23:38+00:00'
+    subject: 'feat: add Wikipedia inline links - full implementation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/shared/providers/wikipedia/__init__.py
+    - backend/shared/providers/wikipedia/wikipedia_api.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/WikiInlineNode.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/artemis-ii-mission.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/eu-chat-control-law-criticisms.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/common.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    related_feature_ids: []
+  - sha: 66a02e21695cd44215bd0dfeac2be31b2b850742
+    short_sha: 66a02e216
+    authored_at: '2026-04-13T21:20:15+00:00'
+    subject: 'feat: add Wikipedia/Wikidata inline link integration'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 2bd6bfc2f12c19c6db23c2fff89a00d238bcaf48
+    short_sha: 2bd6bfc2f
+    authored_at: '2026-04-13T20:21:56+00:00'
+    subject: 'fix: make Polar purchase email non-blocking, reduce timeout to 60s'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 92c8411b019bf5e9b4d6e9245039a7e3ff3b237a
+    short_sha: 92c8411b0
+    authored_at: '2026-04-13T20:19:25+00:00'
+    subject: 'fix: update 11 E2E specs for two-step login flow + remove deleted demo_tasks from smoke test'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_task_smoke.py
+    - frontend/apps/web_app/tests/a11y-keyboard-nav.spec.ts
+    - frontend/apps/web_app/tests/a11y-modal-dialogs.spec.ts
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/incognito-mode.spec.ts
+    - frontend/apps/web_app/tests/language-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
+    - frontend/apps/web_app/tests/reminder-email.spec.ts
+    related_feature_ids: []
+  - sha: b0de31df71056671b8433dbc59150550391d4e82
+    short_sha: b0de31df7
+    authored_at: '2026-04-13T20:18:39+00:00'
+    subject: 'fix: update 11 E2E specs for two-step login flow + remove deleted demo_tasks from smoke test'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    related_feature_ids: []
+  - sha: 792377d899d0c3ec894adc01af134b5642d3f130
+    short_sha: 792377d89
+    authored_at: '2026-04-13T20:02:13+00:00'
+    subject: 'fix: increase test timeouts to prevent GHA runner timeout failures'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 17970151253fe5b9cec569bab00f7d1e40e49a07
+    short_sha: '179701512'
+    authored_at: '2026-04-13T19:46:43+00:00'
+    subject: 'feat: add SEO auditor subagent for deep site-wide SEO analysis'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/agents/seo-auditor.md
+    related_feature_ids: []
+  - sha: 04092ea4cd7ff00ddbae62b63af0ef0f6b8e49a0
+    short_sha: 04092ea4c
+    authored_at: '2026-04-13T19:31:31+00:00'
+    subject: 'fix: duplicate polarFrame const causing SyntaxError'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 88a06be5d959f4fe8d9fc7909d542204ef12f877
+    short_sha: 88a06be5d
+    authored_at: '2026-04-13T19:29:29+00:00'
+    subject: 'feat: add SEO health check to daily meeting data pipeline'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/_daily_meeting_helper.py
+    - scripts/prompts/daily-meeting.md
+    related_feature_ids: []
+  - sha: b7aa20818facc9321471a36a1dc7dc29091c231a
+    short_sha: b7aa20818
+    authored_at: '2026-04-13T19:26:59+00:00'
+    subject: 'fix: use iframe locators with proper event dispatch for all Polar billing fields'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 2ccfbb11944bc7dae2e04d58839ab12bec78a97e
+    short_sha: 2ccfbb119
+    authored_at: '2026-04-13T18:54:02+00:00'
+    subject: 'fix: use selectOption/JS for Polar state field instead of keyboard autocomplete'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 1fa8fc4f61694097a2f503eaaf486ecb5c7c5da3
+    short_sha: 1fa8fc4f6
+    authored_at: '2026-04-13T18:45:56+00:00'
+    subject: 'fix: type full ''New York'' for Polar state autocomplete (partial matches wrong state)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: dc41e3650f7bbf10313e10f3f4c56496bfebc903
+    short_sha: dc41e3650
+    authored_at: '2026-04-13T18:37:49+00:00'
+    subject: 'fix: type full state name for Polar autocomplete dropdown (NY matched Nebraska)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: e19d34abfbdbef5b2f27060b1c76f123cfc23a34
+    short_sha: e19d34abf
+    authored_at: '2026-04-13T18:29:09+00:00'
+    subject: 'fix: stop saving demo messages to IDB, add message count assertion, fix Polar tab order'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: 48b69e03ad8d7455c44f40ad313ba164c7929494
+    short_sha: 48b69e03a
+    authored_at: '2026-04-13T18:24:33+00:00'
+    subject: 'fix: SEO improvements — sitemap, meta tags, and OG image coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/docs/+page.svelte
+    - frontend/apps/web_app/src/routes/docs/[...slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/docs/api/+page.svelte
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    related_feature_ids: []
+  - sha: 1858b9414bd87439adf42db96f5ec3bc9be84414
+    short_sha: 1858b9414
+    authored_at: '2026-04-13T18:08:40+00:00'
+    subject: 'fix: scroll Polar iframe to bottom before clicking Pay now button'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: db005491c2a366286c0caa252c46520b9a2ed4fb
+    short_sha: db005491c
+    authored_at: '2026-04-13T18:00:13+00:00'
+    subject: 'fix: force click Pay now button and retry with focus+Enter for Polar iframe'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 26af3c11dfd7290ef3a55ffc58c279e6af8ea3d6
+    short_sha: 26af3c11d
+    authored_at: '2026-04-13T17:51:56+00:00'
+    subject: 'fix: target ''Pay now'' button specifically and scroll before click in Polar checkout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 4d6cc5d70cee86ba0cabc4d8f33608650a7d3f23
+    short_sha: 4d6cc5d70
+    authored_at: '2026-04-13T17:43:55+00:00'
+    subject: 'fix: use Tab navigation for Polar billing fields instead of locator guessing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 0e2b3a65236f676d030d76cdc5b9cd83a801227c
+    short_sha: 0e2b3a652
+    authored_at: '2026-04-13T17:22:33+00:00'
+    subject: 'fix: scroll Polar iframe and add fallback locators for billing city/state/zip'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 3075939b99800b5686e74e676e0fa073a01249e9
+    short_sha: 3075939b9
+    authored_at: '2026-04-13T19:13:22+02:00'
+    subject: 'Merge pull request #366 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: dd6bca10bbba7b78890a6c1088f9c17c37cc7fa2
+    short_sha: dd6bca10b
+    authored_at: '2026-04-13T16:58:50+00:00'
+    subject: 'fix: use broader locators for Polar billing address fields'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 0008ebc6fda1dbeb33851032af5be9ea2dcc7adf
+    short_sha: 0008ebc6f
+    authored_at: '2026-04-13T16:42:56+00:00'
+    subject: 'fix: signup-flow-polar billing address fields and tfa-input selector'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: c25da59bd9633c67c1c0af6816be89b19d3b593e
+    short_sha: c25da59bd
+    authored_at: '2026-04-13T16:42:39+00:00'
+    subject: 'fix: ActiveChat bleed-through guards, chat-flow header checks, polar billing + tfa selector'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 69d6e325701f8f044ff2944e69fb30d2cebb6976
+    short_sha: 69d6e3257
+    authored_at: '2026-04-13T16:41:10+00:00'
+    subject: 'fix: chat header testids, ActiveChat bleed-through guards, polar billing fields, tfa selector'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 9f9844d804820ab24a6cfa27d60a16428d543478
+    short_sha: 9f9844d80
+    authored_at: '2026-04-13T16:39:37+00:00'
+    subject: 'fix: demo message ordering, chat header testids, polar billing fields, tfa-input selector'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/convertToChat.ts
+    related_feature_ids: []
+  - sha: 2d3ca79b7335c226214d0b997bbaa78b53939ec9
+    short_sha: 2d3ca79b7
+    authored_at: '2026-04-13T15:59:10+00:00'
+    subject: 'fix: increment messages_v for focus mode activation + improve debug tool server labeling'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/scripts/debug_chat.py
+    - backend/scripts/debug_embed.py
+    - backend/scripts/debug_issue.py
+    - frontend/packages/ui/src/services/debugUtils.ts
+    related_feature_ids: []
+  - sha: 19e26343c0c6d6b9abe22d98724453739964379e
+    short_sha: 19e26343c
+    authored_at: '2026-04-13T15:20:02+00:00'
+    subject: 'fix: use getByTestId for tfa-input in signup-flow delete step (was CSS class selector)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    related_feature_ids: []
+  - sha: 4525f41cdcbc0d33cab5728a5a51b904265f222b
+    short_sha: 4525f41cd
+    authored_at: '2026-04-13T15:12:24+00:00'
+    subject: 'fix: increase signup-flow test timeout to 600s (longest spec with email+deletion)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    related_feature_ids: []
+  - sha: e183a2a39202847e5b8df2c962fd6f2fa2dbc4bb
+    short_sha: e183a2a39
+    authored_at: '2026-04-13T14:53:47+00:00'
+    subject: 'fix: add data-testid=''credits-amount'' to SettingsMainHeader credits span'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsMainHeader.svelte
+    related_feature_ids: []
+  - sha: 8c911aa1058740ad6cb2453ce55b653be369053f
+    short_sha: 8c911aa10
+    authored_at: '2026-04-13T14:44:19+00:00'
+    subject: 'fix: wait for phased sync before navigating to chat in chat-flow Phase 7'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 7ce43d9e74991e7d974031532b7bc44c2e521a7c
+    short_sha: 7ce43d9e7
+    authored_at: '2026-04-13T14:40:44+00:00'
+    subject: 'fix: add 10s timeout to credits-amount visibility check in signup specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    related_feature_ids: []
+  - sha: 6bcde04ea941e56ea4aceaef452d9bb9a6252a53
+    short_sha: 6bcde04ea
+    authored_at: '2026-04-13T14:20:43+00:00'
+    subject: 'fix: scope encryption assertions to phase-specific console logs in chat-flow spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 6081288ae96d18aa8a5c36f170ef83a8d479c904
+    short_sha: 6081288ae
+    authored_at: '2026-04-13T14:00:14+00:00'
+    subject: 'perf: reduce signup-flow-polar.spec.ts timeouts to match other specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: 3fddb5b003deda10feaae30b312e19413d70a750
+    short_sha: 3fddb5b00
+    authored_at: '2026-04-13T13:59:56+00:00'
+    subject: 'perf: reduce signup spec timeouts to 10s default (30s for 3rd-party iframes, 60s for payment confirmation)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    related_feature_ids: []
+  - sha: 8485ac7034310ce36cb5f165df62229c9c790681
+    short_sha: 8485ac703
+    authored_at: '2026-04-13T13:50:25+00:00'
+    subject: 'fix: add missing chat_flow_capital fixture for chat-flow.spec.ts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/chat_flow_capital.json
+    related_feature_ids: []
+  - sha: 96f9e165b91629c2e8bc746a0c4b31d4d8d00b58
+    short_sha: 96f9e165b
+    authored_at: '2026-04-13T13:45:00+00:00'
+    subject: 'test: add encryption key integrity assertions to chat-flow.spec.ts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: b2b823354586d2553a287fae575424dfbf5271be
+    short_sha: b2b823354
+    authored_at: '2026-04-13T13:43:25+00:00'
+    subject: 'fix: wait for Stripe iframe load after Polar→Stripe switch in signup specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    related_feature_ids: []
+  - sha: 018488ebdce399631bb20f42e1b9f227093c44ec
+    short_sha: 018488ebd
+    authored_at: '2026-04-13T13:19:53+00:00'
+    subject: 'fix: add isFromSync guard to prevent chat key corruption during sync'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    related_feature_ids: []
+  - sha: fc1c13f5dd6388e90951913989ee6cff35584029
+    short_sha: fc1c13f5d
+    authored_at: '2026-04-13T12:46:41+00:00'
+    subject: 'fix: geocode listing addresses to street-level instead of city center'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/home/skills/search_skill.py
+    - backend/shared/python_utils/geo_utils.py
+    related_feature_ids: []
+  - sha: 9c0fcd98bf8e0ce18155308f134b5e5fd7a56265
+    short_sha: 9c0fcd98b
+    authored_at: '2026-04-13T12:35:58+00:00'
+    subject: 'fix: replace hardcoded English strings in health appointment embed with i18n keys'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    related_feature_ids: []
+  - sha: 2d873387974fb3c049e85ed627763162b9dc8914
+    short_sha: 2d8733879
+    authored_at: '2026-04-13T12:30:49+00:00'
+    subject: 'fix: add switch-to-stripe in signup-flow-passkey (same Polar mismatch on US runners)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced a full Wikipedia inline link integration and established a new Privacy Promise registry with
+    end-to-end compliance markers. The update also includes significant reliability improvements to the signup and payment
+    flows, alongside enhanced SEO metadata.
+  released_changes:
+  - text: OpenMates implemented Wikipedia inline links, allowing the AI to provide rich, interactive references within chat
+      messages. This includes full-screen previews and themed styling.
+    evidence:
+      commits:
+      - ab832b2f7
+      - 7deb43ff1
+      - ec5c1034a
+      - ced6bae40
+      - d2f78acb4
+      - 718fd66f3
+      - 15590e6d3
+    release_status: released_main
+  - text: A Privacy Promise registry was added to track and verify data handling commitments, supported by end-to-end markers
+      and automated auditor cross-checks.
+    evidence:
+      commits:
+      - 9ad249aae
+      - cdb9ce2e8
+    release_status: released_main
+  - text: Web presence was improved through updated sitemaps, meta tags, and Open Graph image coverage for documentation and
+      landing pages.
+    evidence:
+      commits:
+      - 48b69e03a
+    release_status: released_main
+  - text: Geocoding for home listings was refined to provide street-level accuracy instead of city-center defaults.
+    evidence:
+      commits:
+      - fc1c13f5d
+    release_status: released_main
+  - text: Internationalization support was added for health appointment embeds, replacing hardcoded strings with localized
+      keys.
+    evidence:
+      commits:
+      - 9c0fcd98b
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved numerous reliability issues in the Polar and Stripe checkout flows, including iframe locator improvements,
+      billing address field handling, and payment confirmation timeouts.
+    evidence:
+      commits:
+      - 2bd6bfc2f
+      - 04092ea4c
+      - b7aa20818
+      - 2ccfbb119
+      - 1fa8fc4f6
+      - dc41e3650
+      - 1858b9414
+      - db005491c
+      - 26af3c11d
+      - 4d6cc5d70
+      - 0e2b3a652
+      - dd6bca10b
+      - 0008ebc6f
+      - b2b823354
+      - 2d8733879
+    release_status: released_main
+  - text: Fixed an issue where focus mode would not activate correctly by ensuring the message version increments upon auto-confirmation.
+    evidence:
+      commits:
+      - 2d3ca79b7
+    release_status: released_main
+  - text: Added UI guards to prevent component bleed-through in the active chat view and standardized header test identifiers.
+    evidence:
+      commits:
+      - c25da59bd
+      - 69d6e3257
+    release_status: released_main
+  - text: Updated end-to-end specifications to support the two-step login flow.
+    evidence:
+      commits:
+      - 92c8411b0
+      - b0de31df7
+    release_status: released_main
+  unreleased_progress:
+  - text: An SEO auditor subagent is in development for deep site-wide analysis.
+    evidence:
+      commits:
+      - '179701512'
+    release_status: released_main
+  - text: Work is underway to auto-generate privacy policy sections directly from the promise registry.
+    evidence:
+      commits:
+      - 153ecc388
+    release_status: released_main
+  - text: Internal sync guards are being added to prevent chat key corruption during phased synchronization.
+    evidence:
+      commits:
+      - 018488ebd
+    release_status: released_main
+  - text: Maintenance work was performed on the tasks platform smoke tests; the tasks feature remains disabled.
+    evidence:
+      commits:
+      - 92c8411b0
+    release_status: released_main
+  internal_progress:
+  - text: OpenMates added a git-stats command to track commit activity and quality analytics.
+    evidence:
+      commits:
+      - 6e56fc141
+    release_status: released_main
+  - text: An SEO health check was integrated into the daily meeting data pipeline.
+    evidence:
+      commits:
+      - 88a06be5d
+    release_status: released_main
+  - text: The test suite received extensive updates, including new Wikipedia integration tests and enhanced diagnostics for
+      unauthenticated app loads.
+    evidence:
+      commits:
+      - 9e9d513c5
+      - 8e7ce7b95
+      - 4755a017d
+      - 33c9faadf
+      - 10784701a
+      - 96f9e165b
+      - e0a78c2ef
+      - 6a39e8daa
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Wikipedia inline link integration.
+      evidence:
+        commits:
+        - ab832b2f7
+      reason: Major user-facing feature providing rich context within chat.
+    - text: Privacy Promise registry and end-to-end compliance markers.
+      evidence:
+        commits:
+        - 9ad249aae
+        - cdb9ce2e8
+      reason: Strengthens product trust and transparency.
+    exclude:
+    - text: SEO auditor subagent implementation.
+      evidence:
+        commits:
+        - '179701512'
+      reason: Internal SEO auditing tool not intended for end users.
+    - text: Chat key sync guards.
+      evidence:
+        commits:
+        - 018488ebd
+      reason: Internal database and sync logic.
+    rationale: The Wikipedia integration and Privacy Promise registry are the most significant user-facing updates, offering
+      both functional utility and increased transparency.
+  social_video_recommendations:
+  - idea: A short clip demonstrating the new Wikipedia inline links, showing how a user can click a topic in a chat to see
+      a rich preview without leaving the app.
+    priority: high
+    reason: This is a highly visual and useful feature that differentiates the chat experience.
+    evidence:
+      commits:
+      - ab832b2f7
+  quality_notes:
+  - Extensive focus on payment flow reliability with over 15 commits dedicated to fixing checkout edge cases.
+  - Introduction of automated privacy compliance auditing via a new subagent and registry system.
+  validation_warnings: []

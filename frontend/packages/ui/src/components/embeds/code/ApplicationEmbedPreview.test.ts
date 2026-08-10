@@ -14,10 +14,10 @@ import {
 import { renderEmbedAsText } from '../../../data/embedTextRenderers';
 
 describe('application embed registry', () => {
-  it('does not register application preview, fullscreen, or message renderer entries while disabled', () => {
-    expect(EMBED_PREVIEW_COMPONENTS['code-application']).toBeUndefined();
-    expect(EMBED_FULLSCREEN_COMPONENTS['code-application']).toBeUndefined();
-    expect(EMBED_RENDERER_MAP['code-application']).toBeUndefined();
+  it('registers application preview, fullscreen, and message renderer entries', () => {
+    expect(EMBED_PREVIEW_COMPONENTS['code-application']).toBe('code/ApplicationEmbedPreview.svelte');
+    expect(EMBED_FULLSCREEN_COMPONENTS['code-application']).toBe('code/ApplicationEmbedFullscreen.svelte');
+    expect(EMBED_RENDERER_MAP['code-application']).toBe('GroupRenderer');
   });
 });
 

@@ -5,6 +5,7 @@
 # protocol integrity across Gemini, Bedrock, OpenAI, Anthropic, and Mistral.
 
 import asyncio
+import copy
 import importlib
 import json
 import sys
@@ -73,6 +74,23 @@ for module_name, symbols in {
     module = types.ModuleType(module_name)
     for symbol in symbols:
         setattr(module, symbol, object)
+    if module_name == "backend.apps.ai.llm_providers.openai_shared":
+        def _sanitize_schema_for_llm_providers(schema):
+            sanitized = copy.deepcopy(schema)
+
+            def strip_additional_properties(value):
+                if isinstance(value, dict):
+                    value.pop("additionalProperties", None)
+                    for child in value.values():
+                        strip_additional_properties(child)
+                elif isinstance(value, list):
+                    for child in value:
+                        strip_additional_properties(child)
+
+            strip_additional_properties(sanitized)
+            return sanitized
+
+        module._sanitize_schema_for_llm_providers = _sanitize_schema_for_llm_providers
     _install_stub(module_name, module)
 
 provider_types_stub = types.ModuleType("backend.apps.ai.llm_providers.types")
@@ -126,21 +144,26 @@ _install_stub("backend.apps.ai.processing.audio_recording_guard", audio_guard_st
 sub_chat_stub = types.ModuleType("backend.apps.ai.sub_chat_orchestration")
 for symbol in [
     "count_direct_sub_chats",
-    "create_and_dispatch_sub_chats",
+    "create_orchestration_root",
     "create_sub_chat_records",
     "dispatch_sub_chat_task",
+    "ensure_orchestration_envelope",
     "expand_sub_chat_requests",
     "get_sub_chat_context_policy",
     "get_sub_chat_execution_mode",
+    "is_sub_chat_continuation",
+    "resolve_sub_chat_depth",
     "store_pending_sub_chat_confirmation",
     "validate_sub_chat_capacity",
 ]:
     setattr(sub_chat_stub, symbol, object)
 sub_chat_stub.MAX_AUTO_SUB_CHATS_PER_TURN = 3
+sub_chat_stub.MAX_AUTO_SUB_CHAT_CREDITS = 2000
 sub_chat_stub.MAX_DIRECT_SUB_CHATS_PER_PARENT = 3
 _install_stub("backend.apps.ai.sub_chat_orchestration", sub_chat_stub)
 
 skill_executor_stub = types.ModuleType("backend.apps.ai.processing.skill_executor")
+skill_executor_stub.execute_skill = object
 skill_executor_stub.execute_skill_with_multiple_requests = object
 skill_executor_stub.SkillCancelledException = Exception
 skill_executor_stub.generate_skill_task_id = lambda: "skill-task-id"
@@ -153,6 +176,9 @@ billing_stub.MINIMUM_CREDITS_CHARGED = 1
 _install_stub("backend.shared.python_utils.billing_utils", billing_stub)
 
 main_processor = importlib.import_module("backend.apps.ai.processing.main_processor")
+for module_name, stub in list(_INSTALLED_STUB_MODULES.items()):
+    if sys.modules.get(module_name) is stub:
+        del sys.modules[module_name]
 INVALID_TOOL_FALLBACK_MESSAGE = main_processor.INVALID_TOOL_FALLBACK_MESSAGE
 INVALID_TOOL_RESULT_REASON = main_processor.INVALID_TOOL_RESULT_REASON
 _append_tool_call_turn_to_history = main_processor._append_tool_call_turn_to_history
@@ -160,6 +186,21 @@ _get_skill_execution_args = main_processor._get_skill_execution_args
 _has_diffable_embeds_for_prompt = main_processor._has_diffable_embeds_for_prompt
 _build_pending_app_settings_memories_context = main_processor._build_pending_app_settings_memories_context
 _apply_benchmark_usage_details = main_processor._apply_benchmark_usage_details
+_is_async_skill_blocked_in_orchestration = main_processor._is_async_skill_blocked_in_orchestration
+
+
+def test_orchestrated_async_skills_are_blocked_before_dispatch() -> None:
+    request = SimpleNamespace(orchestration_id="orchestration-1")
+
+    assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is True
+    assert _is_async_skill_blocked_in_orchestration(request, "social_media", "search") is True
+    assert _is_async_skill_blocked_in_orchestration(request, "web", "search") is False
+
+
+def test_root_async_skills_remain_available_without_orchestration() -> None:
+    request = SimpleNamespace(orchestration_id=None)
+
+    assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is False
 
 
 def test_pending_app_settings_memories_context_preserves_model_preferences() -> None:
@@ -175,6 +216,7 @@ def test_pending_app_settings_memories_context_preserves_model_preferences() -> 
         is_incognito=False,
         user_preferences={"default_ai_model_simple": "mistral/mistral-small-latest"},
         embed_file_path_index={"snippet.py": "embed-1"},
+        has_image_upload_embed=True,
     )
 
     context = _build_pending_app_settings_memories_context(
@@ -187,6 +229,7 @@ def test_pending_app_settings_memories_context_preserves_model_preferences() -> 
     assert context["user_preferences"] == {"default_ai_model_simple": "mistral/mistral-small-latest"}
     assert context["current_chat_title"] == "Coding help"
     assert context["embed_file_path_index"] == {"snippet.py": "embed-1"}
+    assert context["has_image_upload_embed"] is True
     assert "message_history" not in context
 
 

@@ -27,6 +27,12 @@ from backend.core.api.app.tasks import celery_config
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService # Assuming this is the correct path
 from backend.core.api.app.services.skill_registry import build_skill_registry
+from backend.core.api.app.services.chat_recovery_cutover import (
+    legacy_completion_requires_persistence as completion_requires_persistence,
+)
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
+from backend.core.api.app.services.user_task_queue_service import UserTaskQueueService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.log_sanitization import sanitize_request_data_for_logging
@@ -52,7 +58,7 @@ from backend.shared.python_utils.learning_mode import (
 from .stream_consumer import _consume_main_processing_stream
 
 # Import override parser for @ mentioning syntax (e.g., @ai-model:claude-opus-4-5)
-from backend.core.api.app.utils.override_parser import parse_overrides_from_messages, UserOverrides
+from backend.core.api.app.utils.override_parser import parse_overrides, parse_overrides_from_messages, UserOverrides
 
 # Import embed service for cleanup on task failure
 from backend.core.api.app.services.embed_service import EmbedService
@@ -439,7 +445,23 @@ async def _update_user_task_execution_state(
         patch["completed_at"] = completed_at
 
     try:
-        await directus_service.user_task.update_task(user_task_id, request_data.user_id, patch)
+        current_task = await directus_service.user_task.get_task(user_task_id, request_data.user_id)
+        if not current_task:
+            logger.warning("User task %s was not found while updating execution state", user_task_id)
+            return
+        current_version = current_task.get("version")
+        if current_version is None:
+            logger.warning("User task %s has no version while updating execution state", user_task_id)
+            return
+        updated_task = await directus_service.user_task.update_task_if_version(
+            user_task_id,
+            request_data.user_id,
+            {**patch, "version": int(current_version)},
+            int(current_version),
+        )
+        if not updated_task:
+            logger.warning("User task %s changed before execution state update", user_task_id)
+            return
         logger.info(
             "[Task ID: %s] Updated user task %s execution state to %s",
             getattr(request_data, "message_id", "unknown"),
@@ -451,6 +473,45 @@ async def _update_user_task_execution_state(
             "Failed to update user task %s execution state to %s: %s",
             user_task_id,
             ai_execution_state,
+            exc,
+            exc_info=True,
+        )
+
+
+async def _complete_user_task_execution(
+    request_data: AskSkillRequest,
+    directus_service: Optional[DirectusService],
+) -> None:
+    """Complete a product task through the queue service so continuation runs."""
+    user_task_id = getattr(request_data, "user_task_id", None)
+    if not user_task_id or not directus_service:
+        return
+
+    try:
+        current_task = await directus_service.user_task.get_task(user_task_id, request_data.user_id)
+        if not current_task:
+            logger.warning("User task %s was not found while completing execution", user_task_id)
+            return
+        current_version = current_task.get("version")
+        if current_version is None:
+            logger.warning("User task %s has no version while completing execution", user_task_id)
+            return
+        updated_task = await UserTaskQueueService(directus_service.user_task).complete_task(
+            user_task_id,
+            request_data.user_id,
+            version=int(current_version),
+            now=int(time.time()),
+        )
+        logger.info(
+            "[Task ID: %s] Completed user task %s through queue service with queue_result=%s",
+            getattr(request_data, "message_id", "unknown"),
+            user_task_id,
+            updated_task.get("queue_result") if isinstance(updated_task, dict) else None,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Failed to complete user task %s through queue service: %s",
+            user_task_id,
             exc,
             exc_info=True,
         )
@@ -477,6 +538,97 @@ async def _update_user_task_execution_state_with_new_directus(
             status=status,
             blocked_reason_code=blocked_reason_code,
             completed_at=completed_at,
+        )
+    finally:
+        await directus_service.close()
+
+
+async def _mark_recovery_inference_failed(
+    request_data: AskSkillRequest,
+    task_id: str,
+    failure_category: str,
+) -> None:
+    inference_task_id = request_data.resolved_recovery_inference_task_id()
+    if not inference_task_id:
+        return
+    directus_service = DirectusService()
+    try:
+        await ChatRecoveryService(directus_service).execute(
+            "mark_inference_failed",
+            {
+                "protocol_version": 1,
+                "inference_task_id": inference_task_id,
+                "failure_category": failure_category,
+            },
+        )
+    finally:
+        await directus_service.close()
+
+
+async def _mark_sub_chat_terminal_failure(
+    request_data: AskSkillRequest,
+    task_id: str,
+    *,
+    cancelled: bool,
+) -> None:
+    """Settle failed child lifecycle and let the parent synthesize partial results."""
+    if not request_data.orchestration_id:
+        return
+    if not request_data.is_sub_chat:
+        directus_service = DirectusService()
+        try:
+            await SubChatOrchestrationService(directus_service).execute(
+                "transition_root",
+                {
+                    "protocol_version": 1,
+                    "orchestration_id": request_data.orchestration_id,
+                    "hashed_user_id": request_data.user_id_hash,
+                    "state": "cancelled" if cancelled else "failed",
+                },
+            )
+        finally:
+            await directus_service.close()
+        return
+    from backend.apps.ai.tasks.stream_consumer import (
+        _record_sub_chat_completion_and_maybe_continue_parent,
+    )
+
+    cache_service = CacheService()
+    try:
+        await cache_service.client
+        await _record_sub_chat_completion_and_maybe_continue_parent(
+            cache_service=cache_service,
+            request_data=request_data,
+            task_id=task_id,
+            summary=(
+                "Sub-chat was cancelled before completion."
+                if cancelled
+                else "Sub-chat failed before completion."
+            ),
+            log_prefix=f"[Task ID: {task_id}]",
+            terminal_state="cancelled" if cancelled else "failed",
+        )
+    finally:
+        await cache_service.close()
+
+
+async def _finalize_legacy_cutover_admission(
+    request_data: AskSkillRequest,
+    inference_completed: bool,
+) -> None:
+    task_identity = request_data.legacy_cutover_task_id
+    if not task_identity:
+        return
+    operation = (
+        "mark_legacy_inference_completed"
+        if inference_completed
+        else "release_legacy_inference"
+    )
+    directus_service = DirectusService()
+    try:
+        await ChatRecoveryService(directus_service).execute(
+            operation,
+            {"protocol_version": 1, "task_identity": task_identity},
         )
     finally:
         await directus_service.close()
@@ -533,6 +685,72 @@ async def _async_process_ai_skill_ask_task(
             encryption_service=encryption_service_instance 
         )
         logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
+
+        if request_data.is_sub_chat:
+            if not all((
+                request_data.orchestration_id,
+                request_data.root_chat_id,
+                request_data.root_turn_id,
+                request_data.orchestration_dispatch_token,
+            )):
+                raise RuntimeError("Sub-chat task is missing its durable orchestration envelope")
+            child_claim = await SubChatOrchestrationService(directus_service_instance).execute(
+                "claim_child",
+                {
+                    "protocol_version": 1,
+                    "orchestration_id": request_data.orchestration_id,
+                    "hashed_user_id": request_data.user_id_hash,
+                    "child_chat_id": request_data.chat_id,
+                    "dispatch_token": request_data.orchestration_dispatch_token,
+                    "inference_task_id": task_id,
+                    "is_continuation": bool(
+                        request_data.is_sub_chat_continuation
+                        or request_data.is_focus_mode_continuation
+                        or request_data.is_app_settings_memories_continuation
+                        or request_data.is_connected_account_permission_continuation
+                    ),
+                },
+            )
+            if child_claim.get("depth") != request_data.sub_chat_depth:
+                raise RuntimeError("Sub-chat task depth does not match its durable orchestration record")
+            if not child_claim.get("claimed"):
+                logger.info(
+                    "[Task ID: %s] Skipping duplicate child delivery in state=%s",
+                    task_id,
+                    child_claim.get("state"),
+                )
+                return {
+                    "status": "duplicate_sub_chat_task_ignored",
+                    "preprocessing_summary": {},
+                    "main_processing_output": None,
+                    "postprocessing_summary": {},
+                    "interrupted_by_soft_time_limit": False,
+                    "interrupted_by_revocation": False,
+                    "_celery_task_state": "SUCCESS",
+                }
+
+        if request_data.recovery_task_id:
+            if request_data.recovery_task_id != task_id:
+                raise RuntimeError("Celery task ID does not match durable recovery task identity")
+            claim = await ChatRecoveryService(directus_service_instance).execute(
+                "claim_inference",
+                {"protocol_version": 1, "inference_task_id": task_id},
+            )
+            if not claim.get("claimed"):
+                logger.info(
+                    "[Task ID: %s] Skipping duplicate recovery task delivery in state=%s",
+                    task_id,
+                    claim.get("state"),
+                )
+                return {
+                    "status": "duplicate_recovery_task_ignored",
+                    "preprocessing_summary": {},
+                    "main_processing_output": None,
+                    "postprocessing_summary": {},
+                    "interrupted_by_soft_time_limit": False,
+                    "interrupted_by_revocation": False,
+                    "_celery_task_state": "SUCCESS",
+                }
 
         await _update_user_task_execution_state(
             request_data,
@@ -701,10 +919,22 @@ async def _async_process_ai_skill_ask_task(
     elif cache_service_instance and request_data.user_id:
         cached_user_data = await cache_service_instance.get_user_by_id(request_data.user_id)
         
-        if not cached_user_data:
-            # ON-DEMAND CACHE WARMING: User not in cache, fetch from Directus and cache.
+        cache_missing_required_billing_fields = (
+            not cached_user_data
+            or not cached_user_data.get("vault_key_id")
+            or not cached_user_data.get("encrypted_credit_balance")
+        )
+        if cache_missing_required_billing_fields:
+            # ON-DEMAND CACHE WARMING: User not in cache, or cache was seeded by
+            # a lightweight API-key auth path without vault/billing fields.
             # This is required for both internal and external requests to check balance.
-            logger.info(f"[Task ID: {task_id}] User not in cache, warming cache for user_id: {request_data.user_id}")
+            if cached_user_data:
+                logger.warning(
+                    f"[Task ID: {task_id}] Cached user data is missing vault/billing fields; "
+                    f"refreshing from Directus for user_id: {request_data.user_id}"
+                )
+            else:
+                logger.info(f"[Task ID: {task_id}] User not in cache, warming cache for user_id: {request_data.user_id}")
             try:
                 if directus_service_instance:
                     # Fetch user data using /users/{id} endpoint (NOT /items/users which requires special permissions)
@@ -853,6 +1083,22 @@ async def _async_process_ai_skill_ask_task(
                                 f"after removing override syntax. New length: {len(cleaned_messages[i]['content'])}"
                             )
                             break
+
+        if (not user_overrides or not user_overrides.has_overrides) and request_data.current_user_content:
+            user_overrides = parse_overrides(
+                request_data.current_user_content,
+                log_prefix=f"[Task ID: {task_id}]",
+            )
+            if user_overrides.has_overrides:
+                request_data.current_user_content = user_overrides.cleaned_message
+                logger.info(
+                    f"[Task ID: {task_id}] USER_OVERRIDE: Detected user overrides in current_user_content. "
+                    f"model_id={user_overrides.model_id}, "
+                    f"model_provider={user_overrides.model_provider}, "
+                    f"mate_id={user_overrides.mate_id}, "
+                    f"skills={user_overrides.skills}, "
+                    f"focus_modes={user_overrides.focus_modes}"
+                )
     except Exception as e_override:
         logger.warning(
             f"[Task ID: {task_id}] Failed to parse user overrides (non-fatal): {e_override}. "
@@ -1034,7 +1280,7 @@ async def _async_process_ai_skill_ask_task(
 
                         # Create a summary system message in the AI cache
                         import uuid as _uuid
-                        summary_message_id = f"compression_{_uuid.uuid4().hex[:12]}"
+                        summary_message_id = str(_uuid.uuid4())
                         summary_timestamp = int(time.time())
 
                         # Vault-encrypt the summary content for AI cache storage
@@ -1291,17 +1537,7 @@ async def _async_process_ai_skill_ask_task(
             logger.error(f"[Task ID: {task_id}] Error during preprocessing: {e}", exc_info=True)
             raise RuntimeError(f"Preprocessing failed: {e}")
 
-        # --- User override: start focus mode from @focus:app_id:focus_id ---
-        # When the user explicitly mentions exactly one focus mode, set it as active for this request
-        # so the main processor injects the focus prompt and the model runs in that focus.
-        if user_overrides and len(user_overrides.focus_modes) == 1:
-            app_id, focus_id = user_overrides.focus_modes[0]
-            requested_focus_id = f"{app_id}-{focus_id}"
-            request_data.active_focus_id = requested_focus_id
-            logger.info(
-                f"[Task ID: {task_id}] USER_OVERRIDE: Set active_focus_id from @focus to '{requested_focus_id}' for this request."
-            )
-        elif user_overrides:
+        if user_overrides:
             available_focus_modes = set()
             for app_id, app_metadata in (discovered_apps_metadata or {}).items():
                 focuses = getattr(app_metadata, "focuses", None) or []
@@ -1910,7 +2146,9 @@ async def _async_process_ai_skill_ask_task(
                     chat_has_title=combined_chat_has_title,
                     mate_id=current_mate_id,  # Preserve current mate instead of forcing re-selection
                     active_focus_id=combined_active_focus_id or request_data.active_focus_id,
-                    user_preferences={}
+                    user_preferences={},
+                    embed_file_path_index=request_data.embed_file_path_index,
+                    has_image_upload_embed=getattr(request_data, "has_image_upload_embed", False),
                 )
                 
                 # Dispatch a new Celery task for the combined queued message
@@ -2102,6 +2340,11 @@ async def _async_process_ai_skill_ask_task(
             # chat_summary: prefer post-processing version (includes latest exchange) over preprocessing
             # chat_tags: from preprocessing (full history context)
             final_chat_summary = postprocessing_result.chat_summary or chat_summary
+            source_title_v = getattr(request_data, 'current_chat_title_v', None)
+            source_metadata_v = getattr(request_data, 'current_chat_metadata_v', None)
+            if preprocessing_result and preprocessing_result.title and not request_data.chat_has_title:
+                source_title_v = max(int(source_title_v or 0), 1)
+                source_metadata_v = max(int(source_metadata_v or 0), source_title_v)
             if postprocessing_result.chat_summary:
                 logger.info(f"[Task ID: {task_id}] Using post-processing chat_summary (length: {len(postprocessing_result.chat_summary)})")
             else:
@@ -2124,6 +2367,8 @@ async def _async_process_ai_skill_ask_task(
                 "quick_tip_slugs": postprocessing_result.quick_tip_slugs,
                 "task_proposals": [proposal.model_dump() for proposal in postprocessing_result.task_proposals],
                 "task_update_proposals": [proposal.model_dump() for proposal in postprocessing_result.task_update_proposals],
+                "source_title_v": source_title_v,
+                "source_metadata_v": source_metadata_v,
             }
 
             # OPE-265: Include updated title only when the postprocessor determined a title change is needed
@@ -2184,6 +2429,7 @@ async def _async_process_ai_skill_ask_task(
                         secrets_manager=secrets_manager,
                         task_id=task_id,
                         language=_inspiration_language,
+                        directus_service=directus_service_instance,
                     )
                 except Exception as e_first_run:
                     # Non-fatal: daily inspiration generation is a best-effort feature
@@ -2277,13 +2523,7 @@ async def _async_process_ai_skill_ask_task(
                 ai_execution_state=final_status_message,
             )
         else:
-            await _update_user_task_execution_state(
-                request_data,
-                directus_service_instance,
-                ai_execution_state="completed",
-                status="done",
-                completed_at=int(time.time()),
-            )
+            await _complete_user_task_execution(request_data, directus_service_instance)
 
     return {
         "task_id": task_id,
@@ -2348,12 +2588,16 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
     asyncio.set_event_loop(loop)
     
     task_result_dict: Optional[Dict[str, Any]] = None
+    legacy_completion_requires_persistence = False
     try:
         # Update progress before calling async helper
         self.update_state(state='PROGRESS', meta={'step': 'preprocessing', 'status': 'started'})
 
         task_result_dict = loop.run_until_complete(
             _async_process_ai_skill_ask_task(task_id, request_data, skill_config) # 'self' is not passed
+        )
+        legacy_completion_requires_persistence = completion_requires_persistence(
+            task_result_dict
         )
         
         # Update progress after preprocessing if successful and before main processing (if applicable)
@@ -2380,6 +2624,11 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             failure_meta['interrupted_by_soft_time_limit'] = task_result_dict.get('interrupted_by_soft_time_limit', False)
             failure_meta['interrupted_by_revocation'] = task_result_dict.get('interrupted_by_revocation', False)
             self.update_state(state='FAILURE', meta=failure_meta)
+            loop.run_until_complete(_mark_sub_chat_terminal_failure(
+                request_data,
+                task_id,
+                cancelled=bool(task_result_dict.get('interrupted_by_revocation')),
+            ))
             return task_result_dict
         
         # If successful or partially successful (due to interruption)
@@ -2430,6 +2679,18 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after soft time limit: {cleanup_err}")
         try:
+            loop.run_until_complete(_mark_sub_chat_terminal_failure(
+                request_data,
+                task_id,
+                cancelled=bool(was_revoked),
+            ))
+        except Exception as sub_chat_err:
+            logger.error(f"[Task ID: {task_id}] Failed to settle sub-chat after soft time limit: {sub_chat_err}")
+        try:
+            loop.run_until_complete(_mark_recovery_inference_failed(request_data, task_id, "soft_time_limit"))
+        except Exception as recovery_err:
+            logger.error(f"[Task ID: {task_id}] Failed to mark recovery inference failed: {recovery_err}")
+        try:
             loop.run_until_complete(_update_user_task_execution_state_with_new_directus(
                 request_data,
                 ai_execution_state="failed",
@@ -2466,6 +2727,18 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after RuntimeError: {cleanup_err}")
         try:
+            loop.run_until_complete(_mark_sub_chat_terminal_failure(
+                request_data,
+                task_id,
+                cancelled=bool(was_revoked),
+            ))
+        except Exception as sub_chat_err:
+            logger.error(f"[Task ID: {task_id}] Failed to settle sub-chat after RuntimeError: {sub_chat_err}")
+        try:
+            loop.run_until_complete(_mark_recovery_inference_failed(request_data, task_id, "runtime_error"))
+        except Exception as recovery_err:
+            logger.error(f"[Task ID: {task_id}] Failed to mark recovery inference failed: {recovery_err}")
+        try:
             loop.run_until_complete(_update_user_task_execution_state_with_new_directus(
                 request_data,
                 ai_execution_state="failed",
@@ -2501,6 +2774,18 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after exception: {cleanup_err}")
         try:
+            loop.run_until_complete(_mark_sub_chat_terminal_failure(
+                request_data,
+                task_id,
+                cancelled=bool(was_revoked),
+            ))
+        except Exception as sub_chat_err:
+            logger.error(f"[Task ID: {task_id}] Failed to settle sub-chat after exception: {sub_chat_err}")
+        try:
+            loop.run_until_complete(_mark_recovery_inference_failed(request_data, task_id, "unhandled_error"))
+        except Exception as recovery_err:
+            logger.error(f"[Task ID: {task_id}] Failed to mark recovery inference failed: {recovery_err}")
+        try:
             loop.run_until_complete(_update_user_task_execution_state_with_new_directus(
                 request_data,
                 ai_execution_state="failed",
@@ -2517,6 +2802,25 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             })
         raise Ignore()
     finally:
+        if (
+            "request_data" in locals()
+            and not request_data.is_incognito
+            and not request_data.is_external
+            and not request_data.recovery_task_id
+            and request_data.legacy_cutover_task_id
+        ):
+            try:
+                loop.run_until_complete(
+                    _finalize_legacy_cutover_admission(
+                        request_data,
+                        legacy_completion_requires_persistence,
+                    )
+                )
+            except Exception:
+                logger.error(
+                    "Failed to finalize durable legacy cutover admission",
+                    exc_info=True,
+                )
         # Clean up live mock context vars (no-op if not activated)
         if os.getenv("MOCK_EXTERNAL_APIS") == "true":
             try:

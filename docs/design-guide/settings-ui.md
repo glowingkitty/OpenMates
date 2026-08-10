@@ -10,6 +10,7 @@ Single source of truth for all settings page components. Every visual element on
 **Preview:** `/dev/preview/settings`
 **Figma:** "settings_menu_elements" frame (node 4944-31418)
 **Components:** `frontend/packages/ui/src/components/settings/elements/`
+**Inventory:** 26 component files; the table below counts 29 visual variants because `SettingsItem` has five variants.
 
 ---
 

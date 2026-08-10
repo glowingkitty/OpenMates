@@ -32,6 +32,49 @@ logger = logging.getLogger(__name__)
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_TIMEOUT = 10
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
+INTERNAL_REQUEST_CONTEXT_FIELDS = {
+    '_user_id',
+    '_api_key_name',
+    '_api_key_hash',
+    '_device_hash',
+    '_external_request',
+}
+
+
+def _is_list_annotation(annotation: Any) -> bool:
+    origin = get_origin(annotation)
+    if origin is list or annotation is list:
+        return True
+    annotation_text = str(annotation)
+    return "List" in annotation_text or annotation_text.startswith("list[")
+
+
+def _pydantic_model_accepts_internal_context(model_type: Any) -> bool:
+    """Return true when a request model declares underscore context aliases."""
+
+    fields = getattr(model_type, "model_fields", None) or getattr(model_type, "__fields__", {})
+    for field_name, field_info in fields.items():
+        aliases = {field_name, getattr(field_info, "alias", None)}
+        validation_alias = getattr(field_info, "validation_alias", None)
+        if isinstance(validation_alias, str):
+            aliases.add(validation_alias)
+        if any(alias in INTERNAL_REQUEST_CONTEXT_FIELDS for alias in aliases if alias):
+            return True
+    return False
+
+
+def _clean_request_body_for_pydantic_model(
+    request_body: Dict[str, Any],
+    model_types: list[Any],
+) -> Dict[str, Any]:
+    """Strip internal metadata unless the request model explicitly accepts it."""
+
+    preserve_context = any(_pydantic_model_accepts_internal_context(model_type) for model_type in model_types)
+    return {
+        k: v for k, v in request_body.items()
+        if not k.startswith("_") or (preserve_context and k in INTERNAL_REQUEST_CONTEXT_FIELDS)
+    }
+
 
 class CreditChargePayload(BaseModel):
     user_id: str
@@ -377,6 +420,9 @@ class BaseApp:
             # e.g. images-view uses this to look up the embed in Redis by file_path (original filename)
             file_path_index = request_body.get("_file_path_index")
             connected_account_access_tokens = request_body.get("_connected_account_access_tokens")
+            secrets_manager = request_body.get("_secrets_manager")
+            cache_service = request_body.get("_cache_service")
+            encryption_service = request_body.get("_encryption_service")
 
             # Initialize skill instance. Server-side AI processing may inject a
             # validated model override for user-configurable app skill defaults.
@@ -437,6 +483,9 @@ class BaseApp:
                 # that resolve the human-readable filename passed by the LLM to the internal embed ID
                 "file_path_index": file_path_index,
                 "connected_account_access_tokens": connected_account_access_tokens,
+                "secrets_manager": secrets_manager,
+                "cache_service": cache_service,
+                "encryption_service": encryption_service,
             }
             # Remove None values
             skill_kwargs = {k: v for k, v in skill_kwargs.items() if v is not None}
@@ -513,15 +562,14 @@ class BaseApp:
                         break
 
                 if request_model or union_types:
-                    # Remove internal metadata fields before instantiating Pydantic model
-                    # EXCEPT for context fields (_user_id, _api_key_name, _api_key_hash, _device_hash, _external_request) which are
-                    # used by skills like AI ask to identify the authenticated user from external API requests
-                    # These context fields are injected by the external API handler and need to be preserved
-                    context_fields = {'_user_id', '_api_key_name', '_api_key_hash', '_device_hash', '_external_request'}
-                    clean_request_body = {
-                        k: v for k, v in request_body.items() 
-                        if not k.startswith("_") or k in context_fields
-                    }
+                    # Remove internal metadata fields before instantiating Pydantic models.
+                    # Most skills receive context through execute() kwargs; only models that
+                    # explicitly declare underscore aliases, such as ai.ask's OpenAI-compatible
+                    # request, should see these injected fields.
+                    clean_request_body = _clean_request_body_for_pydantic_model(
+                        request_body,
+                        list(union_types) if union_types else [request_model],
+                    )
 
                     # Instantiate the Pydantic model from request body
                     try:
@@ -569,7 +617,7 @@ class BaseApp:
                             if k in execute_params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in execute_params.values())
                         }
 
-                        if first_param and 'List' in str(first_param.annotation):
+                        if first_param and _is_list_annotation(first_param.annotation):
                             # Execute method expects a list - extract requests from Pydantic model
                             if hasattr(request_obj, 'requests'):
                                 # Serialize typed Pydantic items to plain dicts so execute()
@@ -604,10 +652,9 @@ class BaseApp:
                 else:
                     # No Pydantic model found - try unpacking as keyword arguments
                     # Remove internal metadata fields but preserve context fields for API authentication
-                    context_fields = {'_user_id', '_api_key_name', '_api_key_hash', '_device_hash', '_external_request'}
                     clean_request_body = {
                         k: v for k, v in request_body.items() 
-                        if not k.startswith("_") or k in context_fields
+                        if not k.startswith("_") or k in INTERNAL_REQUEST_CONTEXT_FIELDS
                     }
                     logger.info(
                         f"No Pydantic model found for skill '{skill_definition.id}', using kwargs. "
@@ -634,7 +681,7 @@ class BaseApp:
                     if 'requests' not in clean_request_body and 'requests' in execute_params:
                         requests_param = execute_params['requests']
                         if (requests_param.default is inspect.Parameter.empty
-                                and 'List' in str(requests_param.annotation)):
+                                and _is_list_annotation(requests_param.annotation)):
                             # Collect non-metadata fields that likely belong to a single request item
                             request_item_fields = {
                                 k: v for k, v in clean_request_body.items()
@@ -874,7 +921,7 @@ class BaseApp:
         credits_to_charge: int,
         skill_id: str,
         app_id: str,
-        idempotency_key: Optional[str] = None,
+        idempotency_key: str,
         usage_details: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         if not self.is_valid:
@@ -889,7 +936,7 @@ class BaseApp:
             "credits": credits_to_charge,
             "skill_id": skill_id,
             "app_id": app_id,
-            "idempotency_key": idempotency_key or f"{user_id_hash}-{app_id}-{skill_id}-{os.urandom(8).hex()}",
+            "idempotency_key": idempotency_key,
             "usage_details": usage_details or {}
         }
         

@@ -16,6 +16,7 @@ describe('EMBED_TEXT_RENDERERS registry', () => {
 			'app:videos:search', 'videos-video', 'app:videos:get_transcript',
 			'app:travel:search_connections', 'app:travel:search_stays', 'travel-connection', 'travel-stay',
 			'app:images:generate', 'image', 'images-image-result',
+			'app:models3d:generate',
 			'app:maps:search', 'maps-place', 'maps',
 			'app:home:search', 'home-listing',
 			'app:health:search_appointments', 'health-appointment',

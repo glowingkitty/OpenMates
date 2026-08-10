@@ -29,12 +29,12 @@ async def handle_delete_draft(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("delete_draft", user_id, payload, user_otel_attrs)
     except Exception:
         pass
     try:
-        chat_id = payload.get("chatId")
+        chat_id = payload.get("chat_id") or payload.get("chatId")
         if not chat_id:
             logger.warning(
                 f"User {user_id}, Device {device_fingerprint_hash}: Received delete_draft without chatId."
@@ -130,25 +130,21 @@ async def handle_delete_draft(
                 )
                 return
 
-        # Attempt to delete from cache
-        cache_delete_success = await cache_service.delete_user_draft_from_cache(
-            user_id=user_id,
-            chat_id=chat_id
-        )
+        # Store a versioned tombstone instead of deleting the key outright. This
+        # prevents older async persistence or stale Directus rows from
+        # resurrecting encrypted draft content after the delete receipt is sent.
+        deleted_draft_v = await cache_service.increment_user_draft_version(user_id, chat_id)
+        cache_delete_success = False
+        if deleted_draft_v is not None:
+            cache_delete_success = await cache_service.tombstone_user_draft_in_cache(
+                user_id=user_id,
+                chat_id=chat_id,
+                draft_version=deleted_draft_v,
+            )
         if cache_delete_success:
-            logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Successfully deleted draft from cache for chat_id: {chat_id}.")
+            logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Successfully tombstoned draft in cache for chat_id: {chat_id}.")
         else:
-            logger.warning(f"User {user_id}, Device {device_fingerprint_hash}: Draft cache key not found or failed to delete from cache for chat_id: {chat_id}.")
-
-        # Also attempt to delete the user-specific draft version from the general chat versions key
-        version_delete_success = await cache_service.delete_user_draft_version_from_chat_versions(
-            user_id=user_id,
-            chat_id=chat_id
-        )
-        if version_delete_success:
-            logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Successfully processed deletion of user-specific draft version from general chat versions for chat_id: {chat_id}.")
-        else:
-            logger.warning(f"User {user_id}, Device {device_fingerprint_hash}: Failed to delete user-specific draft version from general chat versions for chat_id: {chat_id}.")
+            logger.warning(f"User {user_id}, Device {device_fingerprint_hash}: Failed to tombstone draft in cache for chat_id: {chat_id}.")
 
         # Clean up draft-only chats from the sorted set.
         # If the chat has no messages in Directus (i.e., it was a draft-only new chat),

@@ -24,12 +24,14 @@ from backend.core.api.app.services.directus.gift_card_methods import (
     get_user_purchased_gift_cards
 )
 from backend.core.api.app.services.directus.chat_methods import ChatMethods # Import ChatMethods class
+from backend.core.api.app.services.directus.chat_key_wrapper_methods import ChatKeyWrapperMethods
 # from backend.core.api.app.services.directus.app_memory_methods import AppMemoryMethods # Old import, replaced
 from backend.core.api.app.services.directus.app_settings_and_memories_methods import AppSettingsAndMemoriesMethods # New import
 from backend.core.api.app.services.directus.usage import UsageMethods # Corrected import
 from backend.core.api.app.services.directus.analytics_methods import AnalyticsMethods
 from backend.core.api.app.services.directus.embed_methods import EmbedMethods # Import EmbedMethods class
 from backend.core.api.app.services.directus.project_methods import ProjectMethods
+from backend.core.api.app.services.directus.team_methods import TeamMethods
 from backend.core.api.app.services.directus.user_plan_methods import UserPlanMethods
 from backend.core.api.app.services.directus.user_task_methods import UserTaskMethods
 from backend.core.api.app.services.directus.admin_methods import AdminMethods # Import AdminMethods class
@@ -78,6 +80,7 @@ class DirectusService:
         self._auth_lock = None
         self.max_retries = int(os.getenv("DIRECTUS_MAX_RETRIES", "3"))
         
+        self._owns_cache_service = cache_service is None
         self.cache = cache_service or CacheService()
         self.cache_ttl = int(os.getenv("DIRECTUS_CACHE_TTL", "3600"))
         # Directus' default ACCESS_TOKEN_TTL is 15 minutes. Cache admin tokens a
@@ -98,8 +101,10 @@ class DirectusService:
         self.usage = UsageMethods(self, self.encryption_service)
         self.analytics = AnalyticsMethods(self) # Anonymous analytics methods
         self.chat = ChatMethods(self) # Initialize ChatMethods
+        self.chat_key_wrapper = ChatKeyWrapperMethods(self) # Initialize chat key wrapper migration/read helpers
         self.embed = EmbedMethods(self) # Initialize EmbedMethods
         self.project = ProjectMethods(self) # Initialize ProjectMethods
+        self.team = TeamMethods(self) # Initialize Teams V1 team/membership methods
         self.user_plan = UserPlanMethods(self) # Initialize Plans V1 user-facing plan methods
         self.user_task = UserTaskMethods(self) # Initialize Tasks V1 user-facing task methods
         self.admin = AdminMethods(self) # Initialize AdminMethods
@@ -119,6 +124,8 @@ class DirectusService:
         """Close the httpx client."""
         await self._client.aclose()
         logger.info("DirectusService httpx client closed.")
+        if self._owns_cache_service and self.cache is not None:
+            await self.cache.close()
 
     async def get_items(
         self,
@@ -126,7 +133,8 @@ class DirectusService:
         params=None,
         no_cache=True,
         return_none_on_403: bool = False,
-        admin_required: bool = False
+        admin_required: bool = False,
+        raise_on_error: bool = False,
     ):
         """
         Fetch items from a Directus collection with optional query params.
@@ -148,7 +156,7 @@ class DirectusService:
         # user_passkeys contains user_id which requires admin permissions
         # usage collection contains encrypted user data and requires admin permissions
         # directus_sessions is a system collection that requires admin permissions
-        sensitive_collections = ['users', 'directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage', 'directus_sessions']
+        sensitive_collections = ['users', 'directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage', 'usage_period_rollups', 'directus_sessions']
         
         if admin_required or collection in sensitive_collections:
             # Ensure we have a valid admin token for sensitive collections
@@ -156,6 +164,8 @@ class DirectusService:
             if not admin_token:
                 # This is critical because callers explicitly requested admin access.
                 logger.error(f"Failed to get admin token for collection: {collection}")
+                if raise_on_error:
+                    raise RuntimeError(f"Directus admin authentication failed for {collection}")
                 return []
             headers = {"Authorization": f"Bearer {admin_token}"}
             logger.info(f"Using admin token for collection: {collection}")
@@ -198,6 +208,8 @@ class DirectusService:
 
         if response_obj is None:
             logger.error(f"Directus get_items for '{collection}': _make_api_request returned None.")
+            if raise_on_error:
+                raise RuntimeError(f"Directus request returned no response for {collection}")
             return []
 
         try:
@@ -208,11 +220,15 @@ class DirectusService:
                         return response_json["data"]  # Return the list of items
                     else:
                         logger.error(f"Directus get_items for '{collection}': 'data' field is not a list. Response JSON: {response_json}")
+                        if raise_on_error:
+                            raise RuntimeError(f"Directus returned invalid data for {collection}")
                         return []
                 elif response_json and isinstance(response_json, list): # If API directly returns a list
                     return response_json
                 else:
                     logger.warning(f"Directus get_items for '{collection}': Unexpected JSON structure. Response JSON: {response_json}")
+                    if raise_on_error:
+                        raise RuntimeError(f"Directus returned an invalid response for {collection}")
                     return []
             elif response_obj.status_code == 403:
                 # Log detailed error for 403 Forbidden
@@ -227,12 +243,18 @@ class DirectusService:
                 # Returning None here allows callers to detect permission errors and retry with safer field sets.
                 if return_none_on_403:
                     return None
+                if raise_on_error:
+                    raise RuntimeError(f"Directus denied access to {collection}")
                 return []
             else:
                 logger.warning(f"Directus get_items for '{collection}' failed with status {response_obj.status_code}. Response text: {response_obj.text[:200]}")
+                if raise_on_error:
+                    raise RuntimeError(f"Directus request failed for {collection}")
                 return []
         except Exception as e: # Catch JSONDecodeError or other parsing issues
             logger.error(f"Directus get_items for '{collection}': Error parsing JSON response. Status: {response_obj.status_code}, Error: {e}, Response text: {response_obj.text[:200]}", exc_info=True)
+            if raise_on_error:
+                raise
             return []
 
     # Item creation method
@@ -1119,7 +1141,7 @@ class DirectusService:
             url = f"{self.base_url}/items/{collection}/{item_id}"
 
         # For sensitive collections or when explicitly requested, use admin token
-        sensitive_collections = ['users', 'directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage', 'directus_sessions', 'demo_chats']
+        sensitive_collections = ['users', 'directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage', 'usage_period_rollups', 'directus_sessions', 'demo_chats']
         headers = {}
         if admin_required or collection in sensitive_collections:
             # Ensure we have a valid admin token for sensitive collections
@@ -1159,6 +1181,50 @@ class DirectusService:
         except Exception as e:
             logger.error(f"Error parsing update response for {collection}/{item_id}: {e}. Status: {response_obj.status_code}, Response: {response_obj.text[:200]}", exc_info=True)
             return None
+
+    async def update_item_if_version(
+        self,
+        collection: str,
+        item_id: str,
+        data: Dict[str, Any],
+        expected_version: int,
+        *,
+        owner_hash_field: str | None = None,
+        owner_hash: str | None = None,
+        admin_required: bool = False,
+    ) -> Optional[Dict]:
+        """Update one item only when its stored version still matches."""
+        url = f"{self.base_url}/items/{collection}"
+        params: Dict[str, Any] = {
+            "filter[id][_eq]": item_id,
+            "filter[version][_eq]": expected_version,
+            "limit": 1,
+        }
+        if owner_hash_field and owner_hash:
+            params[f"filter[{owner_hash_field}][_eq]"] = owner_hash
+
+        headers = {}
+        if admin_required:
+            admin_token = await self.ensure_auth_token(admin_required=True)
+            if not admin_token:
+                logger.error("Failed to get admin token for conditional update in collection: %s", collection)
+                return None
+            headers = {"Authorization": f"Bearer {admin_token}"}
+
+        response_obj = await self._make_api_request("PATCH", url, headers=headers, json={"keys": [item_id], "data": data}, params=params)
+        if response_obj is None:
+            logger.error("Conditional update for %s/%s returned no response", collection, item_id)
+            return None
+        if not 200 <= response_obj.status_code < 300:
+            logger.warning("Conditional update for %s/%s failed with HTTP %s", collection, item_id, response_obj.status_code)
+            return None
+        response_json = response_obj.json()
+        data_value = response_json.get("data") if isinstance(response_json, dict) else None
+        if isinstance(data_value, list):
+            return data_value[0] if data_value else None
+        if isinstance(data_value, dict):
+            return data_value
+        return None
 
     # Assign the internal helper to the class
     update_item = _update_item

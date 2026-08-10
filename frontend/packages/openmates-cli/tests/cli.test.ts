@@ -11,7 +11,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -29,6 +29,7 @@ import {
   INTEREST_TAG_IDS,
   normalizeInterestTagIds,
 } from "../dist/index.js";
+import { buildTravelConnectionsRequest, requireExactConfirmation, resolveProjectContext } from "../dist/cli.js";
 
 const execFileAsync = promisify(execFile);
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -65,6 +66,432 @@ function runCliWithoutSessionResult(args: string[]): { status: number | null; st
     });
     return { status: result.status, stdout: result.stdout, stderr: result.stderr };
   } finally {
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+async function withUpdateRequiredMock<T>(
+  run: (params: { apiUrl: string; tempHome: string; frameTypes: string[]; requestPaths: string[] }) => Promise<T>,
+): Promise<T> {
+  const tempHome = join(tmpdir(), `openmates-cli-update-required-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const stateDir = join(tempHome, ".openmates");
+  const frameTypes: string[] = [];
+  const requestPaths: string[] = [];
+  mkdirSync(stateDir, { recursive: true });
+  const wss = new WebSocketServer({ noServer: true });
+  const server = createServer((request, response) => {
+    if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
+    if (request.method === "POST" && request.url === "/v1/auth/session") {
+      writeJson(response, {
+        success: true,
+        ws_token: "fresh-ws-token",
+        user: { id: "11111111-1111-4111-8111-111111111111" },
+      });
+      return;
+    }
+    if (request.method === "GET" && request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false") {
+      writeJson(response, { data: { app_settings_memories: [] } });
+      return;
+    }
+    if (request.method === "GET" && request.url === "/v1/learning-mode") {
+      writeJson(response, { enabled: false, age_group: null, failed_attempts: 0, deactivation_blocked_until: null });
+      return;
+    }
+    response.writeHead(404);
+    response.end();
+  });
+  server.on("upgrade", (request, socket, head) => {
+    if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.on("message", (raw) => {
+        const frame = JSON.parse(raw.toString()) as { type: string };
+        frameTypes.push(frame.type);
+        if (frame.type === "chat_turn_preflight") {
+          ws.send(JSON.stringify({
+            type: "error",
+            payload: {
+              code: "client_update_required",
+              message: "Please update OpenMates before sending another saved chat message.",
+            },
+          }));
+        }
+      });
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, tempHome, frameTypes, requestPaths });
+  } finally {
+    wss.close();
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+async function withChatDeleteMock<T>(
+  run: (params: { apiUrl: string; tempHome: string; frameTypes: string[]; requestPaths: string[] }) => Promise<T>,
+): Promise<T> {
+  const tempHome = join(tmpdir(), `openmates-cli-chat-delete-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const stateDir = join(tempHome, ".openmates");
+  const frameTypes: string[] = [];
+  const requestPaths: string[] = [];
+  mkdirSync(stateDir, { recursive: true });
+  const wss = new WebSocketServer({ noServer: true });
+  const server = createServer((request, response) => {
+    if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
+    if (request.method === "POST" && request.url === "/v1/auth/session") {
+      writeJson(response, {
+        success: true,
+        ws_token: "fresh-ws-token",
+        user: { id: "11111111-1111-4111-8111-111111111111" },
+      });
+      return;
+    }
+    response.writeHead(404);
+    response.end();
+  });
+  server.on("upgrade", (request, socket, head) => {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.on("message", (raw) => {
+        const frame = JSON.parse(raw.toString()) as { type: string; payload?: { chat_id?: string; chatId?: string } };
+        frameTypes.push(frame.type);
+        if (frame.type === "delete_chat") {
+          ws.send(JSON.stringify({
+            type: "chat_deleted",
+            payload: { chat_id: frame.payload?.chat_id ?? frame.payload?.chatId },
+          }));
+        }
+      });
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    masterKeyStorage: "plaintext",
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, tempHome, frameTypes, requestPaths });
+  } finally {
+    wss.close();
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+async function withWorkspaceAskFallbackChatMock<T>(
+  run: (params: { apiUrl: string; tempHome: string; frameTypes: string[]; requestPaths: string[]; chatMessages: string[]; clientCapabilities: string[][] }) => Promise<T>,
+): Promise<T> {
+  const tempHome = join(tmpdir(), `openmates-cli-ask-fallback-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const stateDir = join(tempHome, ".openmates");
+  const frameTypes: string[] = [];
+  const requestPaths: string[] = [];
+  const chatMessages: string[] = [];
+  const clientCapabilities: string[][] = [];
+  mkdirSync(stateDir, { recursive: true });
+  const wss = new WebSocketServer({ noServer: true });
+  const server = createServer(async (request, response) => {
+    if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
+    if (request.method === "POST" && request.url === "/v1/workflows/ask") {
+      await readJsonBody(request);
+      writeJson(response, {
+        outcome: "fallback_to_chat",
+        applied: false,
+        fallback_to_chat: true,
+        fallback_message: "clarification required before applying workspace ask",
+        change_set_id: null,
+        summary: "clarification required before applying workspace ask",
+        changed_entries: [],
+        undo_all_command: null,
+        undo_entry_commands: [],
+        warnings: [],
+      });
+      return;
+    }
+    if (request.method === "POST" && request.url === "/v1/auth/session") {
+      writeJson(response, {
+        success: true,
+        ws_token: "fresh-ws-token",
+        user: { id: "11111111-1111-4111-8111-111111111111" },
+      });
+      return;
+    }
+    if (request.method === "GET" && request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false") {
+      writeJson(response, { data: { app_settings_memories: [] } });
+      return;
+    }
+    response.writeHead(404);
+    response.end();
+  });
+  server.on("upgrade", (request, socket, head) => {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      let turnId = "turn-1";
+      let chatId = "chat-1";
+      let messageId = "message-1";
+      ws.on("message", (raw) => {
+        const frame = JSON.parse(raw.toString()) as { type: string; payload?: Record<string, unknown> };
+        frameTypes.push(frame.type);
+        const payload = frame.payload ?? {};
+        if (frame.type === "chat_turn_preflight") {
+          turnId = String(payload.turn_id ?? turnId);
+          chatId = String(payload.chat_id ?? chatId);
+          messageId = String(payload.message_id ?? messageId);
+          ws.send(JSON.stringify({
+            type: "chat_turn_preflight_ack",
+            payload: { turn_id: turnId, preflight_id: "preflight-1", committed_messages_v: 1 },
+          }));
+          return;
+        }
+        if (frame.type === "chat_message_added") {
+          const message = payload.message as Record<string, unknown> | undefined;
+          if (typeof message?.content === "string") chatMessages.push(message.content);
+          clientCapabilities.push(Array.isArray(payload.client_capabilities) ? payload.client_capabilities.filter((item): item is string => typeof item === "string") : []);
+          ws.send(JSON.stringify({
+            type: "chat_message_confirmed",
+            payload: { chat_id: chatId, message_id: messageId, new_messages_v: 1 },
+          }));
+          setTimeout(() => {
+            ws.send(JSON.stringify({
+              type: "ai_message_update",
+              payload: {
+                chat_id: chatId,
+                user_message_id: messageId,
+                message_id: "assistant-1",
+                full_content_so_far: "I can help narrow this down. Which workflow should I update?",
+                is_final_chunk: true,
+                category: "general",
+                model_name: "Test Model",
+                recovery_job_id: "recovery-1",
+                recovery_protocol_version: 1,
+              },
+            }));
+            ws.send(JSON.stringify({
+              type: "post_processing_metadata",
+              payload: { chat_id: chatId, follow_up_request_suggestions: [] },
+            }));
+          }, 10);
+          return;
+        }
+        if (frame.type === "recovery_job_claim") {
+          ws.send(JSON.stringify({
+            type: "recovery_job_claimed",
+            payload: {
+              job_id: "recovery-1",
+              state: "TERMINAL",
+              chat_id: chatId,
+              turn_id: turnId,
+              assistant_message_id: "assistant-1",
+              chat_key_version: 1,
+            },
+          }));
+        }
+      });
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    masterKeyStorage: "plaintext",
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, tempHome, frameTypes, requestPaths, chatMessages, clientCapabilities });
+  } finally {
+    wss.close();
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+async function withGoalChatMock<T>(
+  run: (params: { apiUrl: string; tempHome: string; frameTypes: string[]; requestPaths: string[]; chatMessages: string[]; planRequests: Record<string, unknown>[] }) => Promise<T>,
+): Promise<T> {
+  const tempHome = join(tmpdir(), `openmates-cli-goal-chat-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const stateDir = join(tempHome, ".openmates");
+  const frameTypes: string[] = [];
+  const requestPaths: string[] = [];
+  const chatMessages: string[] = [];
+  const planRequests: Record<string, unknown>[] = [];
+  let latestChatId = "11111111-2222-4333-8444-555555555555";
+  let latestEncryptedChatKey = "";
+  mkdirSync(stateDir, { recursive: true });
+  const wss = new WebSocketServer({ noServer: true });
+  const server = createServer(async (request, response) => {
+    if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
+    if (request.method === "POST" && request.url === "/v1/auth/session") {
+      writeJson(response, {
+        success: true,
+        ws_token: "fresh-ws-token",
+        user: { id: "11111111-1111-4111-8111-111111111111" },
+      });
+      return;
+    }
+    if (request.method === "GET" && request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false") {
+      writeJson(response, { data: { app_settings_memories: [] } });
+      return;
+    }
+    if (request.method === "POST" && request.url === "/v1/user-plans") {
+      const body = await readJsonBody(request);
+      planRequests.push(body);
+      writeJson(response, { plan: body });
+      return;
+    }
+    response.writeHead(404);
+    response.end();
+  });
+  server.on("upgrade", (request, socket, head) => {
+    if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      let turnId = "22222222-2222-4222-8222-222222222222";
+      let chatId = "11111111-2222-4333-8444-555555555555";
+      let messageId = "33333333-3333-4333-8333-333333333333";
+      ws.on("message", (raw) => {
+        const frame = JSON.parse(raw.toString()) as { type: string; payload?: Record<string, unknown> };
+        frameTypes.push(frame.type);
+        const payload = frame.payload ?? {};
+        if (frame.type === "chat_turn_preflight") {
+          turnId = String(payload.turn_id ?? turnId);
+          chatId = String(payload.chat_id ?? chatId);
+          latestChatId = chatId;
+          latestEncryptedChatKey = String(payload.encrypted_chat_key ?? latestEncryptedChatKey);
+          messageId = String(payload.message_id ?? messageId);
+          ws.send(JSON.stringify({
+            type: "chat_turn_preflight_ack",
+            payload: { chat_id: chatId, turn_id: turnId, preflight_id: "preflight-1", committed_messages_v: 1 },
+          }));
+          return;
+        }
+        if (frame.type === "chat_message_added") {
+          const message = payload.message as Record<string, unknown> | undefined;
+          if (typeof message?.content === "string") chatMessages.push(message.content);
+          ws.send(JSON.stringify({
+            type: "chat_message_confirmed",
+            payload: { chat_id: chatId, message_id: messageId, new_messages_v: 1 },
+          }));
+          setTimeout(() => {
+            ws.send(JSON.stringify({
+              type: "ai_message_update",
+              payload: {
+                chat_id: chatId,
+                user_message_id: messageId,
+                message_id: "44444444-4444-4444-8444-444444444444",
+                full_content_so_far: "I will start with a concise plan.",
+                is_final_chunk: true,
+                category: "general",
+                model_name: "Test Model",
+                recovery_job_id: "recovery-1",
+                recovery_protocol_version: 1,
+              },
+            }));
+            ws.send(JSON.stringify({
+              type: "post_processing_metadata",
+              payload: { chat_id: chatId, follow_up_request_suggestions: [] },
+            }));
+          }, 10);
+          return;
+        }
+        if (frame.type === "recovery_job_claim") {
+          ws.send(JSON.stringify({
+            type: "recovery_job_claimed",
+            payload: {
+              job_id: "recovery-1",
+              state: "TERMINAL",
+              chat_id: chatId,
+              turn_id: turnId,
+              assistant_message_id: "44444444-4444-4444-8444-444444444444",
+              chat_key_version: 1,
+            },
+          }));
+        }
+        if (frame.type === "phased_sync_request") {
+          ws.send(JSON.stringify({
+            type: "phase_2_last_20_chats_ready",
+            payload: {
+              total_chat_count: 1,
+              chats: [{
+                chat_details: {
+                  id: latestChatId,
+                  encrypted_chat_key: latestEncryptedChatKey,
+                  messages_v: 1,
+                  title_v: 0,
+                  draft_v: 0,
+                  last_edited_overall_timestamp: 1780000000,
+                },
+              }],
+            },
+          }));
+          ws.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+        }
+      });
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    masterKeyStorage: "plaintext",
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, tempHome, frameTypes, requestPaths, chatMessages, planRequests });
+  } finally {
+    wss.close();
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
     rmSync(tempHome, { recursive: true, force: true });
   }
 }
@@ -207,6 +634,80 @@ async function withBillingInvoicesMockApi<T>(
   }
 }
 
+async function withUsageMockApi<T>(
+  run: (params: {
+    apiUrl: string;
+    requests: Array<{ method: string; url: string }>;
+    tempHome: string;
+  }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Array<{ method: string; url: string }> = [];
+  const tempHome = join(
+    tmpdir(),
+    `openmates-cli-usage-overview-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  );
+  const stateDir = join(tempHome, ".openmates");
+  mkdirSync(stateDir, { recursive: true });
+
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method === "GET" && request.url?.startsWith("/v1/settings/usage/overview")) {
+        assert.match(String(request.headers.cookie ?? ""), /auth_refresh_token=refresh-token/);
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, {
+          granularity: "weekly",
+          totals: { credits: 42, entries: 2, input_tokens: 100, output_tokens: 50, total_tokens: 150 },
+          periods: [
+            { period_key: "2026-W30", totals: { credits: 42, entries: 2, input_tokens: 100, output_tokens: 50, total_tokens: 150 } },
+          ],
+          freshness: { is_stale: false, staleness_seconds: 5 },
+        });
+        return;
+      }
+      if (request.method === "GET" && request.url?.startsWith("/v1/settings/usage/details")) {
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, { entries: [{ charge_id: "charge-1" }], count: 1 });
+        return;
+      }
+      if (request.method === "GET" && request.url?.startsWith("/v1/settings/usage/chat-total")) {
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, { chat_id: "chat-1", total_credits: 42 });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, requests, tempHome });
+  } finally {
+    server.closeAllConnections();
+    server.close();
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
 function readRepoText(path: string): string {
   return readFileSync(join(REPO_ROOT, path), "utf-8");
 }
@@ -217,6 +718,20 @@ describe("connected account import command", () => {
     const output = runCli(["connected-accounts", "--help"]);
     assert.match(output, /openmates connected-accounts import --payload <OMCA1\.\.\.>/);
     assert.match(output, /hidden prompt/);
+    assert.match(output, /Team connected accounts are not supported/);
+  });
+
+  it("rejects team connected-account imports in Teams V1", () => {
+    const result = runCliWithoutSessionResult([
+      "connected-accounts",
+      "import",
+      "--team",
+      "team-1",
+      "--payload",
+      "OMCA1.placeholder",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Team connected accounts are not supported yet/);
   });
 
   it("rejects passcodes passed as flags", () => {
@@ -247,6 +762,107 @@ describe("connected account import command", () => {
     const source = readRepoText("frontend/packages/openmates-cli/src/cli.ts");
     assert.doesNotMatch(source, /label: result\.label/);
     assert.doesNotMatch(source, /Connected account imported: \$\{result\.label\}/);
+  });
+});
+
+describe("Revolut Business connect-account command", () => {
+  it("generates a local private key and public X509 certificate without login", () => {
+    const tempHome = join(tmpdir(), `openmates-cli-revolut-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(tempHome, { recursive: true });
+    try {
+      const output = runCli(["connect-account", "revolut-business", "--json"], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+        REVOLUT_BUSINESS_SERVER_EGRESS_IPS: "8.8.8.8",
+      });
+      const result = JSON.parse(output) as Record<string, unknown>;
+      assert.equal(result.provider_id, "revolut_business");
+      assert.equal(result.environment, "sandbox");
+      assert.equal(result.certificate_title, "OpenMates FinanceApp");
+      assert.equal(result.oauth_redirect_uri, "https://app.dev.openmates.org/oauth/revolut-business/callback");
+      assert.deepEqual(result.server_egress_ip_addresses, ["8.8.8.8"]);
+      assert.equal(result.server_egress_ip_source, "configured");
+      assert.match(String(result.public_certificate_pem), /^-----BEGIN CERTIFICATE-----/);
+      assert.match(String(result.public_certificate_pem), /-----END CERTIFICATE-----$/);
+      assert.match(String(result.docs_url), /developer\.revolut\.com/);
+      assert.ok(existsSync(String(result.private_key_path)));
+      assert.ok(existsSync(String(result.public_certificate_path)));
+      assert.match(readFileSync(String(result.public_certificate_path), "utf-8"), /BEGIN CERTIFICATE/);
+      assert.match(readFileSync(String(result.private_key_path), "utf-8"), /BEGIN (RSA )?PRIVATE KEY/);
+    } finally {
+      rmSync(tempHome, { recursive: true, force: true });
+    }
+  });
+
+  it("prints Revolut setup guidance and refuses accidental overwrite", () => {
+    const tempHome = join(tmpdir(), `openmates-cli-revolut-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(tempHome, { recursive: true });
+    try {
+      const first = runCli(["connect-account", "revolut"], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+        REVOLUT_BUSINESS_SERVER_EGRESS_IPS: "8.8.8.8",
+      });
+      assert.match(first, /Certificate title: OpenMates FinanceApp/);
+      assert.match(first, /OAuth redirect URI: https:\/\/app\.dev\.openmates\.org\/oauth\/revolut-business\/callback/);
+      assert.match(first, /Production IP whitelist: 8\.8\.8\.8/);
+      assert.match(first, /X509 public key:/);
+      assert.match(first, /Manual setup docs: https:\/\/developer\.revolut\.com/);
+      const second = spawnSync("node", ["dist/cli.js", "connect-account", "revolut"], {
+        cwd: PACKAGE_ROOT,
+        encoding: "utf-8",
+        env: { ...process.env, TERM: "dumb", HOME: tempHome, USERPROFILE: tempHome },
+        timeout: 15_000,
+      });
+      assert.notEqual(second.status, 0);
+      assert.match(second.stderr, /already exist/);
+    } finally {
+      rmSync(tempHome, { recursive: true, force: true });
+    }
+  });
+
+  it("prints sandbox consent URL and validates exchange-code dry run", () => {
+    const consentOutput = runCliWithoutSession([
+      "connect-account",
+      "revolut-business",
+      "consent-url",
+      "--client-id",
+      "client-123",
+      "--json",
+    ]);
+    const consent = JSON.parse(consentOutput) as Record<string, string>;
+    assert.equal(consent.environment, "sandbox");
+    assert.match(consent.consent_url, /^https:\/\/sandbox-business\.revolut\.com\/app-confirm\?/);
+    assert.match(consent.consent_url, /client_id=client-123/);
+    assert.match(consent.consent_url, /scope=READ/);
+
+    const dryRunOutput = runCliWithoutSession([
+      "connect-account",
+      "revolut-business",
+      "exchange-code",
+      "--client-id",
+      "client-123",
+      "--code",
+      "https://app.dev.openmates.org/oauth/revolut-business/callback?code=oa_sand_test",
+      "--dry-run",
+      "--json",
+    ]);
+    const dryRun = JSON.parse(dryRunOutput) as Record<string, string | boolean>;
+    assert.equal(dryRun.provider_id, "revolut_business");
+    assert.equal(dryRun.code_present, true);
+    assert.equal(dryRun.token_url, "https://sandbox-b2b.revolut.com/api/1.0/auth/token");
+  });
+});
+
+describe("embeds preview command", () => {
+  it("prints application preview lifecycle help", () => {
+    const output = runCli(["embeds", "--help"]);
+    assert.match(output, /openmates embeds add-to-project <embed-id> <project-id>/);
+    assert.match(output, /openmates embeds remove-from-project <embed-id> <project-id>/);
+    assert.match(output, /openmates embeds preview start <embed-id> --chat-id <chat-id>/);
+    assert.match(output, /openmates embeds preview status <session-id>/);
+    assert.match(output, /openmates embeds preview open <session-id>/);
+    assert.match(output, /openmates embeds preview stop <session-id>/);
   });
 });
 
@@ -374,65 +990,144 @@ describe("benchmark command", () => {
   });
 });
 
+describe("plans command", () => {
+  it("is listed in global help and prints contextual help", () => {
+    assert.match(runCli(["help"]), /openmates plans \[--help\]/);
+    const output = runCli(["plans", "--help"]);
+    assert.match(output, /openmates plans create --goal <goal>/);
+    assert.match(output, /openmates plans <plan-id\|short-id> add-to-project <project-id>/);
+    assert.match(output, /openmates plans <plan-id\|short-id> remove-from-project <project-id>/);
+    assert.match(output, /openmates plans checks evidence <plan-id\|short-id>/);
+    assert.match(output, /openmates chats <chat-id> plans list/);
+  });
+});
+
 describe("remote-access command", () => {
   it("is listed in global help and prints contextual help", () => {
-    assert.match(runCli(["help"]), /openmates remote-access \[--help\]/);
+    assert.match(runCli(["help"]), /openmates remote-access \[--path <folder>\]/);
     const output = runCli(["remote-access", "--help"]);
-    assert.match(output, /remote-access start --path <folder>/);
-    assert.match(output, /remote-access search --source <id> <query>/);
+    assert.match(output, /openmates remote-access \[--path <folder>\]/);
+    assert.match(output, /remains connected in the foreground/);
+    assert.doesNotMatch(output, /remote-access start/);
+    assert.doesNotMatch(output, /remote-access status/);
+    assert.doesNotMatch(output, /remote-access search/);
+    assert.doesNotMatch(output, /encrypted-display-name/);
+    assert.doesNotMatch(output, /encrypted-metadata/);
+    assert.doesNotMatch(output, /--source-id/);
+    assert.match(output, /Repeated --path values replace default discovery/);
   });
 
-  it("starts, lists, and searches a local source without network access", () => {
+  it("rejects obsolete internal flags and public lifecycle subcommands", () => {
     const tempHome = join(tmpdir(), `openmates-cli-remote-access-${Date.now()}-${Math.random().toString(16).slice(2)}`);
     const repo = join(tempHome, "repo");
-    const bin = join(tempHome, "bin");
     mkdirSync(repo, { recursive: true });
-    mkdirSync(bin, { recursive: true });
-    const fakeRg = join(bin, "rg");
-    writeFileSync(
-      fakeRg,
-      `#!/usr/bin/env node\nconsole.log(${JSON.stringify(JSON.stringify({ type: "match", data: { path: { text: "src/App.ts" }, line_number: 7, lines: { text: "Project source" } } }))});\n`,
-    );
-    chmodSync(fakeRg, 0o755);
-    const env = { HOME: tempHome, USERPROFILE: tempHome, PATH: `${bin}:${process.env.PATH ?? ""}` };
+    const env = { HOME: tempHome, USERPROFILE: tempHome };
 
     try {
-      const missingEncryptedMetadata = spawnSync(
+      const obsoleteFlag = spawnSync(
         "node",
-        ["dist/cli.js", "remote-access", "start", "--path", repo, "--source-id", "source-missing", "--project", "project-1"],
+        ["dist/cli.js", "remote-access", "--path", repo, "--encrypted-metadata", "ciphertext"],
         { cwd: PACKAGE_ROOT, encoding: "utf-8", env: { ...process.env, TERM: "dumb", ...env }, timeout: 15_000 },
       );
-      assert.notEqual(missingEncryptedMetadata.status, 0);
-      assert.match(missingEncryptedMetadata.stderr, /requires --local-only or both --encrypted-display-name and --encrypted-metadata/);
+      assert.notEqual(obsoleteFlag.status, 0);
+      assert.match(obsoleteFlag.stderr, /Unsupported remote-access option: --encrypted-metadata/);
 
-      const startOutput = runCli(
-        ["remote-access", "start", "--path", repo, "--source-id", "source-1", "--project", "project-1", "--local-only", "--json"],
-        env,
-      );
-      const started = JSON.parse(startOutput) as { source: { sourceId: string; rootPath: string; cachePath: string } };
-      assert.equal(started.source.sourceId, "source-1");
-      assert.equal(started.source.rootPath, repo);
-      assert.equal(started.source.cachePath, join(tempHome, ".openmates", "remote-cache", "source-1"));
-
-      const statusOutput = runCli(["remote-access", "status", "--json"], env);
-      const status = JSON.parse(statusOutput) as { sources: Array<{ sourceId: string; status: string }> };
-      assert.deepEqual(status.sources.map((source) => source.sourceId), ["source-1"]);
-      assert.equal(status.sources[0]?.status, "connected");
-
-      const searchOutput = runCli(["remote-access", "search", "--source", "source-1", "Project", "--json"], env);
-      const search = JSON.parse(searchOutput) as { matches: Array<{ path: string; line: number; snippet: string }> };
-      assert.deepEqual(search.matches, [{ path: "src/App.ts", line: 7, snippet: "Project source" }]);
-
-      const invalidLimit = spawnSync(
-        "node",
-        ["dist/cli.js", "remote-access", "search", "--source", "source-1", "Project", "--limit", "NaN"],
-        { cwd: PACKAGE_ROOT, encoding: "utf-8", env: { ...process.env, TERM: "dumb", ...env }, timeout: 15_000 },
-      );
-      assert.notEqual(invalidLimit.status, 0);
-      assert.match(invalidLimit.stderr, /--limit must be a positive integer/);
+      for (const legacySubcommand of ["start", "status", "search", "stop"]) {
+        const result = spawnSync("node", ["dist/cli.js", "remote-access", legacySubcommand, "--json"], {
+          cwd: PACKAGE_ROOT,
+          encoding: "utf-8",
+          env: { ...process.env, TERM: "dumb", ...env },
+          timeout: 15_000,
+        });
+        assert.notEqual(result.status, 0);
+        assert.match(result.stderr, /does not accept public subcommands/);
+      }
     } finally {
       rmSync(tempHome, { recursive: true, force: true });
     }
+  });
+});
+
+describe("projects deterministic commands", () => {
+  it("documents CRUD, item/source navigation, and CLI-only requester commands", () => {
+    const output = runCli(["projects", "--help"]);
+    for (const command of [
+      "projects list",
+      "projects show",
+      "projects open",
+      "projects create",
+      "projects update",
+      "projects archive",
+      "projects unarchive",
+      "projects delete",
+      "projects items list",
+      "projects items remove",
+      "projects sources list",
+      "projects sources remove",
+      "projects files list",
+      "projects files search",
+      "projects files read",
+    ]) assert.match(output, new RegExp(command.replaceAll(" ", "\\s+")));
+    assert.match(output, /--personal\|--team <team>/);
+    assert.match(output, /live file requests require an explicit context/i);
+    assert.doesNotMatch(output, /LLM|fallback to chat/i);
+  });
+
+  it("returns JSON-safe confirmation and live-context errors before network access", () => {
+    const deletion = runCliWithoutSessionResult(["projects", "delete", "project-1", "--json"]);
+    assert.notEqual(deletion.status, 0);
+    assert.deepEqual(JSON.parse(deletion.stderr.trim()), {
+      error: { code: "confirmation_required", message: "Project deletion requires --confirm <exact-project-id>." },
+    });
+
+    const requester = runCliWithoutSessionResult(["projects", "files", "list", "project-1", "--json"]);
+    assert.notEqual(requester.status, 0);
+    assert.deepEqual(JSON.parse(requester.stderr.trim()), {
+      error: { code: "context_confirmation_required", message: "Live file requests require --personal or --team <team>." },
+    });
+
+    const sourceRemoval = runCliWithoutSessionResult(["projects", "sources", "remove", "project-1", "--source", "source-1", "--json"]);
+    assert.notEqual(sourceRemoval.status, 0);
+    assert.deepEqual(JSON.parse(sourceRemoval.stderr.trim()), {
+      error: { code: "confirmation_required", message: "Project source removal requires --confirm <source-id>." },
+    });
+  });
+
+  it("rejects mismatched exact confirmations", async () => {
+    await assert.rejects(
+      requireExactConfirmation("Project deletion", "project-1", { confirm: "project-2", json: true }),
+      (error: Error & { code?: string }) =>
+        error.code === "confirmation_mismatch"
+        && error.message === "Project deletion confirmation must exactly match 'project-1'.",
+    );
+  });
+
+  it("resolves duplicate membership rows for the same canonical Team", async () => {
+    const client = {
+      listTeams: async () => [
+        { team_id: "team-1", slug: "shared" },
+        { team_id: "team-1", slug: "shared" },
+      ],
+    };
+
+    assert.deepEqual(
+      await resolveProjectContext(client as never, { team: "shared" }, false),
+      { teamId: "team-1" },
+    );
+  });
+
+  it("rejects genuinely different Teams sharing a slug", async () => {
+    const client = {
+      listTeams: async () => [
+        { team_id: "team-1", slug: "shared" },
+        { team_id: "team-2", slug: "shared" },
+      ],
+    };
+
+    await assert.rejects(
+      resolveProjectContext(client as never, { team: "shared" }, false),
+      (error: Error & { code?: string }) => error.code === "ambiguous_team",
+    );
   });
 });
 
@@ -441,9 +1136,26 @@ describe("workflows command", () => {
     assert.match(runCli(["help"]), /openmates workflows \[--help\]/);
     const output = runCli(["workflows", "--help"]);
     assert.match(output, /openmates workflows list \[--json\]/);
+    assert.match(output, /openmates workflows <workflow-id> add-to-project <project-id>/);
+    assert.match(output, /openmates workflows <workflow-id> remove-from-project <project-id>/);
     assert.match(output, /openmates workflows input <text>/);
     assert.match(output, /openmates workflows input-follow-up <session-id> <text>/);
     assert.match(output, /openmates workflows run <workflow-id>/);
+  });
+
+  it("accepts documented idempotency-key flag for workflow runs", () => {
+    const result = runCliWithoutSessionResult([
+      "workflows",
+      "run",
+      "wf-test",
+      "--idempotency-key",
+      "stable-test-key",
+      "--json",
+    ]);
+
+    assert.notEqual(result.status, 0);
+    assert.doesNotMatch(result.stderr, /Missing --idempotency-key/);
+    assert.match(result.stderr, /Not logged in|login/i);
   });
 });
 
@@ -458,9 +1170,15 @@ describe("account interest commands", () => {
   it("normalizes interest tag IDs and rejects unknown values", () => {
     assert.deepEqual(
       normalizeInterestTagIds(["software_development", "run_code", "software_development"]),
-      ["software_development", "run_code"],
+      ["software_development"],
     );
-    assert.ok(INTEREST_TAG_IDS.includes("privacy"));
+    assert.deepEqual(normalizeInterestTagIds(["marketing_sales", "finance"]), [
+      "marketing",
+      "sales",
+      "finance_bookkeeping",
+      "personal_finances",
+    ]);
+    assert.ok(INTEREST_TAG_IDS.includes("privacy_personal_data"));
     assert.throws(
       () => normalizeInterestTagIds(["unknown_topic"]),
       /Unknown interest tag 'unknown_topic'/,
@@ -608,6 +1326,137 @@ async function withAnonymousMockApi<T>(
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+async function withSdkChatMockApi<T>(
+  run: (params: {
+    apiUrl: string;
+    apiKey: string;
+    requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }>;
+  }) => T | Promise<T>,
+): Promise<T> {
+  const apiKey = "sk-cli-chat-test";
+  const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }> = [];
+
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.url?.startsWith("/v1/sdk/") && request.headers.authorization !== `Bearer ${apiKey}`) {
+        writeJsonStatus(response, 401, { detail: "missing api key" });
+        return;
+      }
+
+      if (request.method === "POST" && request.url === "/v1/sdk/chats") {
+        const body = await readJsonBody(request);
+        requests.push({ method: request.method, url: request.url, body });
+        writeJson(response, {
+          persistent: false,
+          chat_id: null,
+          response: {
+            content: "api-key stateless chat ok",
+            raw: { success: true, data: { model: "test-model", category: "general_knowledge" } },
+          },
+        });
+        return;
+      }
+
+      if (request.method === "GET" && request.url?.startsWith("/v1/sdk/chats?")) {
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, { chats: [] });
+        return;
+      }
+
+      if (request.method === "GET" && request.url?.startsWith("/v1/sdk/chats/chat-1/messages")) {
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, {
+          chat: { id: "chat-1", title: "Windowed chat" },
+          messages: [{ id: "message-1", chat_id: "chat-1", role: "assistant", content: "latest window", created_at: 1 }],
+          has_more_before: true,
+        });
+        return;
+      }
+
+      if (request.method === "GET" && request.url === "/v1/sdk/chats/chat-1") {
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, {
+          chat: { id: "chat-1", title: "Full chat" },
+          messages: [{ id: "message-1", chat_id: "chat-1", role: "assistant", content: "full history", created_at: 1 }],
+        });
+        return;
+      }
+
+      if (request.method === "DELETE" && request.url?.startsWith("/v1/sdk/chats/")) {
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, { deleted: true });
+        return;
+      }
+
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, apiKey, requests });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
+async function withSdkChatDeniedAiAskMockApi<T>(
+  run: (params: {
+    apiUrl: string;
+    apiKey: string;
+    requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }>;
+  }) => T | Promise<T>,
+): Promise<T> {
+  const apiKey = "sk-cli-chat-fallback-test";
+  const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }> = [];
+
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.headers.authorization !== `Bearer ${apiKey}`) {
+        writeJsonStatus(response, 401, { detail: "missing api key" });
+        return;
+      }
+
+      if (request.method === "POST" && request.url === "/v1/sdk/chats") {
+        const body = await readJsonBody(request);
+        requests.push({ method: request.method, url: request.url, body });
+        writeJsonStatus(response, 403, { detail: { error: "missing_scope", missing_scope: "chat:create_incognito" } });
+        return;
+      }
+
+      if (request.method === "POST" && request.url === "/v1/apps/ai/skills/ask") {
+        const body = await readJsonBody(request);
+        requests.push({ method: request.method, url: request.url, body });
+        writeJson(response, {
+          choices: [{ message: { content: "fallback ai ask ok" } }],
+        });
+        return;
+      }
+
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, apiKey, requests });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 }
 
@@ -974,6 +1823,34 @@ async function withSkillFormattingMockApi<T>(
         });
         return;
       }
+      if (request.method === "POST" && request.url === "/v1/apps/code/skills/image_to_html") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            task_id: "task-image-html",
+            embed_id: "embed-image-html",
+            status: "processing",
+            results: [{ task_id: "task-image-html", embed_id: "embed-image-html", status: "processing", reserved_credits: 500 }],
+          },
+          credits_charged: 0,
+        });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/tasks/task-image-html") {
+        writeJson(response, {
+          task_id: "task-image-html",
+          status: "completed",
+          result: {
+            status: "finished",
+            embed_id: "embed-image-html",
+            html: "<!doctype html><html><body>Generated</body></html>",
+            usage: { model: "fake-gemini", credits_charged: 30, e2b_render_seconds: 1 },
+          },
+        });
+        return;
+      }
       if (request.method === "POST" && request.url === "/v1/apps/travel/skills/search_connections") {
         await readJsonBody(request);
         writeJson(response, {
@@ -1104,6 +1981,166 @@ async function withSkillFormattingMockApi<T>(
         });
         return;
       }
+      if (request.method === "POST" && request.url === "/v1/apps/tasks/skills/create") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            success: true,
+            app_id: "tasks",
+            skill_id: "create",
+            result_count: 2,
+            results: [
+              { type: "task", task_id: "task-1", short_id: "TASK-1", title: "Draft checklist", status: "todo", assignee: "user" },
+              { type: "task", task_id: "task-2", short_id: "TASK-2", title: "Draft announcement", status: "todo", assignee: "openmates" },
+            ],
+          },
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/tasks/skills/search") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            success: true,
+            app_id: "tasks",
+            skill_id: "search",
+            status: "waiting_for_client",
+            pending_client_search: { request_id: "task-search-request-1", notification_queued: true },
+            results: [],
+            result_count: 0,
+          },
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/workflows/skills/create-or-modify") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            success: true,
+            app_id: "workflows",
+            skill_id: "create-or-modify",
+            result_count: 1,
+            results: [
+              { type: "workflow", workflow_id: "workflow-1", title: "Morning weather", status: "draft" },
+            ],
+          },
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/workflows/skills/search") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        if (body.query === "vault-blocked") {
+          writeJson(response, {
+            success: true,
+            data: {
+              success: false,
+              app_id: "workflows",
+              skill_id: "search",
+              results: [],
+              result_count: 0,
+              requires_connected_client: false,
+              error: "Workflow encryption requires the user's Vault key id",
+            },
+          });
+          return;
+        }
+        writeJson(response, {
+          success: true,
+          data: {
+            success: true,
+            app_id: "workflows",
+            skill_id: "search",
+            status: "finished",
+            requires_connected_client: false,
+            result_count: 2,
+            results: [
+              { type: "workflow", workflow_id: "workflow-1", title: "Morning weather", status: "enabled" },
+              { type: "workflow", workflow_id: "workflow-2", title: "Weather digest", status: "draft" },
+            ],
+          },
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/models3d/skills/search") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            success: true,
+            app_id: "models3d",
+            skill_id: "search",
+            status: "finished",
+            provider: "Printables",
+            result_count: 1,
+            results: [{
+              id: 1,
+              query: "benchy",
+              providers: ["Printables"],
+              result_count: 1,
+              results: [{
+                type: "model_result",
+                title: "Bench Boat",
+                provider: "Printables",
+                source_page_url: "https://www.printables.com/model/3161-bench-boat",
+                preview_image_url: "https://media.printables.com/bench.jpg",
+                description: "A small calibration boat for printer tuning.",
+                creator_name: "Creative Tools",
+                published_at: "2024-01-02T03:04:05Z",
+              }],
+            }],
+          },
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/design/skills/search_icons") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            success: true,
+            app_id: "design",
+            skill_id: "search_icons",
+            status: "finished",
+            provider: "Iconify",
+            result_count: 1,
+            results: [{
+              id: 1,
+              query: "home",
+              license_policy: "permissive",
+              result_count: 1,
+              results: [{
+                type: "icon_result",
+                icon_id: "lucide:home",
+                prefix: "lucide",
+                name: "home",
+                display_name: "Home",
+                collection_name: "Lucide",
+                license_spdx: "ISC",
+                width: 24,
+                height: 24,
+                palette: false,
+                svg_path: "/v1/apps/design/icons/iconify/lucide/home.svg",
+              }],
+            }],
+          },
+        });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/apps/design/icons/iconify/lucide/home.svg") {
+        requests.push({ url: request.url, body: null });
+        response.writeHead(200, { "Content-Type": "image/svg+xml" });
+        response.end(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M4 12h16v8H4z"/></svg>`);
+        return;
+      }
       response.writeHead(404);
       response.end();
     } catch (error) {
@@ -1206,6 +2243,108 @@ async function withFlatWeatherSkillMockApi<T>(
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 }
+
+describe("CLI update-required cutover", () => {
+  it("prints concise update-required guidance, reports no success, and exits nonzero", async () => {
+    await withUpdateRequiredMock(async ({ apiUrl, tempHome, frameTypes, requestPaths }) => {
+      const result = await new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve) => {
+        execFile(
+          "node",
+          ["dist/cli.js", "chats", "new", "This must not reach inference", "--no-pii-detection"],
+          {
+            cwd: PACKAGE_ROOT,
+            encoding: "utf-8",
+            env: { ...process.env, TERM: "dumb", HOME: tempHome, USERPROFILE: tempHome, OPENMATES_API_URL: apiUrl },
+            timeout: 25_000,
+          },
+          (error, stdout, stderr) => resolve({
+            status: error ? ("code" in error && typeof error.code === "number" ? error.code : 1) : 0,
+            stdout,
+            stderr,
+          }),
+        );
+      });
+
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /OpenMates CLI update required\. Run `openmates upgrade` and retry\./);
+      assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /success/i);
+      assert.equal(requestPaths.includes("GET /v1/learning-mode"), false);
+      assert.equal(frameTypes.includes("chat_turn_preflight"), true);
+      assert.equal(frameTypes.includes("chat_message_added"), false);
+    });
+  });
+
+  it("leaves read-only local example history available", () => {
+    const result = runCliWithoutSessionResult(["chats", "show", "1", "--json"]);
+    assert.equal(result.status, 0);
+    const output = JSON.parse(result.stdout) as { messages?: unknown[] };
+    assert.ok(Array.isArray(output.messages));
+    assert.ok(output.messages.length > 0);
+  });
+});
+
+describe("CLI goal chat", () => {
+  it("shows goal-chat help for the singular chat command", () => {
+    const output = runCli(["chat", "--help"]);
+    assert.match(output, /Goal chat command:/);
+    assert.match(output, /openmates chat --goal <goal>/);
+  });
+
+  it("rejects API-key goal chats with SDK guidance", () => {
+    const result = runCliWithoutSessionResult(["chat", "--goal", "Ship docs", "--api-key", "sk-test"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /For API-key clients, use the npm or pip SDK chats\.send/);
+  });
+
+  it("starts a saved chat and attaches a draft plan", async () => {
+    await withGoalChatMock(async ({ apiUrl, tempHome, frameTypes, requestPaths, chatMessages, planRequests }) => {
+      const result = await new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve) => {
+        execFile(
+          "node",
+          ["dist/cli.js", "chat", "--goal", "Ship the docs update", "--title", "Docs launch", "--json"],
+          {
+            cwd: PACKAGE_ROOT,
+            encoding: "utf-8",
+            env: { ...process.env, TERM: "dumb", HOME: tempHome, USERPROFILE: tempHome, OPENMATES_API_URL: apiUrl },
+            timeout: 20_000,
+          },
+          (error, stdout, stderr) => resolve({
+            status: error && "code" in error && typeof error.code === "number" ? error.code : 0,
+            stdout,
+            stderr,
+          }),
+        );
+      });
+      assert.equal(
+        result.status,
+        0,
+        `stdout=${result.stdout}\nstderr=${result.stderr}\nrequests=${JSON.stringify(requestPaths)}\nframes=${JSON.stringify(frameTypes)}\nplans=${JSON.stringify(planRequests)}`,
+      );
+      assert.notEqual(
+        result.stdout.trim(),
+        "",
+        `stdout=${result.stdout}\nstderr=${result.stderr}\nrequests=${JSON.stringify(requestPaths)}\nframes=${JSON.stringify(frameTypes)}\nplans=${JSON.stringify(planRequests)}`,
+      );
+      const output = result.stdout;
+      const parsed = JSON.parse(output) as { chat_id?: string; plan?: { title?: string; goal?: string; status?: string; primary_chat_id?: string } };
+      assert.match(parsed.chat_id ?? "", /^[0-9a-f-]{36}$/i);
+      assert.equal(parsed.plan?.title, "Docs launch");
+      assert.equal(parsed.plan?.goal, "Ship the docs update");
+      assert.equal(parsed.plan?.status, "draft");
+      assert.equal(parsed.plan?.primary_chat_id, parsed.chat_id);
+      assert.deepEqual(chatMessages, ["Ship the docs update"]);
+      assert.equal(frameTypes.includes("chat_turn_preflight"), true);
+      assert.equal(frameTypes.includes("chat_message_added"), true);
+      assert.equal(planRequests.length, 1);
+      assert.equal(planRequests[0].primary_chat_id, parsed.chat_id);
+      assert.equal(planRequests[0].status, "draft");
+      assert.equal(typeof planRequests[0].encrypted_goal, "string");
+      assert.equal(JSON.stringify(planRequests[0]).includes("Ship the docs update"), false);
+      const wrappers = planRequests[0].key_wrappers as Array<Record<string, unknown>>;
+      assert.equal(wrappers.some((wrapper) => wrapper.key_type === "chat"), true);
+    });
+  });
+});
 
 describe("SDK entrypoint", () => {
   it("does not run CLI help when imported", () => {
@@ -1352,6 +2491,42 @@ describe("defaultCloneBranchForVersion", () => {
   });
 });
 
+describe("CLI server command startup feedback", () => {
+  it("prints immediate branded status for backup before Docker work", () => {
+    const tempPath = join(tmpdir(), `openmates-cli-backup-feedback-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(tempPath, { recursive: true });
+    try {
+      const result = runCliWithoutSessionResult(["server", "backup", "--path", tempPath, "--role", "core"]);
+      assert.match(result.stdout, /OPENMATES/);
+      assert.match(result.stdout, /Running OpenMates server backup/);
+      assert.match(result.stdout, new RegExp(`Path: ${tempPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+      assert.match(result.stdout, /Role: core/);
+    } finally {
+      rmSync(tempPath, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps backup list and JSON output machine-friendly", () => {
+    const tempPath = join(tmpdir(), `openmates-cli-backup-list-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(join(tempPath, "backend", "core"), { recursive: true });
+    writeFileSync(join(tempPath, "backend", "core", "docker-compose.yml"), "services: {}\n");
+    try {
+      const listOutput = runCliWithoutSession(["server", "backup", "list", "--path", tempPath, "--role", "core"]);
+      assert.doesNotMatch(listOutput, /OPENMATES/);
+      assert.match(listOutput, /Backups for core:/);
+
+      const listJson = runCliWithoutSession(["server", "backup", "list", "--path", tempPath, "--role", "core", "--json"]);
+      assert.deepEqual(JSON.parse(listJson), { role: "core", backupDir: join(tempPath, "backups", "core"), files: [] });
+
+      const jsonResult = runCliWithoutSessionResult(["server", "backup", "--path", join(tempPath, "missing"), "--role", "core", "--json"]);
+      assert.doesNotMatch(jsonResult.stdout, /OPENMATES/);
+      assert.doesNotMatch(jsonResult.stderr, /OPENMATES/);
+    } finally {
+      rmSync(tempPath, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("CLI self-update commands", () => {
   it("lists update and upgrade aliases in global help", () => {
     const output = runCli(["help"]);
@@ -1376,15 +2551,15 @@ describe("CLI self-update commands", () => {
   it("skips self-update when the installed version already matches the latest version", () => {
     const output = runCli(["update", "--dry-run"], {
       npm_config_user_agent: "",
-      OPENMATES_CLI_LATEST_VERSION: "0.14.0",
+      OPENMATES_CLI_LATEST_VERSION: "0.15.0",
     });
     assert.match(output, /OpenMates CLI is already up to date\./);
     assert.doesNotMatch(output, /Would run:/);
   });
 
   it("supports upgrade as the same dry-run command with a selected package manager", () => {
-    const output = runCli(["upgrade", "--version", "0.14.0", "--package-manager", "pnpm", "--dry-run", "--json"], {
-      OPENMATES_CLI_LATEST_VERSION: "0.14.0",
+    const output = runCli(["upgrade", "--version", "0.15.0", "--package-manager", "pnpm", "--dry-run", "--json"], {
+      OPENMATES_CLI_LATEST_VERSION: "0.15.0",
     });
     const parsed = JSON.parse(output) as {
       command: string;
@@ -1397,21 +2572,21 @@ describe("CLI self-update commands", () => {
     };
     assert.equal(parsed.command, "upgrade");
     assert.equal(parsed.package_manager, "pnpm");
-    assert.equal(parsed.package, "openmates@0.14.0");
-    assert.deepEqual(parsed.run, ["pnpm", "add", "-g", "openmates@0.14.0"]);
+    assert.equal(parsed.package, "openmates@0.15.0");
+    assert.deepEqual(parsed.run, ["pnpm", "add", "-g", "openmates@0.15.0"]);
     assert.equal(parsed.dry_run, true);
-    assert.equal(parsed.latest_version, "0.14.0");
+    assert.equal(parsed.latest_version, "0.15.0");
     assert.equal(parsed.update_available, false);
   });
 
   it("prints version and update guidance through command and top-level flag", () => {
     const commandOutput = runCli(["version"], { OPENMATES_CLI_LATEST_VERSION: "99.0.0" });
-    assert.match(commandOutput, /OpenMates CLI 0\.14\.0/);
+    assert.match(commandOutput, /OpenMates CLI 0\.15\.0/);
     assert.match(commandOutput, /Update available: 99\.0\.0/);
     assert.match(commandOutput, /Run: openmates upgrade/);
 
-    const flagOutput = runCli(["--version"], { OPENMATES_CLI_LATEST_VERSION: "0.14.0" });
-    assert.match(flagOutput, /OpenMates CLI 0\.14\.0/);
+    const flagOutput = runCli(["--version"], { OPENMATES_CLI_LATEST_VERSION: "0.15.0" });
+    assert.match(flagOutput, /OpenMates CLI 0\.15\.0/);
     assert.match(flagOutput, /OpenMates CLI is up to date\./);
   });
 });
@@ -1567,6 +2742,34 @@ describe("apps code run command variants", () => {
   });
 });
 
+describe("apps travel search_connections typed request", () => {
+  it("maps pass-aware train flags into the app-skill request", () => {
+    const request = buildTravelConnectionsRequest([], {
+      origin: "Potsdam Hbf",
+      destination: "Munich Hbf",
+      date: "2026-06-01",
+      transport: "train",
+      providers: "deutsche_bahn,transitous",
+      "owned-passes": "deutschland_ticket",
+      "pass-only": true,
+      "rail-products": "regional,s_bahn",
+      "min-transfer-minutes": "15",
+      "max-results": "8",
+    });
+
+    assert.deepEqual(request, {
+      legs: [{ origin: "Potsdam Hbf", destination: "Munich Hbf", date: "2026-06-01" }],
+      transport_methods: ["train"],
+      providers: ["deutsche_bahn", "transitous"],
+      owned_passes: ["deutschland_ticket"],
+      rail_products: ["regional", "s_bahn"],
+      pass_only: true,
+      min_transfer_minutes: 15,
+      max_results: 8,
+    });
+  });
+});
+
 describe("embed version commands", () => {
   const embedId = "12345678-1234-1234-1234-123456789abc";
 
@@ -1617,142 +2820,252 @@ describe("embed version commands", () => {
   });
 });
 
-describe("apps skill formatted output", () => {
-  it("maps flat weather rain radar schemas to direct CLI app-skill input", async () => {
-    await withFlatWeatherSkillMockApi(async ({ apiUrl, requests }) => {
-      const inlineOutput = await runCliAsync([
+describe("apps metadata commands", () => {
+  it("runs generated app-skill commands with explicit schema-backed input", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const { stdout, stderr } = await execFileAsync("node", [
+        "dist/cli.js",
         "--api-url", apiUrl,
-        "apps", "weather", "rain_radar", "Berlin",
-        "--json",
-      ]);
-      const inlineResult = JSON.parse(inlineOutput) as { data: { type: string } };
-      assert.equal(inlineResult.data.type, "rain_radar");
-      assert.deepEqual(requests[0], { location: "Berlin" });
+        "apps", "tasks", "create",
+        "--input", JSON.stringify({ tasks: [{ title: "Draft checklist" }] }),
+      ], {
+        cwd: PACKAGE_ROOT,
+        encoding: "utf-8",
+        env: { ...process.env, TERM: "dumb" },
+        timeout: 15_000,
+      });
 
-      await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "weather", "rain_radar",
-        "--input", JSON.stringify({ requests: [{ location: "Berlin", radius_km: 10 }] }),
-        "--json",
-      ]);
-      assert.deepEqual(requests[1], { location: "Berlin", radius_km: 10 });
+      assert.match(stdout, /Draft checklist/);
+      assert.equal(stderr, "");
+      assert.deepEqual(requests[0], {
+        url: "/v1/apps/tasks/skills/create",
+        body: { tasks: [{ title: "Draft checklist" }] },
+      });
     });
   });
 
-  it("prints flat weather rain radar help without a requests wrapper", async () => {
+  it("keeps explicit app-skill metadata inspection available", async () => {
     await withFlatWeatherSkillMockApi(async ({ apiUrl }) => {
       const output = await runCliAsync([
         "--api-url", apiUrl,
-        "apps", "weather", "rain_radar", "--help",
+        "apps", "skill-info", "weather", "rain_radar",
       ]);
-      assert.match(output, /"location": "Berlin, Germany"/);
-      assert.doesNotMatch(output, /"requests"/);
+
+      assert.match(output, /rain_radar/);
+      assert.match(output, /Optional parameters/);
+      assert.match(output, /Input example/);
+      assert.doesNotMatch(output, /openmates apps weather rain_radar --input/);
     });
   });
 
-  it("prints concise event cards without raw provider noise by default", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl }) => {
+  it("lists public example chats linked to an app skill as JSON", () => {
+    const output = runCliWithoutSession([
+      "apps", "examples", "travel", "search_connections", "--json",
+    ]);
+    const parsed = JSON.parse(output) as {
+      app_id?: string;
+      skill_id?: string;
+      examples?: Array<{ chat_id?: string; slug?: string; linked_app_skills?: string[]; commands?: Record<string, string> }>;
+    };
+
+    assert.equal(parsed.app_id, "travel");
+    assert.equal(parsed.skill_id, "search_connections");
+    assert.ok(parsed.examples?.some((example) => example.chat_id === "example-flights-berlin-bangkok"));
+    assert.ok(parsed.examples?.every((example) => example.linked_app_skills?.includes("travel.search_connections")));
+    assert.equal(
+      parsed.examples?.find((example) => example.chat_id === "example-flights-berlin-bangkok")?.commands?.show,
+      "openmates chats show example-flights-berlin-bangkok",
+    );
+  });
+
+  it("renders public example chats linked to an app skill in human output", () => {
+    const output = runCliWithoutSession(["apps", "examples", "weather", "rain_radar"]);
+
+    assert.match(output, /Example chats for weather\/rain_radar/);
+    assert.match(output, /example-rostock-heavy-rain-radar/);
+    assert.match(output, /Show: openmates chats show example-rostock-heavy-rain-radar/);
+    assert.match(output, /Open: openmates chats open rostock-heavy-rain-radar/);
+  });
+
+  it("surfaces linked example chats in skill-info output", async () => {
+    await withFlatWeatherSkillMockApi(async ({ apiUrl }) => {
       const output = await runCliAsync([
         "--api-url", apiUrl,
-        "apps", "events", "search",
-        "--input", JSON.stringify({ requests: [{ query: "tech", location: "Berlin" }] }),
+        "apps", "skill-info", "weather", "rain_radar",
       ]);
 
-      assert.match(output, /Accessible Tech Meetup/);
-      assert.match(output, /2026-06-13T14:00:00\+02:00/);
-      assert.match(output, /Community Hall/);
-      assert.match(output, /accessibility/);
-      assert.match(output, /unknown/);
-      assert.doesNotMatch(output, /event-hash/);
-      assert.doesNotMatch(output, /image_url/);
-      assert.doesNotMatch(output, /very long event description/);
+      assert.match(output, /Example chats/);
+      assert.match(output, /openmates apps examples weather rain_radar/);
+      assert.match(output, /example-rostock-heavy-rain-radar/);
     });
   });
 
-  it("prints concise connection cards without booking internals by default", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl }) => {
+  it("starts a chat asking for 3D models through the CLI chat command", async () => {
+    await withAnonymousMockApi(async ({ apiUrl, requests, tempHome }) => {
       const output = await runCliAsync([
         "--api-url", apiUrl,
-        "apps", "travel", "search_connections",
-        "--input", JSON.stringify({ requests: [{ legs: [{ origin: "Berlin", destination: "Barcelona", date: "2026-07-10" }] }] }),
-      ]);
+        "chats", "new",
+        "Find 3D printable benchy models",
+        "--json",
+      ], { HOME: tempHome });
+      const parsed = JSON.parse(output) as { assistant?: string };
 
-      assert.match(output, /Berlin \(BER\) → Barcelona \(BCN\)/);
-      assert.match(output, /192 EUR · direct · Vueling/);
-      assert.match(output, /Get booking URL/);
-      assert.doesNotMatch(output, /secret-booking-token/);
-      assert.doesNotMatch(output, /booking_context/);
-      assert.doesNotMatch(output, /departure_latitude/);
-      assert.doesNotMatch(output, /flight-hash/);
+      assert.equal(parsed.assistant, "anonymous inference ok");
+      assert.equal(requests.length, 1);
+      assert.match(JSON.stringify(requests[0]), /Find 3D printable benchy models/);
     });
   });
 
-  it("prints concise stay cards without property internals by default", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl }) => {
-      const output = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "travel", "search_stays",
-        "--input", JSON.stringify({ requests: [{ query: "Hotels in Barcelona", check_in_date: "2026-07-10", check_out_date: "2026-07-13" }] }),
-      ]);
-
-      assert.match(output, /Budget Pool Hotel/);
-      assert.match(output, /★ 4.4/);
-      assert.match(output, /€172/);
-      assert.match(output, /Pool/);
-      assert.doesNotMatch(output, /secret-property-token/);
-      assert.doesNotMatch(output, /property_token/);
-      assert.doesNotMatch(output, /images/);
-      assert.doesNotMatch(output, /nearby_places/);
-      assert.doesNotMatch(output, /stay-hash/);
-    });
-  });
-
-  it("prints clear no-result reasons and suggestions", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl }) => {
-      const output = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "events", "search",
-        "--input", JSON.stringify({ requests: [{ query: "no-match", location: "Berlin" }] }),
-      ]);
-
-      assert.match(output, /No results found/i);
-      assert.match(output, /filtered_out/);
-      assert.match(output, /Relax the date window/);
-      assert.match(output, /Try a nearby city/);
-      assert.doesNotMatch(output, /\{\s*"results"/);
-    });
-  });
-
-  it("prints concise Fitness cards and sends canonical Urban Sports requests", async () => {
+  it("runs the explicit models3d search command", async () => {
     await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
-      const locationsOutput = await runCliAsync([
+      const output = await runCliAsync([
         "--api-url", apiUrl,
-        "apps", "fitness", "search_locations",
-        "--input", JSON.stringify({ requests: [{ query: "hiit", address: "Sorauer Str. 12", radius_km: 1, limit: 2 }] }),
+        "apps", "models3d", "search",
+        "--query", "benchy",
+        "--count", "2",
+        "--providers", "Printables",
+        "--sort", "newest",
+        "--free-only",
+        "--disable-prompt-injection-protection",
+        "--json",
       ]);
-      const classesOutput = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "fitness", "search_classes",
-        "--input", JSON.stringify({ requests: [{ query: "yoga", address: "Sorauer Str. 12", radius_km: 1, start_date: "2026-07-10", attendance_mode: "onsite", limit: 2 }] }),
-      ]);
+      const parsed = JSON.parse(output) as { data?: { results?: Array<Record<string, unknown>> } };
 
-      assert.match(locationsOutput, /BEAT81 - Paul-Lincke-Ufer/);
-      assert.match(locationsOutput, /0\.714 km/);
-      assert.match(locationsOutput, /plans: Premium, Max/);
-      assert.match(classesOutput, /Morning Yoga Flow/);
-      assert.match(classesOutput, /2026-07-10/);
-      assert.match(classesOutput, /Yoga Studio Kreuzberg/);
-      assert.doesNotMatch(`${locationsOutput}\n${classesOutput}`, /image_url|venue_lat|venue_lon|lat:|lon:/);
-
-      assert.deepEqual(requests.map((entry) => entry.url), [
-        "/v1/apps/fitness/skills/search_locations",
-        "/v1/apps/fitness/skills/search_classes",
-      ]);
-      assert.deepEqual(requests[0].body, {
-        requests: [{ query: "hiit", address: "Sorauer Str. 12", radius_km: 1, limit: 2 }],
+      assert.equal(requests.length, 1);
+      assert.deepEqual(requests[0], {
+        url: "/v1/apps/models3d/skills/search",
+        body: {
+          requests: [{
+            query: "benchy",
+            count: 2,
+            providers: ["Printables"],
+            sort: "newest",
+            free_only: true,
+          }],
+          security: { prompt_injection_protection: "disabled" },
+        },
       });
-      assert.deepEqual(requests[1].body, {
-        requests: [{ query: "yoga", address: "Sorauer Str. 12", radius_km: 1, start_date: "2026-07-10", attendance_mode: "onsite", limit: 2 }],
+      assert.equal(parsed.data?.results?.[0]?.result_count, 1);
+      assert.doesNotMatch(output, /open_cta_label/);
+      assert.match(output, /Creative Tools/);
+    });
+  });
+
+  it("runs code image_to_html from a local image file and resolves the task", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const tempDir = mkdtempSync(join(tmpdir(), "openmates-cli-image-to-html-"));
+      const file = join(tempDir, "mockup.png");
+      writeFileSync(file, Buffer.from("iVBORw0KGgo=", "base64"));
+      try {
+        const output = await runCliAsync([
+          "--api-url", apiUrl,
+          "apps", "code", "image_to_html",
+          "--file", file,
+          "--max-correction-passes", "0",
+          "--json",
+        ]);
+        const parsed = JSON.parse(output) as { data?: { html?: string; usage?: { credits_charged?: number } } };
+
+        assert.equal(requests[0].url, "/v1/apps/code/skills/image_to_html");
+        assert.deepEqual(requests[0].body, {
+          requests: [{
+            image_base64: "iVBORw0KGgo=",
+            mime_type: "image/png",
+            filename: "mockup.png",
+            max_correction_passes: 0,
+          }],
+        });
+        assert.match(parsed.data?.html ?? "", /Generated/);
+        assert.equal(parsed.data?.usage?.credits_charged, 30);
+      } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it("runs the explicit design search-icons command", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "design", "search_icons",
+        "--query", "home",
+        "--count", "12",
+        "--license-policy", "permissive",
+        "--json",
+      ]);
+      const parsed = JSON.parse(output) as { data?: { result_count?: number } };
+
+      assert.equal(requests.length, 1);
+      assert.deepEqual(requests[0], {
+        url: "/v1/apps/design/skills/search_icons",
+        body: {
+          requests: [{
+            query: "home",
+            count: 12,
+            license_policy: "permissive",
+          }],
+        },
+      });
+      assert.equal(parsed.data?.result_count, 1);
+      assert.doesNotMatch(output, /svg_markup|preview_server_url|api\.iconify\.design/);
+      assert.match(output, /lucide:home/);
+    });
+  });
+
+  it("exports a design icon as a recolored SVG", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const tempDir = mkdtempSync(join(tmpdir(), "openmates-cli-icon-export-"));
+      const outputPath = join(tempDir, "home.svg");
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "design", "export-icon",
+        "lucide:home",
+        "--color", "#111827",
+        "--output", outputPath,
+        "--json",
+      ]);
+      const parsed = JSON.parse(output) as { success?: boolean; format?: string; bytes?: number; svg_path?: string };
+
+      assert.deepEqual(requests.at(-1), {
+        url: "/v1/apps/design/icons/iconify/lucide/home.svg",
+        body: null,
+      });
+      assert.equal(parsed.success, true);
+      assert.equal(parsed.format, "svg");
+      assert.equal(parsed.svg_path, "/v1/apps/design/icons/iconify/lucide/home.svg");
+      assert.ok((parsed.bytes ?? 0) > 0);
+      assert.match(readFileSync(outputPath, "utf-8"), /#111827/);
+    });
+  });
+
+  it("routes nested app-skill errors through explicit command result formatting", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      let stdout = "";
+      let stderr = "";
+      try {
+        await execFileAsync("node", [
+          "dist/cli.js",
+          "--api-url", apiUrl,
+          "apps", "workflows", "search",
+          "--input", JSON.stringify({ query: "vault-blocked" }),
+        ], {
+          cwd: PACKAGE_ROOT,
+          encoding: "utf-8",
+          env: { ...process.env, TERM: "dumb" },
+          timeout: 15_000,
+        });
+        assert.fail("expected workflows search to fail when Vault key material is missing");
+      } catch (error) {
+        stdout = (error as { stdout?: string }).stdout ?? "";
+        stderr = (error as { stderr?: string }).stderr ?? String(error);
+      }
+
+      assert.equal(stdout, "");
+      assert.match(stderr, /Workflow encryption requires the user's Vault key id/);
+      assert.doesNotMatch(stderr, /No results found/i);
+      assert.deepEqual(requests[0], {
+        url: "/v1/apps/workflows/skills/search",
+        body: { query: "vault-blocked" },
       });
     });
   });
@@ -1907,6 +3220,25 @@ describe("memory schema validation", () => {
   it("accepts entry with optional fields omitted", () => {
     const result = validateMemory("books/favorite_books", { title: "Dune" });
     assert.ok(result.valid);
+  });
+});
+
+describe("chat deletion command", () => {
+  it("skips chat title resolution when --yes is provided", async () => {
+    const chatId = "11111111-2222-4333-8444-555555555555";
+
+    await withChatDeleteMock(async ({ apiUrl, tempHome, frameTypes, requestPaths }) => {
+      const result = await execFileAsync("node", ["dist/cli.js", "chats", "delete", chatId, "--yes"], {
+        cwd: PACKAGE_ROOT,
+        encoding: "utf-8",
+        env: { ...process.env, TERM: "dumb", HOME: tempHome, USERPROFILE: tempHome, OPENMATES_API_URL: apiUrl },
+        timeout: 15_000,
+      });
+
+      assert.match(result.stdout, /1\/1 chat\(s\) deleted\./);
+      assert.deepEqual(frameTypes, ["delete_chat"]);
+      assert.equal(requestPaths.some((path) => path.includes("/v1/chats")), false);
+    });
   });
 });
 
@@ -2342,6 +3674,7 @@ describe("settings command surface", () => {
   it("shows nested help examples for settings groups", () => {
     const output = runCli(["settings", "billing", "--help"]);
     assert.ok(output.includes("openmates settings billing overview"));
+    assert.ok(output.includes("openmates settings billing usage overview"));
     assert.ok(output.includes("e.g. openmates settings billing usage"));
     assert.ok(output.includes("buy-credits bank-transfer"));
     assert.ok(output.includes("gift-card redeem"));
@@ -2444,6 +3777,41 @@ describe("settings command surface", () => {
       ]);
     });
   });
+
+  it("fetches fast usage overview rollups with requested granularity", async () => {
+    await withUsageMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const output = await runCliAsync(
+        ["settings", "billing", "usage", "overview", "--granularity", "weekly", "--weeks", "4", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const parsed = JSON.parse(output) as { granularity?: string; totals?: { credits?: number } };
+      assert.equal(parsed.granularity, "weekly");
+      assert.equal(parsed.totals?.credits, 42);
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "GET /v1/settings/usage/overview?granularity=weekly&weeks=4",
+      ]);
+    });
+  });
+
+  it("fetches usage details and chat totals", async () => {
+    await withUsageMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const detailsOutput = await runCliAsync(
+        ["settings", "billing", "usage", "details", "--type", "chat", "--identifier", "chat-1", "--month", "2026-08", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const totalOutput = await runCliAsync(
+        ["settings", "billing", "usage", "chat-total", "--chat-id", "chat-1", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+
+      assert.equal((JSON.parse(detailsOutput) as { count?: number }).count, 1);
+      assert.equal((JSON.parse(totalOutput) as { total_credits?: number }).total_credits, 42);
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "GET /v1/settings/usage/details?type=chat&identifier=chat-1&year_month=2026-08",
+        "GET /v1/settings/usage/chat-total?chat_id=chat-1",
+      ]);
+    });
+  });
 });
 
 describe("learning-mode command surface", () => {
@@ -2493,6 +3861,40 @@ describe("learning-mode command surface", () => {
           body: { passcode: "teach-1234" },
         },
       ]);
+    });
+  });
+});
+
+describe("workspace ask fallback chat", () => {
+  it("starts a saved chat with the original instruction when workflow ask falls back", async () => {
+    await withWorkspaceAskFallbackChatMock(async ({ apiUrl, tempHome, frameTypes, requestPaths, chatMessages, clientCapabilities }) => {
+      const instruction = "add a Discord notification to all my workflows once they are done";
+      const output = await runCliAsync(
+        ["workflows", "ask", instruction, "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const parsed = JSON.parse(output) as {
+        status?: string;
+        chatId?: string;
+        assistant?: string;
+        workspace_ask_fallback?: { outcome?: string; fallback_message?: string; namespace?: string };
+      };
+
+      assert.equal(parsed.status, "completed");
+      assert.equal(typeof parsed.chatId, "string");
+      assert.match(parsed.chatId ?? "", /^[0-9a-f-]{36}$/i);
+      assert.equal(parsed.assistant, "I can help narrow this down. Which workflow should I update?");
+      assert.deepEqual(parsed.workspace_ask_fallback, {
+        outcome: "fallback_to_chat",
+        fallback_message: "clarification required before applying workspace ask",
+        namespace: "workflow",
+      });
+      assert.deepEqual(chatMessages, [instruction]);
+      assert.ok(requestPaths.includes("POST /v1/workflows/ask"));
+      assert.ok(requestPaths.includes("GET /v1/settings/export-account-data?include_usage=false&include_invoices=false"));
+      assert.deepEqual(clientCapabilities, [[]]);
+      assert.ok(frameTypes.includes("chat_turn_preflight"));
+      assert.ok(frameTypes.includes("chat_message_added"));
     });
   });
 });
@@ -2562,6 +3964,86 @@ describe("unauthenticated example chats", () => {
     });
   });
 
+  it("sends API-key chat through SDK mode without a local session or anonymous fallback", async () => {
+    await withSdkChatMockApi(async ({ apiUrl, apiKey, requests }) => {
+      const createOutput = await runCliAsync([
+        "--api-url", apiUrl,
+        "--api-key", apiKey,
+        "chats", "new", "Workflow chat delivery test", "--json",
+      ]);
+      const created = JSON.parse(createOutput) as {
+        status?: string;
+        chat_id?: string | null;
+        assistant?: string;
+        modelName?: string | null;
+      };
+      assert.equal(created.status, "completed");
+      assert.equal(created.assistant, "api-key stateless chat ok");
+      assert.equal(created.modelName, "test-model");
+      assert.equal(created.chat_id, null);
+      assert.equal(requests[0]?.url, "/v1/sdk/chats");
+      assert.equal(requests[0]?.body?.message, "Workflow chat delivery test");
+      assert.equal(requests[0]?.body?.save_to_account, false);
+      assert.equal(requests.some((request) => request.url === "/v1/anonymous/chat/stream"), false);
+    });
+  });
+
+  it("shows API-key chat history through bounded windows by default", async () => {
+    await withSdkChatMockApi(async ({ apiUrl, apiKey, requests }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "--api-key", apiKey,
+        "chats", "show", "chat-1", "--json",
+      ]);
+      const parsed = JSON.parse(output) as { messages?: Array<{ content?: string }>; has_more_before?: boolean };
+
+      assert.equal(parsed.messages?.[0]?.content, "latest window");
+      assert.equal(parsed.has_more_before, true);
+      assert.deepEqual(requests.map((request) => request.url), [
+        "/v1/sdk/chats/chat-1/messages?direction=latest&limit=30",
+      ]);
+    });
+  });
+
+  it("shows API-key full chat history only with --all", async () => {
+    await withSdkChatMockApi(async ({ apiUrl, apiKey, requests }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "--api-key", apiKey,
+        "chats", "show", "chat-1", "--json", "--all",
+      ]);
+      const parsed = JSON.parse(output) as { messages?: Array<{ content?: string }>; has_more_before?: boolean };
+
+      assert.equal(parsed.messages?.[0]?.content, "full history");
+      assert.equal(parsed.has_more_before, undefined);
+      assert.deepEqual(requests.map((request) => request.url), [
+        "/v1/sdk/chats/chat-1",
+      ]);
+    });
+  });
+
+  it("falls back to authenticated ai.ask when an API key lacks SDK chat scope", async () => {
+    await withSdkChatDeniedAiAskMockApi(async ({ apiUrl, apiKey, requests }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "--api-key", apiKey,
+        "chats", "new", "Search the web for OpenMates", "--json",
+      ]);
+      const parsed = JSON.parse(output) as { status?: string; assistant?: string; chat_id?: string | null };
+      assert.equal(parsed.status, "completed");
+      assert.equal(parsed.assistant, "fallback ai ask ok");
+      assert.equal(parsed.chat_id, null);
+      assert.deepEqual(requests.map((request) => request.url), [
+        "/v1/sdk/chats",
+        "/v1/apps/ai/skills/ask",
+      ]);
+      assert.deepEqual(requests[1]?.body?.messages, [
+        { role: "user", content: "Search the web for OpenMates" },
+      ]);
+      assert.equal(requests[1]?.body?.apps_enabled, true);
+    });
+  });
+
   it("redacts PII in anonymous chat by default", async () => {
     await withAnonymousMockApi(async ({ apiUrl, requests, tempHome }) => {
       await runCliAsync(
@@ -2609,6 +4091,99 @@ describe("unauthenticated example chats", () => {
 });
 
 describe("documented CLI command reference", () => {
+  it("account export command writes the V1 archive layout from downloaded chunks", async () => {
+    const tempHome = join(tmpdir(), `openmates-cli-account-export-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const stateDir = join(tempHome, ".openmates");
+    const outputDir = join(tempHome, "export-dir");
+    const requests: string[] = [];
+    mkdirSync(stateDir, { recursive: true });
+    const server = createServer(async (request, response) => {
+      requests.push(`${request.method ?? "GET"} ${request.url ?? ""}`);
+      if (request.method === "POST" && request.url === "/v1/account-exports") {
+        await readJsonBody(request);
+        writeJson(response, { export: { export_id: "export-1", status: "queued" } });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/account-exports/export-1") {
+        writeJson(response, { export: { export_id: "export-1", status: "complete" } });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/account-exports/export-1/manifest") {
+        writeJson(response, {
+          manifest: {
+            export_id: "export-1",
+            schema_version: "account-export-v1",
+            selected_domains: ["chats"],
+            filters: {},
+            report: { status: "queued", redactions: ["api_key"], failures: [] },
+          },
+        });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/account-exports/export-1/chunks") {
+        writeJson(response, { chunks: [{ chunk_id: "chats-0001", domain: "chats", sequence: 1, status: "ready" }] });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/account-exports/export-1/chunks/chats-0001") {
+        writeJson(response, {
+          chunk: {
+            chunk_id: "chats-0001",
+            domain: "chats",
+            sequence: 1,
+            status: "ready",
+            payload: { source: "chats", items: [{ id: "chat-1", title: "Exported Chat", messages: [{ role: "user", content: "Hello" }] }] },
+          },
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/account-exports/export-1/complete") {
+        writeJson(response, { export: { export_id: "export-1", status: "complete" } });
+        return;
+      }
+      writeJsonStatus(response, 404, { detail: "not found" });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+      apiUrl: `http://127.0.0.1:${address.port}`,
+      sessionId: "session-1",
+      wsToken: "ws-token",
+      cookies: { auth_refresh_token: "refresh-token" },
+      masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+      hashedEmail: "hashed-email",
+      userEmailSalt: "salt",
+      createdAt: Date.now(),
+    })}\n`);
+
+    try {
+      const stdout = await runCliAsync(["account", "export", "--domains", "chats", "--format", "directory", "--output", outputDir, "--json"], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      const result = JSON.parse(stdout) as { archive?: { output?: string } };
+      assert.equal(result.archive?.output, outputDir);
+      assert.ok(existsSync(join(outputDir, "README.md")));
+      assert.ok(existsSync(join(outputDir, "manifest.yml")));
+      assert.ok(existsSync(join(outputDir, "export-report.yml")));
+      assert.ok(existsSync(join(outputDir, "domains", "chats.json")));
+      assert.ok(existsSync(join(outputDir, "chats", "chat-1.md")));
+      assert.ok(requests.includes("GET /v1/account-exports/export-1/chunks/chats-0001"));
+      assert.doesNotMatch(readFileSync(join(outputDir, "export-report.yml"), "utf-8"), /api_key/);
+
+      const statusStdout = await runCliAsync(["account", "export", "status", "export-1", "--json"], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.equal((JSON.parse(statusStdout) as { export?: { status?: string } }).export?.status, "complete");
+      assert.equal(requests.filter((request) => request === "POST /v1/account-exports").length, 1);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      rmSync(tempHome, { recursive: true, force: true });
+    }
+  });
+
   it("top-level help lists the user guide command categories", () => {
     const output = runCli(["--help"]);
     const doc = readRepoText("docs/user-guide/cli/README.md");
@@ -2721,11 +4296,26 @@ describe("documented CLI command reference", () => {
         "apps code run --language",
         "apps code run --entry main.py --file",
         "apps code run --entry main.py --dir",
+        "apps models3d search --query benchy",
       ]) {
         assert.ok(help.includes(fragment), `expected app help to mention ${fragment}`);
         assert.ok(doc.includes(`openmates ${fragment}`), `expected apps docs to mention openmates ${fragment}`);
       }
     });
+  });
+
+  it("rejects generic models3d app-skill execution", () => {
+    const result = runCliWithoutSessionResult([
+      "apps",
+      "models3d",
+      "generate",
+      "--image",
+      "./chair.png",
+    ]);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Generic app-skill CLI execution is not supported/);
+    assert.match(result.stderr, /openmates apps skill-info models3d generate/);
   });
 
   it("docs command reference matches docs help", () => {

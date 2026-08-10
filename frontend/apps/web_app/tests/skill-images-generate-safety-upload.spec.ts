@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -43,7 +42,12 @@ const {
 	createStepScreenshotter,
 	getTestAccount
 } = require('./signup-flow-helpers');
-const { loginToTestAccount, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const {
+	loginToTestAccount,
+	deleteActiveChat,
+	waitForChatReady,
+	waitForAssistantMessage
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -129,18 +133,15 @@ async function waitForStableAssistantResponse(
 	log: (m: string) => void,
 	timeoutMs = 240_000
 ): Promise<string> {
-	const activeChat = page.getByTestId('active-chat-container');
-	const assistantMessages = activeChat.locator('[data-testid="message-assistant"]');
-
-	const beforeCount = await assistantMessages.count();
-	await expect(async () => {
-		const count = await assistantMessages.count();
-		if (count <= beforeCount) throw new Error(`No new assistant message yet (count=${count})`);
-	}).toPass({ timeout: 60_000, intervals: [1000] });
+	const assistantMessage = await waitForAssistantMessage(page, {
+		which: 'last',
+		timeout: 60_000,
+		logCheckpoint: log
+	});
 
 	let stable = '';
 	await expect(async () => {
-		const text = (await assistantMessages.last().textContent()) || '';
+		const text = (await assistantMessage.textContent()) || '';
 		if (text.trim().length < 3) throw new Error('Response too short');
 		if (text === stable && stable.length > 0) return;
 		stable = text;
@@ -205,6 +206,7 @@ test.describe('Image safety pipeline — upload + modify (web UI)', () => {
 		await loginToTestAccount(page, log, screenshot);
 		await page.waitForTimeout(2000);
 		await openNewChat(page, log);
+		await waitForChatReady(page, log);
 		await screenshot(page, '01-new-chat');
 
 		await attachImage(page, HUMANS_IMAGE, log);
@@ -291,6 +293,7 @@ test.describe('Image safety pipeline — upload + modify (web UI)', () => {
 		await loginToTestAccount(page, log, screenshot);
 		await page.waitForTimeout(2000);
 		await openNewChat(page, log);
+		await waitForChatReady(page, log);
 		await screenshot(page, '01-new-chat');
 
 		await attachImage(page, HUMANS_IMAGE, log);

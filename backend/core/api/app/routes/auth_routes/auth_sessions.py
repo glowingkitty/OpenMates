@@ -21,6 +21,10 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_current_user,
     get_compliance_service,
 )
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
+    invalidate_recovery_leases_for_device,
+)
 
 
 router = APIRouter()
@@ -264,6 +268,20 @@ async def revoke_session(
     if target_hash == current_hash:
         raise HTTPException(status_code=400, detail="Cannot revoke the current session. Use logout instead.")
 
+    target_meta = tokens_map.get(target_hash, {})
+    target_device_hash = target_meta.get("device_hash") if isinstance(target_meta, dict) else None
+    if target_device_hash:
+        try:
+            await invalidate_recovery_leases_for_device(
+                directus_service=request.app.state.directus_service,
+                user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+                device_fingerprint_hash=target_device_hash,
+            )
+        except ChatRecoveryProtocolError as recovery_error:
+            if recovery_error.status_code != 404:
+                raise
+            logger.info("Recovery extension unavailable; session invalidation is a safe no-op")
+
     # 1. Delete the session cache entry — makes the session immediately invalid
     await cache_service.delete(f"session:{target_hash}")
 
@@ -330,6 +348,19 @@ async def logout_all_others(
     for token_hash in list(tokens_map.keys()):
         if token_hash == current_hash:
             continue
+        meta = tokens_map.get(token_hash, {})
+        device_hash = meta.get("device_hash") if isinstance(meta, dict) else None
+        if device_hash:
+            try:
+                await invalidate_recovery_leases_for_device(
+                    directus_service=directus_service,
+                    user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+                    device_fingerprint_hash=device_hash,
+                )
+            except ChatRecoveryProtocolError as recovery_error:
+                if recovery_error.status_code != 404:
+                    raise
+                logger.info("Recovery extension unavailable; session invalidation is a safe no-op")
         # Delete session cache for each other token
         await cache_service.delete(f"session:{token_hash}")
         del tokens_map[token_hash]
@@ -386,12 +417,26 @@ async def logout_all_devices(
     """
     user_id = current_user.id
 
+    user_tokens_key = f"user_tokens:{user_id}"
+    tokens_map: dict = await cache_service.get(user_tokens_key) or {}
+    for meta in tokens_map.values():
+        device_hash = meta.get("device_hash") if isinstance(meta, dict) else None
+        if device_hash:
+            try:
+                await invalidate_recovery_leases_for_device(
+                    directus_service=directus_service,
+                    user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+                    device_fingerprint_hash=device_hash,
+                )
+            except ChatRecoveryProtocolError as recovery_error:
+                if recovery_error.status_code != 404:
+                    raise
+                logger.info("Recovery extension unavailable; session invalidation is a safe no-op")
+
     # 1. Broadcast force_logout to ALL connections before clearing cache
     await _broadcast_force_logout(cache_service, user_id, "all_devices_logout")
 
     # 2. Clear all user sessions from cache
-    user_tokens_key = f"user_tokens:{user_id}"
-    tokens_map: dict = await cache_service.get(user_tokens_key) or {}
     for token_hash in list(tokens_map.keys()):
         await cache_service.delete(f"session:{token_hash}")
     await cache_service.delete(user_tokens_key)

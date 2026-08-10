@@ -19,6 +19,7 @@ import { listProjects } from "./projectService";
 export type UserTaskStatus = "backlog" | "todo" | "in_progress" | "blocked" | "done";
 export type UserTaskAssigneeType = "ai" | "user";
 export type UserTaskKeyWrapperType = "master" | "chat" | "project";
+export type WorkflowRunProjectionKind = "last_run" | "current_run" | "next_run";
 
 export interface UserTaskKeyWrapperRecord {
   key_type: UserTaskKeyWrapperType;
@@ -74,6 +75,28 @@ export interface EncryptedUserTaskRecord {
   key_wrappers?: UserTaskKeyWrapperRecord[];
 }
 
+export interface WorkflowRunTaskProjectionRecord {
+  task_id: string;
+  source: "workflow_run";
+  projection_kind: WorkflowRunProjectionKind;
+  workflow_id: string;
+  workflow_run_id?: string | null;
+  trigger_id?: string | null;
+  label: "Workflow run";
+  title?: string | null;
+  status: "todo" | "in_progress" | "blocked" | "done";
+  run_status: string;
+  can_cancel: boolean;
+  can_delete?: boolean;
+  due_at?: number | null;
+  scheduled_at?: number | null;
+  blocked_message?: string | null;
+  read_only: true;
+  created_at: number;
+  updated_at: number;
+  position: number;
+}
+
 export interface UserTaskViewModel {
   task_id: string;
   title: string;
@@ -90,6 +113,32 @@ export interface UserTaskViewModel {
   version: number;
   encrypted: EncryptedUserTaskRecord;
 }
+
+export interface WorkflowRunTaskProjectionViewModel {
+  task_id: string;
+  source: "workflow_run";
+  projectionKind: WorkflowRunProjectionKind;
+  workflowId: string;
+  workflowRunId: string | null;
+  triggerId: string | null;
+  title: string;
+  description: string;
+  tags: string[];
+  latestInstruction: string;
+  status: UserTaskStatus;
+  assigneeType: UserTaskAssigneeType;
+  primaryChatId: null;
+  linkedProjectIds: string[];
+  dueAt: number | null;
+  priority: number;
+  position: number;
+  version: 0;
+  canCancel: boolean;
+  canDelete: boolean;
+  readOnly: true;
+}
+
+export type TasksBoardItem = UserTaskViewModel | WorkflowRunTaskProjectionViewModel;
 
 export interface CreateUserTaskInput {
   title: string;
@@ -115,6 +164,14 @@ export interface ExtractUserTaskProposalsInput {
   mode?: "create" | "update";
   contextChatId?: string | null;
   projectIds?: string[];
+}
+
+export interface ReorderUserTaskMoveInput {
+  task: UserTaskViewModel;
+  beforeTaskId?: string | null;
+  afterTaskId?: string | null;
+  status?: UserTaskStatus;
+  position?: number;
 }
 
 function nowSeconds(): number {
@@ -169,6 +226,7 @@ async function decryptTask(record: EncryptedUserTaskRecord): Promise<UserTaskVie
   } catch {
     tags = [];
   }
+  if (typeof record.version !== "number") throw new Error(`Task ${record.task_id} is missing version.`);
   return {
     task_id: record.task_id,
     title: await decryptOptional(record.encrypted_title, taskKey),
@@ -182,8 +240,38 @@ async function decryptTask(record: EncryptedUserTaskRecord): Promise<UserTaskVie
     dueAt: record.due_at ?? null,
     priority: record.priority ?? 0,
     position: record.position ?? 0,
-    version: record.version ?? 1,
+    version: record.version,
     encrypted: record,
+  };
+}
+
+function isWorkflowRunTaskProjection(record: EncryptedUserTaskRecord | WorkflowRunTaskProjectionRecord): record is WorkflowRunTaskProjectionRecord {
+  return "source" in record && record.source === "workflow_run";
+}
+
+function workflowRunTaskProjection(record: WorkflowRunTaskProjectionRecord): WorkflowRunTaskProjectionViewModel {
+  return {
+    task_id: record.task_id,
+    source: record.source,
+    projectionKind: record.projection_kind,
+    workflowId: record.workflow_id,
+    workflowRunId: record.workflow_run_id ?? null,
+    triggerId: record.trigger_id ?? null,
+    title: record.title || record.label,
+    description: record.blocked_message ?? "",
+    tags: [],
+    latestInstruction: "",
+    status: record.status,
+    assigneeType: "ai",
+    primaryChatId: null,
+    linkedProjectIds: [],
+    dueAt: record.due_at ?? null,
+    priority: 0,
+    position: record.position,
+    version: 0,
+    canCancel: record.can_cancel,
+    canDelete: Boolean(record.can_delete),
+    readOnly: true,
   };
 }
 
@@ -227,10 +315,28 @@ async function buildTaskKeyWrappers(
   return wrappers;
 }
 
+export async function listTaskBoardItems(filters: ListUserTasksFilters = {}): Promise<TasksBoardItem[]> {
+  const data = await requestJson<{ tasks: Array<EncryptedUserTaskRecord | WorkflowRunTaskProjectionRecord> }>(`/v1/user-tasks${buildQuery(filters)}`);
+  const decrypted = await Promise.all(data.tasks.map(async (task) => {
+    if (isWorkflowRunTaskProjection(task)) return workflowRunTaskProjection(task);
+    return decryptTask(task);
+  }));
+  return decrypted.filter((task): task is TasksBoardItem => task !== null);
+}
+
 export async function listUserTasks(filters: ListUserTasksFilters = {}): Promise<UserTaskViewModel[]> {
-  const data = await requestJson<{ tasks: EncryptedUserTaskRecord[] }>(`/v1/user-tasks${buildQuery(filters)}`);
-  const decrypted = await Promise.all(data.tasks.map(decryptTask));
-  return decrypted.filter((task): task is UserTaskViewModel => task !== null);
+  return (await listTaskBoardItems(filters)).filter((task): task is UserTaskViewModel => !isWorkflowRunTaskProjectionViewModel(task));
+}
+
+export function isWorkflowRunTaskProjectionViewModel(task: TasksBoardItem): task is WorkflowRunTaskProjectionViewModel {
+  return "source" in task && task.source === "workflow_run";
+}
+
+export async function cancelWorkflowRunTaskProjection(task: WorkflowRunTaskProjectionViewModel): Promise<void> {
+  if (!task.workflowRunId) throw new Error("Workflow run projection has no run id to cancel");
+  await requestJson(`/v1/workflows/${encodeURIComponent(task.workflowId)}/runs/${encodeURIComponent(task.workflowRunId)}/cancel`, {
+    method: "POST",
+  });
 }
 
 export async function createUserTask(input: CreateUserTaskInput): Promise<UserTaskViewModel> {
@@ -255,6 +361,7 @@ export async function createUserTask(input: CreateUserTaskInput): Promise<UserTa
     due_at: input.dueAt ?? null,
     priority: input.priority ?? 0,
     position: timestamp,
+    version: 1,
     created_at: timestamp,
     updated_at: timestamp,
     key_wrappers: await buildTaskKeyWrappers(taskKey, encryptedTaskKey, timestamp, primaryChatId, linkedProjectIds),
@@ -273,10 +380,10 @@ export async function listUserTaskKeyWrappers(taskId: string): Promise<UserTaskK
   return data.key_wrappers;
 }
 
-export async function addUserTaskKeyWrappers(taskId: string, keyWrappers: UserTaskKeyWrapperRecord[]): Promise<UserTaskKeyWrapperRecord[]> {
+export async function addUserTaskKeyWrappers(taskId: string, version: number, keyWrappers: UserTaskKeyWrapperRecord[]): Promise<UserTaskKeyWrapperRecord[]> {
   const data = await requestJson<{ key_wrappers: UserTaskKeyWrapperRecord[] }>(`/v1/user-tasks/${taskId}/key-wrappers`, {
     method: "POST",
-    body: JSON.stringify({ key_wrappers: keyWrappers }),
+    body: JSON.stringify({ version, key_wrappers: keyWrappers }),
   });
   return data.key_wrappers;
 }
@@ -323,6 +430,65 @@ export async function updateUserTask(task: UserTaskViewModel, patch: Partial<Cre
   const decrypted = await decryptTask(data.task);
   if (!decrypted) throw new Error("Updated task could not be decrypted");
   return decrypted;
+}
+
+async function decryptTaskActionResponse(data: { task: EncryptedUserTaskRecord }): Promise<UserTaskViewModel> {
+  const decrypted = await decryptTask(data.task);
+  if (!decrypted) throw new Error("Task action response could not be decrypted");
+  return decrypted;
+}
+
+export async function completeUserTask(task: UserTaskViewModel): Promise<UserTaskViewModel> {
+  return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/complete`, {
+    method: "POST",
+    body: JSON.stringify({ version: task.version }),
+  }));
+}
+
+export async function blockUserTask(task: UserTaskViewModel, blockedReasonCode = "needs_user_input"): Promise<UserTaskViewModel> {
+  return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/block`, {
+    method: "POST",
+    body: JSON.stringify({ version: task.version, blocked_reason_code: blockedReasonCode }),
+  }));
+}
+
+export async function unblockUserTask(task: UserTaskViewModel): Promise<UserTaskViewModel> {
+  return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/unblock`, {
+    method: "POST",
+    body: JSON.stringify({ version: task.version }),
+  }));
+}
+
+export async function skipUserTask(task: UserTaskViewModel): Promise<UserTaskViewModel> {
+  return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/skip`, {
+    method: "POST",
+    body: JSON.stringify({ version: task.version }),
+  }));
+}
+
+export async function reorderUserTasks(moves: ReorderUserTaskMoveInput[]): Promise<UserTaskViewModel[]> {
+  const data = await requestJson<{ tasks: EncryptedUserTaskRecord[] }>("/v1/user-tasks/reorder", {
+    method: "POST",
+    body: JSON.stringify({
+      moves: moves.map((move) => ({
+        task_id: move.task.task_id,
+        before_task_id: move.beforeTaskId ?? undefined,
+        after_task_id: move.afterTaskId ?? undefined,
+        status: move.status,
+        position: move.position,
+        version: move.task.version,
+      })),
+    }),
+  });
+  const decrypted = await Promise.all(data.tasks.map((task) => decryptTask(task)));
+  return decrypted.filter((task): task is UserTaskViewModel => task !== null);
+}
+
+export async function deleteUserTask(task: UserTaskViewModel | WorkflowRunTaskProjectionViewModel): Promise<void> {
+  const params = new URLSearchParams({ version: String(task.version) });
+  await requestJson(`/v1/user-tasks/${task.task_id}?${params.toString()}`, {
+    method: "DELETE",
+  });
 }
 
 export async function startUserTaskWithAI(task: UserTaskViewModel): Promise<UserTaskViewModel> {

@@ -1,0 +1,2783 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-12'
+generated_at: '2026-07-09T15:40:15+00:00'
+range:
+  since: '2026-06-12T00:00:00+00:00'
+  until: '2026-06-12T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 60
+  section_counts:
+    features: 4
+    bug_fixes: 28
+    improvements: 0
+    docs: 4
+    tests: 24
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 18
+  user_facing_items: 23
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: harden interactive questions parity'
+    section: features
+    commits:
+    - 1a8e169c2
+    authored_at: '2026-06-12T14:02:03+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_interactive_questions_streaming.py
+    - docs/specs/interactive-questions-parity/spec.yml
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/interactiveQuestions.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/interactiveQuestions.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/InteractiveQuestionNode.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/components/interactive_questions/utils/__tests__/questionState.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add endpoint permission audit'
+    section: features
+    commits:
+    - 314d75940
+    authored_at: '2026-06-12T13:36:09+00:00'
+    changed_paths:
+    - backend/core/api/app/security/user_data_permissions.yml
+    - docs/specs/user-data-permission-audit/spec.yml
+    - scripts/audit_user_data_permissions.py
+    - scripts/tests/test_audit_user_data_permissions.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add user data permission audit'
+    section: features
+    commits:
+    - '267012038'
+    authored_at: '2026-06-12T13:09:55+00:00'
+    changed_paths:
+    - backend/core/api/app/security/user_data_permissions.yml
+    - docs/specs/user-data-permission-audit/spec.yml
+    - scripts/audit_user_data_permissions.py
+    - scripts/tests/test_audit_user_data_permissions.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: persist search parent preview metadata'
+    section: features
+    commits:
+    - 3a84e8167
+    authored_at: '2026-06-12T09:28:11+00:00'
+    changed_paths:
+    - .claude/hooks/skill-embed-registry-guard.sh
+    - .codex/hooks/skill-embed-registry-guard.sh
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_skill_preview_metadata.py
+    - docs/specs/search-parent-preview-metadata-sync/spec.yml
+    - frontend/apps/web_app/tests/search-parent-preview-stress.spec.ts
+    - frontend/packages/ui/src/components/embeds/__tests__/embedPreviewHydration.test.ts
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/search-parent-preview-stress-test.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/services/__tests__/embedPreviewBackfill.test.ts
+    - frontend/packages/ui/src/services/embedPreviewBackfill.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - scripts/audit_search_parent_preview_metadata.py
+    - scripts/tests/test_audit_search_parent_preview_metadata.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: center shared link decrypting screens'
+    section: bug_fixes
+    commits:
+    - 5697fd875
+    authored_at: '2026-06-12T23:13:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/s/+layout.svelte
+    - frontend/apps/web_app/src/routes/s/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: clarify shared link loading copy'
+    section: bug_fixes
+    commits:
+    - fb10588ab
+    authored_at: '2026-06-12T23:05:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/s/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: support YouTube watch URLs with leading query params'
+    section: bug_fixes
+    commits:
+    - 4b506ffbe
+    authored_at: '2026-06-12T22:35:28+00:00'
+    changed_paths:
+    - backend/shared/providers/youtube/youtube_metadata.py
+    - backend/tests/test_youtube_metadata.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: complete iOS share extension workflow'
+    section: bug_fixes
+    commits:
+    - 1a1d3fdfe
+    authored_at: '2026-06-12T22:20:45+00:00'
+    changed_paths:
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+    - docs/specs/apple-chat-management-sharing-parity/spec.yml
+    - scripts/apple_share_extension_workflow_test.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: improve example chat memory and embed quality'
+    section: bug_fixes
+    commits:
+    - 75a4928b2
+    authored_at: '2026-06-12T19:12:57+00:00'
+    changed_paths:
+    - docs/specs/example-chat-public-quality/spec.yml
+    - docs/user-guide/cli/chats.md
+    - frontend/apps/web_app/src/routes/(seo)/example/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-ai-communication-style.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-ai-learning-preferences.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-books-currently-reading.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-books-favorite-books.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-books-to-read-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-coding-setup.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-preferred-tech.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-projects.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-want-to-learn.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-docs-writing-style.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-events-saved-events.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-health-appointments.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-health-medical-history.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-home-saved-listings.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-images-preferred-styles.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-mail-writing-styles.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-reminder-defaults.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-study-learning-goals.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-preferred-airlines.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-saved-connections.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-saved-stays.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-trips.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_ai_communication_style.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_ai_learning_preferences.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_currently_reading.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_favorite_books.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_to_read_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_coding_setup.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_preferred_tech.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_projects.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_want_to_learn.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_docs_writing_style.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_events_saved_events.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_health_appointments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_health_medical_history.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_home_saved_listings.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_images_preferred_styles.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_mail_writing_styles.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_reminder_defaults.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_study_learning_goals.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_activities.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_airlines.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_transport.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_saved_connections.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_saved_stays.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_trips.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_to_watch_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_watched_movies.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_watched_shows.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_videos_to_watch_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_web_bookmarks.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_web_read_later.yml
+    - scripts/audit_example_chats.py
+    - scripts/create-example-chat-from-share.mjs
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route Apple awaiting user input events'
+    section: bug_fixes
+    commits:
+    - 4af7e6beb
+    authored_at: '2026-06-12T18:13:31+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: resolve Apple interactive question build'
+    section: bug_fixes
+    commits:
+    - f7e8aead8
+    authored_at: '2026-06-12T18:10:33+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: connect Apple question answers to chat'
+    section: bug_fixes
+    commits:
+    - 0fae8e7a7
+    authored_at: '2026-06-12T18:09:40+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: wire Apple interactive answer submission'
+    section: bug_fixes
+    commits:
+    - 4912b3e58
+    authored_at: '2026-06-12T18:09:05+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - docs/specs/interactive-questions-parity/spec.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: add Apple interactive question answering'
+    section: bug_fixes
+    commits:
+    - 8d6de0bad
+    authored_at: '2026-06-12T18:08:32+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/InteractiveQuestionsParityTests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: add missing example chat SEO answer'
+    section: bug_fixes
+    commits:
+    - '478224419'
+    authored_at: '2026-06-12T16:50:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-images-preferred-styles.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_images_preferred_styles.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: refresh example chat memory and embed data'
+    section: bug_fixes
+    commits:
+    - 6904d5adb
+    authored_at: '2026-06-12T16:40:01+00:00'
+    changed_paths:
+    - backend/scripts/top_up_test_account_credits.py
+    - docs/specs/example-chat-public-quality/spec.yml
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/ai-workshops-meetups-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/buck-converters-24v-5v.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/flights-berlin-to-bangkok.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-ai-communication-style.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-ai-learning-preferences.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-books-currently-reading.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-books-favorite-books.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-books-to-read-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-coding-setup.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-preferred-tech.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-projects.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-want-to-learn.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-docs-writing-style.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-events-saved-events.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-health-appointments.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-health-medical-history.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-home-saved-listings.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-images-preferred-styles.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-mail-writing-styles.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-reminder-defaults.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-study-learning-goals.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-preferred-activities.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-preferred-airlines.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-preferred-transport.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-saved-connections.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-saved-stays.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-trips.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-tv-to-watch-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-tv-watched-movies.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-tv-watched-shows.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-videos-to-watch-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-web-bookmarks.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-web-read-later.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/chickpea_spinach_protein_dinners.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_ai_communication_style.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_ai_learning_preferences.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_currently_reading.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_favorite_books.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_to_read_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_coding_setup.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_preferred_tech.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_projects.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_want_to_learn.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_docs_writing_style.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_events_saved_events.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_health_appointments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_health_medical_history.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_home_saved_listings.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_images_preferred_styles.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_mail_writing_styles.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_reminder_defaults.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_study_learning_goals.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_activities.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_airlines.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_transport.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_saved_connections.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_saved_stays.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_trips.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_to_watch_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_watched_movies.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_watched_shows.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_videos_to_watch_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_web_bookmarks.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_web_read_later.yml
+    - scripts/audit_example_chats.py
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/openmates_cli_test_account.mjs
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: avoid blocking active chat sends'
+    section: bug_fixes
+    commits:
+    - 8d004b2c6
+    authored_at: '2026-06-12T16:36:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/sendersChatManagement.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: unblock active chat acknowledgements'
+    section: bug_fixes
+    commits:
+    - 75b517948
+    authored_at: '2026-06-12T16:00:06+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/active_chat_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_websocket_set_active_chat.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: harden shared embeds and settings auth'
+    section: bug_fixes
+    commits:
+    - c2b161420
+    authored_at: '2026-06-12T14:10:58+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/security/user_data_permissions.yml
+    - backend/tests/test_share_short_links.py
+    - scripts/tests/test_audit_user_data_permissions.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: emphasize website source quote highlight'
+    section: bug_fixes
+    commits:
+    - f8e840d8c
+    authored_at: '2026-06-12T13:22:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/web/WebsiteEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve source quote highlight fallback'
+    section: bug_fixes
+    commits:
+    - 5f59b406d
+    authored_at: '2026-06-12T12:56:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/web/WebsiteEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render website source quote highlights'
+    section: bug_fixes
+    commits:
+    - 573ec17a9
+    authored_at: '2026-06-12T12:45:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/web/WebsiteEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: enforce store embed ownership'
+    section: bug_fixes
+    commits:
+    - 95c8c7702
+    authored_at: '2026-06-12T12:00:03+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    - backend/tests/test_store_embed_authorization.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: persist shared preview backfill locally'
+    section: bug_fixes
+    commits:
+    - 39098f051
+    authored_at: '2026-06-12T11:54:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedPreviewBackfill.test.ts
+    - frontend/packages/ui/src/services/embedPreviewBackfill.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: send valid image bytes to Bedrock'
+    section: bug_fixes
+    commits:
+    - e26926967
+    authored_at: '2026-06-12T11:33:11+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/bedrock_shared.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/images/skills/view_skill.py
+    - backend/shared/python_utils/image_mime.py
+    - backend/tests/test_bedrock_image_multimodal.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: defer paste recovery dismissal until user edit'
+    section: bug_fixes
+    commits:
+    - 953f7ffd8
+    authored_at: '2026-06-12T09:29:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize paste recovery chip lifecycle'
+    section: bug_fixes
+    commits:
+    - b9200e8a4
+    authored_at: '2026-06-12T09:17:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep paste recovery for parser-converted embeds'
+    section: bug_fixes
+    commits:
+    - f3ca91d28
+    authored_at: '2026-06-12T09:06:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: persist final ai and code run outputs'
+    section: bug_fixes
+    commits:
+    - d6bd084f1
+    authored_at: '2026-06-12T08:03:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/sendersCodeRunOutputs.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep code run terminal controls visible'
+    section: bug_fixes
+    commits:
+    - 3ab090b7c
+    authored_at: '2026-06-12T08:01:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: highlight split website source quotes'
+    section: bug_fixes
+    commits:
+    - c7eba6e56
+    authored_at: '2026-06-12T07:59:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/web/WebsiteEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: persist web search parent preview metadata'
+    section: bug_fixes
+    commits:
+    - 51d6c932e
+    authored_at: '2026-06-12T07:53:54+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_skill_preview_metadata.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: record Apple question verification'
+    section: docs
+    commits:
+    - ed8bc0f91
+    authored_at: '2026-06-12T18:39:26+00:00'
+    changed_paths:
+    - docs/specs/interactive-questions-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record interactive questions verification'
+    section: docs
+    commits:
+    - 1f77e900d
+    authored_at: '2026-06-12T14:12:04+00:00'
+    changed_paths:
+    - docs/specs/interactive-questions-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: mark search preview metadata spec verified'
+    section: docs
+    commits:
+    - 13ce46e3a
+    authored_at: '2026-06-12T11:24:47+00:00'
+    changed_paths:
+    - docs/specs/search-parent-preview-metadata-sync/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record search preview verification evidence'
+    section: docs
+    commits:
+    - a27afaef4
+    authored_at: '2026-06-12T09:49:13+00:00'
+    changed_paths:
+    - docs/specs/search-parent-preview-metadata-sync/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: add Apple interactive question parser coverage'
+    section: tests
+    commits:
+    - 1e2e82693
+    authored_at: '2026-06-12T17:55:28+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMatesTests/InteractiveQuestionsParityTests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: align example chat memory assertions'
+    section: tests
+    commits:
+    - 22e6dcb88
+    authored_at: '2026-06-12T17:01:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: force hidden new chat control'
+    section: tests
+    commits:
+    - 5f439d2a9
+    authored_at: '2026-06-12T16:13:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: avoid post-send locator diagnostics'
+    section: tests
+    commits:
+    - 8212395e9
+    authored_at: '2026-06-12T15:41:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: skip post-send e2e screenshots'
+    section: tests
+    commits:
+    - 72b8bf496
+    authored_at: '2026-06-12T15:30:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: bound e2e step screenshots'
+    section: tests
+    commits:
+    - 429d09732
+    authored_at: '2026-06-12T15:19:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: make scroll spec cleanup non-fatal'
+    section: tests
+    commits:
+    - 1859cea38
+    authored_at: '2026-06-12T14:50:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align scroll spec with mock response'
+    section: tests
+    commits:
+    - 17c7595a8
+    authored_at: '2026-06-12T14:38:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use existing chat mock fixture'
+    section: tests
+    commits:
+    - 5821a16ed
+    authored_at: '2026-06-12T14:27:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use shared send helper in scroll spec'
+    section: tests
+    commits:
+    - e3201eb26
+    authored_at: '2026-06-12T14:16:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: tolerate transient chat header in scroll spec'
+    section: tests
+    commits:
+    - ef6db6c14
+    authored_at: '2026-06-12T14:05:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for new chat header before scroll assertion'
+    section: tests
+    commits:
+    - 861f96de0
+    authored_at: '2026-06-12T13:56:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for chat UI after login'
+    section: tests
+    commits:
+    - 9412ce3d6
+    authored_at: '2026-06-12T13:45:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: allow multiple source quote highlights'
+    section: tests
+    commits:
+    - cdf151ac8
+    authored_at: '2026-06-12T13:11:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: accept hidden stripe consent toggle'
+    section: tests
+    commits:
+    - 3b464053b
+    authored_at: '2026-06-12T12:23:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize stripe payment specs'
+    section: tests
+    commits:
+    - 18d0d7b10
+    authored_at: '2026-06-12T12:15:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    - frontend/packages/ui/src/components/Payment.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: reproduce shared preview backfill reload loss'
+    section: tests
+    commits:
+    - 365b2259a
+    authored_at: '2026-06-12T11:36:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for substantive image response'
+    section: tests
+    commits:
+    - e99e566bd
+    authored_at: '2026-06-12T10:09:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: scope code paste assertion to classification'
+    section: tests
+    commits:
+    - fc93b1204
+    authored_at: '2026-06-12T09:53:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: reset paste composer between cases'
+    section: tests
+    commits:
+    - 98fe73dde
+    authored_at: '2026-06-12T09:46:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: verify code paste recovery via embed menu'
+    section: tests
+    commits:
+    - 0a0299b5d
+    authored_at: '2026-06-12T09:40:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for synced assistant persistence'
+    section: tests
+    commits:
+    - ef366ce80
+    authored_at: '2026-06-12T08:50:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: accept import code fixture variants'
+    section: tests
+    commits:
+    - 62abb7be1
+    authored_at: '2026-06-12T08:15:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize failed playwright specs'
+    section: tests
+    commits:
+    - 1f70e219f
+    authored_at: '2026-06-12T08:01:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - frontend/apps/web_app/tests/chat-search-flow.spec.ts
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: support YouTube watch URLs with leading query params'
+    commits:
+    - 4b506ffbe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: persist search parent preview metadata'
+    commits:
+    - 3a84e8167
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: persist web search parent preview metadata'
+    commits:
+    - 51d6c932e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: center shared link decrypting screens'
+    commits:
+    - 5697fd875
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: clarify shared link loading copy'
+    commits:
+    - fb10588ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve example chat memory and embed quality'
+    commits:
+    - 75a4928b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: refresh example chat memory and embed data'
+    commits:
+    - 6904d5adb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: unblock active chat acknowledgements'
+    commits:
+    - 75b517948
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: harden shared embeds and settings auth'
+    commits:
+    - c2b161420
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: emphasize website source quote highlight'
+    commits:
+    - f8e840d8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve source quote highlight fallback'
+    commits:
+    - 5f59b406d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render website source quote highlights'
+    commits:
+    - 573ec17a9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: enforce store embed ownership'
+    commits:
+    - 95c8c7702
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: send valid image bytes to Bedrock'
+    commits:
+    - e26926967
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: defer paste recovery dismissal until user edit'
+    commits:
+    - 953f7ffd8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: persist search parent preview metadata'
+    commits:
+    - 3a84e8167
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize paste recovery chip lifecycle'
+    commits:
+    - b9200e8a4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep paste recovery for parser-converted embeds'
+    commits:
+    - f3ca91d28
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: persist final ai and code run outputs'
+    commits:
+    - d6bd084f1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep code run terminal controls visible'
+    commits:
+    - 3ab090b7c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: highlight split website source quotes'
+    commits:
+    - c7eba6e56
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: center shared link decrypting screens'
+    commits:
+    - 5697fd875
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: clarify shared link loading copy'
+    commits:
+    - fb10588ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve example chat memory and embed quality'
+    commits:
+    - 75a4928b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: route Apple awaiting user input events'
+    commits:
+    - 4af7e6beb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: resolve Apple interactive question build'
+    commits:
+    - f7e8aead8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: connect Apple question answers to chat'
+    commits:
+    - 0fae8e7a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: wire Apple interactive answer submission'
+    commits:
+    - 4912b3e58
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: refresh example chat memory and embed data'
+    commits:
+    - 6904d5adb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: unblock active chat acknowledgements'
+    commits:
+    - 75b517948
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: harden shared embeds and settings auth'
+    commits:
+    - c2b161420
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: harden interactive questions parity'
+    commits:
+    - 1a8e169c2
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: emphasize website source quote highlight'
+    commits:
+    - f8e840d8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve source quote highlight fallback'
+    commits:
+    - 5f59b406d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render website source quote highlights'
+    commits:
+    - 573ec17a9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: enforce store embed ownership'
+    commits:
+    - 95c8c7702
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: send valid image bytes to Bedrock'
+    commits:
+    - e26926967
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: defer paste recovery dismissal until user edit'
+    commits:
+    - 953f7ffd8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: persist search parent preview metadata'
+    commits:
+    - 3a84e8167
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize paste recovery chip lifecycle'
+    commits:
+    - b9200e8a4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep paste recovery for parser-converted embeds'
+    commits:
+    - f3ca91d28
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: persist final ai and code run outputs'
+    commits:
+    - d6bd084f1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep code run terminal controls visible'
+    commits:
+    - 3ab090b7c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: highlight split website source quotes'
+    commits:
+    - c7eba6e56
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 5697fd875da79bcd151aaf6dad4f77f2bac54c1b
+    short_sha: 5697fd875
+    authored_at: '2026-06-12T23:13:26+00:00'
+    subject: 'fix: center shared link decrypting screens'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/s/+layout.svelte
+    - frontend/apps/web_app/src/routes/s/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    related_feature_ids: []
+  - sha: fb10588abd58c176b9c46ebfb3e98d1efeae7e50
+    short_sha: fb10588ab
+    authored_at: '2026-06-12T23:05:06+00:00'
+    subject: 'fix: clarify shared link loading copy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/s/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    related_feature_ids: []
+  - sha: 4b506ffbe36409561d1bfb1f221b5d89de0649d7
+    short_sha: 4b506ffbe
+    authored_at: '2026-06-12T22:35:28+00:00'
+    subject: 'fix: support YouTube watch URLs with leading query params'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/youtube/youtube_metadata.py
+    - backend/tests/test_youtube_metadata.py
+    related_feature_ids: []
+  - sha: 1a1d3fdfe4eec23d3a5d9fee82f6063730b2fdfe
+    short_sha: 1a1d3fdfe
+    authored_at: '2026-06-12T22:20:45+00:00'
+    subject: 'fix: complete iOS share extension workflow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+    - docs/specs/apple-chat-management-sharing-parity/spec.yml
+    - scripts/apple_share_extension_workflow_test.py
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: 75a4928b2eec61f11d72ea5319e6acdd36872aab
+    short_sha: 75a4928b2
+    authored_at: '2026-06-12T19:12:57+00:00'
+    subject: 'fix: improve example chat memory and embed quality'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/example-chat-public-quality/spec.yml
+    - docs/user-guide/cli/chats.md
+    - frontend/apps/web_app/src/routes/(seo)/example/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-ai-communication-style.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-ai-learning-preferences.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-books-currently-reading.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-books-favorite-books.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-books-to-read-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-coding-setup.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-preferred-tech.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-projects.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-want-to-learn.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-docs-writing-style.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-events-saved-events.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-health-appointments.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-health-medical-history.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-home-saved-listings.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-images-preferred-styles.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-mail-writing-styles.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-reminder-defaults.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-study-learning-goals.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-preferred-airlines.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-saved-connections.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-saved-stays.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-trips.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_ai_communication_style.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_ai_learning_preferences.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_currently_reading.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_favorite_books.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_to_read_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_coding_setup.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_preferred_tech.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_projects.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_want_to_learn.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_docs_writing_style.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_events_saved_events.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_health_appointments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_health_medical_history.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_home_saved_listings.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_images_preferred_styles.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_mail_writing_styles.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_reminder_defaults.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_study_learning_goals.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_activities.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_airlines.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_transport.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_saved_connections.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_saved_stays.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_trips.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_to_watch_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_watched_movies.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_watched_shows.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_videos_to_watch_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_web_bookmarks.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_web_read_later.yml
+    - scripts/audit_example_chats.py
+    - scripts/create-example-chat-from-share.mjs
+    related_feature_ids: []
+  - sha: ed8bc0f91bbdc07a1f271fc1288a8cd03ae1d7ef
+    short_sha: ed8bc0f91
+    authored_at: '2026-06-12T18:39:26+00:00'
+    subject: 'docs: record Apple question verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/interactive-questions-parity/spec.yml
+    related_feature_ids: []
+  - sha: 4af7e6beb6b3adb216beb788dd4abc322922ae04
+    short_sha: 4af7e6beb
+    authored_at: '2026-06-12T18:13:31+00:00'
+    subject: 'fix: route Apple awaiting user input events'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f7e8aead88430743e41f9dec8819fabaadd9b833
+    short_sha: f7e8aead8
+    authored_at: '2026-06-12T18:10:33+00:00'
+    subject: 'fix: resolve Apple interactive question build'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 0fae8e7a76c2ee962e87ffd05cb5ba7424c75c68
+    short_sha: 0fae8e7a7
+    authored_at: '2026-06-12T18:09:40+00:00'
+    subject: 'fix: connect Apple question answers to chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 4912b3e582891506b2cf6e5c38971cdf318caadf
+    short_sha: 4912b3e58
+    authored_at: '2026-06-12T18:09:05+00:00'
+    subject: 'fix: wire Apple interactive answer submission'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - docs/specs/interactive-questions-parity/spec.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 8d6de0bad3f8fa9cfad597b380fe191833422273
+    short_sha: 8d6de0bad
+    authored_at: '2026-06-12T18:08:32+00:00'
+    subject: 'fix: add Apple interactive question answering'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/InteractiveQuestionsParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 1e2e8269314e0510f664b8776ec1bcd0545d3c69
+    short_sha: 1e2e82693
+    authored_at: '2026-06-12T17:55:28+00:00'
+    subject: 'test: add Apple interactive question parser coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMatesTests/InteractiveQuestionsParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 22e6dcb8838133f21fd910618116747d56bd9d78
+    short_sha: 22e6dcb88
+    authored_at: '2026-06-12T17:01:37+00:00'
+    subject: 'test: align example chat memory assertions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: 478224419b1fbb5e377084885b9177ee5ac7dfbc
+    short_sha: '478224419'
+    authored_at: '2026-06-12T16:50:39+00:00'
+    subject: 'fix: add missing example chat SEO answer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-images-preferred-styles.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_images_preferred_styles.yml
+    related_feature_ids: []
+  - sha: 6904d5adb719c2ec8862df9ae0d66ee6ba32294f
+    short_sha: 6904d5adb
+    authored_at: '2026-06-12T16:40:01+00:00'
+    subject: 'fix: refresh example chat memory and embed data'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/scripts/top_up_test_account_credits.py
+    - docs/specs/example-chat-public-quality/spec.yml
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/ai-workshops-meetups-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/buck-converters-24v-5v.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/flights-berlin-to-bangkok.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-ai-communication-style.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-ai-learning-preferences.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-books-currently-reading.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-books-favorite-books.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-books-to-read-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-coding-setup.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-preferred-tech.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-projects.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-code-want-to-learn.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-docs-writing-style.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-events-saved-events.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-health-appointments.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-health-medical-history.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-home-saved-listings.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-images-preferred-styles.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-mail-writing-styles.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-reminder-defaults.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-study-learning-goals.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-preferred-activities.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-preferred-airlines.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-preferred-transport.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-saved-connections.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-saved-stays.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-trips.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-tv-to-watch-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-tv-watched-movies.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-tv-watched-shows.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-videos-to-watch-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-web-bookmarks.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-web-read-later.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/chickpea_spinach_protein_dinners.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_ai_communication_style.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_ai_learning_preferences.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_currently_reading.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_favorite_books.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_to_read_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_coding_setup.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_preferred_tech.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_projects.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_want_to_learn.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_docs_writing_style.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_events_saved_events.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_health_appointments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_health_medical_history.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_home_saved_listings.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_images_preferred_styles.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_mail_writing_styles.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_reminder_defaults.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_study_learning_goals.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_activities.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_airlines.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_transport.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_saved_connections.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_saved_stays.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_trips.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_to_watch_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_watched_movies.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_watched_shows.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_videos_to_watch_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_web_bookmarks.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_web_read_later.yml
+    - scripts/audit_example_chats.py
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/openmates_cli_test_account.mjs
+    related_feature_ids: []
+  - sha: 8d004b2c6629d6572331d1a0ea73c4b2daa49e12
+    short_sha: 8d004b2c6
+    authored_at: '2026-06-12T16:36:22+00:00'
+    subject: 'fix: avoid blocking active chat sends'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/sendersChatManagement.ts
+    related_feature_ids: []
+  - sha: 5f439d2a93bb3d95861b09e38ae70d5644b660a9
+    short_sha: 5f439d2a9
+    authored_at: '2026-06-12T16:13:43+00:00'
+    subject: 'test: force hidden new chat control'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: 75b51794823e36203c7c006f95c76742805e496d
+    short_sha: 75b517948
+    authored_at: '2026-06-12T16:00:06+00:00'
+    subject: 'fix: unblock active chat acknowledgements'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/active_chat_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_websocket_set_active_chat.py
+    related_feature_ids: []
+  - sha: 8212395e98489c5442f58bac805525d817c08dae
+    short_sha: 8212395e9
+    authored_at: '2026-06-12T15:41:54+00:00'
+    subject: 'test: avoid post-send locator diagnostics'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: 72b8bf496eb9bbbe83203e1a873412db2ef43b43
+    short_sha: 72b8bf496
+    authored_at: '2026-06-12T15:30:21+00:00'
+    subject: 'test: skip post-send e2e screenshots'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: 429d097327b988485316f9f3fef757122718b309
+    short_sha: 429d09732
+    authored_at: '2026-06-12T15:19:23+00:00'
+    subject: 'test: bound e2e step screenshots'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    related_feature_ids: []
+  - sha: 1859cea381329ced043404fb88b2807857350f62
+    short_sha: 1859cea38
+    authored_at: '2026-06-12T14:50:47+00:00'
+    subject: 'test: make scroll spec cleanup non-fatal'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    related_feature_ids: []
+  - sha: 17c7595a83e7e37ce93617229016dcde88df064c
+    short_sha: 17c7595a8
+    authored_at: '2026-06-12T14:38:14+00:00'
+    subject: 'test: align scroll spec with mock response'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    related_feature_ids: []
+  - sha: 5821a16ed4cdb1e813e54a37a0378f84e0b9c4c8
+    short_sha: 5821a16ed
+    authored_at: '2026-06-12T14:27:22+00:00'
+    subject: 'test: use existing chat mock fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    related_feature_ids: []
+  - sha: e3201eb26984714fc3c2d0f0c8d19c774a880c08
+    short_sha: e3201eb26
+    authored_at: '2026-06-12T14:16:12+00:00'
+    subject: 'test: use shared send helper in scroll spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    related_feature_ids: []
+  - sha: 1f77e900dfe3dd88f52a5f7795d7d4c15ab49e79
+    short_sha: 1f77e900d
+    authored_at: '2026-06-12T14:12:04+00:00'
+    subject: 'docs: record interactive questions verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/interactive-questions-parity/spec.yml
+    related_feature_ids: []
+  - sha: c2b161420f87437f44d57fac0deb29f6cd198680
+    short_sha: c2b161420
+    authored_at: '2026-06-12T14:10:58+00:00'
+    subject: 'fix: harden shared embeds and settings auth'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/security/user_data_permissions.yml
+    - backend/tests/test_share_short_links.py
+    - scripts/tests/test_audit_user_data_permissions.py
+    related_feature_ids: []
+  - sha: ef6db6c142621528438b1c36062a7f6736cb0114
+    short_sha: ef6db6c14
+    authored_at: '2026-06-12T14:05:14+00:00'
+    subject: 'test: tolerate transient chat header in scroll spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    related_feature_ids: []
+  - sha: 1a8e169c2724db036d49d6e76de211cef4f6f219
+    short_sha: 1a8e169c2
+    authored_at: '2026-06-12T14:02:03+00:00'
+    subject: 'feat: harden interactive questions parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_interactive_questions_streaming.py
+    - docs/specs/interactive-questions-parity/spec.yml
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/interactiveQuestions.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/interactiveQuestions.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/InteractiveQuestionNode.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/components/interactive_questions/utils/__tests__/questionState.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 861f96de09f46eaba52ccaca5b67df6bd92626bd
+    short_sha: 861f96de0
+    authored_at: '2026-06-12T13:56:06+00:00'
+    subject: 'test: wait for new chat header before scroll assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    related_feature_ids: []
+  - sha: 9412ce3d6568ec3797e50aa876a5f7dfd361bdf0
+    short_sha: 9412ce3d6
+    authored_at: '2026-06-12T13:45:51+00:00'
+    subject: 'test: wait for chat UI after login'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    related_feature_ids: []
+  - sha: 314d7594006101668fb71c69fab43bc3e381c760
+    short_sha: 314d75940
+    authored_at: '2026-06-12T13:36:09+00:00'
+    subject: 'feat: add endpoint permission audit'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/security/user_data_permissions.yml
+    - docs/specs/user-data-permission-audit/spec.yml
+    - scripts/audit_user_data_permissions.py
+    - scripts/tests/test_audit_user_data_permissions.py
+    related_feature_ids: []
+  - sha: f8e840d8c50d5b49b9ac781eb6845540ca74c43d
+    short_sha: f8e840d8c
+    authored_at: '2026-06-12T13:22:31+00:00'
+    subject: 'fix: emphasize website source quote highlight'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/web/WebsiteEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: cdf151ac8e396fe9ad102bf572dbc3f8c1c42e56
+    short_sha: cdf151ac8
+    authored_at: '2026-06-12T13:11:09+00:00'
+    subject: 'test: allow multiple source quote highlights'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    related_feature_ids: []
+  - sha: 267012038767b8b188b75d26eb98369593dbdd74
+    short_sha: '267012038'
+    authored_at: '2026-06-12T13:09:55+00:00'
+    subject: 'feat: add user data permission audit'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/security/user_data_permissions.yml
+    - docs/specs/user-data-permission-audit/spec.yml
+    - scripts/audit_user_data_permissions.py
+    - scripts/tests/test_audit_user_data_permissions.py
+    related_feature_ids: []
+  - sha: 5f59b406d9b82aca382e42870273d25b377473bd
+    short_sha: 5f59b406d
+    authored_at: '2026-06-12T12:56:05+00:00'
+    subject: 'fix: preserve source quote highlight fallback'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/web/WebsiteEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 573ec17a9d7460ab9483f15831b921721a2c7869
+    short_sha: 573ec17a9
+    authored_at: '2026-06-12T12:45:14+00:00'
+    subject: 'fix: render website source quote highlights'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/web/WebsiteEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 3b464053bb9b0922a29fc0cfa2b1ac810a601535
+    short_sha: 3b464053b
+    authored_at: '2026-06-12T12:23:41+00:00'
+    subject: 'test: accept hidden stripe consent toggle'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: 18d0d7b1040b439c65e1d85eaa6cfeb0ff1ebcb4
+    short_sha: 18d0d7b10
+    authored_at: '2026-06-12T12:15:20+00:00'
+    subject: 'test: stabilize stripe payment specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    - frontend/packages/ui/src/components/Payment.svelte
+    related_feature_ids: []
+  - sha: 95c8c7702a8ecd1a22447bdc636238c83cf55438
+    short_sha: 95c8c7702
+    authored_at: '2026-06-12T12:00:03+00:00'
+    subject: 'fix: enforce store embed ownership'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    - backend/tests/test_store_embed_authorization.py
+    related_feature_ids: []
+  - sha: 39098f05174adbf1eccde9b8c8b9e1fa663fe7f5
+    short_sha: 39098f051
+    authored_at: '2026-06-12T11:54:39+00:00'
+    subject: 'fix: persist shared preview backfill locally'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedPreviewBackfill.test.ts
+    - frontend/packages/ui/src/services/embedPreviewBackfill.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 365b2259ac0c7634029ff70b24c0f2f29c107fc3
+    short_sha: 365b2259a
+    authored_at: '2026-06-12T11:36:53+00:00'
+    subject: 'test: reproduce shared preview backfill reload loss'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
+    related_feature_ids: []
+  - sha: e26926967ac80a782c35fcae9424d5214785fb54
+    short_sha: e26926967
+    authored_at: '2026-06-12T11:33:11+00:00'
+    subject: 'fix: send valid image bytes to Bedrock'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/bedrock_shared.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/images/skills/view_skill.py
+    - backend/shared/python_utils/image_mime.py
+    - backend/tests/test_bedrock_image_multimodal.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    related_feature_ids: []
+  - sha: 13ce46e3a17330de40d7e81a3fab6c32015b8111
+    short_sha: 13ce46e3a
+    authored_at: '2026-06-12T11:24:47+00:00'
+    subject: 'docs: mark search preview metadata spec verified'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/search-parent-preview-metadata-sync/spec.yml
+    related_feature_ids: []
+  - sha: e99e566bde61990144a5b4f7140c90c2717907d9
+    short_sha: e99e566bd
+    authored_at: '2026-06-12T10:09:52+00:00'
+    subject: 'test: wait for substantive image response'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    related_feature_ids: []
+  - sha: fc93b120406c8a640bbc0925e5d83915a846e082
+    short_sha: fc93b1204
+    authored_at: '2026-06-12T09:53:01+00:00'
+    subject: 'test: scope code paste assertion to classification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    related_feature_ids: []
+  - sha: a27afaef4fbf5b925bd29ac7284a5ad15fd06fe8
+    short_sha: a27afaef4
+    authored_at: '2026-06-12T09:49:13+00:00'
+    subject: 'docs: record search preview verification evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/search-parent-preview-metadata-sync/spec.yml
+    related_feature_ids: []
+  - sha: 98fe73dde80aa8ac765cd492f8004856860c2028
+    short_sha: 98fe73dde
+    authored_at: '2026-06-12T09:46:29+00:00'
+    subject: 'test: reset paste composer between cases'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    related_feature_ids: []
+  - sha: 0a0299b5d3b08da9ed75025a0be70c36b4f68143
+    short_sha: 0a0299b5d
+    authored_at: '2026-06-12T09:40:22+00:00'
+    subject: 'test: verify code paste recovery via embed menu'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    related_feature_ids: []
+  - sha: 953f7ffd88245786ed5c6f936d39bac35a084df8
+    short_sha: 953f7ffd8
+    authored_at: '2026-06-12T09:29:18+00:00'
+    subject: 'fix: defer paste recovery dismissal until user edit'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 3a84e81671d560c5cdf6b357750f8db0cb5e8a70
+    short_sha: 3a84e8167
+    authored_at: '2026-06-12T09:28:11+00:00'
+    subject: 'feat: persist search parent preview metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/skill-embed-registry-guard.sh
+    - .codex/hooks/skill-embed-registry-guard.sh
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_skill_preview_metadata.py
+    - docs/specs/search-parent-preview-metadata-sync/spec.yml
+    - frontend/apps/web_app/tests/search-parent-preview-stress.spec.ts
+    - frontend/packages/ui/src/components/embeds/__tests__/embedPreviewHydration.test.ts
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/search-parent-preview-stress-test.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/services/__tests__/embedPreviewBackfill.test.ts
+    - frontend/packages/ui/src/services/embedPreviewBackfill.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - scripts/audit_search_parent_preview_metadata.py
+    - scripts/tests/test_audit_search_parent_preview_metadata.py
+    related_feature_ids: []
+  - sha: b9200e8a4fe4340626da5f0643fae4bd264f840b
+    short_sha: b9200e8a4
+    authored_at: '2026-06-12T09:17:43+00:00'
+    subject: 'fix: stabilize paste recovery chip lifecycle'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: f3ca91d284fd5b69a1d79e7dfa618c1e60c0721c
+    short_sha: f3ca91d28
+    authored_at: '2026-06-12T09:06:04+00:00'
+    subject: 'fix: keep paste recovery for parser-converted embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: ef366ce807d01f656130294667d36452874b965b
+    short_sha: ef366ce80
+    authored_at: '2026-06-12T08:50:15+00:00'
+    subject: 'test: wait for synced assistant persistence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    related_feature_ids: []
+  - sha: 62abb7be170d11ac3a0687e42ea884ba7497dc8c
+    short_sha: 62abb7be1
+    authored_at: '2026-06-12T08:15:01+00:00'
+    subject: 'test: accept import code fixture variants'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    related_feature_ids: []
+  - sha: d6bd084f1020d850bcc2c8537d65c9aff0f667aa
+    short_sha: d6bd084f1
+    authored_at: '2026-06-12T08:03:55+00:00'
+    subject: 'fix: persist final ai and code run outputs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/sendersCodeRunOutputs.ts
+    related_feature_ids: []
+  - sha: 1f70e219f74b7cc424b64590ac91b747dc3f915f
+    short_sha: 1f70e219f
+    authored_at: '2026-06-12T08:01:50+00:00'
+    subject: 'test: stabilize failed playwright specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - frontend/apps/web_app/tests/chat-search-flow.spec.ts
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 3ab090b7c8c21fe1dc0e0bed6d5a1752b30606af
+    short_sha: 3ab090b7c
+    authored_at: '2026-06-12T08:01:39+00:00'
+    subject: 'fix: keep code run terminal controls visible'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: c7eba6e56157434765a5ae3857c852e5aad5c0eb
+    short_sha: c7eba6e56
+    authored_at: '2026-06-12T07:59:30+00:00'
+    subject: 'fix: highlight split website source quotes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/web/WebsiteEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 51d6c932e4f433b3a45049c8ecb0690ee64d976d
+    short_sha: 51d6c932e
+    authored_at: '2026-06-12T07:53:54+00:00'
+    subject: 'fix: persist web search parent preview metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_skill_preview_metadata.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the core web experience today, specifically improving search metadata persistence,
+    enhancing website source citations, and stabilizing the message input's paste recovery system. Significant work also continued
+    on unreleased Apple platform features and internal security auditing.
+  released_changes:
+  - text: Search parent preview metadata is now persisted to improve hydration and backfill reliability for search results.
+    evidence:
+      commits:
+      - 3a84e8167
+    release_status: released_main
+  - text: Website source quote highlights are now rendered and emphasized in the fullscreen embed view, providing better context
+      for citations.
+    evidence:
+      commits:
+      - f8e840d8c
+      - 5f59b406d
+      - 573ec17a9
+      - c7eba6e56
+    release_status: released_main
+  - text: The message input now defers paste recovery dismissal until the user begins editing, ensuring recovery chips remain
+      available during automatic parser conversions.
+    evidence:
+      commits:
+      - 953f7ffd8
+      - b9200e8a4
+      - f3ca91d28
+    release_status: released_main
+  bug_fixes:
+  - text: Shared link decrypting screens are now centered, and loading copy has been clarified for better user feedback.
+    evidence:
+      commits:
+      - 5697fd875
+      - fb10588ab
+    release_status: released_main
+  - text: Example chat quality was improved by refreshing memory and embed data across the public gallery.
+    evidence:
+      commits:
+      - 75a4928b2
+      - 6904d5adb
+    release_status: released_main
+  - text: Active chat acknowledgements are no longer blocked, ensuring reliable synchronization of the current chat state.
+    evidence:
+      commits:
+      - 75b517948
+    release_status: released_main
+  - text: Authorization for shared embeds and settings was hardened to prevent unauthorized access.
+    evidence:
+      commits:
+      - c2b161420
+    release_status: released_main
+  - text: Image byte handling for Bedrock multimodal inference was corrected to ensure valid data is sent to the provider.
+    evidence:
+      commits:
+      - e26926967
+    release_status: released_main
+  - text: Final outputs for AI and code runs are now correctly persisted, and terminal controls remain visible in the UI.
+    evidence:
+      commits:
+      - d6bd084f1
+      - 3ab090b7c
+    release_status: released_main
+  - text: Store embed ownership is now strictly enforced at the API level.
+    evidence:
+      commits:
+      - 95c8c7702
+    release_status: released_main
+  unreleased_progress:
+  - text: Significant progress was made on interactive questions parity and share extension workflows for the unreleased iOS
+      and macOS platforms.
+    evidence:
+      commits:
+      - 1a8e169c2
+      - 4af7e6beb
+      - f7e8aead8
+      - 0fae8e7a7
+      - 4912b3e58
+      - 1a1d3fdfe
+      - 1e2e82693
+    release_status: released_main
+  - text: Internal auditing tools for endpoint and user data permissions were added to the backend.
+    evidence:
+      commits:
+      - 314d75940
+      - '267012038'
+    release_status: released_main
+  internal_progress:
+  - text: Extensive stabilization of Playwright E2E tests was performed, covering chat scroll streaming, Stripe payment flows,
+      and signup helpers.
+    evidence:
+      commits:
+      - 1f70e219f
+      - 18d0d7b10
+      - 1859cea38
+      - 9412ce3d6
+      - 3b464053b
+    release_status: released_main
+  - text: Verification evidence and specifications were updated for search preview metadata and interactive questions.
+    evidence:
+      commits:
+      - 13ce46e3a
+      - 1f77e900d
+      - ed8bc0f91
+      - a27afaef4
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Persistent search parent preview metadata.
+      evidence:
+        commits:
+        - 3a84e8167
+      reason: Improves the reliability and speed of search result previews.
+    - text: Emphasized website source quote highlights.
+      evidence:
+        commits:
+        - f8e840d8c
+        - 5f59b406d
+        - 573ec17a9
+        - c7eba6e56
+      reason: Provides clear visual context for AI-generated quotes from websites.
+    - text: Improved paste recovery stability in the message input.
+      evidence:
+        commits:
+        - 953f7ffd8
+        - b9200e8a4
+        - f3ca91d28
+      reason: Ensures users don't lose pasted content during automatic embed conversion.
+    exclude:
+    - text: Interactive questions parity for Apple platforms.
+      evidence:
+        commits:
+        - 1a8e169c2
+        - 4af7e6beb
+        - f7e8aead8
+        - 0fae8e7a7
+        - 4912b3e58
+      reason: These items relate to the unreleased iOS and macOS platforms.
+    - text: User data permission audit scripts.
+      evidence:
+        commits:
+        - 314d75940
+        - '267012038'
+      reason: These are internal security audit tools not visible to users.
+    rationale: The selected items represent concrete improvements to the core web experience, specifically in search utility,
+      citation clarity, and input reliability. Work on unreleased platforms and internal security scripts is excluded per
+      communication rules.
+  social_video_recommendations:
+  - idea: A short clip showing a user pasting a link, seeing it convert to an embed, and then using the recovery chip to get
+      the original text back.
+    priority: medium
+    reason: Demonstrates a 'quality of life' improvement that solves a common user frustration.
+    evidence:
+      commits:
+      - 953f7ffd8
+      - b9200e8a4
+  - idea: A visual walkthrough of a chat where the AI cites a website, followed by clicking into the embed to see the exact
+      text highlighted.
+    priority: high
+    reason: Highlights the transparency and grounding of the AI's responses.
+    evidence:
+      commits:
+      - f8e840d8c
+      - 573ec17a9
+  quality_notes:
+  - Extensive test suite stabilization suggests a focus on CI/CD reliability.
+  - Hardening of shared link and embed authorization improves the project's security posture.
+  validation_warnings: []

@@ -1,0 +1,1063 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-28'
+generated_at: '2026-07-09T15:13:38+00:00'
+range:
+  since: '2026-04-28T00:00:00+00:00'
+  until: '2026-04-28T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 20
+  section_counts:
+    features: 5
+    bug_fixes: 11
+    improvements: 0
+    docs: 0
+    tests: 4
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 14
+  user_facing_items: 14
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: default to English on first visit with browser language suggestion notification'
+    section: features
+    commits:
+    - bf43c58dd
+    authored_at: '2026-04-28T22:06:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/i18n/setup.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: use large embed layout for daily inspiration banner on wide displays'
+    section: features
+    commits:
+    - 66a8dfae9
+    authored_at: '2026-04-28T16:07:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add swipe navigation to headers'
+    section: features
+    commits:
+    - cb98225f9
+    authored_at: '2026-04-28T09:42:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/__tests__/headerSwipeNavigation.test.ts
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedHeader.test.ts
+    - frontend/packages/ui/src/components/headerSwipeNavigation.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add swipe close gestures for menus'
+    section: features
+    commits:
+    - f30df002c
+    authored_at: '2026-04-28T09:16:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add touch edge swipes for menus'
+    section: features
+    commits:
+    - 2b19b1e09
+    authored_at: '2026-04-28T09:06:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: prevent mixed chat encryption keys'
+    section: bug_fixes
+    commits:
+    - a3f5e137f
+    authored_at: '2026-04-28T22:14:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatKeyConsistency.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncMerge.test.ts
+    - frontend/packages/ui/src/services/chatKeyConsistency.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: route content_sanitization_model through OpenRouter to fix Groq 400 tool-call error'
+    section: bug_fixes
+    commits:
+    - 76d8b2621
+    authored_at: '2026-04-28T20:25:54+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: increase delete-account success-message timeout to 30s in signup specs'
+    section: bug_fixes
+    commits:
+    - c0e916484
+    authored_at: '2026-04-28T16:01:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: handle duplicate AutoTopUp during step transitions in signup specs'
+    section: bug_fixes
+    commits:
+    - 846b83b96
+    authored_at: '2026-04-28T15:48:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/create-test-account.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/packages/ui/src/components/payment/AutoTopUp.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: expose incognito chat header title to tests'
+    section: bug_fixes
+    commits:
+    - 00d61ada5
+    authored_at: '2026-04-28T15:36:37+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use openSignupInterface helper to handle banner/header button visibility'
+    section: bug_fixes
+    commits:
+    - b57e2fd20
+    authored_at: '2026-04-28T15:22:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/a11y-keyboard-nav.spec.ts
+    - frontend/apps/web_app/tests/a11y-modal-dialogs.spec.ts
+    - frontend/apps/web_app/tests/a11y-pages.spec.ts
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/incognito-mode.spec.ts
+    - frontend/apps/web_app/tests/language-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve chat header navigation order'
+    section: bug_fixes
+    commits:
+    - d7bf96916
+    authored_at: '2026-04-28T15:11:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/__tests__/headerSwipeNavigation.test.ts
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedHeader.test.ts
+    - frontend/packages/ui/src/components/headerSwipeNavigation.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: update privacy promises registry and obsidian screenshot sync'
+    section: bug_fixes
+    commits:
+    - 0320671ef
+    authored_at: '2026-04-28T15:08:36+00:00'
+    changed_paths:
+    - scripts/sync_obsidian_test_results.py
+    - shared/docs/privacy_promises.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: prevent new chat screen freeze for unauthenticated users'
+    section: bug_fixes
+    commits:
+    - 744c1ecc7
+    authored_at: '2026-04-28T12:46:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/seo-demo-chat.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: match header swipe direction to arrows'
+    section: bug_fixes
+    commits:
+    - fdef4949a
+    authored_at: '2026-04-28T10:22:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/__tests__/headerSwipeNavigation.test.ts
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedHeader.test.ts
+    - frontend/packages/ui/src/components/headerSwipeNavigation.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: close settings on swipe gesture'
+    section: bug_fixes
+    commits:
+    - c3984bad3
+    authored_at: '2026-04-28T09:27:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: include touch identifiers in header swipe regression'
+    section: tests
+    commits:
+    - 9151162fe
+    authored_at: '2026-04-28T15:52:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: avoid intro chats in header navigation regression'
+    section: tests
+    commits:
+    - 9583063f8
+    authored_at: '2026-04-28T15:45:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix chat header navigation regression spec'
+    section: tests
+    commits:
+    - 0c9c259dc
+    authored_at: '2026-04-28T15:24:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: record playwright videos in artifacts'
+    section: tests
+    commits:
+    - b44535aea
+    authored_at: '2026-04-28T09:25:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/playwright.config.ts
+    - scripts/run_tests.py
+    - scripts/sync_obsidian_test_results.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: route content_sanitization_model through OpenRouter to fix Groq 400 tool-call error'
+    commits:
+    - 76d8b2621
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: default to English on first visit with browser language suggestion notification'
+    commits:
+    - bf43c58dd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: route content_sanitization_model through OpenRouter to fix Groq 400 tool-call error'
+    commits:
+    - 76d8b2621
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: use large embed layout for daily inspiration banner on wide displays'
+    commits:
+    - 66a8dfae9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: increase delete-account success-message timeout to 30s in signup specs'
+    commits:
+    - c0e916484
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: handle duplicate AutoTopUp during step transitions in signup specs'
+    commits:
+    - 846b83b96
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: expose incognito chat header title to tests'
+    commits:
+    - 00d61ada5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use openSignupInterface helper to handle banner/header button visibility'
+    commits:
+    - b57e2fd20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve chat header navigation order'
+    commits:
+    - d7bf96916
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent new chat screen freeze for unauthenticated users'
+    commits:
+    - 744c1ecc7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: match header swipe direction to arrows'
+    commits:
+    - fdef4949a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add swipe navigation to headers'
+    commits:
+    - cb98225f9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: close settings on swipe gesture'
+    commits:
+    - c3984bad3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add swipe close gestures for menus'
+    commits:
+    - f30df002c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add touch edge swipes for menus'
+    commits:
+    - 2b19b1e09
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: default to English on first visit with browser language suggestion notification'
+    commits:
+    - bf43c58dd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: route content_sanitization_model through OpenRouter to fix Groq 400 tool-call error'
+    commits:
+    - 76d8b2621
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: use large embed layout for daily inspiration banner on wide displays'
+    commits:
+    - 66a8dfae9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: increase delete-account success-message timeout to 30s in signup specs'
+    commits:
+    - c0e916484
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: handle duplicate AutoTopUp during step transitions in signup specs'
+    commits:
+    - 846b83b96
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: expose incognito chat header title to tests'
+    commits:
+    - 00d61ada5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use openSignupInterface helper to handle banner/header button visibility'
+    commits:
+    - b57e2fd20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve chat header navigation order'
+    commits:
+    - d7bf96916
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent new chat screen freeze for unauthenticated users'
+    commits:
+    - 744c1ecc7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: match header swipe direction to arrows'
+    commits:
+    - fdef4949a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add swipe navigation to headers'
+    commits:
+    - cb98225f9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: close settings on swipe gesture'
+    commits:
+    - c3984bad3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add swipe close gestures for menus'
+    commits:
+    - f30df002c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add touch edge swipes for menus'
+    commits:
+    - 2b19b1e09
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: a3f5e137f6464303cee3bce12c56cfc04c33a702
+    short_sha: a3f5e137f
+    authored_at: '2026-04-28T22:14:16+00:00'
+    subject: 'fix: prevent mixed chat encryption keys'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatKeyConsistency.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncMerge.test.ts
+    - frontend/packages/ui/src/services/chatKeyConsistency.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: bf43c58ddd1b505e8bcba7ef29f46373ab23856c
+    short_sha: bf43c58dd
+    authored_at: '2026-04-28T22:06:47+00:00'
+    subject: 'feat: default to English on first visit with browser language suggestion notification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/i18n/setup.ts
+    related_feature_ids: []
+  - sha: 76d8b262130373e750edfae430aa23555c5036ab
+    short_sha: 76d8b2621
+    authored_at: '2026-04-28T20:25:54+00:00'
+    subject: 'fix: route content_sanitization_model through OpenRouter to fix Groq 400 tool-call error'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    related_feature_ids: []
+  - sha: 66a8dfae994cff4cc113a8bdd826f27b7a584a07
+    short_sha: 66a8dfae9
+    authored_at: '2026-04-28T16:07:44+00:00'
+    subject: 'feat: use large embed layout for daily inspiration banner on wide displays'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: c0e916484fb0ebe176edd385b566b9b5b5ca5996
+    short_sha: c0e916484
+    authored_at: '2026-04-28T16:01:47+00:00'
+    subject: 'fix: increase delete-account success-message timeout to 30s in signup specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: 9151162fe65c0d959ec0847a01c9deed35bf98e8
+    short_sha: 9151162fe
+    authored_at: '2026-04-28T15:52:42+00:00'
+    subject: 'test: include touch identifiers in header swipe regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids: []
+  - sha: 846b83b96cf241f79ba855dccd10baa286c7e649
+    short_sha: 846b83b96
+    authored_at: '2026-04-28T15:48:43+00:00'
+    subject: 'fix: handle duplicate AutoTopUp during step transitions in signup specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/create-test-account.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/packages/ui/src/components/payment/AutoTopUp.svelte
+    related_feature_ids: []
+  - sha: 9583063f847313ed728ed9e67fcf316aedda02dd
+    short_sha: 9583063f8
+    authored_at: '2026-04-28T15:45:12+00:00'
+    subject: 'test: avoid intro chats in header navigation regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids: []
+  - sha: 00d61ada5c7adf213b4c409a281a6ee76dde5739
+    short_sha: 00d61ada5
+    authored_at: '2026-04-28T15:36:37+00:00'
+    subject: 'fix: expose incognito chat header title to tests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 0c9c259dca9448c38032b339cca12f73352435cf
+    short_sha: 0c9c259dc
+    authored_at: '2026-04-28T15:24:47+00:00'
+    subject: 'test: fix chat header navigation regression spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids: []
+  - sha: b57e2fd20d3368bed8703bdd9b301b6e2c6aefe9
+    short_sha: b57e2fd20
+    authored_at: '2026-04-28T15:22:05+00:00'
+    subject: 'fix: use openSignupInterface helper to handle banner/header button visibility'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/a11y-keyboard-nav.spec.ts
+    - frontend/apps/web_app/tests/a11y-modal-dialogs.spec.ts
+    - frontend/apps/web_app/tests/a11y-pages.spec.ts
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/incognito-mode.spec.ts
+    - frontend/apps/web_app/tests/language-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    related_feature_ids: []
+  - sha: d7bf96916aaab63667614d28ca975b78f84fecfe
+    short_sha: d7bf96916
+    authored_at: '2026-04-28T15:11:12+00:00'
+    subject: 'fix: preserve chat header navigation order'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/__tests__/headerSwipeNavigation.test.ts
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedHeader.test.ts
+    - frontend/packages/ui/src/components/headerSwipeNavigation.ts
+    related_feature_ids: []
+  - sha: 0320671ef5da3c3b803204837a2e2b7a396666fa
+    short_sha: 0320671ef
+    authored_at: '2026-04-28T15:08:36+00:00'
+    subject: 'fix: update privacy promises registry and obsidian screenshot sync'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/sync_obsidian_test_results.py
+    - shared/docs/privacy_promises.yml
+    related_feature_ids: []
+  - sha: 744c1ecc752195298c97b432445395100e840c05
+    short_sha: 744c1ecc7
+    authored_at: '2026-04-28T12:46:56+00:00'
+    subject: 'fix: prevent new chat screen freeze for unauthenticated users'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/seo-demo-chat.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    related_feature_ids: []
+  - sha: fdef4949a0f3e043eec2a7c1e400f0bbc271ff70
+    short_sha: fdef4949a
+    authored_at: '2026-04-28T10:22:30+00:00'
+    subject: 'fix: match header swipe direction to arrows'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/__tests__/headerSwipeNavigation.test.ts
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedHeader.test.ts
+    - frontend/packages/ui/src/components/headerSwipeNavigation.ts
+    related_feature_ids: []
+  - sha: cb98225f99b1491b6928c4fc55de15046b1d6b77
+    short_sha: cb98225f9
+    authored_at: '2026-04-28T09:42:49+00:00'
+    subject: 'feat: add swipe navigation to headers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/__tests__/headerSwipeNavigation.test.ts
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedHeader.test.ts
+    - frontend/packages/ui/src/components/headerSwipeNavigation.ts
+    related_feature_ids: []
+  - sha: c3984bad3ce03adaf7ccc1b8c24e96e1fe4f67a1
+    short_sha: c3984bad3
+    authored_at: '2026-04-28T09:27:54+00:00'
+    subject: 'fix: close settings on swipe gesture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: b44535aeaab9545000ffd33e8bb0b2e1f0679503
+    short_sha: b44535aea
+    authored_at: '2026-04-28T09:25:21+00:00'
+    subject: 'test: record playwright videos in artifacts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/playwright.config.ts
+    - scripts/run_tests.py
+    - scripts/sync_obsidian_test_results.py
+    related_feature_ids: []
+  - sha: f30df002c68b6c160aa8fc133dd86f879a506a63
+    short_sha: f30df002c
+    authored_at: '2026-04-28T09:16:52+00:00'
+    subject: 'feat: add swipe close gestures for menus'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: 2b19b1e0907fb2d4b87ba204e7a9870e595c48db
+    short_sha: 2b19b1e09
+    authored_at: '2026-04-28T09:06:50+00:00'
+    subject: 'feat: add touch edge swipes for menus'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on enhancing the mobile user experience with a new suite of touch gestures and improved language
+    detection for first-time visitors. The update also includes critical fixes for unauthenticated chat sessions and AI model
+    routing.
+  released_changes:
+  - text: OpenMates introduced a suite of touch gestures for the web application, including edge swipes for menus, swipe-to-close
+      for settings, and swipe navigation for chat and embed headers.
+    evidence:
+      commits:
+      - 2b19b1e09
+      - f30df002c
+      - cb98225f9
+    release_status: released_main
+  - text: The web application now defaults to English on the first visit while providing a notification to suggest switching
+      based on the browser's detected language settings.
+    evidence:
+      commits:
+      - bf43c58dd
+    release_status: released_main
+  - text: The daily inspiration banner now utilizes a larger embed layout when viewed on wide displays.
+    evidence:
+      commits:
+      - 66a8dfae9
+    release_status: released_main
+  bug_fixes:
+  - text: OpenMates resolved an issue where the new chat screen could freeze for unauthenticated users.
+    evidence:
+      commits:
+      - 744c1ecc7
+    release_status: released_main
+  - text: The AI content sanitization model was rerouted through OpenRouter to address 400 errors encountered with Groq tool
+      calls.
+    evidence:
+      commits:
+      - 76d8b2621
+    release_status: released_main
+  - text: Several refinements were made to the signup and account deletion flows, including improved handling of AutoTopUp
+      transitions and extended timeouts for success messages.
+    evidence:
+      commits:
+      - 846b83b96
+      - c0e916484
+      - b57e2fd20
+    release_status: released_main
+  - text: Header navigation and settings menus were improved by matching swipe directions to visual arrows and ensuring consistent
+      navigation order.
+    evidence:
+      commits:
+      - fdef4949a
+      - d7bf96916
+      - c3984bad3
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: The project improved test reliability by recording Playwright videos in artifacts and refining regression specs
+      for header navigation and incognito titles.
+    evidence:
+      commits:
+      - b44535aea
+      - 0c9c259dc
+      - 9583063f8
+      - 9151162fe
+      - 00d61ada5
+    release_status: released_main
+  - text: Internal updates were made to the privacy promises registry and Obsidian screenshot synchronization.
+    evidence:
+      commits:
+      - 0320671ef
+    release_status: released_main
+  - text: Logic was added to prevent the use of mixed encryption keys within a single chat to ensure data consistency.
+    evidence:
+      commits:
+      - a3f5e137f
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Automatic browser language detection and suggestion on first visit.
+      evidence:
+        commits:
+        - bf43c58dd
+      reason: Improves the first-time user experience for non-English speakers.
+    - text: New suite of touch gestures including edge swipes for menus and swipe navigation for headers.
+      evidence:
+        commits:
+        - 2b19b1e09
+        - f30df002c
+        - cb98225f9
+      reason: Significant improvement to mobile and touch-based navigation.
+    exclude:
+    - text: AI content sanitization routing update.
+      evidence:
+        commits:
+        - 76d8b2621
+      reason: Technical backend routing fix with minimal direct user impact.
+    - text: Signup flow refinements.
+      evidence:
+        commits:
+        - c0e916484
+        - 846b83b96
+        - b57e2fd20
+      reason: Minor signup flow and timeout adjustments.
+    rationale: The most impactful user-facing changes are the new gesture-based navigation and the improved language detection
+      for new visitors.
+  social_video_recommendations:
+  - idea: A short clip demonstrating the fluidity of the new edge swipes and header navigation on a mobile device.
+    priority: high
+    reason: Gestures are highly visual and demonstrate a significant improvement in app feel.
+    evidence:
+      commits:
+      - 2b19b1e09
+      - f30df002c
+      - cb98225f9
+  quality_notes:
+  - Significant focus on mobile UX parity through gesture support.
+  - Proactive maintenance of encryption key consistency in the frontend services.
+  validation_warnings: []

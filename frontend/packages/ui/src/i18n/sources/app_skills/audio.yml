@@ -49,6 +49,256 @@ transcribe.description:
   verified_by_human:
     - en
 
+generate:
+  context: Skill name for creating short non-speech sound effects
+  en: Generate SFX
+  de: Generate SFX
+  zh: Generate SFX
+  es: Generate SFX
+  fr: Generate SFX
+  pt: Generate SFX
+  ru: Generate SFX
+  ja: Generate SFX
+  ko: Generate SFX
+  it: Generate SFX
+  tr: Generate SFX
+  vi: Generate SFX
+  id: Generate SFX
+  pl: Generate SFX
+  nl: Generate SFX
+  ar: Generate SFX
+  hi: Generate SFX
+  th: Generate SFX
+  cs: Generate SFX
+  sv: Generate SFX
+  he: Generate SFX
+  verified_by_human: [en]
+
+generate.description:
+  context: Skill description for creating short non-speech sound effects
+  en: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  de: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  zh: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  es: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  fr: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  pt: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  ru: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  ja: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  ko: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  it: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  tr: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  vi: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  id: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  pl: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  nl: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  ar: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  hi: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  th: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  cs: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  sv: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  he: Create short non-speech sound effects, UI chimes, alerts, and transitions.
+  verified_by_human: [en]
+
+generate.how_to_use.1:
+  context: Example prompt for the audio Generate SFX skill - success sound
+  en: "Create a soft success chime for a completed task"
+  de: "Create a soft success chime for a completed task"
+  zh: "Create a soft success chime for a completed task"
+  es: "Create a soft success chime for a completed task"
+  fr: "Create a soft success chime for a completed task"
+  pt: "Create a soft success chime for a completed task"
+  ru: "Create a soft success chime for a completed task"
+  ja: "Create a soft success chime for a completed task"
+  ko: "Create a soft success chime for a completed task"
+  it: "Create a soft success chime for a completed task"
+  tr: "Create a soft success chime for a completed task"
+  vi: "Create a soft success chime for a completed task"
+  id: "Create a soft success chime for a completed task"
+  pl: "Create a soft success chime for a completed task"
+  nl: "Create a soft success chime for a completed task"
+  ar: "Create a soft success chime for a completed task"
+  hi: "Create a soft success chime for a completed task"
+  th: "Create a soft success chime for a completed task"
+  cs: "Create a soft success chime for a completed task"
+  sv: "Create a soft success chime for a completed task"
+  he: "Create a soft success chime for a completed task"
+  verified_by_human: [en]
+
+generate.how_to_use.2:
+  context: Example prompt for the audio Generate SFX skill - notification sound
+  en: "Make a gentle notification sound with no speech"
+  de: "Make a gentle notification sound with no speech"
+  zh: "Make a gentle notification sound with no speech"
+  es: "Make a gentle notification sound with no speech"
+  fr: "Make a gentle notification sound with no speech"
+  pt: "Make a gentle notification sound with no speech"
+  ru: "Make a gentle notification sound with no speech"
+  ja: "Make a gentle notification sound with no speech"
+  ko: "Make a gentle notification sound with no speech"
+  it: "Make a gentle notification sound with no speech"
+  tr: "Make a gentle notification sound with no speech"
+  vi: "Make a gentle notification sound with no speech"
+  id: "Make a gentle notification sound with no speech"
+  pl: "Make a gentle notification sound with no speech"
+  nl: "Make a gentle notification sound with no speech"
+  ar: "Make a gentle notification sound with no speech"
+  hi: "Make a gentle notification sound with no speech"
+  th: "Make a gentle notification sound with no speech"
+  cs: "Make a gentle notification sound with no speech"
+  sv: "Make a gentle notification sound with no speech"
+  he: "Make a gentle notification sound with no speech"
+  verified_by_human: [en]
+
+generate.how_to_use.3:
+  context: Example prompt for the audio Generate SFX skill - transition sound
+  en: "Generate a warm two-second transition whoosh for the app"
+  de: "Generate a warm two-second transition whoosh for the app"
+  zh: "Generate a warm two-second transition whoosh for the app"
+  es: "Generate a warm two-second transition whoosh for the app"
+  fr: "Generate a warm two-second transition whoosh for the app"
+  pt: "Generate a warm two-second transition whoosh for the app"
+  ru: "Generate a warm two-second transition whoosh for the app"
+  ja: "Generate a warm two-second transition whoosh for the app"
+  ko: "Generate a warm two-second transition whoosh for the app"
+  it: "Generate a warm two-second transition whoosh for the app"
+  tr: "Generate a warm two-second transition whoosh for the app"
+  vi: "Generate a warm two-second transition whoosh for the app"
+  id: "Generate a warm two-second transition whoosh for the app"
+  pl: "Generate a warm two-second transition whoosh for the app"
+  nl: "Generate a warm two-second transition whoosh for the app"
+  ar: "Generate a warm two-second transition whoosh for the app"
+  hi: "Generate a warm two-second transition whoosh for the app"
+  th: "Generate a warm two-second transition whoosh for the app"
+  cs: "Generate a warm two-second transition whoosh for the app"
+  sv: "Generate a warm two-second transition whoosh for the app"
+  he: "Generate a warm two-second transition whoosh for the app"
+  verified_by_human: [en]
+
+speak:
+  context: Skill name for explicit text-to-speech generation
+  en: Generate speech
+  de: Generate speech
+  zh: Generate speech
+  es: Generate speech
+  fr: Generate speech
+  pt: Generate speech
+  ru: Generate speech
+  ja: Generate speech
+  ko: Generate speech
+  it: Generate speech
+  tr: Generate speech
+  vi: Generate speech
+  id: Generate speech
+  pl: Generate speech
+  nl: Generate speech
+  ar: Generate speech
+  hi: Generate speech
+  th: Generate speech
+  cs: Generate speech
+  sv: Generate speech
+  he: Generate speech
+  verified_by_human: [en]
+
+speak.description:
+  context: Skill description for explicit text-to-speech generation
+  en: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  de: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  zh: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  es: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  fr: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  pt: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  ru: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  ja: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  ko: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  it: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  tr: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  vi: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  id: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  pl: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  nl: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  ar: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  hi: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  th: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  cs: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  sv: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  he: Turn explicit user-provided text into short speech audio using safe OpenMates voice presets.
+  verified_by_human: [en]
+
+speak.how_to_use.1:
+  context: Example prompt for the audio Generate speech skill - welcome sentence
+  en: "Generate speech: Welcome back. I found the best next step for you."
+  de: "Generate speech: Welcome back. I found the best next step for you."
+  zh: "Generate speech: Welcome back. I found the best next step for you."
+  es: "Generate speech: Welcome back. I found the best next step for you."
+  fr: "Generate speech: Welcome back. I found the best next step for you."
+  pt: "Generate speech: Welcome back. I found the best next step for you."
+  ru: "Generate speech: Welcome back. I found the best next step for you."
+  ja: "Generate speech: Welcome back. I found the best next step for you."
+  ko: "Generate speech: Welcome back. I found the best next step for you."
+  it: "Generate speech: Welcome back. I found the best next step for you."
+  tr: "Generate speech: Welcome back. I found the best next step for you."
+  vi: "Generate speech: Welcome back. I found the best next step for you."
+  id: "Generate speech: Welcome back. I found the best next step for you."
+  pl: "Generate speech: Welcome back. I found the best next step for you."
+  nl: "Generate speech: Welcome back. I found the best next step for you."
+  ar: "Generate speech: Welcome back. I found the best next step for you."
+  hi: "Generate speech: Welcome back. I found the best next step for you."
+  th: "Generate speech: Welcome back. I found the best next step for you."
+  cs: "Generate speech: Welcome back. I found the best next step for you."
+  sv: "Generate speech: Welcome back. I found the best next step for you."
+  he: "Generate speech: Welcome back. I found the best next step for you."
+  verified_by_human: [en]
+
+speak.how_to_use.2:
+  context: Example prompt for the audio Generate speech skill - reminder text
+  en: "Create a calm spoken reminder for this short note"
+  de: "Create a calm spoken reminder for this short note"
+  zh: "Create a calm spoken reminder for this short note"
+  es: "Create a calm spoken reminder for this short note"
+  fr: "Create a calm spoken reminder for this short note"
+  pt: "Create a calm spoken reminder for this short note"
+  ru: "Create a calm spoken reminder for this short note"
+  ja: "Create a calm spoken reminder for this short note"
+  ko: "Create a calm spoken reminder for this short note"
+  it: "Create a calm spoken reminder for this short note"
+  tr: "Create a calm spoken reminder for this short note"
+  vi: "Create a calm spoken reminder for this short note"
+  id: "Create a calm spoken reminder for this short note"
+  pl: "Create a calm spoken reminder for this short note"
+  nl: "Create a calm spoken reminder for this short note"
+  ar: "Create a calm spoken reminder for this short note"
+  hi: "Create a calm spoken reminder for this short note"
+  th: "Create a calm spoken reminder for this short note"
+  cs: "Create a calm spoken reminder for this short note"
+  sv: "Create a calm spoken reminder for this short note"
+  he: "Create a calm spoken reminder for this short note"
+  verified_by_human: [en]
+
+speak.how_to_use.3:
+  context: Example prompt for the audio Generate speech skill - safe narration
+  en: "Make this product tip a brief friendly voice clip"
+  de: "Make this product tip a brief friendly voice clip"
+  zh: "Make this product tip a brief friendly voice clip"
+  es: "Make this product tip a brief friendly voice clip"
+  fr: "Make this product tip a brief friendly voice clip"
+  pt: "Make this product tip a brief friendly voice clip"
+  ru: "Make this product tip a brief friendly voice clip"
+  ja: "Make this product tip a brief friendly voice clip"
+  ko: "Make this product tip a brief friendly voice clip"
+  it: "Make this product tip a brief friendly voice clip"
+  tr: "Make this product tip a brief friendly voice clip"
+  vi: "Make this product tip a brief friendly voice clip"
+  id: "Make this product tip a brief friendly voice clip"
+  pl: "Make this product tip a brief friendly voice clip"
+  nl: "Make this product tip a brief friendly voice clip"
+  ar: "Make this product tip a brief friendly voice clip"
+  hi: "Make this product tip a brief friendly voice clip"
+  th: "Make this product tip a brief friendly voice clip"
+  cs: "Make this product tip a brief friendly voice clip"
+  sv: "Make this product tip a brief friendly voice clip"
+  he: "Make this product tip a brief friendly voice clip"
+  verified_by_human: [en]
+
 transcribe.uploading:
   context: Status shown on voice recording embed card while audio is uploading
   en: Uploading…

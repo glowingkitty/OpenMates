@@ -6,9 +6,13 @@ Security: API-key auth must preserve explicit device-approval denials.
 Run: python3 -m pytest backend/tests/test_auth_dependencies.py
 """
 
+# contract-test-file: infrastructure
+
 import sys
 import types
+import hashlib
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
@@ -48,7 +52,12 @@ def _stub_auth_dependency_imports(monkeypatch: pytest.MonkeyPatch) -> None:
     cache_module.CacheService = object
 
     user_module = types.ModuleType("backend.core.api.app.models.user")
-    user_module.User = object
+
+    class User:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    user_module.User = User
 
     monkeypatch.setitem(sys.modules, "backend.core.api.app.services.cache_config", cache_config_module)
     monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.auth_routes.auth_common", auth_common_module)
@@ -90,3 +99,70 @@ async def test_unified_auth_preserves_api_key_device_approval_error(monkeypatch)
 
     assert exc.value.status_code == 403
     assert exc.value.detail == "New device detected. Please confirm this device."
+
+
+@pytest.mark.asyncio
+async def test_session_auth_state_uses_server_associated_connection_hash(monkeypatch):
+    _stub_auth_dependency_imports(monkeypatch)
+    from backend.core.api.app.routes.auth_routes.auth_dependencies import _set_session_auth_state
+
+    refresh_token = "refresh-token"
+    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+
+    class Cache:
+        async def get(self, key):
+            assert key == "user_tokens:user-1"
+            return {
+                token_hash: {
+                    "device_hash": "d" * 64,
+                    "connection_hash": "c" * 64,
+                }
+            }
+
+    request = SimpleNamespace(state=SimpleNamespace())
+
+    await _set_session_auth_state(request, Cache(), "user-1", refresh_token)
+
+    assert request.state.auth_info == {
+        "auth_source": "session",
+        "user_id": "user-1",
+        "device_hash": "d" * 64,
+        "connection_hash": "c" * 64,
+    }
+
+
+@pytest.mark.asyncio
+async def test_get_current_user_repairs_stale_cached_admin_status(monkeypatch):
+    _stub_auth_dependency_imports(monkeypatch)
+    from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+
+    cached_user = {
+        "user_id": "admin-user-id",
+        "username": "adminuser",
+        "vault_key_id": "vault-key",
+        "is_admin": False,
+    }
+
+    async def repair_admin_status(user_id, user_data):
+        user_data["is_admin"] = True
+        return True
+
+    directus_service = SimpleNamespace(
+        admin=SimpleNamespace(
+            repair_cached_admin_status=AsyncMock(side_effect=repair_admin_status)
+        )
+    )
+    cache_service = SimpleNamespace(get_user_by_token=AsyncMock(return_value=cached_user))
+
+    user = await get_current_user(
+        directus_service=directus_service,
+        cache_service=cache_service,
+        refresh_token="refresh-token",
+        response=SimpleNamespace(),
+    )
+
+    assert user.id == "admin-user-id"
+    assert user.is_admin is True
+    directus_service.admin.repair_cached_admin_status.assert_awaited_once_with(
+        "admin-user-id", cached_user
+    )

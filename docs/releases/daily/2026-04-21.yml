@@ -1,0 +1,524 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-21'
+generated_at: '2026-07-09T15:10:13+00:00'
+range:
+  since: '2026-04-21T00:00:00+00:00'
+  until: '2026-04-21T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 11
+  section_counts:
+    features: 0
+    bug_fixes: 8
+    improvements: 0
+    docs: 0
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 3
+  newsletter_ready_items: 2
+  user_facing_items: 2
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: upgrade python-dotenv to 1.2.2 (GHSA-mf9w-mj56-hr94)'
+    section: bug_fixes
+    commits:
+    - df6621043
+    authored_at: '2026-04-21T18:31:05+00:00'
+    changed_paths:
+    - backend/core/api/requirements.txt
+    - backend/preview/requirements.txt
+    - backend/upload/requirements.txt
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(ci): fix $TARGET variable not expanding in npm version call'
+    section: bug_fixes
+    commits:
+    - 88c5d65ce
+    authored_at: '2026-04-21T17:51:50+00:00'
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(ci): auto-increment patch version on repeated stable publishes to main'
+    section: bug_fixes
+    commits:
+    - c339c9177
+    authored_at: '2026-04-21T17:47:54+00:00'
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(ci): strip prerelease suffix before stable npm publish on main'
+    section: bug_fixes
+    commits:
+    - cefccc4af
+    authored_at: '2026-04-21T17:45:37+00:00'
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(ci): bump CLI prerelease from published npm version, not package.json'
+    section: bug_fixes
+    commits:
+    - 3a2216cbf
+    authored_at: '2026-04-21T17:14:51+00:00'
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: CLI pair login - passkey users blocked + chats list timeout'
+    section: bug_fixes
+    commits:
+    - 83beb2f44
+    authored_at: '2026-04-21T17:08:12+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_pair.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(encryption): use withKey() in highlight decrypt handler to prevent key-race drop'
+    section: bug_fixes
+    commits:
+    - 50cc95473
+    authored_at: '2026-04-21T16:51:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/handlersMessageHighlights.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: text selectability and markdown rendering in embed fullscreens'
+    section: bug_fixes
+    commits:
+    - 203d4ce66
+    authored_at: '2026-04-21T10:40:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/MarkdownContent.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'Merge pull request #383 from glowingkitty/dev'
+    section: other
+    commits:
+    - 135c9f981
+    authored_at: '2026-04-21T19:52:50+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'Merge pull request #382 from glowingkitty/dev'
+    section: other
+    commits:
+    - 9a00ae09a
+    authored_at: '2026-04-21T19:48:57+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'Merge pull request #379 from glowingkitty/dev'
+    section: other
+    commits:
+    - f6fd398fe
+    authored_at: '2026-04-21T19:43:12+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: CLI pair login - passkey users blocked + chats list timeout'
+    commits:
+    - 83beb2f44
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: text selectability and markdown rendering in embed fullscreens'
+    commits:
+    - 203d4ce66
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: CLI pair login - passkey users blocked + chats list timeout'
+    commits:
+    - 83beb2f44
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: text selectability and markdown rendering in embed fullscreens'
+    commits:
+    - 203d4ce66
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: df6621043dab7dac2b03d9c8c8ec099ee06c62c9
+    short_sha: df6621043
+    authored_at: '2026-04-21T18:31:05+00:00'
+    subject: 'fix: upgrade python-dotenv to 1.2.2 (GHSA-mf9w-mj56-hr94)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/requirements.txt
+    - backend/preview/requirements.txt
+    - backend/upload/requirements.txt
+    related_feature_ids: []
+  - sha: 135c9f98131e714b7575ef0c753361312ecdb161
+    short_sha: 135c9f981
+    authored_at: '2026-04-21T19:52:50+02:00'
+    subject: 'Merge pull request #383 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 88c5d65ce8c0043c14ea033d17cac40e759b0759
+    short_sha: 88c5d65ce
+    authored_at: '2026-04-21T17:51:50+00:00'
+    subject: 'fix(ci): fix $TARGET variable not expanding in npm version call'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    related_feature_ids: []
+  - sha: 9a00ae09a4973803a09a680636725ea105b3d1d5
+    short_sha: 9a00ae09a
+    authored_at: '2026-04-21T19:48:57+02:00'
+    subject: 'Merge pull request #382 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: c339c9177d7eff261fcf022d7ac91fa2bf0d52f6
+    short_sha: c339c9177
+    authored_at: '2026-04-21T17:47:54+00:00'
+    subject: 'fix(ci): auto-increment patch version on repeated stable publishes to main'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    related_feature_ids: []
+  - sha: cefccc4af882569207562a3ecfe69579d6472337
+    short_sha: cefccc4af
+    authored_at: '2026-04-21T17:45:37+00:00'
+    subject: 'fix(ci): strip prerelease suffix before stable npm publish on main'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    related_feature_ids: []
+  - sha: f6fd398fe91dc73200708fb89c982ab110de6480
+    short_sha: f6fd398fe
+    authored_at: '2026-04-21T19:43:12+02:00'
+    subject: 'Merge pull request #379 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 3a2216cbfa22600b545b6ad1d809ab02b8bccf1a
+    short_sha: 3a2216cbf
+    authored_at: '2026-04-21T17:14:51+00:00'
+    subject: 'fix(ci): bump CLI prerelease from published npm version, not package.json'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    related_feature_ids: []
+  - sha: 83beb2f448ad65cf8dc68a7129f7bacbbd86ee47
+    short_sha: 83beb2f44
+    authored_at: '2026-04-21T17:08:12+00:00'
+    subject: 'fix: CLI pair login - passkey users blocked + chats list timeout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_pair.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    related_feature_ids: []
+  - sha: 50cc954735ae027a7d192f5d12675817d4b1f0a9
+    short_sha: 50cc95473
+    authored_at: '2026-04-21T16:51:45+00:00'
+    subject: 'fix(encryption): use withKey() in highlight decrypt handler to prevent key-race drop'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/handlersMessageHighlights.ts
+    related_feature_ids: []
+  - sha: 203d4ce66f7413a589a0634a74038bd0082a9998
+    short_sha: 203d4ce66
+    authored_at: '2026-04-21T10:40:01+00:00'
+    subject: 'fix: text selectability and markdown rendering in embed fullscreens'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/MarkdownContent.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the CLI authentication experience and improving the usability of fullscreen embeds.
+    Key updates include resolving login blocks for passkey users and enhancing text interactions within various embed types.
+  released_changes: []
+  bug_fixes:
+  - text: OpenMates resolved an issue where passkey users were blocked during CLI pair login and addressed timeouts when loading
+      the chats list.
+    evidence:
+      commits:
+      - 83beb2f44
+    release_status: released_main
+  - text: The project improved text selectability and markdown rendering across fullscreen embeds, specifically affecting
+      event, nutrition, and travel views.
+    evidence:
+      commits:
+      - 203d4ce66
+    release_status: released_main
+  - text: A security vulnerability was addressed by upgrading python-dotenv to version 1.2.2.
+    evidence:
+      commits:
+      - df6621043
+    release_status: released_main
+  - text: The encryption service now uses a more robust handler for highlight decryption to prevent data loss caused by key-race
+      conditions.
+    evidence:
+      commits:
+      - 50cc95473
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: Several updates were made to the CLI publishing workflow to ensure correct versioning, including auto-incrementing
+      patch versions and properly handling prerelease suffixes.
+    evidence:
+      commits:
+      - 88c5d65ce
+      - c339c9177
+      - cefccc4af
+      - 3a2216cbf
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: CLI login improvements for passkey users.
+      evidence:
+        commits:
+        - 83beb2f44
+      reason: Fixes a critical login blocker for passkey users on the CLI.
+    - text: Enhanced fullscreen embed interactions and markdown rendering.
+      evidence:
+        commits:
+        - 203d4ce66
+      reason: Directly improves the readability and usability of rich content embeds.
+    exclude:
+    - text: Security update for python-dotenv.
+      evidence:
+        commits:
+        - df6621043
+      reason: Security dependency update is not typically featured in public newsletters unless part of a major advisory.
+    - text: Encryption race condition fix.
+      evidence:
+        commits:
+        - 50cc95473
+      reason: Internal encryption logic fix is not user-facing.
+    - text: CI publishing workflow refinements.
+      evidence:
+        commits:
+        - 88c5d65ce
+        - c339c9177
+        - cefccc4af
+        - 3a2216cbf
+      reason: CI and build workflow improvements are internal-only.
+    rationale: The updates to the CLI and fullscreen embeds provide the most direct benefit to users, while the remaining
+      changes are security or infrastructure-focused.
+  social_video_recommendations:
+  - idea: Showcase the improved text selection and markdown rendering in fullscreen embeds for travel stays or nutrition recipes.
+    priority: Medium
+    reason: Provides a visual demonstration of UI polish and improved content accessibility.
+    evidence:
+      commits:
+      - 203d4ce66
+  quality_notes:
+  - CLI stability improved for passkey users.
+  - UI consistency improved for markdown rendering in embeds.
+  validation_warnings: []

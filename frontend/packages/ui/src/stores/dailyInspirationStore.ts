@@ -96,6 +96,54 @@ export interface DailyInspiration {
 }
 
 export type DailyInspirationSurface = "chats" | "projects" | "workflows" | "tasks" | "plans";
+export type DailyInspirationSource =
+  | "none"
+  | "guest-onboarding"
+  | "personalized"
+  | "public-daily"
+  | "authenticated-fallback";
+
+const AUTHENTICATED_DAILY_QUOTAS: Record<string, number> = {
+  video: 3,
+  wiki: 3,
+  feature: 4,
+};
+const GUEST_ONBOARDING_FEATURE_IDS = new Set([
+  "openmates-intro",
+  "openmates-actionable-events",
+  "openmates-privacy-safety",
+  "openmates-mates-focus",
+  "openmates-provider-cross-platform",
+  "openmates-signup-cta",
+]);
+
+export function hasCompleteAuthenticatedDailySet(
+  inspirations: DailyInspiration[],
+): boolean {
+  if (inspirations.length !== 10) return false;
+  if (
+    inspirations.some(
+      (inspiration) =>
+        GUEST_ONBOARDING_FEATURE_IDS.has(inspiration.inspiration_id)
+        || GUEST_ONBOARDING_FEATURE_IDS.has(inspiration.feature?.feature_id ?? ""),
+    )
+  ) {
+    return false;
+  }
+
+  const counts = inspirations.reduce<Record<string, number>>((result, inspiration) => {
+    result[inspiration.content_type] = (result[inspiration.content_type] ?? 0) + 1;
+    return result;
+  }, {});
+  return Object.entries(AUTHENTICATED_DAILY_QUOTAS).every(
+    ([contentType, count]) => counts[contentType] === count,
+  );
+}
+
+interface DailyInspirationWriteOptions {
+  personalized?: boolean;
+  source?: Exclude<DailyInspirationSource, "none">;
+}
 
 export interface DailyInspirationState {
   /** Up to 3 inspirations for the current day */
@@ -126,6 +174,8 @@ export interface DailyInspirationState {
    * before Phase 1 WS sync completes, causing Phase 1 to skip its update.
    */
   isPersonalized: boolean;
+  /** Origin of chat-surface records; prevents guest onboarding from satisfying auth recovery. */
+  source: DailyInspirationSource;
 }
 
 // ─── Initial state ────────────────────────────────────────────────────────────
@@ -137,9 +187,23 @@ const initialState: DailyInspirationState = {
   currentIndex: 0,
   phase1Empty: false,
   isPersonalized: false,
+  source: "none",
 };
 
 const MAX_DAILY_INSPIRATIONS = 10;
+
+function resolveSource(
+  options: DailyInspirationWriteOptions,
+  currentSource: DailyInspirationSource = "none",
+): Exclude<DailyInspirationSource, "none"> {
+  if (options.source) return options.source;
+  if (options.personalized) return "personalized";
+  return currentSource === "none" ? "public-daily" : currentSource;
+}
+
+function isAuthenticatedSource(source: DailyInspirationSource): boolean {
+  return source === "personalized" || source === "public-daily" || source === "authenticated-fallback";
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -205,10 +269,11 @@ export const dailyInspirationStore = {
    */
   setInspirations: (
     inspirations: DailyInspiration[],
-    options: { personalized?: boolean } = {},
+    options: DailyInspirationWriteOptions = {},
   ): void => {
     const { personalized = false } = options;
     store.update((state) => {
+      const source = resolveSource(options, state.source);
       const sliced = inspirations.slice(0, MAX_DAILY_INSPIRATIONS);
       const sameInspirationSet = hasSameOrderedInspirationIds(
         state.inspirations,
@@ -224,6 +289,9 @@ export const dailyInspirationStore = {
       if (state.isPersonalized && !personalized) {
         return state;
       }
+      if (source === "guest-onboarding" && isAuthenticatedSource(state.source)) {
+        return state;
+      }
       return {
         ...state,
         inspirations: merged,
@@ -231,6 +299,7 @@ export const dailyInspirationStore = {
           ? Math.min(state.currentIndex, Math.max(merged.length - 1, 0))
           : preferredIndex(merged),
         isPersonalized: personalized,
+        source,
       };
     });
   },
@@ -242,7 +311,7 @@ export const dailyInspirationStore = {
   setSurfaceInspirations: (
     surface: DailyInspirationSurface,
     inspirations: DailyInspiration[],
-    options: { personalized?: boolean } = {},
+    options: DailyInspirationWriteOptions = {},
   ): void => {
     const { personalized = false } = options;
     const tagged = inspirations
@@ -250,7 +319,23 @@ export const dailyInspirationStore = {
       .map((inspiration) => ({ ...inspiration, surface }));
 
     store.update((state) => {
+      const source = resolveSource(options, state.source);
       if (state.isPersonalized && !personalized && surface === "chats") {
+        const chatInspirations = state.inspirations.filter(
+          (inspiration) => inspirationSurface(inspiration) === "chats",
+        );
+        const canReplaceIncompletePersonalizedSet =
+          source === "authenticated-fallback"
+          && !hasCompleteAuthenticatedDailySet(chatInspirations);
+        if (!canReplaceIncompletePersonalizedSet) {
+          return state;
+        }
+      }
+      if (
+        surface === "chats"
+        && source === "guest-onboarding"
+        && isAuthenticatedSource(state.source)
+      ) {
         return state;
       }
       const otherSurfaces = state.inspirations.filter(
@@ -262,7 +347,21 @@ export const dailyInspirationStore = {
         inspirations: merged,
         currentIndex: preferredIndex(tagged),
         isPersonalized: surface === "chats" ? personalized : state.isPersonalized,
+        source: surface === "chats" ? source : state.source,
       };
+    });
+  },
+
+  /** Replace all account-scoped data with the logged-out onboarding carousel. */
+  restoreGuestOnboarding: (inspirations: DailyInspiration[]): void => {
+    const tagged = inspirations
+      .slice(0, MAX_DAILY_INSPIRATIONS)
+      .map((inspiration) => ({ ...inspiration, surface: "chats" as const }));
+    store.set({
+      ...initialState,
+      inspirations: tagged,
+      currentIndex: preferredIndex(tagged),
+      source: "guest-onboarding",
     });
   },
 

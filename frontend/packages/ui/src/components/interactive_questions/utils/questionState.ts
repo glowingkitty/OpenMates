@@ -87,6 +87,20 @@ export function isInteractiveQuestionPayload(value: unknown): value is Interacti
   return false;
 }
 
+export function parseInteractiveQuestionPayloadCandidate(
+  value: unknown,
+): InteractiveQuestionPayload | null {
+  if (isInteractiveQuestionPayload(value)) return value;
+  if (typeof value !== "string" || value.trim().length === 0) return null;
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return isInteractiveQuestionPayload(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function isValidEmbedIds(embedIds: unknown): boolean {
   if (embedIds === undefined) return true;
   return Array.isArray(embedIds) && embedIds.every((embedId) => typeof embedId === "string" && embedId.trim().length > 0);
@@ -201,7 +215,7 @@ function collectResponseEmbedIds(
 }
 
 function uniqueEmbedIds(embedIds: string[]): string[] {
-  return [...new Set(embedIds.map((embedId) => embedId.trim()).filter(Boolean))];
+  return Array.from(new Set(embedIds.map((embedId) => embedId.trim()).filter(Boolean)));
 }
 
 function isCustomChoiceOption(

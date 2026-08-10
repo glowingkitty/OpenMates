@@ -1,0 +1,496 @@
+id: deterministic-workflow-guardrails
+title: Deterministic Workflow Guardrails
+status: verified
+
+goal: >
+  Reduce preventable OpenMates workflow rework by enforcing exact Apple release
+  contracts, preventing stale concurrent edits, recording test flakes correctly,
+  skipping irrelevant CI workflows, and providing an OpenCode-only workflow
+  review when explicitly requested.
+
+scope:
+  in:
+    - Semantically validate Apple project and target contracts locally before deploy.
+    - Require a non-uploading remote Release archive preflight before TestFlight or App Store upload.
+    - Block edits when a file changed after the current OpenCode session read it.
+    - Correctly record passed-after-retry test results and flake history.
+    - Classify changed paths once for Vercel and package workflow triggering.
+    - Skip npm and PyPI workflows when neither package nor shared package contracts changed.
+    - Replace Claude Code workflow-review ingestion with explicitly requested OpenCode-only collection and analysis.
+  out:
+    - Blocking deploys based on heuristic churn or flaky-test findings.
+    - Requiring a remote Mac Release archive for ordinary Apple git deploys.
+    - Retaining Claude Code session parsing or compatibility fallbacks.
+    - Scheduling automatic workflow review or automatic OpenCode review sessions.
+    - Changing product behavior, package public APIs, or Apple release credentials.
+
+context_discovery:
+  github_issues:
+    - none found for workflow review, Apple preflight, CI impact, or flaky tests; gh fallback was used because GitHub MCP authentication returned 401.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/contributing/guides/testing.md
+    - apple/AGENTS.md
+  code_patterns:
+    - scripts/audit_apple_release_preflight.py
+    - scripts/apple_remote.py
+    - scripts/sessions.py
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/vercel_ignore_build.py
+    - scripts/_workflow_review_helper.py
+  tests:
+    - scripts/tests/test_workflow_guard_audits.py
+    - scripts/tests/test_apple_remote_testflight.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_tests_control.py
+    - scripts/tests/test_vercel_ignore_build.py
+
+apple_impact:
+  affected_files:
+    - apple/project.yml
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - scripts/apple_remote.py
+  parity_expectations:
+    - This changes Apple build and release verification only, not rendered native UI.
+  verification:
+    - Local project-contract audit runs before deploy when relevant Apple release files changed.
+    - Remote Release archive preflight runs before TestFlight or App Store upload commands.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should new workflow violations block immediately or begin as warnings?
+      answer: Block high-confidence violations and warn on heuristic churn or flake findings.
+    - question: What should npm and PyPI workflows do for unrelated changes?
+      answer: Skip package workflows when neither package nor shared package contracts changed.
+    - question: How should weekly OpenCode workflow review be delivered?
+      answer: Only run when explicitly requested.
+    - question: When should the slower remote Mac Release archive be mandatory?
+      answer: Only before TestFlight or App Store release commands.
+  vision_summary: >
+    Workflow guardrails should remove objectively preventable rework without
+    adding noisy blocks to normal development. The system must be OpenCode-only,
+    must not preserve obsolete Claude ingestion, and must run workflow review
+    solely on explicit request.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Apple release contract is validated before a release upload
+    given:
+      - Apple project or release files changed.
+    when:
+      - A developer prepares a normal deploy.
+    then:
+      - Local semantic project and target checks block exact contract drift.
+      - Ordinary Apple code changes do not require a remote Release archive.
+    when_release:
+      - A developer invokes TestFlight or App Store upload.
+    then_release:
+      - A non-uploading remote Release archive preflight runs first and blocks upload on failure.
+
+  - id: S-2
+    title: Concurrent OpenCode sessions cannot patch stale file content
+    given:
+      - An OpenCode session read a repository file.
+      - Another process changes that file before the session edits it.
+    when:
+      - The session attempts to edit the file.
+    then:
+      - The hook blocks the edit and identifies that a reread is required.
+      - A file unchanged since the session read it remains editable.
+
+  - id: S-3
+    title: Retried test outcomes become reliable flake evidence
+    given:
+      - A test fails on an initial attempt and passes on retry.
+    when:
+      - The test runner records the completed workflow.
+    then:
+      - The result is recorded as passed-after-retry rather than failed.
+      - Flake history records the retry outcome and recurrence metrics.
+      - Repeat flake findings are advisory and can route investigators to shared stabilization work.
+
+  - id: S-4
+    title: CI only runs workflows affected by changed contracts
+    given:
+      - A commit changes paths outside the CLI, Python SDK, and their shared contracts.
+    when:
+      - The commit reaches dev, main, or a pull request.
+    then:
+      - npm and PyPI package workflows do not run.
+      - The common impact classifier provides the same decision to dependent CI and Vercel logic.
+    given_shared_change:
+      - A commit changes a package or shared package contract.
+    then_shared_change:
+      - Each affected package workflow runs.
+
+  - id: S-5
+    title: Explicit workflow review uses OpenCode and git evidence only
+    given:
+      - A maintainer explicitly invokes the workflow-review command.
+    when:
+      - The collector analyzes a requested period.
+    then:
+      - It reads main OpenCode sessions from the live SQLite database in read-only mode.
+      - It correlates normalized tool failures, test artifacts, and git churn.
+      - It writes a deterministic report with deduplicated recommendation fingerprints.
+      - It does not read Claude session files or launch automatic review sessions.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A path-scoped Apple audit blocks semantic target, source-membership, and required release-contract drift while unrelated paths bypass it.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-APPLE-AUDIT]
+  - id: AC-2
+    scenario: S-1
+    text: TestFlight and App Store upload commands require a successful non-uploading remote Release archive preflight, while normal deploy does not.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-APPLE-REMOTE]
+  - id: AC-3
+    scenario: S-2
+    text: An edit whose target changed since the current OpenCode session read it is blocked with a reread instruction; unchanged targets pass.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-STALE-READ]
+  - id: AC-4
+    scenario: S-3
+    text: Passed-after-retry results are represented as passing flakes, persisted in history, and excluded from final failure counts.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-FLAKE-ACCOUNTING]
+  - id: AC-5
+    scenario: S-4
+    text: A single tested impact classifier identifies package and web impact, and npm/PyPI workflows skip unrelated commits while preserving shared-contract triggers.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CI-IMPACT, T-CI-WORKFLOW]
+  - id: AC-6
+    scenario: S-5
+    text: The explicit workflow review reads OpenCode SQLite and git evidence only, stores recommendation fingerprints, and has no Claude path or scheduled execution.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WORKFLOW-REVIEW]
+
+assumptions:
+  - id: A-1
+    text: The local OpenCode SQLite database can be opened in read-only mode while OpenCode continues writing through WAL.
+    category: local_tooling
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: opencode db query during discovery
+        summary: Main OpenMates session data was queried successfully from the live database.
+  - id: A-2
+    text: apple_remote.py can reuse existing signing and archive functions for a non-uploading preflight.
+    category: Apple release
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: scripts/apple_remote.py
+        summary: Existing remote command surface already separates signing, archive, entitlement, and upload operations.
+  - id: A-3
+    text: GitHub Actions path filters can safely skip package workflows when all package and shared-contract paths are listed.
+    category: CI
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: .github/workflows/publish-cli.yml and publish-python-sdk.yml
+        summary: Both workflows currently trigger on every dev/main push; static tests will keep explicit shared-path coverage aligned with the classifier.
+
+contracts:
+  apple_release:
+    - Local audits must remain fast, deterministic, credential-free, and path-scoped.
+    - Remote archive preflight must not mutate profiles, upload binaries, or publish metadata.
+    - Upload commands must fail closed when their immediately preceding preflight fails.
+  stale_read:
+    - Session file hashes are local ephemeral metadata and contain no source contents.
+    - Hook comparison uses a repository-relative path and current content hash.
+    - A stale-read block instructs the agent to reread before retrying the patch.
+  tests:
+    - A final successful retry is a passing result with flake metadata, not a failed result.
+    - Flake scores and churn suggestions are advisory unless a separate exact test failure exists.
+  ci:
+    - CI impact classification is deterministic from changed paths and has fixtures for every supported event class.
+    - Package workflow paths include package source, package tests, lockfiles, version preparation, and shared contract paths.
+  workflow_review:
+    - OpenCode data source is the live local SQLite store, queried in read-only mode.
+    - Only top-level OpenMates sessions are included by default; subagent counts are separate metadata.
+    - Review input excludes reasoning, attachments, unbounded tool output, credentials, and private user data.
+    - Review executes only through an explicit command; it creates no scheduled OpenCode work.
+  privacy_security:
+    - Reports and tests must not persist prompts, source code bodies, credentials, raw logs, or private identifiers.
+
+tests:
+  - id: T-APPLE-AUDIT
+    type: pytest
+    file: scripts/tests/test_workflow_guard_audits.py
+    command: python3 -m pytest scripts/tests/test_workflow_guard_audits.py
+    covers: [AC-1]
+    assertions:
+      - project target/source drift fixture fails
+      - valid current project passes
+      - unrelated source paths bypass the audit
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, run_id: "local:pytest-apple-red", timestamp: "2026-07-10T09:29:00Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, run_id: "local:pytest-workflow-guardrails", timestamp: "2026-07-10T10:09:48Z"}
+  - id: T-APPLE-REMOTE
+    type: pytest
+    file: scripts/tests/test_apple_remote_testflight.py
+    command: python3 -m pytest scripts/tests/test_apple_remote_testflight.py
+    covers: [AC-2]
+    assertions:
+      - release preflight never invokes upload or mutating profile operations
+      - upload command requires a preflight success token
+      - ordinary deploy commands do not require remote archive evidence
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, run_id: "local:pytest-apple-red", timestamp: "2026-07-10T09:29:00Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, run_id: "local:pytest-workflow-guardrails", timestamp: "2026-07-10T10:09:48Z"}
+  - id: T-STALE-READ
+    type: pytest
+    file: scripts/tests/test_sessions_stale_read.py
+    command: python3 -m pytest scripts/tests/test_sessions_stale_read.py
+    covers: [AC-3]
+    assertions:
+      - changed file hash blocks an edit
+      - unchanged file hash permits an edit
+      - unrelated session hashes do not block the current session
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, run_id: "local:pytest-stale-read-red", timestamp: "2026-07-10T09:36:00Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, run_id: "local:pytest-workflow-guardrails", timestamp: "2026-07-10T10:09:48Z"}
+  - id: T-FLAKE-ACCOUNTING
+    type: pytest
+    file: scripts/tests/test_run_tests_account_policy.py
+    command: python3 -m pytest scripts/tests/test_run_tests_account_policy.py
+    covers: [AC-4]
+    assertions:
+      - retry pass is not counted as final failure
+      - retry metadata persists to flake history
+      - flake output labels repeated results as advisory
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, run_id: "local:pytest-flake-red", timestamp: "2026-07-10T09:44:00Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, run_id: "local:pytest-workflow-guardrails", timestamp: "2026-07-10T10:09:48Z"}
+  - id: T-CI-IMPACT
+    type: pytest
+    file: scripts/tests/test_ci_impact.py
+    command: python3 -m pytest scripts/tests/test_ci_impact.py
+    covers: [AC-5]
+    assertions:
+      - docs-only paths do not affect packages
+      - CLI, Python SDK, lockfile, and shared contract paths classify correctly
+      - web impact decision is deterministic
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, run_id: "local:pytest-ci-scope-red", timestamp: "2026-07-10T09:51:00Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, run_id: "local:pytest-workflow-guardrails", timestamp: "2026-07-10T10:09:48Z"}
+  - id: T-CI-WORKFLOW
+    type: pytest
+    file: scripts/tests/test_ci_workflow_scope.py
+    command: python3 -m pytest scripts/tests/test_ci_workflow_scope.py
+    covers: [AC-5]
+    assertions:
+      - package workflow path filters include every classifier package input
+      - package workflow path filters exclude unrelated Apple-only paths
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, run_id: "local:pytest-ci-scope-red", timestamp: "2026-07-10T09:51:00Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, run_id: "local:pytest-workflow-guardrails", timestamp: "2026-07-10T10:09:48Z"}
+  - id: T-WORKFLOW-REVIEW
+    type: pytest
+    file: scripts/tests/test_workflow_review_helper.py
+    command: python3 -m pytest scripts/tests/test_workflow_review_helper.py
+    covers: [AC-6]
+    assertions:
+      - OpenCode session query selects only top-level OpenMates sessions
+      - collector excludes reasoning and tool output from report input
+      - report includes git churn and recommendation fingerprint fields
+      - no Claude path or scheduled execution path remains
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, run_id: "local:pytest-workflow-review-red", timestamp: "2026-07-10T09:57:00Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, run_id: "local:pytest-workflow-guardrails", timestamp: "2026-07-10T10:09:48Z"}
+
+implementation_plan:
+  existing_patterns:
+    - Extend the existing Apple audit, remote Apple wrapper, test control plane, and workflow-review helper instead of adding parallel frameworks.
+    - Reuse sessions.py local session metadata for stale-read state.
+  architecture: >
+    Deterministic Python scripts own policy and testable classification. The
+    OpenCode hook records/compares local file hashes but delegates decisions to
+    sessions.py. GitHub workflow filters consume path sets generated or validated
+    by the shared CI impact classifier. The workflow review collector produces a
+    bounded report and does not autonomously invoke an LLM.
+  data_flow:
+    - OpenCode read event records session-relative file hash.
+    - OpenCode edit event checks the current hash before the edit hook proceeds.
+    - Test runner normalizes all retry attempts into a final result plus flake history.
+    - CI classifier maps changed paths to package/web impact decisions.
+    - Explicit workflow-review command collects redacted OpenCode, git, and test metadata into a report.
+  affected_files:
+    - path: scripts/audit_apple_release_preflight.py
+      reason: Semantic Apple target and source contract checks.
+    - path: scripts/apple_remote.py
+      reason: Non-uploading Release archive preflight and upload gate.
+    - path: scripts/sessions.py
+      reason: Session-scoped file hash lifecycle and stale-read guard.
+    - path: .opencode/plugins/openmates-hooks.js
+      reason: Read and edit lifecycle delegation.
+    - path: scripts/run_tests.py
+      reason: Retry normalization and flake history persistence.
+    - path: scripts/ci_impact.py
+      reason: Shared deterministic CI path classification.
+    - path: .github/workflows/publish-cli.yml
+      reason: CLI path-scoped triggers.
+    - path: .github/workflows/publish-python-sdk.yml
+      reason: Python SDK path-scoped triggers.
+    - path: scripts/_workflow_review_helper.py
+      reason: OpenCode-only explicit review collection.
+  verification_strategy:
+    - Run each focused Python test suite red before its implementation slice and green after it.
+    - Run python3 scripts/spec_validate.py docs/specs/deterministic-workflow-guardrails/spec.yml after spec changes.
+    - Run python3 scripts/spec_verify.py docs/specs/deterministic-workflow-guardrails/spec.yml before deploy.
+  verification_order:
+    - Deterministic script tests first.
+    - Apple remote command contract tests second.
+    - CI workflow static scope tests third.
+    - OpenCode workflow-review collector tests last.
+
+tasks:
+  - id: TASK-1
+    title: Strengthen Apple release checks
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1]
+      acceptance_criteria: [AC-1, AC-2]
+    expected_files:
+      - scripts/audit_apple_release_preflight.py
+      - scripts/apple_remote.py
+      - scripts/tests/test_workflow_guard_audits.py
+      - scripts/tests/test_apple_remote_testflight.py
+    verification: [T-APPLE-AUDIT, T-APPLE-REMOTE]
+    verification_ids: [T-APPLE-AUDIT, T-APPLE-REMOTE]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-2
+    title: Prevent stale concurrent edits
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-2]
+      acceptance_criteria: [AC-3]
+    expected_files:
+      - scripts/sessions.py
+      - .opencode/plugins/openmates-hooks.js
+      - scripts/tests/test_sessions_stale_read.py
+    verification: [T-STALE-READ]
+    verification_ids: [T-STALE-READ]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-3
+    title: Repair flake accounting
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-3]
+      acceptance_criteria: [AC-4]
+    expected_files:
+      - scripts/run_tests.py
+      - scripts/tests/test_run_tests_account_policy.py
+    verification: [T-FLAKE-ACCOUNTING]
+    verification_ids: [T-FLAKE-ACCOUNTING]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-4
+    title: Scope CI by deterministic impact
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-4]
+      acceptance_criteria: [AC-5]
+    expected_files:
+      - scripts/ci_impact.py
+      - scripts/vercel_ignore_build.py
+      - .github/workflows/publish-cli.yml
+      - .github/workflows/publish-python-sdk.yml
+      - scripts/tests/test_ci_impact.py
+      - scripts/tests/test_ci_workflow_scope.py
+    verification: [T-CI-IMPACT, T-CI-WORKFLOW]
+    verification_ids: [T-CI-IMPACT, T-CI-WORKFLOW]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-5
+    title: Replace workflow review with OpenCode-only collector
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-5]
+      acceptance_criteria: [AC-6]
+    expected_files:
+      - scripts/_workflow_review_helper.py
+      - scripts/_daily_meeting_helper.py
+      - scripts/prompts/daily-meeting.md
+      - .claude/skills/daily-meeting/SKILL.md
+      - .agents/skills/daily-meeting/SKILL.md
+      - docs/architecture/infrastructure/cronjobs.md
+      - scripts/tests/test_workflow_review_helper.py
+    verification: [T-WORKFLOW-REVIEW]
+    verification_ids: [T-WORKFLOW-REVIEW]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true

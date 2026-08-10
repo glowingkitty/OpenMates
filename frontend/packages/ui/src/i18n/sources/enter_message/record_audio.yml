@@ -1,102 +1,221 @@
+recording:
+  context: Header text shown while audio recording is active
+  en: Recording...
+  de: Aufnahme laeuft...
+  zh: 正在录音...
+  fr: Enregistrement...
+  pt: Gravando...
+  ru: Запись...
+  ja: 録音中...
+  ko: 녹음 중...
+  it: Registrazione in corso...
+  tr: Kaydediliyor...
+  vi: Đang ghi âm...
+  id: Merekam...
+  pl: Nagrywanie...
+  nl: Opnemen...
+  ar: جاري التسجيل...
+  hi: रिकॉर्डिंग हो रही है...
+  th: กำลังบันทึก...
+  cs: Nahrávání...
+  sv: Spelar in...
+  es: Grabando...
+  he: מקליט...
+  verified_by_human: []
+enter_to_finish_escape_to_cancel:
+  context: Keyboard shortcut hint shown while audio recording is active
+  en: Press Enter to finish or Escape to cancel
+  de: Enter zum Fertigstellen oder Escape zum Abbrechen druecken
+  zh: 按 Enter 完成或按 Escape 取消
+  fr: Appuie sur Entrée pour terminer ou Échap pour annuler
+  pt: Pressiona Enter para terminar ou Escape para cancelar
+  ru: Нажми Enter, чтобы закончить, или Escape для отмены
+  ja: Enterで終了、Escでキャンセル
+  ko: Enter를 눌러 완료하거나 Escape를 눌러 취소하세요
+  it: Premi Invio per terminare o Esc per annullare
+  tr: "Bitirmek için Enter'a, iptal etmek için Escape'e bas"
+  vi: Nhấn Enter để hoàn tất hoặc Escape để hủy
+  id: Tekan Enter untuk selesai atau Escape untuk batal
+  pl: Naciśnij Enter, aby zakończyć, lub Escape, aby anulować
+  nl: Druk op Enter om te voltooien of Escape om te annuleren
+  ar: اضغط على Enter للإنهاء أو Escape للإلغاء
+  hi: पूरा करने के लिए Enter दबाएं या रद्द करने के लिए Escape दबाएं
+  th: กด Enter เพื่อเสร็จสิ้น หรือ Escape เพื่อยกเลิก
+  cs: Stiskni Enter pro dokončení nebo Escape pro zrušení
+  sv: Tryck på Enter för att avsluta eller Escape för att avbryta
+  es: Pulsa Enter para finalizar o Escape para cancelar
+  he: לחץ על Enter לסיום או על Escape לביטול
+  verified_by_human: []
+finish:
+  context: Button label to finish an audio recording
+  en: Finish
+  de: Fertig
+  zh: 完成
+  fr: Terminer
+  pt: Terminar
+  ru: Готово
+  ja: 終了
+  ko: 완료
+  it: Termina
+  tr: Bitir
+  vi: Hoàn tất
+  id: Selesai
+  pl: Zakończ
+  nl: Voltooien
+  ar: إنهاء
+  hi: पूरा करें
+  th: เสร็จสิ้น
+  cs: Dokončit
+  sv: Avsluta
+  es: Finalizar
+  he: סיום
+  verified_by_human: []
+cancel:
+  context: Button label to cancel an audio recording
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal et
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  es: Cancelar
+  he: ביטול
+  verified_by_human: []
+press_and_hold_reminder:
+  context: Hint shown after a short tap on the record button
+  en: Press and hold to record
+  de: Zum Aufnehmen gedrueckt halten
+  zh: 按住录音
+  fr: Appuie longuement pour enregistrer
+  pt: Mantém pressionado para gravar
+  ru: Нажми и удерживай для записи
+  ja: 長押しして録音
+  ko: 길게 눌러서 녹음하세요
+  it: Tieni premuto per registrare
+  tr: Kaydetmek için basılı tut
+  vi: Nhấn và giữ để ghi âm
+  id: Tekan dan tahan untuk merekam
+  pl: Naciśnij i przytrzymaj, aby nagrywać
+  nl: Houd ingedrukt om op te nemen
+  ar: اضغط مع الاستمرار للتسجيل
+  hi: रिकॉर्ड करने के लिए दबाकर रखें
+  th: กดค้างเพื่อบันทึก
+  cs: Stiskni a podrž pro nahrávání
+  sv: Tryck och håll ner för att spela in
+  es: Mantén pulsado para grabar
+  he: לחץ והחזק כדי להקליט
+  verified_by_human: []
+release_to_finish:
+  context: Hint shown while pointer-initiated audio recording is active
+  en: Release to finish
+  de: Zum Fertigstellen loslassen
+  zh: 松开完成
+  fr: Relâche pour terminer
+  pt: Solta para terminar
+  ru: Отпусти, чтобы закончить
+  ja: 離して終了
+  ko: 손을 떼면 완료됩니다
+  it: Rilascia per terminare
+  tr: Bitirmek için bırak
+  vi: Thả tay để hoàn tất
+  id: Lepaskan untuk selesai
+  pl: Puść, aby zakończyć
+  nl: Laat los om te voltooien
+  ar: أفلت للإنهاء
+  hi: पूरा करने के लिए छोड़ दें
+  th: ปล่อยเพื่อเสร็จสิ้น
+  cs: Pusť pro dokončení
+  sv: Släpp för att avsluta
+  es: Suelta para finalizar
+  he: שחרר לסיום
+  verified_by_human: []
+press_enter_to_finish:
+  context: Hint shown while keyboard-initiated audio recording is active
+  en: Press Enter to finish
+  de: Enter zum Fertigstellen druecken
+  zh: 按 Enter 完成
+  fr: Appuie sur Entrée pour terminer
+  pt: Pressiona Enter para terminar
+  ru: Нажми Enter, чтобы закончить
+  ja: Enterを押して終了
+  ko: Enter를 눌러 완료하세요
+  it: Premi Invio per terminare
+  tr: "Bitirmek için Enter'a bas"
+  vi: Nhấn Enter để hoàn tất
+  id: Tekan Enter untuk selesai
+  pl: Naciśnij Enter, aby zakończyć
+  nl: Druk op Enter om te voltooien
+  ar: اضغط على Enter للإنهاء
+  hi: पूरा करने के लिए Enter दबाएं
+  th: กด Enter เพื่อเสร็จสิ้น
+  cs: Stiskni Enter pro dokončení
+  sv: Tryck på Enter för att avsluta
+  es: Pulsa Enter para finalizar
+  he: לחץ על Enter לסיום
+  verified_by_human: []
 slide_left_to_cancel:
-  context: Text shown when recording is in progress
+  context: Hint shown while pointer-initiated audio recording is active
   en: Slide left to cancel
-  de: Nach links ziehen um abzubrechen
+  de: Zum Abbrechen nach links ziehen
   zh: 向左滑动取消
-  es: Desliza hacia la izquierda para cancelar
-  fr: Faites glisser vers la gauche pour annuler
-  pt: Deslize para a esquerda para cancelar
-  ru: Смахните влево для отмены
+  fr: Glisse vers la gauche pour annuler
+  pt: Desliza para a esquerda para cancelar
+  ru: Смахни влево для отмены
   ja: 左にスライドしてキャンセル
-  ko: 왼쪽으로 밀어 취소
+  ko: 왼쪽으로 밀어서 취소하세요
   it: Scorri a sinistra per annullare
   tr: İptal etmek için sola kaydır
   vi: Vuốt sang trái để hủy
-  id: Geser ke kiri untuk membatalkan
+  id: Geser ke kiri untuk batal
   pl: Przesuń w lewo, aby anulować
-  nl: Veeg naar links om te annuleren
+  nl: Sleep naar links om te annuleren
   ar: اسحب لليسار للإلغاء
   hi: रद्द करने के लिए बाईं ओर स्लाइड करें
   th: เลื่อนไปทางซ้ายเพื่อยกเลิก
-  cs: Přejeďte doleva pro zrušení
-  sv: "Dra åt vänster för att avbryta"
+  cs: Přejeď doleva pro zrušení
+  sv: Svep åt vänster för att avbryta
+  es: Desliza a la izquierda para cancelar
   he: החלק שמאלה לביטול
   verified_by_human: []
 press_esc_to_cancel:
-  context: Text shown when a keyboard-started recording is in progress
+  context: Hint shown while keyboard-initiated audio recording is active
   en: Press ESC to cancel
-  de: ESC drücken zum Abbrechen
+  de: ESC zum Abbrechen druecken
   zh: 按 ESC 取消
-  es: Pulsa ESC para cancelar
-  fr: Appuyez sur ESC pour annuler
-  pt: Pressione ESC para cancelar
-  ru: Нажмите ESC для отмены
-  ja: ESC を押してキャンセル
-  ko: ESC를 눌러 취소
+  fr: Appuie sur ÉCHAP pour annuler
+  pt: Pressiona ESC para cancelar
+  ru: Нажми ESC для отмены
+  ja: Escを押してキャンセル
+  ko: ESC를 눌러 취소하세요
   it: Premi ESC per annullare
-  tr: İptal etmek için ESC'ye basın
+  tr: "İptal etmek için ESC'ye bas"
   vi: Nhấn ESC để hủy
-  id: Tekan ESC untuk membatalkan
+  id: Tekan ESC untuk batal
   pl: Naciśnij ESC, aby anulować
   nl: Druk op ESC om te annuleren
-  ar: اضغط ESC للإلغاء
+  ar: اضغط على ESC للإلغاء
   hi: रद्द करने के लिए ESC दबाएं
   th: กด ESC เพื่อยกเลิก
-  cs: Stiskněte ESC pro zrušení
+  cs: Stiskni ESC pro zrušení
   sv: Tryck på ESC för att avbryta
+  es: Pulsa ESC para cancelar
   he: לחץ על ESC לביטול
   verified_by_human: []
-release_to_finish:
-  context: Text shown when recording is in progress
-  en: Release to finish
-  de: Loslassen um fertig zu stellen
-  zh: 松开完成
-  es: Suelta para finalizar
-  fr: Relâchez pour terminer
-  pt: Solte para finalizar
-  ru: Отпустите для завершения
-  ja: 離して終了
-  ko: 놓아서 완료
-  it: Rilascia per finire
-  tr: Bitirmek için bırak
-  vi: Thả ra để hoàn thành
-  id: Lepas untuk menyelesaikan
-  pl: Zwolnij, aby zakończyć
-  nl: Laat los om te voltooien
-  ar: اتركه للإنهاء
-  hi: समाप्त करने के लिए छोड़ें
-  th: ปล่อยเพื่อเสร็จสิ้น
-  cs: Uvolněte pro dokončení
-  sv: "Släpp för att slutföra"
-  he: שחרר לסיום
-  verified_by_human: []
-press_and_hold_reminder:
-  context: Text shown when the user has only pressed the record button for less than 500ms
-  en: Press and hold to record
-  de: Halte gedrückt um aufzunehmen
-  zh: 按住录音
-  es: Mantén presionado para grabar
-  fr: Appuyez et maintenez pour enregistrer
-  pt: Pressione e segure para gravar
-  ru: Нажмите и удерживайте для записи
-  ja: 長押しして録音
-  ko: 길게 눌러서 녹음
-  it: Premi e tieni premuto per registrare
-  tr: Kaydetmek için basılı tutun
-  vi: Nhấn và giữ để ghi âm
-  id: Tekan dan tahan untuk merekam
-  pl: Naciśnij i przytrzymaj, aby nagrać
-  nl: Druk in en houd vast om op te nemen
-  ar: اضغط مع الاستمرار للتسجيل
-  hi: रिकॉर्ड करने के लिए दबाएं और होल्ड करें
-  th: กดค้างเพื่อบันทึก
-  cs: Stiskněte a podržte pro nahrávání
-  sv: "Tryck och håll kvar för att spela in"
-  he: לחץ והחזק כדי להקליט
-  verified_by_human: []
-
 allow_microphone_access:
-  context: Hint shown below the action buttons when microphone permission has not yet been granted — tapping the mic button will trigger the browser permission popup
+  context: Hint shown below the action buttons when microphone permission has not yet been granted
   en: Allow microphone access to record
   de: Mikrofonzugriff erlauben um aufzunehmen
   zh: 允许麦克风访问以录音
@@ -119,28 +238,27 @@ allow_microphone_access:
   sv: Tillåt mikrofonåtkomst för att spela in
   he: אפשר גישה למיקרופון כדי להקליט
   verified_by_human: []
-
 microphone_blocked:
   context: Error hint shown below the action buttons when microphone permission has been permanently denied in browser settings
-  en: Microphone blocked — enable it in browser settings
-  de: Mikrofon gesperrt — in den Browsereinstellungen aktivieren
+  en: Microphone blocked - enable it in browser settings
+  de: Mikrofon gesperrt - in den Browsereinstellungen aktivieren
   zh: 麦克风已被屏蔽——请在浏览器设置中启用
-  es: Micrófono bloqueado — actívalo en la configuración del navegador
-  fr: Microphone bloqué — activez-le dans les paramètres du navigateur
-  pt: Microfone bloqueado — ative-o nas configurações do navegador
+  es: Micrófono bloqueado - actívalo en la configuración del navegador
+  fr: Microphone bloqué - activez-le dans les paramètres du navigateur
+  pt: Microfone bloqueado - ative-o nas configurações do navegador
   ru: Микрофон заблокирован — включите его в настройках браузера
   ja: マイクがブロックされています — ブラウザ設定で有効にしてください
   ko: 마이크가 차단되었습니다 — 브라우저 설정에서 활성화하세요
-  it: Microfono bloccato — abilitalo nelle impostazioni del browser
-  tr: Mikrofon engellendi — tarayıcı ayarlarından etkinleştirin
-  vi: Microphone bị chặn — bật trong cài đặt trình duyệt
-  id: Mikrofon diblokir — aktifkan di pengaturan browser
-  pl: Mikrofon zablokowany — włącz go w ustawieniach przeglądarki
-  nl: Microfoon geblokkeerd — schakel in in browserinstellingen
+  it: Microfono bloccato - abilitalo nelle impostazioni del browser
+  tr: Mikrofon engellendi - tarayıcı ayarlarından etkinleştirin
+  vi: Microphone bị chặn - bật trong cài đặt trình duyệt
+  id: Mikrofon diblokir - aktifkan di pengaturan browser
+  pl: Mikrofon zablokowany - włącz go w ustawieniach przeglądarki
+  nl: Microfoon geblokkeerd - schakel in in browserinstellingen
   ar: الميكروفون محظور — فعّله في إعدادات المتصفح
   hi: माइक्रोफ़ोन ब्लॉक है — ब्राउज़र सेटिंग्स में इसे सक्षम करें
   th: ไมโครโฟนถูกบล็อก — เปิดใช้งานในการตั้งค่าเบราว์เซอร์
-  cs: Mikrofon je zablokován — povolte ho v nastavení prohlížeče
-  sv: Mikrofon blockerad — aktivera den i webbläsarinställningarna
+  cs: Mikrofon je zablokován - povolte ho v nastavení prohlížeče
+  sv: Mikrofon blockerad - aktivera den i webbläsarinställningarna
   he: המיקרופון חסום — יש לאפשר אותו בהגדרות הדפדפן
   verified_by_human: []

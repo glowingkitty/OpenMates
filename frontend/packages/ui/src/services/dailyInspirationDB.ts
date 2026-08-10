@@ -206,7 +206,8 @@ export async function loadInspirationsFromIndexedDB(): Promise<
   try {
     await chatDB.init();
     if (!chatDB.db) {
-      console.error(`${LOG_PREFIX} DB not initialized`);
+      // Logout can close IndexedDB after init resolves but before this read.
+      console.debug(`${LOG_PREFIX} DB unavailable during cleanup, skipping`);
       return [];
     }
 

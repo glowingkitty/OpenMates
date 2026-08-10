@@ -1,0 +1,490 @@
+title:
+  context: "Title of example chat: Deutschlandticket train fare breakdown"
+  en: "Deutschlandticket train fare breakdown"
+  de: "Deutschlandticket-Zugverbindungen: Fahrpreisübersicht"
+  zh: "Deutschlandticket train fare breakdown"
+  es: "Deutschlandticket train fare breakdown"
+  fr: "Deutschlandticket train fare breakdown"
+  pt: "Deutschlandticket train fare breakdown"
+  ru: "Deutschlandticket train fare breakdown"
+  ja: "Deutschlandticket train fare breakdown"
+  ko: "Deutschlandticket train fare breakdown"
+  it: "Deutschlandticket train fare breakdown"
+  tr: "Deutschlandticket train fare breakdown"
+  vi: "Deutschlandticket train fare breakdown"
+  id: "Deutschlandticket train fare breakdown"
+  pl: "Deutschlandticket train fare breakdown"
+  nl: "Deutschlandticket train fare breakdown"
+  ar: "Deutschlandticket train fare breakdown"
+  hi: "Deutschlandticket train fare breakdown"
+  th: "Deutschlandticket train fare breakdown"
+  cs: "Deutschlandticket train fare breakdown"
+  sv: "Deutschlandticket train fare breakdown"
+  he: "Deutschlandticket train fare breakdown"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Deutschlandticket train fare breakdown"
+  en: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  de: "Sieh, wie OpenMates regionale, vom Deutschlandticket abgedeckte Zugverbindungen von Bonn nach München findet."
+  zh: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  es: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  fr: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  pt: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  ru: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  ja: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  ko: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  it: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  tr: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  vi: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  id: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  pl: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  nl: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  ar: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  hi: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  th: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  cs: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  sv: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  he: "See how OpenMates finds Deutschlandticket-covered regional train routes from Bonn to Munich."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Deutschlandticket train fare breakdown. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  de: "Suche Zugverbindungen von Bonn nach München am 12. August. Ich habe ein Deutschlandticket (Germany Pass)."
+  zh: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  es: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  fr: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  pt: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  ru: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  ja: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  ko: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  it: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  tr: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  vi: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  id: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  pl: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  nl: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  ar: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  hi: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  th: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  cs: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  sv: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  he: "Search for train connections from Bonn to Munich on August 12. I have a Deutschlandticket (Germany Pass)."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Deutschlandticket train fare breakdown. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    ```embeds_map_view
+    title: Bonn -> Munich regional route options
+    sources: 699e7331-5148-486a-947b-0d7b7f480aab
+    ```
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  de: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Hier sind Zugverbindungen von **Bonn Hbf** nach **München Hbf** am **12. August 2026**, ausschließlich mit Regionalverkehr, der durch dein **Deutschlandticket** abgedeckt ist (keine ICE/IC-Fernzüge nötig):
+
+    * [08:27 – 17:56 (9h 29m, 5 Umstiege über Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 Umstiege über Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 Umstiege über Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 Umstiege über Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 Umstiege über Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    ```embeds_map_view
+    title: Bonn -> Muenchen regionale Verbindungen
+    sources: 699e7331-5148-486a-947b-0d7b7f480aab
+    ```
+
+    Möchtest du Verbindungen zu einer anderen Abfahrtszeit prüfen oder Details zu einem bestimmten Umstiegsbahnhof sehen?
+  zh: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  es: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  fr: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  pt: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  ru: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  ja: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  ko: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  it: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  tr: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  vi: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  id: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  pl: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  nl: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  ar: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  hi: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  th: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  cs: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  sv: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  he: |
+    [!](embed:699e7331-5148-486a-947b-0d7b7f480aab)
+
+    Here are train connections from **Bonn Hbf** to **München Hbf** on **August 12, 2026**, routed exclusively using regional transport covered by your **Deutschlandticket** (no long-distance ICE/IC trains required):
+
+    * [08:27 – 17:56 (9h 29m, 5 stops via Mainz & Würzburg)](embed:rb-0827-tLB)
+    * [08:27 – 18:19 (9h 52m, 3 stops via Mainz & Würzburg)](embed:rb-0827-tiC)
+    * [08:56 – 17:56 (9h 00m, 7 stops via Koblenz & Mainz)](embed:rb-0856-nAn)
+    * [08:56 – 18:19 (9h 23m, 5 stops via Koblenz & Mainz)](embed:rb-0856-tEP)
+    * [09:56 – 18:55 (8h 59m, 4 stops via Koblenz & Frankfurt)](embed:rb-0956-ioI)
+
+    Would you like to check connections for a different departure time, or see details on any specific transfer station?
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Find local attractions in Munich"
+  de: "Lokale Sehenswürdigkeiten in München finden"
+  zh: "Find local attractions in Munich"
+  es: "Find local attractions in Munich"
+  fr: "Find local attractions in Munich"
+  pt: "Find local attractions in Munich"
+  ru: "Find local attractions in Munich"
+  ja: "Find local attractions in Munich"
+  ko: "Find local attractions in Munich"
+  it: "Find local attractions in Munich"
+  tr: "Find local attractions in Munich"
+  vi: "Find local attractions in Munich"
+  id: "Find local attractions in Munich"
+  pl: "Find local attractions in Munich"
+  nl: "Find local attractions in Munich"
+  ar: "Find local attractions in Munich"
+  hi: "Find local attractions in Munich"
+  th: "Find local attractions in Munich"
+  cs: "Find local attractions in Munich"
+  sv: "Find local attractions in Munich"
+  he: "Find local attractions in Munich"
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain the benefits of regional trains"
+  de: "Vorteile von Regionalzügen erklären"
+  zh: "Explain the benefits of regional trains"
+  es: "Explain the benefits of regional trains"
+  fr: "Explain the benefits of regional trains"
+  pt: "Explain the benefits of regional trains"
+  ru: "Explain the benefits of regional trains"
+  ja: "Explain the benefits of regional trains"
+  ko: "Explain the benefits of regional trains"
+  it: "Explain the benefits of regional trains"
+  tr: "Explain the benefits of regional trains"
+  vi: "Explain the benefits of regional trains"
+  id: "Explain the benefits of regional trains"
+  pl: "Explain the benefits of regional trains"
+  nl: "Explain the benefits of regional trains"
+  ar: "Explain the benefits of regional trains"
+  hi: "Explain the benefits of regional trains"
+  th: "Explain the benefits of regional trains"
+  cs: "Explain the benefits of regional trains"
+  sv: "Explain the benefits of regional trains"
+  he: "Explain the benefits of regional trains"
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Search for hotels near Munich Hbf"
+  de: "Hotels in der Nähe von München Hbf suchen"
+  zh: "Search for hotels near Munich Hbf"
+  es: "Search for hotels near Munich Hbf"
+  fr: "Search for hotels near Munich Hbf"
+  pt: "Search for hotels near Munich Hbf"
+  ru: "Search for hotels near Munich Hbf"
+  ja: "Search for hotels near Munich Hbf"
+  ko: "Search for hotels near Munich Hbf"
+  it: "Search for hotels near Munich Hbf"
+  tr: "Search for hotels near Munich Hbf"
+  vi: "Search for hotels near Munich Hbf"
+  id: "Search for hotels near Munich Hbf"
+  pl: "Search for hotels near Munich Hbf"
+  nl: "Search for hotels near Munich Hbf"
+  ar: "Search for hotels near Munich Hbf"
+  hi: "Search for hotels near Munich Hbf"
+  th: "Search for hotels near Munich Hbf"
+  cs: "Search for hotels near Munich Hbf"
+  sv: "Search for hotels near Munich Hbf"
+  he: "Search for hotels near Munich Hbf"
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List things to do during long train rides"
+  de: "Aktivitäten für lange Zugfahrten auflisten"
+  zh: "List things to do during long train rides"
+  es: "List things to do during long train rides"
+  fr: "List things to do during long train rides"
+  pt: "List things to do during long train rides"
+  ru: "List things to do during long train rides"
+  ja: "List things to do during long train rides"
+  ko: "List things to do during long train rides"
+  it: "List things to do during long train rides"
+  tr: "List things to do during long train rides"
+  vi: "List things to do during long train rides"
+  id: "List things to do during long train rides"
+  pl: "List things to do during long train rides"
+  nl: "List things to do during long train rides"
+  ar: "List things to do during long train rides"
+  hi: "List things to do during long train rides"
+  th: "List things to do during long train rides"
+  cs: "List things to do during long train rides"
+  sv: "List things to do during long train rides"
+  he: "List things to do during long train rides"
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Compare regional train prices with ICE"
+  de: "Regionalzugpreise mit ICE vergleichen"
+  zh: "Compare regional train prices with ICE"
+  es: "Compare regional train prices with ICE"
+  fr: "Compare regional train prices with ICE"
+  pt: "Compare regional train prices with ICE"
+  ru: "Compare regional train prices with ICE"
+  ja: "Compare regional train prices with ICE"
+  ko: "Compare regional train prices with ICE"
+  it: "Compare regional train prices with ICE"
+  tr: "Compare regional train prices with ICE"
+  vi: "Compare regional train prices with ICE"
+  id: "Compare regional train prices with ICE"
+  pl: "Compare regional train prices with ICE"
+  nl: "Compare regional train prices with ICE"
+  ar: "Compare regional train prices with ICE"
+  hi: "Compare regional train prices with ICE"
+  th: "Compare regional train prices with ICE"
+  cs: "Compare regional train prices with ICE"
+  sv: "Compare regional train prices with ICE"
+  he: "Compare regional train prices with ICE"
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Help me plan activities in Munich"
+  de: "Aktivitäten in München planen helfen"
+  zh: "Help me plan activities in Munich"
+  es: "Help me plan activities in Munich"
+  fr: "Help me plan activities in Munich"
+  pt: "Help me plan activities in Munich"
+  ru: "Help me plan activities in Munich"
+  ja: "Help me plan activities in Munich"
+  ko: "Help me plan activities in Munich"
+  it: "Help me plan activities in Munich"
+  tr: "Help me plan activities in Munich"
+  vi: "Help me plan activities in Munich"
+  id: "Help me plan activities in Munich"
+  pl: "Help me plan activities in Munich"
+  nl: "Help me plan activities in Munich"
+  ar: "Help me plan activities in Munich"
+  hi: "Help me plan activities in Munich"
+  th: "Help me plan activities in Munich"
+  cs: "Help me plan activities in Munich"
+  sv: "Help me plan activities in Munich"
+  he: "Help me plan activities in Munich"
+  verified_by_human: []

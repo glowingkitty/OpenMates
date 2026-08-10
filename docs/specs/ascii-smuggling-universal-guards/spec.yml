@@ -269,7 +269,6 @@ tasks:
     expected_files:
       - backend/apps/home/skills/search_skill.py
       - backend/apps/openmates/skills/get_docs_skill.py
-      - backend/apps/openmates/skills/search_docs_skill.py
       - backend/apps/electronics/skills/search_components.py
     verification:
       - T-PYTEST-001

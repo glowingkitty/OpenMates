@@ -1,0 +1,96 @@
+skills.create:
+  context: Skill name for creating projects
+  en: Create Project
+  de: Projekt erstellen
+  zh: 创建项目
+  es: Crear proyecto
+  fr: Créer un projet
+  pt: Criar projeto
+  ru: Создать проект
+  ja: プロジェクトを作成
+  ko: 프로젝트 만들기
+  it: Crea progetto
+  tr: Proje oluştur
+  vi: Tạo dự án
+  id: Buat proyek
+  pl: Utwórz projekt
+  nl: Project maken
+  ar: إنشاء مشروع
+  hi: प्रोजेक्ट बनाएं
+  th: สร้างโปรเจกต์
+  cs: Vytvořit projekt
+  sv: Skapa projekt
+  he: יצירת פרויקט
+  verified_by_human: []
+skills.create.description:
+  context: Description for creating projects
+  en: Ask a connected client to create an encrypted project.
+  de: Einen verbundenen Client bitten, ein verschlüsseltes Projekt zu erstellen.
+  zh: 请求已连接的客户端创建加密项目。
+  es: Pide a un cliente conectado que cree un proyecto cifrado.
+  fr: Demandez à un client connecté de créer un projet chiffré.
+  pt: Peça a um cliente conectado para criar um projeto criptografado.
+  ru: Попросите подключенный клиент создать зашифрованный проект.
+  ja: 接続済みクライアントに暗号化されたプロジェクトの作成を依頼します。
+  ko: 연결된 클라이언트에 암호화된 프로젝트 생성을 요청합니다.
+  it: Chiedi a un client connesso di creare un progetto crittografato.
+  tr: Bağlı bir istemciden şifrelenmiş bir proje oluşturmasını isteyin.
+  vi: Yêu cầu ứng dụng khách đã kết nối tạo dự án được mã hóa.
+  id: Minta klien terhubung membuat proyek terenkripsi.
+  pl: Poproś połączonego klienta o utworzenie zaszyfrowanego projektu.
+  nl: Vraag een verbonden client om een versleuteld project te maken.
+  ar: اطلب من عميل متصل إنشاء مشروع مشفر.
+  hi: जुड़े हुए क्लाइंट से एन्क्रिप्टेड प्रोजेक्ट बनाने को कहें।
+  th: ขอให้ไคลเอนต์ที่เชื่อมต่อสร้างโปรเจกต์ที่เข้ารหัส
+  cs: Požádejte připojeného klienta o vytvoření šifrovaného projektu.
+  sv: Be en ansluten klient skapa ett krypterat projekt.
+  he: בקשה מלקוח מחובר ליצור פרויקט מוצפן.
+  verified_by_human: []
+skills.search:
+  context: Skill name for searching projects
+  en: Search Projects
+  de: Projekte suchen
+  zh: 搜索项目
+  es: Buscar proyectos
+  fr: Rechercher des projets
+  pt: Pesquisar projetos
+  ru: Поиск проектов
+  ja: プロジェクトを検索
+  ko: 프로젝트 검색
+  it: Cerca progetti
+  tr: Proje ara
+  vi: Tìm dự án
+  id: Cari proyek
+  pl: Szukaj projektów
+  nl: Projecten zoeken
+  ar: البحث في المشاريع
+  hi: प्रोजेक्ट खोजें
+  th: ค้นหาโปรเจกต์
+  cs: Hledat projekty
+  sv: Sök projekt
+  he: חיפוש פרויקטים
+  verified_by_human: []
+skills.search.description:
+  context: Description for searching projects
+  en: Find encrypted projects through a capable connected client.
+  de: Verschlüsselte Projekte über einen geeigneten verbundenen Client finden.
+  zh: 通过具备能力的已连接客户端查找加密项目。
+  es: Encuentra proyectos cifrados mediante un cliente conectado compatible.
+  fr: Trouvez des projets chiffrés via un client connecté compatible.
+  pt: Encontre projetos criptografados por meio de um cliente conectado compatível.
+  ru: Находите зашифрованные проекты через подходящий подключенный клиент.
+  ja: 対応する接続済みクライアントを通じて暗号化されたプロジェクトを見つけます。
+  ko: 지원되는 연결 클라이언트를 통해 암호화된 프로젝트를 찾습니다.
+  it: Trova progetti crittografati tramite un client connesso compatibile.
+  tr: Uygun bağlı bir istemciyle şifrelenmiş projeleri bulun.
+  vi: Tìm dự án được mã hóa thông qua ứng dụng khách đã kết nối phù hợp.
+  id: Temukan proyek terenkripsi melalui klien terhubung yang mampu.
+  pl: Znajdź zaszyfrowane projekty przez zgodnego połączonego klienta.
+  nl: Vind versleutelde projecten via een geschikte verbonden client.
+  ar: ابحث عن المشاريع المشفرة عبر عميل متصل قادر.
+  hi: सक्षम जुड़े हुए क्लाइंट के ज़रिये एन्क्रिप्टेड प्रोजेक्ट खोजें।
+  th: ค้นหาโปรเจกต์ที่เข้ารหัสผ่านไคลเอนต์ที่เชื่อมต่อและรองรับ
+  cs: Najděte šifrované projekty přes schopného připojeného klienta.
+  sv: Hitta krypterade projekt via en kapabel ansluten klient.
+  he: מציאת פרויקטים מוצפנים דרך לקוח מחובר מתאים.
+  verified_by_human: []

@@ -96,6 +96,19 @@ async function navigateToAppStore(
 	await page.waitForTimeout(1000);
 }
 
+async function openAllAppsList(
+	page: any,
+	logCheckpoint: (message: string) => void
+): Promise<void> {
+	const settingsMenu = page.getByTestId('settings-menu');
+	const allAppsItem = settingsMenu.getByText(/show all apps/i).first();
+	if (await allAppsItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+		await allAppsItem.click();
+		logCheckpoint('Opened the full Apps list.');
+		await page.waitForTimeout(500);
+	}
+}
+
 async function navigateToApp(
 	page: any,
 	appId: string,
@@ -149,6 +162,7 @@ test('Career insights focus mode appears in Jobs app settings with name and desc
 
 	// STEP 3: Navigate to Apps
 	await navigateToAppStore(page, logCheckpoint);
+	await openAllAppsList(page, logCheckpoint);
 	await takeStepScreenshot(page, 'app-store-opened');
 
 	// STEP 4: Navigate to Jobs app
@@ -239,6 +253,7 @@ test('Deep research focus mode shows its approved example chat', async ({
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 	await openSettingsPanel(page, logCheckpoint);
 	await navigateToAppStore(page, logCheckpoint);
+	await openAllAppsList(page, logCheckpoint);
 	await navigateToApp(page, 'web', logCheckpoint);
 	await takeStepScreenshot(page, 'web-app-opened');
 

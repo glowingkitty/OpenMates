@@ -11,6 +11,7 @@ import os
 import importlib
 import inspect
 import asyncio
+import re
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -37,6 +38,7 @@ from backend.core.api.app.utils.text_sanitization import (
     sanitize_text_payload_for_ascii_smuggling,
     sanitize_text_simple,
 )
+from backend.core.api.app.services.team_chat_ai_service import format_sender_attributed_content
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.services.cache import CacheService
 from toon_format import decode, encode
@@ -44,6 +46,8 @@ from toon_format import decode, encode
 logger = logging.getLogger(__name__)
 
 NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS = {"google", "google_ai_studio"}
+FRONTEND_RENDER_ONLY_JSON_TYPES = {"sub_chat_batch"}
+FRONTEND_RENDER_ONLY_JSON_FENCE_RE = re.compile(r"```json\s*\n(?P<body>\s*\{.*?\}\s*)\n```", re.DOTALL)
 
 class AllServersFailedError(Exception):
     """Raised when all configured servers for a model fail during an LLM call.
@@ -322,6 +326,32 @@ def _extract_text_from_tiptap(tiptap_content: Any) -> str:
             text_parts.append(_extract_text_from_tiptap(sub_content))
     
     return "".join(text_parts)
+
+
+def _strip_frontend_render_only_markers(content: str) -> str:
+    """Remove assistant-content markers that only anchor frontend UI components."""
+    if not content or "sub_chat_batch" not in content:
+        return content
+
+    def replace_marker(match: re.Match[str]) -> str:
+        try:
+            payload = json.loads(match.group("body"))
+        except json.JSONDecodeError:
+            return match.group(0)
+        marker_type = payload.get("type") if isinstance(payload, dict) else None
+        if marker_type in FRONTEND_RENDER_ONLY_JSON_TYPES:
+            return ""
+        return match.group(0)
+
+    stripped = FRONTEND_RENDER_ONLY_JSON_FENCE_RE.sub(replace_marker, content)
+    return re.sub(r"\n{3,}", "\n\n", stripped).strip()
+
+
+def _sanitize_assistant_history_content(content: str, log_prefix: str) -> str:
+    return sanitize_text_simple(
+        _strip_frontend_render_only_markers(content),
+        log_prefix=log_prefix,
+    )
 
 def resolve_default_server_from_provider_config(model_id: str) -> tuple:
     """
@@ -818,7 +848,7 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                 "tool_calls": msg["tool_calls"]  # Preserve tool_calls structure
             }
             if plain_text_content:
-                assistant_msg["content"] = sanitize_text_simple(
+                assistant_msg["content"] = _sanitize_assistant_history_content(
                     plain_text_content,
                     log_prefix=f"[LLM transform assistant tool msg {idx}] ",
                 )
@@ -828,10 +858,20 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
         # Handle regular user/assistant messages
         content_input = msg.get("content", "")
         plain_text_content = _extract_text_from_tiptap(content_input)
-        plain_text_content = sanitize_text_simple(
-            plain_text_content,
-            log_prefix=f"[LLM transform {role} msg {idx}] ",
-        )
+        if role == "assistant":
+            plain_text_content = _sanitize_assistant_history_content(
+                plain_text_content,
+                log_prefix=f"[LLM transform {role} msg {idx}] ",
+            )
+        else:
+            plain_text_content = sanitize_text_simple(
+                plain_text_content,
+                log_prefix=f"[LLM transform {role} msg {idx}] ",
+            )
+        sender_name = msg.get("sender_name")
+        if role == "user" and sender_name:
+            safe_sender_name = sanitize_text_simple(str(sender_name), log_prefix=f"[LLM transform sender {idx}] ")
+            plain_text_content = format_sender_attributed_content(plain_text_content, safe_sender_name)
         
         # Always append the message, even if content is empty, to preserve message count
         # Empty messages might be important for maintaining conversation context
@@ -954,7 +994,10 @@ async def call_preprocessing_llm(
     transformed_messages_for_llm = filtered_messages_for_llm
 
     def handle_response(response: Union[UnifiedMistralResponse, UnifiedGoogleResponse, UnifiedAnthropicResponse, UnifiedOpenAIResponse], expected_tool_name: str) -> LLMPreprocessingCallResult:
-        current_raw_provider_response_summary = response.model_dump(exclude_none=True, exclude={'raw_response'})
+        current_raw_provider_response_summary = response.model_dump(
+            exclude_none=True,
+            exclude={"raw_response", "tool_calls_made", "direct_message_content"},
+        )
         
         # Sanitize tool_calls_made to remove sensitive content (title, chat_summary, chat_tags)
         # Note: In production, detailed logs are skipped entirely (see SERVER_ENVIRONMENT check below).
@@ -975,6 +1018,11 @@ async def call_preprocessing_llm(
                     # Redact chat_tags (user-generated content)
                     if "chat_tags" in sanitized_args and isinstance(sanitized_args["chat_tags"], list):
                         sanitized_args["chat_tags"] = {"count": len(sanitized_args["chat_tags"]), "content": "[REDACTED_CONTENT]"}
+                    if "injection_strings" in sanitized_args and isinstance(sanitized_args["injection_strings"], list):
+                        sanitized_args["injection_strings"] = {
+                            "count": len(sanitized_args["injection_strings"]),
+                            "content": "[REDACTED_CONTENT]",
+                        }
                     tc_dict["function_arguments_parsed"] = sanitized_args
                 # Also sanitize function_arguments_raw if it's a string that might contain sensitive data
                 if "function_arguments_raw" in tc_dict and isinstance(tc_dict["function_arguments_raw"], str):
@@ -1127,7 +1175,7 @@ async def call_preprocessing_llm(
             if provider_client:
                 # Call the provider client dynamically - all have same signature
                 # Pass sanitized tool definition to ensure provider-agnostic behavior
-                # Wrap with timeout (5 seconds for preprocessing requests - should complete quickly)
+                # Wrap with a bounded preprocessing timeout so overloaded providers fall through to fallback.
                 try:
                     response = await asyncio.wait_for(
                         provider_client(
@@ -1139,7 +1187,7 @@ async def call_preprocessing_llm(
                             tool_choice="required", 
                             stream=False
                         ),
-                        timeout=PREPROCESSING_TIMEOUT_SECONDS  # Use 10 second timeout for preprocessing
+                        timeout=PREPROCESSING_TIMEOUT_SECONDS
                     )
                     return handle_response(response, expected_tool_name)
                 except asyncio.TimeoutError:
@@ -1300,7 +1348,8 @@ async def call_main_llm_stream(
     temperature: float,
     secrets_manager: Optional[SecretsManager] = None,
     tools: Optional[List[Dict[str, Any]]] = None,
-    tool_choice: Optional[str] = None
+    tool_choice: Optional[str] = None,
+    max_tokens: Optional[int] = None,
 ) -> AsyncIterator[str]:
     log_prefix = f"[{task_id}] LLM Utils (Main Stream - {model_id}):"
     logger.info(f"{log_prefix} Preparing to call. Temp: {temperature}. Tools: {len(tools) if tools else 0}. Choice: {tool_choice}")
@@ -1556,6 +1605,7 @@ async def call_main_llm_stream(
                 "temperature": temperature,
                 "tools": sanitized_tools,
                 "tool_choice": tool_choice,
+                "max_tokens": max_tokens,
                 "stream": True,
             }
             try:
@@ -1666,6 +1716,7 @@ async def call_main_llm_stream(
             "temperature": temperature, 
             "tools": sanitized_tools,  # Use sanitized tools (min/max removed) for all providers
             "tool_choice": tool_choice, 
+            "max_tokens": max_tokens,
             "stream": True
         }
         

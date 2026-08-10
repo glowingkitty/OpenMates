@@ -186,7 +186,7 @@ class AiModelDefaultsRequest(BaseModel):
         json_schema_extra = {
             "example": {
                 "default_ai_model_simple": "anthropic/claude-haiku-4-5-20251001",
-                "default_ai_model_complex": "anthropic/claude-opus-4-7",
+                "default_ai_model_complex": "anthropic/claude-fable-5",
                 "follow_up_suggestions_enabled": True,
                 "quick_tips_enabled": True,
                 "default_app_skill_models": {

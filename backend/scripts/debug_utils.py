@@ -296,6 +296,31 @@ LEGACY_ADMIN_DEBUG_CLI_KEY = "debug_cli__api_key"
 
 # HTTP timeout for production API requests (seconds).
 PROD_API_TIMEOUT_SECONDS = 60.0
+DEBUG_CLI_DEVICE_IDENTITY = "openmates-debug-cli"
+
+
+def _admin_debug_api_headers(api_key: str) -> Dict[str, str]:
+    """Build headers for remote Admin Debug API requests."""
+    return {
+        "Authorization": f"Bearer {api_key}",
+        "X-OpenMates-SDK": "cli",
+        "X-OpenMates-Device-Identity": DEBUG_CLI_DEVICE_IDENTITY,
+    }
+
+
+def _response_error_detail(response: httpx.Response) -> str:
+    """Return a concise error detail from a remote API response."""
+    try:
+        body = response.json()
+    except Exception:
+        return response.text.strip()
+
+    detail = body.get("detail") if isinstance(body, dict) else None
+    if isinstance(detail, str):
+        return detail
+    if detail is not None:
+        return json.dumps(detail, ensure_ascii=False)
+    return json.dumps(body, ensure_ascii=False)
 
 
 def get_base_url(use_dev: bool = False) -> str:
@@ -432,7 +457,7 @@ async def make_prod_api_request(
             connection errors, or timeouts.
     """
     url = f"{base_url}/{endpoint}"
-    headers = {"Authorization": f"Bearer {api_key}"}
+    headers = _admin_debug_api_headers(api_key)
 
     try:
         async with httpx.AsyncClient(timeout=PROD_API_TIMEOUT_SECONDS) as client:
@@ -445,10 +470,14 @@ async def make_prod_api_request(
                 sys.exit(1)
 
             if response.status_code == 401:
-                print("Error: Invalid or expired API key", file=sys.stderr)
+                detail = _response_error_detail(response)
+                suffix = f": {detail}" if detail else ""
+                print(f"Error: Invalid or expired API key{suffix}", file=sys.stderr)
                 sys.exit(1)
             elif response.status_code == 403:
-                print("Error: Admin privileges required", file=sys.stderr)
+                detail = _response_error_detail(response)
+                suffix = f": {detail}" if detail else ""
+                print(f"Error: Admin Debug API access forbidden{suffix}", file=sys.stderr)
                 sys.exit(1)
             elif response.status_code == 404:
                 return None

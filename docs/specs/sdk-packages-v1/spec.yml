@@ -13,6 +13,7 @@ scope:
     - CSPRNG-generated API keys for the web settings flow.
     - Guided API key creation with scope, credit limit, expiration, and one-time key reveal.
     - API key scopes for chats, app skills, settings, memories, embeds, sharing, and safe account reads.
+    - Developer API-key management scopes for listing, creating, revoking, and reviewing pending device requests.
     - Optional app-level and app-skill-level scope restrictions.
     - One credit cap per API key, selected from daily, weekly, monthly, or lifetime.
     - API-key SDK session unlock that returns only API-key-wrapped master-key material for local SDK decryption.
@@ -20,6 +21,7 @@ scope:
     - pip SDK ergonomics with lazy initialization and no explicit connect call.
     - SDK access to existing encrypted chats only when the key has read scope.
     - SDK creation of non-persistent chats by default, with saved account chats only when explicitly requested.
+    - API-key management parity in web, CLI, npm SDK, and pip SDK, including one-time reveal, last-used metadata, and pending-device links.
     - SDK memory loading and explicit memory selection for requests.
     - Apple developer settings parity for API-key creation, warnings, listing, and device approval.
   out:
@@ -239,6 +241,30 @@ scenarios:
       - Apple shows the same warnings for full access, unlimited credits, and Never expiration.
       - Apple lists API keys and API-key devices without exposing plaintext keys.
 
+  - id: S-12
+    title: User sees newly created API key immediately with usage and device state
+    given:
+      - Alice is logged in to the web app.
+      - Alice creates an API key named Local Script.
+    when:
+      - The create request succeeds and Alice returns to the API-key list.
+    then:
+      - The Local Script key appears immediately without requiring a full page reload.
+      - The list and detail views show Last used as Never used until the key authenticates successfully.
+      - After successful API-key authentication, web, CLI, npm SDK, and pip SDK list calls expose the last-used date and time.
+      - If an unapproved device has attempted to use the key, the API-key list shows a Confirm device quick link for that key.
+
+  - id: S-13
+    title: API key management through SDK requires developer scopes
+    given:
+      - Alice has an existing API key.
+    when:
+      - Code uses npm or pip SDK methods to list, create, or revoke API keys.
+    then:
+      - A full-access API key can use the SDK API-key management methods.
+      - A restricted API key without developer API-key scopes is blocked with a typed missing-scope error.
+      - A restricted API key with the matching developer scope can perform only that API-key management action.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -285,6 +311,21 @@ acceptance_criteria:
   - id: AC-15
     scenario: S-11
     text: Apple developer settings provide API-key creation, listing, warning, expiration, credit-limit, scope, and device-approval parity with web without using API keys for Apple login.
+  - id: AC-16
+    scenario: S-12
+    text: The web app optimistically renders a successfully created API key in the API-key list and reconciles it with the server list without duplicating rows.
+  - id: AC-17
+    scenario: S-12
+    text: API-key list and detail surfaces show Last used with date and time, or Never used when last_used_at is null.
+  - id: AC-18
+    scenario: S-12
+    text: API-key list responses include pending device request state, and the web list shows a Confirm device quick link for keys with pending devices.
+  - id: AC-19
+    scenario: S-13
+    text: npm and pip SDKs expose API-key list/create/revoke methods with one-time plaintext reveal only on create.
+  - id: AC-20
+    scenario: S-13
+    text: SDK API-key management requires full_access true or matching developer scopes such as developer:api_keys:read, developer:api_keys:create, and developer:api_keys:revoke.
 
 contracts:
   api:
@@ -300,6 +341,22 @@ contracts:
         - 401 when the API key is missing, malformed, expired, revoked, or unknown.
         - 403 when the SDK device is new or unapproved.
         - 403 when required SDK session scope is disabled.
+    - route: GET /v1/sdk/settings/api-keys
+      auth: Authorization Bearer sk-api-...
+      response: "{ api_keys: [{ id, encrypted_name, encrypted_key_prefix, created_at, expires_at, last_used_at, pending_device_count, full_access, scopes, credit_limit }] }"
+      enforcement:
+        - Requires full_access true or developer:api_keys:read.
+    - route: POST /v1/sdk/settings/api-keys
+      auth: Authorization Bearer sk-api-...
+      request: Existing web API-key create payload with api_key_hash and encrypted display/master-key fields.
+      response: Existing API-key response metadata. Plaintext key is never returned by the server.
+      enforcement:
+        - Requires full_access true or developer:api_keys:create.
+    - route: DELETE /v1/sdk/settings/api-keys/{key_id}
+      auth: Authorization Bearer sk-api-...
+      response: Existing API-key delete success response.
+      enforcement:
+        - Requires full_access true or developer:api_keys:revoke.
     - route: POST /v1/apps/{app_id}/skills/{skill_id}
       request: Existing app-skill request body.
       response: Existing app-skill response body.
@@ -339,8 +396,10 @@ contracts:
     - Preserve encryption_keys login_method format api_key_<sha256(api_key)> for API-key-specific master-key wrappers.
     - Store API-key devices with approved_at null on first use and access_type npm, pip, cli, or rest_api.
     - Usage entries continue storing api_key_hash and device_hash for budget accounting.
+    - API-key list responses include pending_device_count derived from api_key_devices where approved_at is null.
   ui_states:
-    - API key list shows current scopes, credit cap, expiration, last used, and warning state without revealing the key.
+    - API key list shows current scopes, credit cap, expiration, last used date/time or Never used, and warning state without revealing the key.
+    - API key list shows a Confirm device quick link when pending_device_count is greater than zero.
     - Create scope page has full-access toggle, grouped chat toggles, settings/memory/embed toggles, and expandable app/app-skill lists.
     - Create credit page supports Unlimited, Daily, Weekly, Monthly, and Lifetime; only one non-unlimited period can be selected.
     - Create expiration page supports 7 days, 30 days, 90 days, 1 year, and Never.
@@ -354,6 +413,7 @@ contracts:
     - Credit-limit enforcement must happen before charging; client-side checks are advisory only.
     - SDK memory requests process only explicit memory IDs supplied by the caller.
     - No API-key-authenticated route may expose password/passkey/2FA/recovery-key management.
+    - Full-access API keys include developer API-key management scopes, but server/admin-only privileges remain separate and are never granted by user API-key full_access.
 
 tests:
   - id: T-PYTEST-001
@@ -416,6 +476,31 @@ tests:
         run_id: local-session-449e
         timestamp: "2026-06-22T08:08:34Z"
 
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_sdk_cli_parity_api_key_auth.py
+    command: python3 -m pytest backend/tests/test_sdk_cli_parity_api_key_auth.py
+    covers:
+      - AC-20
+    assertions:
+      - Full-access API keys can call SDK API-key management routes.
+      - Restricted API keys require the matching developer API-key management scope for read, create, and revoke.
+      - Missing developer API-key management scopes return typed 403 missing_scope errors.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-session-continue
+        timestamp: "2026-07-15T16:35:57Z"
+
   - id: T-UNIT-JS-001
     type: unit
     file: frontend/packages/openmates-cli/tests/sdk.test.ts
@@ -427,6 +512,8 @@ tests:
       - AC-8
       - AC-12
       - AC-13
+      - AC-17
+      - AC-19
     assertions:
       - OpenMates SDK methods lazily initialize without connect().
       - Missing OPENMATES_API_KEY produces a typed configuration error.
@@ -435,6 +522,7 @@ tests:
       - chats.list({ limit }) calls the SDK chat listing endpoint and returns encrypted chat metadata.
       - chats.create with saveToAccount true uses the saved-chat path.
       - Memory-selected chat requests include only explicit memory IDs.
+      - API-key list decrypts labels, exposes Never used for null last_used_at, and includes pending device counts.
     red_phase:
       required: true
       expected: fail
@@ -461,11 +549,14 @@ tests:
       - AC-8
       - AC-12
       - AC-13
+      - AC-17
+      - AC-19
     assertions:
       - Python SDK methods lazily initialize without connect().
       - Missing OPENMATES_API_KEY produces a typed configuration error.
       - API-key wrapped master key decrypts using the same vectors as JS.
       - Python SDK exposes app-skill, latest-chat-list, non-persistent chat, saved-chat, streaming, and memory-selected examples.
+      - Python SDK API-key list decrypts labels, exposes Never used for null last_used_at, and includes pending device counts.
     red_phase:
       required: true
       expected: fail
@@ -489,6 +580,9 @@ tests:
     covers:
       - AC-1
       - AC-2
+      - AC-16
+      - AC-17
+      - AC-18
     assertions:
       - Create key opens scope sub-settings first.
       - Full-access warning is visible while full access is active.
@@ -496,6 +590,9 @@ tests:
       - Expiration warning is visible while Never is selected.
       - Key reveal happens only after Scope, Credit limit, and Expiration steps.
       - Generated key matches the expected prefix and is produced by the CSPRNG helper.
+      - Newly created keys appear in the list immediately after Done without a page reload.
+      - Newly created unused keys show Never used.
+      - Keys with pending device requests show a Confirm device quick link.
     red_phase:
       required: true
       expected: fail

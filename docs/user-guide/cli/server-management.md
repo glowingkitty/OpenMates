@@ -4,7 +4,7 @@ doc_type: reference
 audience:
   - technical-users
   - contributors
-last_verified: 2026-06-08
+last_verified: 2026-08-06
 claims:
   - id: cli-server-config-saves-loads-and-removes
     type: unit
@@ -35,6 +35,8 @@ coverage:
   reviewed_context:
     - frontend/packages/openmates-cli/src/server.ts
     - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/src/serverHealth.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
 ---
 
 # Server Management
@@ -46,6 +48,9 @@ coverage:
 - The CLI stores the installation path, validates that a path looks like an OpenMates installation, and builds the Docker Compose command for core or override services.
 - Server operations are role-aware: use `--role core`, `--role upload`, or `--role preview` for role-specific installs, service filters, backups, updates, and Caddy checks.
 - Image-mode updates create a rotating latest pre-update backup for data-bearing roles before containers are replaced.
+- Install and update provision a five-minute host runtime monitor plus an independent stale watchdog. Installing system units requires root privileges.
+- Updates run a bounded runtime-contract checklist after container readiness; required failures leave the updated containers running and record a degraded update instead of rolling data back automatically.
+- Self-hosted installations never run billing checks. Read-only billing readiness checks exist only for verified `official_cloud` deployments.
 - Image-mode install defaults to invite-only signup; edit `.env` for email-domain allowlists or invite-plus-domain mode.
 - Starting the server warns when no real LLM API key is configured, but still starts the backend and web app. AI model processing stays unavailable until a real key is added.
 
@@ -72,7 +77,7 @@ Then run the installer:
 openmates server install
 openmates server install --path /opt/openmates
 openmates server install --env-path ~/my-env-file
-openmates server install --image-tag v0.14.0
+openmates server install --image-tag v0.15.0
 openmates server install --role core --profile production
 openmates server install --role upload --path /opt/openmates-upload
 openmates server install --role preview --path /opt/openmates-preview
@@ -116,7 +121,19 @@ Starts all Docker containers for the backend and web app. The web app is availab
 
 The `--with-overrides` flag includes admin UIs such as Directus CMS and Grafana defined in `docker-compose.override.yml`.
 
-If the `.env` file has no real LLM provider API key, startup continues with a warning. Empty, commented, non-model provider, or `IMPORTED_TO_VAULT` values do not count as configured AI model keys. Add a real key and run `openmates server restart` to enable AI chat/model processing.
+If the `.env` file has no real LLM provider API key, startup continues with a warning. Empty, commented, non-model provider, or `IMPORTED_TO_VAULT` values do not count as configured AI model keys. Add a real key and run `openmates server restart` to enable AI chat/model processing. Provider-backed features that require a missing API key are hidden or disabled by default until the key is configured.
+
+Manage the canonical runtime `.env` through the CLI instead of editing the full file by hand:
+
+```
+openmates server env list providers
+openmates server env set SECRET__BRAVE__API_KEY
+openmates server env unset SECRET__BRAVE__API_KEY --yes
+openmates server env check
+openmates server env doctor
+```
+
+The CLI redacts secret values in output, writes `.env` with restricted permissions, and creates a backup before changes. Docker and the CLI use one runtime `.env`; provider setup guidance should come from provider metadata rather than extra env files.
 
 Alternatively, self-hosted servers can add a local Ollama, LM Studio, or custom OpenAI-compatible model:
 
@@ -182,21 +199,38 @@ openmates server logs --services api,task-worker
 ```
 openmates server update
 openmates server update --dry-run
-openmates server update --image-tag v0.14.0
+openmates server update --image-tag v0.15.0
 openmates server update --channel stable
 openmates server update --channel dev
 openmates server update --services api,task-worker
 openmates server update --exclude webapp
 openmates server update install-service --continuous --channel main --window "02:00-04:00 Europe/Berlin"
 openmates server update status
+openmates server update status --json
 openmates server update --force
 ```
 
-Image-mode installs refresh the runtime Compose template from the packaged CLI templates, update `OPENMATES_IMAGE_TAG`, create a rotating latest pre-update backup for data-bearing roles, run `docker compose pull`, restart selected services, and wait for role-specific health checks. By default, version-pinned installs target the current CLI version tag, so update the CLI first when you want the newest released self-host images. Installs already using a channel tag keep that channel unless you pass a different target.
+Image-mode installs refresh the runtime Compose template from the packaged CLI templates, update `OPENMATES_IMAGE_TAG`, create a rotating latest pre-update backup for data-bearing roles, run `docker compose pull`, restart selected services, wait for role-specific health checks, and then run the runtime-contract checklist. By default, version-pinned installs target the current CLI version tag, so update the CLI first when you want the newest released self-host images. Installs already using a channel tag keep that channel unless you pass a different target.
 
 For backend-only production servers where the official web app is hosted separately, use `openmates server start --exclude webapp` after host restarts and `openmates server update --exclude webapp` for source-mode updates. The filtered update rebuilds/restarts every selected backend service and skips the web app health check.
 
-Source-mode installs run `git pull --ff-only`, rebuild containers, restart, and wait for health checks. The `--force` flag only applies to source-mode Git updates.
+Source-mode installs run `git pull --ff-only`, rebuild containers, restart, and run the same readiness and runtime-contract checks. The `--force` flag only applies to source-mode Git updates.
+
+The checklist has a 60-second global deadline. It verifies the required role services and HTTP health first, then runs dependency-safe checks for the role:
+
+| Role | Required runtime checks |
+| --- | --- |
+| `core` | API, Directus/Postgres path, cache, Vault, provider-free `app_ai` queue probe, scheduler freshness, and synthetic chat plumbing |
+| `upload` | Upload API, Vault, and ClamAV connectivity |
+| `preview` | Preview API and renderer health |
+
+When a required check fails, the CLI:
+
+- Leaves the newly updated containers running for diagnosis.
+- Records `degraded` update state and sanitized per-check results.
+- Sends configured post-update failure notifications independently.
+- Prints an exact role-scoped restore command only if a verified pre-update backup exists; otherwise it reports `restore_unavailable`.
+- Never performs an automatic restore.
 
 | Option | Applies to | Description |
 |--------|------------|-------------|
@@ -207,6 +241,77 @@ Source-mode installs run `git pull --ff-only`, rebuild containers, restart, and 
 | `--exclude <csv>` | Image mode | Update all role services except selected services |
 | `install-service --continuous` | Image mode | Install a host-level systemd timer that runs the CLI update path |
 | `--force` | Source mode | Stash local Git changes before `git pull --ff-only` |
+
+## Runtime Verification and Monitoring
+
+Run the same no-spend verifier without updating:
+
+```bash
+openmates server verify --role core
+openmates server verify --role core --json
+openmates server verify --role upload --path /opt/openmates-upload
+openmates server verify --role preview --path /opt/openmates-preview
+```
+
+Install or repair the periodic monitor and independent watchdog:
+
+```bash
+sudo "$(command -v openmates)" server monitoring install-service --role core --path ~/openmates
+openmates server monitoring status --role core --path ~/openmates
+openmates server monitoring status --role core --path ~/openmates --json
+```
+
+The installation creates two systemd services and two persistent timers. Both run every five minutes. The application monitor executes the packaged verifier through Docker Compose; the separate host watchdog reads host-owned state and can detect a missing or stale verifier even when API or Celery notification code is unavailable.
+
+Runtime state is stored at `<install>/.openmates/runtime-health/<role>.json`. The directory uses mode `0700`, the state file uses `0600`, and writes are atomic. It stores operational check IDs, timestamps, counters, and delivery status only, never notification destinations, provider responses, user data, chat content, payment data, or secrets.
+
+Alert behavior:
+
+- Transient failures alert after two consecutive failures of the same check.
+- Credential and required-configuration failures alert immediately.
+- A verifier timestamp older than 15 minutes produces a stale-monitor alert.
+- One recovery event is sent when an open incident clears.
+- A healthy installation sends at most one green heartbeat per UTC day.
+- Email, Discord, and generic webhook delivery are attempted independently, with bounded retries.
+
+## Runtime Notifications
+
+Configure one or more host-level notification channels in the installation `.env`:
+
+```env
+OPENMATES_RUNTIME_HEALTH_EMAIL_TO="operator@example.com"
+OPENMATES_RUNTIME_HEALTH_EMAIL_FROM="noreply@example.com"
+OPENMATES_RUNTIME_HEALTH_BREVO_API_KEY="<BREVO_API_KEY>"
+
+OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL="<DISCORD_WEBHOOK_URL>"
+
+OPENMATES_RUNTIME_HEALTH_WEBHOOK_URL="https://monitoring.example.com/openmates"
+OPENMATES_RUNTIME_HEALTH_WEBHOOK_SECRET="<RANDOM_SIGNING_SECRET>"
+```
+
+Do not commit these values or pass them on the command line. Use `openmates server env set <KEY>` so secret values are prompted for and CLI output remains redacted.
+
+Test delivery after configuration:
+
+```bash
+openmates server notifications test --channel email --json
+openmates server notifications test --channel discord --json
+openmates server notifications test --channel webhook --json
+openmates server notifications test --channel all --json
+```
+
+Generic webhooks use canonical JSON and include `X-OpenMates-Timestamp`, `X-OpenMates-Event-Id`, and `X-OpenMates-Signature` (`sha256=<HMAC>`). Production delivery requires HTTPS on port 443, disables redirects, validates every resolved address, rejects non-public destinations, pins the validated address for the connection, and bounds request time and response size.
+
+## Deployment Mode and Billing Checks
+
+`OPENMATES_DEPLOYMENT_MODE` is the local billing-authority setting. Supported values are `self_host` and `official_cloud`.
+
+- Normal open-source installations use `self_host`. Their inventory omits every `billing.*` check and never reads Stripe credentials or emits billing incidents.
+- `official_cloud` is reserved for the OpenMates-operated overlay. Billing checks run only when deployment mode, overlay package marker, environment, importable private overlay, hosting domain, and encrypted domain policy all agree.
+- Missing, duplicate, malformed, conflicting, or unavailable witnesses fail closed to the self-host/no-billing inventory before Stripe secrets are read.
+- Official-cloud billing probes are read-only: they retrieve account readiness and inspect routes, workers, webhook configuration, and freshness. They never create or mutate payments, customers, invoices, subscriptions, charges, or refunds.
+
+Self-hosters should not enable `official_cloud`; it requires the private deployment overlay and domain policy.
 
 ## Backups and Restore
 

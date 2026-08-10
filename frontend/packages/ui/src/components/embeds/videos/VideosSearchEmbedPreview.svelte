@@ -280,9 +280,7 @@
         <div class="ds-search-results-info">
           {#if resultState === 'known_zero_results'}
             <span class="no-results-text" data-testid="videos-search-no-results-message">
-              {query
-                ? $text('embeds.search_no_results_for_query').replace('{query}', query)
-                : $text('embeds.search_no_results')}
+              {$text('embeds.search_no_results')}
             </span>
           {:else if resultState === 'missing_preview_metadata'}
             <span class="no-results-text" data-testid="videos-search-preview-metadata-missing-message">

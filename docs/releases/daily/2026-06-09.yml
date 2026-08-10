@@ -1,0 +1,5339 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-09'
+generated_at: '2026-07-09T15:38:18+00:00'
+range:
+  since: '2026-06-09T00:00:00+00:00'
+  until: '2026-06-09T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 120
+  section_counts:
+    features: 9
+    bug_fixes: 43
+    improvements: 1
+    docs: 10
+    tests: 53
+    infrastructure: 0
+    internal: 1
+    other: 3
+  newsletter_ready_items: 38
+  user_facing_items: 47
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add Apple embed parity coverage'
+    section: features
+    commits:
+    - 47c5a97e9
+    authored_at: '2026-06-09T22:39:49+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - docs/specs/apple-embed-rendering-parity/spec.yml
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    - frontend/apps/web_app/tests/embed-showcase.spec.ts
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedPreview.preview.ts
+    - scripts/apple_ui_contracts.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add Claude Fable 5 model'
+    section: features
+    commits:
+    - 5bea51e1f
+    authored_at: '2026-06-09T22:24:53+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/apps/ai/tests/test_anthropic_direct_api.py
+    - backend/providers/anthropic.yml
+    - backend/tests/test_model_selection.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: improve video analyze focus mode'
+    section: features
+    commits:
+    - a16cac560
+    authored_at: '2026-06-09T20:42:45+00:00'
+    changed_paths:
+    - backend/apps/videos/app.yml
+    - backend/apps/videos/focus_modes/analyze-video/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/focus_modes/videos_analyze_video.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add reputation example chat'
+    section: features
+    commits:
+    - f9fda4429
+    authored_at: '2026-06-09T20:16:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/framework-store-reputation-check.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/us-egg-prices-deep-research.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/framework_store_reputation_check.yml
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: improve web reputation focus mode'
+    section: features
+    commits:
+    - 641a3baaa
+    authored_at: '2026-06-09T18:48:47+00:00'
+    changed_paths:
+    - backend/apps/web/app.yml
+    - backend/apps/web/focus_modes/check-reputation/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/focus_modes/web_check_reputation.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add deep research example chat'
+    section: features
+    commits:
+    - 3a27819b8
+    authored_at: '2026-06-09T17:22:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/us-egg-prices-deep-research.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/us_egg_prices_deep_research.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add CLI sub-chat parity'
+    section: features
+    commits:
+    - 02f288cc1
+    authored_at: '2026-06-09T15:33:46+00:00'
+    changed_paths:
+    - backend/apps/web/focus_modes/research/SKILL.md
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/components/settings/AppDetailsWrapper.svelte
+    - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: unify deep research focus mode'
+    section: features
+    commits:
+    - 55e3ba1cd
+    authored_at: '2026-06-09T13:36:16+00:00'
+    changed_paths:
+    - .agents/skills/add-focus-mode/SKILL.md
+    - .claude/skills/add-focus-mode/SKILL.md
+    - backend/apps/web/app.yml
+    - backend/apps/web/focus_modes/deep-web-research/SKILL.md
+    - backend/apps/web/focus_modes/research/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/web.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/web_deep_web_research.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/web_research.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: auto-start application previews'
+    section: features
+    commits:
+    - fb578aee9
+    authored_at: '2026-06-09T09:08:20+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/routes/application_preview.py
+    - backend/tests/test_application_preview_config.py
+    - backend/tests/test_run_application_preview_task.py
+    - docs/specs/application-embeds/spec.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/services/applicationPreviewService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: compile native embed gallery helpers'
+    section: bug_fixes
+    commits:
+    - f4ba40916
+    authored_at: '2026-06-09T23:59:57+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: align native embed parity gallery'
+    section: bug_fixes
+    commits:
+    - 92537792a
+    authored_at: '2026-06-09T23:58:34+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: harden weather day fullscreen fields'
+    section: bug_fixes
+    commits:
+    - a46561c2d
+    authored_at: '2026-06-09T23:26:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize embed parity smoke surfaces'
+    section: bug_fixes
+    commits:
+    - 9f9cb86e3
+    authored_at: '2026-06-09T23:04:43+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: prevent duplicate log row keys'
+    section: bug_fixes
+    commits:
+    - 5772acbfd
+    authored_at: '2026-06-09T21:19:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsLogs.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: map gift card breadcrumb titles'
+    section: bug_fixes
+    commits:
+    - 3447c8c9f
+    authored_at: '2026-06-09T21:06:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add settings logs route title'
+    section: bug_fixes
+    commits:
+    - fcfd92503
+    authored_at: '2026-06-09T20:48:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add developer sub-route titles'
+    section: bug_fixes
+    commits:
+    - 68b46edeb
+    authored_at: '2026-06-09T20:33:57+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: add developer api keys route title'
+    section: bug_fixes
+    commits:
+    - 2dafa6eb4
+    authored_at: '2026-06-09T20:23:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: add privacy debug logs route title'
+    section: bug_fixes
+    commits:
+    - dff9943d7
+    authored_at: '2026-06-09T20:12:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/settings/privacy.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: support Linux-compatible passkey registration'
+    section: bug_fixes
+    commits:
+    - a9be1edf6
+    authored_at: '2026-06-09T19:57:37+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - docs/architecture/core/passkeys.md
+    - docs/architecture/core/signup-and-auth.md
+    - docs/specs/passkey-linux-compatibility/spec.yml
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/packages/ui/src/components/AccountRecovery.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPasskeys.svelte
+    - frontend/packages/ui/src/components/signup/steps/passkey/PasskeyRegistrationBottomContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - frontend/packages/ui/src/services/cryptoService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add mail writing style footer translation'
+    section: bug_fixes
+    commits:
+    - 69ad8caaf
+    authored_at: '2026-06-09T19:29:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/mail.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: resolve gift card settings translations'
+    section: bug_fixes
+    commits:
+    - e711fc8c0
+    authored_at: '2026-06-09T18:55:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: skip embed imports for plain text sends'
+    section: bug_fixes
+    commits:
+    - 2e950ca7f
+    authored_at: '2026-06-09T18:46:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align Apple chat message spacing'
+    section: bug_fixes
+    commits:
+    - 42904035e
+    authored_at: '2026-06-09T18:07:27+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: send when editor has content'
+    section: bug_fixes
+    commits:
+    - 3603dba04
+    authored_at: '2026-06-09T18:02:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: treat bound draft chat as draft send'
+    section: bug_fixes
+    commits:
+    - d4a9c82e2
+    authored_at: '2026-06-09T17:45:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: assert visible seeded chat content'
+    section: bug_fixes
+    commits:
+    - df124a4da
+    authored_at: '2026-06-09T17:39:50+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: locate Apple header probe by label'
+    section: bug_fixes
+    commits:
+    - 0bcf04849
+    authored_at: '2026-06-09T17:37:15+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: add seeded chat header contract probe'
+    section: bug_fixes
+    commits:
+    - 2061c2072
+    authored_at: '2026-06-09T17:35:00+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: show code run output in previews'
+    section: bug_fixes
+    commits:
+    - c4a016d75
+    authored_at: '2026-06-09T17:34:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: expose Apple chat header identifiers'
+    section: bug_fixes
+    commits:
+    - 0ee04fd6b
+    authored_at: '2026-06-09T17:09:15+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: register app skill embed previews'
+    section: bug_fixes
+    commits:
+    - a5f7f40ae
+    authored_at: '2026-06-09T16:42:11+00:00'
+    changed_paths:
+    - .claude/hooks/skill-embed-registry-guard.sh
+    - .claude/settings.json
+    - .codex/hooks/claude-hook-bridge.sh
+    - .codex/hooks/skill-embed-registry-guard.sh
+    - backend/apps/audio/app.yml
+    - backend/apps/books/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/fitness/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/openmates/app.yml
+    - backend/apps/pdf/app.yml
+    - backend/apps/reminder/app.yml
+    - backend/tests/test_example_chat_scaffold.py
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/buck-converters-24v-5v.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/furnished-apartments-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/mastodon-account-recent-posts.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/organic-groceries-berlin.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/organic_groceries_berlin.yml
+    - scripts/audit_example_chats.py
+    - scripts/audit_skill_embed_registry.py
+    - scripts/create-example-chat-from-share.mjs
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: send sub-chat continuation as user task'
+    section: bug_fixes
+    commits:
+    - 6c48d11fb
+    authored_at: '2026-06-09T16:37:16+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:tasks'
+  - title: 'fix: enable active deep research sub-chats'
+    section: bug_fixes
+    commits:
+    - 0fb6097ae
+    authored_at: '2026-06-09T16:33:01+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: strengthen deep research continuation'
+    section: bug_fixes
+    commits:
+    - f1f3324fe
+    authored_at: '2026-06-09T16:29:55+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - frontend/packages/openmates-cli/src/cli.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: strip deep research prelude'
+    section: bug_fixes
+    commits:
+    - 7716e7314
+    authored_at: '2026-06-09T16:23:38+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: cap deep research auto sub-chats'
+    section: bug_fixes
+    commits:
+    - 930e4bf4e
+    authored_at: '2026-06-09T16:19:05+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: constrain sub-chat continuation reports'
+    section: bug_fixes
+    commits:
+    - aa138506e
+    authored_at: '2026-06-09T16:13:50+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: format deep research synthesis'
+    section: bug_fixes
+    commits:
+    - ad6538268
+    authored_at: '2026-06-09T16:13:34+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: wait for CLI sub-chat synthesis'
+    section: bug_fixes
+    commits:
+    - b07fe1df6
+    authored_at: '2026-06-09T16:07:44+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: gate selected deep research'
+    section: bug_fixes
+    commits:
+    - 223941da0
+    authored_at: '2026-06-09T16:00:13+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: enable deep research sub-chats'
+    section: bug_fixes
+    commits:
+    - 7ccd2c83e
+    authored_at: '2026-06-09T15:53:15+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: force deep research delegation'
+    section: bug_fixes
+    commits:
+    - 32d2fe3ca
+    authored_at: '2026-06-09T15:49:24+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: require deep research sub-chats'
+    section: bug_fixes
+    commits:
+    - eed35977b
+    authored_at: '2026-06-09T15:46:07+00:00'
+    changed_paths:
+    - backend/apps/web/focus_modes/research/SKILL.md
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: skip draft chat preflight lookup on send'
+    section: bug_fixes
+    commits:
+    - f8ba9d82e
+    authored_at: '2026-06-09T15:26:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: expose recording overlay children'
+    section: bug_fixes
+    commits:
+    - 72e7998da
+    authored_at: '2026-06-09T15:08:35+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: send existing draft chat without waiting'
+    section: bug_fixes
+    commits:
+    - 6d3f0e2e9
+    authored_at: '2026-06-09T14:50:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: bound draft save wait before send'
+    section: bug_fixes
+    commits:
+    - 0bc989a55
+    authored_at: '2026-06-09T14:37:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: ignore e2e mock markers in parser'
+    section: bug_fixes
+    commits:
+    - baf32252d
+    authored_at: '2026-06-09T14:12:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/streamingSemantics.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: avoid draft send race'
+    section: bug_fixes
+    commits:
+    - d922a3672
+    authored_at: '2026-06-09T13:43:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: disable automatic admin issue OpenCode handoff'
+    section: bug_fixes
+    commits:
+    - f254e9a87
+    authored_at: '2026-06-09T11:18:38+00:00'
+    changed_paths:
+    - backend/admin_sidecar/main.py
+    - backend/core/api/app/routes/settings.py
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/services/issueReportSubmission.ts
+    - frontend/packages/ui/src/stores/reportIssueStore.ts
+    - scripts/prompts/admin-issue-investigation.md
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reduce degraded service false positives'
+    section: bug_fixes
+    commits:
+    - '331727558'
+    authored_at: '2026-06-09T09:20:04+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/core/api/app/routes/auth_routes/auth_utils.py
+    - backend/core/api/app/services/cache_base.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/tests/test_cache_base.py
+    - backend/tests/test_chat_compressor.py
+    - backend/tests/test_security_regressions.py
+    - backend/tests/test_sightengine_service.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements:
+  - title: 'perf: add chat message index migration'
+    section: improvements
+    commits:
+    - 01f54ff81
+    authored_at: '2026-06-09T17:40:53+00:00'
+    changed_paths:
+    - backend/scripts/migrate_chat_message_indexes.py
+    - backend/tests/test_migrate_chat_message_indexes.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - commit is reachable from main
+  docs:
+  - title: 'docs: record passkey verification evidence'
+    section: docs
+    commits:
+    - af6fa59a2
+    authored_at: '2026-06-09T20:24:43+00:00'
+    changed_paths:
+    - docs/specs/passkey-linux-compatibility/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'spec: define Apple example chat visual parity'
+    section: docs
+    commits:
+    - 754caebd7
+    authored_at: '2026-06-09T19:31:36+00:00'
+    changed_paths:
+    - docs/specs/apple-example-chat-visual-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: verify CLI sub-chat deep research spec'
+    section: docs
+    commits:
+    - 94099da34
+    authored_at: '2026-06-09T16:43:28+00:00'
+    changed_paths:
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: enforce CLI-first parity testing'
+    section: docs
+    commits:
+    - bec02c8fa
+    authored_at: '2026-06-09T16:21:28+00:00'
+    changed_paths:
+    - .claude/agents/e2e-test-investigator.md
+    - .claude/agents/test-failure-triager.md
+    - .claude/rules/testing.md
+    - .codex/agents/e2e-test-investigator.toml
+    - .codex/agents/test-failure-triager.toml
+    - .opencode/agents/e2e-test-investigator.md
+    - .opencode/agents/test-failure-triager.md
+    - docs/contributing/guides/testing.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Apple shell parity evidence'
+    section: docs
+    commits:
+    - af5758780
+    authored_at: '2026-06-09T16:16:19+00:00'
+    changed_paths:
+    - docs/architecture/apple/responsive-and-next-spec-parity.md
+    - docs/specs/apple-responsive-shell-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: plan Apple responsive parity coverage'
+    section: docs
+    commits:
+    - 8ea117609
+    authored_at: '2026-06-09T15:41:00+00:00'
+    changed_paths:
+    - docs/architecture/apple/responsive-and-next-spec-parity.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Apple UI contract evidence'
+    section: docs
+    commits:
+    - 959d264b6
+    authored_at: '2026-06-09T15:13:03+00:00'
+    changed_paths:
+    - docs/specs/apple-ui-contracts/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Apple simulator notification evidence'
+    section: docs
+    commits:
+    - 46a77d111
+    authored_at: '2026-06-09T11:44:59+00:00'
+    changed_paths:
+    - docs/specs/unified-notifications/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Apple real chat flow evidence'
+    section: docs
+    commits:
+    - 0e37557ea
+    authored_at: '2026-06-09T11:01:22+00:00'
+    changed_paths:
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record application preview evidence'
+    section: docs
+    commits:
+    - 6457b8e6c
+    authored_at: '2026-06-09T09:25:12+00:00'
+    changed_paths:
+    - docs/specs/application-embeds/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: query Apple embed route as any element'
+    section: tests
+    commits:
+    - 0820fca52
+    authored_at: '2026-06-09T22:56:46+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: stabilize Apple embed parity route assertion'
+    section: tests
+    commits:
+    - 00c71b685
+    authored_at: '2026-06-09T22:46:33+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: allow stale websocket noise in settings translation spec'
+    section: tests
+    commits:
+    - 9fb687e99
+    authored_at: '2026-06-09T21:32:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: bound settings translation traversal'
+    section: tests
+    commits:
+    - 284d3eb70
+    authored_at: '2026-06-09T20:06:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: allow full settings translation traversal'
+    section: tests
+    commits:
+    - ed02a2c44
+    authored_at: '2026-06-09T19:49:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: guard non-empty settings memory translations'
+    section: tests
+    commits:
+    - d990eb403
+    authored_at: '2026-06-09T19:32:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: make settings translation traversal resilient'
+    section: tests
+    commits:
+    - c2c300836
+    authored_at: '2026-06-09T19:21:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix settings translation coverage spec'
+    section: tests
+    commits:
+    - 9fa651009
+    authored_at: '2026-06-09T19:10:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: update focus mode example assertion'
+    section: tests
+    commits:
+    - 5f455ee41
+    authored_at: '2026-06-09T19:01:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: diagnose default model send click'
+    section: tests
+    commits:
+    - e022431fc
+    authored_at: '2026-06-09T18:33:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize Apple chat visual snapshot'
+    section: tests
+    commits:
+    - 9a8f154cc
+    authored_at: '2026-06-09T18:29:25+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add Apple chat visual snapshot assertion'
+    section: tests
+    commits:
+    - ebe75c44b
+    authored_at: '2026-06-09T18:23:20+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: capture clean Apple chat visual snapshot'
+    section: tests
+    commits:
+    - a15b51ee8
+    authored_at: '2026-06-09T18:22:54+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: stabilize new chat send helper'
+    section: tests
+    commits:
+    - 4d5aae337
+    authored_at: '2026-06-09T17:09:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align Apple chat flow identifiers'
+    section: tests
+    commits:
+    - aacf33173
+    authored_at: '2026-06-09T17:05:30+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add default model CLI contract'
+    section: tests
+    commits:
+    - 52be0504b
+    authored_at: '2026-06-09T16:36:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-cli.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add Apple responsive shell parity'
+    section: tests
+    commits:
+    - 358f2e078
+    authored_at: '2026-06-09T16:08:35+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    - docs/specs/apple-responsive-shell-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: locate responsive metrics by label'
+    section: tests
+    commits:
+    - f453643a7
+    authored_at: '2026-06-09T15:34:14+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: move responsive metrics to preview'
+    section: tests
+    commits:
+    - 6d6854f12
+    authored_at: '2026-06-09T15:31:35+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: expose responsive metrics accessibly'
+    section: tests
+    commits:
+    - ef6287c82
+    authored_at: '2026-06-09T15:28:18+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: expose chat responsive metrics'
+    section: tests
+    commits:
+    - 3d127e203
+    authored_at: '2026-06-09T15:25:21+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add Apple chat responsive parity coverage'
+    section: tests
+    commits:
+    - 783f765e0
+    authored_at: '2026-06-09T15:24:51+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: split recording contract states'
+    section: tests
+    commits:
+    - 9cae4670d
+    authored_at: '2026-06-09T15:05:30+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add recording preview route'
+    section: tests
+    commits:
+    - 441a37f27
+    authored_at: '2026-06-09T15:01:45+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: route recording preview explicitly'
+    section: tests
+    commits:
+    - d6e9cc3a4
+    authored_at: '2026-06-09T15:01:17+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: render recording overlay preview harness'
+    section: tests
+    commits:
+    - c65c3ee4e
+    authored_at: '2026-06-09T14:54:42+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: trigger recording fixture by environment'
+    section: tests
+    commits:
+    - f4a38ffc9
+    authored_at: '2026-06-09T14:48:22+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: initialize recording fixture state'
+    section: tests
+    commits:
+    - 48043c005
+    authored_at: '2026-06-09T14:45:35+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: expand forced recording overlay'
+    section: tests
+    commits:
+    - 15b5b6f18
+    authored_at: '2026-06-09T14:41:05+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: assert recording overlay contents'
+    section: tests
+    commits:
+    - d7ac789f8
+    authored_at: '2026-06-09T14:37:47+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: force recording overlay fixture'
+    section: tests
+    commits:
+    - f0e5445ff
+    authored_at: '2026-06-09T14:32:34+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: broaden recording overlay lookup'
+    section: tests
+    commits:
+    - 9891e3f90
+    authored_at: '2026-06-09T14:28:50+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: avoid nested pending remove lookup'
+    section: tests
+    commits:
+    - fd472085b
+    authored_at: '2026-06-09T14:25:07+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: accept pending embed wrapper id'
+    section: tests
+    commits:
+    - a9b70241b
+    authored_at: '2026-06-09T14:22:42+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: check pending embed before keyboard'
+    section: tests
+    commits:
+    - c3216bb45
+    authored_at: '2026-06-09T14:19:32+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: keep pending embed fixture visible'
+    section: tests
+    commits:
+    - cc9814df6
+    authored_at: '2026-06-09T14:16:16+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: broaden pending embed lookup'
+    section: tests
+    commits:
+    - bc2c9e7e0
+    authored_at: '2026-06-09T14:13:27+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: expose Apple pending embed fallback'
+    section: tests
+    commits:
+    - 7b2a27e29
+    authored_at: '2026-06-09T14:09:35+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: expose Apple pending embed container'
+    section: tests
+    commits:
+    - 4d6f1eb32
+    authored_at: '2026-06-09T14:02:36+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: focus Apple composer before contract assertions'
+    section: tests
+    commits:
+    - 032a3262f
+    authored_at: '2026-06-09T14:00:09+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: expose Apple attachment picker identifier'
+    section: tests
+    commits:
+    - 5670af0e9
+    authored_at: '2026-06-09T13:57:43+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: align Apple attachment input assertion'
+    section: tests
+    commits:
+    - 5fe565094
+    authored_at: '2026-06-09T13:55:10+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: fix Apple UI contract preview wait'
+    section: tests
+    commits:
+    - 2bddf94cc
+    authored_at: '2026-06-09T13:52:38+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: stabilize Apple UI contract setup'
+    section: tests
+    commits:
+    - 299bf7810
+    authored_at: '2026-06-09T13:41:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add Apple UI contract parity checks'
+    section: tests
+    commits:
+    - a0e7b0dbb
+    authored_at: '2026-06-09T13:31:58+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMatesUITests/Fixtures/WebUIContracts/message-input.json
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - docs/specs/apple-ui-contracts/spec.yml
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - frontend/apps/web_app/tests/helpers/apple-ui-contract-helpers.ts
+    - scripts/apple_ui_contracts.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: make Apple background notification simulator deterministic'
+    section: tests
+    commits:
+    - 250c2cc99
+    authored_at: '2026-06-09T11:40:23+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - scripts/apple_background_notification_simulator_test.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: assert default model toast before screenshot'
+    section: tests
+    commits:
+    - 3a6110b8f
+    authored_at: '2026-06-09T11:32:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add Apple background notification UI coverage'
+    section: tests
+    commits:
+    - f375622f8
+    authored_at: '2026-06-09T11:25:49+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: stabilize default model settings wait'
+    section: tests
+    commits:
+    - 891f61773
+    authored_at: '2026-06-09T11:16:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: match Apple chat message accessibility type'
+    section: tests
+    commits:
+    - 67ed60bea
+    authored_at: '2026-06-09T10:55:42+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add Apple chat flow UI diagnostics'
+    section: tests
+    commits:
+    - de9528fcc
+    authored_at: '2026-06-09T10:51:45+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: stabilize Apple real chat flow'
+    section: tests
+    commits:
+    - d56dbe0fe
+    authored_at: '2026-06-09T10:23:50+00:00'
+    changed_paths:
+    - apple/AGENTS.md
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS.xcscheme
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add Apple real chat flow coverage'
+    section: tests
+    commits:
+    - 5366d9872
+    authored_at: '2026-06-09T08:43:58+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  infrastructure: []
+  internal:
+  - title: 'debug: expose last send step'
+    section: internal
+    commits:
+    - 079b43b36
+    authored_at: '2026-06-09T19:07:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  other:
+  - title: 'debug: trace send preprocessing'
+    section: other
+    commits:
+    - b8b0b5861
+    authored_at: '2026-06-09T19:18:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'debug: trace send deferred scan'
+    section: other
+    commits:
+    - d8dd35c7d
+    authored_at: '2026-06-09T18:57:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'debug: log chat send early exits'
+    section: other
+    commits:
+    - 6e9c084c8
+    authored_at: '2026-06-09T17:23:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: improve video analyze focus mode'
+    commits:
+    - a16cac560
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: improve web reputation focus mode'
+    commits:
+    - 641a3baaa
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: register app skill embed previews'
+    commits:
+    - a5f7f40ae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add CLI sub-chat parity'
+    commits:
+    - 02f288cc1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: unify deep research focus mode'
+    commits:
+    - 55e3ba1cd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: harden weather day fullscreen fields'
+    commits:
+    - a46561c2d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Claude Fable 5 model'
+    commits:
+    - 5bea51e1f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent duplicate log row keys'
+    commits:
+    - 5772acbfd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: map gift card breadcrumb titles'
+    commits:
+    - 3447c8c9f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add settings logs route title'
+    commits:
+    - fcfd92503
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: improve video analyze focus mode'
+    commits:
+    - a16cac560
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add reputation example chat'
+    commits:
+    - f9fda4429
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: support Linux-compatible passkey registration'
+    commits:
+    - a9be1edf6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'debug: trace send preprocessing'
+    commits:
+    - b8b0b5861
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'debug: trace send deferred scan'
+    commits:
+    - d8dd35c7d
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: resolve gift card settings translations'
+    commits:
+    - e711fc8c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: improve web reputation focus mode'
+    commits:
+    - 641a3baaa
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: skip embed imports for plain text sends'
+    commits:
+    - 2e950ca7f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: send when editor has content'
+    commits:
+    - 3603dba04
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: treat bound draft chat as draft send'
+    commits:
+    - d4a9c82e2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show code run output in previews'
+    commits:
+    - c4a016d75
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'debug: log chat send early exits'
+    commits:
+    - 6e9c084c8
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: register app skill embed previews'
+    commits:
+    - a5f7f40ae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: enable active deep research sub-chats'
+    commits:
+    - 0fb6097ae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: strengthen deep research continuation'
+    commits:
+    - f1f3324fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: strip deep research prelude'
+    commits:
+    - 7716e7314
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: cap deep research auto sub-chats'
+    commits:
+    - 930e4bf4e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: constrain sub-chat continuation reports'
+    commits:
+    - aa138506e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: format deep research synthesis'
+    commits:
+    - ad6538268
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: wait for CLI sub-chat synthesis'
+    commits:
+    - b07fe1df6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: gate selected deep research'
+    commits:
+    - 223941da0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: enable deep research sub-chats'
+    commits:
+    - 7ccd2c83e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: force deep research delegation'
+    commits:
+    - 32d2fe3ca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: require deep research sub-chats'
+    commits:
+    - eed35977b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add CLI sub-chat parity'
+    commits:
+    - 02f288cc1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: skip draft chat preflight lookup on send'
+    commits:
+    - f8ba9d82e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: send existing draft chat without waiting'
+    commits:
+    - 6d3f0e2e9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: bound draft save wait before send'
+    commits:
+    - 0bc989a55
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: avoid draft send race'
+    commits:
+    - d922a3672
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: unify deep research focus mode'
+    commits:
+    - 55e3ba1cd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: disable automatic admin issue OpenCode handoff'
+    commits:
+    - f254e9a87
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reduce degraded service false positives'
+    commits:
+    - '331727558'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: auto-start application previews'
+    commits:
+    - fb578aee9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: compile native embed gallery helpers'
+    commits:
+    - f4ba40916
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align native embed parity gallery'
+    commits:
+    - 92537792a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: harden weather day fullscreen fields'
+    commits:
+    - a46561c2d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize embed parity smoke surfaces'
+    commits:
+    - 9f9cb86e3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add Apple embed parity coverage'
+    commits:
+    - 47c5a97e9
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add Claude Fable 5 model'
+    commits:
+    - 5bea51e1f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent duplicate log row keys'
+    commits:
+    - 5772acbfd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: map gift card breadcrumb titles'
+    commits:
+    - 3447c8c9f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add settings logs route title'
+    commits:
+    - fcfd92503
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: improve video analyze focus mode'
+    commits:
+    - a16cac560
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add reputation example chat'
+    commits:
+    - f9fda4429
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: support Linux-compatible passkey registration'
+    commits:
+    - a9be1edf6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'debug: trace send preprocessing'
+    commits:
+    - b8b0b5861
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'debug: trace send deferred scan'
+    commits:
+    - d8dd35c7d
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: resolve gift card settings translations'
+    commits:
+    - e711fc8c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: improve web reputation focus mode'
+    commits:
+    - 641a3baaa
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: skip embed imports for plain text sends'
+    commits:
+    - 2e950ca7f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align Apple chat message spacing'
+    commits:
+    - 42904035e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: send when editor has content'
+    commits:
+    - 3603dba04
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: treat bound draft chat as draft send'
+    commits:
+    - d4a9c82e2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add seeded chat header contract probe'
+    commits:
+    - 2061c2072
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: show code run output in previews'
+    commits:
+    - c4a016d75
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'debug: log chat send early exits'
+    commits:
+    - 6e9c084c8
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: expose Apple chat header identifiers'
+    commits:
+    - 0ee04fd6b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: register app skill embed previews'
+    commits:
+    - a5f7f40ae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: send sub-chat continuation as user task'
+    commits:
+    - 6c48d11fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: enable active deep research sub-chats'
+    commits:
+    - 0fb6097ae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: strengthen deep research continuation'
+    commits:
+    - f1f3324fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: strip deep research prelude'
+    commits:
+    - 7716e7314
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: cap deep research auto sub-chats'
+    commits:
+    - 930e4bf4e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: constrain sub-chat continuation reports'
+    commits:
+    - aa138506e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: format deep research synthesis'
+    commits:
+    - ad6538268
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wait for CLI sub-chat synthesis'
+    commits:
+    - b07fe1df6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: gate selected deep research'
+    commits:
+    - 223941da0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: enable deep research sub-chats'
+    commits:
+    - 7ccd2c83e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: force deep research delegation'
+    commits:
+    - 32d2fe3ca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: require deep research sub-chats'
+    commits:
+    - eed35977b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add CLI sub-chat parity'
+    commits:
+    - 02f288cc1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: skip draft chat preflight lookup on send'
+    commits:
+    - f8ba9d82e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: expose recording overlay children'
+    commits:
+    - 72e7998da
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: send existing draft chat without waiting'
+    commits:
+    - 6d3f0e2e9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: bound draft save wait before send'
+    commits:
+    - 0bc989a55
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: avoid draft send race'
+    commits:
+    - d922a3672
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: unify deep research focus mode'
+    commits:
+    - 55e3ba1cd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: disable automatic admin issue OpenCode handoff'
+    commits:
+    - f254e9a87
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reduce degraded service false positives'
+    commits:
+    - '331727558'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: auto-start application previews'
+    commits:
+    - fb578aee9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: f4ba4091617a2ecb076582e67532d90b98ec91bd
+    short_sha: f4ba40916
+    authored_at: '2026-06-09T23:59:57+00:00'
+    subject: 'fix: compile native embed gallery helpers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 92537792a330a8bdcee41fa32bf91e2c07c89b33
+    short_sha: 92537792a
+    authored_at: '2026-06-09T23:58:34+00:00'
+    subject: 'fix: align native embed parity gallery'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a46561c2d07e3ba262d621e56acf8f2f26e37b82
+    short_sha: a46561c2d
+    authored_at: '2026-06-09T23:26:56+00:00'
+    subject: 'fix: harden weather day fullscreen fields'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 9f9cb86e3597d0bd5684099bf32051fc0d77e794
+    short_sha: 9f9cb86e3
+    authored_at: '2026-06-09T23:04:43+00:00'
+    subject: 'fix: stabilize embed parity smoke surfaces'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 0820fca52f817655614443539799974dab61030d
+    short_sha: 0820fca52
+    authored_at: '2026-06-09T22:56:46+00:00'
+    subject: 'test: query Apple embed route as any element'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 00c71b6859e05ecb4d69bda898a024dbe6e3a66a
+    short_sha: 00c71b685
+    authored_at: '2026-06-09T22:46:33+00:00'
+    subject: 'test: stabilize Apple embed parity route assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 47c5a97e9f3e52f82abdc1e5940bd9ae9eb86369
+    short_sha: 47c5a97e9
+    authored_at: '2026-06-09T22:39:49+00:00'
+    subject: 'feat: add Apple embed parity coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - docs/specs/apple-embed-rendering-parity/spec.yml
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    - frontend/apps/web_app/tests/embed-showcase.spec.ts
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedPreview.preview.ts
+    - scripts/apple_ui_contracts.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 5bea51e1f4d836b265e0ff67075b2738d2773234
+    short_sha: 5bea51e1f
+    authored_at: '2026-06-09T22:24:53+00:00'
+    subject: 'feat: add Claude Fable 5 model'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/apps/ai/tests/test_anthropic_direct_api.py
+    - backend/providers/anthropic.yml
+    - backend/tests/test_model_selection.py
+    related_feature_ids: []
+  - sha: 9fb687e9957ac7134355ec72a12aa2f4f7c5aa17
+    short_sha: 9fb687e99
+    authored_at: '2026-06-09T21:32:21+00:00'
+    subject: 'test: allow stale websocket noise in settings translation spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    related_feature_ids: []
+  - sha: 5772acbfd0192b2ed90a19184cbce6eae8716869
+    short_sha: 5772acbfd
+    authored_at: '2026-06-09T21:19:44+00:00'
+    subject: 'fix: prevent duplicate log row keys'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsLogs.svelte
+    related_feature_ids: []
+  - sha: 3447c8c9f3bb9983a2645aaf13269b9276935481
+    short_sha: 3447c8c9f
+    authored_at: '2026-06-09T21:06:07+00:00'
+    subject: 'fix: map gift card breadcrumb titles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: fcfd925030670ee79a7f9dc6b1ded19e6ff181c3
+    short_sha: fcfd92503
+    authored_at: '2026-06-09T20:48:35+00:00'
+    subject: 'fix: add settings logs route title'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    related_feature_ids: []
+  - sha: a16cac560c3cb533f0f1fd683241c8c415613e58
+    short_sha: a16cac560
+    authored_at: '2026-06-09T20:42:45+00:00'
+    subject: 'feat: improve video analyze focus mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/videos/app.yml
+    - backend/apps/videos/focus_modes/analyze-video/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/focus_modes/videos_analyze_video.yml
+    related_feature_ids: []
+  - sha: 68b46edebb55089f999ae97131554b6e0ee100cb
+    short_sha: 68b46edeb
+    authored_at: '2026-06-09T20:33:57+00:00'
+    subject: 'fix: add developer sub-route titles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    related_feature_ids: []
+  - sha: af6fa59a21e00c155317fe6e0b24bc3efb9476be
+    short_sha: af6fa59a2
+    authored_at: '2026-06-09T20:24:43+00:00'
+    subject: 'docs: record passkey verification evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/passkey-linux-compatibility/spec.yml
+    related_feature_ids: []
+  - sha: 2dafa6eb473871f49e10c3d23d9b9432464fcaad
+    short_sha: 2dafa6eb4
+    authored_at: '2026-06-09T20:23:07+00:00'
+    subject: 'fix: add developer api keys route title'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    related_feature_ids: []
+  - sha: f9fda4429177620aa9879647bd9bfee446cdbee1
+    short_sha: f9fda4429
+    authored_at: '2026-06-09T20:16:48+00:00'
+    subject: 'feat: add reputation example chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/framework-store-reputation-check.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/us-egg-prices-deep-research.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/framework_store_reputation_check.yml
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: dff9943d72a6350141a4bbd0285c7bface433dfa
+    short_sha: dff9943d7
+    authored_at: '2026-06-09T20:12:06+00:00'
+    subject: 'fix: add privacy debug logs route title'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/settings/privacy.yml
+    related_feature_ids: []
+  - sha: 284d3eb70a09a3146f7777faa9a1171f35833cd0
+    short_sha: 284d3eb70
+    authored_at: '2026-06-09T20:06:18+00:00'
+    subject: 'test: bound settings translation traversal'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    related_feature_ids: []
+  - sha: a9be1edf67a85d4ae5681530cc84f57eafa2f4ba
+    short_sha: a9be1edf6
+    authored_at: '2026-06-09T19:57:37+00:00'
+    subject: 'fix: support Linux-compatible passkey registration'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - docs/architecture/core/passkeys.md
+    - docs/architecture/core/signup-and-auth.md
+    - docs/specs/passkey-linux-compatibility/spec.yml
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/packages/ui/src/components/AccountRecovery.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPasskeys.svelte
+    - frontend/packages/ui/src/components/signup/steps/passkey/PasskeyRegistrationBottomContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - frontend/packages/ui/src/services/cryptoService.ts
+    related_feature_ids: []
+  - sha: ed02a2c449babf7285a9c32125e810bba6568483
+    short_sha: ed02a2c44
+    authored_at: '2026-06-09T19:49:42+00:00'
+    subject: 'test: allow full settings translation traversal'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    related_feature_ids: []
+  - sha: d990eb4036f0a9d4773aa442b9cfa4ac37956fa1
+    short_sha: d990eb403
+    authored_at: '2026-06-09T19:32:24+00:00'
+    subject: 'test: guard non-empty settings memory translations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    related_feature_ids: []
+  - sha: 754caebd773bde0354cf57d7b89382d15197b991
+    short_sha: 754caebd7
+    authored_at: '2026-06-09T19:31:36+00:00'
+    subject: 'spec: define Apple example chat visual parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-example-chat-visual-parity/spec.yml
+    related_feature_ids: []
+  - sha: 69ad8caafa5748a12494888dc5a92589cfc9a784
+    short_sha: 69ad8caaf
+    authored_at: '2026-06-09T19:29:43+00:00'
+    subject: 'fix: add mail writing style footer translation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/mail.yml
+    related_feature_ids: []
+  - sha: c2c3008365e02c9210c46534a75391a2574521b3
+    short_sha: c2c300836
+    authored_at: '2026-06-09T19:21:58+00:00'
+    subject: 'test: make settings translation traversal resilient'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    related_feature_ids: []
+  - sha: b8b0b586136bed6b6fee4d65789560f593d1a1d9
+    short_sha: b8b0b5861
+    authored_at: '2026-06-09T19:18:50+00:00'
+    subject: 'debug: trace send preprocessing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: 9fa651009eeda165cb7f676b2f6fe9df6adfe128
+    short_sha: 9fa651009
+    authored_at: '2026-06-09T19:10:23+00:00'
+    subject: 'test: fix settings translation coverage spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    related_feature_ids: []
+  - sha: 079b43b36b431a3d07c6806b09a73a5b999ac11f
+    short_sha: 079b43b36
+    authored_at: '2026-06-09T19:07:33+00:00'
+    subject: 'debug: expose last send step'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: 5f455ee41783d7c6d3f6185f8534dcf7dc2eace4
+    short_sha: 5f455ee41
+    authored_at: '2026-06-09T19:01:42+00:00'
+    subject: 'test: update focus mode example assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    related_feature_ids: []
+  - sha: d8dd35c7dd531667827f252ef2db93685bd4cbe6
+    short_sha: d8dd35c7d
+    authored_at: '2026-06-09T18:57:11+00:00'
+    subject: 'debug: trace send deferred scan'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: e711fc8c0ed4e579e5904c4f42fcaf76eb1137ed
+    short_sha: e711fc8c0
+    authored_at: '2026-06-09T18:55:29+00:00'
+    subject: 'fix: resolve gift card settings translations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: 641a3baaac6001ca3bd14e51454c8d2b6e161983
+    short_sha: 641a3baaa
+    authored_at: '2026-06-09T18:48:47+00:00'
+    subject: 'feat: improve web reputation focus mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/web/app.yml
+    - backend/apps/web/focus_modes/check-reputation/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/focus_modes/web_check_reputation.yml
+    related_feature_ids: []
+  - sha: 2e950ca7f7f03d4cb49985f8402a942cb9a03032
+    short_sha: 2e950ca7f
+    authored_at: '2026-06-09T18:46:55+00:00'
+    subject: 'fix: skip embed imports for plain text sends'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: e022431fcc4b106c529b112bdeebb0d282c88a3f
+    short_sha: e022431fc
+    authored_at: '2026-06-09T18:33:57+00:00'
+    subject: 'test: diagnose default model send click'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: 9a8f154cc16e79541d91f5bf10683e169d0c274c
+    short_sha: 9a8f154cc
+    authored_at: '2026-06-09T18:29:25+00:00'
+    subject: 'test: stabilize Apple chat visual snapshot'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ebe75c44b1289c59ad7c3dec555a6cf634f1f8ef
+    short_sha: ebe75c44b
+    authored_at: '2026-06-09T18:23:20+00:00'
+    subject: 'test: add Apple chat visual snapshot assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a15b51ee853e82c13015d5460778b20ff99100d3
+    short_sha: a15b51ee8
+    authored_at: '2026-06-09T18:22:54+00:00'
+    subject: 'test: capture clean Apple chat visual snapshot'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 42904035e624d304031fb7d58d07d421d5fe81b8
+    short_sha: 42904035e
+    authored_at: '2026-06-09T18:07:27+00:00'
+    subject: 'fix: align Apple chat message spacing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 3603dba048464a475ad8abd095795649578e6b5d
+    short_sha: 3603dba04
+    authored_at: '2026-06-09T18:02:11+00:00'
+    subject: 'fix: send when editor has content'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: d4a9c82e249f2c211230a41f0b30f3d8f328733f
+    short_sha: d4a9c82e2
+    authored_at: '2026-06-09T17:45:14+00:00'
+    subject: 'fix: treat bound draft chat as draft send'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: 01f54ff81388dec472df2cbd03774667e6602570
+    short_sha: 01f54ff81
+    authored_at: '2026-06-09T17:40:53+00:00'
+    subject: 'perf: add chat message index migration'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/scripts/migrate_chat_message_indexes.py
+    - backend/tests/test_migrate_chat_message_indexes.py
+    related_feature_ids: []
+  - sha: df124a4da31c64602f3ef2c86e6fc5eaf62ccce2
+    short_sha: df124a4da
+    authored_at: '2026-06-09T17:39:50+00:00'
+    subject: 'fix: assert visible seeded chat content'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 0bcf04849d18a500a04074d82561a8c90dadf7d1
+    short_sha: 0bcf04849
+    authored_at: '2026-06-09T17:37:15+00:00'
+    subject: 'fix: locate Apple header probe by label'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2061c2072c38fc7e7e84845cb2809255a76153d4
+    short_sha: 2061c2072
+    authored_at: '2026-06-09T17:35:00+00:00'
+    subject: 'fix: add seeded chat header contract probe'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: c4a016d753f63059626cc516a3ae619e2c533965
+    short_sha: c4a016d75
+    authored_at: '2026-06-09T17:34:37+00:00'
+    subject: 'fix: show code run output in previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 6e9c084c8b40215e20283a72ee7af5f07ea4a8d4
+    short_sha: 6e9c084c8
+    authored_at: '2026-06-09T17:23:06+00:00'
+    subject: 'debug: log chat send early exits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: 3a27819b815c9b82ecaf6ff7ec105e9575d027fd
+    short_sha: 3a27819b8
+    authored_at: '2026-06-09T17:22:44+00:00'
+    subject: 'feat: add deep research example chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/us-egg-prices-deep-research.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/us_egg_prices_deep_research.yml
+    related_feature_ids: []
+  - sha: 4d5aae337a0ba85e49d36ab1c7bdb86c2c657835
+    short_sha: 4d5aae337
+    authored_at: '2026-06-09T17:09:28+00:00'
+    subject: 'test: stabilize new chat send helper'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 0ee04fd6ba55ffa66f54b147bc2fc2836affa7cd
+    short_sha: 0ee04fd6b
+    authored_at: '2026-06-09T17:09:15+00:00'
+    subject: 'fix: expose Apple chat header identifiers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: aacf331730ab9fb940633eaa906dec1e9e208ce9
+    short_sha: aacf33173
+    authored_at: '2026-06-09T17:05:30+00:00'
+    subject: 'test: align Apple chat flow identifiers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 94099da340e9d1cd24e8e75b94aab498428c22f1
+    short_sha: 94099da34
+    authored_at: '2026-06-09T16:43:28+00:00'
+    subject: 'docs: verify CLI sub-chat deep research spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    related_feature_ids: []
+  - sha: a5f7f40aee75a89bae5cb25ddf6ff1efc35e0e7f
+    short_sha: a5f7f40ae
+    authored_at: '2026-06-09T16:42:11+00:00'
+    subject: 'fix: register app skill embed previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/skill-embed-registry-guard.sh
+    - .claude/settings.json
+    - .codex/hooks/claude-hook-bridge.sh
+    - .codex/hooks/skill-embed-registry-guard.sh
+    - backend/apps/audio/app.yml
+    - backend/apps/books/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/fitness/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/openmates/app.yml
+    - backend/apps/pdf/app.yml
+    - backend/apps/reminder/app.yml
+    - backend/tests/test_example_chat_scaffold.py
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/buck-converters-24v-5v.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/furnished-apartments-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/mastodon-account-recent-posts.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/organic-groceries-berlin.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/organic_groceries_berlin.yml
+    - scripts/audit_example_chats.py
+    - scripts/audit_skill_embed_registry.py
+    - scripts/create-example-chat-from-share.mjs
+    related_feature_ids: []
+  - sha: 6c48d11fbe718efe5bf0dddf67ff7891ca03a45e
+    short_sha: 6c48d11fb
+    authored_at: '2026-06-09T16:37:16+00:00'
+    subject: 'fix: send sub-chat continuation as user task'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    related_feature_ids:
+    - platform:tasks
+  - sha: 52be0504b0d21340aafbd7896b4782fa7db66e0e
+    short_sha: 52be0504b
+    authored_at: '2026-06-09T16:36:18+00:00'
+    subject: 'test: add default model CLI contract'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-cli.spec.ts
+    related_feature_ids: []
+  - sha: 0fb6097ae7d76262f4db4693e8db883095bc40f4
+    short_sha: 0fb6097ae
+    authored_at: '2026-06-09T16:33:01+00:00'
+    subject: 'fix: enable active deep research sub-chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    related_feature_ids: []
+  - sha: f1f3324fef58117617ef5962601ebc13cc468406
+    short_sha: f1f3324fe
+    authored_at: '2026-06-09T16:29:55+00:00'
+    subject: 'fix: strengthen deep research continuation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - frontend/packages/openmates-cli/src/cli.ts
+    related_feature_ids: []
+  - sha: 7716e7314e3cead464a89e4e827c0c855bb65307
+    short_sha: 7716e7314
+    authored_at: '2026-06-09T16:23:38+00:00'
+    subject: 'fix: strip deep research prelude'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    related_feature_ids: []
+  - sha: bec02c8fa8533ca1ce27c38941d41ecbddf831d0
+    short_sha: bec02c8fa
+    authored_at: '2026-06-09T16:21:28+00:00'
+    subject: 'docs: enforce CLI-first parity testing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/agents/e2e-test-investigator.md
+    - .claude/agents/test-failure-triager.md
+    - .claude/rules/testing.md
+    - .codex/agents/e2e-test-investigator.toml
+    - .codex/agents/test-failure-triager.toml
+    - .opencode/agents/e2e-test-investigator.md
+    - .opencode/agents/test-failure-triager.md
+    - docs/contributing/guides/testing.md
+    related_feature_ids: []
+  - sha: 930e4bf4e5f22ac37a2727aec67db4f552411ec0
+    short_sha: 930e4bf4e
+    authored_at: '2026-06-09T16:19:05+00:00'
+    subject: 'fix: cap deep research auto sub-chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    related_feature_ids: []
+  - sha: af5758780e641a1dd7a8314e1ea52c38099aee00
+    short_sha: af5758780
+    authored_at: '2026-06-09T16:16:19+00:00'
+    subject: 'docs: record Apple shell parity evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/apple/responsive-and-next-spec-parity.md
+    - docs/specs/apple-responsive-shell-parity/spec.yml
+    related_feature_ids: []
+  - sha: aa138506e9aa53abff1127ad1e577c69b3009d2d
+    short_sha: aa138506e
+    authored_at: '2026-06-09T16:13:50+00:00'
+    subject: 'fix: constrain sub-chat continuation reports'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    related_feature_ids: []
+  - sha: ad6538268604c06a714996f8a42f33b939a10519
+    short_sha: ad6538268
+    authored_at: '2026-06-09T16:13:34+00:00'
+    subject: 'fix: format deep research synthesis'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    related_feature_ids: []
+  - sha: 358f2e0788006f191167bff88d9807e4f8336a11
+    short_sha: 358f2e078
+    authored_at: '2026-06-09T16:08:35+00:00'
+    subject: 'test: add Apple responsive shell parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    - docs/specs/apple-responsive-shell-parity/spec.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b07fe1df6ae73ef431d23b10ba5c07dce1b213cc
+    short_sha: b07fe1df6
+    authored_at: '2026-06-09T16:07:44+00:00'
+    subject: 'fix: wait for CLI sub-chat synthesis'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    related_feature_ids: []
+  - sha: 223941da0ea21d355c6e6baac3129c366465a3ac
+    short_sha: 223941da0
+    authored_at: '2026-06-09T16:00:13+00:00'
+    subject: 'fix: gate selected deep research'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    related_feature_ids: []
+  - sha: 7ccd2c83eb658c72c40126f1e38eb4e7ae39b195
+    short_sha: 7ccd2c83e
+    authored_at: '2026-06-09T15:53:15+00:00'
+    subject: 'fix: enable deep research sub-chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    related_feature_ids: []
+  - sha: 32d2fe3ca5df9634c690457cf2fcbc773250c62d
+    short_sha: 32d2fe3ca
+    authored_at: '2026-06-09T15:49:24+00:00'
+    subject: 'fix: force deep research delegation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    related_feature_ids: []
+  - sha: eed35977bb8e023dc11b70d5df37897c59dd0cf0
+    short_sha: eed35977b
+    authored_at: '2026-06-09T15:46:07+00:00'
+    subject: 'fix: require deep research sub-chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/web/focus_modes/research/SKILL.md
+    related_feature_ids: []
+  - sha: 8ea1176091a329dc0a1e94cdcdea1e52b03b674d
+    short_sha: 8ea117609
+    authored_at: '2026-06-09T15:41:00+00:00'
+    subject: 'docs: plan Apple responsive parity coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/apple/responsive-and-next-spec-parity.md
+    related_feature_ids: []
+  - sha: f453643a70379f5ea68257d9055e9fd4a70ae130
+    short_sha: f453643a7
+    authored_at: '2026-06-09T15:34:14+00:00'
+    subject: 'test: locate responsive metrics by label'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 02f288cc132b730a4b96237dc7603b788279e5d3
+    short_sha: 02f288cc1
+    authored_at: '2026-06-09T15:33:46+00:00'
+    subject: 'feat: add CLI sub-chat parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/web/focus_modes/research/SKILL.md
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/components/settings/AppDetailsWrapper.svelte
+    - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    related_feature_ids: []
+  - sha: 6d6854f12100041132cfa3cc9f929886fe0ab7c2
+    short_sha: 6d6854f12
+    authored_at: '2026-06-09T15:31:35+00:00'
+    subject: 'test: move responsive metrics to preview'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ef6287c8221e1b17eb5bc3c607d58024ee5f2f6f
+    short_sha: ef6287c82
+    authored_at: '2026-06-09T15:28:18+00:00'
+    subject: 'test: expose responsive metrics accessibly'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f8ba9d82ea7c0ca755dc13ae564d0c1009096fa8
+    short_sha: f8ba9d82e
+    authored_at: '2026-06-09T15:26:17+00:00'
+    subject: 'fix: skip draft chat preflight lookup on send'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: 3d127e20342e3ea1fc89067438880bd21b8d752b
+    short_sha: 3d127e203
+    authored_at: '2026-06-09T15:25:21+00:00'
+    subject: 'test: expose chat responsive metrics'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 783f765e0d59c3a536ec2dd1eb113902c95cba9c
+    short_sha: 783f765e0
+    authored_at: '2026-06-09T15:24:51+00:00'
+    subject: 'test: add Apple chat responsive parity coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 959d264b66e03c78d84acc3f4f08c6418cfc58d8
+    short_sha: 959d264b6
+    authored_at: '2026-06-09T15:13:03+00:00'
+    subject: 'docs: record Apple UI contract evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-ui-contracts/spec.yml
+    related_feature_ids: []
+  - sha: 72e7998da82dc34aea386e90c665caaa174ac751
+    short_sha: 72e7998da
+    authored_at: '2026-06-09T15:08:35+00:00'
+    subject: 'fix: expose recording overlay children'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 9cae4670d8d4f5295b715f1e076e662500598248
+    short_sha: 9cae4670d
+    authored_at: '2026-06-09T15:05:30+00:00'
+    subject: 'test: split recording contract states'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 441a37f27f3eb7ef87626d47cee1664462650b0c
+    short_sha: 441a37f27
+    authored_at: '2026-06-09T15:01:45+00:00'
+    subject: 'test: add recording preview route'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d6e9cc3a4eaf6518604b5938ec76f7a403ec1ba3
+    short_sha: d6e9cc3a4
+    authored_at: '2026-06-09T15:01:17+00:00'
+    subject: 'test: route recording preview explicitly'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: c65c3ee4ec5ff10dbd3172a42e00708f0dffe3a3
+    short_sha: c65c3ee4e
+    authored_at: '2026-06-09T14:54:42+00:00'
+    subject: 'test: render recording overlay preview harness'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6d3f0e2e91e1e6a5b4eb7762e115fb83f1a887ad
+    short_sha: 6d3f0e2e9
+    authored_at: '2026-06-09T14:50:36+00:00'
+    subject: 'fix: send existing draft chat without waiting'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: f4a38ffc90ebb2ea6bd1e02c8ccd16d4149c3b73
+    short_sha: f4a38ffc9
+    authored_at: '2026-06-09T14:48:22+00:00'
+    subject: 'test: trigger recording fixture by environment'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 48043c005eb06c1ed10cdb33919dad23322862e2
+    short_sha: 48043c005
+    authored_at: '2026-06-09T14:45:35+00:00'
+    subject: 'test: initialize recording fixture state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 15b5b6f182170932699ab8307947d48994147de3
+    short_sha: 15b5b6f18
+    authored_at: '2026-06-09T14:41:05+00:00'
+    subject: 'test: expand forced recording overlay'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 0bc989a552102f43df677f7d96be0cd6ba230306
+    short_sha: 0bc989a55
+    authored_at: '2026-06-09T14:37:53+00:00'
+    subject: 'fix: bound draft save wait before send'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: d7ac789f85409a6d6608a2d77e551a2eabf857a0
+    short_sha: d7ac789f8
+    authored_at: '2026-06-09T14:37:47+00:00'
+    subject: 'test: assert recording overlay contents'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f0e5445ffad114a6bd7ae27e7ee7413467340b59
+    short_sha: f0e5445ff
+    authored_at: '2026-06-09T14:32:34+00:00'
+    subject: 'test: force recording overlay fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 9891e3f90791d2224816ffb7ba78aaec6a1fb51e
+    short_sha: 9891e3f90
+    authored_at: '2026-06-09T14:28:50+00:00'
+    subject: 'test: broaden recording overlay lookup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: fd472085b8e71c762ada8ea3dfd8eef9e27618ff
+    short_sha: fd472085b
+    authored_at: '2026-06-09T14:25:07+00:00'
+    subject: 'test: avoid nested pending remove lookup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a9b70241b8abade4b51a36ae3eb3af38c638330c
+    short_sha: a9b70241b
+    authored_at: '2026-06-09T14:22:42+00:00'
+    subject: 'test: accept pending embed wrapper id'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: c3216bb45e00edf04db8076635a060d92b734b5a
+    short_sha: c3216bb45
+    authored_at: '2026-06-09T14:19:32+00:00'
+    subject: 'test: check pending embed before keyboard'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: cc9814df6cbdfa89113dab64f8a86dc46a0ae475
+    short_sha: cc9814df6
+    authored_at: '2026-06-09T14:16:16+00:00'
+    subject: 'test: keep pending embed fixture visible'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: bc2c9e7e0a5a9d202c1529a9b6199a026336c9cf
+    short_sha: bc2c9e7e0
+    authored_at: '2026-06-09T14:13:27+00:00'
+    subject: 'test: broaden pending embed lookup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: baf32252d2d96272fdf46276ab5e4a7d3c44a439
+    short_sha: baf32252d
+    authored_at: '2026-06-09T14:12:48+00:00'
+    subject: 'fix: ignore e2e mock markers in parser'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/streamingSemantics.ts
+    related_feature_ids: []
+  - sha: 7b2a27e29af97aa98cd209d1aa387c707cbe878a
+    short_sha: 7b2a27e29
+    authored_at: '2026-06-09T14:09:35+00:00'
+    subject: 'test: expose Apple pending embed fallback'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 4d6f1eb32a3578b69a7cf3e93cdf9928e5048fa9
+    short_sha: 4d6f1eb32
+    authored_at: '2026-06-09T14:02:36+00:00'
+    subject: 'test: expose Apple pending embed container'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 032a3262f4702447ab52e3de1215c07bd69e4f52
+    short_sha: 032a3262f
+    authored_at: '2026-06-09T14:00:09+00:00'
+    subject: 'test: focus Apple composer before contract assertions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 5670af0e9f0d93c10f1a34e36425ba4749efaefc
+    short_sha: 5670af0e9
+    authored_at: '2026-06-09T13:57:43+00:00'
+    subject: 'test: expose Apple attachment picker identifier'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 5fe56509455dc2579d3af06cbc884645a789c42c
+    short_sha: 5fe565094
+    authored_at: '2026-06-09T13:55:10+00:00'
+    subject: 'test: align Apple attachment input assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2bddf94ccbe8462e29b3cf3d78c7d7d64afdc604
+    short_sha: 2bddf94cc
+    authored_at: '2026-06-09T13:52:38+00:00'
+    subject: 'test: fix Apple UI contract preview wait'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d922a36723e696a3b5e518de6be3df9a5867855d
+    short_sha: d922a3672
+    authored_at: '2026-06-09T13:43:34+00:00'
+    subject: 'fix: avoid draft send race'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    related_feature_ids: []
+  - sha: 299bf78106bfa8eabb249155a8872a61762dbdd0
+    short_sha: 299bf7810
+    authored_at: '2026-06-09T13:41:55+00:00'
+    subject: 'test: stabilize Apple UI contract setup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    related_feature_ids: []
+  - sha: 55e3ba1cd159031ac9c8b4434999f3f8b98bd6ec
+    short_sha: 55e3ba1cd
+    authored_at: '2026-06-09T13:36:16+00:00'
+    subject: 'feat: unify deep research focus mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/add-focus-mode/SKILL.md
+    - .claude/skills/add-focus-mode/SKILL.md
+    - backend/apps/web/app.yml
+    - backend/apps/web/focus_modes/deep-web-research/SKILL.md
+    - backend/apps/web/focus_modes/research/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/web.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/web_deep_web_research.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/web_research.yml
+    related_feature_ids: []
+  - sha: a0e7b0dbbf7a8e1b2ccdf591f3a4f57dae43c863
+    short_sha: a0e7b0dbb
+    authored_at: '2026-06-09T13:31:58+00:00'
+    subject: 'test: add Apple UI contract parity checks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMatesUITests/Fixtures/WebUIContracts/message-input.json
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - docs/specs/apple-ui-contracts/spec.yml
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - frontend/apps/web_app/tests/helpers/apple-ui-contract-helpers.ts
+    - scripts/apple_ui_contracts.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 46a77d111a29650b7c695d9d5cf35d2f44d3f82b
+    short_sha: 46a77d111
+    authored_at: '2026-06-09T11:44:59+00:00'
+    subject: 'docs: record Apple simulator notification evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/unified-notifications/spec.yml
+    related_feature_ids: []
+  - sha: 250c2cc99bfda97b697512d111ab14f57a944bef
+    short_sha: 250c2cc99
+    authored_at: '2026-06-09T11:40:23+00:00'
+    subject: 'test: make Apple background notification simulator deterministic'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - scripts/apple_background_notification_simulator_test.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 3a6110b8f8dae1dc9e66fe5f143e717d318178de
+    short_sha: 3a6110b8f
+    authored_at: '2026-06-09T11:32:38+00:00'
+    subject: 'test: assert default model toast before screenshot'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings.spec.ts
+    related_feature_ids: []
+  - sha: f375622f834fca6170851c93e3c6eb38103038d7
+    short_sha: f375622f8
+    authored_at: '2026-06-09T11:25:49+00:00'
+    subject: 'test: add Apple background notification UI coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f254e9a87fd17739a03da5677933d5f0bbf60b7b
+    short_sha: f254e9a87
+    authored_at: '2026-06-09T11:18:38+00:00'
+    subject: 'fix: disable automatic admin issue OpenCode handoff'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/admin_sidecar/main.py
+    - backend/core/api/app/routes/settings.py
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/services/issueReportSubmission.ts
+    - frontend/packages/ui/src/stores/reportIssueStore.ts
+    - scripts/prompts/admin-issue-investigation.md
+    related_feature_ids: []
+  - sha: 891f61773989ff2a78ceac14fbc779f11b54fe64
+    short_sha: 891f61773
+    authored_at: '2026-06-09T11:16:15+00:00'
+    subject: 'test: stabilize default model settings wait'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-settings.spec.ts
+    related_feature_ids: []
+  - sha: 0e37557ea74a059a3998848f0136c3c5d9b11911
+    short_sha: 0e37557ea
+    authored_at: '2026-06-09T11:01:22+00:00'
+    subject: 'docs: record Apple real chat flow evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    related_feature_ids: []
+  - sha: 67ed60beaaa0c056c72e1c22b216f08f76551dd5
+    short_sha: 67ed60bea
+    authored_at: '2026-06-09T10:55:42+00:00'
+    subject: 'test: match Apple chat message accessibility type'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: de9528fcca314348aef431188faa7b38d07df678
+    short_sha: de9528fcc
+    authored_at: '2026-06-09T10:51:45+00:00'
+    subject: 'test: add Apple chat flow UI diagnostics'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d56dbe0fed79356982bce02a59ff3b94c3be1995
+    short_sha: d56dbe0fe
+    authored_at: '2026-06-09T10:23:50+00:00'
+    subject: 'test: stabilize Apple real chat flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/AGENTS.md
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS.xcscheme
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6457b8e6c103e53a041c977ae96359576377413e
+    short_sha: 6457b8e6c
+    authored_at: '2026-06-09T09:25:12+00:00'
+    subject: 'docs: record application preview evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/application-embeds/spec.yml
+    related_feature_ids: []
+  - sha: 331727558655a37048b206adb21a79827c47332b
+    short_sha: '331727558'
+    authored_at: '2026-06-09T09:20:04+00:00'
+    subject: 'fix: reduce degraded service false positives'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/core/api/app/routes/auth_routes/auth_utils.py
+    - backend/core/api/app/services/cache_base.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/tests/test_cache_base.py
+    - backend/tests/test_chat_compressor.py
+    - backend/tests/test_security_regressions.py
+    - backend/tests/test_sightengine_service.py
+    related_feature_ids: []
+  - sha: fb578aee9fae09825a4db21babb54f79a730e332
+    short_sha: fb578aee9
+    authored_at: '2026-06-09T09:08:20+00:00'
+    subject: 'feat: auto-start application previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/routes/application_preview.py
+    - backend/tests/test_application_preview_config.py
+    - backend/tests/test_run_application_preview_task.py
+    - docs/specs/application-embeds/spec.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/services/applicationPreviewService.ts
+    related_feature_ids: []
+  - sha: 5366d9872de953a61ebe3b36039aed43cbb8ee0b
+    short_sha: 5366d9872
+    authored_at: '2026-06-09T08:43:58+00:00'
+    subject: 'test: add Apple real chat flow coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+llm_summary:
+  overview: OpenMates expanded its AI model support with the addition of Claude Fable 5 and significantly refined the deep
+    research experience. Key updates include the unification of research focus modes, the introduction of auto-starting application
+    previews, and improved passkey compatibility for Linux users. Significant work also continued on platform parity for Apple
+    devices, though these features remain unreleased.
+  released_changes:
+  - text: Support for the Claude Fable 5 model was added to the Anthropic direct API provider.
+    evidence:
+      commits:
+      - 5bea51e1f
+    release_status: released_main
+  - text: The deep research focus mode was unified across the platform, and the OpenMates CLI now supports sub-chat parity
+      for deep research tasks.
+    evidence:
+      commits:
+      - 55e3ba1cd
+      - 02f288cc1
+    release_status: released_main
+  - text: Application previews now automatically start upon generation, streamlining the code-to-preview workflow.
+    evidence:
+      commits:
+      - fb578aee9
+    release_status: released_main
+  - text: Passkey registration was updated to support Linux-compatible registration flows.
+    evidence:
+      commits:
+      - a9be1edf6
+    release_status: released_main
+  - text: Focus modes for video analysis and web reputation were improved, complemented by a new reputation check example
+      chat.
+    evidence:
+      commits:
+      - a16cac560
+      - 641a3baaa
+      - f9fda4429
+    release_status: released_main
+  bug_fixes:
+  - text: A series of updates resolved race conditions and timing issues when sending draft chats, ensuring the editor state
+      is correctly preserved and validated before transmission.
+    evidence:
+      commits:
+      - d922a3672
+      - 0bc989a55
+      - 6d3f0e2e9
+      - f8ba9d82e
+      - d4a9c82e2
+      - 3603dba04
+      - 2e950ca7f
+    release_status: released_main
+  - text: UI stability was improved by hardening weather embed fields, preventing duplicate log keys, and resolving translation
+      gaps in gift card settings and route titles.
+    evidence:
+      commits:
+      - a46561c2d
+      - 5772acbfd
+      - 3447c8c9f
+      - e711fc8c0
+      - fcfd92503
+    release_status: released_main
+  - text: The code embed preview now correctly displays execution output alongside the source code.
+    evidence:
+      commits:
+      - c4a016d75
+    release_status: released_main
+  - text: App skill embed previews were registered to ensure consistent rendering across example chats.
+    evidence:
+      commits:
+      - a5f7f40ae
+    release_status: released_main
+  unreleased_progress:
+  - text: Extensive work was completed on iOS and macOS parity, including embed rendering, chat message spacing, and UI contract
+      probes for headers and recording overlays.
+    evidence:
+      commits:
+      - 47c5a97e9
+      - f4ba40916
+      - 92537792a
+      - 9f9cb86e3
+      - 42904035e
+      - 2061c2072
+      - 0ee04fd6b
+      - 72e7998da
+    release_status: released_main
+  - text: Initial support for sending sub-chat continuations as user tasks was added, though the tasks platform remains disabled.
+    evidence:
+      commits:
+      - 6c48d11fb
+    release_status: released_main
+  internal_progress:
+  - text: Service health monitoring was refined to reduce false positives for degraded service alerts.
+    evidence:
+      commits:
+      - '331727558'
+    release_status: released_main
+  - text: Automatic handoff of admin issues to OpenCode was disabled to allow for manual investigation.
+    evidence:
+      commits:
+      - f254e9a87
+    release_status: released_main
+  - text: A database migration was added to optimize chat message indexing.
+    evidence:
+      commits:
+      - 01f54ff81
+    release_status: released_main
+  - text: Additional tracing and logging were implemented to debug chat preprocessing and early exit scenarios.
+    evidence:
+      commits:
+      - b8b0b5861
+      - d8dd35c7d
+      - 6e9c084c8
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: OpenMates now supports the Claude Fable 5 model for direct API interactions.
+      evidence:
+        commits:
+        - 5bea51e1f
+      reason: This is a major model addition that expands the AI capabilities available to users.
+    - text: The deep research focus mode has been unified, and the CLI now supports sub-chat parity for complex research tasks.
+      evidence:
+        commits:
+        - 55e3ba1cd
+        - 02f288cc1
+      reason: These updates significantly improve the consistency and power of the research experience.
+    - text: Application previews now start automatically when generated in the chat.
+      evidence:
+        commits:
+        - fb578aee9
+      reason: This improves the user experience by reducing manual steps when viewing generated code.
+    - text: Passkey registration now supports Linux-compatible flows for improved account security.
+      evidence:
+        commits:
+        - a9be1edf6
+      reason: This expands security options for users on Linux systems.
+    exclude:
+    - text: Apple platform parity updates.
+      evidence:
+        commits:
+        - 47c5a97e9
+        - f4ba40916
+        - 92537792a
+        - 9f9cb86e3
+        - 42904035e
+        - 2061c2072
+        - 0ee04fd6b
+        - 72e7998da
+      reason: Apple platform features (iOS and macOS) are currently disabled in the environment configuration.
+    - text: Sub-chat continuation as user tasks.
+      evidence:
+        commits:
+        - 6c48d11fb
+      reason: The tasks platform is currently disabled in the environment configuration.
+    rationale: The newsletter highlights major model additions, significant research tool improvements, and security updates
+      that are ready for public use. It excludes platform-specific work that remains gated.
+  social_video_recommendations:
+  - idea: Showcase the speed and reasoning capabilities of the new Claude Fable 5 model within OpenMates.
+    priority: high
+    reason: New model additions are high-interest events for the community.
+    evidence:
+      commits:
+      - 5bea51e1f
+  - idea: A short clip showing a user asking for a web app and seeing it instantly boot up in the preview pane.
+    priority: medium
+    reason: The auto-start feature provides a 'magic' moment that is visually compelling.
+    evidence:
+      commits:
+      - fb578aee9
+  quality_notes:
+  - Extensive testing was performed on Apple platform parity, including visual snapshots and UI contract assertions.
+  - Deep research logic was strengthened with better synthesis formatting and sub-chat delegation gates.
+  - Draft send reliability was a major focus, addressing several edge-case race conditions.
+  validation_warnings: []

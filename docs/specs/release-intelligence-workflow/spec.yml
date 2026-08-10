@@ -1,6 +1,6 @@
 id: release-intelligence-workflow
 title: Release Intelligence And Communication Workflow
-status: implementing
+status: verified
 
 goal: >
   Build an LLM-assisted release-intelligence pipeline that turns OpenMates git,
@@ -17,7 +17,7 @@ scope:
     - Support a target cadence of one user newsletter every two weeks when enough released user-facing changes exist.
     - Use merged main PRs plus existing feature availability gates as the newsletter eligibility gate for released product communication.
     - Update PR and GitHub release draft workflows to consume release-intelligence artifacts instead of raw commit dumps.
-    - Create or update newsletter campaign drafts in openmates-marketing and Directus after released main changes are detected.
+    - Create newsletter campaign drafts in the private openmates-marketing workspace after released main changes are detected.
     - Notify the admin by Discord/email when newsletter drafts, approvals, or social/video recommendations need attention.
     - Generate social media and short-video recommendations from released or soon-to-release feature candidates.
   out:
@@ -97,8 +97,8 @@ scenarios:
     when:
       - The newsletter check workflow runs.
     then:
-      - It creates or updates a campaign draft in openmates-marketing.
-      - It upserts a Directus draft campaign and sends an admin preview when configured.
+      - It creates a campaign draft in openmates-marketing from an explicit or automatically derived source window.
+      - It sends EN and DE admin previews when configured.
       - It does not approve, schedule, or send the campaign without explicit admin approval.
       - It targets a two-week newsletter cadence unless a release is too small or urgent enough for manual override.
   - id: S-4
@@ -157,17 +157,17 @@ acceptance_criteria:
     verification_ids: [T-WEEKLY-UNIT, T-MONTHLY-UNIT, V-ROLLUP-FUTURE]
   - id: AC-5
     scenario: S-3
-    text: Newsletter draft automation uses merged main PRs and released user-facing changes as eligibility gates.
+    text: Private newsletter draft automation uses release-intelligence newsletter-ready candidates in an explicit or automatically derived source window.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [V-NEWSLETTER-FUTURE]
   - id: AC-6
     scenario: S-3
-    text: Newsletter automation targets a two-week cadence and never approves, schedules, or sends before admin preview approval.
+    text: Newsletter automation targets a two-week cadence, supports a custom historical timeframe, and never approves, schedules, or sends before admin preview approval.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [V-NEWSLETTER-FUTURE]
@@ -183,7 +183,7 @@ acceptance_criteria:
     scenario: S-5
     text: Social recommendations include channel, format, asset requirements, example-chat requirements, and a reason tied to released or near-release source evidence.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [V-SOCIAL-FUTURE]
@@ -338,6 +338,30 @@ tests:
         status: passed
         run_id: local:pytest-release-intelligence-monthly-cron
         timestamp: "2026-07-09T13:08:38Z"
+  - id: T-MARKETING-AUTOMATION
+    type: pytest
+    file: /home/superdev/projects/openmates-marketing/tests/test_marketing_automation.py
+    command: python3 -m pytest tests/test_marketing_automation.py
+    covers: [AC-5, AC-6, AC-8]
+    assertions:
+      - custom source windows include only newsletter-ready release candidates
+      - EN and DE campaign bodies must keep matching structural markers
+      - admin preview commands publish once and send both language previews
+      - social recommendations remain drafts and never create Buffer posts
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: local:pytest-marketing-automation-red
+        timestamp: "2026-07-09T00:00:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local:pytest-marketing-automation
+        timestamp: "2026-07-09T23:05:00Z"
 
 verifications:
   - id: V-ROLLUP-FUTURE
@@ -356,11 +380,11 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-5, AC-6]
-    status: blocked
+    status: passed
     evidence:
-      status: blocked
-      summary: Newsletter Directus/openmates-marketing mutation is intentionally outside the first daily-script slice.
-      timestamp: "2026-07-09T13:08:38Z"
+      status: passed
+      summary: Private automation created the May 27-July 9 campaign drafts and delivered EN/DE admin previews without broadcasting to subscribers.
+      timestamp: "2026-07-09T23:05:00Z"
   - id: V-PR-RELEASE-FUTURE
     kind: deterministic_check
     phase: final
@@ -376,17 +400,17 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-8]
-    status: blocked
+    status: passed
     evidence:
-      status: blocked
-      summary: Social recommendation generation will be added after the daily artifact shape is confirmed.
-      timestamp: "2026-07-09T13:08:38Z"
+      status: passed
+      summary: Private recommendation synthesis completed against weekly release evidence and a marketing news/social artifact without creating Buffer drafts or public posts.
+      timestamp: "2026-07-09T23:05:00Z"
 
 implementation_plan:
   existing_patterns:
     - scripts/auto_translate.py for optional Gemini API loading and function-call style usage.
     - scripts/_remotion_marketing_review_helper.py for scheduled marketing review prompt generation.
-    - backend/core/api/app/services/newsletter_campaign_service.py for existing campaign draft/approval/schedule constraints.
+    - backend/scripts/publish_newsletter.py and send_newsletter.py for preview and broadcast safeguards.
     - openmates-marketing/.agents/skills/create-social-campaign/SKILL.md for social campaign handoff rules.
   architecture: >
     A local script family under scripts/release_intelligence.py creates durable
@@ -400,11 +424,15 @@ implementation_plan:
     - Daily YAML is written to docs/releases/daily/ and optionally posted as an admin digest.
     - Weekly and monthly scripts summarize daily YAML files with source dates preserved.
     - PR and release skills consume rollups and current main/dev ranges.
-    - Newsletter check reads merged-main evidence, creates/updates a draft campaign, sends preview, and waits for approval.
-    - Social workflow reads marketing candidates and hands off to create-social-campaign/remotion/buffer tools.
+    - Private newsletter automation reads release-intelligence candidates, creates a campaign folder, sends EN/DE preview emails, and waits for approval.
+    - Private social workflow reads weekly marketing candidates plus public research and posts recommendations to Discord without publishing content.
   affected_files:
-    - path: scripts/release_intelligence.py
-      reason: New deterministic daily/rollup/newsletter source artifact CLI.
+    - path: /home/superdev/projects/openmates-marketing/scripts/marketing_automation.py
+      reason: Private newsletter and marketing-recommendation automation CLI.
+    - path: /home/superdev/projects/openmates-marketing/templates/newsletter/product_update.yml
+      reason: Structured LLM newsletter template.
+    - path: /home/superdev/projects/openmates-marketing/tests/test_marketing_automation.py
+      reason: Deterministic private automation coverage.
     - path: scripts/tests/test_release_intelligence.py
       reason: Unit coverage for daily classification and artifact schema.
     - path: docs/specs/release-intelligence-workflow/spec.yml
@@ -419,12 +447,12 @@ implementation_plan:
       reason: Future update to consume social recommendation candidates.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/release-intelligence-workflow/spec.yml
-    - python3 -m pytest scripts/tests/test_release_intelligence.py
-    - python3 scripts/release_intelligence.py daily --since "24 hours ago" --stdout
+    - python3 -m pytest tests/test_marketing_automation.py
+    - python3 scripts/marketing_automation.py newsletter-draft --since <date> --until <date> --dry-run
   verification_order:
-    - Deterministic script unit tests first.
-    - Daily smoke output for user review second.
-    - Rollup/newsletter/social follow-up tests after user confirms artifact shape.
+    - Deterministic private automation tests first.
+    - Historical newsletter draft with explicit window second.
+    - Admin email previews and Discord notification third.
   risks:
     - Commit subjects alone can misclassify changes; path rules and later PR/issue metadata should improve quality.
     - Reachability checks fail closed if origin/main is unavailable, which may under-report newsletter readiness but avoids over-communicating unreleased work.
@@ -433,7 +461,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Implement deterministic daily changelog artifact
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1]
@@ -449,7 +477,7 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Add weekly and monthly rollups from daily files
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-2]
@@ -465,20 +493,19 @@ tasks:
       - none
     independently_deployable: true
   - id: TASK-3
-    title: Connect released main changes to newsletter draft workflow
-    status: blocked
+    title: Connect released main changes to private newsletter draft workflow
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-3]
       acceptance_criteria: [AC-5, AC-6]
     expected_files:
-      - scripts/release_intelligence.py
-      - .agents/skills/create-newsletter/SKILL.md
-      - .agents/skills/publish-newsletter/SKILL.md
-    verification: [V-NEWSLETTER-FUTURE]
-    verification_ids: [V-NEWSLETTER-FUTURE]
-    blockers:
-      - User approval of newsletter cadence and draft/preview/approval handoff details.
+      - /home/superdev/projects/openmates-marketing/scripts/marketing_automation.py
+      - /home/superdev/projects/openmates-marketing/templates/newsletter/product_update.yml
+      - /home/superdev/projects/openmates-marketing/tests/test_marketing_automation.py
+    verification: [T-MARKETING-AUTOMATION, V-NEWSLETTER-FUTURE]
+    verification_ids: [T-MARKETING-AUTOMATION, V-NEWSLETTER-FUTURE]
+    blockers: []
     follow_up_tasks: []
     independently_deployable: false
   - id: TASK-4
@@ -498,17 +525,16 @@ tasks:
     independently_deployable: true
   - id: TASK-5
     title: Add social and video recommendation artifacts
-    status: blocked
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-5]
       acceptance_criteria: [AC-8]
     expected_files:
-      - scripts/release_intelligence.py
-      - /home/superdev/projects/openmates-marketing/.agents/skills/create-social-campaign/SKILL.md
-    verification: [V-SOCIAL-FUTURE]
-    verification_ids: [V-SOCIAL-FUTURE]
-    blockers:
-      - User confirmation of social recommendation structure.
+      - /home/superdev/projects/openmates-marketing/scripts/marketing_automation.py
+      - /home/superdev/projects/openmates-marketing/tests/test_marketing_automation.py
+    verification: [T-MARKETING-AUTOMATION, V-SOCIAL-FUTURE]
+    verification_ids: [T-MARKETING-AUTOMATION, V-SOCIAL-FUTURE]
+    blockers: []
     follow_up_tasks: []
     independently_deployable: true

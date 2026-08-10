@@ -16,6 +16,8 @@ import {
   MATE_NAMES,
   deriveAppUrl,
   type ChatListPage,
+  type ChatListItem,
+  type ChatRewindResult,
   type DecryptedMessage,
   type DailyInspiration,
   type DecryptedNewChatSuggestion,
@@ -24,6 +26,7 @@ import {
   type LearningModeAgeGroup,
   type LearningModeStatus,
   type SubChatApprovalRequest,
+  type ApiKeyListResult,
   type BankTransferOrderDetails,
   type BankTransferStatus,
   type GiftCardBankTransferStatus,
@@ -35,13 +38,30 @@ import {
   type WorkflowRunDetail,
   type WorkflowRunContentRetention,
   type WorkflowSummary,
+  type ProjectRecord,
+  type ProjectSourceRecord,
+  type UserTaskActionInput,
+  type UserTaskReorderInput,
+  type UserTaskRecord,
+  type UserTaskStatus,
+  type UserPlanCriterionRecord,
+  type UserPlanRecord,
+  type UserPlanStatus,
+  type UserPlanVerificationStatus,
+  type WorkspaceHistoryResult,
+  type TeamRole,
+  type WorkspaceMoveType,
+  type DecryptedConnectedAccountForSkill,
 } from "./client.js";
-import type { StreamEvent, SubChatEvent } from "./ws.js";
+import { OpenMates, OpenMatesApiError, type ChatResponse, type EncryptedChatMetadata } from "./sdk.js";
+import { WebSocketProtocolError, type PendingTaskUpdateJobFrame, type StreamEvent, type SubChatEvent, type TaskEventFrame } from "./ws.js";
 import { createInterface } from "node:readline/promises";
-import { realpathSync, writeFileSync } from "node:fs";
+import { stdin, stdout } from "node:process";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { arch, platform } from "node:os";
 import WebSocket from "ws";
 
 import {
@@ -49,11 +69,12 @@ import {
   listMentionOptions,
   type MentionType,
 } from "./mentions.js";
+import { APP_SKILL_METADATA } from "./generated/appSkills.js";
 import { OutputRedactor } from "./outputRedactor.js";
-import { processFiles, formatEmbedsForMessage } from "./fileEmbed.js";
+import { processFilesAsync, formatEmbedsForMessage } from "./fileEmbed.js";
 import type { PreparedEmbed } from "./embedCreator.js";
 import type { ShareDuration } from "./shareEncryption.js";
-import { transcribeUploadedAudio, uploadFile } from "./uploadService.js";
+import { transcribeUploadedAudio, uploadFile, type UploadFileResponse } from "./uploadService.js";
 import { createEmbedRef, createEmbedReferenceBlock, toonEncodeContent } from "./embedCreator.js";
 import { prepareUrlEmbeds } from "./urlEmbed.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
@@ -63,10 +84,33 @@ import {
   buildCodeRunStreamUrl,
 } from "./codeRunInput.js";
 import {
+  exportDesignIcon,
+  type DesignIconExportFormat,
+} from "./designIcons.js";
+import {
+  assertAccountExportPayloadSafe,
+  sanitizeAccountExportManifest,
+  writeAccountExportArchive,
+} from "./accountExportArchive.js";
+import {
+  appendCompressionSummary,
+  buildAccountImportMessageBatches,
+  parseClaudeImportBuffer,
+  parseChatGPTImportBuffer,
+  parseGenericImportBuffer,
+  parseOpenCodeImportBuffer,
+  parseOpenMatesImportBuffer,
+  type AccountImportSource,
+  type ParsedAccountImport,
+} from "./accountImport.js";
+import {
   getExampleChatConversation,
+  listExampleChatsForApp,
+  listExampleChatsForSkill,
   listExampleChats,
   searchExampleChats,
   type ExampleChatConversation,
+  type ExampleChatSkillListItem,
 } from "./exampleChats.js";
 import {
   formatInteractiveQuestionAnswer,
@@ -81,14 +125,72 @@ import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
 import { defaultModeForStreams, printProgrammaticQuickstart, runTui } from "./tui.js";
 import { SUPPORT_MESSAGE, SUPPORT_URL, renderSupportInfo } from "./support.js";
 import {
+  discoverRemoteAccessRepositories,
   listRemoteAccessSources,
-  runRgCommand,
-  searchStoredRemoteAccessSource,
+  resolveRemoteAccessRoots,
+  remoteAccessSourceType,
+  runRemoteAccessBridge,
   startRemoteAccessSource,
-  type RemoteAccessSourceRecord,
+  type LiveRemoteAccessBinding,
 } from "./remoteAccess.js";
+import { buildProtonWriteWarning, runProtonBridgeConnector } from "./protonBridgeConnector.js";
+import { ProjectRequesterError, requestProjectRemoteOperation } from "./projectRequester.js";
 import { buildSelfUpdatePlan, checkSelfUpdateStatus, runSelfUpdate } from "./selfUpdate.js";
 import { renderOpenMatesAsciiLogo } from "./branding.js";
+import {
+  buildCreateUserTaskInput,
+  buildUpdateUserTaskInput,
+  decryptUserTask,
+  decryptUserTasks,
+  findTask,
+  labelHashes as buildLabelHashes,
+  normalizeLabels,
+  normalizeTaskPriority,
+  normalizeTaskStatus,
+  parseDueAt,
+  renderTaskBoard,
+  renderTaskDetail,
+  renderTaskList,
+  splitCsvFlag,
+  type DecryptedUserTask,
+} from "./tasksCli.js";
+import {
+  buildCreatePlanCriterionInput,
+  buildCreatePlanLearningInput,
+  buildCreatePlanVerificationInput,
+  buildCreateUserPlanInput,
+  buildPlanVerificationEvidenceInput,
+  buildUpdatePlanLearningInput,
+  buildUpdatePlanVerificationInput,
+  buildUpdateUserPlanInput,
+  assertSafeLearningTaskDraft,
+  decryptPlanLearning,
+  decryptPlanLearnings,
+  decryptUserPlan,
+  decryptUserPlans,
+  finalizedLearningNeedsTaskSafetyScan,
+  findPlan,
+  findPlanLearning,
+  normalizeLearningLevel,
+  normalizeLearningStatus,
+  normalizeLearningTargetKind,
+  normalizeLearningType,
+  normalizePlanStatus,
+  renderPlanLearningDetail,
+  renderPlanLearningList,
+  renderPlanDetail,
+  renderPlanList,
+  type DecryptedPlanLearning,
+  type DecryptedUserPlan,
+  type PlanProjectKey,
+} from "./plansCli.js";
+import { decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
+import {
+  buildRevolutBusinessConsentUrl,
+  exchangeRevolutBusinessAuthorizationCode,
+  generateRevolutBusinessCertificate,
+  type RevolutBusinessCertificateEnvironment,
+} from "./revolutBusinessCertificate.js";
 
 type SignupRequiredResult = {
   status: "signup_required";
@@ -161,8 +263,20 @@ async function main(): Promise<void> {
   // --help with a command shows that command's help, not the global one
   if (parsed.flags.help === true && !subcommand) {
     // e.g. `openmates chats --help` → show chats help
+    if (command === "chat") {
+      printGoalChatHelp();
+      return;
+    }
     if (command === "chats") {
       printChatsHelp();
+      return;
+    }
+    if (command === "drafts") {
+      printDraftsHelp();
+      return;
+    }
+    if (command === "ideabucket") {
+      printIdeaBucketHelp();
       return;
     }
     if (command === "apps") {
@@ -173,12 +287,40 @@ async function main(): Promise<void> {
       printSettingsHelp(client);
       return;
     }
+    if (command === "account") {
+      printSettingsHelp(client, ["account"]);
+      return;
+    }
     if (command === "workflows") {
       printWorkflowsHelp();
       return;
     }
+    if (command === "tasks") {
+      printTasksHelp();
+      return;
+    }
+    if (command === "plans") {
+      printPlansHelp();
+      return;
+    }
+    if (command === "projects") {
+      printProjectsHelp();
+      return;
+    }
+    if (command === "teams") {
+      printTeamsHelp();
+      return;
+    }
     if (command === "connected-accounts") {
       printConnectedAccountsHelp();
+      return;
+    }
+    if (command === "finance") {
+      printFinanceHelp();
+      return;
+    }
+    if (command === "connect-account") {
+      printConnectAccountHelp();
       return;
     }
     if (command === "learning-mode") {
@@ -235,6 +377,10 @@ async function main(): Promise<void> {
     }
     if (command === "remote-access") {
       printRemoteAccessHelp();
+      return;
+    }
+    if (command === "connect-account") {
+      printConnectAccountHelp();
       return;
     }
     printHelp();
@@ -299,6 +445,46 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "chat" && parsed.flags.goal) {
+    await handleGoalChat(client, parsed.flags, redactor);
+    return;
+  }
+
+  if (command === "tasks") {
+    await handleTasks(client, subcommand, rest, parsed.flags, redactor);
+    return;
+  }
+
+  if (command === "plans") {
+    await handlePlans(client, subcommand, rest, parsed.flags, redactor);
+    return;
+  }
+
+  if (command === "projects") {
+    await handleProjects(client, subcommand, rest, parsed.flags, redactor);
+    return;
+  }
+
+  if (command === "history") {
+    await handleHistory(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "teams") {
+    await handleTeams(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "drafts") {
+    await handleDrafts(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "ideabucket") {
+    await handleIdeaBucket(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
   if (command === "apps") {
     await handleApps(client, subcommand, rest, parsed.flags);
     return;
@@ -319,13 +505,28 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "account") {
+    await handleSettings(client, "account", [subcommand, ...rest].filter((part): part is string => typeof part === "string"), parsed.flags);
+    return;
+  }
+
   if (command === "workflows") {
-    await handleWorkflows(client, subcommand, rest, parsed.flags);
+    await handleWorkflows(client, subcommand, rest, parsed.flags, redactor);
     return;
   }
 
   if (command === "connected-accounts") {
     await handleConnectedAccounts(client, subcommand, parsed.flags);
+    return;
+  }
+
+  if (command === "finance") {
+    await handleFinance(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "connect-account") {
+    await handleConnectAccount(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -453,6 +654,2709 @@ function handleCliVersion(flags: Record<string, string | boolean>): void {
   console.log("OpenMates CLI is up to date.");
 }
 
+// ---------------------------------------------------------------------------
+// User tasks
+// ---------------------------------------------------------------------------
+
+async function handleTasks(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+  redactor?: OutputRedactor,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printTasksHelp();
+    return;
+  }
+
+  const masterKey = client.getMasterKeyBytes();
+  const scope = taskScopeFromFlags(flags, masterKey);
+
+  if (rest[0] === "add-to-project") {
+    rejectRemoteCopyFlags(flags);
+    const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "<project-id>"), flags);
+    const task = await requiredResolvedTask(client, masterKey, subcommand, scope, "add-to-project");
+    const linkedProjectIds = appendUniqueId(task.linkedProjectIds, project.projectId);
+    const patch = await buildUpdateUserTaskInput(task, masterKey, { projectIds: linkedProjectIds });
+    const updated = await client.updateUserTask(task.taskId, patch);
+    printTaskOutput(await decryptUserTask(updated, masterKey), flags);
+    return;
+  }
+
+  if (rest[0] === "remove-from-project") {
+    rejectRemoteCopyFlags(flags);
+    const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "<project-id>"), flags);
+    const task = await requiredResolvedTask(client, masterKey, subcommand, scope, "remove-from-project");
+    const patch = await buildUpdateUserTaskInput(task, masterKey, { projectIds: removeId(task.linkedProjectIds, project.projectId) });
+    const updated = await client.updateUserTask(task.taskId, patch);
+    printTaskOutput(await decryptUserTask(updated, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "list" || subcommand === "status") {
+    if (subcommand === "status" && rest[0]) {
+      const task = await resolveTask(client, masterKey, rest[0], scope);
+      printTaskOutput(task, flags);
+      return;
+    }
+    const tasks = await loadTasks(client, masterKey, scope);
+    if (flags.json === true) printJson({ tasks: tasks.map(taskToJson) });
+    else console.log(renderTaskList(tasks));
+    return;
+  }
+
+  if (subcommand === "board") {
+    const tasks = await loadTasks(client, masterKey, scope);
+    if (flags.json === true) printJson({ tasks: tasks.map(taskToJson) });
+    else console.log(renderTaskBoard(tasks));
+    return;
+  }
+
+  if (subcommand === "show") {
+    const id = rest[0];
+    if (!id) throw new Error("Missing task ID. Usage: openmates tasks show <task-id>");
+    const task = await resolveTask(client, masterKey, id, scope);
+    printTaskOutput(task, flags);
+    return;
+  }
+
+  if (subcommand === "history") {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "history");
+    printObjectHistory(await client.listObjectHistory("task", task.taskId, typeof flags.limit === "string" ? Number(flags.limit) : 50), flags);
+    return;
+  }
+
+  if (subcommand === "restore") {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "restore");
+    const entryId = historyEntryIdFromFlagsOrRest(flags, rest, "openmates tasks restore <task-id> --entry <history-entry-id>");
+    const result = await client.restoreObjectHistory("task", task.taskId, entryId, parseHistoryRestoreState(flags.state));
+    if (flags.json === true) printJson(result);
+    else {
+      console.log(`Task restored: ${task.shortId}`);
+      printHistoryCommands(result.history as WorkspaceHistoryResult | null | undefined);
+    }
+    return;
+  }
+
+  if (subcommand === "ask") {
+    const instruction = requiredAskInstruction(flags, rest, "openmates tasks ask \"Prepare launch copy\"");
+    const exactAsk = await buildExactTaskAsk(client, masterKey, instruction, scope);
+    if (exactAsk) {
+      const result = await client.askUserTasks({ instruction, ...exactAsk });
+      if (await handleWorkspaceAskFallbackChat(client, "task", instruction, result, flags, redactor)) return;
+      printAskApplyResult("task", await prepareTaskAskOutput(result, masterKey), flags);
+      return;
+    }
+    const proposals = await proposeTasksForAsk(client, instruction, flags);
+    const encryptedCreates = [];
+    for (const proposal of proposals) {
+      encryptedCreates.push(await buildCreateUserTaskInput(masterKey, {
+        title: proposal.title,
+        description: proposal.description ?? "",
+        labels: labelFlags(flags),
+        status: normalizeTaskStatus(proposal.status ?? (typeof flags.status === "string" ? flags.status : undefined)),
+        assign: proposal.assignee_type ?? taskAssignFlag(flags),
+        chatId: typeof flags.chat === "string" ? flags.chat : null,
+        projectIds: splitCsvFlag(flags.project ?? flags.projects),
+        planId: typeof flags.plan === "string" ? flags.plan : null,
+        dueAt: parseDueAt(flags.due),
+        priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
+      }));
+    }
+    const result = await client.askUserTasks({ instruction, encryptedCreates });
+    if (await handleWorkspaceAskFallbackChat(client, "task", instruction, result, flags, redactor)) return;
+    printAskApplyResult("task", await prepareTaskAskOutput(result, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "create") {
+    const title = taskTitleFromFlagsOrRest(flags, rest);
+    const input = await buildCreateUserTaskInput(masterKey, {
+      title,
+      description: typeof flags.description === "string" ? flags.description : "",
+      labels: labelFlags(flags),
+      status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
+      assign: taskAssignFlag(flags),
+      chatId: typeof flags.chat === "string" ? flags.chat : null,
+      projectIds: splitCsvFlag(flags.project ?? flags.projects),
+      planId: typeof flags.plan === "string" ? flags.plan : null,
+      dueAt: parseDueAt(flags.due),
+      priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
+    });
+    const created = await client.createUserTask(input);
+    printTaskOutput(await decryptUserTask(created, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "edit") {
+    const id = rest[0];
+    if (!id) throw new Error("Missing task ID. Usage: openmates tasks edit <task-id> [--title ...]");
+    const task = await resolveTask(client, masterKey, id, scope);
+    const patch = await buildUpdateUserTaskInput(task, masterKey, {
+      title: typeof flags.title === "string" ? flags.title : undefined,
+      description: typeof flags.description === "string" ? flags.description : undefined,
+      labels: flags.label || flags.labels || flags.tag || flags.tags ? labelFlags(flags) : undefined,
+      addLabels: labelFlags(flags, "add-label", "add-labels", "add-tag", "add-tags"),
+      removeLabels: labelFlags(flags, "remove-label", "remove-labels", "remove-tag", "remove-tags"),
+      status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
+      assign: taskAssignFlag(flags),
+      chatId: flags.chat === true ? null : typeof flags.chat === "string" ? flags.chat : undefined,
+      projectIds: flags.project || flags.projects ? splitCsvFlag(flags.project ?? flags.projects) : undefined,
+      planId: flags.plan === true ? null : typeof flags.plan === "string" ? flags.plan : undefined,
+      priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
+    });
+    const updated = await client.updateUserTask(task.taskId, patch);
+    printTaskOutput(await decryptUserTask(updated, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "delete");
+    if (flags.confirm !== true) throw new Error("Deleting a task requires --confirm.");
+    const result = await client.deleteUserTask(task.taskId, task.version);
+    if (flags.json === true) printJson(result);
+    else console.log(`Task deleted: ${task.shortId}`);
+    return;
+  }
+
+  if (subcommand === "start") {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "start");
+    const started = await client.startUserTaskWithAI(task.taskId, {
+      version: task.version,
+      primary_chat_id: task.primaryChatId ?? undefined,
+      linked_project_ids: task.linkedProjectIds,
+      plaintext_title: task.title,
+      plaintext_description: task.description,
+      plaintext_latest_instruction: task.latestInstruction,
+    });
+    printTaskOutput(await decryptUserTask(started, masterKey), flags);
+    return;
+  }
+
+  if (["block", "unblock", "skip", "done"].includes(subcommand)) {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, subcommand);
+    const payload: UserTaskActionInput = { version: task.version };
+    if (subcommand === "block") {
+      if (typeof flags.reason !== "string") throw new Error("Blocking a task requires --reason <code>.");
+      payload.blocked_reason_code = flags.reason;
+    }
+    const updated = subcommand === "block"
+      ? await client.blockUserTask(task.taskId, payload)
+      : subcommand === "unblock"
+        ? await client.unblockUserTask(task.taskId, payload)
+        : subcommand === "skip"
+          ? await client.skipUserTask(task.taskId, payload)
+          : await client.completeUserTask(task.taskId, payload);
+    printTaskOutput(await decryptUserTask(updated, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "reorder") {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "reorder");
+    const move: UserTaskReorderInput["moves"][number] = { task_id: task.taskId, version: task.version };
+    if (typeof flags.before === "string") move.before_task_id = (await resolveTask(client, masterKey, flags.before, scope)).taskId;
+    if (typeof flags.after === "string") move.after_task_id = (await resolveTask(client, masterKey, flags.after, scope)).taskId;
+    if (typeof flags.status === "string") move.status = normalizeTaskStatus(flags.status);
+    if (typeof flags.position === "string") move.position = Number(flags.position);
+    const updated = await client.reorderUserTasks({ moves: [move] });
+    const decrypted = await decryptUserTasks(updated, masterKey);
+    if (flags.json === true) printJson({ tasks: decrypted.map(taskToJson) });
+    else console.log(`Task reordered: ${task.shortId}`);
+    return;
+  }
+
+  throw new Error(`Unknown tasks command '${subcommand}'. Run 'openmates tasks --help'.`);
+}
+
+function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean } {
+  return {
+    status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
+    chatId: typeof flags.chat === "string" ? flags.chat : undefined,
+    projectId: typeof flags.project === "string" ? flags.project : undefined,
+    planId: typeof flags.plan === "string" ? flags.plan : undefined,
+    labelHashes: buildLabelHashes(masterKey, labelFlags(flags)),
+    priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
+    ...teamContextFromFlags(flags),
+  };
+}
+
+async function loadTasks(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+): Promise<DecryptedUserTask[]> {
+  const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, priority: scope.priority, teamId: scope.teamId, personal: scope.personal });
+  const tasks = await decryptUserTasks(records, masterKey);
+  return scope.planId ? tasks.filter((task) => task.planId === scope.planId) : tasks;
+}
+
+async function resolveTask(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  id: string,
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+): Promise<DecryptedUserTask> {
+  return findTask(await loadTasks(client, masterKey, { ...scope, status: undefined }), id);
+}
+
+async function requiredResolvedTask(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  id: string | undefined,
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+  action: string,
+): Promise<DecryptedUserTask> {
+  if (!id) throw new Error(`Missing task ID. Usage: openmates tasks ${action} <task-id>`);
+  return resolveTask(client, masterKey, id, scope);
+}
+
+function printTaskOutput(task: DecryptedUserTask, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) printJson({ task: taskToJson(task) });
+  else {
+    console.log(renderTaskDetail(task));
+    printHistoryCommands(task.encrypted.history ?? null);
+  }
+}
+
+function printPlanLearningOutput(learning: DecryptedPlanLearning, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) printJson({ learning: planLearningToJson(learning) });
+  else console.log(renderPlanLearningDetail(learning));
+}
+
+function requiredAskInstruction(flags: Record<string, string | boolean>, rest: string[], usage: string): string {
+  const instruction = typeof flags.text === "string" ? flags.text.trim() : rest.join(" ").trim();
+  if (!instruction) throw new Error(`Missing ask instruction. Example: ${usage}`);
+  return instruction;
+}
+
+function extractRecord(container: Record<string, unknown>, key: string): Record<string, unknown> {
+  const value = container[key];
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Workspace ask planning returned invalid ${key}.`);
+  return value as Record<string, unknown>;
+}
+
+function requiredString(record: Record<string, unknown>, key: string, fallback: string): string {
+  const value = record[key];
+  if (typeof value === "string" && value.trim()) return value.trim();
+  return fallback;
+}
+
+function optionalString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+async function proposeTasksForAsk(client: OpenMatesClient, instruction: string, flags: Record<string, string | boolean>): Promise<Array<{ title: string; description?: string | null; status?: UserTaskStatus; assignee_type?: string | null }>> {
+  if (isShortWorkspaceAsk(instruction)) return [{ title: instruction }];
+  const proposals = await client.planUserTaskAsk({
+    instruction,
+    contextChatId: typeof flags.chat === "string" ? flags.chat : null,
+    projectIds: splitCsvFlag(flags.project ?? flags.projects),
+  });
+  if (proposals.length > 0) return proposals;
+  const splitProposals = splitTaskAskInstruction(instruction);
+  return splitProposals.length > 0 ? splitProposals : [{ title: instruction }];
+}
+
+function isShortWorkspaceAsk(instruction: string): boolean {
+  const stripped = instruction.trim();
+  if (!stripped || stripped.includes("\n")) return false;
+  if (/(^|\s)([-*]|\d+\.)\s/.test(stripped)) return false;
+  return stripped.split(/\s+/).length <= 8;
+}
+
+function splitTaskAskInstruction(instruction: string): Array<{ title: string }> {
+  const suffix = instruction.includes(":") ? instruction.split(":").slice(1).join(":") : instruction;
+  return suffix.split(/[,;]\s*/).map((title) => title.trim()).filter(Boolean).map((title) => ({ title }));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isPrivateCliOutputKey(key: string): boolean {
+  return key === "linked_project_hashes" || key.startsWith("encrypted_") || key.startsWith("hashed_");
+}
+
+function sanitizeWorkspaceAskOutput(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((item) => sanitizeWorkspaceAskOutput(item));
+  if (!isRecord(value)) return value;
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value)) {
+    if (isPrivateCliOutputKey(key)) continue;
+    sanitized[key] = sanitizeWorkspaceAskOutput(nested);
+  }
+  return sanitized;
+}
+
+async function prepareTaskAskOutput(result: Record<string, unknown>, masterKey: Uint8Array): Promise<Record<string, unknown>> {
+  const output = sanitizeWorkspaceAskOutput(result) as Record<string, unknown>;
+  if (isRecord(result.task)) {
+    output.task = taskToJson(await decryptUserTask(result.task as unknown as UserTaskRecord, masterKey));
+  }
+  if (Array.isArray(result.tasks) && result.tasks.every(isRecord)) {
+    output.tasks = (await decryptUserTasks(result.tasks as unknown as UserTaskRecord[], masterKey)).map(taskToJson);
+  }
+  return output;
+}
+
+async function preparePlanAskOutput(result: Record<string, unknown>, masterKey: Uint8Array): Promise<Record<string, unknown>> {
+  const output = sanitizeWorkspaceAskOutput(result) as Record<string, unknown>;
+  if (isRecord(result.plan)) {
+    output.plan = planToJson(await decryptUserPlan(result.plan as unknown as UserPlanRecord, masterKey));
+  }
+  if (Array.isArray(result.plans) && result.plans.every(isRecord)) {
+    output.plans = (await decryptUserPlans(result.plans as unknown as UserPlanRecord[], masterKey)).map(planToJson);
+  }
+  return output;
+}
+
+function printHistoryCommands(history: WorkspaceHistoryResult | null | undefined): void {
+  if (!history) return;
+  const changeSetId = typeof history.change_set?.change_set_id === "string" ? history.change_set.change_set_id : undefined;
+  const undoAll = history.undo_all_command || (changeSetId ? `openmates history undo ${changeSetId}` : undefined);
+  if (!undoAll) return;
+  console.log(`\nUndo all: ${undoAll}`);
+  for (const command of history.undo_entry_commands ?? []) console.log(`Undo part: ${command}`);
+}
+
+function printAskApplyResult(namespace: string, result: Record<string, unknown>, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+  const summary = typeof result.summary === "string" && result.summary.trim() ? result.summary : `Applied ${namespace} ask changes.`;
+  console.log(summary);
+  const changeSetId = typeof result.change_set_id === "string" ? result.change_set_id : undefined;
+  if (changeSetId) console.log(`Change set: ${changeSetId}`);
+  const history = result.history as WorkspaceHistoryResult | null | undefined;
+  printHistoryCommands(history ?? {
+    change_set: changeSetId ? { change_set_id: changeSetId } : undefined,
+    undo_all_command: typeof result.undo_all_command === "string" ? result.undo_all_command : undefined,
+    undo_entry_commands: Array.isArray(result.undo_entry_commands) ? result.undo_entry_commands.filter((command): command is string => typeof command === "string") : [],
+  });
+}
+
+async function handleWorkspaceAskFallbackChat(
+  client: OpenMatesClient,
+  namespace: "task" | "plan" | "project" | "workflow",
+  instruction: string,
+  result: Record<string, unknown>,
+  flags: Record<string, string | boolean>,
+  redactor?: OutputRedactor,
+): Promise<boolean> {
+  if (result.fallback_to_chat !== true && result.outcome !== "fallback_to_chat") return false;
+  const fallbackMessage = typeof result.fallback_message === "string"
+    ? result.fallback_message
+    : typeof result.summary === "string"
+      ? result.summary
+      : "Workspace ask needs more context.";
+  if (flags.json !== true) {
+    process.stderr.write(`Workspace ask needs chat context: ${fallbackMessage}\nStarting a new chat...\n`);
+  }
+  const chat = await sendMessageStreaming(
+    client,
+    {
+      message: instruction,
+      chatId: undefined,
+      incognito: false,
+      json: flags.json === true,
+      autoApproveSubChats: flags["auto-approve"] === true,
+      autoApproveMemories: flags["auto-approve-memories"] === true,
+      acceptTaskProposals: flags["accept-task-proposals"] === true,
+      piiDetection: flags["no-pii-detection"] !== true,
+      taskUpdateJobs: false,
+      responseTimeoutMs: parseResponseTimeoutMs(flags),
+      ...teamContextFromFlags(flags),
+    },
+    redactor,
+  );
+  if (flags.json === true) {
+    printJson({
+      ...chat,
+      workspace_ask_fallback: {
+        outcome: "fallback_to_chat",
+        fallback_message: fallbackMessage,
+        namespace,
+      },
+    });
+  }
+  return true;
+}
+
+type ExactTaskAskInput = {
+  encryptedUpdate?: Record<string, unknown>;
+  exactDelete?: Record<string, unknown>;
+};
+
+type ExactPlanAskInput = {
+  encryptedUpdate?: Record<string, unknown>;
+};
+
+type ExactProjectAskInput = {
+  encryptedUpdate?: Record<string, unknown>;
+  exactDelete?: Record<string, unknown>;
+};
+
+type ExactWorkflowAskInput = {
+  exactUpdate?: Record<string, unknown>;
+  exactAction?: Record<string, unknown>;
+  selectedObjectId?: string | null;
+};
+
+type DecryptedProject = {
+  projectId: string;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  pinned: boolean;
+  archived: boolean;
+  version: number | null;
+  projectKey: Uint8Array;
+  encrypted: ProjectRecord;
+};
+
+async function buildExactTaskAsk(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  instruction: string,
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+): Promise<ExactTaskAskInput | null> {
+  const target = exactAskTarget(instruction, "task");
+  if (!target) return looksLikeTaskMutationAsk(instruction) ? {} : null;
+  const task = await tryResolveTask(client, masterKey, target, scope);
+  if (!task) return {};
+  if (isExactDeleteAsk(instruction, "task")) return { exactDelete: { task_id: task.taskId, version: task.version } };
+  const title = renameValueFromInstruction(instruction);
+  const status = taskStatusFromInstruction(instruction);
+  if (title === undefined && status === undefined) return {};
+  const patch = await buildUpdateUserTaskInput(task, masterKey, { title, status });
+  return { encryptedUpdate: { task_id: task.taskId, patch } };
+}
+
+async function buildExactPlanAsk(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  instruction: string,
+  scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
+): Promise<ExactPlanAskInput | null> {
+  const target = exactAskTarget(instruction, "plan");
+  if (!target) return looksLikePlanMutationAsk(instruction) ? {} : null;
+  const plan = await tryResolvePlan(client, masterKey, target, scope);
+  if (!plan) return {};
+  const title = renameValueFromInstruction(instruction);
+  const status = planStatusFromInstruction(instruction);
+  if (title === undefined && status === undefined) return {};
+  const patch = await buildUpdateUserPlanInput(plan, masterKey, { title, status });
+  return { encryptedUpdate: { plan_id: plan.planId, patch } };
+}
+
+async function buildExactProjectAsk(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  instruction: string,
+  flags: Record<string, string | boolean>,
+): Promise<ExactProjectAskInput | null> {
+  const target = exactAskTarget(instruction, "project");
+  if (!target) return looksLikeProjectMutationAsk(instruction) ? {} : null;
+  const project = await tryResolveProject(client, masterKey, target, flags);
+  if (!project) return {};
+  if (isExactDeleteAsk(instruction, "project")) {
+    return { exactDelete: { project_id: project.projectId, ...(project.version !== null ? { version: project.version } : {}) } };
+  }
+  const name = renameValueFromInstruction(instruction);
+  const archived = projectArchiveValueFromInstruction(instruction);
+  if (name === undefined && archived === undefined) return {};
+  const patch: Record<string, unknown> = {
+    ...(project.version !== null ? { version: project.version } : {}),
+    updated_at: nowSeconds(),
+  };
+  if (name !== undefined) patch.encrypted_name = await encryptWithAesGcmCombined(name, project.projectKey);
+  if (archived !== undefined) patch.archived = archived;
+  return { encryptedUpdate: { project_id: project.projectId, patch } };
+}
+
+async function buildExactWorkflowAsk(
+  client: OpenMatesClient,
+  instruction: string,
+  flags: Record<string, string | boolean>,
+): Promise<ExactWorkflowAskInput | null> {
+  const target = exactAskTarget(instruction, "workflow");
+  if (!target) return null;
+  const workflow = await tryResolveWorkflow(client, target, flags);
+  if (!workflow) return { selectedObjectId: target };
+  const action = workflowActionFromInstruction(instruction);
+  if (action) return { exactAction: { workflow_id: workflow.id, action } };
+  const title = renameValueFromInstruction(instruction);
+  if (title !== undefined) return { exactUpdate: { workflow_id: workflow.id, patch: { title } } };
+  return { selectedObjectId: workflow.id };
+}
+
+function exactAskTarget(instruction: string, type: "task" | "plan" | "project" | "workflow"): string | null {
+  const match = new RegExp(`@${type}:("[^"]+"|'[^']+'|[^\\s,;]+)`, "i").exec(instruction);
+  if (!match?.[1]) return null;
+  const value = stripMatchingQuotes(match[1].trim());
+  return value.replace(/[.)!?]+$/, "").trim() || null;
+}
+
+function stripMatchingQuotes(value: string): string {
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    return value.slice(1, -1).trim();
+  }
+  return value;
+}
+
+function renameValueFromInstruction(instruction: string): string | undefined {
+  if (!/\b(rename|retitle|title|name|call)\b/i.test(instruction)) return undefined;
+  const match = /\bto\s+(.+)$/i.exec(instruction);
+  if (!match?.[1]) return undefined;
+  const value = stripMatchingQuotes(match[1].trim()).replace(/[.]$/, "").trim();
+  return value || undefined;
+}
+
+function isExactDeleteAsk(instruction: string, type: "task" | "project"): boolean {
+  return new RegExp(`\\bdelete\\b[\\s\\S]*@${type}:`, "i").test(instruction)
+    || new RegExp(`\\bremove\\s+@${type}:`, "i").test(instruction);
+}
+
+function taskStatusFromInstruction(instruction: string): UserTaskStatus | undefined {
+  if (/\bbacklog\b/i.test(instruction)) return "backlog";
+  if (/\b(to\s*do|todo)\b/i.test(instruction)) return "todo";
+  if (/\b(in[-_\s]?progress|start|started)\b/i.test(instruction)) return "in_progress";
+  if (/\b(block|blocked)\b/i.test(instruction)) return "blocked";
+  if (/\b(done|complete|completed|finish|finished)\b/i.test(instruction)) return "done";
+  return undefined;
+}
+
+function planStatusFromInstruction(instruction: string): UserPlanStatus | undefined {
+  if (/\bunarchive\b/i.test(instruction)) return "active";
+  if (/\barchive|archived\b/i.test(instruction)) return "archived";
+  if (/\bactivate|resume|start\b/i.test(instruction)) return "active";
+  if (/\bcomplete|completed|done\b/i.test(instruction)) return "completed";
+  if (/\bblock|blocked\b/i.test(instruction)) return "blocked";
+  return undefined;
+}
+
+function projectArchiveValueFromInstruction(instruction: string): boolean | undefined {
+  if (/\bunarchive\b/i.test(instruction)) return false;
+  if (/\barchive|archived\b/i.test(instruction)) return true;
+  return undefined;
+}
+
+function workflowActionFromInstruction(instruction: string): "enable" | "disable" | "delete" | null {
+  if (/\bdelete\b/i.test(instruction) || /\bremove\s+@workflow:/i.test(instruction)) return "delete";
+  if (/\b(disable|turn\s+off|switch\s+off|pause)\b/i.test(instruction)) return "disable";
+  if (/\b(enable|turn\s+on|switch\s+on|resume)\b/i.test(instruction)) return "enable";
+  return null;
+}
+
+function looksLikeTaskMutationAsk(instruction: string): boolean {
+  return /\b(mark|delete|remove|finish|complete|completed|done|blocked?)\b/i.test(instruction);
+}
+
+function looksLikePlanMutationAsk(instruction: string): boolean {
+  return /\b(archive|unarchive|delete|remove|rename|retitle|activate|resume|complete|completed|done|blocked?)\b/i.test(instruction);
+}
+
+function looksLikeProjectMutationAsk(instruction: string): boolean {
+  return /\b(archive|unarchive|delete|remove|rename|name|pin|unpin)\b/i.test(instruction);
+}
+
+async function tryResolveTask(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  target: string,
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+): Promise<DecryptedUserTask | null> {
+  const tasks = await loadTasks(client, masterKey, { ...scope, status: undefined });
+  try {
+    return findTask(tasks, target);
+  } catch {
+    return singleExactNameMatch(tasks, target, (task) => task.title);
+  }
+}
+
+async function tryResolvePlan(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  target: string,
+  scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
+): Promise<DecryptedUserPlan | null> {
+  const plans = await loadPlans(client, masterKey, { ...scope, status: undefined, activeOnly: undefined });
+  try {
+    return findPlan(plans, target);
+  } catch {
+    return singleExactNameMatch(plans, target, (plan) => plan.title);
+  }
+}
+
+async function tryResolveProject(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  target: string,
+  flags: Record<string, string | boolean>,
+  context = teamContextFromFlags(flags),
+): Promise<DecryptedProject | null> {
+  const projects = await loadProjects(client, masterKey, flags, context);
+  const idMatch = projects.find((project) => project.projectId === target);
+  if (idMatch) return idMatch;
+  const shortMatches = target.length >= 8 ? projects.filter((project) => project.projectId.startsWith(target)) : [];
+  if (shortMatches.length > 1) throw new CliContractError("ambiguous_project", `Project '${target}' is ambiguous.`);
+  if (shortMatches.length === 1) return shortMatches[0];
+  const normalized = normalizeAskLookup(target);
+  const nameMatches = projects.filter((project) => normalizeAskLookup(project.name) === normalized);
+  if (nameMatches.length > 1) throw new CliContractError("ambiguous_project", `Project '${target}' is ambiguous.`);
+  return nameMatches[0] ?? null;
+}
+
+async function tryResolveWorkflow(
+  client: OpenMatesClient,
+  target: string,
+  flags: Record<string, string | boolean>,
+): Promise<WorkflowSummary | null> {
+  const workflows = await client.listWorkflows(teamContextFromFlags(flags));
+  const idMatch = workflows.find((workflow) => workflow.id === target);
+  if (idMatch) return idMatch;
+  return singleExactNameMatch(workflows, target, (workflow) => workflow.title);
+}
+
+function singleExactNameMatch<T>(items: T[], target: string, label: (item: T) => string): T | null {
+  const normalized = normalizeAskLookup(target);
+  const matches = items.filter((item) => normalizeAskLookup(label(item)) === normalized);
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function normalizeAskLookup(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+async function loadProjects(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  flags: Record<string, string | boolean>,
+  context = teamContextFromFlags(flags),
+): Promise<DecryptedProject[]> {
+  const records = await client.listProjects({ includeArchived: true, ...context });
+  const projects: DecryptedProject[] = [];
+  for (const record of records) {
+    const decrypted = await decryptProject(client, record, masterKey, context);
+    if (decrypted) projects.push(decrypted);
+  }
+  return projects;
+}
+
+async function decryptProject(
+  client: OpenMatesClient,
+  record: ProjectRecord,
+  masterKey: Uint8Array,
+  context = {} as { teamId?: string | null; personal?: boolean },
+): Promise<DecryptedProject | null> {
+  void masterKey;
+  if (!record.project_id) return null;
+  const projectKey = await client.decryptProjectKey(record, context);
+  return {
+    projectId: record.project_id,
+    name: await decryptOptionalProjectField(record.encrypted_name, projectKey) || "(untitled project)",
+    description: await decryptOptionalProjectField(record.encrypted_description, projectKey),
+    icon: await decryptOptionalProjectField(record.encrypted_icon, projectKey),
+    color: await decryptOptionalProjectField(record.encrypted_color, projectKey),
+    pinned: record.pinned === true,
+    archived: record.archived === true,
+    version: typeof record.version === "number" ? record.version : null,
+    projectKey,
+    encrypted: record,
+  };
+}
+
+async function decryptOptionalProjectField(value: string | null | undefined, projectKey: Uint8Array): Promise<string> {
+  return value ? (await decryptWithAesGcmCombined(value, projectKey)) ?? "" : "";
+}
+
+async function requiredResolvedProject(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  target: string,
+  flags: Record<string, string | boolean>,
+  context = teamContextFromFlags(flags),
+): Promise<DecryptedProject> {
+  const project = await tryResolveProject(client, masterKey, target, flags, context);
+  if (!project) throw new Error(`Project '${target}' not found.`);
+  return project;
+}
+
+function appendUniqueId(existing: string[], id: string): string[] {
+  return existing.includes(id) ? existing : [...existing, id];
+}
+
+function removeId(existing: string[], id: string): string[] {
+  return existing.filter((existingId) => existingId !== id);
+}
+
+type PlanLinkKeyContext = {
+  primaryChatId: string | null;
+  primaryChatKey: Uint8Array | null;
+  linkedProjectIds: string[];
+  linkedProjectKeys: PlanProjectKey[];
+};
+
+async function resolvePlanLinkKeyContext(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  flags: Record<string, string | boolean>,
+  input: { primaryChatId?: string | null; linkedProjectIds?: string[] },
+): Promise<PlanLinkKeyContext> {
+  let primaryChatId = input.primaryChatId ?? null;
+  let primaryChatKey: Uint8Array | null = null;
+  if (primaryChatId) {
+    const resolved = await client.resolveChatKeyForContext(primaryChatId, teamContextFromFlags(flags));
+    primaryChatId = resolved.chatId;
+    primaryChatKey = resolved.chatKey;
+  }
+  const linkedProjectIds: string[] = [];
+  const linkedProjectKeys: PlanProjectKey[] = [];
+  for (const target of input.linkedProjectIds ?? []) {
+    const project = await requiredResolvedProject(client, masterKey, target, flags);
+    if (!linkedProjectIds.includes(project.projectId)) {
+      linkedProjectIds.push(project.projectId);
+      linkedProjectKeys.push({ projectId: project.projectId, projectKey: project.projectKey });
+    }
+  }
+  return { primaryChatId, primaryChatKey, linkedProjectIds, linkedProjectKeys };
+}
+
+type AddToProjectStorageChoice = {
+  targetMode: "save_only_in_openmates" | "store_on_remote_machine_and_include_in_git" | "store_local_only_on_remote_machine";
+  source: ProjectSourceRecord | null;
+};
+
+type RemoteCopyProposal = {
+  source_id: string;
+  object_type: "chat" | "workflow";
+  object_id: string;
+  target_mode: AddToProjectStorageChoice["targetMode"];
+  target_path: string;
+  git_tracking_intent: "include_in_git" | "local_only" | "not_applicable";
+  pii_scan_result: { found: boolean; categories: string[] };
+  secret_scan_result: { found: boolean; patterns: string[] };
+  diff_or_create_file_patch: { operation: "create_file"; path: string; content: string };
+  approval_required: true;
+  writes_files: false;
+};
+
+function rejectRemoteCopyFlags(flags: Record<string, string | boolean>): void {
+  if (flags["remote-copy"] === true || flags["repo-copy"] === true || flags["remote-cache-copy"] === true) {
+    throw new Error("Tasks and plans store encrypted Project links only; remote-machine copies are supported for chats/workflows as proposal output.");
+  }
+}
+
+async function resolveAddToProjectStorageChoice(
+  client: OpenMatesClient,
+  project: DecryptedProject,
+  flags: Record<string, string | boolean>,
+  objectType: "chat" | "workflow",
+): Promise<AddToProjectStorageChoice> {
+  const sources = await client.listProjectSources(project.projectId);
+  const source = sources[0] ?? null;
+  if (flags["openmates-only"] === true && (flags["remote-copy"] === true || flags["repo-copy"] === true || flags["remote-cache-copy"] === true)) {
+    throw new Error("Choose either --openmates-only or a remote-copy mode, not both.");
+  }
+  if (flags["repo-copy"] === true && flags["remote-cache-copy"] === true) {
+    throw new Error("Choose only one remote-copy mode: --repo-copy or --remote-cache-copy.");
+  }
+  if (flags["repo-copy"] === true || (flags["remote-copy"] === true && objectType === "workflow")) {
+    if (!source) throw new Error("Remote-copy proposals require a Project source.");
+    return { targetMode: "store_on_remote_machine_and_include_in_git", source };
+  }
+  if (flags["remote-cache-copy"] === true || flags["remote-copy"] === true) {
+    if (!source) throw new Error("Remote-copy proposals require a Project source.");
+    return { targetMode: "store_local_only_on_remote_machine", source };
+  }
+  return { targetMode: "save_only_in_openmates", source };
+}
+
+async function createEncryptedProjectItem(
+  client: OpenMatesClient,
+  project: DecryptedProject,
+  input: {
+    itemType: "embed" | "chat" | "workflow";
+    targetId: string;
+    displayName: string;
+    folderId?: string | null;
+    metadata?: Record<string, unknown>;
+  },
+): Promise<Record<string, unknown>> {
+  const timestamp = nowSeconds();
+  return client.createProjectItem(project.projectId, {
+    project_item_id: randomUUID(),
+    folder_id: input.folderId ?? null,
+    item_type: input.itemType,
+    target_id: input.targetId,
+    target_id_encrypted: await encryptWithAesGcmCombined(input.targetId, project.projectKey),
+    encrypted_display_name: await encryptWithAesGcmCombined(input.displayName, project.projectKey),
+    encrypted_note: await encryptWithAesGcmCombined("", project.projectKey),
+    encrypted_metadata: await encryptWithAesGcmCombined(JSON.stringify(input.metadata ?? {}), project.projectKey),
+    created_at: timestamp,
+    updated_at: timestamp,
+    position: timestamp,
+  });
+}
+
+function printAddToProjectResult(
+  result: { objectType: string; objectId: string; projectId: string; item?: Record<string, unknown>; targetMode: AddToProjectStorageChoice["targetMode"]; remoteCopyProposal?: RemoteCopyProposal | null },
+  flags: Record<string, string | boolean>,
+): void {
+  if (flags.json === true) {
+    printJson({ ...result, remote_copy_proposal: result.remoteCopyProposal ?? null });
+    return;
+  }
+  console.log(`${result.objectType} added to Project: ${result.projectId}`);
+  if (result.remoteCopyProposal) {
+    console.log(`Remote-copy proposal: ${result.remoteCopyProposal.target_path}`);
+    console.log("No remote files were written. Review and approve the proposal before applying it.");
+  } else {
+    console.log("Storage: encrypted OpenMates Project link only");
+  }
+}
+
+function printRemoveFromProjectResult(
+  result: { objectType: string; objectId: string; projectId: string; deleted: boolean; deletedCount?: number },
+  flags: Record<string, string | boolean>,
+): void {
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+  console.log(result.deleted
+    ? `${result.objectType} removed from Project: ${result.projectId}`
+    : `${result.objectType} was not linked to Project: ${result.projectId}`);
+}
+
+function buildRemoteCopyProposal(input: {
+  objectType: "chat" | "workflow";
+  objectId: string;
+  title: string;
+  content: string;
+  source: ProjectSourceRecord;
+  targetMode: Exclude<AddToProjectStorageChoice["targetMode"], "save_only_in_openmates">;
+  targetPath?: string;
+}): RemoteCopyProposal {
+  const extension = input.objectType === "workflow" ? "yml" : "md";
+  const slug = slugifyProjectPath(input.title || input.objectId);
+  const targetPath = input.targetPath || defaultRemoteCopyPath(input.objectType, slug, extension, input.source, input.targetMode);
+  return {
+    source_id: input.source.source_id,
+    object_type: input.objectType,
+    object_id: input.objectId,
+    target_mode: input.targetMode,
+    target_path: targetPath,
+    git_tracking_intent: input.targetMode === "store_on_remote_machine_and_include_in_git" ? "include_in_git" : "local_only",
+    pii_scan_result: scanPiiLikeText(input.content),
+    secret_scan_result: scanSecretLikeText(input.content),
+    diff_or_create_file_patch: { operation: "create_file", path: targetPath, content: input.content },
+    approval_required: true,
+    writes_files: false,
+  };
+}
+
+function defaultRemoteCopyPath(
+  objectType: "chat" | "workflow",
+  slug: string,
+  extension: string,
+  source: ProjectSourceRecord,
+  targetMode: Exclude<AddToProjectStorageChoice["targetMode"], "save_only_in_openmates">,
+): string {
+  if (targetMode === "store_local_only_on_remote_machine") {
+    return `~/.openmates/remote-cache/${source.source_id}/exports/${objectType}/${slug}.${extension}`;
+  }
+  return objectType === "workflow"
+    ? `.openmates/workflows/${slug}.yml`
+    : `docs/openmates/chats/${slug}.md`;
+}
+
+function slugifyProjectPath(value: string): string {
+  const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
+  return slug || "openmates-item";
+}
+
+function scanPiiLikeText(content: string): { found: boolean; categories: string[] } {
+  const categories = new Set<string>();
+  if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(content)) categories.add("email");
+  if (/\b(?:\+?\d[\d .()-]{7,}\d)\b/.test(content)) categories.add("phone_or_number_sequence");
+  return { found: categories.size > 0, categories: [...categories] };
+}
+
+function scanSecretLikeText(content: string): { found: boolean; patterns: string[] } {
+  const patterns = new Set<string>();
+  if (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(content)) patterns.add("private_key");
+  if (/\b(?:sk-(?:api|proj|live|test)|OPENAI_API_KEY|ANTHROPIC_API_KEY|GITHUB_TOKEN)\b/i.test(content)) patterns.add("api_token_marker");
+  if (/\b[A-Za-z0-9_-]{32,}\b/.test(content)) patterns.add("long_token_like_string");
+  return { found: patterns.size > 0, patterns: [...patterns] };
+}
+
+function buildChatRemoteCopyMarkdown(chat: ChatListItem, messages: DecryptedMessage[]): string {
+  const timestampMs = chat.updatedAt && chat.updatedAt < 1e12 ? chat.updatedAt * 1000 : (chat.updatedAt ?? Date.now());
+  let content = `# ${chat.title ?? "Untitled Chat"}\n\n`;
+  content += `OpenMates chat ID: ${chat.id}\n`;
+  content += `Exported at: ${new Date().toISOString()}\n`;
+  content += `Last updated: ${new Date(timestampMs).toISOString()}\n\n---\n\n`;
+  for (const msg of messages) {
+    const msgTimestampMs = msg.createdAt < 1e12 ? msg.createdAt * 1000 : msg.createdAt;
+    const role = msg.role === "user" ? "You" : (msg.senderName ?? "Assistant");
+    content += `## ${role} - ${new Date(msgTimestampMs).toISOString()}\n\n`;
+    const cleaned = msg.content.replace(/```(?:json_embed|json)\n[\s\S]*?\n```/g, "").trim();
+    content += `${cleaned || "(empty message)"}\n\n`;
+  }
+  return content;
+}
+
+function buildWorkflowRemoteCopyYaml(workflow: WorkflowDetail): string {
+  return serializeToYaml({
+    workflow: {
+      id: workflow.id,
+      title: workflow.title,
+      description: workflow.description ?? null,
+      status: workflow.status,
+      enabled: workflow.enabled,
+      lifecycle: workflow.lifecycle ?? null,
+      source_chat_id: workflow.source_chat_id ?? null,
+      current_version_id: workflow.current_version_id,
+      created_at: workflow.created_at,
+      updated_at: workflow.updated_at,
+    },
+    graph: workflow.graph,
+  });
+}
+
+function nowSeconds(): number {
+  return Math.floor(Date.now() / 1000);
+}
+
+function workflowAskGraphFromFlags(flags: Record<string, string | boolean>): WorkflowGraph {
+  if (typeof flags.graph === "string") return parseJsonFlag<WorkflowGraph>(flags.graph, "--graph");
+  return {
+    version: 1,
+    trigger_node_id: "manual-trigger",
+    nodes: [
+      { id: "manual-trigger", type: "manual_trigger", title: "Manual trigger" },
+      { id: "end", type: "end", title: "End" },
+    ],
+    edges: [{ from: "manual-trigger", to: "end" }],
+  };
+}
+
+function parseHistoryRestoreState(value: string | boolean | undefined): "before" | "after" {
+  if (value === undefined || value === false) return "after";
+  if (value === "before" || value === "after") return value;
+  throw new Error("--state must be before or after");
+}
+
+function historyEntryIdFromFlagsOrRest(flags: Record<string, string | boolean>, rest: string[], usage: string): string {
+  const entryId = typeof flags.entry === "string" ? flags.entry : typeof flags["entry-id"] === "string" ? flags["entry-id"] : rest[1];
+  if (!entryId) throw new Error(`Missing history entry ID. Usage: ${usage}`);
+  return entryId;
+}
+
+function printObjectHistory(entries: Record<string, unknown>[], flags: Record<string, string | boolean>): void {
+  if (flags.json === true) {
+    printJson({ entries });
+    return;
+  }
+  if (entries.length === 0) {
+    console.log("No history entries found.");
+    return;
+  }
+  for (const entry of entries) {
+    console.log(`${String(entry.entry_id ?? "-")}  ${String(entry.object_type ?? "-")}  ${String(entry.operation ?? "-")}  v${String(entry.version_before ?? "-")} -> v${String(entry.version_after ?? "-")}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// User plans
+// ---------------------------------------------------------------------------
+
+async function handlePlans(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+  redactor?: OutputRedactor,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printPlansHelp();
+    return;
+  }
+
+  const masterKey = client.getMasterKeyBytes();
+  const statusBelongsToChild = ["tasks", "success-criteria", "criterion", "criteria", "learning", "learnings", "check", "checks", "verification"].includes(subcommand);
+  const scope = planScopeFromFlags(flags, { ignoreStatus: statusBelongsToChild });
+
+  if (rest[0] === "add-to-project") {
+    rejectRemoteCopyFlags(flags);
+    if (flags.folder !== undefined) {
+      throw new Error("Plan folder placement in Projects requires Project item folder support and is not available in this CLI slice.");
+    }
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const plan = await requiredResolvedPlan(client, masterKey, subcommand, scope, "add-to-project");
+    const linkedProjectIds = appendUniqueId(plan.linkedProjectIds, projectId);
+    const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
+      primaryChatId: plan.primaryChatId,
+      linkedProjectIds,
+    });
+    const patch = await buildUpdateUserPlanInput(plan, masterKey, {
+      primaryChatId: linkContext.primaryChatId,
+      primaryChatKey: linkContext.primaryChatKey,
+      linkedProjectIds: linkContext.linkedProjectIds,
+      linkedProjectKeys: linkContext.linkedProjectKeys,
+    });
+    const updated = await client.updateUserPlan(plan.planId, patch);
+    printPlanOutput(await decryptUserPlan(updated, masterKey), flags);
+    return;
+  }
+
+  if (rest[0] === "remove-from-project") {
+    rejectRemoteCopyFlags(flags);
+    const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "<project-id>"), flags);
+    const plan = await requiredResolvedPlan(client, masterKey, subcommand, scope, "remove-from-project");
+    const linkedProjectIds = removeId(plan.linkedProjectIds, project.projectId);
+    const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
+      primaryChatId: plan.primaryChatId,
+      linkedProjectIds,
+    });
+    const patch = await buildUpdateUserPlanInput(plan, masterKey, {
+      primaryChatId: linkContext.primaryChatId,
+      primaryChatKey: linkContext.primaryChatKey,
+      linkedProjectIds: linkContext.linkedProjectIds,
+      linkedProjectKeys: linkContext.linkedProjectKeys,
+    });
+    const updated = await client.updateUserPlan(plan.planId, patch);
+    printPlanOutput(await decryptUserPlan(updated, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "list" || subcommand === "status") {
+    if (subcommand === "status" && rest[0]) {
+      const plan = await resolvePlan(client, masterKey, rest[0], scope);
+      printPlanOutput(plan, flags);
+      return;
+    }
+    const plans = await loadPlans(client, masterKey, scope);
+    if (flags.json === true) printJson({ plans: plans.map(planToJson) });
+    else console.log(renderPlanList(plans));
+    return;
+  }
+
+  if (subcommand === "show") {
+    const id = rest[0];
+    if (!id) throw new Error("Missing plan ID. Usage: openmates plans show <plan-id|short-id>");
+    const plan = await resolvePlan(client, masterKey, id, scope);
+    printPlanOutput(plan, flags);
+    return;
+  }
+
+  if (subcommand === "history") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, "history");
+    printObjectHistory(await client.listObjectHistory("plan", plan.planId, typeof flags.limit === "string" ? Number(flags.limit) : 50), flags);
+    return;
+  }
+
+  if (subcommand === "restore") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, "restore");
+    const entryId = historyEntryIdFromFlagsOrRest(flags, rest, "openmates plans restore <plan-id|short-id> --entry <history-entry-id>");
+    const result = await client.restoreObjectHistory("plan", plan.planId, entryId, parseHistoryRestoreState(flags.state));
+    if (flags.json === true) printJson(result);
+    else {
+      console.log(`Plan restored: ${plan.shortId}`);
+      printHistoryCommands(result.history as WorkspaceHistoryResult | null | undefined);
+    }
+    return;
+  }
+
+  if (subcommand === "ask") {
+    const instruction = requiredAskInstruction(flags, rest, "openmates plans ask \"Prepare launch plan\"");
+    const exactAsk = await buildExactPlanAsk(client, masterKey, instruction, scope);
+    if (exactAsk) {
+      const result = await client.askUserPlans({ instruction, ...exactAsk });
+      if (await handleWorkspaceAskFallbackChat(client, "plan", instruction, result, flags, redactor)) return;
+      printAskApplyResult("plan", await preparePlanAskOutput(result, masterKey), flags);
+      return;
+    }
+    const proposal = isShortWorkspaceAsk(instruction)
+      ? { title: instruction, summary: "", goal: instruction }
+      : extractRecord(await client.planUserPlanAsk({ instruction }), "proposed_plan");
+    const title = requiredString(proposal, "title", instruction);
+    const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
+      primaryChatId: typeof flags.chat === "string" ? flags.chat : null,
+      linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
+    });
+    const input = await buildCreateUserPlanInput(masterKey, {
+      title,
+      summary: typeof flags.summary === "string" ? flags.summary : optionalString(proposal, "summary") ?? "",
+      goal: typeof flags.goal === "string" ? flags.goal : optionalString(proposal, "goal") ?? title,
+      status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
+      primaryChatId: linkContext.primaryChatId,
+      primaryChatKey: linkContext.primaryChatKey,
+      linkedProjectIds: linkContext.linkedProjectIds,
+      linkedProjectKeys: linkContext.linkedProjectKeys,
+    });
+    const result = await client.askUserPlans({ instruction, encryptedCreate: input });
+    if (await handleWorkspaceAskFallbackChat(client, "plan", instruction, result, flags, redactor)) return;
+    printAskApplyResult("plan", await preparePlanAskOutput(result, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "create") {
+    const title = planTitleFromFlagsOrRest(flags, rest);
+    const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
+      primaryChatId: typeof flags.chat === "string" ? flags.chat : null,
+      linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
+    });
+    const input = await buildCreateUserPlanInput(masterKey, {
+      title,
+      summary: typeof flags.summary === "string" ? flags.summary : typeof flags.description === "string" ? flags.description : "",
+      goal: typeof flags.goal === "string" ? flags.goal : "",
+      scopeIn: typeof flags["scope-in"] === "string" ? flags["scope-in"] : "",
+      scopeOut: typeof flags["scope-out"] === "string" ? flags["scope-out"] : "",
+      userFlows: typeof flags["user-flows"] === "string" ? flags["user-flows"] : "",
+      currentFocus: typeof flags["current-focus"] === "string" ? flags["current-focus"] : "",
+      assumptions: typeof flags.assumptions === "string" ? flags.assumptions : "",
+      openQuestions: typeof flags["open-questions"] === "string" ? flags["open-questions"] : "",
+      constraints: typeof flags.constraints === "string" ? flags.constraints : "",
+      decisions: typeof flags.decisions === "string" ? flags.decisions : "",
+      risks: typeof flags.risks === "string" ? flags.risks : "",
+      referencePatterns: typeof flags["reference-patterns"] === "string" ? flags["reference-patterns"] : "",
+      context: typeof flags.context === "string" ? flags.context : "",
+      status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
+      primaryChatId: linkContext.primaryChatId,
+      primaryChatKey: linkContext.primaryChatKey,
+      linkedProjectIds: linkContext.linkedProjectIds,
+      linkedProjectKeys: linkContext.linkedProjectKeys,
+      currentPhaseId: typeof flags.phase === "string" ? flags.phase : null,
+      currentStepId: typeof flags.step === "string" ? flags.step : null,
+      currentTaskId: typeof flags.task === "string" ? flags.task : null,
+      plannerFocusId: typeof flags.focus === "string" ? flags.focus : null,
+    });
+    const created = await client.createUserPlan(input);
+    printPlanOutput(await decryptUserPlan(created, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "edit" || subcommand === "update") {
+    const id = rest[0];
+    if (!id) throw new Error(`Missing plan ID. Usage: openmates plans ${subcommand} <plan-id|short-id> [--title ...]`);
+    const hasChatRelink = flags.chat !== undefined;
+    const hasProjectRelink = flags.project !== undefined || flags.projects !== undefined;
+    const resolveScope = hasChatRelink || hasProjectRelink
+      ? { ...scope, chatId: hasChatRelink ? undefined : scope.chatId, projectId: hasProjectRelink ? undefined : scope.projectId }
+      : scope;
+    const plan = await resolvePlan(client, masterKey, id, resolveScope);
+    const linkContext = hasChatRelink || hasProjectRelink
+      ? await resolvePlanLinkKeyContext(client, masterKey, flags, {
+        primaryChatId: flags.chat === true ? null : typeof flags.chat === "string" ? flags.chat : plan.primaryChatId,
+        linkedProjectIds: hasProjectRelink ? splitCsvFlag(flags.project ?? flags.projects) : plan.linkedProjectIds,
+      })
+      : null;
+    const patch = await buildUpdateUserPlanInput(plan, masterKey, {
+      title: typeof flags.title === "string" ? flags.title : undefined,
+      summary: typeof flags.summary === "string" ? flags.summary : typeof flags.description === "string" ? flags.description : undefined,
+      goal: typeof flags.goal === "string" ? flags.goal : undefined,
+      scopeIn: typeof flags["scope-in"] === "string" ? flags["scope-in"] : undefined,
+      scopeOut: typeof flags["scope-out"] === "string" ? flags["scope-out"] : undefined,
+      userFlows: typeof flags["user-flows"] === "string" ? flags["user-flows"] : undefined,
+      currentFocus: flags["current-focus"] === true ? "" : typeof flags["current-focus"] === "string" ? flags["current-focus"] : undefined,
+      assumptions: typeof flags.assumptions === "string" ? flags.assumptions : undefined,
+      openQuestions: typeof flags["open-questions"] === "string" ? flags["open-questions"] : undefined,
+      constraints: typeof flags.constraints === "string" ? flags.constraints : undefined,
+      decisions: typeof flags.decisions === "string" ? flags.decisions : undefined,
+      risks: typeof flags.risks === "string" ? flags.risks : undefined,
+      referencePatterns: typeof flags["reference-patterns"] === "string" ? flags["reference-patterns"] : undefined,
+      context: typeof flags.context === "string" ? flags.context : undefined,
+      status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
+      primaryChatId: hasChatRelink ? linkContext?.primaryChatId ?? null : undefined,
+      primaryChatKey: linkContext?.primaryChatKey ?? undefined,
+      linkedProjectIds: hasProjectRelink ? linkContext?.linkedProjectIds ?? [] : undefined,
+      linkedProjectKeys: linkContext?.linkedProjectKeys,
+      currentPhaseId: flags.phase === true ? null : typeof flags.phase === "string" ? flags.phase : undefined,
+      currentStepId: flags.step === true ? null : typeof flags.step === "string" ? flags.step : undefined,
+      currentTaskId: flags.task === true ? null : typeof flags.task === "string" ? flags.task : undefined,
+      plannerFocusId: flags.focus === true ? null : typeof flags.focus === "string" ? flags.focus : undefined,
+    });
+    const updated = await client.updateUserPlan(plan.planId, patch);
+    printPlanOutput(await decryptUserPlan(updated, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "approve" || subcommand === "activate") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], { ...scope, chatId: undefined }, subcommand);
+    const chatId = typeof flags.chat === "string" ? flags.chat : plan.primaryChatId;
+    if (!chatId) throw new Error("Activating a plan requires a primary chat. Pass --chat <chat-id>.");
+    const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
+      primaryChatId: chatId,
+      linkedProjectIds: plan.linkedProjectIds,
+    });
+    const wrapperPatch = await buildUpdateUserPlanInput(plan, masterKey, {
+      primaryChatId: linkContext.primaryChatId,
+      primaryChatKey: linkContext.primaryChatKey,
+      linkedProjectIds: linkContext.linkedProjectIds,
+      linkedProjectKeys: linkContext.linkedProjectKeys,
+    });
+    const activated = await client.activateUserPlan(plan.planId, { version: plan.version, chat_id: linkContext.primaryChatId, key_wrappers: wrapperPatch.key_wrappers });
+    printPlanOutput(await decryptUserPlan(activated, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "attach") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], { ...scope, chatId: undefined }, "attach");
+    const chatId = typeof flags.chat === "string" ? flags.chat : plan.primaryChatId;
+    if (!chatId) throw new Error("Attaching a plan requires --chat <chat-id> for this CLI slice.");
+    const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
+      primaryChatId: chatId,
+      linkedProjectIds: plan.linkedProjectIds,
+    });
+    const wrapperPatch = await buildUpdateUserPlanInput(plan, masterKey, {
+      primaryChatId: linkContext.primaryChatId,
+      primaryChatKey: linkContext.primaryChatKey,
+      linkedProjectIds: linkContext.linkedProjectIds,
+      linkedProjectKeys: linkContext.linkedProjectKeys,
+    });
+    const attached = await client.attachUserPlan(plan.planId, { version: plan.version, chat_id: linkContext.primaryChatId, key_wrappers: wrapperPatch.key_wrappers });
+    printPlanOutput(await decryptUserPlan(attached, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "start") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, "start");
+    const started = await client.startUserPlan(plan.planId, { version: plan.version, updated_at: Math.floor(Date.now() / 1000) });
+    printPlanOutput(await decryptUserPlan(started, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "pause" || subcommand === "resume" || subcommand === "archive") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, subcommand);
+    const status: UserPlanStatus = subcommand === "resume" ? "active" : subcommand === "archive" ? "archived" : "awaiting_confirmation";
+    const updated = await client.updateUserPlan(plan.planId, { version: plan.version, status, updated_at: Math.floor(Date.now() / 1000) });
+    printPlanOutput(await decryptUserPlan(updated, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "complete" || subcommand === "done") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, subcommand);
+    const completed = await client.completeUserPlan(plan.planId, { version: plan.version, updated_at: Math.floor(Date.now() / 1000) });
+    printPlanOutput(await decryptUserPlan(completed, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "tasks") {
+    const action = rest[0];
+    const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, `tasks ${action ?? ""}`.trim());
+    const taskFlags = { ...flags, plan: plan.planId };
+    await handleTasks(client, action, rest.slice(2), taskFlags, redactor);
+    return;
+  }
+
+  const textSection = PLAN_TEXT_SECTIONS[subcommand];
+  if (textSection) {
+    await handlePlanTextSection(client, masterKey, textSection, rest, flags, scope);
+    return;
+  }
+
+  if (subcommand === "success-criteria" || subcommand === "criterion" || subcommand === "criteria") {
+    const action = rest[0];
+    if (!["add", "create", "edit", "update", "remove", "delete"].includes(action ?? "")) throw new Error("Usage: openmates plans success-criteria add|edit|remove <plan-id> ...");
+    const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "criteria add");
+    if (action === "remove" || action === "delete") {
+      const criterionId = requiredStringFlag(flags.criterion ?? rest[2], "--criterion <criterion-id>");
+      const result = await client.deletePlanCriterion(plan.planId, criterionId);
+      if (flags.json === true) printJson(result);
+      else console.log(`Plan success criterion removed: ${criterionId}`);
+      return;
+    }
+    if (action === "edit" || action === "update") {
+      const criterionId = requiredStringFlag(flags.criterion ?? rest[2], "--criterion <criterion-id>");
+      const patch: Partial<UserPlanCriterionRecord> = {
+        status: typeof flags.status === "string" ? flags.status as UserPlanCriterionRecord["status"] : undefined,
+        required: flags.required === true ? true : flags.optional === true ? false : undefined,
+        verification_ids: flags.verification || flags.verifications ? splitCsvFlag(flags.verification ?? flags.verifications) : undefined,
+        updated_at: Math.floor(Date.now() / 1000),
+      };
+      const updated = await client.updatePlanCriterion(plan.planId, criterionId, patch);
+      if (flags.json === true) printJson({ criterion: updated });
+      else console.log(`Plan success criterion updated: ${updated.criterion_id}`);
+      return;
+    }
+    const text = requiredStringFlag(flags.text ?? rest.slice(2).join(" "), "--text <criterion>");
+    const criterion = await buildCreatePlanCriterionInput(plan, masterKey, {
+      criterionId: typeof flags.id === "string" ? flags.id : undefined,
+      text,
+      type: typeof flags.type === "string" ? flags.type : undefined,
+      status: typeof flags.status === "string" ? flags.status : undefined,
+      required: flags.required === true ? true : flags.optional === true ? false : undefined,
+      linkedStepIds: splitCsvFlag(flags.step ?? flags.steps),
+      linkedTaskIds: splitCsvFlag(flags.task ?? flags.tasks),
+      verificationIds: splitCsvFlag(flags.verification ?? flags.verifications),
+    });
+    const created = await client.createPlanCriterion(plan.planId, criterion);
+    if (flags.json === true) printJson({ criterion: created });
+    else console.log(`Plan success criterion added: ${created.criterion_id}`);
+    return;
+  }
+
+  if (subcommand === "learning" || subcommand === "learnings") {
+    const action = rest[0];
+    if (action === "list") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "learnings list");
+      const learnings = await loadPlanLearnings(client, masterKey, plan);
+      if (flags.json === true) printJson({ learnings: learnings.map(planLearningToJson) });
+      else console.log(renderPlanLearningList(learnings));
+      return;
+    }
+    if (action === "show") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "learnings show");
+      const learningId = requiredStringFlag(flags.learning ?? rest[2], "--learning <learning-id>");
+      const learning = findPlanLearning(await loadPlanLearnings(client, masterKey, plan), learningId);
+      printPlanLearningOutput(learning, flags);
+      return;
+    }
+    if (action === "add" || action === "create") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "learnings add");
+      const title = requiredStringFlag(flags.title ?? rest.slice(2).join(" "), "--title <title>");
+      const input = await buildCreatePlanLearningInput(plan, masterKey, {
+        learningId: typeof flags.id === "string" ? flags.id : undefined,
+        type: normalizeLearningType(typeof flags.type === "string" ? flags.type : undefined) ?? "workflow_improvement",
+        targetKind: normalizeLearningTargetKind(typeof flags.target === "string" ? flags.target : typeof flags["target-kind"] === "string" ? flags["target-kind"] : undefined) ?? "workflow",
+        status: normalizeLearningStatus(typeof flags.status === "string" ? flags.status : undefined),
+        severity: normalizeLearningLevel(typeof flags.severity === "string" ? flags.severity : undefined),
+        confidence: normalizeLearningLevel(typeof flags.confidence === "string" ? flags.confidence : undefined),
+        linkedTaskIds: splitCsvFlag(flags.task ?? flags.tasks),
+        linkedCheckIds: splitCsvFlag(flags.check ?? flags.checks),
+        title,
+        observation: typeof flags.observation === "string" ? flags.observation : undefined,
+        rootCause: typeof flags["root-cause"] === "string" ? flags["root-cause"] : undefined,
+        suggestedChange: typeof flags.change === "string" ? flags.change : typeof flags["suggested-change"] === "string" ? flags["suggested-change"] : undefined,
+        evidenceSummary: typeof flags.evidence === "string" ? flags.evidence : typeof flags.summary === "string" ? flags.summary : undefined,
+        taskDraft: typeof flags["task-draft"] === "string" ? flags["task-draft"] : undefined,
+        rejectionReason: typeof flags["rejection-reason"] === "string" ? flags["rejection-reason"] : undefined,
+      });
+      const created = await client.createPlanLearning(plan.planId, input);
+      printPlanLearningOutput(await decryptPlanLearning(plan, created, masterKey), flags);
+      return;
+    }
+    if (action === "edit" || action === "update") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "learnings edit");
+      const learningId = requiredStringFlag(flags.learning ?? rest[2], "--learning <learning-id>");
+      const patch = await buildUpdatePlanLearningInput(plan, masterKey, {
+        status: normalizeLearningStatus(typeof flags.status === "string" ? flags.status : undefined),
+        severity: flags.severity === true ? null : normalizeLearningLevel(typeof flags.severity === "string" ? flags.severity : undefined),
+        confidence: flags.confidence === true ? null : normalizeLearningLevel(typeof flags.confidence === "string" ? flags.confidence : undefined),
+        linkedTaskIds: flags.task || flags.tasks ? splitCsvFlag(flags.task ?? flags.tasks) : undefined,
+        linkedCheckIds: flags.check || flags.checks ? splitCsvFlag(flags.check ?? flags.checks) : undefined,
+        appliedTaskId: flags["applied-task"] === true ? null : typeof flags["applied-task"] === "string" ? flags["applied-task"] : undefined,
+        title: typeof flags.title === "string" ? flags.title : undefined,
+        observation: typeof flags.observation === "string" ? flags.observation : undefined,
+        rootCause: typeof flags["root-cause"] === "string" ? flags["root-cause"] : undefined,
+        suggestedChange: typeof flags.change === "string" ? flags.change : typeof flags["suggested-change"] === "string" ? flags["suggested-change"] : undefined,
+        evidenceSummary: typeof flags.evidence === "string" ? flags.evidence : typeof flags.summary === "string" ? flags.summary : undefined,
+        taskDraft: typeof flags["task-draft"] === "string" ? flags["task-draft"] : undefined,
+        rejectionReason: typeof flags["rejection-reason"] === "string" ? flags["rejection-reason"] : undefined,
+      });
+      const updated = await client.updatePlanLearning(plan.planId, learningId, patch);
+      printPlanLearningOutput(await decryptPlanLearning(plan, updated, masterKey), flags);
+      return;
+    }
+    if (action === "remove" || action === "delete") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "learnings remove");
+      const learningId = requiredStringFlag(flags.learning ?? rest[2], "--learning <learning-id>");
+      const result = await client.deletePlanLearning(plan.planId, learningId);
+      if (flags.json === true) printJson(result);
+      else console.log(`Plan learning removed: ${learningId}`);
+      return;
+    }
+    if (action === "create-tasks") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "learnings create-tasks");
+      const learningIds = splitCsvFlag(flags.learning ?? flags.learnings).concat(rest.slice(2));
+      if (flags.all !== true && learningIds.length === 0) throw new Error("Select at least one learning with --learning <learning-id>, or pass --all.");
+      const learnings = await loadPlanLearnings(client, masterKey, plan);
+      const selected = flags.all === true ? learnings : learningIds.map((learningId) => findPlanLearning(learnings, learningId));
+      for (const learning of selected) {
+        if (finalizedLearningNeedsTaskSafetyScan(learning)) assertSafeLearningTaskDraft(learning.taskDraft);
+      }
+      const timestamp = Math.floor(Date.now() / 1000);
+      const result = await client.createPlanLearningTasks(plan.planId, {
+        all: flags.all === true,
+        learning_ids: flags.all === true ? undefined : learningIds,
+        created_at: timestamp,
+        updated_at: timestamp,
+      });
+      const tasks = await decryptUserTasks(result.tasks, masterKey);
+      if (flags.json === true) printJson({ tasks: tasks.map(taskToJson), skipped: result.skipped });
+      else {
+        console.log(renderTaskList(tasks));
+        if (result.skipped.length > 0) {
+          const skipped = result.skipped.map((item) => `${item.learning_id ?? "unknown"}:${item.reason ?? "unknown"}`).join(", ");
+          console.log(`Skipped learnings: ${skipped}`);
+        }
+      }
+      return;
+    }
+    throw new Error("Usage: openmates plans learnings list <plan-id>, add <plan-id> --title <title>, edit <plan-id> --learning <id>, or create-tasks <plan-id> --learning <id>");
+  }
+
+  if (subcommand === "check" || subcommand === "checks" || subcommand === "verification") {
+    const action = rest[0];
+    if (action === "remove" || action === "delete") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "checks remove");
+      const verificationId = requiredStringFlag(flags.verification ?? flags.check ?? rest[2], "--check <check-id>");
+      const result = await client.deletePlanVerification(plan.planId, verificationId);
+      if (flags.json === true) printJson(result);
+      else console.log(`Plan check removed: ${verificationId}`);
+      return;
+    }
+    if (action === "edit" || action === "update") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "checks edit");
+      const verificationId = requiredStringFlag(flags.verification ?? flags.check ?? rest[2], "--check <check-id>");
+      const patch = await buildUpdatePlanVerificationInput(plan, masterKey, {
+        kind: typeof flags.kind === "string" ? flags.kind : typeof flags.type === "string" ? flags.type : undefined,
+        phase: typeof flags.phase === "string" ? flags.phase : undefined,
+        status: parsePlanVerificationStatus(flags.status),
+        lifecycleStatus: flags.lifecycle === true ? null : typeof flags.lifecycle === "string" ? flags.lifecycle : typeof flags["lifecycle-status"] === "string" ? flags["lifecycle-status"] : undefined,
+        requiredForDone: flags.required === true ? true : flags.optional === true ? false : undefined,
+        covers: flags.cover || flags.covers ? splitCsvFlag(flags.cover ?? flags.covers) : undefined,
+        sourceHash: flags["source-hash"] === true ? null : typeof flags["source-hash"] === "string" ? flags["source-hash"] : undefined,
+        score: parseOptionalNumberFlag(flags.score, "--score"),
+        threshold: parseOptionalNumberFlag(flags.threshold, "--threshold"),
+        confidence: flags.confidence === true ? null : typeof flags.confidence === "string" ? flags.confidence : undefined,
+        linkedSubChatId: flags["sub-chat"] === true ? null : typeof flags["sub-chat"] === "string" ? flags["sub-chat"] : undefined,
+        sourceEmbedId: flags.embed === true ? null : typeof flags.embed === "string" ? flags.embed : typeof flags["source-embed"] === "string" ? flags["source-embed"] : undefined,
+        runnerKind: flags.runner === true ? null : typeof flags.runner === "string" ? flags.runner : typeof flags["runner-kind"] === "string" ? flags["runner-kind"] : undefined,
+        description: typeof flags.description === "string" ? flags.description : undefined,
+        command: typeof flags.command === "string" ? flags.command : undefined,
+        evaluationPrompt: typeof flags.prompt === "string" ? flags.prompt : typeof flags["evaluation-prompt"] === "string" ? flags["evaluation-prompt"] : undefined,
+        evaluatorInstructions: typeof flags.instructions === "string" ? flags.instructions : typeof flags["evaluator-instructions"] === "string" ? flags["evaluator-instructions"] : undefined,
+        expectedResult: typeof flags.expected === "string" ? flags.expected : typeof flags["expected-result"] === "string" ? flags["expected-result"] : undefined,
+        sourcePath: typeof flags.path === "string" ? flags.path : typeof flags["source-path"] === "string" ? flags["source-path"] : undefined,
+        redPhaseReason: typeof flags["red-phase-reason"] === "string" ? flags["red-phase-reason"] : undefined,
+      });
+      const updated = await client.updatePlanVerification(plan.planId, verificationId, patch);
+      if (flags.json === true) printJson({ verification: updated });
+      else console.log(`Plan check updated: ${updated.verification_id}`);
+      return;
+    }
+    if (action === "add" || action === "create") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "checks add");
+      const kind = requiredStringFlag(flags.kind ?? flags.type, "--kind <manual_check|command|ai_evaluator>");
+      const verification = await buildCreatePlanVerificationInput(plan, masterKey, {
+        verificationId: typeof flags.id === "string" ? flags.id : undefined,
+        kind,
+        phase: typeof flags.phase === "string" ? flags.phase : undefined,
+        status: parsePlanVerificationStatus(flags.status, "pending"),
+        requiredForDone: flags.required === true ? true : flags.optional === true ? false : undefined,
+        covers: splitCsvFlag(flags.cover ?? flags.covers),
+        threshold: parseOptionalNumberFlag(flags.threshold, "--threshold"),
+        linkedTaskId: typeof flags.task === "string" ? flags.task : null,
+        runId: typeof flags.run === "string" ? flags.run : null,
+        command: typeof flags.command === "string" ? flags.command : undefined,
+        evaluationPrompt: typeof flags.prompt === "string" ? flags.prompt : typeof flags["evaluation-prompt"] === "string" ? flags["evaluation-prompt"] : undefined,
+        expectedResult: typeof flags.expected === "string" ? flags.expected : typeof flags["expected-result"] === "string" ? flags["expected-result"] : undefined,
+      });
+      const created = await client.createPlanVerification(plan.planId, verification);
+      if (flags.json === true) printJson({ verification: created });
+      else console.log(`Plan check added: ${created.verification_id}`);
+      return;
+    }
+    if (action === "evidence" || action === "record") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "checks evidence");
+      const verificationId = requiredStringFlag(flags.verification ?? flags.check ?? rest[2], "--verification <verification-id>");
+      const evidence = await buildPlanVerificationEvidenceInput(plan, masterKey, {
+        status: parsePlanVerificationStatus(flags.status, undefined, true)!,
+        score: parseOptionalNumberFlag(flags.score, "--score"),
+        threshold: parseOptionalNumberFlag(flags.threshold, "--threshold"),
+        confidence: flags.confidence === true ? null : typeof flags.confidence === "string" ? flags.confidence : undefined,
+        runId: flags.run === true ? null : typeof flags.run === "string" ? flags.run : undefined,
+        resultSummary: typeof flags.summary === "string" ? flags.summary : undefined,
+        requiredFixes: typeof flags["required-fixes"] === "string" ? flags["required-fixes"] : undefined,
+      });
+      const updated = await client.addPlanVerificationEvidence(plan.planId, verificationId, evidence);
+      if (flags.json === true) printJson({ verification: updated });
+      else console.log(`Plan check evidence recorded: ${updated.verification_id}`);
+      return;
+    }
+    throw new Error("Usage: openmates plans checks add <plan-id> --kind <kind> or openmates plans checks evidence <plan-id> --verification <id> --status <status>");
+  }
+
+  throw new Error(`Unknown plans command '${subcommand}'. Run 'openmates plans --help'.`);
+}
+
+function planScopeFromFlags(
+  flags: Record<string, string | boolean>,
+  options: { ignoreStatus?: boolean } = {},
+): { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean } {
+  return {
+    status: options.ignoreStatus ? undefined : normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
+    chatId: typeof flags.chat === "string" ? flags.chat : undefined,
+    projectId: typeof flags.project === "string" ? flags.project : undefined,
+    activeOnly: flags.active === true ? true : undefined,
+    ...teamContextFromFlags(flags),
+  };
+}
+
+async function loadPlans(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
+): Promise<DecryptedUserPlan[]> {
+  const records = await client.listUserPlans(scope);
+  return decryptUserPlans(records, masterKey);
+}
+
+async function loadPlanLearnings(client: OpenMatesClient, masterKey: Uint8Array, plan: DecryptedUserPlan): Promise<DecryptedPlanLearning[]> {
+  const records = await client.listPlanLearnings(plan.planId);
+  return decryptPlanLearnings(plan, records, masterKey);
+}
+
+async function resolvePlan(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  id: string,
+  scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
+): Promise<DecryptedUserPlan> {
+  return findPlan(await loadPlans(client, masterKey, { ...scope, status: undefined }), id);
+}
+
+async function requiredResolvedPlan(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  id: string | undefined,
+  scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
+  action: string,
+): Promise<DecryptedUserPlan> {
+  if (!id) throw new Error(`Missing plan ID. Usage: openmates plans ${action} <plan-id|short-id>`);
+  return resolvePlan(client, masterKey, id, scope);
+}
+
+type PlanTextSection = {
+  label: string;
+  option: "goal" | "currentFocus" | "scopeIn" | "scopeOut" | "userFlows" | "assumptions" | "openQuestions" | "constraints" | "decisions" | "risks" | "referencePatterns" | "context";
+  read: (plan: DecryptedUserPlan) => string;
+};
+
+const PLAN_TEXT_SECTIONS: Record<string, PlanTextSection> = {
+  goal: { label: "Goal", option: "goal", read: (plan) => plan.goal },
+  "current-focus": { label: "Current focus", option: "currentFocus", read: (plan) => plan.currentFocus },
+  "user-flows": { label: "User flows", option: "userFlows", read: (plan) => plan.userFlows },
+  "scope-in": { label: "Scope in", option: "scopeIn", read: (plan) => plan.scopeIn },
+  "scope-out": { label: "Scope out", option: "scopeOut", read: (plan) => plan.scopeOut },
+  assumptions: { label: "Assumptions", option: "assumptions", read: (plan) => plan.assumptions },
+  "open-questions": { label: "Open questions", option: "openQuestions", read: (plan) => plan.openQuestions },
+  constraints: { label: "Constraints", option: "constraints", read: (plan) => plan.constraints },
+  decisions: { label: "Decisions", option: "decisions", read: (plan) => plan.decisions },
+  risks: { label: "Risks", option: "risks", read: (plan) => plan.risks },
+  "reference-patterns": { label: "Reference patterns", option: "referencePatterns", read: (plan) => plan.referencePatterns },
+  context: { label: "Context", option: "context", read: (plan) => plan.context },
+};
+
+async function handlePlanTextSection(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  section: PlanTextSection,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+  scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
+): Promise<void> {
+  const action = rest[0];
+  if (!["set", "clear", "add", "edit", "update", "remove", "answer", "supersede"].includes(action ?? "")) {
+    throw new Error(`Usage: openmates plans ${section.label.toLowerCase()} set|add|edit|remove <plan-id> --text <text>`);
+  }
+  const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, `${section.label.toLowerCase()} ${action}`);
+  const current = section.read(plan).trim();
+  const rawText = typeof flags.text === "string" ? flags.text : rest.slice(2).join(" ").trim();
+  const next = action === "clear" || action === "remove"
+    ? ""
+    : action === "add" || action === "answer" || action === "supersede"
+      ? appendPlanSectionText(current, requiredStringFlag(rawText, "--text <text>"))
+      : requiredStringFlag(rawText, "--text <text>");
+  const patch = await buildUpdateUserPlanInput(plan, masterKey, { [section.option]: next });
+  const updated = await client.updateUserPlan(plan.planId, patch);
+  printPlanOutput(await decryptUserPlan(updated, masterKey), flags);
+}
+
+function appendPlanSectionText(current: string, addition: string): string {
+  return current ? `${current}\n- ${addition}` : `- ${addition}`;
+}
+
+function printPlanOutput(plan: DecryptedUserPlan, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) printJson({ plan: planToJson(plan) });
+  else {
+    console.log(renderPlanDetail(plan));
+    printHistoryCommands(plan.encrypted.history ?? null);
+  }
+}
+
+function normalizeGoalFlag(value: string | boolean | undefined): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("Missing goal. Usage: openmates chat --goal <goal>");
+  }
+  return value.trim();
+}
+
+async function handleGoalChat(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+  redactor?: OutputRedactor,
+): Promise<void> {
+  if (resolveApiKey(flags)) {
+    throw new Error("openmates chat --goal uses your paired CLI session. For API-key clients, use the npm or pip SDK chats.send(..., { goal }).");
+  }
+  if (!client.hasSession()) {
+    throw new Error("openmates chat --goal requires login. Run 'openmates login' first.");
+  }
+  const goal = normalizeGoalFlag(flags.goal);
+  const result = await sendMessageStreaming(
+    client,
+    {
+      message: typeof flags.message === "string" && flags.message.trim() ? flags.message.trim() : goal,
+      chatId: undefined,
+      incognito: false,
+      json: flags.json === true,
+      autoApproveSubChats: flags["auto-approve"] === true,
+      autoApproveMemories: flags["auto-approve-memories"] === true,
+      acceptTaskProposals: flags["accept-task-proposals"] === true,
+      piiDetection: flags["no-pii-detection"] !== true,
+      responseTimeoutMs: parseResponseTimeoutMs(flags),
+      ...teamContextFromFlags(flags),
+    },
+    redactor,
+  );
+  if (!("chatId" in result) || !result.chatId) {
+    throw new Error("Goal chat did not return a saved chat id.");
+  }
+
+  const masterKey = client.getMasterKeyBytes();
+  const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
+    primaryChatId: result.chatId,
+    linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
+  });
+  const planInput = await buildCreateUserPlanInput(masterKey, {
+    title: typeof flags.title === "string" && flags.title.trim() ? flags.title.trim() : goal,
+    summary: typeof flags.summary === "string" ? flags.summary : "",
+    goal,
+    status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
+    primaryChatId: linkContext.primaryChatId,
+    primaryChatKey: linkContext.primaryChatKey,
+    linkedProjectIds: linkContext.linkedProjectIds,
+    linkedProjectKeys: linkContext.linkedProjectKeys,
+  });
+  const plan = await decryptUserPlan(await client.createUserPlan(planInput), masterKey);
+  if (flags.json === true) {
+    printJson({ ...result, chat_id: result.chatId, plan: planToJson(plan) });
+    return;
+  }
+  const shortChatId = result.chatId.slice(0, 8);
+  process.stdout.write(
+    `${SEP}\n` +
+      `\x1b[2mPlan attached: ${plan.shortId} (${plan.status.replaceAll("_", " ")})\x1b[0m\n` +
+      `\x1b[2mPlan:     openmates plans show ${plan.shortId}\x1b[0m\n` +
+      `\x1b[2mContinue: openmates chats send --chat ${shortChatId} "your message"\x1b[0m\n`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Projects
+// ---------------------------------------------------------------------------
+
+async function handleProjects(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+  redactor?: OutputRedactor,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printProjectsHelp();
+    return;
+  }
+
+  if (subcommand === "delete" && (flags.json === true || !process.stdin.isTTY) && typeof flags.confirm !== "string") {
+    throw new CliContractError("confirmation_required", "Project deletion requires --confirm <exact-project-id>.");
+  }
+  if (subcommand === "sources" && rest[0] === "remove" && (flags.json === true || !process.stdin.isTTY) && typeof flags.confirm !== "string") {
+    throw new CliContractError("confirmation_required", "Project source removal requires --confirm <source-id>.");
+  }
+  if (subcommand === "items" && rest[0] === "remove" && (flags.json === true || !process.stdin.isTTY) && flags.confirm !== true) {
+    throw new CliContractError("confirmation_required", "Project item removal requires --confirm.");
+  }
+  if (subcommand === "files" && (flags.json === true || !process.stdin.isTTY) && !hasExplicitProjectContext(flags)) {
+    throw new CliContractError("context_confirmation_required", "Live file requests require --personal or --team <team>.");
+  }
+
+  const context = await resolveProjectContext(client, flags, subcommand === "files");
+  const masterKey = client.getMasterKeyBytes();
+
+  if (subcommand === "list") {
+    const projects = await loadProjects(client, masterKey, flags, context);
+    const filtered = flags["include-archived"] === true ? projects : projects.filter((project) => !project.archived);
+    printProjectsOutput(filtered, flags);
+    return;
+  }
+
+  if (subcommand === "show" || subcommand === "open") {
+    const project = await requiredResolvedProject(client, masterKey, requiredProjectTarget(rest, subcommand), flags, context);
+    if (subcommand === "open") {
+      await client.updateProject(project.projectId, { last_opened_at: nowSeconds(), ...(project.version !== null ? { version: project.version } : {}) }, context);
+    }
+    printProjectOutput(project, flags);
+    return;
+  }
+
+  if (subcommand === "create") {
+    const name = requiredStringFlag(rest[0] ?? flags.name, "project name");
+    const projectKey = randomBytes(32);
+    const wrapping = await client.projectWrappingKey(context);
+    const projectId = randomUUID();
+    const timestamp = nowSeconds();
+    const payload: Record<string, unknown> = {
+      project_id: projectId,
+      encrypted_project_key: wrapping.teamId ? null : await encryptBytesWithAesGcm(projectKey, wrapping.key),
+      encrypted_name: await encryptWithAesGcmCombined(name, projectKey),
+      encrypted_description: await encryptWithAesGcmCombined(typeof flags.description === "string" ? flags.description : "", projectKey),
+      encrypted_icon: await encryptWithAesGcmCombined(typeof flags.icon === "string" ? flags.icon : "folder", projectKey),
+      encrypted_color: await encryptWithAesGcmCombined(typeof flags.color === "string" ? flags.color : "default", projectKey),
+      pinned: flags.pinned === true,
+      created_at: timestamp,
+      updated_at: timestamp,
+      last_opened_at: timestamp,
+      key_wrappers: wrapping.teamId ? [{
+        key_type: "team",
+        hashed_team_id: createHash("sha256").update(wrapping.teamId).digest("hex"),
+        team_key_epoch: 1,
+        encrypted_project_key: await encryptBytesWithAesGcm(projectKey, wrapping.key),
+        wrapper_version: 1,
+        created_at: timestamp,
+      }] : [],
+    };
+    const result = await client.createProject(payload, context);
+    const record = { ...payload, ...((result.project ?? {}) as Record<string, unknown>) } as ProjectRecord;
+    printProjectOutput(await decryptProject(client, record, masterKey, context), flags);
+    return;
+  }
+
+  if (["update", "archive", "unarchive"].includes(subcommand)) {
+    const project = await requiredResolvedProject(client, masterKey, requiredProjectTarget(rest, subcommand), flags, context);
+    const patch: Record<string, unknown> = { updated_at: nowSeconds(), ...(project.version !== null ? { version: project.version } : {}) };
+    if (subcommand === "archive" || subcommand === "unarchive") patch.archived = subcommand === "archive";
+    if (typeof flags.name === "string") patch.encrypted_name = await encryptWithAesGcmCombined(flags.name, project.projectKey);
+    if (typeof flags.description === "string") patch.encrypted_description = await encryptWithAesGcmCombined(flags.description, project.projectKey);
+    if (typeof flags.icon === "string") patch.encrypted_icon = await encryptWithAesGcmCombined(flags.icon, project.projectKey);
+    if (typeof flags.color === "string") patch.encrypted_color = await encryptWithAesGcmCombined(flags.color, project.projectKey);
+    if (flags.pin === true) patch.pinned = true;
+    if (flags.unpin === true) patch.pinned = false;
+    if (Object.keys(patch).every((key) => ["updated_at", "version"].includes(key))) {
+      throw new CliContractError("nothing_to_update", "Provide a Project field to update.");
+    }
+    const updated = await client.updateProject(project.projectId, patch, context);
+    printProjectOutput(await decryptProject(client, { ...project.encrypted, ...updated }, masterKey, context), flags);
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const project = await requiredResolvedProject(client, masterKey, requiredProjectTarget(rest, subcommand), flags, context);
+    await requireExactConfirmation("Project deletion", project.projectId, flags);
+    await client.deleteProject(project.projectId, project.projectId, context);
+    if (flags.json === true) printJson({ deleted: true, project_id: project.projectId });
+    else console.log(`Project deleted: ${project.name} (${project.projectId})`);
+    return;
+  }
+
+  if (subcommand === "items") {
+    await handleProjectItems(client, masterKey, rest, flags, context);
+    return;
+  }
+
+  if (subcommand === "sources") {
+    await handleProjectSources(client, masterKey, rest, flags, context);
+    return;
+  }
+
+  if (subcommand === "files") {
+    await handleProjectFiles(client, masterKey, rest, flags, context);
+    return;
+  }
+
+  if (subcommand === "history") {
+    const projectId = rest[0];
+    if (!projectId) throw new Error("Missing project ID. Usage: openmates projects history <project-id>");
+    printObjectHistory(await client.listObjectHistory("project", projectId, typeof flags.limit === "string" ? Number(flags.limit) : 50), flags);
+    return;
+  }
+
+  if (subcommand === "restore") {
+    const projectId = rest[0];
+    if (!projectId) throw new Error("Missing project ID. Usage: openmates projects restore <project-id> --entry <history-entry-id>");
+    const entryId = historyEntryIdFromFlagsOrRest(flags, rest, "openmates projects restore <project-id> --entry <history-entry-id>");
+    const result = await client.restoreObjectHistory("project", projectId, entryId, parseHistoryRestoreState(flags.state));
+    if (flags.json === true) printJson(result);
+    else {
+      console.log(`Project restored: ${projectId}`);
+      printHistoryCommands(result.history as WorkspaceHistoryResult | null | undefined);
+    }
+    return;
+  }
+
+  if (subcommand === "ask") {
+    const instruction = requiredAskInstruction(flags, rest, "openmates projects ask \"Launch workspace\"");
+    const exactAsk = await buildExactProjectAsk(client, masterKey, instruction, flags);
+    if (exactAsk) {
+      const result = await client.askProject({ instruction, ...exactAsk });
+      if (await handleWorkspaceAskFallbackChat(client, "project", instruction, result, flags, redactor)) return;
+      printAskApplyResult("project", result, flags);
+      return;
+    }
+    const proposal = isShortWorkspaceAsk(instruction)
+      ? { name: instruction, description: "", icon: "folder", color: "default" }
+      : extractRecord(await client.planProjectAsk({ instruction }), "proposed_project");
+    const projectKey = randomBytes(32);
+    const timestamp = Math.floor(Date.now() / 1000);
+    const projectId = randomUUID();
+    const name = requiredString(proposal, "name", instruction);
+    const encryptedCreate = {
+      project_id: projectId,
+      encrypted_project_key: await encryptBytesWithAesGcm(projectKey, masterKey),
+      encrypted_name: await encryptWithAesGcmCombined(name, projectKey),
+      encrypted_description: await encryptWithAesGcmCombined(typeof flags.description === "string" ? flags.description : optionalString(proposal, "description") ?? "", projectKey),
+      encrypted_icon: await encryptWithAesGcmCombined(optionalString(proposal, "icon") ?? "folder", projectKey),
+      encrypted_color: await encryptWithAesGcmCombined(optionalString(proposal, "color") ?? "default", projectKey),
+      pinned: flags.pinned === true,
+      created_at: timestamp,
+      updated_at: timestamp,
+      last_opened_at: timestamp,
+    };
+    const result = await client.askProject({ instruction, encryptedCreate });
+    if (await handleWorkspaceAskFallbackChat(client, "project", instruction, result, flags, redactor)) return;
+    printAskApplyResult("project", result, flags);
+    return;
+  }
+
+  throw new Error(`Unknown projects command '${subcommand}'. Run 'openmates projects --help'.`);
+}
+
+async function handleProjectItems(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+  context: { teamId?: string; personal?: boolean },
+): Promise<void> {
+  const action = rest[0];
+  const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "project"), flags, context);
+  if (action === "list") {
+    const result = await client.listProjectItems(project.projectId, context);
+    const folders = await Promise.all(result.folders.map(async (folder) => ({
+      folder_id: folder.folder_id,
+      parent_folder_id: folder.hashed_parent_folder_id ?? null,
+      name: await decryptOptionalProjectField(folder.encrypted_name as string | undefined, project.projectKey),
+      position: folder.position ?? 0,
+    })));
+    const items = await Promise.all(result.items.map(async (item) => ({
+      project_item_id: item.project_item_id,
+      type: item.item_type,
+      target_id: await decryptOptionalProjectField(item.target_id_encrypted, project.projectKey),
+      display_name: await decryptOptionalProjectField(item.encrypted_display_name, project.projectKey),
+      ownership_label: item.ownership_label ?? null,
+      position: item.position ?? 0,
+    })));
+    if (flags.json === true) printJson({ project_id: project.projectId, folders, items });
+    else printProjectItems(folders, items);
+    return;
+  }
+  if (action === "remove") {
+    const type = requiredStringFlag(flags.type, "--type <embed|chat|workflow>");
+    if (!["embed", "chat", "workflow"].includes(type)) throw new CliContractError("invalid_item_type", "Item type must be embed, chat, or workflow.");
+    const target = requiredStringFlag(flags.target, "--target <id>");
+    if (flags.confirm !== true && (flags.json === true || !process.stdin.isTTY)) {
+      throw new CliContractError("confirmation_required", "Project item removal requires --confirm.");
+    }
+    if (flags.confirm !== true && !await promptConfirmation(`Remove ${type} ${target} from this Project?`)) return;
+    const result = await client.deleteProjectItemByTarget(project.projectId, type as "embed" | "chat" | "workflow", target, context);
+    if (flags.json === true) printJson({ project_id: project.projectId, target_id: target, ...result });
+    else console.log(result.deleted ? "Project item removed." : "Project item was not linked.");
+    return;
+  }
+  throw new CliContractError("unknown_projects_items_command", "Use 'projects items list' or 'projects items remove'.");
+}
+
+async function handleProjectSources(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+  context: { teamId?: string; personal?: boolean },
+): Promise<void> {
+  const action = rest[0];
+  const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "project"), flags, context);
+  if (action === "list") {
+    const sources = await safeProjectSources(client, project, context);
+    if (flags.json === true) printJson({ project_id: project.projectId, sources });
+    else printProjectSources(sources);
+    return;
+  }
+  if (action === "remove") {
+    const sourceId = requiredStringFlag(flags.source, "--source <source-id>");
+    await requireExactConfirmation("Project source removal", sourceId, flags);
+    const result = await client.deleteProjectSource(project.projectId, sourceId, sourceId, context);
+    if (flags.json === true) printJson({ project_id: project.projectId, source_id: sourceId, ...result });
+    else console.log(`Project source removed: ${sourceId}`);
+    return;
+  }
+  throw new CliContractError("unknown_projects_sources_command", "Use 'projects sources list' or 'projects sources remove'.");
+}
+
+async function handleProjectFiles(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+  context: { teamId?: string; personal?: boolean },
+): Promise<void> {
+  const action = rest[0];
+  if (!action || !["list", "search", "read"].includes(action)) {
+    throw new CliContractError("unknown_projects_files_command", "Use 'projects files list', 'search', or 'read'.");
+  }
+  const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "project"), flags, context);
+  const sources = await client.listProjectSources(project.projectId, context);
+  const source = await selectProjectSource(sources, flags);
+  let operation: "list" | "search" | "read_text";
+  let argumentsValue: Record<string, unknown>;
+  if (action === "list") {
+    operation = "list";
+    const relativePath = safeRelativeProjectPath(typeof flags.path === "string" ? flags.path : ".");
+    const depth = parseBoundedInteger(flags.depth, "--depth", 1, 8, 1);
+    argumentsValue = { path: relativePath, depth };
+  } else if (action === "search") {
+    operation = "search";
+    const query = requiredStringFlag(rest[2], "search query");
+    if (Buffer.byteLength(query, "utf8") > 256) throw new CliContractError("query_too_large", "Search query exceeds 256 bytes.");
+    argumentsValue = { query };
+  } else {
+    operation = "read_text";
+    argumentsValue = { path: safeRelativeProjectPath(requiredStringFlag(rest[2], "relative path")) };
+  }
+  const result = await requestProjectRemoteOperation({
+    client,
+    projectId: project.projectId,
+    projectKey: project.projectKey,
+    source,
+    operation,
+    arguments: argumentsValue,
+    context,
+  });
+  printProjectFileResult(action, project.projectId, source.source_id, result, flags);
+}
+
+class CliContractError extends Error {
+  constructor(public readonly code: string, message: string) {
+    super(message);
+    this.name = "CliContractError";
+  }
+}
+
+function hasExplicitProjectContext(flags: Record<string, string | boolean>): boolean {
+  return flags.personal === true || typeof flags.team === "string" || typeof flags["team-id"] === "string";
+}
+
+export async function resolveProjectContext(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+  requireExplicit: boolean,
+): Promise<{ teamId?: string; personal?: boolean }> {
+  if (flags.personal === true && (typeof flags.team === "string" || typeof flags["team-id"] === "string")) {
+    throw new CliContractError("context_conflict", "Choose either --personal or --team <team>, not both.");
+  }
+  if (flags.personal === true) return { personal: true };
+  const requested = typeof flags.team === "string" ? flags.team : typeof flags["team-id"] === "string" ? flags["team-id"] : null;
+  if (requested) {
+    const teams = await client.listTeams();
+    const matches = [
+      ...new Map(
+        teams
+          .filter((team) => team.team_id === requested || team.slug === requested)
+          .map((team) => [team.team_id, team]),
+      ).values(),
+    ];
+    if (matches.length !== 1 || !matches[0]?.team_id) {
+      throw new CliContractError(matches.length > 1 ? "ambiguous_team" : "team_not_found", `Team '${requested}' was not found uniquely.`);
+    }
+    return { teamId: matches[0].team_id };
+  }
+  if (requireExplicit) throw new CliContractError("context_confirmation_required", "Live file requests require --personal or --team <team>.");
+  const activeTeamId = client.getActiveTeamId();
+  return activeTeamId ? { teamId: activeTeamId } : { personal: true };
+}
+
+function requiredProjectTarget(rest: string[], action: string): string {
+  return requiredStringFlag(rest[0], `Project for '${action}'`);
+}
+
+function projectToJson(project: DecryptedProject): Record<string, unknown> {
+  return {
+    project_id: project.projectId,
+    short_id: project.projectId.slice(0, 8),
+    name: project.name,
+    description: project.description,
+    icon: project.icon,
+    color: project.color,
+    pinned: project.pinned,
+    archived: project.archived,
+    version: project.version,
+    mutation_permissions: project.encrypted.mutation_permissions ?? null,
+  };
+}
+
+function printProjectsOutput(projects: DecryptedProject[], flags: Record<string, string | boolean>): void {
+  if (flags.json === true) {
+    printJson({ projects: projects.map(projectToJson) });
+    return;
+  }
+  if (projects.length === 0) {
+    console.log("No Projects.");
+    return;
+  }
+  for (const project of projects) {
+    console.log(`${project.projectId.slice(0, 8)}  ${project.name}${project.archived ? "  [archived]" : ""}`);
+  }
+}
+
+function printProjectOutput(project: DecryptedProject | null, flags: Record<string, string | boolean>): void {
+  if (!project) throw new CliContractError("project_decryption_failed", "Project metadata could not be decrypted.");
+  const value = projectToJson(project);
+  if (flags.json === true) printJson({ project: value });
+  else {
+    console.log(`${project.name} (${project.projectId})`);
+    if (project.description) kv("description", project.description);
+    kv("archived", String(project.archived));
+    kv("pinned", String(project.pinned));
+    const permissions = value.mutation_permissions;
+    if (permissions) kv("permissions", JSON.stringify(permissions));
+  }
+}
+
+async function safeProjectSources(
+  client: OpenMatesClient,
+  project: DecryptedProject,
+  context: { teamId?: string; personal?: boolean },
+): Promise<Array<Record<string, unknown>>> {
+  return Promise.all((await client.listProjectSources(project.projectId, context)).map(async (source) => ({
+    source_id: source.source_id,
+    source_type: source.source_type,
+    display_name: await decryptOptionalProjectField(source.encrypted_display_name, project.projectKey),
+    capabilities: source.capabilities ?? [],
+    status: source.status ?? "offline",
+    ownership_label: source.ownership_label ?? null,
+  })));
+}
+
+async function selectProjectSource(
+  sources: ProjectSourceRecord[],
+  flags: Record<string, string | boolean>,
+): Promise<ProjectSourceRecord> {
+  const requested = typeof flags.source === "string" ? flags.source : null;
+  if (requested) {
+    const source = sources.find((candidate) => candidate.source_id === requested);
+    if (!source) throw new CliContractError("source_not_found", `Project source '${requested}' was not found.`);
+    return source;
+  }
+  const eligible = sources.filter((source) => source.status === "connected");
+  if (eligible.length === 1) return eligible[0];
+  if (eligible.length === 0) throw new CliContractError("source_offline", "No online Project source is available.");
+  if (flags.json === true || !process.stdin.isTTY) {
+    throw new CliContractError("source_selection_required", "Multiple online Project sources require --source <source-id>.");
+  }
+  console.log("Online Project sources:");
+  eligible.forEach((source, index) => console.log(`  ${index + 1}. ${source.source_id}`));
+  const selected = Number((await promptLine("Select source number: ")).trim());
+  if (!Number.isInteger(selected) || selected < 1 || selected > eligible.length) {
+    throw new CliContractError("source_selection_invalid", "Project source selection was invalid.");
+  }
+  return eligible[selected - 1];
+}
+
+function safeRelativeProjectPath(value: string): string {
+  const normalized = value.replaceAll("\\", "/");
+  if (!normalized || normalized.startsWith("/") || normalized.includes("\0")) {
+    throw new CliContractError("invalid_path", "Project file paths must be source-relative.");
+  }
+  const parts = normalized.split("/");
+  if (parts.some((part) => part === "..")) throw new CliContractError("invalid_path", "Project file paths cannot traverse outside the source.");
+  return normalized;
+}
+
+function parseBoundedInteger(
+  value: string | boolean | undefined,
+  flag: string,
+  minimum: number,
+  maximum: number,
+  fallback: number,
+): number {
+  if (value === undefined) return fallback;
+  if (typeof value !== "string" || !/^\d+$/.test(value)) throw new CliContractError("invalid_limit", `${flag} must be an integer.`);
+  const parsed = Number(value);
+  if (parsed < minimum || parsed > maximum) throw new CliContractError("invalid_limit", `${flag} must be between ${minimum} and ${maximum}.`);
+  return parsed;
+}
+
+export async function requireExactConfirmation(
+  label: string,
+  exactValue: string,
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (typeof flags.confirm === "string") {
+    if (flags.confirm !== exactValue) throw new CliContractError("confirmation_mismatch", `${label} confirmation must exactly match '${exactValue}'.`);
+    return;
+  }
+  if (flags.json === true || !process.stdin.isTTY) throw new CliContractError("confirmation_required", `${label} requires --confirm <exact-id>.`);
+  const answer = (await promptLine(`${label}. Type ${exactValue} to continue: `)).trim();
+  if (answer !== exactValue) throw new CliContractError("confirmation_cancelled", `${label} cancelled.`);
+}
+
+async function promptConfirmation(message: string): Promise<boolean> {
+  const answer = (await promptLine(`${message} [y/N] `)).trim().toLowerCase();
+  return answer === "y" || answer === "yes";
+}
+
+function printProjectItems(folders: Array<Record<string, unknown>>, items: Array<Record<string, unknown>>): void {
+  if (folders.length === 0 && items.length === 0) {
+    console.log("No Project items.");
+    return;
+  }
+  for (const folder of folders) console.log(`folder  ${String(folder.name || folder.folder_id)}`);
+  for (const item of items) console.log(`${String(item.type)}  ${String(item.display_name || item.target_id)}`);
+}
+
+function printProjectSources(sources: Array<Record<string, unknown>>): void {
+  if (sources.length === 0) {
+    console.log("No Project sources.");
+    return;
+  }
+  for (const source of sources) console.log(`${String(source.source_id)}  ${String(source.display_name)}  ${String(source.status)}`);
+}
+
+function printProjectFileResult(
+  action: string,
+  projectId: string,
+  sourceId: string,
+  result: unknown,
+  flags: Record<string, string | boolean>,
+): void {
+  if (flags.json === true) {
+    printJson({ project_id: projectId, source_id: sourceId, operation: action, result });
+    return;
+  }
+  if (action === "read" && result && typeof result === "object" && typeof (result as Record<string, unknown>).content === "string") {
+    process.stdout.write(String((result as Record<string, unknown>).content));
+    if (!String((result as Record<string, unknown>).content).endsWith("\n")) process.stdout.write("\n");
+    return;
+  }
+  printJson(result);
+}
+
+async function handleHistory(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "list") {
+    const changeSets = await client.listWorkspaceHistory({
+      objectType: typeof flags.type === "string" ? flags.type : undefined,
+      objectId: typeof flags.id === "string" ? flags.id : undefined,
+      limit: typeof flags.limit === "string" ? Number(flags.limit) : undefined,
+    });
+    if (flags.json === true) printJson({ change_sets: changeSets });
+    else {
+      for (const item of changeSets) {
+        console.log(`${String(item.change_set_id ?? "-")}  ${String(item.namespace ?? "-")}  ${String(item.action_type ?? "-")}  ${String(item.status ?? "-")}`);
+      }
+    }
+    return;
+  }
+  if (subcommand === "show") {
+    const changeSetId = rest[0];
+    if (!changeSetId) throw new Error("Missing change set ID. Usage: openmates history show <change-set-id>");
+    printJson(await client.getWorkspaceHistory(changeSetId));
+    return;
+  }
+  if (subcommand === "undo") {
+    const changeSetId = rest[0];
+    if (!changeSetId) throw new Error("Missing change set ID. Usage: openmates history undo <change-set-id>");
+    const result = await client.undoWorkspaceHistory(changeSetId);
+    if (flags.json === true) printJson(result);
+    else {
+      console.log(`Undo change set created: ${String((result.change_set as Record<string, unknown> | undefined)?.change_set_id ?? "unknown")}`);
+    }
+    return;
+  }
+  throw new Error(`Unknown history command '${subcommand}'. Run 'openmates history --help'.`);
+}
+
+// ---------------------------------------------------------------------------
+// Teams
+// ---------------------------------------------------------------------------
+
+async function handleTeams(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printTeamsHelp();
+    return;
+  }
+
+  if (subcommand === "list") {
+    const teams = await client.listTeams();
+    printTeamsOutput(teams, client.getActiveTeamId(), flags);
+    return;
+  }
+
+  if (subcommand === "switch") {
+    const teamId = requireTeamId(rest, flags);
+    client.setActiveTeamId(teamId);
+    if (flags.json === true) printJson({ active_team_id: teamId, context: "team" });
+    else console.log(`Active team: ${teamId}`);
+    return;
+  }
+
+  if (subcommand === "personal") {
+    client.setActiveTeamId(null);
+    if (flags.json === true) printJson({ active_team_id: null, context: "personal" });
+    else console.log("Active context: personal");
+    return;
+  }
+
+  if (subcommand === "show") {
+    const teamId = requireTeamId(rest, flags);
+    const team = await client.getTeam(teamId);
+    if (flags.json === true) printJson({ team, active_team_id: client.getActiveTeamId() });
+    else printTeamRecord(team, client.getActiveTeamId());
+    return;
+  }
+
+  if (subcommand === "create") {
+    const name = requiredStringFlag(flags.name, "--name <name>");
+    const team = await client.createTeam({
+      name,
+      description: typeof flags.description === "string" ? flags.description : undefined,
+      slug: typeof flags.slug === "string" ? flags.slug : undefined,
+    });
+    if (flags.switch === true || flags.activate === true) {
+      const teamId = team.team_id ?? team.id;
+      if (typeof teamId === "string") client.setActiveTeamId(teamId);
+    }
+    if (flags.json === true) printJson({ team, active_team_id: client.getActiveTeamId() });
+    else printTeamRecord(team, client.getActiveTeamId());
+    return;
+  }
+
+  if (subcommand === "update") {
+    const teamId = requireTeamId(rest, flags);
+    const patch: Record<string, unknown> = {};
+    if (typeof flags.name === "string") patch.name = flags.name;
+    if (typeof flags.description === "string") patch.description = flags.description;
+    if (typeof flags.slug === "string") patch.slug = flags.slug;
+    if (Object.keys(patch).length === 0) throw new Error("Nothing to update. Provide --name, --description, or --slug.");
+    const team = await client.updateTeam(teamId, patch);
+    if (flags.json === true) printJson({ team });
+    else printTeamRecord(team, client.getActiveTeamId());
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const teamId = requireTeamId(rest, flags);
+    if (flags["email-code"] !== undefined || flags["totp-code"] !== undefined) {
+      throw new Error("Team deletion verification codes must be entered through interactive prompts, not command-line flags.");
+    }
+    if (flags.yes !== true && flags.confirm !== true) throw new Error("Deleting a team requires --yes.");
+    const authMethods = await client.getAuthMethodsStatus();
+    if (authMethods.has_2fa) {
+      const totpCode = await promptLine("Enter 2FA code to delete this team: ");
+      await client.verifyTotpForCurrentSession(totpCode);
+    } else {
+      await client.requestActionEmailCode("delete_team");
+      const emailCode = await promptLine("Enter email verification code to delete this team: ");
+      await client.verifyActionEmailCode("delete_team", emailCode);
+    }
+    const result = await client.deleteTeam(teamId);
+    if (client.getActiveTeamId() === teamId) client.setActiveTeamId(null);
+    if (flags.json === true) printJson(result);
+    else console.log(`Team deleted: ${teamId}`);
+    return;
+  }
+
+  if (subcommand === "invite") {
+    const teamId = requireTeamId(rest, flags);
+    const input: Record<string, unknown> = {};
+    if (typeof flags.email === "string") input.recipient_email = flags.email;
+    if (typeof flags.user === "string") input.invitee_user_id = flags.user;
+    if (typeof flags["encrypted-recipient-hint"] === "string") input.encrypted_recipient_hint = flags["encrypted-recipient-hint"];
+    if (typeof flags["expires-at"] === "string") input.expires_at = Number.parseInt(flags["expires-at"], 10);
+    input.role = parseTeamInviteRole(flags.role);
+    if (typeof flags.email === "string") await client.getTeam(teamId);
+    const invite = await client.createTeamInvite(teamId, input);
+    if (flags.json === true) printJson({ invite });
+    else printJson(invite);
+    return;
+  }
+
+  if (subcommand === "accept-invite") {
+    const inviteInput = parseTeamInviteInput(requiredStringFlag(flags.invite ?? rest[0], "<invite-id-or-url>"));
+    const inviteSecret = typeof flags.key === "string" ? flags.key : inviteInput.inviteSecret;
+    const recipientEmail = typeof flags.email === "string" ? flags.email : undefined;
+    const result = await client.acceptTeamInvite(inviteInput.inviteId, { inviteSecret, recipientEmail });
+    if (flags.json === true) printJson(result);
+    else printJson(result);
+    return;
+  }
+
+  if (subcommand === "decline-invite") {
+    const inviteId = requiredStringFlag(flags.invite ?? rest[0], "<invite-id>");
+    const result = await client.declineTeamInvite(inviteId);
+    if (flags.json === true) printJson(result);
+    else console.log("Team invite declined.");
+    return;
+  }
+
+  if (subcommand === "access-requests") {
+    const teamId = requireTeamId(rest, flags);
+    const status = typeof flags.status === "string" ? flags.status : undefined;
+    const accessRequests = await client.listTeamAccessRequests(teamId, status);
+    if (flags.json === true) printJson({ access_requests: accessRequests });
+    else printJson(accessRequests);
+    return;
+  }
+
+  if (subcommand === "approve-access") {
+    const teamId = requireTeamId(rest, flags);
+    const accessRequestId = requiredStringFlag(flags.request ?? flags["access-request"] ?? rest[1], "<access-request-id>");
+    const encryptedTeamKey = typeof flags["encrypted-team-key"] === "string" ? flags["encrypted-team-key"] : undefined;
+    const membership = await client.approveTeamAccessRequest(teamId, accessRequestId, encryptedTeamKey);
+    if (flags.json === true) printJson({ membership });
+    else printJson(membership);
+    return;
+  }
+
+  if (subcommand === "reject-access") {
+    const teamId = requireTeamId(rest, flags);
+    const accessRequestId = requiredStringFlag(flags.request ?? flags["access-request"] ?? rest[1], "<access-request-id>");
+    const result = await client.rejectTeamAccessRequest(teamId, accessRequestId);
+    if (flags.json === true) printJson(result);
+    else console.log(`Team access request rejected: ${accessRequestId}`);
+    return;
+  }
+
+  if (subcommand === "role") {
+    const teamId = requireTeamId(rest, flags);
+    const memberUserId = requiredStringFlag(flags.user ?? rest[1], "--user <user-id>");
+    const role = parseTeamAssignableRole(flags.role);
+    const membership = await client.updateTeamMemberRole(teamId, memberUserId, role);
+    if (flags.json === true) printJson({ membership });
+    else printJson(membership);
+    return;
+  }
+
+  if (subcommand === "remove-member") {
+    const teamId = requireTeamId(rest, flags);
+    const memberUserId = requiredStringFlag(flags.user ?? rest[1], "--user <user-id>");
+    const result = await client.removeTeamMember(teamId, memberUserId);
+    if (flags.json === true) printJson(result);
+    else console.log(`Team member removed: ${memberUserId}`);
+    return;
+  }
+
+  if (subcommand === "billing") {
+    if (rest[0] === "bank-transfer") {
+      const action = rest[1];
+      if (action === "create") {
+        const teamId = requireTeamId(rest.slice(2), flags);
+        const credits = requiredNumberFlag(flags.credits, "--credits <amount>");
+        const order = await client.createTeamBankTransferOrder(teamId, credits);
+        if (flags.json === true) printJson(order);
+        else printBankTransferOrder(order, false);
+        return;
+      }
+      if (action === "status") {
+        const teamId = requireTeamId(rest.slice(2), flags);
+        const orderId = requiredStringFlag(flags.order ?? rest[3], "<order-id>");
+        const status = await client.getTeamBankTransferStatus(teamId, orderId);
+        if (flags.json === true) printJson(status);
+        else printBankTransferStatus(status, false);
+        return;
+      }
+      if (action === "list") {
+        const teamId = requireTeamId(rest.slice(2), flags);
+        const orders = await client.listTeamBankTransferOrders(teamId);
+        if (flags.json === true) printJson({ orders });
+        else printJson(orders);
+        return;
+      }
+      throw new Error("Unknown team billing bank-transfer command. Use create, status, or list.");
+    }
+    const teamId = requireTeamId(rest, flags);
+    const billing = await client.getTeamBilling(teamId);
+    if (flags.json === true) printJson({ billing });
+    else printJson(billing);
+    return;
+  }
+
+  if (subcommand === "add-credits") {
+    throw new Error("Direct team credit grants are disabled. Use 'openmates teams billing bank-transfer create <team-id> --credits <amount>'.");
+  }
+
+  if (subcommand === "usage") {
+    const teamId = requireTeamId(rest, flags);
+    const usage = await client.listTeamUsage(teamId, typeof flags.user === "string" ? flags.user : undefined);
+    if (flags.json === true) printJson({ usage });
+    else printJson(usage);
+    return;
+  }
+
+  if (subcommand === "move") {
+    const teamId = requireTeamId(rest, flags);
+    const workspaceType = parseWorkspaceMoveType(flags.type ?? rest[1]);
+    const objectId = requiredStringFlag(flags.id ?? rest[2], "--id <resource-id>");
+    if (flags.yes !== true && flags.confirm !== true) throw new Error("Moving a workspace resource requires --yes.");
+    const result = await client.moveWorkspaceToTeam(workspaceType, objectId, teamId);
+    if (flags.json === true) printJson(result);
+    else console.log(`${workspaceType} moved to team ${teamId}: ${objectId}`);
+    return;
+  }
+
+  if (subcommand === "export") {
+    const teamId = requireTeamId(rest, flags);
+    const output = requiredStringFlag(flags.output, "--output <path>");
+    const result = await client.exportTeamData(teamId);
+    const artifact = result.artifact && typeof result.artifact === "object" ? result.artifact : result;
+    writeFileSync(output, `${JSON.stringify(artifact, null, 2)}\n`, { encoding: "utf-8", mode: 0o600 });
+    if (flags.json === true) printJson({ ...result, output });
+    else console.log(`Team export written: ${output}`);
+    return;
+  }
+
+  if (subcommand === "import") {
+    const file = requiredStringFlag(flags.file ?? rest[0], "--file <path>");
+    const artifact = JSON.parse(readFileSync(file, "utf-8")) as Record<string, unknown>;
+    let teamId = typeof flags.team === "string" ? flags.team : typeof flags["destination-team"] === "string" ? flags["destination-team"] : undefined;
+    if (!teamId && typeof flags["new-team-name"] === "string") {
+      const team = await client.createTeam({ name: flags["new-team-name"] });
+      teamId = typeof team.team_id === "string" ? team.team_id : typeof team.id === "string" ? team.id : undefined;
+    }
+    if (!teamId) throw new Error("Team import requires --team <team-id> or --new-team-name <name>.");
+    const result = await client.importTeamData(teamId, artifact);
+    if (flags.json === true) printJson(result);
+    else printJson(result);
+    return;
+  }
+
+  throw new Error(`Unknown teams command '${subcommand}'. Run 'openmates teams --help'.`);
+}
+
+function parseTeamInviteInput(value: string): { inviteId: string; inviteSecret: string | null } {
+  try {
+    const url = new URL(value);
+    const inviteId = url.pathname.split("/").filter(Boolean).pop();
+    const fragment = new URLSearchParams(url.hash.replace(/^#/, ""));
+    if (inviteId) return { inviteId, inviteSecret: fragment.get("key") };
+  } catch {
+    // Plain invite IDs are still supported for the access-request fallback.
+  }
+  return { inviteId: value, inviteSecret: null };
+}
+
+function requireTeamId(rest: string[], flags: Record<string, string | boolean>): string {
+  return requiredStringFlag(flags.team ?? flags["team-id"] ?? rest[0], "--team <team-id>");
+}
+
+function requiredStringFlag(value: string | boolean | undefined, label: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) throw new Error(`Missing ${label}.`);
+  return value.trim();
+}
+
+function requiredNumberFlag(value: string | boolean | undefined, label: string): number {
+  const raw = requiredStringFlag(value, label);
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`Invalid ${label}: ${raw}`);
+  return parsed;
+}
+
+function parseTeamInviteRole(value: string | boolean | undefined): Exclude<TeamRole, "owner"> {
+  if (value === undefined || value === false) return "member";
+  return parseTeamAssignableRole(value);
+}
+
+function parseTeamAssignableRole(value: string | boolean | undefined): Exclude<TeamRole, "owner"> {
+  const role = requiredStringFlag(value, "--role <admin|member|viewer>");
+  if (role === "admin" || role === "member" || role === "viewer") return role;
+  throw new Error("Team role must be admin, member, or viewer.");
+}
+
+function parseWorkspaceMoveType(value: string | boolean | undefined): WorkspaceMoveType {
+  const type = requiredStringFlag(value, "--type <chat|project|task|plan|workflow>");
+  if (type === "chat" || type === "project" || type === "task" || type === "plan" || type === "workflow") return type;
+  throw new Error("Workspace type must be chat, project, task, plan, or workflow.");
+}
+
+function teamContextFromFlags(flags: Record<string, string | boolean>): { teamId?: string | null; personal?: boolean } {
+  if (flags.personal === true) return { personal: true };
+  if (typeof flags.team === "string") return { teamId: flags.team };
+  if (typeof flags["team-id"] === "string") return { teamId: flags["team-id"] };
+  return {};
+}
+
+function printTeamsOutput(teams: Array<Record<string, unknown>>, activeTeamId: string | null, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) {
+    printJson({ teams, active_team_id: activeTeamId });
+    return;
+  }
+  if (teams.length === 0) {
+    console.log("No teams.");
+    return;
+  }
+  for (const team of teams) printTeamRecord(team, activeTeamId);
+}
+
+function printTeamRecord(team: Record<string, unknown>, activeTeamId: string | null): void {
+  const teamId = typeof team.team_id === "string" ? team.team_id : typeof team.id === "string" ? team.id : "unknown";
+  const activeMarker = activeTeamId === teamId ? " *" : "";
+  console.log(`${teamId}${activeMarker}`);
+  if (typeof team.slug === "string") kv("slug", team.slug);
+  if (typeof team.role === "string") kv("role", team.role);
+  if (typeof team.status === "string") kv("status", team.status);
+}
+
+function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
+  return {
+    task_id: task.taskId,
+    short_id: task.shortId,
+    title: task.title,
+    description: task.description,
+    labels: task.labels,
+    tags: task.tags,
+    latest_instruction: task.latestInstruction,
+    status: task.status,
+    assignee_type: task.assigneeType,
+    assignee_hash: task.assigneeHash,
+    primary_chat_id: task.primaryChatId,
+    linked_project_ids: task.linkedProjectIds,
+    plan_id: task.planId,
+    due_at: task.dueAt,
+    priority: task.priority,
+    priority_level: task.priorityLevel,
+    position: task.position,
+    queue_state: task.queueState,
+    blocked_reason_code: task.blockedReasonCode,
+    ai_execution_state: task.aiExecutionState,
+    version: task.version,
+  };
+}
+
+function planToJson(plan: DecryptedUserPlan): Record<string, unknown> {
+  return {
+    plan_id: plan.planId,
+    short_id: plan.shortId,
+    title: plan.title,
+    summary: plan.summary,
+    goal: plan.goal,
+    scope_in: plan.scopeIn,
+    scope_out: plan.scopeOut,
+    assumptions: plan.assumptions,
+    open_questions: plan.openQuestions,
+    constraints: plan.constraints,
+    decisions: plan.decisions,
+    risks: plan.risks,
+    status: plan.status,
+    primary_chat_id: plan.primaryChatId,
+    linked_project_ids: plan.linkedProjectIds,
+    current_phase_id: plan.currentPhaseId,
+    current_step_id: plan.currentStepId,
+    current_task_id: plan.currentTaskId,
+    planner_focus_id: plan.plannerFocusId,
+    version: plan.version,
+    created_at: plan.createdAt,
+    updated_at: plan.updatedAt,
+    completed_at: plan.completedAt,
+  };
+}
+
+function planLearningToJson(learning: DecryptedPlanLearning): Record<string, unknown> {
+  return {
+    learning_id: learning.learningId,
+    type: learning.type,
+    target_kind: learning.targetKind,
+    status: learning.status,
+    severity: learning.severity,
+    confidence: learning.confidence,
+    linked_task_ids: learning.linkedTaskIds,
+    linked_check_ids: learning.linkedCheckIds,
+    applied_task_id: learning.appliedTaskId,
+    title: learning.title,
+    observation: learning.observation,
+    root_cause: learning.rootCause,
+    suggested_change: learning.suggestedChange,
+    evidence_summary: learning.evidenceSummary,
+    task_draft: learning.taskDraft,
+    rejection_reason: learning.rejectionReason,
+    version: learning.version,
+    created_at: learning.createdAt,
+    updated_at: learning.updatedAt,
+  };
+}
+
+function taskTitleFromFlagsOrRest(flags: Record<string, string | boolean>, rest: string[]): string {
+  const title = typeof flags.title === "string" ? flags.title : rest.join(" ").trim();
+  if (!title) throw new Error("Missing task title. Usage: openmates tasks create --title <title>");
+  return title;
+}
+
+function planTitleFromFlagsOrRest(flags: Record<string, string | boolean>, rest: string[]): string {
+  const explicitTitle = typeof flags.title === "string" ? flags.title : rest.join(" ").trim();
+  const goal = typeof flags.goal === "string" ? flags.goal.trim() : "";
+  const title = explicitTitle || goal.slice(0, 80);
+  if (!title) throw new Error("Missing plan title or goal. Usage: openmates plans create --title <title> or --goal <goal>");
+  return title;
+}
+
+function parseOptionalNumberFlag(value: string | boolean | undefined, flagName: string): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === true || value === false) throw new Error(`${flagName} requires a numeric value.`);
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) throw new Error(`Invalid ${flagName}: ${value}`);
+  return parsed;
+}
+
+function parsePlanVerificationStatus(
+  value: string | boolean | undefined,
+  defaultStatus?: UserPlanVerificationStatus,
+  required = false,
+): UserPlanVerificationStatus | undefined {
+  if (value === undefined || value === false) {
+    if (defaultStatus) return defaultStatus;
+    if (required) throw new Error("Missing --status <proposed|pending|passed|failed|passed_unexpectedly|skipped|skipped_with_reason|not_applicable|waived>.");
+    return undefined;
+  }
+  if (value === true) throw new Error("--status requires a value.");
+  const allowed: UserPlanVerificationStatus[] = ["proposed", "pending", "passed", "failed", "passed_unexpectedly", "skipped", "skipped_with_reason", "not_applicable", "waived"];
+  if (allowed.includes(value as UserPlanVerificationStatus)) return value as UserPlanVerificationStatus;
+  throw new Error(`Unknown plan check status '${value}'. Expected one of: ${allowed.join(", ")}`);
+}
+
+function taskAssignFlag(flags: Record<string, string | boolean>): string | undefined {
+  return typeof flags.assign === "string" ? flags.assign : typeof flags.assignee === "string" ? flags.assignee : undefined;
+}
+
+function labelFlags(flags: Record<string, string | boolean>, ...names: string[]): string[] {
+  const keys = names.length > 0 ? names : ["label", "labels", "tag", "tags"];
+  return normalizeLabels(keys.flatMap((key) => splitCsvFlag(flags[key])));
+}
+
 async function handleRemoteAccess(
   client: OpenMatesClient,
   subcommand: string | undefined,
@@ -460,68 +3364,84 @@ async function handleRemoteAccess(
   flags: Record<string, string | boolean>,
 ): Promise<void> {
   if (!subcommand || subcommand === "help" || flags.help === true) {
-    printRemoteAccessHelp();
-    return;
-  }
-
-  if (subcommand === "start") {
-    const rootPath = typeof flags.path === "string" ? flags.path : rest[0];
-    if (!rootPath) {
-      throw new Error("Missing source path. Usage: openmates remote-access start --path <folder>");
+    if (subcommand && subcommand !== "help") {
+      throw new Error("openmates remote-access does not accept public subcommands. Run 'openmates remote-access --help'.");
     }
-    const sourceId = typeof flags["source-id"] === "string" ? flags["source-id"] : randomUUID();
-    const projectId = typeof flags.project === "string" ? flags.project : undefined;
-    validateRemoteSourceRegistrationFlags(projectId, flags);
-    const sourceType = parseRemoteAccessSourceType(flags.type);
-    const displayName = typeof flags.name === "string" ? flags.name : sourceId;
-    const source = startRemoteAccessSource({ sourceId, projectId, rootPath, sourceType, displayName });
-    await maybeRegisterRemoteSource(client, source, flags);
-    if (flags.json === true) {
-      printJson({ source });
-    } else {
-      console.log(`Remote source attached: ${source.sourceId}`);
-      console.log(`Root: ${source.rootPath}`);
-      console.log(`Cache: ${source.cachePath}`);
+    if (rest.length > 0) {
+      throw new Error("openmates remote-access uses --path <folder>; positional paths are not supported.");
     }
-    return;
-  }
+    if (flags.help === true || subcommand === "help") {
+      printRemoteAccessHelp();
+      return;
+    }
 
-  if (subcommand === "status" || subcommand === "list") {
-    const sources = listRemoteAccessSources();
-    if (flags.json === true) {
-      printJson({ sources });
-    } else if (sources.length === 0) {
-      console.log("No remote sources attached.");
-    } else {
-      for (const source of sources) {
-        console.log(`${source.sourceId}\t${source.status}\t${source.rootPath}`);
+    assertRemoteAccessPublicFlags(flags);
+    const hostingContext = await resolveRemoteAccessHostingContext(client, flags);
+    const hostingFlags = {
+      ...flags,
+      personal: hostingContext.personal === true,
+      ...(hostingContext.teamId ? { team: hostingContext.teamId } : {}),
+    };
+    const roots = resolveRemoteAccessRoots(typeof flags.path === "string" ? flags.path : undefined);
+    const discovery = discoverRemoteAccessRepositories(roots);
+    const candidateRoots = typeof flags.path === "string"
+      ? roots
+      : discovery.repositories.length > 0
+        ? discovery.repositories.map((candidate) => candidate.rootPath)
+        : roots;
+    const masterKey = client.getMasterKeyBytes();
+    const projects = await loadProjects(client, masterKey, hostingFlags, hostingContext);
+    const bindings = await resolveRemoteAccessBindings(client, masterKey, projects, candidateRoots, hostingFlags, hostingContext);
+    if (bindings.length === 0) throw new Error("No Project folders were approved for remote access.");
+
+    const sourceSessionId = randomUUID();
+    const controller = new AbortController();
+    const stop = () => controller.abort();
+    process.once("SIGINT", stop);
+    process.once("SIGTERM", stop);
+    if (flags.json !== true) {
+      console.log(`Remote access connecting ${bindings.length} Project source${bindings.length === 1 ? "" : "s"}.`);
+      console.log("Keep this terminal open. For long-running work, start it inside zellij, tmux, or screen.");
+      if (discovery.permissionDenied.length > 0) {
+        console.warn(`Skipped ${discovery.permissionDenied.length} unreadable folder${discovery.permissionDenied.length === 1 ? "" : "s"}.`);
       }
     }
+    try {
+      let confirmedTakeover = false;
+      while (!controller.signal.aborted) {
+        try {
+          await runRemoteAccessBridge({
+            client,
+            sourceSessionId,
+            bindings,
+            signal: controller.signal,
+            confirmedTakeover,
+            onLifecycle: (event) => {
+              if (flags.json === true) printJson({ type: "remote_access_lifecycle", ...event });
+              else if (event.state === "connected") console.log("Remote access connected.");
+              else if (event.state === "reconnecting") console.log(`Remote access reconnecting in ${event.delayMs ?? 0}ms.`);
+              else if (event.state === "disconnected") console.log("Remote access disconnected.");
+            },
+          });
+          break;
+        } catch (error) {
+          if (!(error instanceof WebSocketProtocolError) || error.code !== "takeover_confirmation_required") throw error;
+          if (flags.json === true || !process.stdin.isTTY) {
+            throw new Error("Another remote-access process owns one of these sources; rerun interactively to confirm takeover.");
+          }
+          const answer = (await promptLine("Another process owns one of these sources. Take over? [y/N] ")).trim().toLowerCase();
+          if (answer !== "y" && answer !== "yes") throw new Error("Remote access takeover cancelled.");
+          confirmedTakeover = true;
+        }
+      }
+    } finally {
+      process.off("SIGINT", stop);
+      process.off("SIGTERM", stop);
+    }
     return;
   }
 
-  if (subcommand === "search") {
-    const sourceId = typeof flags.source === "string" ? flags.source : rest[0];
-    const query = typeof flags.source === "string" ? rest.join(" ").trim() : rest.slice(1).join(" ").trim();
-    if (!sourceId || !query) {
-      throw new Error("Missing source or query. Usage: openmates remote-access search --source <id> <query>");
-    }
-    const maxResults = parsePositiveIntegerFlag(flags.limit, "--limit");
-    const result = await searchStoredRemoteAccessSource({ sourceId, query, maxResults, runRg: runRgCommand });
-    if (flags.json === true) {
-      printJson(result);
-    } else {
-      for (const match of result.matches) {
-        console.log(`${match.path}:${match.line}: ${match.snippet.trim()}`);
-      }
-      if (result.excluded > 0 || result.omitted > 0) {
-        console.log(`Excluded ${result.excluded}, omitted ${result.omitted}.`);
-      }
-    }
-    return;
-  }
-
-  throw new Error(`Unknown remote-access command '${subcommand}'. Run 'openmates remote-access --help'.`);
+  throw new Error("openmates remote-access does not accept public subcommands. Run 'openmates remote-access --help'.");
 }
 
 function parsePositiveIntegerFlag(value: string | boolean | undefined, flagName: string): number | undefined {
@@ -536,47 +3456,154 @@ function parsePositiveIntegerFlag(value: string | boolean | undefined, flagName:
   return parsed;
 }
 
-function parseRemoteAccessSourceType(value: string | boolean | undefined): RemoteAccessSourceRecord["sourceType"] {
-  if (value === undefined) return "local_folder";
-  if (value === "local_folder" || value === "local_git_repository") {
-    return value;
-  }
-  throw new Error("--type must be one of local_folder or local_git_repository for the local remote-access bridge");
+function parseResponseTimeoutMs(flags: Record<string, string | boolean>): number | undefined {
+  const seconds = parsePositiveIntegerFlag(flags["response-timeout-seconds"], "--response-timeout-seconds");
+  return seconds === undefined ? undefined : seconds * 1000;
 }
 
-async function maybeRegisterRemoteSource(
-  client: OpenMatesClient,
-  source: RemoteAccessSourceRecord,
-  flags: Record<string, string | boolean>,
-): Promise<void> {
-  if (!source.projectId || flags["local-only"] === true) return;
-  const encryptedDisplayName = flags["encrypted-display-name"];
-  const encryptedMetadata = flags["encrypted-metadata"];
-  if (typeof encryptedDisplayName !== "string" || typeof encryptedMetadata !== "string") {
-    throw new Error("Missing encrypted Project source metadata after registration validation");
+function assertRemoteAccessPublicFlags(flags: Record<string, string | boolean>): void {
+  const internalFlags = ["source-id", "project", "type", "local-only", "encrypted-display-name", "encrypted-metadata"];
+  const supplied = internalFlags.filter((name) => flags[name] !== undefined);
+  if (supplied.length > 0) {
+    throw new Error(`Unsupported remote-access option${supplied.length === 1 ? "" : "s"}: ${supplied.map((name) => `--${name}`).join(", ")}`);
   }
+}
+
+async function resolveRemoteAccessHostingContext(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+): Promise<{ teamId?: string; personal?: boolean }> {
+  if (hasExplicitProjectContext(flags)) return resolveProjectContext(client, flags, true);
+  if (flags.json === true || !process.stdin.isTTY) {
+    throw new CliContractError("context_confirmation_required", "Remote access hosting requires --personal or --team <team> in non-interactive mode.");
+  }
+  const activeTeamId = client.getActiveTeamId();
+  const currentLabel = activeTeamId ? `Team ${activeTeamId}` : "Personal";
+  const answer = (await promptLine(`Host Project sources in ${currentLabel}? [Y/n/change] `)).trim().toLowerCase();
+  if (!answer || answer === "y" || answer === "yes") return activeTeamId ? { teamId: activeTeamId } : { personal: true };
+  if (answer === "n" || answer === "no" || answer === "cancel") {
+    throw new CliContractError("context_confirmation_cancelled", "Remote access context confirmation cancelled.");
+  }
+  const selected = (await promptLine("Enter 'personal' or a Team ID/slug: ")).trim();
+  return selected.toLowerCase() === "personal"
+    ? { personal: true }
+    : resolveProjectContext(client, { team: selected }, true);
+}
+
+async function resolveRemoteAccessBindings(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  projects: DecryptedProject[],
+  candidateRoots: string[],
+  flags: Record<string, string | boolean>,
+  context: { teamId?: string; personal?: boolean },
+): Promise<LiveRemoteAccessBinding[]> {
+  const stored = listRemoteAccessSources();
+  const resolved: Array<{ rootPath: string; project: DecryptedProject; sourceId: string }> = [];
+  const unresolved: string[] = [];
+  for (const rootPath of candidateRoots) {
+    const existingSource = stored.find((source) => source.rootPath === rootPath && source.projectId);
+    const project = existingSource
+      ? projects.find((item) => item.projectId === existingSource.projectId)
+      : undefined;
+    if (existingSource && project) {
+      resolved.push({ rootPath, project, sourceId: existingSource.sourceId });
+    } else {
+      unresolved.push(rootPath);
+    }
+  }
+
+  if (unresolved.length > 0) {
+    if (flags.json === true || !process.stdin.isTTY) {
+      throw new Error(`Remote access needs interactive Project review for: ${unresolved.join(", ")}`);
+    }
+    console.log("The following folders need OpenMates Projects:");
+    unresolved.forEach((rootPath) => console.log(`  - ${rootPath}`));
+    const answer = (await promptLine(`Create ${unresolved.length} missing Project${unresolved.length === 1 ? "" : "s"}? [y/N] `)).trim().toLowerCase();
+    if (answer !== "y" && answer !== "yes") throw new Error("Remote access Project creation cancelled.");
+    for (const rootPath of unresolved) {
+      const project = await createEncryptedRemoteAccessProject(client, masterKey, basename(rootPath), context);
+      resolved.push({ rootPath, project, sourceId: randomUUID() });
+    }
+  }
+
+  const bindings: LiveRemoteAccessBinding[] = [];
+  for (const item of resolved) {
+    const sourceType = remoteAccessSourceType(item.rootPath);
+    const source = startRemoteAccessSource({
+      sourceId: item.sourceId,
+      projectId: item.project.projectId,
+      rootPath: item.rootPath,
+      sourceType,
+      displayName: basename(item.rootPath),
+    });
+    const remoteSources = await client.listProjectSources(item.project.projectId, context);
+    const remoteSource = remoteSources.find((entry) => entry.source_id === source.sourceId);
+    if (!remoteSource) {
+      const timestamp = Math.floor(Date.now() / 1000);
+      await client.createProjectSource(item.project.projectId, {
+        source_id: source.sourceId,
+        source_type: sourceType,
+        encrypted_display_name: await encryptWithAesGcmCombined(source.displayName, item.project.projectKey),
+        encrypted_metadata: await encryptWithAesGcmCombined(
+          JSON.stringify({ root: source.rootPath, binding_root: source.rootPath }),
+          item.project.projectKey,
+        ),
+        capabilities: ["read", "search", "import"],
+        status: "offline",
+        created_at: timestamp,
+        updated_at: timestamp,
+      }, context);
+    }
+    bindings.push({ source, projectKey: item.project.projectKey, keyEpoch: 1, ...(context.teamId ? { teamId: context.teamId } : {}) });
+  }
+  return bindings;
+}
+
+async function createEncryptedRemoteAccessProject(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  name: string,
+  context: { teamId?: string; personal?: boolean },
+): Promise<DecryptedProject> {
+  const projectKey = randomBytes(32);
+  const projectId = randomUUID();
   const timestamp = Math.floor(Date.now() / 1000);
-  await client.createProjectSource(source.projectId, {
-    source_id: source.sourceId,
-    source_type: source.sourceType,
-    encrypted_display_name: encryptedDisplayName,
-    encrypted_metadata: encryptedMetadata,
-    capabilities: ["read", "search", "import"],
-    status: source.status,
+  const wrapping = await client.projectWrappingKey(context);
+  const payload: ProjectRecord = {
+    project_id: projectId,
+    encrypted_project_key: wrapping.teamId ? null : await encryptBytesWithAesGcm(projectKey, masterKey),
+    encrypted_name: await encryptWithAesGcmCombined(name, projectKey),
+    encrypted_description: await encryptWithAesGcmCombined("", projectKey),
+    encrypted_icon: await encryptWithAesGcmCombined("folder", projectKey),
+    encrypted_color: await encryptWithAesGcmCombined("default", projectKey),
+    pinned: false,
+    archived: false,
     created_at: timestamp,
     updated_at: timestamp,
-  });
-}
-
-function validateRemoteSourceRegistrationFlags(
-  projectId: string | undefined,
-  flags: Record<string, string | boolean>,
-): void {
-  if (!projectId || flags["local-only"] === true) return;
-  if (typeof flags["encrypted-display-name"] === "string" && typeof flags["encrypted-metadata"] === "string") return;
-  throw new Error(
-    "remote-access start with --project requires --local-only or both --encrypted-display-name and --encrypted-metadata",
-  );
+    last_opened_at: timestamp,
+    key_wrappers: wrapping.teamId ? [{
+      key_type: "team",
+      hashed_team_id: createHash("sha256").update(wrapping.teamId).digest("hex"),
+      team_key_epoch: 1,
+      encrypted_project_key: await encryptBytesWithAesGcm(projectKey, wrapping.key),
+      wrapper_version: 1,
+      created_at: timestamp,
+    }] : [],
+  };
+  await client.createProject(payload, context);
+  return {
+    projectId,
+    name,
+    description: "",
+    icon: "folder",
+    color: "default",
+    pinned: false,
+    archived: false,
+    version: 1,
+    projectKey,
+    encrypted: payload,
+  };
 }
 
 function shouldInitializeRedactor(
@@ -598,6 +3625,137 @@ function parseJsonFlag<T>(value: string, flagName: string): T {
   }
 }
 
+async function handleDrafts(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printDraftsHelp();
+    return;
+  }
+  if (subcommand === "create" || subcommand === "update") {
+    const chatId = subcommand === "update"
+      ? rest[0]
+      : typeof flags.chat === "string" ? flags.chat : undefined;
+    const markdown = subcommand === "update" ? rest.slice(1).join(" ").trim() : rest.join(" ").trim();
+    if (subcommand === "update" && !chatId) throw new Error("Missing chat ID for draft update.");
+    if (!markdown) throw new Error(`Missing draft text for draft ${subcommand}.`);
+    const draft = await client.saveDraft({
+      chatId,
+      markdown,
+      preview: typeof flags.preview === "string" ? flags.preview : markdown.slice(0, 160),
+    });
+    printJson(draft);
+    return;
+  }
+  if (subcommand === "list") {
+    const drafts = await client.listDrafts(flags.refresh === true);
+    printJson({ drafts });
+    return;
+  }
+  if (subcommand === "get") {
+    const chatId = rest[0];
+    if (!chatId) throw new Error("Missing chat ID for draft get.");
+    printJson({ draft: await client.getDraft(chatId, flags.refresh === true) });
+    return;
+  }
+  if (subcommand === "clear") {
+    const chatId = rest[0];
+    if (!chatId) throw new Error("Missing chat ID for draft clear.");
+    await client.clearDraft(chatId);
+    printJson({ success: true, chat_id: chatId });
+    return;
+  }
+  if (subcommand === "sync") {
+    printJson({ versions: await client.reconcileDraftVersions() });
+    return;
+  }
+  throw new Error(`Unknown drafts subcommand '${subcommand}'.`);
+}
+
+async function handleIdeaBucket(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printIdeaBucketHelp();
+    return;
+  }
+
+  if (subcommand === "add") {
+    const text = rest.join(" ").trim();
+    if (!text) throw new Error("Missing IdeaBucket text for add.");
+    const scheduledSendAt = typeof flags["scheduled-at"] === "string"
+      ? parseUnixSecondsFlag(flags["scheduled-at"], "--scheduled-at")
+      : undefined;
+    printJson(await client.addIdeaBucketText({
+      text,
+      chatId: typeof flags.chat === "string" ? flags.chat : undefined,
+      bucketId: typeof flags.bucket === "string" ? flags.bucket : undefined,
+      scheduledSendAt,
+      prompt: typeof flags.prompt === "string" ? flags.prompt : undefined,
+    }));
+    return;
+  }
+
+  if (subcommand === "audio") {
+    const filePath = rest[0];
+    if (!filePath) throw new Error("Missing audio file path for IdeaBucket audio.");
+    const scheduledSendAt = typeof flags["scheduled-at"] === "string"
+      ? parseUnixSecondsFlag(flags["scheduled-at"], "--scheduled-at")
+      : undefined;
+    printJson(await client.addIdeaBucketAudio({
+      filePath,
+      chatId: typeof flags.chat === "string" ? flags.chat : undefined,
+      bucketId: typeof flags.bucket === "string" ? flags.bucket : undefined,
+      scheduledSendAt,
+      prompt: typeof flags.prompt === "string" ? flags.prompt : undefined,
+    }));
+    return;
+  }
+
+  if (subcommand === "status") {
+    const bucketId = rest[0] ?? (typeof flags.bucket === "string" ? flags.bucket : undefined);
+    printJson(await client.getIdeaBucketStatus(bucketId));
+    return;
+  }
+
+  if (subcommand === "settings") {
+    const action = rest[0] ?? "get";
+    if (action === "get") {
+      printJson(await client.getIdeaBucketSettings());
+      return;
+    }
+    if (action === "set") {
+      printJson(await client.saveIdeaBucketSettings({
+        processingPrompt: typeof flags.prompt === "string" ? flags.prompt : undefined,
+        processingTimes: typeof flags.times === "string" ? flags.times : undefined,
+      }));
+      return;
+    }
+    throw new Error(`Unknown ideabucket settings action '${action}'.`);
+  }
+
+  if (subcommand === "process") {
+    const bucketId = rest[0] ?? (typeof flags.bucket === "string" ? flags.bucket : undefined);
+    if (!bucketId) throw new Error("Missing IdeaBucket bucket ID for process.");
+    printJson(await client.processIdeaBucketBucket(bucketId, { now: flags.now === true }));
+    return;
+  }
+
+  throw new Error(`Unknown ideabucket subcommand '${subcommand}'.`);
+}
+
+function parseUnixSecondsFlag(value: string, flagName: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`Invalid ${flagName}; expected Unix seconds.`);
+  return parsed > 10_000_000_000 ? Math.floor(parsed / 1000) : Math.floor(parsed);
+}
+
 // ---------------------------------------------------------------------------
 // Chats
 // ---------------------------------------------------------------------------
@@ -614,13 +3772,66 @@ async function handleChats(
     return;
   }
 
+  const apiKey = resolveApiKey(flags) ?? undefined;
+  const teamContext = teamContextFromFlags(flags);
+
+  if (rest[0] === "add-to-project") {
+    if (apiKey) throw new Error("Chat add-to-project through --api-key is not supported by the CLI command; use an authenticated CLI session.");
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const project = await requiredResolvedProject(client, client.getMasterKeyBytes(), projectId, flags);
+    const storageChoice = await resolveAddToProjectStorageChoice(client, project, flags, "chat");
+    const result = await client.getChatMessages(subcommand, teamContext);
+    const displayName = result.chat.title ?? result.chat.shortId ?? result.chat.id;
+    const remoteCopyProposal = storageChoice.targetMode === "save_only_in_openmates"
+      ? null
+      : buildRemoteCopyProposal({
+        objectType: "chat",
+        objectId: result.chat.id,
+        title: displayName,
+        content: buildChatRemoteCopyMarkdown(result.chat, result.messages),
+        source: storageChoice.source!,
+        targetMode: storageChoice.targetMode,
+      });
+    const item = await createEncryptedProjectItem(client, project, {
+      itemType: "chat",
+      targetId: result.chat.id,
+      displayName,
+      folderId: typeof flags.folder === "string" ? flags.folder : null,
+      metadata: { storage: storageChoice.targetMode, source: "cli_add_to_project", remote_copy_proposal: remoteCopyProposal ? { target_path: remoteCopyProposal.target_path, source_id: remoteCopyProposal.source_id } : null },
+    });
+    printAddToProjectResult({ objectType: "chat", objectId: result.chat.id, projectId: project.projectId, item, targetMode: storageChoice.targetMode, remoteCopyProposal }, flags);
+    return;
+  }
+
+  if (rest[0] === "remove-from-project") {
+    if (apiKey) throw new Error("Chat remove-from-project through --api-key is not supported by the CLI command; use an authenticated CLI session.");
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const project = await requiredResolvedProject(client, client.getMasterKeyBytes(), projectId, flags);
+    const result = await client.getChatMessages(subcommand, teamContext);
+    const removed = await client.deleteProjectItemByTarget(project.projectId, "chat", result.chat.id);
+    printRemoveFromProjectResult({ objectType: "chat", objectId: result.chat.id, projectId: project.projectId, deleted: removed.deleted, deletedCount: removed.deleted_count }, flags);
+    return;
+  }
+
+  if (rest[0] === "tasks") {
+    await handleTasks(client, rest[1], rest.slice(2), { ...flags, chat: subcommand }, redactor);
+    return;
+  }
+
+  if (rest[0] === "plans") {
+    await handlePlans(client, rest[1], rest.slice(2), { ...flags, chat: subcommand }, redactor);
+    return;
+  }
+
   if (subcommand === "list") {
     const limit =
       typeof flags.limit === "string" ? parseInt(flags.limit, 10) : 10;
     const page = typeof flags.page === "string" ? parseInt(flags.page, 10) : 1;
-    const result = client.hasSession()
-      ? await client.listChats(limit, page)
-      : listExampleChats(limit, page);
+    const result = apiKey
+      ? await listApiKeyChats(client, apiKey, limit, page)
+      : client.hasSession()
+        ? await client.listChats(limit, page, teamContext)
+        : listExampleChats(limit, page);
     if (flags.json === true) {
       printJson(result);
     } else {
@@ -635,9 +3846,11 @@ async function handleChats(
       throw new Error(
         "Missing search query. Usage: openmates chats search <query>",
       );
-    const result = client.hasSession()
-      ? await client.searchChats(query)
-      : searchExampleChats(query);
+    const result = apiKey
+      ? await searchApiKeyChats(client, apiKey, query)
+      : client.hasSession()
+        ? await client.searchChats(query, teamContext)
+        : searchExampleChats(query);
     if (flags.json === true) {
       printJson(result);
     } else {
@@ -652,26 +3865,138 @@ async function handleChats(
     return;
   }
 
+  if (subcommand === "messages") {
+    const chatId = rest[0];
+    if (!chatId) {
+      throw new Error("Missing chat ID. Usage: openmates chats messages <chat-id> [--json]");
+    }
+    const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
+    const result = apiKey
+      ? await createCliOpenMates(client, apiKey).chats.messages({
+          chatId: resolvedId === "__last__"
+            ? String((await createCliOpenMates(client, apiKey).chats.list({ limit: 1 }))[0]?.id ?? "")
+            : resolvedId,
+        })
+      : await client.getChatMessageSummaries(resolvedId, teamContext);
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      printChatMessagesTable(result.chat as ChatListItem, result.messages as Array<DecryptedMessage & { preview?: string }>);
+    }
+    return;
+  }
+
+  if (subcommand === "fork") {
+    const chatId = rest[0];
+    const fromMessageId = typeof flags["from-message"] === "string" ? flags["from-message"] : undefined;
+    if (!chatId || !fromMessageId) {
+      throw new Error("Missing fork target. Usage: openmates chats fork <chat-id> --from-message <message-id> [--title <title>] [--json]");
+    }
+    const result = apiKey
+      ? await createCliOpenMates(client, apiKey).chats.fork({
+          chatId,
+          fromMessageId,
+          title: typeof flags.title === "string" ? flags.title : undefined,
+        })
+      : await client.forkChat({
+          chatId,
+          fromMessageId,
+          title: typeof flags.title === "string" ? flags.title : undefined,
+          ...teamContext,
+        });
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      process.stdout.write(`Forked chat ${String(result.chat_id)} (${String(result.copied_message_count)} messages copied)\n`);
+    }
+    return;
+  }
+
+  if (subcommand === "rewind") {
+    const chatId = rest[0];
+    const toMessageId = typeof flags["to-message"] === "string" ? flags["to-message"] : undefined;
+    if (!chatId || !toMessageId) {
+      throw new Error("Missing rewind target. Usage: openmates chats rewind <chat-id> --to-message <message-id> [--send <prompt>] [--dry-run] [--yes] [--json]");
+    }
+    const dryRun = flags["dry-run"] === true || flags.yes !== true;
+    const send = typeof flags.send === "string" ? flags.send : undefined;
+    const result = apiKey
+      ? await createCliOpenMates(client, apiKey).chats.rewind({
+          chatId,
+          toMessageId,
+          send,
+          dryRun,
+          confirmDestructive: flags.yes === true,
+        })
+      : await client.rewindChat({
+          chatId,
+          toMessageId,
+          send,
+          dryRun,
+          confirmDestructive: flags.yes === true,
+          responseTimeoutMs: parseResponseTimeoutMs(flags),
+          ...teamContext,
+        });
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      printChatRewindResult(result);
+    }
+    return;
+  }
+
+  if (subcommand === "retry") {
+    const chatId = rest[0];
+    if (!chatId) {
+      throw new Error("Missing chat ID. Usage: openmates chats retry <chat-id> [--dry-run] [--yes] [--json]");
+    }
+    const dryRun = flags["dry-run"] === true || flags.yes !== true;
+    const result = apiKey
+      ? await createCliOpenMates(client, apiKey).chats.retry({
+          chatId,
+          dryRun,
+          confirmDestructive: flags.yes === true,
+        })
+      : await client.retryChat({
+          chatId,
+          dryRun,
+          confirmDestructive: flags.yes === true,
+          responseTimeoutMs: parseResponseTimeoutMs(flags),
+          ...teamContext,
+        });
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      printChatRewindResult(result);
+    }
+    return;
+  }
+
   if (subcommand === "new") {
     const message = rest.join(" ").trim();
     if (!message)
       throw new Error(
         "Missing message text. Usage: openmates chats new <message>",
       );
-    const result = await sendMessageStreaming(
-      client,
-      {
-        message,
-        chatId: undefined,
-        incognito: false,
-        json: flags.json === true,
-        autoApproveSubChats: flags["auto-approve"] === true,
-        autoApproveMemories: flags["auto-approve-memories"] === true,
-        piiDetection: flags["no-pii-detection"] !== true,
-        anonymousLearningMode: client.hasSession() ? undefined : parseAnonymousLearningModeFlags(flags),
-      },
-      redactor,
-    );
+    const result = apiKey
+      ? await sendApiKeyChatNew(client, apiKey, message, flags)
+      : await sendMessageStreaming(
+          client,
+          {
+            message,
+            chatId: undefined,
+            incognito: false,
+            json: flags.json === true,
+            autoApproveSubChats: flags["auto-approve"] === true,
+            autoApproveMemories: flags["auto-approve-memories"] === true,
+            acceptTaskProposals: flags["accept-task-proposals"] === true,
+            piiDetection: flags["no-pii-detection"] !== true,
+            responseTimeoutMs: parseResponseTimeoutMs(flags),
+            ...teamContext,
+            anonymousLearningMode: client.hasSession() ? undefined : parseAnonymousLearningModeFlags(flags),
+          },
+          redactor,
+        );
     if (flags.json === true) printJson(result);
     return;
   }
@@ -706,7 +4031,7 @@ async function handleChats(
 
       // Resolve the full chat ID first so getChatFollowUpSuggestions can match it.
       const fullId = await client
-        .resolveFullChatId(chatId)
+        .resolveFullChatId(chatId, teamContext)
         .catch(() => undefined);
       if (!fullId) {
         console.error(
@@ -715,7 +4040,7 @@ async function handleChats(
         process.exit(1);
       }
 
-      const suggestions = await client.getChatFollowUpSuggestions(fullId);
+      const suggestions = await client.getChatFollowUpSuggestions(fullId, teamContext);
       if (suggestions.length === 0) {
         console.error(
           `No follow-up suggestions stored for chat '${chatId}'.\n` +
@@ -761,7 +4086,10 @@ async function handleChats(
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
+        acceptTaskProposals: flags["accept-task-proposals"] === true,
         piiDetection: flags["no-pii-detection"] !== true,
+        responseTimeoutMs: parseResponseTimeoutMs(flags),
+        ...teamContext,
       },
       redactor,
     );
@@ -792,7 +4120,10 @@ async function handleChats(
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
+        acceptTaskProposals: flags["accept-task-proposals"] === true,
         piiDetection: flags["no-pii-detection"] !== true,
+        responseTimeoutMs: parseResponseTimeoutMs(flags),
+        ...teamContext,
       },
       redactor,
     );
@@ -815,6 +4146,7 @@ async function handleChats(
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
         piiDetection: flags["no-pii-detection"] !== true,
+        responseTimeoutMs: parseResponseTimeoutMs(flags),
       },
       redactor,
     );
@@ -832,18 +4164,47 @@ async function handleChats(
     return;
   }
 
-  if (subcommand === "show") {
-    const chatId = rest[0];
-    if (!chatId) {
-      console.error("Missing chat ID.\n");
-      printChatsHelp();
-      process.exit(1);
-    }
-    // "last" opens the most recently modified chat
-    const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
-    if (!client.hasSession()) {
-      const example = resolveExampleChatForOpen(resolvedId === "__last__" ? "1" : resolvedId);
-      if (!example) {
+	if (subcommand === "show") {
+		const chatId = rest[0];
+		if (!chatId) {
+			console.error("Missing chat ID.\n");
+			printChatsHelp();
+			process.exit(1);
+		}
+		// "last" opens the most recently modified chat
+		const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
+		const showAllMessages = flags.all === true;
+		if (apiKey) {
+			const sdk = createCliOpenMates(client, apiKey);
+			const sdkChatId = resolvedId === "__last__"
+				? (await sdk.chats.list({ limit: 1 }))[0]?.id
+				: resolvedId;
+			if (!sdkChatId) {
+				throw new Error("No chats found for API key session.");
+			}
+			const loaded = showAllMessages
+				? await sdk.chats.load(sdkChatId)
+				: await sdk.chats.messages({ chatId: sdkChatId, limit: 30 });
+			const apiKeyHasMoreBefore = (loaded as { hasMoreBefore?: boolean }).hasMoreBefore === true;
+			const { chat, messages, followUpSuggestions } = normalizeApiKeyLoadedChat(loaded as Record<string, unknown>);
+			if (flags.json === true) {
+				printJson({
+					chat,
+					messages,
+					follow_up_suggestions: followUpSuggestions,
+					...(showAllMessages ? {} : { has_more_before: apiKeyHasMoreBefore }),
+				});
+			} else {
+				await printChatConversationRaw(chat, messages);
+				if (!showAllMessages && apiKeyHasMoreBefore) {
+					process.stdout.write("\nShowing latest 30 messages. Use --all for full history.\n");
+				}
+			}
+			return;
+		}
+		if (!client.hasSession()) {
+			const example = resolveExampleChatForOpen(resolvedId === "__last__" ? "1" : resolvedId);
+			if (!example) {
         console.error(
           `Example chat '${chatId}' not found. Run 'openmates chats list' to see available examples.`,
         );
@@ -862,21 +4223,35 @@ async function handleChats(
       }
       return;
     }
-    const { chat, messages } = await client.getChatMessages(resolvedId);
+    const messageResult = showAllMessages
+      ? await client.getChatMessages(resolvedId, teamContext)
+      : await client.getChatMessagesWindow(resolvedId, { ...teamContext, limit: 30 });
+    const { chat, messages } = messageResult;
     if (flags.json === true) {
       // Fetch follow-up suggestions for JSON output too
       const followUpSuggestions = await client
-        .getChatFollowUpSuggestions(chat.id)
+        .getChatFollowUpSuggestions(chat.id, teamContext)
         .catch(() => [] as string[]);
-      printJson({ chat, messages, follow_up_suggestions: followUpSuggestions });
+      printJson({
+        chat,
+        messages,
+        follow_up_suggestions: followUpSuggestions,
+        ...(showAllMessages || !("hasMoreBefore" in messageResult) ? {} : { has_more_before: messageResult.hasMoreBefore }),
+      });
     } else if (flags.raw === true) {
       await printChatConversationRaw(chat, messages);
+      if (!showAllMessages && "hasMoreBefore" in messageResult && messageResult.hasMoreBefore) {
+        process.stdout.write("\nShowing latest 30 messages. Use --all for full history.\n");
+      }
     } else {
       // Fetch follow-up suggestions to display at the end of the conversation
       const followUpSuggestions = await client
-        .getChatFollowUpSuggestions(chat.id)
+        .getChatFollowUpSuggestions(chat.id, teamContext)
         .catch(() => [] as string[]);
       await printChatConversation(client, chat, messages, followUpSuggestions);
+      if (!showAllMessages && "hasMoreBefore" in messageResult && messageResult.hasMoreBefore) {
+        process.stdout.write("\nShowing latest 30 messages. Use --all for full history.\n");
+      }
     }
     return;
   }
@@ -890,14 +4265,19 @@ async function handleChats(
       );
     }
 
-    // Resolve short IDs so we can show titles for confirmation
+    // Resolve titles only for the interactive confirmation prompt. --yes is
+    // commonly used in automation and should go straight to the delete path.
     const resolved: Array<{ input: string; title: string | null }> = [];
-    for (const id of chatIds) {
-      try {
-        const { chat } = await client.getChatMessages(id);
-        resolved.push({ input: id, title: chat.title ?? null });
-      } catch {
-        resolved.push({ input: id, title: null });
+    if (flags.yes === true) {
+      for (const id of chatIds) resolved.push({ input: id, title: null });
+    } else {
+      for (const id of chatIds) {
+        try {
+          const { chat } = await client.getChatMessages(id, teamContext);
+          resolved.push({ input: id, title: chat.title ?? null });
+        } catch {
+          resolved.push({ input: id, title: null });
+        }
       }
     }
 
@@ -933,7 +4313,14 @@ async function handleChats(
     let deleted = 0;
     for (const r of resolved) {
       try {
-        await client.deleteChat(r.input);
+        if (apiKey) {
+          await createCliOpenMates(client, apiKey).chats.delete(
+            r.input,
+            { confirmed: true },
+          );
+        } else {
+          await client.deleteChat(r.input, teamContext);
+        }
         const label = r.title ? `"${r.title}"` : r.input;
         process.stdout.write(`  \x1b[32m\u2713\x1b[0m Deleted ${label}\n`);
         deleted++;
@@ -956,7 +4343,7 @@ async function handleChats(
       process.exit(1);
     }
     const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
-    const { chat, messages } = await client.getChatMessages(resolvedId);
+    const { chat, messages } = await client.getChatMessages(resolvedId, teamContext);
 
     // Determine output directory
     const outputDir =
@@ -1354,7 +4741,7 @@ async function handleChats(
     }
 
     // Fetch enough chats to reach position n (sorted most-recent-first)
-    const result = await client.listChats(n, 1);
+    const result = await client.listChats(n, 1, teamContext);
     if (result.total === 0) {
       console.error(
         "No chats found. Run 'openmates chats list' to sync.",
@@ -1390,6 +4777,280 @@ async function handleChats(
   console.error(`Unknown chats subcommand '${subcommand}'.\n`);
   printChatsHelp();
   process.exit(1);
+}
+
+async function listApiKeyChats(
+  client: OpenMatesClient,
+  apiKey: string,
+  limit: number,
+  page: number,
+): Promise<ChatListPage> {
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 10;
+  const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+  const sdk = createCliOpenMates(client, apiKey);
+  const chats = await sdk.chats.list({ limit: safeLimit, offset: (safePage - 1) * safeLimit });
+  return sdkChatsToChatListPage(chats, safeLimit, safePage);
+}
+
+async function searchApiKeyChats(
+  client: OpenMatesClient,
+  apiKey: string,
+  query: string,
+): Promise<ChatListItem[]> {
+  const sdk = createCliOpenMates(client, apiKey);
+  const chats = await sdk.chats.search(query, { limit: 0 });
+  return sdkChatsToChatListPage(chats, chats.length || 1, 1).chats;
+}
+
+function sdkChatsToChatListPage(
+  chats: EncryptedChatMetadata[],
+  limit: number,
+  page: number,
+): ChatListPage {
+  return {
+    chats: chats.map((chat) => {
+      const category = typeof chat.category === "string" ? chat.category : null;
+      return {
+        id: chat.id,
+        shortId: chat.id.slice(0, 8),
+        title: typeof chat.title === "string" ? chat.title : null,
+        summary: typeof chat.chat_summary === "string" ? chat.chat_summary : null,
+        updatedAt: normalizeSdkTimestamp(chat.updated_at),
+        category,
+        mateName: category ? (MATE_NAMES[category] ?? null) : null,
+      };
+    }),
+    total: chats.length,
+    page,
+    limit,
+    hasMore: chats.length >= limit,
+  };
+}
+
+function normalizeSdkTimestamp(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : null;
+  }
+  return null;
+}
+
+async function sendApiKeyChatNew(
+  client: OpenMatesClient,
+  apiKey: string,
+  message: string,
+  flags: Record<string, string | boolean>,
+): Promise<Record<string, unknown>> {
+  const sdk = createCliOpenMates(client, apiKey);
+  let response: ChatResponse;
+  try {
+    response = await sdk.chats.send(message, {
+      saveToAccount: false,
+      recoveryTimeoutMs: parseResponseTimeoutMs(flags),
+    });
+  } catch (err) {
+    if (!isSdkChatScopeDenied(err)) throw err;
+    const aiAskResult = await client.runSkill({
+      app: "ai",
+      skill: "ask",
+      inputData: {
+        messages: [{ role: "user", content: message }],
+        stream: false,
+        apps_enabled: true,
+        is_incognito: true,
+      },
+      apiKey,
+    });
+    response = {
+      content: extractAiAskContent(aiAskResult),
+      raw: aiAskResult,
+    };
+  }
+  const result = normalizeApiKeyChatResponse(response);
+  if (flags.json !== true) {
+    const category = typeof result.category === "string" ? result.category : null;
+    const modelName = typeof result.modelName === "string" ? result.modelName : null;
+    const mateBlock = ansiMateBlock(category, category ? (MATE_NAMES[category] ?? null) : null);
+    const modelSuffix = modelName ? `  \x1b[2m${modelName}\x1b[0m` : "";
+    process.stdout.write(`${SEP}\n`);
+    process.stdout.write(`${mateBlock}${modelSuffix}\n`);
+    process.stdout.write(`${SEP}\n`);
+    process.stdout.write(`${String(result.assistant ?? "")}\n`);
+    const chatId = typeof result.chatId === "string" ? result.chatId : null;
+    if (chatId) {
+      const shortId = chatId.slice(0, 8);
+      process.stdout.write(`${SEP}\n`);
+      process.stdout.write(
+        `\x1b[2mContinue: openmates chats send --chat ${shortId} "your message"\x1b[0m\n` +
+          `\x1b[2mHistory:  openmates chats show ${shortId}\x1b[0m\n`,
+      );
+    }
+  }
+  return result;
+}
+
+function isSdkChatScopeDenied(err: unknown): boolean {
+	if (!(err instanceof OpenMatesApiError) || err.status !== 403) return false;
+	const data = err.data;
+	const detail = data && typeof data === "object"
+		? (data as Record<string, unknown>).detail
+		: null;
+	if (!detail || typeof detail !== "object") return false;
+	const errorCode = (detail as Record<string, unknown>).error;
+	return errorCode === "missing_scope";
+}
+
+function createCliOpenMates(client: OpenMatesClient, apiKey: string): OpenMates {
+  return new OpenMates({
+    apiKey,
+    apiUrl: client.apiUrl,
+    sdkName: "cli",
+    deviceId: getCliApiKeyDeviceIdentity(),
+  });
+}
+
+function getCliApiKeyDeviceIdentity(): string {
+	return "cli:" + platform() + ":" + arch();
+}
+
+function extractAiAskContent(value: unknown): string {
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  if (typeof record.content === "string") return record.content;
+  if (typeof record.response === "string") return record.response;
+  if (typeof record.answer === "string") return record.answer;
+  const choices = record.choices;
+  if (Array.isArray(choices)) {
+    const first = choices[0] as Record<string, unknown> | undefined;
+    const message = first?.message as Record<string, unknown> | undefined;
+    if (typeof message?.content === "string") return message.content;
+    if (typeof first?.text === "string") return first.text;
+  }
+  const data = record.data;
+  if (data && typeof data === "object") return extractAiAskContent(data);
+  return JSON.stringify(value);
+}
+
+function extractApiKeyChatModelName(value: unknown, depth = 0): string | null {
+  if (!value || typeof value !== "object" || depth > 3) return null;
+  const record = value as Record<string, unknown>;
+  for (const key of ["model_name", "modelName", "model"]) {
+    const field = record[key];
+    if (typeof field === "string" && field) return field;
+  }
+  return extractApiKeyChatModelName(record.data, depth + 1)
+    ?? extractApiKeyChatModelName(record.raw, depth + 1)
+    ?? null;
+}
+
+function normalizeApiKeyChatResponse(response: ChatResponse): Record<string, unknown> {
+	const chatId = typeof response.chat_id === "string" ? response.chat_id : null;
+	const category = typeof response.category === "string" ? response.category : null;
+  const modelName = typeof response.model_name === "string"
+    ? response.model_name
+    : typeof response.modelName === "string"
+      ? response.modelName
+      : extractApiKeyChatModelName(response.raw);
+  return {
+    status: "completed",
+    chatId,
+    chat_id: chatId,
+    messageId: null,
+    message_id: null,
+    assistant: typeof response.content === "string" ? response.content : "",
+    category,
+    modelName,
+    model_name: modelName,
+    mateName: category ? (MATE_NAMES[category] ?? null) : null,
+    followUpSuggestions: [],
+    follow_up_suggestions: [],
+    taskEvents: [],
+    task_events: [],
+    pendingTaskUpdateJobs: [],
+    pending_task_update_jobs: [],
+    subChatEvents: [],
+    sub_chat_events: [],
+    appSettingsMemoryRequests: [],
+    app_settings_memory_requests: [],
+    acceptedTaskProposals: [],
+    accepted_task_proposals: [],
+    raw: response,
+	};
+}
+
+function normalizeApiKeyLoadedChat(payload: Record<string, unknown>): {
+	chat: ChatListItem;
+	messages: DecryptedMessage[];
+	followUpSuggestions: string[];
+} {
+	const rawChat = payload.chat && typeof payload.chat === "object"
+		? payload.chat as Record<string, unknown>
+		: {};
+	const chatId = String(rawChat.id ?? rawChat.chat_id ?? "");
+	if (!chatId) throw new Error("API key chat load did not include a chat id.");
+
+	const category = typeof rawChat.category === "string" ? rawChat.category : null;
+	const chat: ChatListItem = {
+		id: chatId,
+		shortId: chatId.slice(0, 8),
+		title: typeof rawChat.title === "string" ? rawChat.title : null,
+		summary: typeof rawChat.chat_summary === "string"
+			? rawChat.chat_summary
+			: typeof rawChat.summary === "string"
+				? rawChat.summary
+				: null,
+		updatedAt: normalizeSdkTimestamp(rawChat.updated_at),
+		category,
+		mateName: category ? MATE_NAMES[category] ?? null : null,
+	};
+
+	const rawEmbeds = Array.isArray(payload.embeds)
+		? payload.embeds.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+		: [];
+	const rawMessages = Array.isArray(payload.messages)
+		? payload.messages.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+		: [];
+	const messages = rawMessages.map((message) => {
+		const messageId = String(message.client_message_id ?? message.message_id ?? message.id ?? "");
+		const directEmbedIds = Array.isArray(message.embedIds)
+			? message.embedIds
+			: Array.isArray(message.embed_ids)
+				? message.embed_ids
+				: [];
+		const hashedMessageId = messageId ? createHash("sha256").update(messageId).digest("hex") : null;
+		const matchedEmbedIds = hashedMessageId
+			? rawEmbeds
+				.filter((embed) => embed.hashed_message_id === hashedMessageId && !embed.parent_embed_id)
+				.map((embed) => String(embed.embed_id ?? embed.id ?? ""))
+				.filter(Boolean)
+			: [];
+		return {
+			id: messageId,
+			chatId: String(message.chat_id ?? chatId),
+			role: String(message.role ?? "unknown"),
+			content: typeof message.content === "string" ? message.content : "",
+			senderName: typeof message.senderName === "string"
+				? message.senderName
+				: typeof message.sender_name === "string"
+					? message.sender_name
+					: null,
+			category: typeof message.category === "string" ? message.category : null,
+			modelName: typeof message.modelName === "string"
+				? message.modelName
+				: typeof message.model_name === "string"
+					? message.model_name
+					: null,
+			createdAt: normalizeSdkTimestamp(message.created_at) ?? 0,
+			embedIds: [...new Set([...directEmbedIds.map(String), ...matchedEmbedIds])],
+		};
+	});
+	messages.sort((a, b) => a.createdAt - b.createdAt);
+
+	const followUpSuggestions = Array.isArray(payload.follow_up_suggestions)
+		? payload.follow_up_suggestions.map(String)
+		: [];
+	return { chat, messages, followUpSuggestions };
 }
 
 function resolveExampleChatForOpen(target: string): ExampleChatConversation | null {
@@ -1430,9 +5091,47 @@ async function handleWorkflows(
   subcommand: string | undefined,
   rest: string[],
   flags: Record<string, string | boolean>,
+  redactor?: OutputRedactor,
 ): Promise<void> {
   if (!subcommand || subcommand === "help" || flags.help === true) {
     printWorkflowsHelp();
+    return;
+  }
+
+  if (rest[0] === "add-to-project") {
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const masterKey = client.getMasterKeyBytes();
+    const project = await requiredResolvedProject(client, masterKey, projectId, flags);
+    const storageChoice = await resolveAddToProjectStorageChoice(client, project, flags, "workflow");
+    const workflow = await client.getWorkflow(subcommand, teamContextFromFlags(flags));
+    const remoteCopyProposal = storageChoice.targetMode === "save_only_in_openmates"
+      ? null
+      : buildRemoteCopyProposal({
+        objectType: "workflow",
+        objectId: workflow.id,
+        title: workflow.title,
+        content: buildWorkflowRemoteCopyYaml(workflow),
+        source: storageChoice.source!,
+        targetMode: storageChoice.targetMode,
+      });
+    const item = await createEncryptedProjectItem(client, project, {
+      itemType: "workflow",
+      targetId: workflow.id,
+      displayName: workflow.title,
+      folderId: typeof flags.folder === "string" ? flags.folder : null,
+      metadata: { storage: storageChoice.targetMode, source: "cli_add_to_project", remote_copy_proposal: remoteCopyProposal ? { target_path: remoteCopyProposal.target_path, source_id: remoteCopyProposal.source_id } : null },
+    });
+    printAddToProjectResult({ objectType: "workflow", objectId: workflow.id, projectId: project.projectId, item, targetMode: storageChoice.targetMode, remoteCopyProposal }, flags);
+    return;
+  }
+
+  if (rest[0] === "remove-from-project") {
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const masterKey = client.getMasterKeyBytes();
+    const project = await requiredResolvedProject(client, masterKey, projectId, flags);
+    const workflow = await client.getWorkflow(subcommand, teamContextFromFlags(flags));
+    const removed = await client.deleteProjectItemByTarget(project.projectId, "workflow", workflow.id);
+    printRemoveFromProjectResult({ objectType: "workflow", objectId: workflow.id, projectId: project.projectId, deleted: removed.deleted, deletedCount: removed.deleted_count }, flags);
     return;
   }
 
@@ -1447,7 +5146,7 @@ async function handleWorkflows(
   }
 
   if (subcommand === "list") {
-    const workflows = await client.listWorkflows();
+    const workflows = await client.listWorkflows(teamContextFromFlags(flags));
     if (flags.json === true) {
       printJson(workflows);
     } else {
@@ -1456,7 +5155,38 @@ async function handleWorkflows(
     return;
   }
 
+  if (subcommand === "validate") {
+    const file = typeof flags.file === "string" ? flags.file : "";
+    if (!file) throw new Error("Missing --file. Example: openmates workflows validate --file workflow.yml");
+    const validation = await client.validateWorkflowYaml(readFileSync(file, "utf8"));
+    if (flags.json === true) {
+      printJson(validation);
+    } else {
+      kv("Draft valid", validation.draft_valid ? "yes" : "no");
+      kv("Ready to enable", validation.enable_ready ? "yes" : "no");
+      for (const diagnostic of validation.diagnostics) {
+        console.log(`  - ${String(diagnostic.path ?? "$")}: ${String(diagnostic.message ?? diagnostic.code ?? "invalid")}`);
+      }
+    }
+    if (!validation.draft_valid) process.exitCode = 1;
+    return;
+  }
+
   if (subcommand === "create") {
+    const yamlFile = typeof flags.file === "string" ? flags.file : "";
+    if (yamlFile) {
+      const result = await client.createWorkflowYaml(readFileSync(yamlFile, "utf8"));
+      if (flags.json === true) {
+        printJson(result);
+      } else {
+        printWorkflowDetail(result.workflow);
+        kv("Ready to enable", result.validation.enable_ready ? "yes" : "no");
+        for (const diagnostic of result.validation.diagnostics) {
+          console.log(`  - ${String(diagnostic.path ?? "$")}: ${String(diagnostic.message ?? diagnostic.code ?? "input required")}`);
+        }
+      }
+      return;
+    }
     const title = typeof flags.title === "string" ? flags.title.trim() : "";
     const graphJson = typeof flags.graph === "string" ? flags.graph : "";
     if (!title) throw new Error("Missing --title for workflow create.");
@@ -1475,9 +5205,73 @@ async function handleWorkflows(
     return;
   }
 
+  if (subcommand === "update") {
+    const workflowId = rest[0];
+    const yamlFile = typeof flags.file === "string" ? flags.file : "";
+    if (!workflowId || !yamlFile) throw new Error("Missing workflow ID or --file. Example: openmates workflows update <id> --file workflow.yml");
+    const result = await client.updateWorkflowYaml(workflowId, readFileSync(yamlFile, "utf8"));
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      printWorkflowDetail(result.workflow);
+      kv("Ready to enable", result.validation.enable_ready ? "yes" : "no");
+      for (const diagnostic of result.validation.diagnostics) {
+        console.log(`  - ${String(diagnostic.path ?? "$")}: ${String(diagnostic.message ?? diagnostic.code ?? "input required")}`);
+      }
+    }
+    return;
+  }
+
+  if (subcommand === "history") {
+    const workflowId = rest[0];
+    if (!workflowId) throw new Error("Missing workflow ID. Usage: openmates workflows history <workflow-id>");
+    printObjectHistory(await client.listObjectHistory("workflow", workflowId, typeof flags.limit === "string" ? Number(flags.limit) : 50), flags);
+    return;
+  }
+
+  if (subcommand === "restore") {
+    const workflowId = rest[0];
+    if (!workflowId) throw new Error("Missing workflow ID. Usage: openmates workflows restore <workflow-id> --entry <history-entry-id>");
+    const entryId = historyEntryIdFromFlagsOrRest(flags, rest, "openmates workflows restore <workflow-id> --entry <history-entry-id>");
+    const result = await client.restoreObjectHistory("workflow", workflowId, entryId, parseHistoryRestoreState(flags.state));
+    if (flags.json === true) printJson(result);
+    else {
+      console.log(`Workflow restored: ${workflowId}`);
+      printHistoryCommands(result.history as WorkspaceHistoryResult | null | undefined);
+    }
+    return;
+  }
+
+  if (subcommand === "ask") {
+    const instruction = requiredAskInstruction(flags, rest, "openmates workflows ask \"alert me if it rains\"");
+    const exactAsk = await buildExactWorkflowAsk(client, instruction, flags);
+    if (exactAsk) {
+      const result = await client.askWorkflow({ instruction, ...exactAsk });
+      if (await handleWorkspaceAskFallbackChat(client, "workflow", instruction, result, flags, redactor)) return;
+      printAskApplyResult("workflow", result, flags);
+      return;
+    }
+    const retention = parseWorkflowRunContentRetention(flags["run-content-retention"]);
+    const explicitCreate = typeof flags.graph === "string" || typeof flags.description === "string" || flags.enabled === true || Boolean(retention)
+      ? {
+          title: instruction.slice(0, 200),
+          description: typeof flags.description === "string" ? flags.description : null,
+          graph: workflowAskGraphFromFlags(flags),
+          enabled: flags.enabled === true,
+          ...(retention ? { run_content_retention: retention } : {}),
+          source: "cli_ask",
+          created_by_assistant: true,
+        }
+      : undefined;
+    const result = await client.askWorkflow({ instruction, ...(explicitCreate ? { create: explicitCreate } : {}) });
+    if (await handleWorkspaceAskFallbackChat(client, "workflow", instruction, result, flags, redactor)) return;
+    printAskApplyResult("workflow", result, flags);
+    return;
+  }
+
   if (subcommand === "input") {
     const text = typeof flags.text === "string" ? flags.text : rest.join(" ").trim();
-    if (!text) throw new Error("Missing workflow input text. Example: openmates workflows input \"alert me if it rains\"");
+    if (!text) throw new Error("Missing workflow input text. Example: openmates workflows ask \"alert me if it rains\"");
     const session = await client.startWorkflowInput({
       text,
       selectedWorkflowId: typeof flags["workflow-id"] === "string" ? flags["workflow-id"] : undefined,
@@ -1554,7 +5348,7 @@ async function handleWorkflows(
   if (subcommand === "show") {
     const workflowId = rest[0];
     if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows show <id>");
-    const workflow = await client.getWorkflow(workflowId);
+    const workflow = await client.getWorkflow(workflowId, teamContextFromFlags(flags));
     if (flags.json === true) {
       printJson(workflow);
     } else {
@@ -1593,9 +5387,11 @@ async function handleWorkflows(
   if (subcommand === "run") {
     const workflowId = rest[0];
     if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows run <id>");
+    const idempotencyKey = typeof flags["idempotency-key"] === "string" ? flags["idempotency-key"] : "";
+    if (!idempotencyKey) throw new Error("Missing --idempotency-key. Reuse this stable key when retrying the same workflow run.");
     const mode = flags.mode === "test" ? "test" : "manual";
     const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
-    const run = await client.runWorkflow(workflowId, { mode, input });
+    const run = await client.runWorkflow(workflowId, { idempotencyKey, mode, input });
     if (flags.json === true) {
       printJson(run);
     } else {
@@ -1625,6 +5421,62 @@ async function handleWorkflows(
       printJson(run);
     } else {
       printWorkflowRun(run);
+    }
+    return;
+  }
+
+  if (subcommand === "run-cancel") {
+    const workflowId = rest[0];
+    const runId = rest[1];
+    if (!workflowId || !runId) throw new Error("Missing workflow/run ID. Example: openmates workflows run-cancel <workflow-id> <run-id>");
+    const result = await client.cancelWorkflowRun(workflowId, runId);
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      kv("Status", result.status);
+    }
+    return;
+  }
+
+  if (subcommand === "step-test") {
+    const workflowId = rest[0];
+    const stepId = rest[1];
+    if (!workflowId || !stepId) throw new Error("Missing workflow/step ID. Example: openmates workflows step-test <workflow-id> <step-id> --yes");
+    const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
+    const run = await client.testWorkflowStep(workflowId, stepId, { input, confirmed: flags.yes === true });
+    if (flags.json === true) {
+      printJson(run);
+    } else {
+      printWorkflowRun(run);
+    }
+    return;
+  }
+
+  if (subcommand === "respond") {
+    const workflowId = rest[0];
+    const runId = rest[1];
+    const stepId = rest[2];
+    if (!workflowId || !runId || !stepId) throw new Error("Missing workflow/run/step ID. Example: openmates workflows respond <workflow-id> <run-id> <step-id> --input '{\"answer\":\"Berlin\"}'");
+    const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
+    const run = await client.respondToWorkflowRun(workflowId, runId, stepId, input);
+    if (flags.json === true) {
+      printJson(run);
+    } else {
+      printWorkflowRun(run);
+    }
+    return;
+  }
+
+  if (subcommand === "help-app") {
+    const capabilityId = rest[0];
+    if (!capabilityId) throw new Error("Missing app skill. Example: openmates workflows help-app weather.forecast");
+    const capabilities = await client.listWorkflowCapabilities();
+    const capability = capabilities.find((item) => item.id === capabilityId || item.id === capabilityId.replace(":", "."));
+    if (!capability) throw new Error(`Workflow capability not found: ${capabilityId}`);
+    if (flags.json === true) {
+      printJson(capability);
+    } else {
+      printWorkflowCapabilityHelp(capability);
     }
     return;
   }
@@ -1700,9 +5552,545 @@ function printWorkflowCapabilities(capabilities: WorkflowCapability[]): void {
   }
 }
 
+function printWorkflowCapabilityHelp(capability: WorkflowCapability): void {
+  header(`${capability.title}\n`);
+  kv("ID", capability.id);
+  kv("Type", capability.type);
+  kv("Enabled", capability.enabled ? "yes" : "no");
+  if (capability.reason) kv("Reason", capability.reason);
+  const metadata = capability.metadata ?? {};
+  const workflow = metadata.workflow as Record<string, unknown> | undefined;
+  if (workflow) {
+    kv("Effect", String(workflow.effect ?? "unknown"));
+    kv("Execution", String(workflow.execution_mode ?? "unknown"));
+    kv("Approval", String(workflow.approval ?? "unknown"));
+    kv("Unattended", workflow.unattended === true ? "yes" : "no");
+  }
+  if (metadata.input_schema) {
+    console.log("\nInput schema:");
+    console.log(JSON.stringify(metadata.input_schema, null, 2));
+  }
+  if (workflow?.test_example_input) {
+    console.log("\nTest example:");
+    console.log(JSON.stringify(workflow.test_example_input, null, 2));
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Apps
 // ---------------------------------------------------------------------------
+
+type JsonSchema = {
+  type?: string;
+  description?: string;
+  properties?: Record<string, JsonSchema>;
+  items?: JsonSchema;
+  required?: string[];
+  enum?: unknown[];
+  default?: unknown;
+};
+
+type GeneratedAppSkillCommand = {
+  app_id: string;
+  skill_id: string;
+  description?: string;
+  schema?: JsonSchema;
+};
+
+type AppSkillInputShape = {
+  kind: "request-array" | "flat";
+  schema: JsonSchema;
+  properties: Record<string, JsonSchema>;
+  required: string[];
+};
+
+export type ImagesAiDetectionClassification =
+  | "likely_ai_generated"
+  | "possibly_ai_generated"
+  | "likely_not_ai_generated"
+  | "unavailable";
+
+export interface ImagesAiDetectionSummary {
+  file: string;
+  filename: string;
+  content_type: string;
+  embed_id: string;
+  deduplicated: boolean;
+  stored: true;
+  status: string;
+  provider: string | null;
+  ai_generated: number | null;
+  classification: ImagesAiDetectionClassification;
+  label: string;
+  error: string | null;
+}
+
+const IMAGES_AI_DETECTION_LIKELY_THRESHOLD = 0.7;
+const IMAGES_AI_DETECTION_POSSIBLE_THRESHOLD = 0.4;
+
+const GENERATED_APP_SKILL_COMMANDS = APP_SKILL_METADATA as readonly GeneratedAppSkillCommand[];
+
+const APP_SKILL_COMMAND_EXAMPLES: Record<string, string[]> = {
+  "code/get_docs": [
+    "openmates apps code get_docs --library React --question \"How do I use useState?\" --json",
+  ],
+  "code/search_repos": [
+    "openmates apps code search_repos \"svelte markdown editor\" --count 3 --json",
+  ],
+  "code/image_to_html": [
+    "openmates apps code image_to_html --file ./mockup.png --max-correction-passes 0 --json",
+  ],
+  "electronics/search_components": [
+    "openmates apps electronics search_components --category power_converters --input-voltage-min 12 --input-voltage-max 12 --output-voltage 3.3 --output-current-max 3 --max-results 3 --json",
+  ],
+  "events/search": [
+    "openmates apps events search \"technology meetup\" --location Berlin --provider auto --json",
+  ],
+  "fitness/search_classes": [
+    "openmates apps fitness search_classes Yoga --address \"Sorauer Str. 12, Berlin\" --radius-km 3 --attendance-mode onsite --days 7 --limit 5 --json",
+  ],
+  "fitness/search_locations": [
+    "openmates apps fitness search_locations HIIT --address \"Sorauer Str. 12, Berlin\" --radius-km 2 --limit 5 --json",
+  ],
+  "health/search_appointments": [
+    "openmates apps health search_appointments --speciality zahnarzt --city Berlin --json",
+  ],
+  "home/search": [
+    "openmates apps home search Berlin --listing-type rent --json",
+  ],
+  "images/search": [
+    "openmates apps images search \"sunset over ocean\" --json",
+  ],
+  "maps/search": [
+    "openmates apps maps search \"cafes in Berlin Mitte\" --json",
+  ],
+  "math/calculate": [
+    "openmates apps math calculate \"sqrt(144)\" --mode numeric --precision 10 --json",
+  ],
+  "music/generate": [
+    "openmates apps music generate \"A 30 second upbeat electronic test jingle\" --mode jingle --duration-seconds 30 --json",
+  ],
+  "news/search": [
+    "openmates apps news search \"artificial intelligence\" --freshness pw --json",
+  ],
+  "shopping/search_products": [
+    "openmates apps shopping search_products \"bio joghurt\" --provider REWE --json",
+  ],
+  "travel/search_connections": [
+    "openmates apps travel search_connections --origin Berlin --destination Munich --date 2026-08-01 --json",
+    "openmates apps travel search_connections --origin Berlin --destination Munich --date 2026-08-01 --transport train --json",
+  ],
+  "travel/search_stays": [
+    "openmates apps travel search_stays \"Hotels in Berlin\" --check-in-date 2026-08-01 --check-out-date 2026-08-03 --json",
+  ],
+  "videos/get_transcript": [
+    "openmates apps videos get_transcript --url https://www.youtube.com/watch?v=dQw4w9WgXcQ --json",
+  ],
+  "videos/search": [
+    "openmates apps videos search \"python programming tutorial\" --json",
+  ],
+  "weather/forecast": [
+    "openmates apps weather forecast Berlin --days 2 --json",
+  ],
+  "web/read": [
+    "openmates apps web read https://example.com --json",
+  ],
+  "web/search": [
+    "openmates apps web search \"OpenMates AI assistant\" --json",
+  ],
+};
+
+function findGeneratedAppSkillCommand(
+  appId: string | undefined,
+  skillId: string | undefined,
+): GeneratedAppSkillCommand | undefined {
+  if (!appId || !skillId) return undefined;
+  return GENERATED_APP_SKILL_COMMANDS.find(
+    (command) => command.app_id === appId && command.skill_id === skillId,
+  );
+}
+
+export function classifyImagesAiDetection(score: number | null | undefined): ImagesAiDetectionClassification {
+  if (typeof score !== "number" || !Number.isFinite(score)) return "unavailable";
+  if (score > IMAGES_AI_DETECTION_LIKELY_THRESHOLD) return "likely_ai_generated";
+  if (score > IMAGES_AI_DETECTION_POSSIBLE_THRESHOLD) return "possibly_ai_generated";
+  return "likely_not_ai_generated";
+}
+
+export function formatImagesAiDetectionLabel(classification: ImagesAiDetectionClassification): string {
+  switch (classification) {
+    case "likely_ai_generated":
+      return "Likely AI-generated";
+    case "possibly_ai_generated":
+      return "Possibly AI-generated";
+    case "likely_not_ai_generated":
+      return "Likely not AI-generated";
+    case "unavailable":
+      return "Detection unavailable";
+  }
+}
+
+export function buildImagesAiDetectionSummary(
+  uploadResult: UploadFileResponse,
+  filePath: string,
+): ImagesAiDetectionSummary {
+  const detection = uploadResult.ai_detection;
+  const status = detection?.status ?? (detection ? "success" : "unavailable");
+  const score = status === "success" ? detection?.ai_generated : null;
+  const classification = classifyImagesAiDetection(score);
+  return {
+    file: filePath,
+    filename: uploadResult.filename || basename(filePath),
+    content_type: uploadResult.content_type,
+    embed_id: uploadResult.embed_id,
+    deduplicated: uploadResult.deduplicated,
+    stored: true,
+    status,
+    provider: detection?.provider ?? null,
+    ai_generated: typeof score === "number" && Number.isFinite(score) ? score : null,
+    classification,
+    label: formatImagesAiDetectionLabel(classification),
+    error: detection?.error ?? null,
+  };
+}
+
+function appSkillInputShape(command: GeneratedAppSkillCommand): AppSkillInputShape {
+  const schema = command.schema ?? { type: "object", properties: {} };
+  const requests = schema.properties?.requests;
+  if (requests?.type === "array") {
+    const itemSchema = requests.items ?? { type: "object", properties: {} };
+    return {
+      kind: "request-array",
+      schema: itemSchema,
+      properties: itemSchema.properties ?? {},
+      required: itemSchema.required ?? [],
+    };
+  }
+  return {
+    kind: "flat",
+    schema,
+    properties: schema.properties ?? {},
+    required: schema.required ?? [],
+  };
+}
+
+async function handleGeneratedAppSkillCommand(
+  client: OpenMatesClient,
+  command: GeneratedAppSkillCommand,
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  apiKey?: string,
+): Promise<void> {
+  if (flags.help === true) {
+    printGeneratedAppSkillCommandHelp(command);
+    return;
+  }
+
+  const inputData = buildGeneratedAppSkillInput(command, positionals, flags);
+  try {
+    const result = await client.runSkill({
+      app: command.app_id,
+      skill: command.skill_id,
+      inputData,
+      apiKey,
+      promptInjectionProtection: flags["disable-prompt-injection-protection"] === true ? false : undefined,
+    });
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      printSkillResult(command.app_id, command.skill_id, result);
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`\x1b[31m✗ ${command.app_id}/${command.skill_id} failed:\x1b[0m ${msg}`);
+    process.exit(1);
+  }
+}
+
+function buildGeneratedAppSkillInput(
+  command: GeneratedAppSkillCommand,
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+): Record<string, unknown> {
+  if (typeof flags.input === "string") {
+    try {
+      const parsed = JSON.parse(flags.input) as unknown;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("input must be a JSON object");
+      }
+      return parsed as Record<string, unknown>;
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new Error(`Invalid --input JSON: ${detail}`);
+    }
+  }
+
+  const shape = appSkillInputShape(command);
+  const value = buildGeneratedAppSkillValue(command, shape, positionals, flags);
+  if (shape.kind === "request-array") {
+    return { requests: [value] };
+  }
+  return value;
+}
+
+function buildGeneratedAppSkillValue(
+  command: GeneratedAppSkillCommand,
+  shape: AppSkillInputShape,
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+): Record<string, unknown> {
+  if (command.app_id === "travel" && command.skill_id === "search_connections") {
+    return buildTravelConnectionsRequest(positionals, flags);
+  }
+  if (command.app_id === "code" && command.skill_id === "image_to_html") {
+    return buildCodeImageToHtmlRequest(positionals, flags);
+  }
+
+  const value: Record<string, unknown> = {};
+  const consumedPositionals = applyPrimaryPositionals(command, shape, value, positionals);
+  for (const [name, schema] of Object.entries(shape.properties)) {
+    if (value[name] !== undefined || name === "requests") continue;
+    const raw = readFlag(flags, name);
+    if (raw === undefined) continue;
+    value[name] = coerceAppSkillFlagValue(name, raw, schema);
+  }
+
+  const remainingPositionals = positionals.slice(consumedPositionals);
+  if (remainingPositionals.length > 0) {
+    throw new Error(
+      `Unexpected argument(s): ${remainingPositionals.join(" ")}\n\nRun: openmates apps ${command.app_id} ${command.skill_id} --help`,
+    );
+  }
+
+  const missing = shape.required.filter((name) => value[name] === undefined || value[name] === "");
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required option(s): ${missing.map((name) => `--${kebabCase(name)}`).join(", ")}\n\nRun: openmates apps ${command.app_id} ${command.skill_id} --help`,
+    );
+  }
+  return value;
+}
+
+export function buildTravelConnectionsRequest(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+): Record<string, unknown> {
+  const origin = stringFlag(flags, "origin") ?? positionals[0];
+  const destination = stringFlag(flags, "destination") ?? positionals[1];
+  const date = stringFlag(flags, "date") ?? positionals[2];
+  if (!origin || !destination || !date) {
+    throw new Error(
+      "Missing travel route. Use --origin <place> --destination <place> --date <YYYY-MM-DD>.\n\n" +
+        "Example: openmates apps travel search_connections --origin Berlin --destination Munich --date 2026-08-01 --json",
+    );
+  }
+  const request: Record<string, unknown> = {
+    legs: [{ origin, destination, date }],
+  };
+  const transportMethods = csvFlag(flags, "transport_methods") ?? csvFlag(flags, "transport-methods");
+  const transport = stringFlag(flags, "transport") ?? stringFlag(flags, "transport-method");
+  if (transportMethods) request.transport_methods = transportMethods;
+  else if (transport) request.transport_methods = [transport];
+  const providers = csvFlag(flags, "providers") ?? csvFlag(flags, "provider");
+  if (providers) request.providers = providers;
+  const ownedPasses = csvFlag(flags, "owned_passes") ?? csvFlag(flags, "owned-passes");
+  if (ownedPasses) request.owned_passes = ownedPasses;
+  const railProducts = csvFlag(flags, "rail_products") ?? csvFlag(flags, "rail-products");
+  if (railProducts) request.rail_products = railProducts;
+  const passOnly = booleanFlag(flags, "pass_only") ?? booleanFlag(flags, "pass-only");
+  if (passOnly !== undefined) request.pass_only = passOnly;
+  const minTransferMinutes = integerFlag(flags, "min_transfer_minutes") ?? integerFlag(flags, "min-transfer-minutes");
+  if (minTransferMinutes !== undefined) request.min_transfer_minutes = minTransferMinutes;
+  const maxResults = integerFlag(flags, "max_results") ?? integerFlag(flags, "max-results");
+  if (maxResults !== undefined) request.max_results = maxResults;
+  return request;
+}
+
+function buildCodeImageToHtmlRequest(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+): Record<string, unknown> {
+  const file = stringFlag(flags, "file") ?? positionals[0];
+  if (!file) {
+    throw new Error(
+      "Missing screenshot file. Use --file <path>.\n\n" +
+        "Example: openmates apps code image_to_html --file ./mockup.png --json",
+    );
+  }
+  const request: Record<string, unknown> = {
+    image_base64: readFileSync(file).toString("base64"),
+    mime_type: inferImageToHtmlMimeType(file),
+    filename: file.split(/[\\/]/).pop() ?? file,
+  };
+  const maxCorrectionPasses = readFlag(flags, "max_correction_passes") ?? readFlag(flags, "max-correction-passes");
+  if (maxCorrectionPasses !== undefined) {
+    request.max_correction_passes = coerceAppSkillFlagValue("max_correction_passes", maxCorrectionPasses, { type: "integer" });
+  }
+  return request;
+}
+
+function inferImageToHtmlMimeType(file: string): string {
+  const lower = file.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".webp")) return "image/webp";
+  throw new Error("Unsupported image file extension. Use .png, .jpg, .jpeg, or .webp");
+}
+
+function applyPrimaryPositionals(
+  command: GeneratedAppSkillCommand,
+  shape: AppSkillInputShape,
+  value: Record<string, unknown>,
+  positionals: string[],
+): number {
+  if (positionals.length === 0) return 0;
+
+  if (command.app_id === "code" && command.skill_id === "get_docs") {
+    if (value.library === undefined) value.library = positionals[0];
+    if (value.question === undefined && positionals.length > 1) {
+      value.question = positionals.slice(1).join(" ");
+    }
+    return positionals.length;
+  }
+
+  const primary = primaryPositionalProperty(shape.properties, shape.required);
+  if (!primary || value[primary] !== undefined) return 0;
+  value[primary] = positionals.join(" ");
+  return positionals.length;
+}
+
+function primaryPositionalProperty(
+  properties: Record<string, JsonSchema>,
+  required: string[],
+): string | undefined {
+  const preferred = ["query", "url", "location", "expression", "prompt", "speciality", "library"];
+  for (const name of preferred) {
+    if (properties[name]?.type === "string") return name;
+  }
+  return required.find((name) => properties[name]?.type === "string");
+}
+
+function readFlag(
+  flags: Record<string, string | boolean>,
+  name: string,
+): string | boolean | undefined {
+  return flags[name] ?? flags[kebabCase(name)];
+}
+
+function stringFlag(flags: Record<string, string | boolean>, name: string): string | undefined {
+  const raw = readFlag(flags, name);
+  return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
+}
+
+function csvFlag(flags: Record<string, string | boolean>, name: string): string[] | undefined {
+  const raw = readFlag(flags, name);
+  if (typeof raw !== "string" || !raw.trim()) return undefined;
+  const values = raw.split(/[,\n]/).map((value) => value.trim()).filter(Boolean);
+  return values.length > 0 ? values : undefined;
+}
+
+function booleanFlag(flags: Record<string, string | boolean>, name: string): boolean | undefined {
+  const raw = readFlag(flags, name);
+  if (raw === undefined) return undefined;
+  if (raw === true) return true;
+  if (raw === false) return false;
+  const normalized = raw.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  return true;
+}
+
+function integerFlag(flags: Record<string, string | boolean>, name: string): number | undefined {
+  const raw = readFlag(flags, name);
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "string") throw new Error(`--${kebabCase(name)} requires an integer value`);
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isInteger(parsed)) throw new Error(`--${kebabCase(name)} must be an integer`);
+  return parsed;
+}
+
+function coerceAppSkillFlagValue(
+  name: string,
+  raw: string | boolean,
+  schema: JsonSchema,
+): unknown {
+  if (schema.type === "boolean") return raw === true || raw === "true";
+  if (schema.type === "integer") {
+    if (typeof raw !== "string") throw new Error(`--${kebabCase(name)} requires an integer value`);
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isInteger(parsed)) throw new Error(`--${kebabCase(name)} must be an integer`);
+    return parsed;
+  }
+  if (schema.type === "number") {
+    if (typeof raw !== "string") throw new Error(`--${kebabCase(name)} requires a number value`);
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) throw new Error(`--${kebabCase(name)} must be a number`);
+    return parsed;
+  }
+  if (schema.type === "array") {
+    if (typeof raw !== "string") return [];
+    return raw.split(/[,\n]/).map((value) => value.trim()).filter(Boolean);
+  }
+  return typeof raw === "string" ? raw : String(raw);
+}
+
+function printGeneratedAppSkillCommandHelp(command: GeneratedAppSkillCommand): void {
+  const shape = appSkillInputShape(command);
+  header(`${capitalise(command.app_id)} › ${command.skill_id}`);
+  if (command.description) console.log(`\n${command.description}\n`);
+  console.log("Usage:");
+  console.log(`  openmates apps ${command.app_id} ${command.skill_id} [value] [options] [--json]`);
+  console.log(`  openmates apps ${command.app_id} ${command.skill_id} --input '<json>' [--json]`);
+  console.log("\nOptions:");
+  console.log("  --input <json>       Full app-skill input object. Use this for advanced/nested payloads.");
+  for (const [name, schema] of Object.entries(shape.properties)) {
+    const required = shape.required.includes(name) ? " required" : "";
+    const type = appSkillCliType(schema);
+    const description = schema.description ? `  ${schema.description.replace(/\s+/g, " ").slice(0, 120)}` : "";
+    console.log(`  --${kebabCase(name)} <${type}>${required}${description}`);
+  }
+  if (command.app_id === "travel" && command.skill_id === "search_connections") {
+    console.log("  --origin <place>     Route origin for a typed connection search.");
+    console.log("  --destination <place> Route destination for a typed connection search.");
+    console.log("  --date <YYYY-MM-DD>  Departure date for a typed connection search.");
+    console.log("  --transport <mode>   Optional transport mode, e.g. train or plane.");
+    console.log("  --providers <csv>    Optional providers, e.g. deutsche_bahn,transitous.");
+    console.log("  --owned-passes <csv> Optional owned passes, e.g. deutschland_ticket.");
+    console.log("  --pass-only          Prefer pass-covered routes when supported.");
+    console.log("  --rail-products <csv> Optional rail filters, e.g. high_speed,regional.");
+  }
+  if (command.app_id === "code" && command.skill_id === "image_to_html") {
+    console.log("  --file <path>        Local PNG, JPEG, or WEBP screenshot to convert.");
+  }
+  console.log("  --api-key <key>      Use an API key instead of a stored CLI session.");
+  console.log("  --disable-prompt-injection-protection  Skip GPT-OSS prompt-injection scanning for this direct call.");
+  console.log("  --json               Print the raw response envelope as JSON.");
+  console.log("\nExamples:");
+  const key = `${command.app_id}/${command.skill_id}`;
+  const examples = APP_SKILL_COMMAND_EXAMPLES[key] ?? [buildGeneratedAppSkillExample(command, shape)];
+  for (const example of examples) console.log(`  ${example}`);
+  console.log("\nInspect metadata:");
+  console.log(`  openmates apps skill-info ${command.app_id} ${command.skill_id}`);
+}
+
+function appSkillCliType(schema: JsonSchema): string {
+  if (schema.enum && schema.enum.length > 0) return schema.enum.map(String).join("|");
+  if (schema.type === "array") return "csv";
+  return schema.type ?? "value";
+}
+
+function buildGeneratedAppSkillExample(
+  command: GeneratedAppSkillCommand,
+  shape: AppSkillInputShape,
+): string {
+  const primary = primaryPositionalProperty(shape.properties, shape.required);
+  const value = primary ? String(buildExampleValue(primary, shape.properties[primary]?.type ?? "string", shape.properties[primary]?.description ?? "")) : "<value>";
+  return `openmates apps ${command.app_id} ${command.skill_id} ${JSON.stringify(value)} --json`;
+}
+
+function kebabCase(value: string): string {
+  return value.replace(/_/g, "-");
+}
 
 async function handleApps(
   client: OpenMatesClient,
@@ -1718,30 +6106,38 @@ async function handleApps(
     return;
   }
 
-  // `apps <app> --help` → show app info
-  // `apps <app> <skill> --help` → show skill info
+  if (flags.help === true && subcommand === "images" && (rest[0] === "detect-ai" || rest[0] === "detect_ai")) {
+    printImagesDetectAiHelp();
+    return;
+  }
+
+  // `apps <app> --help` → show app info. Skill help uses the explicit
+  // metadata command `apps skill-info <app> <skill>`, not a generic runner.
   if (
     flags.help === true &&
     subcommand !== "list" &&
     subcommand !== "info" &&
     subcommand !== "skill-info" &&
-    subcommand !== "run"
+    subcommand !== "examples"
   ) {
     const potentialApp = subcommand;
     const potentialSkill = rest[0];
-    try {
-      if (potentialSkill) {
-        // `apps <app> <skill> --help` → skill-level help
-        const data = await client.getSkillInfo(
-          potentialApp,
-          potentialSkill,
-          apiKey,
-        );
-        await printSkillInfo(client, potentialApp, data as SkillMetadata);
-      } else {
-        const data = await client.getApp(potentialApp);
-        await printAppInfo(client, data as AppMetadata);
+    if (potentialSkill) {
+      const command = findGeneratedAppSkillCommand(potentialApp, potentialSkill);
+      if (command) {
+        printGeneratedAppSkillCommandHelp(command);
+        return;
       }
+      console.error(
+        "Generic app-skill CLI execution is not supported.\n\n" +
+          "Use an explicit typed command for this app skill, or inspect metadata with:\n" +
+          `  openmates apps skill-info ${potentialApp} ${potentialSkill}\n`,
+      );
+      process.exit(1);
+    }
+    try {
+      const data = await client.getApp(potentialApp);
+      await printAppInfo(client, data as AppMetadata);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
@@ -1809,53 +6205,40 @@ async function handleApps(
     return;
   }
 
-  // `apps run` is removed — the sugar alias `apps <app> <skill> [text]` is
-  // the canonical way to run skills. Catch it explicitly so users get a
-  // helpful redirect instead of a confusing "unknown subcommand" error.
-  if (subcommand === "run") {
-    const [app, skill, ...inlineTokens] = rest;
-    if (!app || !skill) {
-      console.error(
-        "The 'run' subcommand has been replaced by the shorter sugar syntax.\n",
-      );
+  if (subcommand === "examples") {
+    const [appId, skillId] = rest;
+    if (flags.help === true) {
+      printAppsHelp();
+      return;
+    }
+    if (!appId) {
+      console.error("Missing app ID.\n");
       printAppsHelp();
       process.exit(1);
     }
-    // Silently forward to the sugar alias execution path
-    let runSchemaParams: Array<{ name: string; type: string; description: string; required: boolean; default?: unknown; inputShape?: "requests" | "flat" }> = [];
-    try { runSchemaParams = await client.getSkillSchema(app, skill); } catch { /* best-effort */ }
-    try {
-      const inputData = buildSkillInput(flags, inlineTokens, runSchemaParams);
-      const data = await client.runSkill({ app, skill, inputData, apiKey });
-      if (flags.json === true) {
-        printJson(data);
-      } else {
-        printSkillResult(app, skill, data);
-      }
-    } catch (err) {
-      const statusCode = (err as Error & { statusCode?: number }).statusCode;
-      const msg = err instanceof Error ? err.message : String(err);
-      if (statusCode === 404) {
-        const suggestion = await suggestAppOrSkill(client, app, skill, apiKey);
-        console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
-        if (suggestion) console.error(`${suggestion}\n`);
-        console.error(
-          `List all apps:   openmates apps list\n` +
-            `App details:     openmates apps info <app-id>`,
-        );
-        process.exit(1);
-      }
-      if (statusCode === 422) {
-        console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
-        console.error(
-          `Run with --help for parameter details:\n` +
-            `  openmates apps ${app} ${skill} --help`,
-        );
-        process.exit(1);
-      }
-      throw err;
+
+    const examples = skillId
+      ? listExampleChatsForSkill(appId, skillId)
+      : listExampleChatsForApp(appId);
+    if (flags.json === true) {
+      printJson({
+        app_id: appId,
+        skill_id: skillId ?? null,
+        examples: examples.map(exampleChatForSkillToJson),
+      });
+    } else {
+      printExampleChatsForSkill(appId, skillId, examples);
     }
     return;
+  }
+
+  if (subcommand === "run") {
+    console.error(
+      "Generic app-skill CLI execution is not supported.\n\n" +
+        "Use an explicit typed command such as `openmates tasks ...`, `openmates workflows ...`, or another app-specific command.\n" +
+        "Inspect app metadata with `openmates apps list`, `openmates apps info <app-id>`, or `openmates apps skill-info <app-id> <skill-id>`.\n",
+    );
+    process.exit(1);
   }
 
   // ── travel booking-link: resolve a booking URL from a booking_token ────
@@ -1912,123 +6295,42 @@ async function handleApps(
     return;
   }
 
+  if (subcommand === "images" && (rest[0] === "detect-ai" || rest[0] === "detect_ai")) {
+    await handleImagesDetectAi(client, rest.slice(1), flags);
+    return;
+  }
+
   if (subcommand === "code" && rest[0] === "run") {
     await handleCodeRun(client, flags, apiKey);
     return;
   }
 
-  // Sugar alias: openmates apps <app> <skill> [inline text]
+  if (subcommand === "models3d" && rest[0] === "search") {
+    await handleModels3dSearch(client, flags, apiKey);
+    return;
+  }
+
+  if (subcommand === "design" && rest[0] === "export-icon") {
+    await handleDesignIconExport(client, rest.slice(1), flags, apiKey);
+    return;
+  }
+
+  const generatedCommand = findGeneratedAppSkillCommand(subcommand, rest[0]);
+  if (generatedCommand) {
+    await handleGeneratedAppSkillCommand(client, generatedCommand, rest.slice(1), flags, apiKey);
+    return;
+  }
+
   const app = subcommand;
   const skill = rest[0];
   if (app && skill) {
-    const inlineTokens = rest.slice(1);
-    const hasExplicitInput = typeof flags.input === "string";
-
-    // Fetch schema once — used for both empty-args detection and multi-param validation.
-    let schemaParams: Array<{
-      name: string;
-      type: string;
-      description: string;
-      required: boolean;
-      default?: unknown;
-      inputShape?: "requests" | "flat";
-    }> = [];
-    try {
-      schemaParams = await client.getSkillSchema(app, skill);
-    } catch {
-      // Schema unavailable — proceed with best-effort execution
-    }
-
-    // No args, no --input, and the skill has required params →
-    // show skill help instead of sending an empty/partial request that 422s.
-    if (!hasExplicitInput && inlineTokens.length === 0) {
-      const required = getEffectiveRequiredParams(schemaParams);
-      if (required.length > 0) {
-        const data = await client.getSkillInfo(app, skill, apiKey);
-        await printSkillInfo(client, app, data as SkillMetadata);
-        return;
-      }
-    }
-
-    // Multiple required params but user provided only inline text →
-    // enforce --input with a helpful example.
-    if (
-      !hasExplicitInput &&
-      inlineTokens.length > 0 &&
-      schemaParams.length > 0
-    ) {
-      const required = getEffectiveRequiredParams(schemaParams);
-      if (required.length > 1) {
-        const example: Record<string, unknown> = {};
-        for (const p of required) example[p.name] = `<${p.name}>`;
-        console.error(
-          `This skill requires ${required.length} fields: ${required.map((p) => p.name).join(", ")}\n\n` +
-            `Use --input to provide all fields:\n` +
-            `  openmates apps ${app} ${skill} --input '${buildInputUsageExample(schemaParams, example)}'\n\n` +
-            `Run with --help for full parameter details:\n` +
-            `  openmates apps ${app} ${skill} --help\n`,
-        );
-        process.exit(1);
-      }
-    }
-
-    try {
-      const inputData = buildSkillInput(flags, inlineTokens, schemaParams);
-      const data = await client.runSkill({ app, skill, inputData, apiKey });
-      if (flags.json === true) {
-        printJson(data);
-      } else {
-        printSkillResult(app, skill, data);
-      }
-    } catch (err) {
-      const statusCode = (err as Error & { statusCode?: number }).statusCode;
-
-      // 404 — app or skill not found → suggest closest match
-      if (statusCode === 404) {
-        const suggestion = await suggestAppOrSkill(client, app, skill, apiKey);
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
-        if (suggestion) console.error(`${suggestion}\n`);
-        console.error(
-          `List all apps:   openmates apps list\n` +
-            `App details:     openmates apps info <app-id>`,
-        );
-        process.exit(1);
-      }
-
-      // 422 — validation error → show required parameters
-      if (statusCode === 422) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
-        // Show skill schema if available
-        if (schemaParams.length > 0) {
-          console.error("Required parameters:");
-          for (const p of schemaParams) {
-            const req = p.required ? " (required)" : "";
-            const def =
-              p.default !== undefined ? ` [default: ${p.default}]` : "";
-            console.error(
-              `  ${p.name}: ${p.type}${req}${def}${p.description ? ` — ${p.description}` : ""}`,
-            );
-          }
-          console.error(
-            `\nUsage:\n` +
-              `  openmates apps ${app} ${skill} <value>\n` +
-              `  openmates apps ${app} ${skill} --input '${buildInputUsageExample(schemaParams)}'`,
-          );
-        } else {
-          console.error(
-            `Run with --help for parameter details:\n` +
-              `  openmates apps ${app} ${skill} --help`,
-          );
-        }
-        process.exit(1);
-      }
-
-      // Other errors — rethrow
-      throw err;
-    }
-    return;
+    console.error(
+      "Generic app-skill CLI execution is not supported.\n\n" +
+        `There is no generic runner for \`openmates apps ${app} ${skill}\`.\n` +
+        "Use the app's explicit typed command or inspect metadata with:\n" +
+        `  openmates apps skill-info ${app} ${skill}\n`,
+    );
+    process.exit(1);
   }
 
   // `apps <app>` with no skill — treat as `apps info <app>`
@@ -2054,6 +6356,230 @@ async function handleApps(
   console.error(`Unknown apps subcommand '${subcommand}'.\n`);
   printAppsHelp();
   process.exit(1);
+}
+
+async function handleImagesDetectAi(
+  client: OpenMatesClient,
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (flags.help === true) {
+    printImagesDetectAiHelp();
+    return;
+  }
+
+  const fileFlag = stringFlag(flags, "file");
+  const file = fileFlag ?? positionals[0];
+  if (!file) {
+    console.error(
+      "Missing image file.\n\n" +
+        "Usage:\n" +
+        "  openmates apps images detect-ai --file ./image.png [--json]\n",
+    );
+    process.exit(1);
+  }
+
+  if ((fileFlag && positionals.length > 0) || (!fileFlag && positionals.length > 1)) {
+    const unexpected = fileFlag ? positionals : positionals.slice(1);
+    console.error(
+      `Unexpected argument(s): ${unexpected.join(" ")}\n\n` +
+        "Run: openmates apps images detect-ai --help",
+    );
+    process.exit(1);
+  }
+
+  let resolvedFile: string;
+  try {
+    resolvedFile = realpathSync(file);
+  } catch {
+    console.error(`\x1b[31m✗ Image file not found:\x1b[0m ${file}`);
+    process.exit(1);
+  }
+
+  try {
+    const uploadResult = await uploadFile(resolvedFile, client.getSession());
+    const summary = buildImagesAiDetectionSummary(uploadResult, resolvedFile);
+    if (flags.json === true) {
+      printJson({
+        success: summary.status === "success",
+        ...summary,
+        ai_detection: uploadResult.ai_detection,
+      });
+      return;
+    }
+
+    header("Images › Detect AI");
+    kv("File", summary.file);
+    kv("Provider", summary.provider ?? "n/a");
+    kv("Detection status", summary.status);
+    kv(
+      "AI-generated probability",
+      summary.ai_generated === null ? "unavailable" : `${(summary.ai_generated * 100).toFixed(1)}%`,
+    );
+    kv("Classification", summary.label);
+    kv("Stored upload embed", summary.embed_id);
+    if (summary.error) kv("Detection error", summary.error);
+    console.log("\n\x1b[2mThis command uses the authenticated upload pipeline, which stores the image and returns Sightengine metadata.\x1b[0m");
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`\x1b[31m✗ Images AI detection failed:\x1b[0m ${msg}`);
+    process.exit(1);
+  }
+}
+
+function printImagesDetectAiHelp(): void {
+  console.log(`Images AI detection command:
+  openmates apps images detect-ai --file <image> [--json]
+  openmates apps images detect-ai <image> [--json]
+
+Options:
+  --file <path>       Local PNG, JPEG, WEBP, or other upload-supported image file.
+  --json              Print raw detection metadata and classification as JSON.
+
+Authentication:
+  Requires a logged-in CLI session because it reuses the authenticated upload pipeline.
+
+Examples:
+  openmates apps images detect-ai --file ./image.png
+  openmates apps images detect-ai ./image.webp --json`);
+}
+
+const MODELS3D_SEARCH_SORTS = new Set(["best_match", "popular", "downloads", "newest"]);
+
+async function handleModels3dSearch(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+  apiKey?: string,
+): Promise<void> {
+  const query = typeof flags.query === "string" ? flags.query.trim() : "";
+  if (!query) {
+    console.error(
+      "Missing --query flag.\n\n" +
+        "Usage:\n" +
+        "  openmates apps models3d search --query benchy [--count 10] [--providers Printables] [--sort best_match|popular|downloads|newest] [--free-only] [--json]\n",
+    );
+    process.exit(1);
+  }
+
+  const count = parsePositiveIntegerFlag(flags.count, "--count");
+  const sort = typeof flags.sort === "string" ? flags.sort.trim().toLowerCase() : undefined;
+  if (sort && !MODELS3D_SEARCH_SORTS.has(sort)) {
+    console.error(`--sort must be one of: ${Array.from(MODELS3D_SEARCH_SORTS).join(", ")}`);
+    process.exit(1);
+  }
+
+  const providers = [
+    ...splitCsvFlag(flags.provider),
+    ...splitCsvFlag(flags.providers),
+  ];
+  const request: Record<string, unknown> = { query };
+  if (count !== undefined) request.count = count;
+  if (providers.length > 0) request.providers = providers;
+  if (sort) request.sort = sort;
+  if (flags["free-only"] === true) request.free_only = true;
+
+  try {
+    const result = await client.runSkill({
+      app: "models3d",
+      skill: "search",
+      inputData: { requests: [request] },
+      apiKey,
+      promptInjectionProtection: flags["disable-prompt-injection-protection"] === true ? false : undefined,
+    });
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      printSkillResult("models3d", "search", result);
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`\x1b[31m✗ 3D model search failed:\x1b[0m ${msg}`);
+    process.exit(1);
+  }
+}
+
+async function handleDesignIconExport(
+  client: OpenMatesClient,
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  apiKey?: string,
+): Promise<void> {
+  if (flags.help === true) {
+    printDesignIconExportHelp();
+    return;
+  }
+  const outputPath = stringFlag(flags, "output");
+  if (!outputPath) {
+    console.error(
+      "Missing --output flag.\n\n" +
+        "Usage:\n" +
+        "  openmates apps design export-icon lucide:home --output home.svg [--color '#111827']\n" +
+        "  openmates apps design export-icon --prefix lucide --name home --format png --size 64 --output home.png\n",
+    );
+    process.exit(1);
+  }
+
+  const format = parseDesignIconExportFormat(flags.format);
+  const size = parsePositiveIntegerFlag(flags.size, "--size");
+  const width = parsePositiveIntegerFlag(flags.width, "--width");
+  const height = parsePositiveIntegerFlag(flags.height, "--height");
+  const iconRef = parseDesignIconReference(positionals, flags);
+  try {
+    const result = await exportDesignIcon({
+      ...iconRef,
+      outputPath,
+      format,
+      color: stringFlag(flags, "color"),
+      palette: flags.palette === true,
+      allowPaletteRecolor: flags["allow-palette-recolor"] === true,
+      size,
+      width,
+      height,
+      fetchSvg: async (path) => (await client.getRaw(path, apiKey)).data,
+    });
+    if (flags.json === true) {
+      printJson({
+        success: true,
+        format: result.format,
+        content_type: result.contentType,
+        output_path: result.outputPath,
+        svg_path: result.svgPath,
+        bytes: result.data.byteLength,
+      });
+    } else {
+      console.log(`Exported ${result.format.toUpperCase()} icon to ${result.outputPath}`);
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`\x1b[31m✗ Design icon export failed:\x1b[0m ${msg}`);
+    process.exit(1);
+  }
+}
+
+function parseDesignIconReference(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+): { svgPath?: string; prefix?: string; name?: string } {
+  const svgPath = stringFlag(flags, "svg-path");
+  if (svgPath) return { svgPath };
+  const icon = stringFlag(flags, "icon") ?? positionals[0];
+  if (icon) {
+    const [prefix, name, extra] = icon.split(":");
+    if (!prefix || !name || extra !== undefined) {
+      throw new Error("Icon reference must use prefix:name, such as lucide:home");
+    }
+    return { prefix, name };
+  }
+  return {
+    prefix: stringFlag(flags, "prefix"),
+    name: stringFlag(flags, "name"),
+  };
+}
+
+function parseDesignIconExportFormat(value: string | boolean | undefined): DesignIconExportFormat | undefined {
+  if (value === undefined) return undefined;
+  if (value === "svg" || value === "png") return value;
+  throw new Error("--format must be svg or png");
 }
 
 interface CodeRunSkillResponse {
@@ -2104,6 +6630,7 @@ async function handleCodeRun(
     skill: "run",
     inputData: { requests: requests as unknown as Array<Record<string, unknown>> },
     apiKey,
+    promptInjectionProtection: flags["disable-prompt-injection-protection"] === true ? false : undefined,
   }) as CodeRunSkillResponse;
   const result = response.data?.results?.[0];
   if (!result?.execution_id || !result.status_path) {
@@ -2188,63 +6715,6 @@ async function pollCodeRunStatus(
     if (["finished", "failed", "timeout", "cancelled"].includes(value)) return status;
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-}
-
-/**
- * Build skill input data from --input flag or inline positional text.
- *
- * When schema params are available and the skill has exactly one required
- * param, inline text is mapped to that param's name (e.g. { url: text }).
- * Otherwise falls back to { query: text } which matches the tool_schema
- * convention used by most query-based skills (web, news, etc.).
- * For skills with different schemas use --input '<json>' explicitly.
- */
-function buildSkillInput(
-  flags: Record<string, string | boolean>,
-  inlineTokens: string[],
-  schemaParams?: Array<{ name: string; required: boolean; inputShape?: "requests" | "flat" }>,
-): Record<string, unknown> {
-  const usesFlatInput = schemaParams?.some((p) => p.inputShape === "flat") ?? false;
-  if (typeof flags.input === "string") {
-    const parsed = JSON.parse(flags.input) as Record<string, unknown>;
-    if (usesFlatInput && Array.isArray(parsed.requests) && parsed.requests.length === 1) {
-      const firstRequest = parsed.requests[0];
-      if (firstRequest && typeof firstRequest === "object") {
-        return firstRequest as Record<string, unknown>;
-      }
-    }
-    return parsed;
-  }
-  const inlineText = inlineTokens.join(" ").trim();
-  if (inlineText) {
-    // Use the actual param name when the skill has a single required field
-    const required = getEffectiveRequiredParams(schemaParams ?? []);
-    const flatLocationParam = usesFlatInput
-      ? (schemaParams ?? []).find((p) => p.name === "location")
-      : undefined;
-    const paramName = required.length === 1 ? required[0].name : (flatLocationParam?.name ?? "query");
-    if (usesFlatInput) return { [paramName]: inlineText };
-    return { requests: [{ [paramName]: inlineText }] };
-  }
-  return {};
-}
-
-function getEffectiveRequiredParams<T extends { name: string; required: boolean; inputShape?: "requests" | "flat" }>(
-  schemaParams: T[],
-): T[] {
-  const required = schemaParams.filter((p) => p.required);
-  if (required.length > 0) return required;
-  const flatLocationParam = schemaParams.find((p) => p.inputShape === "flat" && p.name === "location");
-  return flatLocationParam ? [flatLocationParam] : [];
-}
-
-function buildInputUsageExample(
-  schemaParams: Array<{ name: string; inputShape?: "requests" | "flat" }>,
-  exampleItem?: Record<string, unknown>,
-): string {
-  const item = exampleItem ?? { [schemaParams[0]?.name ?? "query"]: "..." };
-  if (schemaParams.some((p) => p.inputShape === "flat")) return JSON.stringify(item);
-  return JSON.stringify({ requests: [item] });
 }
 
 /**
@@ -2359,6 +6829,32 @@ async function handleEmbeds(
     return;
   }
 
+  if (subcommand === "add-to-project") {
+    const embedId = requiredStringFlag(rest[0], "<embed-id>");
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const project = await requiredResolvedProject(client, client.getMasterKeyBytes(), projectId, flags);
+    const embed = await client.getEmbed(embedId);
+    const item = await createEncryptedProjectItem(client, project, {
+      itemType: "embed",
+      targetId: embed.embedId,
+      displayName: embed.textPreview ?? embed.type ?? embed.embedId,
+      folderId: typeof flags.folder === "string" ? flags.folder : null,
+      metadata: { storage: "save_only_in_openmates", source: "cli_add_to_project" },
+    });
+    printAddToProjectResult({ objectType: "embed", objectId: embed.embedId, projectId: project.projectId, item, targetMode: "save_only_in_openmates", remoteCopyProposal: null }, flags);
+    return;
+  }
+
+  if (subcommand === "remove-from-project") {
+    const embedId = requiredStringFlag(rest[0], "<embed-id>");
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const project = await requiredResolvedProject(client, client.getMasterKeyBytes(), projectId, flags);
+    const embed = await client.getEmbed(embedId);
+    const removed = await client.deleteProjectItemByTarget(project.projectId, "embed", embed.embedId);
+    printRemoveFromProjectResult({ objectType: "embed", objectId: embed.embedId, projectId: project.projectId, deleted: removed.deleted, deletedCount: removed.deleted_count }, flags);
+    return;
+  }
+
   if (subcommand === "share") {
     const id = rest[0];
     if (!id) {
@@ -2408,6 +6904,11 @@ async function handleEmbeds(
       console.error(`Share link error: ${msg}`);
       process.exit(1);
     }
+    return;
+  }
+
+  if (subcommand === "preview") {
+    await handleEmbedPreviewCommand(client, rest, flags);
     return;
   }
 
@@ -2482,6 +6983,91 @@ async function handleEmbeds(
   process.exit(1);
 }
 
+async function handleEmbedPreviewCommand(
+  client: OpenMatesClient,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  const action = rest[0];
+  if (!action || action === "help") {
+    printEmbedsHelp();
+    return;
+  }
+
+  if (action === "start") {
+    const embedId = rest[1];
+    const chatId = typeof flags["chat-id"] === "string" ? flags["chat-id"] : typeof flags.chat === "string" ? flags.chat : undefined;
+    if (!embedId || !chatId) {
+      throw new Error("Usage: openmates embeds preview start <embed-id> --chat-id <chat-id> [--wait] [--json]");
+    }
+    const started = await client.startApplicationPreview({
+      embedId,
+      chatId,
+      sharedContext: typeof flags["shared-context"] === "string" ? flags["shared-context"] : undefined,
+      requestedRuntime: typeof flags.runtime === "string" ? flags.runtime : undefined,
+      sourceMessageId: typeof flags["source-message-id"] === "string" ? flags["source-message-id"] : undefined,
+    });
+    const result = flags.wait === true
+      ? await waitForApplicationPreview(client, started, flags)
+      : started;
+    printApplicationPreviewResult(result, flags);
+    return;
+  }
+
+  if (action === "status") {
+    const sessionId = rest[1];
+    if (!sessionId) throw new Error("Usage: openmates embeds preview status <session-id> [--json]");
+    printApplicationPreviewResult(await client.getApplicationPreviewStatus(sessionId), flags);
+    return;
+  }
+
+  if (action === "open") {
+    const sessionId = rest[1];
+    if (!sessionId) throw new Error("Usage: openmates embeds preview open <session-id> [--json]");
+    printApplicationPreviewResult(await client.openApplicationPreview(sessionId), flags);
+    return;
+  }
+
+  if (action === "stop") {
+    const sessionId = rest[1];
+    if (!sessionId) throw new Error("Usage: openmates embeds preview stop <session-id> [--json]");
+    printApplicationPreviewResult(await client.stopApplicationPreview(sessionId), flags);
+    return;
+  }
+
+  throw new Error(`Unknown embeds preview command '${action}'. Run 'openmates embeds --help'.`);
+}
+
+async function waitForApplicationPreview(
+  client: OpenMatesClient,
+  started: { session_id: string; status: string },
+  flags: Record<string, string | boolean>,
+): Promise<Record<string, unknown>> {
+  const timeoutSeconds = parsePositiveIntegerFlag(flags["timeout-seconds"], "--timeout-seconds") ?? 120;
+  const deadline = Date.now() + timeoutSeconds * 1000;
+  let current: Record<string, unknown> = started as unknown as Record<string, unknown>;
+  while (Date.now() < deadline) {
+    const status = String(current.status ?? "");
+    if (["running", "failed", "timeout", "cancelled", "stopped"].includes(status)) return current;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    current = await client.getApplicationPreviewStatus(started.session_id) as unknown as Record<string, unknown>;
+  }
+  throw new Error(`Application preview did not reach a terminal or running state within ${timeoutSeconds}s`);
+}
+
+function printApplicationPreviewResult(result: unknown, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+  const value = result && typeof result === "object" ? result as Record<string, unknown> : {};
+  console.log(`Session: ${String(value.session_id ?? "")}`);
+  console.log(`Status: ${String(value.status ?? "unknown")}`);
+  if (typeof value.preview_url === "string") console.log(`Preview URL: ${value.preview_url}`);
+  if (typeof value.charged_credits === "number") console.log(`Charged credits: ${value.charged_credits}`);
+  if (typeof value.error === "string" && value.error) console.log(`Error: ${value.error}`);
+}
+
 // ---------------------------------------------------------------------------
 // Settings
 // ---------------------------------------------------------------------------
@@ -2500,8 +7086,19 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "interests", "list"], description: "Show encrypted account topic interests", examples: ["openmates settings account interests list --json"] },
   { path: ["account", "interests", "set"], description: "Set encrypted account topic interests", examples: ["openmates settings account interests set software_development run_code privacy"] },
   { path: ["account", "interests", "clear"], description: "Clear encrypted account topic interests", examples: ["openmates settings account interests clear --yes"] },
-  { path: ["account", "export", "manifest"], description: "Show account export manifest", examples: ["openmates settings account export manifest --json"] },
-  { path: ["account", "export", "data"], description: "Fetch account export data", examples: ["openmates settings account export data --json"] },
+  { path: ["account", "export"], description: "Start a complete Account Export V1 job", examples: ["openmates account export --output ./openmates-export.json", "openmates settings account export --domains chats,usage --json"] },
+  { path: ["account", "export", "start"], description: "Start a complete Account Export V1 job", examples: ["openmates settings account export start --output ./openmates-export.json"] },
+  { path: ["account", "export", "status"], description: "Show account export job status", examples: ["openmates settings account export status <export-id> --json"] },
+  { path: ["account", "export", "manifest"], description: "Show account export manifest", examples: ["openmates settings account export manifest <export-id> --json"] },
+  { path: ["account", "export", "chunks"], description: "List account export chunks", examples: ["openmates settings account export chunks <export-id> --json"] },
+  { path: ["account", "export", "data"], description: "Fetch account export chunks", examples: ["openmates settings account export data <export-id> --json"] },
+  { path: ["account", "export", "accept-partial"], description: "Accept a partial account export", examples: ["openmates settings account export accept-partial <export-id> --json"] },
+  { path: ["account", "export", "cancel"], description: "Cancel an account export job", examples: ["openmates settings account export cancel <export-id> --json"] },
+  { path: ["account", "import", "claude"], description: "Preview a Claude official export import", examples: ["openmates account import claude ./claude-export.zip --dry-run --json"] },
+  { path: ["account", "import", "chatgpt"], description: "Preview a ChatGPT official export import", examples: ["openmates account import chatgpt ./chatgpt-export.zip --dry-run --json"] },
+  { path: ["account", "import", "openmates"], description: "Preview an OpenMates Export V1 import", examples: ["openmates account import openmates ./openmates-export.zip --domain chats --dry-run --json"] },
+  { path: ["account", "import", "opencode"], description: "Import a filtered OpenCode transcript export", examples: ["openmates account import opencode ./opencode-session.json --dry-run --json"] },
+  { path: ["account", "import", "generic"], description: "Import strict role/content JSON as Gemini or Other", examples: ["openmates account import generic ./transcript.json --source gemini --dry-run --json"] },
   { path: ["account", "import-chat"], description: "Import a CLI chat export file", examples: ["openmates settings account import-chat ./chat.yml", "openmates settings account import-chat ./payload.json"] },
   { path: ["account", "username", "set"], description: "Change account username", examples: ["openmates settings account username set alice_123"] },
   { path: ["account", "profile-picture", "set"], description: "Upload a profile picture", examples: ["openmates settings account profile-picture set ./avatar.jpg"] },
@@ -2519,6 +7116,9 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["privacy", "debug-logs", "share"], description: "Create a debug log sharing session", examples: ["openmates settings privacy debug-logs share --duration 1h --confirm"] },
   { path: ["billing", "overview"], description: "Show billing overview", examples: ["openmates settings billing overview"] },
   { path: ["billing", "usage"], description: "Show usage history", examples: ["openmates settings billing usage --json"] },
+  { path: ["billing", "usage", "overview"], description: "Show fast usage overview rollups", examples: ["openmates settings billing usage overview --granularity weekly --json"] },
+  { path: ["billing", "usage", "details"], description: "Show detailed usage entries", examples: ["openmates settings billing usage details --type chat --identifier <chat-id> --month 2026-08 --json"] },
+  { path: ["billing", "usage", "chat-total"], description: "Show total credits used by a chat", examples: ["openmates settings billing usage chat-total --chat-id <chat-id> --json"] },
   { path: ["billing", "usage", "summaries"], description: "Show usage summaries", examples: ["openmates settings billing usage summaries"] },
   { path: ["billing", "usage", "daily"], description: "Show daily usage overview", examples: ["openmates settings billing usage daily"] },
   { path: ["billing", "usage", "export"], description: "Export usage data", examples: ["openmates settings billing usage export --json"] },
@@ -2600,6 +7200,263 @@ async function printSettingsResult(
   } else {
     printGenericObject(result);
   }
+}
+
+function parseCsvFlag(value: string | boolean | undefined): string[] | undefined {
+  if (typeof value !== "string") return undefined;
+  const items = value.split(",").map((item) => item.trim()).filter(Boolean);
+  return items.length > 0 ? items : undefined;
+}
+
+async function runAccountExport(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+): Promise<Record<string, unknown>> {
+  const filters = typeof flags.filters === "string"
+    ? parseJsonFlag<Record<string, unknown>>(flags.filters, "--filters")
+    : {};
+  const started = await client.startAccountExport({
+    domains: parseCsvFlag(flags.domains),
+    filters,
+    format: flags.format === "directory" ? "directory" : "zip",
+    includeAdvancedMetadata: flags["include-advanced-metadata"] === true,
+  });
+  const exportRecord = started.export as Record<string, unknown>;
+  const exportId = String(exportRecord.export_id ?? "");
+  const [manifest, chunks] = await Promise.all([
+    client.getAccountExportManifest(exportId),
+    client.listAccountExportChunks(exportId),
+  ]);
+  const downloadedChunks: Array<Record<string, unknown>> = [];
+  try {
+    for (const chunk of chunks.chunks) {
+      const chunkId = String(chunk.chunk_id ?? "");
+      const downloaded = chunkId ? await client.getAccountExportChunk(exportId, chunkId) : chunk;
+      assertAccountExportPayloadSafe(downloaded);
+      downloadedChunks.push(downloaded);
+    }
+  } catch (error) {
+    await client.cancelAccountExport(exportId).catch(() => undefined);
+    throw error;
+  }
+
+  let completed = await client.completeAccountExport(exportId);
+  const completedStatus = String((completed.export as Record<string, unknown>).status ?? "");
+  if (completedStatus === "partial") {
+    if (flags["accept-partial"] !== true) {
+      throw new Error(`Account export ${exportId} is partial. Re-run with --accept-partial to accept it, or inspect/cancel the job first.`);
+    }
+    completed = await client.acceptPartialAccountExport(exportId);
+  }
+
+  const bundle = {
+    export: completed.export,
+    manifest: sanitizeAccountExportManifest(manifest.manifest),
+    chunks: downloadedChunks,
+  };
+  const archive = await writeAccountExportArchive(bundle, flags);
+  return { ...bundle, archive };
+}
+
+function printAccountExportBundle(
+  bundle: Record<string, unknown>,
+  flags: Record<string, string | boolean>,
+): void {
+  if (flags.json === true) {
+    printJson(bundle);
+    return;
+  }
+  const exportRecord = bundle.export && typeof bundle.export === "object" ? bundle.export as Record<string, unknown> : {};
+  const archive = bundle.archive && typeof bundle.archive === "object" ? bundle.archive as Record<string, unknown> : {};
+  process.stdout.write(`Account export ${String(exportRecord.export_id ?? "")} ${String(exportRecord.status ?? "unknown")}\n`);
+  if (typeof archive.output === "string") process.stdout.write(`Wrote ${archive.output}\n`);
+}
+
+type AccountImportCliParser = "claude" | "chatgpt" | "openmates" | "opencode" | "generic";
+
+const ACCOUNT_IMPORT_SOURCES = new Set<AccountImportSource>(["openmates", "chatgpt", "claude", "gemini", "opencode", "other"]);
+
+async function parseAccountImportFile(parserFormat: AccountImportCliParser, file: string, flags: Record<string, string | boolean> = {}): Promise<ParsedAccountImport> {
+  const { readFile } = await import("node:fs/promises");
+  const payload = await readFile(file);
+  const requestedSource = typeof flags.source === "string" ? flags.source : parserFormat;
+  if (!ACCOUNT_IMPORT_SOURCES.has(requestedSource as AccountImportSource)) throw new Error(`Unsupported account import source: ${requestedSource}`);
+  const selectedSource = requestedSource as AccountImportSource;
+  if (parserFormat === "generic") {
+    if (selectedSource !== "gemini" && selectedSource !== "other") throw new Error("Generic account import requires --source gemini or --source other.");
+    return parseGenericImportBuffer(payload, basename(file), selectedSource);
+  }
+  if (parserFormat === "claude") return parseClaudeImportBuffer(payload, basename(file), selectedSource);
+  if (parserFormat === "chatgpt") return parseChatGPTImportBuffer(payload, basename(file), selectedSource);
+  if (parserFormat === "opencode") return parseOpenCodeImportBuffer(payload, basename(file), selectedSource);
+  return parseOpenMatesImportBuffer(payload, basename(file), typeof flags.password === "string" ? flags.password : undefined, selectedSource);
+}
+
+async function runAccountImport(
+  client: OpenMatesClient,
+  parserFormat: AccountImportCliParser,
+  file: string,
+  flags: Record<string, string | boolean>,
+): Promise<Record<string, unknown>> {
+  if (parserFormat === "generic" && typeof flags.source !== "string") throw new Error("Generic account import requires --source gemini or --source other.");
+  const parsed = await parseAccountImportFile(parserFormat, file, flags);
+  if (parserFormat === "openmates" && flags.domain !== undefined && flags.domain !== "chats") {
+    throw new Error("Account Import V1 only supports --domain chats for OpenMates archives.");
+  }
+  const preview = await client.previewAccountImport({
+    source: parsed.source,
+    parserFormat: parsed.parserFormat,
+    chatCount: parsed.chats.length,
+    sourceFingerprints: parsed.chats.map((chat) => chat.source_fingerprint),
+    estimatedTokensByChat: parsed.chats.map((chat) => Math.ceil(chat.messages.reduce((total, message) => total + message.content.length, 0) / 4)),
+  });
+  const defaultSelectionCount = typeof preview.default_selection_count === "number" ? preview.default_selection_count : 0;
+  const maxBatchCount = typeof preview.max_batch_count === "number" ? preview.max_batch_count : defaultSelectionCount;
+  const selectedCount = flags.select === "all"
+    ? Math.min(parsed.chats.length, maxBatchCount)
+    : Math.min(defaultSelectionCount, parsed.chats.length, maxBatchCount);
+  const result = {
+    source: parsed.source,
+    parser_format: parsed.parserFormat,
+    parsed: {
+      chat_count: parsed.chats.length,
+      selected_count: selectedCount,
+      skipped_domains: parsed.skippedDomains,
+      source_fingerprints: parsed.chats.map((chat) => chat.source_fingerprint),
+    },
+    preview,
+  };
+  if (flags["dry-run"] === true) return result;
+  if (preview.can_import === false) {
+    throw new Error(`Account import blocked: ${String(preview.reason ?? "unknown")}`);
+  }
+  if (selectedCount <= 0) {
+    throw new Error("No chats are selected for import.");
+  }
+  if (flags.yes !== true) {
+    await confirmOrExit(`Import ${selectedCount} chat(s) into new encrypted OpenMates chats? [y/N] `);
+  }
+  const importId = typeof preview.import_id === "string" ? preview.import_id : randomUUID();
+  const selectedChats = parsed.chats.slice(0, selectedCount);
+  const selectedFingerprints = selectedChats.map((chat) => chat.source_fingerprint);
+  const confirmation = await client.confirmAccountImport(importId, selectedFingerprints);
+  const initialStatus = await client.getAccountImportStatus(importId);
+  if (Number(initialStatus.last_scan_sequence ?? -1) !== -1 || Number(initialStatus.last_compression_sequence ?? -1) !== -1) {
+    throw new Error("Resuming this import requires the client-held sanitized batch state.");
+  }
+  const batches = buildAccountImportMessageBatches(selectedChats);
+  const sanitizedChats = selectedChats.map((chat) => ({ ...chat, messages: [] as typeof chat.messages }));
+  const sanitizedBatches: Array<{ messages: typeof selectedChats[number]["messages"]; scanSequence: number; sourceFingerprint: string; chatIndex: number }> = [];
+  const scanBatches = [];
+  const compressionBatches = [];
+  for (let sequence = 0; sequence < batches.length; sequence++) {
+    const batch = batches[sequence];
+    const finalBatch = sequence === batches.length - 1;
+    const scanned = await client.scanAccountImport(importId, {
+      batchId: batch.batchId,
+      sequence,
+      finalBatch,
+      chats: [batch.chat as unknown as Record<string, unknown>],
+    });
+    if (scanned.status !== "acknowledged" || scanned.sequence !== sequence || scanned.batch_id !== batch.batchId || !Array.isArray(scanned.chats)) throw new Error("Account import scan batch was not acknowledged at the expected cursor.");
+    scanBatches.push(scanned);
+    const sanitizedChat = scanned.chats[0] as unknown as typeof selectedChats[number] | undefined;
+    if (!sanitizedChat) throw new Error("Account import scan acknowledgement omitted the sanitized chat.");
+    sanitizedChats[batch.chatIndex].messages.push(...sanitizedChat.messages);
+    sanitizedBatches.push({ messages: sanitizedChat.messages, scanSequence: sequence, sourceFingerprint: batch.sourceFingerprint, chatIndex: batch.chatIndex });
+  }
+  const postScanStatus = await client.getAccountImportStatus(importId);
+  if (Number(postScanStatus.last_scan_sequence) !== batches.length - 1) throw new Error("Account import scan status cursor did not advance as expected.");
+  const summaries = new Map<string, string>();
+  for (let sequence = 0; sequence < sanitizedBatches.length; sequence++) {
+    const batch = sanitizedBatches[sequence];
+    const finalBatch = sanitizedBatches[sequence + 1]?.sourceFingerprint !== batch.sourceFingerprint;
+    const compressed = await client.compressAccountImport(importId, {
+      batchId: `compress-${batch.sourceFingerprint.slice(0, 16)}-${batches[sequence].chunkIndex}`,
+      sequence,
+      finalBatch,
+      scanSequence: batch.scanSequence,
+      sourceFingerprint: batch.sourceFingerprint,
+      sanitizedMessages: batch.messages as unknown as Array<Record<string, unknown>>,
+      priorSummary: summaries.get(batch.sourceFingerprint),
+    });
+    if (compressed.status !== "acknowledged" || compressed.sequence !== sequence) throw new Error("Account import compression batch was not acknowledged at the expected cursor.");
+    compressionBatches.push(compressed);
+    if (typeof compressed.summary === "string" && compressed.summary.trim()) summaries.set(batch.sourceFingerprint, compressed.summary);
+  }
+  const postCompressionStatus = await client.getAccountImportStatus(importId);
+  if (Number(postCompressionStatus.last_compression_sequence) !== sanitizedBatches.length - 1) throw new Error("Account import compression status cursor did not advance as expected.");
+  const persistedChats = sanitizedChats.map((chat) => appendCompressionSummary(chat, summaries.get(chat.source_fingerprint)));
+  const persisted = await client.persistEncryptedAccountImport(importId, persistedChats);
+  const complete = await client.completeAccountImport(importId, {
+    importedChatIds: Array.isArray(persisted.imported_chat_ids) ? persisted.imported_chat_ids : [],
+    sourceFingerprints: persistedChats.map((chat) => chat.source_fingerprint),
+    encryptedRecordCounts: persisted.encrypted_record_counts ?? { chats: 0, messages: 0 },
+    clientFailures: persisted.failures ?? [],
+  });
+  return { ...result, import_id: importId, confirmation, initial_status: initialStatus, post_scan_status: postScanStatus, scan: scanBatches.at(-1), scan_batches: scanBatches, compression: compressionBatches.at(-1), compression_batches: compressionBatches, post_compression_status: postCompressionStatus, persistence: persisted, complete };
+}
+
+function printAccountImportPreview(result: Record<string, unknown>, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+  const parsed = result.parsed && typeof result.parsed === "object" ? result.parsed as Record<string, unknown> : {};
+  const preview = result.preview && typeof result.preview === "object" ? result.preview as Record<string, unknown> : {};
+  process.stdout.write(`Account import preview (${String(result.source)}): ${String(parsed.chat_count ?? 0)} chat(s) parsed\n`);
+  process.stdout.write(`Default selection: ${String(preview.default_selection_count ?? 0)} / max ${String(preview.max_batch_count ?? 0)}\n`);
+  if (Array.isArray(parsed.skipped_domains) && parsed.skipped_domains.length > 0) {
+    process.stdout.write(`Skipped unsupported domains: ${parsed.skipped_domains.join(", ")}\n`);
+  }
+  if (Array.isArray(preview.duplicate_fingerprints) && preview.duplicate_fingerprints.length > 0) {
+    process.stdout.write(`Duplicate warnings: ${preview.duplicate_fingerprints.length}\n`);
+  }
+  if (preview.can_import === false) process.stdout.write(`Import blocked: ${String(preview.reason ?? "unknown")}\n`);
+}
+
+function printApiKeyList(
+  result: ApiKeyListResult,
+  flags: Record<string, string | boolean>,
+): void {
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+  if (result.api_keys.length === 0) {
+    process.stdout.write("No API keys found.\n");
+    return;
+  }
+  for (const key of result.api_keys) {
+    const name = String(key.name || "Unnamed API key");
+    const id = String(key.id || "unknown");
+    const prefix = String(key.key_prefix || "sk-api-...");
+    const access = key.full_access === false ? "Restricted access" : "Full access";
+    const pendingCount = typeof key.pending_device_count === "number" ? key.pending_device_count : 0;
+    process.stdout.write(`${name} (${id})\n`);
+    process.stdout.write(`  Prefix: ${prefix}\n`);
+    process.stdout.write(`  Access: ${access}\n`);
+    process.stdout.write(`  Created: ${formatCliDateTime(key.created_at)}\n`);
+    process.stdout.write(`  Last used: ${formatCliDateTime(key.last_used_at, "Never used")}\n`);
+    process.stdout.write(`  Credit limit: ${formatCliCreditLimit(key.credit_limit)}\n`);
+    if (pendingCount > 0) {
+      process.stdout.write(`  Confirm device: ${pendingCount} pending request${pendingCount === 1 ? "" : "s"}\n`);
+    }
+  }
+}
+
+function formatCliDateTime(value: unknown, emptyLabel = "Unknown"): string {
+  if (typeof value !== "string" || !value) return emptyLabel;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString();
+}
+
+function formatCliCreditLimit(value: unknown): string {
+  if (!value || typeof value !== "object") return "Unlimited credits";
+  const limit = value as { credits?: unknown; period?: unknown };
+  if (typeof limit.credits !== "number" || typeof limit.period !== "string") return "Unlimited credits";
+  return `${limit.credits} credits / ${limit.period}`;
 }
 
 async function printSettingsMutationResult(
@@ -2693,6 +7550,17 @@ function parseRequiredNumber(value: string | boolean | undefined, flag: string):
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) throw new Error(`Invalid ${flag}: ${value}`);
   return parsed;
+}
+
+function parseOptionalQueryNumber(value: string | boolean | undefined, flag: string): number | undefined {
+  if (value === undefined) return undefined;
+  return parseRequiredNumber(value, flag);
+}
+
+function parseUsageOverviewGranularity(value: string | boolean | undefined): "daily" | "weekly" | "monthly" {
+  if (value === undefined) return "daily";
+  if (value === "daily" || value === "weekly" || value === "monthly") return value;
+  throw new Error("Invalid --granularity. Use daily, weekly, or monthly.");
 }
 
 function parseOptionalNumber(value: string | boolean | undefined, fallback: number, flag: string): number {
@@ -2945,6 +7813,9 @@ async function handleConnectedAccounts(
     printConnectedAccountsHelp();
     return;
   }
+  if (typeof flags.team === "string") {
+    throw new Error("Team connected accounts are not supported yet. Use personal connected accounts or retry after Teams connected-account support ships.");
+  }
   if (subcommand !== "import") {
     throw new Error(`Unknown connected-accounts command '${subcommand}'. Run 'openmates connected-accounts --help'.`);
   }
@@ -2976,6 +7847,420 @@ async function handleConnectedAccounts(
   console.log(`Provider: ${result.providerId}`);
   console.log(`App: ${result.appId}`);
   console.log("Validation: harmless read succeeded");
+}
+
+async function handleFinance(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  _rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printFinanceHelp();
+    return;
+  }
+  if (subcommand !== "check-accounts" && subcommand !== "check_accounts") {
+    throw new Error(`Unknown finance command '${subcommand}'. Run 'openmates finance --help'.`);
+  }
+  if (!client.hasSession()) {
+    throw new Error("Not logged in. Run `openmates login` before checking connected Finance accounts.");
+  }
+
+  const csvStatements = readFinanceCsvStatements(flags);
+  let connectedAccount: DecryptedConnectedAccountForSkill | null = null;
+  if (flags["csv-only"] !== true) {
+    try {
+      connectedAccount = await client.decryptConnectedAccountForSkill({
+        accountId: stringFlag(flags, "connected-account"),
+        appId: "finance",
+        providerId: "revolut_business",
+      });
+    } catch (error) {
+      if (csvStatements.length === 0 || stringFlag(flags, "connected-account")) throw error;
+    }
+  }
+
+  if (!connectedAccount && csvStatements.length === 0) {
+    throw new Error("Check accounts requires a Revolut Business connected account or --csv <file.csv>.");
+  }
+
+  const input = buildFinanceCheckAccountsInput(flags, csvStatements, connectedAccount);
+  const result = await client.runConnectedAccountSkill({
+    appId: "finance",
+    skillId: "check_accounts",
+    input,
+    connectedAccountTokenRefInputs: connectedAccount
+      ? [
+          {
+            connected_account_id: connectedAccount.id,
+            app_id: "finance",
+            provider_id: "revolut_business",
+            allowed_actions: ["read"],
+            action_scope: { provider: "revolut_business" },
+            refresh_token_envelope: connectedAccount.refreshTokenBundle,
+          },
+        ]
+      : [],
+    chatId: `cli-finance-${randomUUID()}`,
+    messageId: `cli-finance-message-${randomUUID()}`,
+    apiKey: resolveApiKey(flags) ?? undefined,
+    promptInjectionProtection: false,
+  });
+
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+  printFinanceCheckAccountsResult(result);
+}
+
+function readFinanceCsvStatements(flags: Record<string, string | boolean>): Array<{ filename: string; content: string }> {
+  const paths = parseCsvFlag(flags.csv) ?? [];
+  return paths.map((filePath) => ({ filename: basename(filePath), content: readFileSync(filePath, "utf8") }));
+}
+
+function buildFinanceCheckAccountsInput(
+  flags: Record<string, string | boolean>,
+  csvStatements: Array<{ filename: string; content: string }>,
+  connectedAccount: DecryptedConnectedAccountForSkill | null,
+): Record<string, unknown> {
+  const input: Record<string, unknown> = {
+    period: stringFlag(flags, "period") ?? "monthly",
+    projection_horizon: stringFlag(flags, "projection-horizon") ?? "monthly",
+  };
+  const startDate = stringFlag(flags, "from") ?? stringFlag(flags, "start-date");
+  const endDate = stringFlag(flags, "to") ?? stringFlag(flags, "end-date");
+  if (startDate) input.start_date = startDate;
+  if (endDate) input.end_date = endDate;
+  addFinanceListFilter(input, "account_filters", flags.account);
+  addFinanceListFilter(input, "source_filters", flags.source);
+  addFinanceListFilter(input, "category_filters", flags.category ?? flags.categories);
+  addFinanceListFilter(input, "state_filters", flags.state ?? flags.states);
+  addFinanceListFilter(input, "placeholder_filters", flags.placeholder ?? flags.placeholders);
+  const direction = stringFlag(flags, "direction");
+  if (direction) input.direction_filter = direction;
+  if (csvStatements.length > 0) input.csv_statements = csvStatements;
+  if (connectedAccount) {
+    const environment = connectedAccount.refreshTokenBundle.environment === "sandbox" ? "sandbox" : "production";
+    input.connected_account_requests = [
+      {
+        source_ref: `revolut_business:${connectedAccount.accountRef || connectedAccount.id}`,
+        environment,
+      },
+    ];
+  }
+  return input;
+}
+
+function addFinanceListFilter(
+  input: Record<string, unknown>,
+  key: string,
+  value: string | boolean | undefined,
+): void {
+  const parsed = parseCsvFlag(value);
+  if (parsed && parsed.length > 0) input[key] = parsed;
+}
+
+function printFinanceCheckAccountsResult(result: Record<string, unknown>): void {
+  const overview = result.overview && typeof result.overview === "object"
+    ? result.overview as Record<string, unknown>
+    : {};
+  const summaries = overview.summaries && typeof overview.summaries === "object"
+    ? overview.summaries as Record<string, unknown>
+    : {};
+  header("Finance › Check accounts");
+  kv("Accounts", String(result.account_count ?? 0));
+  kv("Transactions", String(result.transaction_count ?? 0));
+  kv("Income", String(summaries.income_total ?? 0));
+  kv("Expenses", String(summaries.expense_total ?? 0));
+  kv("Net", String(summaries.net_total ?? 0));
+  const timeSeries = Array.isArray(summaries.time_series) ? summaries.time_series as Array<Record<string, unknown>> : [];
+  if (timeSeries.length > 0) {
+    console.log("\nTime series");
+    for (const bucket of timeSeries) {
+      console.log(`  ${String(bucket.bucket)}  income ${String(bucket.income ?? 0)}  expenses ${String(bucket.expense ?? 0)}  net ${String(bucket.net ?? 0)}`);
+    }
+  }
+  const transactions = Array.isArray(overview.transactions) ? overview.transactions as Array<Record<string, unknown>> : [];
+  if (transactions.length > 0) {
+    console.log("\nTransactions");
+    for (const transaction of transactions.slice(0, 25)) {
+      console.log(
+        `  ${String(transaction.posted_at)}  ${String(transaction.direction)}  ${String(transaction.amount)} ${String(transaction.currency)}  ${String(transaction.category)}  ${String(transaction.counterparty_placeholder)}`,
+      );
+    }
+    if (transactions.length > 25) console.log(`  ... ${transactions.length - 25} more`);
+  }
+  const warnings = Array.isArray(result.warnings) ? result.warnings as Array<Record<string, unknown>> : [];
+  for (const warning of warnings) console.log(`\nWarning: ${String(warning.message ?? warning.code ?? "unknown")}`);
+}
+
+async function handleConnectAccount(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  _rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printConnectAccountHelp();
+    return;
+  }
+  if (subcommand === "revolut-business" || subcommand === "revolut") {
+    await handleRevolutBusinessConnect(client, _rest, flags);
+    return;
+  }
+  if (subcommand !== "proton") {
+    throw new Error(`Unknown connect-account provider '${subcommand}'. Run 'openmates connect-account --help'.`);
+  }
+  if (!client.hasSession()) {
+    throw new Error("Not logged in. Run `openmates login` before connecting Proton Mail.");
+  }
+  const result = await runProtonBridgeConnector(
+    client,
+    { write: flags.write === true, flags },
+    {
+      confirmWriteMode: async () => {
+        console.log(buildProtonWriteWarning());
+        const answer = await promptPlainText("Type ENABLE WRITE to continue: ");
+        return answer.trim() === "ENABLE WRITE";
+      },
+    },
+  );
+  if (flags.json === true) {
+    printJson({
+      connected_account_id: result.connectedAccountId,
+      connector_session_id: result.connectorSessionId,
+      capabilities: result.capabilities,
+    });
+    return;
+  }
+  console.log("Proton Mail connector is online.");
+  console.log(`Connected account: ${result.connectedAccountId}`);
+}
+
+async function handleRevolutBusinessConnect(
+  client: OpenMatesClient,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  const action = rest[0];
+  const environment: RevolutBusinessCertificateEnvironment = flags.production === true ? "production" : "sandbox";
+  if (action === "consent-url") {
+    const clientId = requireStringFlag(flags, "client-id", "Missing --client-id <ClientID>.");
+    const consentUrl = buildRevolutBusinessConsentUrl({
+      environment,
+      clientId,
+      redirectUri: typeof flags["redirect-uri"] === "string" ? flags["redirect-uri"] : undefined,
+      scope: typeof flags.scope === "string" ? flags.scope : undefined,
+    });
+    if (flags.json === true) {
+      printJson({
+        provider_id: "revolut_business",
+        environment,
+        client_id: clientId,
+        consent_url: consentUrl,
+      });
+      return;
+    }
+    console.log("Open this Revolut Business consent URL:");
+    console.log(consentUrl);
+    return;
+  }
+  if (action === "exchange-code") {
+    const clientId = requireStringFlag(flags, "client-id", "Missing --client-id <ClientID>.");
+    const codeOrRedirectUrl = typeof flags.code === "string" ? flags.code : rest.slice(1).join(" ").trim();
+    if (!codeOrRedirectUrl) {
+      throw new Error("Missing --code <authorization-code-or-redirect-url>.");
+    }
+    const privateKeyPath = typeof flags["private-key"] === "string" ? flags["private-key"] : `~/.openmates/revolut-business/${environment}/privatecert.pem`;
+    if (flags["dry-run"] === true) {
+      if (flags.json === true) {
+        printJson({
+          provider_id: "revolut_business",
+          environment,
+          client_id: clientId,
+          code_present: true,
+          token_url: environment === "sandbox"
+            ? "https://sandbox-b2b.revolut.com/api/1.0/auth/token"
+            : "https://b2b.revolut.com/api/1.0/auth/token",
+          private_key_path: privateKeyPath,
+        });
+        return;
+      }
+      console.log("Revolut Business authorization-code exchange dry run is valid.");
+      console.log(`ClientID: ${clientId}`);
+      console.log(`Private key: ${privateKeyPath}`);
+      return;
+    }
+    const token = await exchangeRevolutBusinessAuthorizationCode({
+      environment,
+      clientId,
+      codeOrRedirectUrl,
+      redirectUri: typeof flags["redirect-uri"] === "string" ? flags["redirect-uri"] : undefined,
+      privateKeyPath: typeof flags["private-key"] === "string" ? flags["private-key"] : undefined,
+    });
+    if (flags.json === true) {
+      printJson({
+        provider_id: "revolut_business",
+        environment,
+        client_id: clientId,
+        private_key_path: privateKeyPath,
+        token,
+      });
+      return;
+    }
+    console.log("Revolut Business Sandbox authorization code exchanged.");
+    console.log("Store these values in .env or Vault for the sandbox test:");
+    console.log(`REVOLUT_BUSINESS_SANDBOX_CLIENT_ID=${clientId}`);
+    if (typeof token.refresh_token === "string") {
+      console.log(`REVOLUT_BUSINESS_SANDBOX_REFRESH_TOKEN=${token.refresh_token}`);
+    }
+    console.log(`REVOLUT_BUSINESS_SANDBOX_PRIVATE_KEY_FILE=${privateKeyPath}`);
+    console.log("Do not share the refresh token or private key.");
+    return;
+  }
+  const result = generateRevolutBusinessCertificate({
+    environment,
+    outputDir: typeof flags.output === "string" ? flags.output : undefined,
+    title: typeof flags.title === "string" ? flags.title : undefined,
+    redirectUri: typeof flags["redirect-uri"] === "string" ? flags["redirect-uri"] : undefined,
+    overwrite: flags.overwrite === true,
+  });
+  const serverEgressIp = await resolveRevolutBusinessServerEgressIp(client.apiUrl);
+  if (flags.json === true) {
+    printJson({
+      provider_id: "revolut_business",
+      environment: result.environment,
+      certificate_title: result.title,
+      oauth_redirect_uri: result.redirectUri,
+      server_egress_ip_addresses: serverEgressIp.ipAddresses,
+      server_egress_ip_source: serverEgressIp.source,
+      public_certificate_pem: result.publicCertificatePem,
+      public_certificate_path: result.publicCertificatePath,
+      private_key_path: result.privateKeyPath,
+      docs_url: result.docsUrl,
+    });
+    return;
+  }
+  console.log("Revolut Business certificate generated.");
+  console.log("");
+  console.log("Paste these values into Revolut Business API certificate setup:");
+  console.log(`Certificate title: ${result.title}`);
+  console.log(`OAuth redirect URI: ${result.redirectUri}`);
+  console.log(
+    serverEgressIp.ipAddresses.length > 0
+      ? `Production IP whitelist: ${serverEgressIp.ipAddresses.join(", ")}`
+      : "Production IP whitelist: unavailable - open the OpenMates web setup or check the API server egress IP.",
+  );
+  console.log("X509 public key:");
+  console.log(result.publicCertificatePem);
+  console.log("");
+  console.log(`Private key saved locally: ${result.privateKeyPath}`);
+  console.log("Do not upload or share the private key outside OpenMates. It will be encrypted before storage.");
+  console.log("Revolut rejects account reads with HTTP 403 until the OpenMates server IP is whitelisted.");
+  console.log(`Manual setup docs: ${result.docsUrl}`);
+
+  const providedClientId = typeof flags["client-id"] === "string" ? flags["client-id"].trim() : "";
+  const providedCode = typeof flags.code === "string" ? flags.code.trim() : "";
+  if (Boolean(flags.json) || (!stdin.isTTY && (!providedClientId || !providedCode))) {
+    console.log("Run this command in an interactive terminal after saving the certificate in Revolut to finish setup.");
+    return;
+  }
+  if (!client.hasSession()) {
+    throw new Error("Not logged in. Run `openmates login` before connecting Revolut Business.");
+  }
+
+  console.log("");
+  console.log("In Revolut, save the certificate and click Enable. The browser will return to OpenMates with a short code.");
+  const clientId = providedClientId || await promptPlainText("ClientID from Revolut certificate details: ");
+  if (!clientId.trim()) throw new Error("ClientID is required to connect Revolut Business.");
+  const code = providedCode || await promptPlainText("Code from OpenMates callback page: ");
+  if (!code.trim()) throw new Error("Authorization code is required to connect Revolut Business.");
+
+  const privateKeyPem = readFileSync(result.privateKeyPath, "utf8");
+  const setup = await client.exchangeRevolutBusinessSetupCode({
+    clientId: clientId.trim(),
+    code: code.trim(),
+    privateKeyPem,
+    environment,
+    redirectUri: result.redirectUri,
+  });
+  const label = typeof setup.account_hint.label === "string" && setup.account_hint.label.trim()
+    ? setup.account_hint.label.trim()
+    : "Revolut Business";
+  const accountRef = typeof setup.account_hint.account_ref === "string" && setup.account_hint.account_ref.trim()
+    ? setup.account_hint.account_ref.trim()
+    : "revolut_business";
+  const connectedAccount = await client.importConnectedAccountPayload({
+    version: 1,
+    provider_id: "revolut_business",
+    app_id: "finance",
+    label,
+    account_ref: accountRef,
+    capabilities: ["read"],
+    runtime_modes: { read: "server" },
+    refresh_token_bundle: setup.refresh_token_bundle,
+    created_at: new Date().toISOString(),
+  }, { skipValidation: true });
+
+  console.log("");
+  console.log("Revolut Business connected.");
+  console.log(`Connected account: ${connectedAccount.id}`);
+  console.log(`Provider: ${connectedAccount.providerId}`);
+  console.log(`App: ${connectedAccount.appId}`);
+  console.log(`Account: ${connectedAccount.label}`);
+}
+
+type RevolutBusinessServerEgressIp = {
+  ipAddresses: string[];
+  source: string;
+};
+
+async function resolveRevolutBusinessServerEgressIp(apiUrl: string): Promise<RevolutBusinessServerEgressIp> {
+  const configuredIps = parseConfiguredIpList(process.env.REVOLUT_BUSINESS_SERVER_EGRESS_IPS ?? "");
+  if (configuredIps.length > 0) {
+    return { ipAddresses: configuredIps, source: "configured" };
+  }
+
+  try {
+    const response = await fetch(`${apiUrl.replace(/\/+$/, "")}/v1/connected-accounts/setup/revolut-business/server-egress-ip`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) return { ipAddresses: [], source: "unavailable" };
+    const payload = await response.json() as { ip_addresses?: unknown; source?: unknown };
+    const ipAddresses = Array.isArray(payload.ip_addresses)
+      ? payload.ip_addresses.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      : [];
+    return {
+      ipAddresses,
+      source: typeof payload.source === "string" ? payload.source : "api",
+    };
+  } catch {
+    return { ipAddresses: [], source: "unavailable" };
+  }
+}
+
+function parseConfiguredIpList(rawValue: string): string[] {
+  return Array.from(new Set(rawValue.replace(/;/g, ",").split(",").map((value) => value.trim()).filter(Boolean))).sort();
+}
+
+function requireStringFlag(
+  flags: Record<string, string | boolean>,
+  name: string,
+  message: string,
+): string {
+  const value = flags[name];
+  if (typeof value !== "string" || !value.trim()) throw new Error(message);
+  return value.trim();
+}
+
+async function promptPlainText(question: string): Promise<string> {
+  const rl = createInterface({ input: stdin, output: stdout });
+  try {
+    return await rl.question(question);
+  } finally {
+    rl.close();
+  }
 }
 
 async function writeSecretFile(filePath: string, content: string, force = false): Promise<string> {
@@ -3163,9 +8448,11 @@ async function handleE2E(
     throw new Error("E2E provisioning refuses production API URLs.");
   }
   if (flags.password !== undefined) throw new Error("Use generated passwords or OPENMATES_CLI_SIGNUP_PASSWORD, not --password.");
+  const inviteCode = process.env.OPENMATES_CLI_SIGNUP_INVITE_CODE;
+  if (!inviteCode) throw new Error("OPENMATES_CLI_SIGNUP_INVITE_CODE is required for E2E provisioning.");
   const slot = parseRequiredNumber(flags.slot, "--slot");
-  if (![15, 16, 17, 18, 19, 20].includes(slot)) {
-    throw new Error("Only reserved slots 15-20 are supported.");
+  if (![14, 15, 16, 17, 18, 19, 20].includes(slot)) {
+    throw new Error("Only reserved slots 14-20 are supported.");
   }
   const artifact = typeof flags.artifact === "string" ? flags.artifact : `test-results/credential-updates/slot-${slot}.env`;
   const domain = typeof flags.domain === "string" ? flags.domain : process.env.OPENMATES_CLI_E2E_EMAIL_DOMAIN;
@@ -3184,6 +8471,7 @@ async function handleE2E(
       ...flags,
       email,
       username,
+      "invite-code": inviteCode,
       yes: true,
       json: false,
       "backup-codes-output": typeof flags["backup-codes-output"] === "string" ? flags["backup-codes-output"] : `${artifact}.backup-codes`,
@@ -3285,6 +8573,7 @@ async function handleSettings(
   }
 
   const tokens = [subcommand, ...rest].filter((token) => token !== "help");
+  const apiKey = resolveApiKey(flags) ?? undefined;
   if (rest.includes("help") || Boolean(flags.help)) {
     printSettingsHelp(client, tokens);
     return;
@@ -3345,13 +8634,71 @@ async function handleSettings(
     return;
   }
 
+  if ((tokens.length === 2 && matches(tokens, ["account", "export"])) || (tokens.length === 3 && matches(tokens, ["account", "export", "start"]))) {
+    printAccountExportBundle(await runAccountExport(client, flags), flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "export", "status"])) {
+    const exportId = rest[2];
+    if (!exportId) throw new Error("Missing export ID. Example: openmates settings account export status <export-id>");
+    await printSettingsResult(client.getAccountExport(exportId), flags);
+    return;
+  }
+
   if (matches(tokens, ["account", "export", "manifest"])) {
-    await printSettingsResult(client.settingsGet("export-account-manifest"), flags);
+    const exportId = rest[2];
+    if (!exportId) {
+      await printSettingsResult(client.settingsGet("export-account-manifest"), flags);
+      return;
+    }
+    await printSettingsResult(client.getAccountExportManifest(exportId), flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "export", "chunks"])) {
+    const exportId = rest[2];
+    if (!exportId) throw new Error("Missing export ID. Example: openmates settings account export chunks <export-id>");
+    await printSettingsResult(client.listAccountExportChunks(exportId), flags);
     return;
   }
 
   if (matches(tokens, ["account", "export", "data"])) {
-    await printSettingsResult(client.settingsGet("export-account-data"), flags);
+    const exportId = rest[2];
+    if (!exportId) {
+      await printSettingsResult(client.settingsGet("export-account-data"), flags);
+      return;
+    }
+    const listed = await client.listAccountExportChunks(exportId);
+    const chunks = [];
+    for (const chunk of listed.chunks) {
+      const chunkId = String(chunk.chunk_id ?? "");
+      chunks.push(chunkId ? await client.getAccountExportChunk(exportId, chunkId) : chunk);
+    }
+    if (flags.json === true) printJson({ chunks });
+    else printGenericObject({ chunks });
+    return;
+  }
+
+  if (matches(tokens, ["account", "export", "accept-partial"])) {
+    const exportId = rest[2];
+    if (!exportId) throw new Error("Missing export ID. Example: openmates settings account export accept-partial <export-id>");
+    await printSettingsResult(client.acceptPartialAccountExport(exportId), flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "export", "cancel"])) {
+    const exportId = rest[2];
+    if (!exportId) throw new Error("Missing export ID. Example: openmates settings account export cancel <export-id>");
+    await printSettingsResult(client.cancelAccountExport(exportId), flags);
+    return;
+  }
+
+  if (["claude", "chatgpt", "openmates", "opencode", "generic"].some((parserFormat) => matches(tokens, ["account", "import", parserFormat]))) {
+    const source = tokens[2] as AccountImportCliParser;
+    const file = rest[2];
+    if (!file) throw new Error(`Missing import file. Example: openmates account import ${source} ./export.zip --dry-run`);
+    printAccountImportPreview(await runAccountImport(client, source, file, flags), flags);
     return;
   }
 
@@ -3473,7 +8820,7 @@ async function handleSettings(
     if (Object.keys(body).length === 0) {
       throw new Error("Provide --simple <model-id|auto> and/or --complex <model-id|auto>.");
     }
-    await printSettingsMutationResult(client.settingsPost("ai-model-defaults", body), flags);
+    await printSettingsMutationResult(client.settingsPost("ai-model-defaults", body, apiKey), flags);
     return;
   }
 
@@ -3505,6 +8852,35 @@ async function handleSettings(
 
   if (matches(tokens, ["billing", "usage", "daily"])) {
     await printSettingsResult(client.settingsGet("usage/daily-overview"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "usage", "overview"])) {
+    const granularity = parseUsageOverviewGranularity(flags.granularity);
+    await printSettingsResult(client.getUsageOverview({
+      granularity,
+      days: parseOptionalQueryNumber(flags.days, "--days"),
+      weeks: parseOptionalQueryNumber(flags.weeks, "--weeks"),
+      months: parseOptionalQueryNumber(flags.months, "--months"),
+    }), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "usage", "details"])) {
+    const params = new URLSearchParams({
+      type: parseRequiredStringFlag(flags.type, "--type"),
+      identifier: parseRequiredStringFlag(flags.identifier, "--identifier"),
+      year_month: parseRequiredStringFlag(flags.month, "--month"),
+    });
+    await printSettingsResult(client.settingsGet(`usage/details?${params.toString()}`), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "usage", "chat-total"])) {
+    const params = new URLSearchParams({
+      chat_id: parseRequiredStringFlag(flags["chat-id"], "--chat-id"),
+    });
+    await printSettingsResult(client.settingsGet(`usage/chat-total?${params.toString()}`), flags);
     return;
   }
 
@@ -3732,7 +9108,8 @@ async function handleSettings(
   }
 
   if (matches(tokens, ["developers", "api-keys", "list"])) {
-    await printSettingsResult(client.settingsGet("api-keys"), flags);
+    const result = await client.listApiKeys();
+    printApiKeyList(result, flags);
     return;
   }
 
@@ -3761,7 +9138,7 @@ async function handleSettings(
     const id = rest[2];
     if (!id) throw new Error("Missing API key ID.");
     if (flags.yes !== true) await confirmOrExit(`Revoke API key ${id}? [y/N] `);
-    await printSettingsMutationResult(client.settingsDelete(`api-keys/${id}`), flags);
+    await printSettingsMutationResult(client.revokeApiKey(id), flags);
     return;
   }
 
@@ -3933,13 +9310,6 @@ function printLearningModeStatus(status: LearningModeStatus, json: boolean): voi
   }
 }
 
-function learningModeStatusToContext(status: LearningModeStatus): LearningModeContext {
-  return {
-    enabled: status.enabled,
-    ageGroup: status.age_group,
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Memories
 // ---------------------------------------------------------------------------
@@ -3960,7 +9330,7 @@ async function handleMemories(
     const appId = typeof flags["app-id"] === "string" ? flags["app-id"] : null;
     const itemType =
       typeof flags["item-type"] === "string" ? flags["item-type"] : null;
-    let result = await client.listMemories();
+    let result = await client.listMemories(teamContextFromFlags(flags));
     if (appId) result = result.filter((m) => m.app_id === appId);
     if (itemType) result = result.filter((m) => m.item_type === itemType);
     if (flags.json === true) {
@@ -4016,7 +9386,7 @@ async function handleMemories(
     }
 
     const itemValue = JSON.parse(dataRaw) as Record<string, unknown>;
-    const result = await client.createMemory({ appId, itemType, itemValue });
+    const result = await client.createMemory({ appId, itemType, itemValue, ...teamContextFromFlags(flags) });
     if (flags.json === true) {
       printJson(result);
     } else {
@@ -4055,6 +9425,7 @@ async function handleMemories(
       itemType,
       itemValue,
       currentVersion,
+      ...teamContextFromFlags(flags),
     });
     if (flags.json === true) {
       printJson(result);
@@ -4074,7 +9445,7 @@ async function handleMemories(
       );
       process.exit(1);
     }
-    const result = await client.deleteMemory(entryId);
+    const result = await client.deleteMemory(entryId, teamContextFromFlags(flags));
     if (flags.json === true) {
       printJson(result);
     } else {
@@ -4318,6 +9689,43 @@ function printChatsTable(result: ChatListPage): void {
   }
 }
 
+function printChatMessagesTable(
+  chat: { id?: string; title?: string | null },
+  messages: Array<DecryptedMessage & { preview?: string }>,
+): void {
+  const title = chat.title ?? chat.id ?? "Chat";
+  process.stdout.write(`\x1b[1m${title}\x1b[0m\n`);
+  process.stdout.write(`\x1b[2m${messages.length} message${messages.length === 1 ? "" : "s"}\x1b[0m\n\n`);
+  for (const message of messages) {
+    const id = message.id;
+    const time = formatTimestamp(message.createdAt || null);
+    const preview = (message.preview ?? message.content.replace(/\s+/g, " ").trim().slice(0, 120)) || "(empty)";
+    process.stdout.write(`${id}  ${message.role.padEnd(9)}  ${time}  ${preview}\n`);
+  }
+}
+
+function printChatRewindResult(result: ChatRewindResult | Record<string, unknown>): void {
+  const dryRun = result.dry_run === true;
+  const deletedCount = dryRun
+    ? Number(result.planned_deleted_message_count ?? 0)
+    : Number(result.deleted_message_count ?? 0);
+  const ids = dryRun
+    ? result.planned_deleted_message_ids
+    : result.deleted_message_ids;
+  process.stdout.write(`${dryRun ? "Dry run" : "Rewound"} chat ${String(result.chat_id ?? "")}\n`);
+  process.stdout.write(`${dryRun ? "Would delete" : "Deleted"} ${deletedCount} message${deletedCount === 1 ? "" : "s"}.\n`);
+  if (Array.isArray(ids) && ids.length > 0) {
+    process.stdout.write(`\x1b[2m${ids.map(String).join(", ")}\x1b[0m\n`);
+  }
+  const response = result.response;
+  if (response && typeof response === "object" && "assistant" in response) {
+    process.stdout.write(`\n${String((response as { assistant?: unknown }).assistant ?? "")}\n`);
+  }
+  if (dryRun) {
+    process.stdout.write("\nRun again with --yes to apply this rewind.\n");
+  }
+}
+
 /**
  * Send a message with live streaming output.
  *
@@ -4329,12 +9737,17 @@ async function sendMessageStreaming(
   params: {
     message: string;
     chatId?: string;
+    teamId?: string | null;
+    personal?: boolean;
     incognito?: boolean;
     json?: boolean;
     autoApproveSubChats?: boolean;
     autoApproveMemories?: boolean;
+    acceptTaskProposals?: boolean;
     piiDetection?: boolean;
+    taskUpdateJobs?: boolean;
     anonymousLearningMode?: LearningModeContext;
+    responseTimeoutMs?: number;
   },
   redactor?: OutputRedactor,
 ): Promise<{
@@ -4346,6 +9759,8 @@ async function sendMessageStreaming(
   modelName: string | null;
   mateName: string | null;
   followUpSuggestions: string[];
+  taskEvents: TaskEventFrame[];
+  pendingTaskUpdateJobs: PendingTaskUpdateJobFrame[];
   subChatEvents: SubChatEvent[];
   appSettingsMemoryRequests: Array<{
     requestId: string | null;
@@ -4353,6 +9768,7 @@ async function sendMessageStreaming(
     approvedKeys: string[];
     entryCount: number;
   }>;
+  acceptedTaskProposals: Array<Record<string, unknown>>;
 } | WaitingForUserResult | SignupRequiredResult> {
   let headerPrinted = false;
   let typingShown = false;
@@ -4501,6 +9917,7 @@ async function sendMessageStreaming(
   // Parse @mentions in the message, resolve to backend wire syntax.
   // If any mentions fail to resolve, show error and abort.
   let finalMessage = params.message;
+  const isTeamAiTrigger = params.personal !== true && (typeof params.teamId === "string" || Boolean(client.getActiveTeamId()));
   if (params.message.includes("@")) {
     try {
       const mentionCtx = await client.buildMentionContext();
@@ -4508,9 +9925,12 @@ async function sendMessageStreaming(
       finalMessage = parsed.processedMessage;
 
       // Report unresolved mentions as errors
-      if (parsed.unresolved.length > 0) {
+      const unresolvedMentions = parsed.unresolved.filter(
+        (mention) => !(isTeamAiTrigger && mention.original.toLowerCase() === "@openmates"),
+      );
+      if (unresolvedMentions.length > 0) {
         clearTyping();
-        for (const u of parsed.unresolved) {
+        for (const u of unresolvedMentions) {
           process.stderr.write(
             `\x1b[31mError:\x1b[0m Unknown mention ${u.original}\n`,
           );
@@ -4542,7 +9962,7 @@ async function sendMessageStreaming(
           return result;
         }
 
-        const fileResult = processFiles(parsed.filePaths, redactor ?? null);
+        const fileResult = await processFilesAsync(parsed.filePaths, redactor ?? null);
 
         // Report blocked files
         for (const b of fileResult.blocked) {
@@ -4596,7 +10016,7 @@ async function sendMessageStreaming(
                       uploadResult,
                       fe.displayName,
                       session,
-                      { chatId: params.chatId, requestId: uploadResult.embed_id },
+                      { chatId: params.chatId, requestId: fe.embed.embedId },
                     )
                   : null;
               const embedRef = fe.embed.embedRef ?? createEmbedRef(embedType, uploadResult.embed_id);
@@ -4618,6 +10038,7 @@ async function sendMessageStreaming(
                       use_corrected: audioTranscription?.use_corrected ?? null,
                       correction_model: audioTranscription?.correction_model ?? null,
                       model: audioTranscription?.model ?? null,
+                      waveform: audioTranscription?.waveform ?? null,
                       s3_base_url: uploadResult.s3_base_url,
                       files: uploadResult.files,
                       aes_key: uploadResult.aes_key,
@@ -4659,8 +10080,6 @@ async function sendMessageStreaming(
               fe.embed.status = embedType === "pdf" ? "processing" : "finished";
               fe.embed.contentHash = uploadResult.content_hash;
 
-              // Use the server-assigned embed_id
-              fe.embed.embedId = uploadResult.embed_id;
               fe.referenceBlock = createEmbedReferenceBlock(embedRef);
 
               if (!params.json) {
@@ -4710,10 +10129,21 @@ async function sendMessageStreaming(
         }
       }
 
-    } catch {
-      // If mention resolution fails (e.g., network error), send as-is
-      // The backend will receive the raw @tokens and ignore unknown ones
+    } catch (error) {
+      clearTyping();
+      process.stderr.write(
+        `\x1b[31mError:\x1b[0m Failed to process mentions or file attachments - ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+      process.exit(1);
     }
+  }
+
+  if (
+    isTeamAiTrigger &&
+    params.message.toLowerCase().includes("@openmates") &&
+    !finalMessage.toLowerCase().includes("@openmates")
+  ) {
+    finalMessage = `@openmates ${finalMessage}`.trim();
   }
 
   const piiResult = params.piiDetection !== false && redactor?.isInitialized
@@ -4741,24 +10171,26 @@ async function sendMessageStreaming(
       process.stdout.write(`${SEP}\n`);
       process.stdout.write(`${result.assistant}\n`);
     }
-    return result;
+    return { ...result, taskEvents: [], pendingTaskUpdateJobs: [], acceptedTaskProposals: [] };
   }
 
   const urlResult = prepareUrlEmbeds(finalMessage);
   finalMessage = urlResult.message;
   preparedEmbeds.push(...urlResult.embeds);
-  const learningMode = learningModeStatusToContext(await client.getLearningModeStatus());
 
   const result = await client.sendMessage({
     message: finalMessage,
     chatId: params.chatId,
+    teamId: params.teamId,
+    personal: params.personal,
     incognito: params.incognito,
     onStream,
     onSubChatEvent,
     onSubChatApprovalRequest,
     autoApproveSubChats: params.autoApproveSubChats,
     autoApproveMemories: params.autoApproveMemories,
-    learningMode,
+    taskUpdateJobs: params.taskUpdateJobs,
+    responseTimeoutMs: params.responseTimeoutMs,
     preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
     piiMappings: piiResult.mappings.map((mapping) => ({
       placeholder: mapping.placeholder,
@@ -4768,6 +10200,10 @@ async function sendMessageStreaming(
   });
 
   clearTyping();
+
+  const acceptedTaskProposals = params.acceptTaskProposals === true && result.status === "completed"
+    ? await acceptChatTaskProposals(client, result.chatId, result.taskProposals, `${finalMessage}\n\n${result.assistant}`)
+    : [];
 
   if (result.status === "waiting_for_user") {
     const question = parseInteractiveQuestionBlock(result.assistant);
@@ -4786,7 +10222,7 @@ async function sendMessageStreaming(
           "Continue in the web app, or rerun with --json to inspect the structured waiting state.\n",
       );
     }
-    return result;
+    return { ...result, acceptedTaskProposals: [] };
   }
 
   if (!params.json) {
@@ -4861,13 +10297,103 @@ async function sendMessageStreaming(
       process.stdout.write(`${SEP}\n`);
     }
 
+    if (result.taskEvents.length > 0) {
+      process.stdout.write(`\x1b[2mTask updates:\x1b[0m\n`);
+      for (const event of result.taskEvents) {
+        process.stdout.write(`  \x1b[2m- ${formatTaskEvent(event)}\x1b[0m\n`);
+      }
+      process.stdout.write(`${SEP}\n`);
+    }
+
+    if (result.pendingTaskUpdateJobs.length > 0) {
+      const count = result.pendingTaskUpdateJobs.length;
+      process.stdout.write(
+        `\x1b[2mPending encrypted task update${count === 1 ? "" : "s"}: ${count}\x1b[0m\n` +
+          `${SEP}\n`,
+      );
+    }
+
     process.stdout.write(
       `\x1b[2mContinue: openmates chats send --chat ${shortId} "your message"\x1b[0m\n` +
         `\x1b[2mHistory:  openmates chats show ${shortId}\x1b[0m\n`,
     );
   }
 
-  return result;
+  return { ...result, acceptedTaskProposals };
+}
+
+function formatTaskEvent(event: TaskEventFrame): string {
+  const taskLabel = event.short_id || event.task_id;
+  const title = event.title ? ` "${event.title}"` : "";
+  const status = event.status ? ` (${event.status})` : "";
+  const reason = event.reason ? `: ${event.reason}` : "";
+  switch (event.event_type) {
+    case "created":
+      return `${taskLabel} created${title}${status}`;
+    case "updated":
+      return `${taskLabel} updated${title}${status}`;
+    case "blocked":
+      return `${taskLabel} blocked${reason}`;
+    case "completed":
+      return `${taskLabel} completed${title}`;
+    case "unblocked":
+      return `${taskLabel} unblocked`;
+    default:
+      return `${taskLabel} ${event.event_type}${title}${status}${reason}`;
+  }
+}
+
+async function acceptChatTaskProposals(
+  client: OpenMatesClient,
+  chatId: string,
+  proposals: Array<{
+    title: string;
+    description?: string | null;
+    status?: UserTaskStatus;
+    assignee_type?: "ai" | "user";
+  }>,
+  fallbackText: string,
+): Promise<Array<Record<string, unknown>>> {
+  let proposalsToAccept = proposals;
+  if (proposalsToAccept.length === 0 && fallbackText.trim()) {
+    const extractionText = buildTaskProposalFallbackText(fallbackText);
+    proposalsToAccept = await client.extractUserTaskProposals({
+      correctedText: extractionText,
+      contextChatId: chatId,
+    });
+  }
+  if (proposalsToAccept.length === 0) return [];
+  const masterKey = client.getMasterKeyBytes();
+  const accepted: Array<Record<string, unknown>> = [];
+  for (const proposal of proposalsToAccept) {
+    const input = await buildCreateUserTaskInput(masterKey, {
+      title: proposal.title,
+      description: proposal.description ?? "",
+      status: proposal.status,
+      assign: proposal.assignee_type ?? "user",
+      chatId,
+    });
+    const created = await client.createUserTask(input);
+    const decrypted = await decryptUserTask(created, masterKey);
+    accepted.push(taskToJson(decrypted));
+  }
+  return accepted;
+}
+
+function buildTaskProposalFallbackText(text: string): string {
+  const seen = new Set<string>();
+  const bulletLines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^[-*•]\s+/.test(line))
+    .map((line) => line.replace(/^([-*•]\s*)\[[ xX]\]\s*/, "$1"))
+    .filter((line) => {
+      const key = line.replace(/^[-*•]\s+/, "").trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  return bulletLines.length > 0 ? bulletLines.join("\n") : text;
 }
 
 function printIncognitoNoHistoryNotice(json: boolean): void {
@@ -5329,7 +10855,7 @@ function printAppsList(data: AppsListResponse): void {
     console.log();
   }
   console.log(
-    `\x1b[2mRun: openmates apps <app-id> <skill-id> "<query>"\x1b[0m`,
+    `\x1b[2mInspect: openmates apps skill-info <app-id> <skill-id>\x1b[0m`,
   );
 }
 
@@ -5374,7 +10900,13 @@ async function printAppInfo(
           .join("  ");
         process.stdout.write(`    \x1b[2mRequired:\x1b[0m ${reqStr}\n`);
         process.stdout.write(
-          `    \x1b[2mopenmates apps ${data.id} ${skill.id} --help  for details\x1b[0m\n`,
+          `    \x1b[2mopenmates apps skill-info ${data.id} ${skill.id}  for details\x1b[0m\n`,
+        );
+      }
+      const exampleCount = listExampleChatsForSkill(data.id, skill.id).length;
+      if (exampleCount > 0) {
+        process.stdout.write(
+          `    \x1b[2mExamples: openmates apps examples ${data.id} ${skill.id} (${exampleCount})\x1b[0m\n`,
         );
       }
     }
@@ -5393,9 +10925,6 @@ async function printAppInfo(
     console.log();
   }
 
-  console.log(
-    `\x1b[2mRun: openmates apps ${data.id} <skill-id> "<query>"\x1b[0m`,
-  );
   console.log(
     `\x1b[2mDetails: openmates apps skill-info ${data.id} <skill-id>\x1b[0m`,
   );
@@ -5479,8 +11008,8 @@ async function printSkillInfo(
       console.log();
     }
 
-    // ── Example --input JSON ─────────────────────────────────────────────
-    // Build a minimal example showing required fields + first 2 optional
+    // ── Example input JSON ───────────────────────────────────────────────
+    // Build a minimal schema example showing required fields + first 2 optional.
     const exampleItem: Record<string, unknown> = {};
     for (const p of requiredParams) {
       exampleItem[p.name] = buildExampleValue(p.name, p.type, p.description);
@@ -5490,22 +11019,84 @@ async function printSkillInfo(
       exampleItem[p.name] =
         p.default ?? buildExampleValue(p.name, p.type, p.description);
     }
-    process.stdout.write(`\x1b[1mExample\x1b[0m\n`);
+    process.stdout.write(`\x1b[1mInput example\x1b[0m\n`);
     const usesFlatInput = params.some((p) => p.inputShape === "flat");
     const examplePayload = usesFlatInput ? exampleItem : { requests: [exampleItem] };
     const exampleJson = JSON.stringify(examplePayload, null, 2)
       .split("\n")
       .map((l) => `  ${l}`)
       .join("\n");
-    process.stdout.write(
-      `  \x1b[2mopenmates apps ${appId} ${data.id} --input '\x1b[0m\n`,
-    );
     process.stdout.write(`${exampleJson}\n`);
-    process.stdout.write(`  \x1b[2m'\x1b[0m\n`);
     console.log();
   } else {
-    // Skill takes no input — simple invocation
-    console.log(`\x1b[2mRun: openmates apps ${appId} ${data.id}\x1b[0m`);
+    console.log(`\x1b[2mThis skill does not declare input parameters.\x1b[0m`);
+  }
+
+  const examples = listExampleChatsForSkill(appId, data.id);
+  if (examples.length > 0) {
+    console.log();
+    printExampleChatsForSkill(appId, data.id, examples, { compact: true });
+  }
+}
+
+function exampleChatForSkillToJson(example: ExampleChatSkillListItem): Record<string, unknown> {
+  return {
+    chat_id: example.id,
+    short_id: example.shortId,
+    slug: example.slug,
+    title: example.title,
+    summary: example.summary,
+    updated_at: example.updatedAt,
+    category: example.category,
+    source: example.source,
+    linked_app_skills: example.linkedAppSkills,
+    commands: {
+      show: `openmates chats show ${example.id}`,
+      open: `openmates chats open ${example.slug}`,
+    },
+  };
+}
+
+function printExampleChatsForSkill(
+  appId: string,
+  skillId: string | undefined,
+  examples: ExampleChatSkillListItem[],
+  options: { compact?: boolean } = {},
+): void {
+  const label = skillId ? `${appId}/${skillId}` : appId;
+  header(`Example chats for ${label}`);
+  if (examples.length === 0) {
+    console.log(`\nNo example chats are linked to ${label} yet.`);
+    if (skillId) {
+      console.log("\nInspect the skill:");
+      console.log(`  openmates apps skill-info ${appId} ${skillId}`);
+    } else {
+      console.log("\nInspect available skills:");
+      console.log(`  openmates apps ${appId}`);
+    }
+    return;
+  }
+
+  const visibleExamples = options.compact ? examples.slice(0, 3) : examples;
+  console.log();
+  visibleExamples.forEach((example, index) => {
+    console.log(`${index + 1}. ${example.title ?? example.id}`);
+    console.log(`   ${example.id}`);
+    if (example.summary) console.log(`   ${example.summary}`);
+    if (!skillId) {
+      const linkedSkills = example.linkedAppSkills
+        .filter((key) => key.startsWith(`${appId}.`))
+        .join(", ");
+      console.log(`   Skills: ${linkedSkills}`);
+    }
+    console.log(`   Show: openmates chats show ${example.id}`);
+    console.log(`   Open: openmates chats open ${example.slug}`);
+    console.log();
+  });
+  if (options.compact && examples.length > visibleExamples.length) {
+    console.log(`More examples: openmates apps examples ${appId}${skillId ? ` ${skillId}` : ""}`);
+  } else if (options.compact) {
+    console.log(`All examples: openmates apps examples ${appId}${skillId ? ` ${skillId}` : ""}`);
   }
 }
 
@@ -5584,17 +11175,36 @@ function printSkillResult(app: string, skill: string, raw: unknown): void {
   const credits =
     typeof res.credits_charged === "number" ? res.credits_charged : null;
 
+  if (data.success === false) {
+    console.error(
+      `\x1b[31m✗ Skill failed:\x1b[0m ${data.error ?? res.error ?? "unknown error"}`,
+    );
+    return;
+  }
+
+  if (str(data.status) === "waiting_for_client" && data.pending_client_search && typeof data.pending_client_search === "object") {
+    const pending = data.pending_client_search as Record<string, unknown>;
+    header(`${capitalise(app)} › ${capitalise(skill)}${credits !== null ? `  \x1b[2m(${credits} credits)\x1b[0m` : ""}\n`);
+    console.log("Waiting for a connected task client to search encrypted local task content.");
+    const requestId = str(pending.request_id);
+    if (requestId) kv("request", requestId, 12);
+    if (pending.notification_queued === true) kv("notification", "queued", 12);
+    return;
+  }
+
   // ── Grouped results: { results: [{ id, results: [...] }] } ──────────────
-  // This is the standard shape for all skill responses with request arrays.
+  // This is the standard shape for request-array skills. App-skill embed
+  // responses can also return a flat results array of child task/workflow items.
   type ResultItem = Record<string, unknown>;
   const topResults = data?.results as ResultItem[] | undefined;
   if (Array.isArray(topResults)) {
-    let totalItems = 0;
+    const resultItems: ResultItem[] = [];
     for (const group of topResults) {
       const items = group.results as ResultItem[] | undefined;
-      if (Array.isArray(items)) totalItems += items.length;
+      if (Array.isArray(items)) resultItems.push(...items);
+      else resultItems.push(group);
     }
-    if (totalItems === 0) {
+    if (resultItems.length === 0) {
       header(
         `${capitalise(app)} › ${capitalise(skill)}  \x1b[2m(${credits !== null ? `${credits} credits` : "no results"})\x1b[0m\n`,
       );
@@ -5617,18 +11227,14 @@ function printSkillResult(app: string, skill: string, raw: unknown): void {
       if (provider) console.log(`\x1b[2mProvider: ${provider}\x1b[0m`);
       return;
     }
-    if (totalItems > 0) {
+    if (resultItems.length > 0) {
       header(
-        `${capitalise(app)} › ${capitalise(skill)}  \x1b[2m(${totalItems} result${totalItems !== 1 ? "s" : ""}${credits !== null ? `, ${credits} credits` : ""})\x1b[0m\n`,
+        `${capitalise(app)} › ${capitalise(skill)}  \x1b[2m(${resultItems.length} result${resultItems.length !== 1 ? "s" : ""}${credits !== null ? `, ${credits} credits` : ""})\x1b[0m\n`,
       );
       let resultNum = 0;
-      for (const group of topResults) {
-        const items = group.results as ResultItem[] | undefined;
-        if (!Array.isArray(items)) continue;
-        for (const item of items) {
-          resultNum += 1;
-          printSkillResultItem(item, resultNum, totalItems);
-        }
+      for (const item of resultItems) {
+        resultNum += 1;
+        printSkillResultItem(item, resultNum, resultItems.length);
       }
 
       // ── Provider info ──────────────────────────────────────────────────
@@ -5685,6 +11291,30 @@ function printSkillResultItem(
 ): void {
   const itemType = str(item.type);
   const numLabel = total > 1 ? `\x1b[36m[${num}]\x1b[0m ` : "";
+
+  // ── OpenMates task child embed result ───────────────────────────────────
+  if (itemType === "task") {
+    const title = str(item.title) ?? "Untitled task";
+    const taskId = str(item.short_id) ?? str(item.task_id) ?? "unknown-task";
+    const summary = [str(item.status), str(item.assignee) ? `assignee: ${str(item.assignee)}` : null]
+      .filter(Boolean)
+      .join(" · ");
+    console.log(`${numLabel}\x1b[1mtask · ${taskId} · ${title}\x1b[0m${summary ? `  ${summary}` : ""}`);
+    console.log(`\x1b[2m  → openmates tasks show ${taskId}\x1b[0m`);
+    console.log("");
+    return;
+  }
+
+  // ── OpenMates workflow child embed result ───────────────────────────────
+  if (itemType === "workflow") {
+    const title = str(item.title) ?? "Untitled workflow";
+    const workflowId = str(item.workflow_id) ?? str(item.id) ?? "unknown-workflow";
+    const status = str(item.status);
+    console.log(`${numLabel}\x1b[1mworkflow · ${title}\x1b[0m${status ? `  ${status}` : ""}`);
+    console.log(`\x1b[2m  → openmates workflows show ${workflowId}\x1b[0m`);
+    console.log("");
+    return;
+  }
 
   // ── Connection (travel flights/trains) ─────────────────────────────────
   if (itemType === "connection") {
@@ -6457,13 +12087,13 @@ export function serializeToYaml(
       out += `${pad}${key}:\n`;
       for (const item of val) {
         if (typeof item === "object" && item !== null) {
-          out += `${pad}- \n`;
+          out += `${pad}  -\n`;
           out += serializeToYaml(
             item as Record<string, unknown>,
             indent + 2,
           );
         } else {
-          out += `${pad}- ${item}\n`;
+          out += `${pad}  - ${formatYamlScalar(item)}\n`;
         }
       }
     } else if (typeof val === "object") {
@@ -6472,6 +12102,26 @@ export function serializeToYaml(
     }
   }
   return out;
+}
+
+function formatYamlScalar(value: unknown): string {
+  if (value === null || value === undefined) return "null";
+  if (typeof value === "boolean" || typeof value === "number") return String(value);
+  if (typeof value === "string") {
+    const needsQuote =
+      value.includes(":") ||
+      value.includes("#") ||
+      value.startsWith("{") ||
+      value.startsWith("[") ||
+      value.startsWith("'") ||
+      value.startsWith('"') ||
+      value === "" ||
+      value === "true" ||
+      value === "false" ||
+      value === "null";
+    return needsQuote ? `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"` : value;
+  }
+  return JSON.stringify(value);
 }
 
 /** Map language identifier to file extension for code embed downloads. */
@@ -6558,19 +12208,28 @@ Commands:
   openmates signup                           Create an account from the terminal
   openmates logout                           Log out and clear session
   openmates whoami [--json]                  Show account info
+  openmates chat --goal <goal>               Start a saved chat with an attached draft plan
   openmates chats [--help]                   Chat commands (list, search, show, ...)
+  openmates tasks [--help]                   Task commands (list, create, board, ...)
+  openmates plans [--help]                   Plan commands (list, create, approve, checks, ...)
+  openmates projects [--help]                Deterministic Project CRUD and encrypted remote files
+  openmates teams [--help]                   Team lifecycle, membership, billing, and move commands
+  openmates drafts [--help]                  Encrypted draft lifecycle commands
+  openmates ideabucket [--help]              IdeaBucket add, audio, status, and process commands
   openmates apps [--help]                    App skill commands (list, run, ...)
   openmates workflows [--help]               Server-side workflow commands
   openmates mentions [--help]                List available @mentions
   openmates embeds [--help]                  Embed commands (show)
   openmates settings [--help]                Predefined settings commands
   openmates connected-accounts [--help]      Connected account import helpers
+  openmates connect-account [--help]         Local connected-account setup helpers
+  openmates finance [--help]                 Finance account analysis commands
   openmates learning-mode [--help]           Account-wide Learning Mode controls
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
   openmates feedback [--help]                Assistant response feedback helpers
   openmates benchmark [--help]               Run real model benchmarks with usage tagged as benchmark spend
-  openmates remote-access [--help]           Attach and search local Project sources
+  openmates remote-access [--path <folder>]  Attach a local Project source in the foreground
   openmates support                          Show voluntary financial support options
   openmates version                          Show CLI version and update availability
   openmates update                           Update the installed OpenMates CLI package
@@ -6615,19 +12274,21 @@ Options:
 }
 
 function printRemoteAccessHelp(): void {
-  console.log(`Remote access commands:
-  openmates remote-access start --path <folder> [--source-id <id>] [--project <id>] [--type <type>] [--local-only] [--json]
-  openmates remote-access status [--json]
-  openmates remote-access search --source <id> <query> [--limit <n>] [--json]
+  console.log(`Remote access command:
+  openmates remote-access [--path <folder>]... [--json]
 
-Source types:
-  local_folder, local_git_repository
+Behavior:
+  Discovers repository Projects below the current working directory by default.
+  Repeated --path values replace default discovery. Missing Projects are created
+  only after interactive review. The command remains connected in the foreground;
+  keep the terminal open or use zellij, tmux, or screen.
 
 Security:
   Source metadata is stored locally under ~/.openmates/remote-sources.json.
   Preview cache defaults to ~/.openmates/remote-cache/<source-id>.
-  Search is read-only, runs rg inside the approved source root, and excludes
-  high-risk, binary, and out-of-root paths by default.`);
+  Project metadata and bridge payloads are encrypted automatically. List, search,
+  and text preview stay inside approved roots and exclude protected, ignored,
+  binary, symlink-escaped, and out-of-root paths.`);
 }
 
 function printConnectedAccountsHelp(): void {
@@ -6639,12 +12300,85 @@ The CLI prompts for the passcode interactively, validates the provider token wit
 a harmless read, then re-encrypts the account for the currently logged-in CLI
 account before storing it.
 
+Team connected accounts are not supported in Teams V1 yet.
+
 Options:
   --payload <OMCA1...>  Required encrypted import payload from web settings
   --json               Output a redacted JSON summary
 
 Security:
   Do not pass the passcode as a flag. It is always entered through a hidden prompt.`);
+}
+
+function printFinanceHelp(): void {
+  console.log(`Finance commands:
+  openmates finance check-accounts [--connected-account <id>] [--csv <file.csv[,file.tsv]>] [--json]
+
+Runs the read-only Finance Check accounts skill through OpenMates API. Revolut
+Business access stays server-mediated through short-lived connected-account token
+refs; raw merchant names are returned only as category-aware placeholders.
+
+Filters:
+  --from <YYYY-MM-DD>              Start date
+  --to <YYYY-MM-DD>                End date
+  --period <monthly|quarterly|yearly|custom>
+  --projection-horizon <monthly|quarterly|yearly>
+  --direction <income|expense>
+  --category <csv>                 Category filter(s)
+  --account <csv>                  Normalized account ref filter(s)
+  --source <csv>                   Source ref filter(s)
+  --state <csv>                    Transaction state filter(s)
+  --placeholder <csv>              Counterparty placeholder filter(s)
+
+Options:
+  --connected-account <id>         Use a specific Revolut Business connected account
+  --csv <paths>                    Add canonical OpenMates CSV/TSV statements
+  --csv-only                       Do not auto-select a connected account
+  --json                           Output raw JSON`);
+}
+
+function printConnectAccountHelp(): void {
+  console.log(`Connect account commands:
+  openmates connect-account proton [--write] [--json]
+  openmates connect-account revolut-business [--production] [--output <dir>] [--overwrite] [--json]
+  openmates connect-account revolut-business consent-url --client-id <ClientID> [--json]
+  openmates connect-account revolut-business exchange-code --client-id <ClientID> --code <url-or-code>
+
+Starts a local Proton Mail Bridge connector for OpenMates Mail. Proton Bridge
+owns Proton login. OpenMates never asks for your Proton account password.
+Proton Mail Bridge requires a paid Proton Mail plan; free Proton accounts cannot
+use Bridge IMAP/SMTP access.
+If Bridge is missing, the CLI prints OS-specific install instructions and stops;
+install Bridge yourself, sign in through Proton Bridge, then rerun this command.
+
+Proton connector behavior:
+  Read-only by default.
+  Active only while this CLI process keeps running.
+  Use screen, tmux, or zellij for long-lived terminal sessions.
+  Bridge IMAP/SMTP credentials stay local to this process and are not stored in OpenMates cloud.
+
+Revolut Business behavior:
+  One-command setup for the server-mediated OpenMates connected-account flow.
+  Generates a local private key plus public X.509 certificate for the Business API.
+  Paste the printed public certificate into Revolut's X509 public key field.
+  Paste the printed OpenMates server IP into Revolut's Production IP whitelist.
+  Save the certificate in Revolut, click Enable, then paste the returned code back here.
+  OpenMates exchanges the code on the server, validates a read-only account call,
+  then stores the token/private-key bundle as a client-side encrypted connected account.
+  consent-url and exchange-code are developer fallbacks only.
+
+Options:
+  --write              Enable Proton Mail send capability after confirmation. Sends are delayed 30 seconds for undo.
+  --production         Generate Revolut certificate paths/redirect URI for production instead of sandbox.
+  --title <title>      Revolut certificate title (default: OpenMates FinanceApp)
+  --redirect-uri <url> OAuth redirect URI to register in Revolut
+  --client-id <id>     Revolut ClientID from the API certificate details
+  --code <url-or-code> Authorization code or full failed callback URL
+  --scope <scope>      Revolut consent scope for consent-url (default: READ)
+  --private-key <path> Private key path for exchange-code
+  --output <dir>       Directory for Revolut private/public certificate files
+  --overwrite          Replace existing Revolut certificate files in the output directory
+  --json               Output a redacted JSON summary`);
 }
 
 function printFeedbackHelp(): void {
@@ -6705,7 +12439,7 @@ Creates local ignored credential artifacts for reserved E2E auth accounts. The
 command refuses production API URLs and does not upload GitHub secrets.
 
 Options:
-  --slot <15-20>                     Reserved auth-account slot
+  --slot <14-20>                     Reserved auth-account slot
   --artifact <path>                  Output .env artifact path
   --email <email>                    Test email; prompted/generated when omitted
   --domain <mail-domain>             Generate email at this domain
@@ -6716,13 +12450,19 @@ Options:
 function printChatsHelp(): void {
   console.log(`Chats commands:
   openmates chats list [--limit <n>] [--page <n>] [--json]
-  openmates chats show <chat-id> [--raw] [--json]
+  openmates chats show <chat-id> [--raw] [--json] [--all]
+  openmates chats messages <chat-id> [--json]
+  openmates chats <chat-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy] [--json]
+  openmates chats <chat-id> remove-from-project <project-id> [--json]
+  openmates chats fork <chat-id> --from-message <message-id> [--title <title>] [--json]
+  openmates chats rewind <chat-id> --to-message <message-id> [--send <prompt>] [--dry-run] [--yes] [--json]
+  openmates chats retry <chat-id> [--dry-run] [--yes] [--json]
   openmates chats open [<n|example-id|slug>] [--json]
   openmates chats search <query> [--json]
-  openmates chats new <message> [--json] [--learning-mode --age-group <group>] [--auto-approve] [--auto-approve-memories] [--no-pii-detection]
-  openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--no-pii-detection]
+  openmates chats new <message> [--json] [--learning-mode --age-group <group>] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection]
+  openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection]
   openmates chats send --chat <id> --followup <n> [--json] [--auto-approve] [--auto-approve-memories]
-  openmates chats answer-interactive --chat <id> --question-json '<json>' --answer-json '<json>' [--json]
+  openmates chats answer-interactive --chat <id> --question-json '<json>' --answer-json '<json>' [--json] [--accept-task-proposals]
   openmates chats download <chat-id> [--output <path>] [--zip] [--json]
   openmates chats delete <id1> [id2] [id3] ... [--yes]
   openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--json]
@@ -6735,8 +12475,16 @@ Options for 'list':
   --page <n>    Page number (default: 1)
 
 Options for 'show':
+  --all         Load full chat history. By default, show loads latest 30 messages.
   --raw         Show raw decrypted message content without rendering embeds
                 or cleaning embed references. Useful for debugging.
+
+Options for 'fork', 'rewind', and 'retry':
+  --from-message <id>  Message boundary for non-destructive fork.
+  --to-message <id>    Message boundary to keep when rewinding.
+  --send <prompt>      Send a replacement prompt after rewind.
+  --dry-run            Show planned deletion without mutating.
+  --yes                Apply destructive rewind/retry. Without --yes these commands dry-run.
 
 Options for 'open':
   <n>           Position of the chat to open (default: 1 = most recent)
@@ -6764,6 +12512,11 @@ Options for 'new', 'send', and 'incognito':
                             Use only for trusted non-interactive runs.
   --no-pii-detection       Send the message exactly as typed. By default, the CLI
                             replaces detected PII with placeholders before send.
+
+Saved-chat task options for 'new', 'send', and 'answer-interactive':
+  --accept-task-proposals  Explicitly save assistant task proposals as encrypted
+                            Tasks V1 records scoped to the chat. Without this,
+                            proposals remain review-only, like the web app card.
 
 Guest-only options for logged-out 'new':
   --learning-mode          Opt anonymous chat into request-scoped Learning Mode.
@@ -6802,6 +12555,10 @@ Examples:
   openmates chats open 3            (opens 3rd most recent chat)
   openmates chats open gigantic-airplanes-transporting-rocket-parts
   openmates chats show d262cb68
+  openmates chats messages d262cb68
+  openmates chats fork d262cb68 --from-message 8f4e2a1c --title "Clean branch"
+  openmates chats rewind d262cb68 --to-message 8f4e2a1c --send "Continue from here" --yes
+  openmates chats retry d262cb68 --yes
   openmates chats show last
   openmates chats show "Flight Connections Berlin to Bangkok"
   openmates chats search "Madrid"
@@ -6821,39 +12578,286 @@ Examples:
   openmates chats share d262cb68 --password mypass`);
 }
 
+function printTasksHelp(): void {
+  console.log(`Tasks commands:
+  openmates tasks list [--status <status>] [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
+  openmates tasks board [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
+  openmates tasks show <task-id|short-id> [--json]
+  openmates tasks <task-id|short-id> add-to-project <project-id> [--json]
+  openmates tasks <task-id|short-id> remove-from-project <project-id> [--json]
+  openmates tasks history <task-id|short-id> [--limit <n>] [--json]
+  openmates tasks restore <task-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
+  openmates tasks create --title <title> [--description <text>] [--assign user|ai] [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
+  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|ai] [--status <status>] [--json]
+  openmates tasks delete <task-id|short-id> --confirm [--json]
+  openmates tasks start <task-id|short-id> [--json]
+  openmates tasks status [<task-id|short-id>] [--json]
+  openmates tasks block <task-id|short-id> --reason <code> [--json]
+  openmates tasks unblock <task-id|short-id> [--json]
+  openmates tasks skip <task-id|short-id> [--json]
+  openmates tasks done <task-id|short-id> [--json]
+  openmates tasks reorder <task-id|short-id> [--before <task-id>] [--after <task-id>] [--position <n>] [--status <status>] [--json]
+
+Chat-scoped aliases:
+  openmates chats <chat-id> tasks list
+  openmates chats <chat-id> tasks board
+  openmates chats <chat-id> tasks create --title <title>
+
+Statuses:
+  backlog, todo, in_progress, blocked, done
+
+Priority levels:
+  none, low, medium, high, urgent
+
+Notes:
+  Task IDs accept full task_id or human short IDs such as OM-6.
+  Labels organize tasks privately. --tag, --tags, --add-tag, and --remove-tag are accepted aliases.
+  Normal output decrypts task title, description, and labels locally; use --json for machine-readable plaintext fields.`);
+}
+
+function printPlansHelp(): void {
+  console.log(`Plans commands:
+  openmates plans list [--status <status>] [--active] [--chat <id>] [--project <id>] [--json]
+  openmates plans show <plan-id|short-id> [--json]
+  openmates plans <plan-id|short-id> add-to-project <project-id> [--json]
+  openmates plans <plan-id|short-id> remove-from-project <project-id> [--json]
+  openmates plans history <plan-id|short-id> [--limit <n>] [--json]
+  openmates plans restore <plan-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
+  openmates plans create --title <title> [--goal <goal>] [--summary <text>] [--chat <id>] [--project <id>] [--status <status>] [--json]
+  openmates plans create --goal <goal> [--chat <id>] [--json]
+  openmates plans edit|update <plan-id|short-id> [--title <title>] [--goal <goal>] [--summary <text>] [--status <status>] [--json]
+  openmates plans approve <plan-id|short-id> --chat <id> [--json]
+  openmates plans activate <plan-id|short-id> --chat <id> [--json]
+  openmates plans attach <plan-id|short-id> --chat <id> [--json]
+  openmates plans start <plan-id|short-id> [--json]
+  openmates plans pause <plan-id|short-id> [--json]
+  openmates plans resume <plan-id|short-id> [--json]
+  openmates plans archive <plan-id|short-id> [--json]
+  openmates plans complete <plan-id|short-id> [--json]
+  openmates plans success-criteria add|edit|remove <plan-id|short-id> --criterion <id> --text <criterion> [--type <type>] [--required] [--json]
+  openmates plans criteria add|edit|remove <plan-id|short-id> --criterion <id> --text <criterion> [--type <type>] [--required] [--json]
+  openmates plans tasks list|add|edit|remove <plan-id|short-id> [...task options]
+  openmates plans learnings list <plan-id|short-id> [--json]
+  openmates plans learnings show <plan-id|short-id> --learning <learning-id> [--json]
+  openmates plans learnings add <plan-id|short-id> --title <title> [--type workflow_improvement|agent_instruction_improvement] [--target workflow|project_agent_instructions] [--status draft|proposed|accepted] [--task-draft <text>] [--json]
+  openmates plans learnings edit <plan-id|short-id> --learning <learning-id> [--status <status>] [--task-draft <text>] [--json]
+  openmates plans learnings remove <plan-id|short-id> --learning <learning-id> [--json]
+  openmates plans learnings create-tasks <plan-id|short-id> (--learning <learning-id> | --all) [--json]
+  openmates plans checks add <plan-id|short-id> --kind <manual_check|command|ai_evaluator> [--command <cmd>] [--prompt <text>] [--expected <text>] [--required] [--json]
+  openmates plans checks edit|remove <plan-id|short-id> --verification <id> [--status <status>] [--json]
+  openmates plans checks evidence <plan-id|short-id> --verification <id> --status <status> [--summary <text>] [--score <n>] [--json]
+
+Chat-scoped aliases:
+  openmates chats <chat-id> plans list
+  openmates chats <chat-id> plans create --goal <goal>
+  openmates chats <chat-id> plans approve <plan-id|short-id>
+  openmates chat --goal <goal>
+
+Statuses:
+  draft, checking_assumptions, awaiting_confirmation, active, executing, running_checks, blocked, completed, archived
+
+Learning finalized statuses:
+  proposed, accepted, applied
+
+Check statuses:
+  proposed, pending, passed, failed, passed_unexpectedly, skipped, skipped_with_reason, not_applicable, waived
+
+Notes:
+  Plan IDs accept full plan_id or human short IDs such as PLAN-A1B2C3.
+  create --goal is the minimal goal capture path; it still creates an encrypted Plan record.
+  approve/activate require a primary chat because active plans use the chat as the command center.
+  pause currently moves a plan back to awaiting_confirmation; resume sets it active.
+  Normal output decrypts plan fields locally; use --json for machine-readable plaintext fields.`);
+}
+
+function printGoalChatHelp(): void {
+  console.log(`Goal chat command:
+  openmates chat --goal <goal> [--title <title>] [--project <id>] [--json]
+
+Starts a new saved chat and attaches a minimal encrypted draft Plan to it.
+Use this for lightweight agentic work that should keep a durable goal, checks,
+and continuation state available from the chat.
+
+Options:
+  --goal <goal>      Required durable goal for the attached Plan
+  --title <title>    Optional Plan title (defaults to the goal)
+  --summary <text>   Optional Plan summary
+  --project <id>     Also link the Plan to a Project
+  --json             Output chat and Plan details as JSON
+
+Examples:
+  openmates chat --goal "Improve the onboarding email and verify it reads clearly"
+  openmates chat --goal "Ship the docs update" --title "Docs launch" --json`);
+}
+
+function printProjectsHelp(): void {
+  console.log(`Projects commands:
+  openmates projects list [--include-archived] [--personal|--team <team>] [--json]
+  openmates projects show <project> [--personal|--team <team>] [--json]
+  openmates projects open <project> [--personal|--team <team>] [--json]
+  openmates projects create <name> [--description <text>] [--icon <name>] [--color <token>] [--pinned] [--personal|--team <team>] [--json]
+  openmates projects update <project> [--name <name>] [--description <text>] [--icon <name>] [--color <token>] [--pin|--unpin] [--personal|--team <team>] [--json]
+  openmates projects archive <project> [--personal|--team <team>] [--json]
+  openmates projects unarchive <project> [--personal|--team <team>] [--json]
+  openmates projects delete <project> [--confirm <exact-project-id>] [--personal|--team <team>] [--json]
+  openmates projects items list <project> [--personal|--team <team>] [--json]
+  openmates projects items remove <project> --type <type> --target <id> [--confirm] [--personal|--team <team>] [--json]
+  openmates projects sources list <project> [--personal|--team <team>] [--json]
+  openmates projects sources remove <project> --source <source-id> [--confirm <source-id>] [--personal|--team <team>] [--json]
+  openmates projects files list <project> [--source <source-id>] [--path <relative-path>] [--depth <n>] [--personal|--team <team>] [--json]
+  openmates projects files search <project> <query> [--source <source-id>] [--personal|--team <team>] [--json]
+  openmates projects files read <project> <relative-path> [--source <source-id>] [--personal|--team <team>] [--json]
+  openmates projects ask <name> [--description <text>] [--json]
+  openmates projects history <project-id> [--limit <n>] [--json]
+  openmates projects restore <project-id> --entry <history-entry-id> [--state before|after] [--json]
+
+Notes:
+  Project metadata is encrypted by clients. History and restore operate on opaque encrypted snapshots.
+  Stored Project commands use the persisted Personal/Team context unless an explicit flag is supplied.
+  Non-interactive and JSON live file requests require an explicit context before source discovery.
+  File operations are read-only, bounded, encrypted between CLIs, and never fall back to an AI model.
+  openmates remote-access remains the foreground source-host command.
+  Whole-change-set undo remains available through openmates history undo <change-set-id>.`);
+}
+
+function printTeamsHelp(): void {
+  console.log(`Teams commands:
+  openmates teams list [--json]
+  openmates teams switch <team-id> [--json]
+  openmates teams personal [--json]
+  openmates teams show <team-id> [--json]
+  openmates teams create --name <name> [--description <description>] [--slug <slug>] [--switch] [--json]
+  openmates teams update <team-id> [--name <name>] [--description <description>] [--slug <slug>] [--json]
+  openmates teams delete <team-id> --yes [--json]
+  openmates teams invite <team-id> (--email <email>|--user <user-id>) [--role admin|member|viewer] [--json]
+  openmates teams accept-invite <invite-id-or-url> [--email <recipient-email>] [--key <fragment-key>] [--json]
+  openmates teams decline-invite <invite-id> [--json]
+  openmates teams access-requests <team-id> [--status pending_access_approval|all] [--json]
+  openmates teams approve-access <team-id> <access-request-id> [--encrypted-team-key <value>] [--json]
+  openmates teams reject-access <team-id> <access-request-id> [--json]
+  openmates teams role <team-id> --user <user-id> --role admin|member|viewer [--json]
+  openmates teams remove-member <team-id> --user <user-id> [--json]
+  openmates teams billing <team-id> [--json]
+  openmates teams billing bank-transfer create <team-id> --credits <amount> [--json]
+  openmates teams billing bank-transfer status <team-id> <order-id> [--json]
+  openmates teams billing bank-transfer list <team-id> [--json]
+  openmates teams usage <team-id> [--user <user-id>] [--json]
+  openmates teams move <team-id> --type chat|project|task|plan|workflow --id <resource-id> --yes [--json]
+  openmates teams export <team-id> --output <path> [--json]
+  openmates teams import --file <path> (--team <team-id>|--new-team-name <name>) [--json]
+
+Context:
+  openmates teams switch <team-id> persists the active team for team-aware commands.
+  openmates teams personal clears the active team and returns commands to personal context.
+  Team deletion always prompts for interactive 2FA or email verification; codes cannot be passed as flags.
+  Team V1 only supports team-wide workspace visibility.`);
+}
+
+function printDraftsHelp(): void {
+  console.log(`Draft commands:
+  openmates drafts create <text> [--chat <uuid>] [--preview <text>] [--json]
+  openmates drafts update <chat-id> <text> [--preview <text>] [--json]
+  openmates drafts list [--refresh] [--json]
+  openmates drafts get <chat-id> [--refresh] [--json]
+  openmates drafts clear <chat-id> [--json]
+  openmates drafts sync [--json]
+
+Draft plaintext is encrypted locally with the account master key. Only Format-D
+ciphertext and version metadata are sent to the server or written to CLI cache.`);
+}
+
+function printIdeaBucketHelp(): void {
+  console.log(`IdeaBucket commands:
+  openmates ideabucket add <text> [--chat <uuid>] [--bucket <id>] [--scheduled-at <unix>] [--prompt <text>] [--json]
+  openmates ideabucket audio <file> [--chat <uuid>] [--bucket <id>] [--scheduled-at <unix>] [--prompt <text>] [--json]
+  openmates ideabucket status [bucket-id] [--json]
+  openmates ideabucket settings get [--json]
+  openmates ideabucket settings set [--prompt <text>] [--times <HH:MM[,HH:MM]>] [--json]
+  openmates ideabucket process <bucket-id> [--now] [--json]
+
+Adding text or audio updates the encrypted OpenMates IdeaBucket draft for the
+processing bucket and sends only ciphertext plus sparse non-content metadata to
+the server. Audio reuses OpenMates upload and audio.transcribe before encrypting
+the bucket draft. Settings are stored as OpenMates account-backed encrypted
+settings/memories and are used as defaults when add/audio omit prompt or schedule.`);
+}
+
 function printAppsHelp(): void {
   console.log(`Apps commands:
   openmates apps list [--json]
   openmates apps <app-id> [--json]                    App info
   openmates apps info <app-id> [--json]               App info (explicit)
   openmates apps skill-info <app-id> <skill-id> [--json]
-  openmates apps <app-id> <skill-id> "<query>" [--json]
+  openmates apps examples <app-id> [skill-id] [--json]
+  openmates apps <app-id> <skill-id> [value] [options] [--json]
   openmates apps <app-id> <skill-id> --input '<json>' [--json]
   openmates apps code run --language python --code 'print("Hello")'
   openmates apps code run --entry main.py --file main.py [--file requirements.txt]
   openmates apps code run --entry main.py --dir ./project [--exclude node_modules]
+  openmates apps images detect-ai --file ./image.png [--json]
+  openmates apps models3d search --query benchy [--count 10] [--providers Printables] [--json]
+  openmates apps design export-icon lucide:home --output home.svg [--color '#111827']
   openmates apps travel booking-link --token "<token>" [--context '<json>']
 
 Authentication:
   Uses your logged-in session (run 'openmates login' first).
   Optionally: --api-key <key> or set OPENMATES_API_KEY.
 
+Advanced direct-call safety:
+  --disable-prompt-injection-protection skips semantic GPT-OSS scanning for direct app-skill calls only.
+
 Examples:
   openmates apps list
   openmates apps web
-  openmates apps web search "latest AI news"
-  openmates apps news search "climate change"
-  openmates apps ai ask "Summarise this: ..."
+  openmates apps web search "OpenMates AI assistant" --json
+  openmates apps weather forecast Berlin --days 2 --json
+  openmates apps math calculate "sqrt(144)" --mode numeric --json
+  openmates apps code get_docs --library React --question "How do I use useState?" --json
+  openmates apps examples travel search_connections
   openmates apps code run --language python --filename hello.py --code 'print("Hello from CLI")'
-  openmates apps travel search_connections --input '{"requests":[{"legs":[{"origin":"BER","destination":"LHR","date":"2026-04-15"}]}]}'
+  openmates apps images detect-ai --file ./image.png --json
+  openmates apps models3d search --query benchy --count 2 --providers Printables --json
+  openmates apps design search_icons --query home --count 12 --json
+  openmates apps design export-icon lucide:home --format png --size 64 --output home.png
   openmates apps travel booking-link --token "<booking_token from search result>"
   openmates apps skill-info web search`);
+}
+
+function printDesignIconExportHelp(): void {
+  console.log(`Design icon export command:
+  openmates apps design export-icon <prefix:name> --output <path> [--color <hex>] [--format svg|png]
+  openmates apps design export-icon --prefix <prefix> --name <name> --output <path>
+  openmates apps design export-icon --svg-path <path> --output <path>
+
+Options:
+  --output <path>       Required local output path.
+  --format svg|png     Output format. Defaults from --output extension, otherwise svg.
+  --color <hex>        Recolor currentColor-based monotone SVGs locally.
+  --size <px>          PNG output width when --format png is used. Default: 256.
+  --width <px>         PNG output width override.
+  --height <px>        PNG output height override when width is omitted.
+  --palette            Treat the icon as a palette icon and reject recolor by default.
+  --allow-palette-recolor
+                       Override the palette recolor guard.
+  --api-key <key>      Use an API key instead of a stored CLI session.
+  --json               Print export metadata as JSON.
+
+Examples:
+  openmates apps design export-icon lucide:home --output home.svg --color '#111827'
+  openmates apps design export-icon --prefix lucide --name home --format png --size 64 --output home.png`);
 }
 
 function printWorkflowsHelp(): void {
   console.log(`Workflows commands:
   openmates workflows list [--json]
   openmates workflows capabilities [--json]
+  openmates workflows validate --file workflow.yml [--json]
+  openmates workflows create --file workflow.yml [--json]
+  openmates workflows update <workflow-id> --file workflow.yml [--json]
+  openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy] [--json]
+  openmates workflows <workflow-id> remove-from-project <project-id> [--json]
+  openmates workflows history <workflow-id> [--limit <n>] [--json]
+  openmates workflows restore <workflow-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]
   openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--json]
   openmates workflows input-show <session-id> [--json]
@@ -6864,9 +12868,13 @@ function printWorkflowsHelp(): void {
   openmates workflows show <workflow-id> [--json]
   openmates workflows enable <workflow-id> [--json]
   openmates workflows disable <workflow-id> [--json]
-  openmates workflows run <workflow-id> [--mode manual|test] [--input '<json>'] [--json]
+  openmates workflows run <workflow-id> --idempotency-key <stable-key> [--mode manual|test] [--input '<json>'] [--json]
   openmates workflows runs <workflow-id> [--json]
   openmates workflows run-show <workflow-id> <run-id> [--json]
+  openmates workflows run-cancel <workflow-id> <run-id> [--json]
+  openmates workflows step-test <workflow-id> <step-id> [--input '<json>'] [--yes] [--json]
+  openmates workflows respond <workflow-id> <run-id> <step-id> --input '<json>' [--json]
+  openmates workflows help-app <app.skill> [--json]
   openmates workflows delete <workflow-id> --yes [--json]
 
 Workflows run on the OpenMates server, not in this terminal process. The CLI
@@ -6876,6 +12884,7 @@ and Apple clients.
 Examples:
   openmates workflows list
   openmates workflows capabilities --json
+  openmates workflows help-app weather.forecast
   openmates workflows input "alert me if it rains tomorrow"
   openmates workflows run wf_123 --mode test --json`);
 }
@@ -6883,18 +12892,27 @@ Examples:
 function printEmbedsHelp(): void {
   console.log(`Embeds commands:
   openmates embeds show <embed-id> [--json]
+  openmates embeds add-to-project <embed-id> <project-id> [--folder <folder-id>] [--json]
+  openmates embeds remove-from-project <embed-id> <project-id> [--json]
   openmates embeds share <embed-id> [--expires <seconds>] [--password <pwd>] [--json]
+  openmates embeds preview start <embed-id> --chat-id <chat-id> [--wait] [--timeout-seconds <n>] [--json]
+  openmates embeds preview status <session-id> [--json]
+  openmates embeds preview open <session-id> [--json]
+  openmates embeds preview stop <session-id> [--json]
   openmates embeds versions list <embed-id> [--json]
   openmates embeds versions show <embed-id> --version <n> [--output <path>] [--json]
   openmates embeds versions restore <embed-id> --version <n> [--yes] [--json]
 
 'show' displays the full decrypted content of an embed.
+The 'preview' commands manage generated application live preview sessions.
 The 'versions' commands list, inspect, and non-destructively restore history.
 The embed ID can be the full UUID or just the first 8 characters.
 Embed IDs are shown when viewing chat conversations (openmates chats show).
 
 Examples:
   openmates embeds show a3f2b1c4
+  openmates embeds preview start a3f2b1c4 --chat-id 11111111-1111-4111-8111-111111111111 --wait --json
+  openmates embeds preview stop 22222222-2222-4222-8222-222222222222 --json
   openmates embeds versions list a3f2b1c4
   openmates embeds versions show a3f2b1c4 --version 1
   openmates embeds versions restore a3f2b1c4 --version 1 --yes`);
@@ -7161,7 +13179,16 @@ function isCliEntrypoint(): boolean {
 if (isCliEntrypoint()) {
   main().catch((error) => {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`Error: ${message}`);
+    if (process.argv.includes("--json")) {
+      const code = error instanceof CliContractError || error instanceof ProjectRequesterError
+        ? error.code
+        : typeof (error as { code?: unknown })?.code === "string"
+          ? String((error as { code: string }).code).toLowerCase()
+          : "command_failed";
+      process.stderr.write(`${JSON.stringify({ error: { code, message } })}\n`);
+    } else {
+      console.error(`Error: ${message}`);
+    }
     process.exit(1);
   });
 }

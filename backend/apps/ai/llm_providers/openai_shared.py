@@ -241,6 +241,12 @@ def _sanitize_schema_for_llm_providers(schema: Dict[str, Any]) -> Dict[str, Any]
         # After converting to anyOf, we still need to recursively sanitize the anyOf items
         # This will be handled by the anyOf processing below
     
+    # Google's FunctionDeclaration schema rejects JSON Schema's
+    # additionalProperties field. Skill executors still validate/ignore unknown
+    # fields after the model call, so removing it only relaxes provider-side
+    # schema strictness.
+    sanitized.pop("additionalProperties", None)
+
     # If this is a property definition with type 'integer' or 'number':
     # 1. Remove minimum/maximum fields (Cerebras and other providers reject them)
     # 2. When the field has an enum, convert both the type and enum values to strings.

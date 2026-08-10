@@ -196,6 +196,15 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 
 	// Wait for the welcome screen to render
 	await page.waitForTimeout(3000);
+	await page.getByTestId('daily-inspiration-next').click();
+	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
+	await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute(
+		'data-landing-intro-phase',
+		'regular',
+		{ timeout: 15000 }
+	);
+	await page.getByTestId('guest-interest-select-interests').click();
+	await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
 	await takeScreenshot(page, '01-welcome-english');
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -207,8 +216,8 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 
 	// Interest tags should be visible with English text
 	expect(enInterestTags.length).toBeGreaterThan(10);
-	expect(enInterestTags).toContain('privacy');
-	expect(enInterestTags).toContain('learning');
+	expect(enInterestTags).toContain('marketing');
+	expect(enInterestTags).toContain('business planning');
 	log('✓ Interest tags visible with English text');
 
 	// Verify English content somewhere on the page
@@ -235,7 +244,7 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 	// Interest tags should now be in German
 	expect(deInterestTags.length).toBeGreaterThan(10);
 	// Verify at least some German text replaced English
-	expect(deInterestTags).toContain('Lernen');
+	expect(deInterestTags).toContain('Business-Planung');
 	expect(deInterestTags).toContain('Softwareentwicklung');
 	log('✓ Interest tags updated to German');
 
@@ -298,7 +307,7 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 
 	const enResetInterestTags = await getInterestTagsText(page);
 	expect(enResetInterestTags.length).toBeGreaterThan(10);
-	expect(enResetInterestTags).toContain('privacy');
+	expect(enResetInterestTags).toContain('marketing');
 	log('✓ Interest tags reset to English');
 
 	const enResetPage = await getWelcomePageText(page);

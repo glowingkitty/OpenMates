@@ -50,6 +50,7 @@
   import { fetchAndDecryptAudio, releaseCachedAudio, AudioFetchError, AudioNetworkError, AudioDecryptError } from './audioEmbedCrypto';
   import { getModelDisplayName, getModelByNameOrId } from '../../../utils/modelDisplayName';
   import { getProviderIconUrl } from '../../../data/providerIcons';
+  import { normalizeWaveformData, type AudioWaveformData } from '../../../utils/audioWaveform';
 
   /** Max chars of transcript to show in the preview card before truncating */
   const MAX_TRANSCRIPT_PREVIEW = 120;
@@ -70,6 +71,8 @@
     uploadError?: string;
     /** Transcribed text returned by Mistral Voxtral */
     transcript?: string;
+    /** Generated title summarizing the transcript */
+    title?: string;
     /** Original raw transcript */
     transcriptOriginal?: string;
     /** Corrected transcript */
@@ -80,6 +83,8 @@
     correctionModel?: string;
     /** Formatted duration string (e.g. "0:42") */
     duration?: string;
+    /** Compact full-track RMS envelope for rendering without fetching the audio file */
+    waveform?: AudioWaveformData;
     /** S3 file metadata — set after successful upload */
     s3Files?: Record<string, { s3_key: string; size_bytes: number }>;
     /** S3 base URL */
@@ -102,8 +107,6 @@
      * can be retried without re-uploading. Passed from RecordingRenderer.ts.
      */
     onRetry?: () => void;
-    /** Called when user toggles corrected vs original transcript */
-    onToggleCorrected?: (useCorrected: boolean) => void;
     /**
      * Transcription model name (e.g. 'voxtral-mini-2602').
      * Shown during 'transcribing' and in the finished subtitle as "Transcribed via <model>".
@@ -118,11 +121,13 @@
     blobUrl,
     uploadError,
     transcript,
+    title,
     transcriptOriginal,
     transcriptCorrected,
     useCorrected = true,
     correctionModel: _correctionModel,
     duration,
+    waveform,
     s3Files,
     s3BaseUrl,
     aesKey,
@@ -132,7 +137,6 @@
     onFullscreen,
     onStop,
     onRetry,
-    onToggleCorrected,
     model,
   }: Props = $props();
 
@@ -144,15 +148,6 @@
       useCorrectedState = useCorrected;
     }
   });
-
-  function handleToggleCorrected(e: MouseEvent) {
-    e.stopPropagation(); // Avoid triggering card click
-    const nextVal = !useCorrectedState;
-    useCorrectedState = nextVal;
-    if (onToggleCorrected) {
-      onToggleCorrected(nextVal);
-    }
-  }
 
   // --- Audio playback state ---
 
@@ -170,12 +165,17 @@
   // Audio element reference for the playback controls
   let audioEl: HTMLAudioElement | undefined = $state(undefined);
   let isPlaying = $state(false);
+  let currentTime = $state(0);
+  let totalDuration = $state(0);
+  let playbackAnimationFrame: number | null = null;
 
   // Track retained S3 cache key for cleanup on unmount
   let retainedS3Key: string | undefined = undefined;
+  let lastResolvedAudioSrc: string | undefined = undefined;
 
   // Cleanup on unmount
   onDestroy(() => {
+    stopPlaybackProgressLoop();
     if (audioEl) audioEl.pause();
     if (retainedS3Key) {
       releaseCachedAudio(retainedS3Key);
@@ -186,6 +186,7 @@
   // --- Derived state ---
 
   let status = $derived(statusProp);
+  let displayTitle = $derived(title || $text('app_skills.audio.transcribe.audio_recording'));
 
   /** Map upload-specific status to UnifiedEmbedPreview's status union */
   let unifiedStatus = $derived(
@@ -241,9 +242,11 @@
       return;
     }
 
-    // Not yet finished or missing required S3 data — skip
+    // Not yet finished or missing required encrypted file data — skip.
+    // s3BaseUrl is no longer required because fetchAndDecryptAudio uses the
+    // presigned URL service by S3 key, matching PDF preview behavior.
     if (status !== 'finished') return;
-    if (!audioS3Key || !s3BaseUrl || !aesKey || !aesNonce) return;
+    if (!audioS3Key || !aesKey) return;
 
     // Avoid re-fetching if we already resolved this key
     if (retainedS3Key === audioS3Key && resolvedAudioSrc) return;
@@ -257,7 +260,7 @@
     const filenameExt = (filename ?? '').split('.').pop()?.toLowerCase() ?? '';
     const mimeType = filenameExt === 'mp4' ? 'audio/mp4' : filenameExt === 'ogg' ? 'audio/ogg' : 'audio/webm';
 
-    fetchAndDecryptAudio(s3BaseUrl, audioS3Key, aesKey, aesNonce, mimeType)
+    fetchAndDecryptAudio(s3BaseUrl ?? '', audioS3Key, aesKey, aesNonce ?? '', mimeType)
       .then((url) => {
         resolvedAudioSrc = url;
         retainedS3Key = audioS3Key;
@@ -328,6 +331,22 @@
     return transcript ?? transcriptCorrected ?? transcriptOriginal;
   });
 
+  let displayWaveform = $derived(normalizeWaveformData(waveform));
+  let waveformDurationSeconds = $derived(displayWaveform?.duration_seconds ?? 0);
+  let waveformProgressPercent = $derived.by(() => {
+    const durationSeconds = totalDuration || waveformDurationSeconds;
+    if (durationSeconds <= 0) return 0;
+    return Math.max(0, Math.min(100, (currentTime / durationSeconds) * 100));
+  });
+
+  $effect(() => {
+    if (resolvedAudioSrc === lastResolvedAudioSrc) return;
+    lastResolvedAudioSrc = resolvedAudioSrc;
+    stopPlaybackProgressLoop();
+    currentTime = 0;
+    totalDuration = waveformDurationSeconds;
+  });
+
   /**
    * Truncated transcript for the preview area.
    * Shows the first MAX_TRANSCRIPT_PREVIEW chars with ellipsis if needed.
@@ -355,14 +374,55 @@
 
   function handleAudioPlay() {
     isPlaying = true;
+    startPlaybackProgressLoop();
   }
 
   function handleAudioPause() {
     isPlaying = false;
+    updatePlaybackProgressFromAudio();
+    stopPlaybackProgressLoop();
   }
 
   function handleAudioEnded() {
     isPlaying = false;
+    currentTime = 0;
+    stopPlaybackProgressLoop();
+  }
+
+  function handleAudioTimeUpdate() {
+    updatePlaybackProgressFromAudio();
+  }
+
+  function handleAudioLoadedMetadata() {
+    updatePlaybackProgressFromAudio();
+  }
+
+  function updatePlaybackProgressFromAudio() {
+    if (!audioEl) return;
+    currentTime = audioEl.currentTime;
+    if (Number.isFinite(audioEl.duration) && audioEl.duration > 0) {
+      totalDuration = audioEl.duration;
+    } else if (!totalDuration) {
+      totalDuration = waveformDurationSeconds;
+    }
+  }
+
+  function startPlaybackProgressLoop() {
+    stopPlaybackProgressLoop();
+    const tick = () => {
+      updatePlaybackProgressFromAudio();
+      if (audioEl && !audioEl.paused && !audioEl.ended) {
+        playbackAnimationFrame = requestAnimationFrame(tick);
+      }
+    };
+    playbackAnimationFrame = requestAnimationFrame(tick);
+  }
+
+  function stopPlaybackProgressLoop() {
+    if (playbackAnimationFrame !== null) {
+      cancelAnimationFrame(playbackAnimationFrame);
+      playbackAnimationFrame = null;
+    }
   }
 </script>
 
@@ -375,10 +435,13 @@
 {#if hasAudioSrc && status !== 'error'}
   <audio
     bind:this={audioEl}
+    data-testid="recording-preview-audio"
     src={resolvedAudioSrc}
     onplay={handleAudioPlay}
     onpause={handleAudioPause}
     onended={handleAudioEnded}
+    ontimeupdate={handleAudioTimeUpdate}
+    onloadedmetadata={handleAudioLoadedMetadata}
     preload="metadata"
     style="display:none"
     aria-hidden="true"
@@ -391,7 +454,7 @@
   skillId="transcribe"
   skillIconName="microphone"
   status={unifiedStatus}
-  skillName={$text('app_skills.audio.transcribe.audio_recording')}
+  skillName={displayTitle}
   {isMobile}
   onFullscreen={isFullscreenEnabled ? onFullscreen : (undefined as unknown as () => void)}
   onStop={showStop ? onStop : undefined}
@@ -411,6 +474,7 @@
         class="play-btn"
         onclick={togglePlayback}
         type="button"
+        data-testid="recording-preview-play-button"
         aria-label={isPlaying ? 'Pause' : 'Play'}
         style="pointer-events: auto !important;"
       >
@@ -428,6 +492,26 @@
 
   {#snippet details({ isMobile: isMobileSnippet })}
     <div class="recording-preview" data-testid="recording-preview" class:mobile={isMobileSnippet}>
+
+      {#if displayWaveform && status !== 'error'}
+        <div
+          class="waveform-strip"
+          data-testid="recording-preview-waveform"
+          data-progress={Math.round(waveformProgressPercent)}
+          style={`--waveform-progress: ${waveformProgressPercent}%; --waveform-sample-count: ${displayWaveform.samples.length};`}
+          aria-hidden="true"
+        >
+          <div class="waveform-bars">
+            {#each displayWaveform.samples as sample, index (index)}
+              <span
+                class="waveform-bar"
+                style:height={`${Math.max(6, sample)}%`}
+              ></span>
+            {/each}
+          </div>
+          <span class="waveform-playhead"></span>
+        </div>
+      {/if}
 
       {#if !isAuthenticated && status === 'finished'}
         <!--
@@ -478,38 +562,6 @@
         </div>
 
       {:else if transcriptPreview}
-        <!--
-          Finished with transcript: show provider label ("Transcribed by Mistral:")
-          with a circular logo above the truncated preview text.
-          The label is only shown when we know which model was used so it's
-          future-proof if the transcription provider is swapped out.
-        -->
-        <div class="transcript-meta-row">
-          {#if model}
-            <div class="model-info-line">
-              {#if modelIconUrl}
-                <div class="model-icon-circle">
-                  <img src={modelIconUrl} alt="" class="model-icon" />
-                </div>
-              {/if}
-              <span class="model-info-text">
-                {$text('app_skills.audio.transcribe.transcribed_by').replace('{model}', getModelDisplayName(model))}
-              </span>
-            </div>
-          {/if}
-
-          {#if transcriptOriginal && transcriptCorrected}
-            <button
-              class="ai-correction-badge"
-              class:corrected={useCorrectedState}
-              onclick={handleToggleCorrected}
-              type="button"
-            >
-              <span class="sparkle-icon"></span>
-              <span class="badge-text">{useCorrectedState ? 'Corrected transcript ON' : 'Verbatim transcript'}</span>
-            </button>
-          {/if}
-        </div>
         <p class="transcript-preview">{transcriptPreview}</p>
 
       {:else if audioLoadError}
@@ -547,6 +599,45 @@
     gap: var(--spacing-3);
   }
 
+  .waveform-strip {
+    width: 100%;
+    height: 30px;
+    min-height: 30px;
+    position: relative;
+    color: var(--color-app-audio, #e05555);
+    overflow: hidden;
+  }
+
+  .waveform-bars {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(var(--waveform-sample-count, 1), minmax(0, 1fr));
+    align-items: center;
+    gap: 1px;
+    opacity: 0.78;
+  }
+
+  .waveform-bar {
+    width: 100%;
+    min-width: 0;
+    background: currentColor;
+    border-radius: var(--radius-full, 9999px);
+  }
+
+  .waveform-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--waveform-progress, 0%);
+    width: 2px;
+    background: currentColor;
+    border-radius: var(--radius-full, 9999px);
+    opacity: 0.95;
+    transform: translateX(-1px);
+    transition: left 0.1s linear;
+  }
+
   /* ---- Signup prompt for unauthenticated users ---- */
   .signup-prompt {
     margin: 0;
@@ -556,98 +647,7 @@
     font-style: italic;
   }
 
-  /* ---- Transcript Auto-correct Toggle Bar ---- */
-  .transcript-meta-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--spacing-4);
-    flex-wrap: wrap;
-    width: 100%;
-  }
-
-  .ai-correction-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
-    border-radius: var(--radius-full, 9999px);
-    background: var(--color-grey-10, #f5f5f5);
-    border: 1px solid var(--color-grey-20, #e8e8e8);
-    color: var(--color-grey-60, #666);
-    font-size: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s ease-in-out;
-    pointer-events: auto !important;
-  }
-
-  .ai-correction-badge:hover {
-    background: var(--color-grey-15, #f0f0f0);
-    border-color: var(--color-grey-30, #ccc);
-  }
-
-  .ai-correction-badge.corrected {
-    background: rgba(224, 85, 85, 0.08); /* 8% opacity of var(--color-app-audio) */
-    border-color: rgba(224, 85, 85, 0.25);
-    color: var(--color-app-audio, #e05555);
-  }
-
-  .ai-correction-badge.corrected:hover {
-    background: rgba(224, 85, 85, 0.15);
-    border-color: rgba(224, 85, 85, 0.35);
-  }
-
-  .sparkle-icon {
-    display: block;
-    width: 11px;
-    height: 11px;
-    background: var(--color-grey-50, #888);
-    -webkit-mask-image: url('/icons/ai.svg');
-    mask-image: url('/icons/ai.svg');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-  }
-
-  .ai-correction-badge.corrected .sparkle-icon {
-    background: var(--color-app-audio, #e05555);
-  }
-
-  :global(.dark) .ai-correction-badge {
-    background: var(--color-grey-80, #333);
-    border-color: var(--color-grey-70, #444);
-    color: var(--color-grey-30, #ccc);
-  }
-
-  :global(.dark) .ai-correction-badge:hover {
-    background: var(--color-grey-75, #3a3a3a);
-    border-color: var(--color-grey-60, #555);
-  }
-
-  :global(.dark) .ai-correction-badge.corrected {
-    background: rgba(224, 85, 85, 0.15);
-    border-color: rgba(224, 85, 85, 0.35);
-    color: var(--color-app-audio, #e05555);
-  }
-
-  :global(.dark) .ai-correction-badge.corrected:hover {
-    background: rgba(224, 85, 85, 0.22);
-    border-color: rgba(224, 85, 85, 0.45);
-  }
-
-  :global(.dark) .sparkle-icon {
-    background: var(--color-grey-40, #aaa);
-  }
-
-  :global(.dark) .ai-correction-badge.corrected .sparkle-icon {
-    background: var(--color-app-audio, #e05555);
-  }
-
-  /* ---- Provider model info row (used in both transcribing and finished states) ---- */
+  /* ---- Provider model info row (used while transcribing) ---- */
   /* Displays a circular provider logo followed by the "Transcribing via / Transcribed by" label */
   .model-info-line {
     display: flex;
@@ -725,9 +725,9 @@
     height: 10px;
     background: linear-gradient(
       90deg,
-      var(--color-grey-15, #f0f0f0) 25%,
+      var(--color-grey-20, #f0f0f0) 25%,
       var(--color-grey-10, #f8f8f8) 50%,
-      var(--color-grey-15, #f0f0f0) 75%
+      var(--color-grey-20, #f0f0f0) 75%
     );
     background-size: 200% 100%;
     border-radius: var(--radius-1);
@@ -868,7 +868,7 @@
     background: linear-gradient(
       90deg,
       var(--color-grey-80, #333) 25%,
-      var(--color-grey-75, #3a3a3a) 50%,
+      var(--color-grey-70, #3a3a3a) 50%,
       var(--color-grey-80, #333) 75%
     );
     background-size: 200% 100%;
@@ -881,5 +881,9 @@
 
   :global(.dark) .no-transcript {
     color: var(--color-grey-40, #aaa);
+  }
+
+  :global(.dark) .waveform-strip {
+    opacity: 0.9;
   }
 </style>

@@ -1,0 +1,2144 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-19'
+generated_at: '2026-07-09T15:21:18+00:00'
+range:
+  since: '2026-05-19T00:00:00+00:00'
+  until: '2026-05-19T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 47
+  section_counts:
+    features: 8
+    bug_fixes: 25
+    improvements: 0
+    docs: 1
+    tests: 12
+    infrastructure: 0
+    internal: 0
+    other: 1
+  newsletter_ready_items: 27
+  user_facing_items: 27
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: use Gemini 3.5 Flash'
+    section: features
+    commits:
+    - 8956fce2a
+    authored_at: '2026-05-19T23:29:40+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/apps/pdf/services/ocr_service.py
+    - backend/core/api/app/utils/config_manager.py
+    - backend/data/models_leaderboard.yml
+    - backend/providers/google.yml
+    - backend/scripts/fetch_openrouter_rankings.py
+    - backend/scripts/test_gemini_flash_function_calling.py
+    - backend/scripts/translate_text.py
+    - backend/shared/providers/google/vision_safety.py
+    - backend/shared/providers/openai/vision_safety_fallback.py
+    - backend/tests/test_image_safety_integration.py
+    - docs/architecture/image-safety-pipeline.md
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: cancel active code runs'
+    section: features
+    commits:
+    - b953c5798
+    authored_at: '2026-05-19T22:48:52+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_e2b_code_runner.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/codeRunService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: show Stoffe shopping result details'
+    section: features
+    commits:
+    - 594b055a4
+    authored_at: '2026-05-19T22:42:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: select code run dependency installs'
+    section: features
+    commits:
+    - d679a87bc
+    authored_at: '2026-05-19T22:35:16+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_e2b_code_runner.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/codeRunService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add Stoffe.de shopping provider'
+    section: features
+    commits:
+    - 991eb90f3
+    authored_at: '2026-05-19T22:24:26+00:00'
+    changed_paths:
+    - backend/apps/shopping/app.yml
+    - backend/apps/shopping/providers/stoffe_provider.py
+    - backend/apps/shopping/skills/search_products.py
+    - backend/tests/test_shopping_stoffe_provider.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add code run file selection'
+    section: features
+    commits:
+    - bfca9239b
+    authored_at: '2026-05-19T16:33:45+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/code_execution.py
+    - backend/tests/test_code_execution.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/codeRunService.ts
+    - frontend/packages/ui/src/types/embedFullscreen.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: move code actions to header cta'
+    section: features
+    commits:
+    - 88564acbd
+    authored_at: '2026-05-19T13:45:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add code run sandbox execution'
+    section: features
+    commits:
+    - cb584b78d
+    authored_at: '2026-05-19T11:15:51+00:00'
+    changed_paths:
+    - .env.example
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/__init__.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/main.py
+    - backend/core/api/requirements.txt
+    - backend/core/docker-compose.yml
+    - backend/shared/providers/e2b_code_runner.py
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/codeRunService.ts
+    - frontend/packages/ui/src/styles/icons.css
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: route shopping providers by category and country'
+    section: bug_fixes
+    commits:
+    - e4fd4e7aa
+    authored_at: '2026-05-19T23:49:54+00:00'
+    changed_paths:
+    - backend/apps/shopping/skills/search_products.py
+    - backend/tests/test_shopping_stoffe_provider.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: infer code run installs from selected snippets'
+    section: bug_fixes
+    commits:
+    - af47b3ce2
+    authored_at: '2026-05-19T23:01:48+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/code_execution.py
+    - backend/tests/test_code_execution.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide fake travel provider attribution'
+    section: bug_fixes
+    commits:
+    - 7811a35fa
+    authored_at: '2026-05-19T22:21:33+00:00'
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_travel_search_connections.py
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: record code run billing metadata'
+    section: bug_fixes
+    commits:
+    - 9370f758c
+    authored_at: '2026-05-19T22:19:41+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/api/app/services/usage_archive_service.py
+    - backend/core/directus/schemas/usage.yml
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_code_execution.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: clarify empty travel searches'
+    section: bug_fixes
+    commits:
+    - bd36dee68
+    authored_at: '2026-05-19T21:14:59+00:00'
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    - backend/shared/providers/deutsche_bahn.py
+    - backend/tests/test_travel_search_connections.py
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: clone code run output before storage'
+    section: bug_fixes
+    commits:
+    - 20906cee3
+    authored_at: '2026-05-19T20:32:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/sendersCodeRunOutputs.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: stabilize code run output persistence'
+    section: bug_fixes
+    commits:
+    - 723e8bd68
+    authored_at: '2026-05-19T20:23:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve top-level websocket payloads'
+    section: bug_fixes
+    commits:
+    - e99e4de74
+    authored_at: '2026-05-19T20:13:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/websocketService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: refresh image search header bubbles'
+    section: bug_fixes
+    commits:
+    - 63e6ac0e6
+    authored_at: '2026-05-19T20:05:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-images-search.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: sync code run outputs'
+    section: bug_fixes
+    commits:
+    - d2142ee25
+    authored_at: '2026-05-19T19:57:13+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/code_run_output_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/directus/schemas/code_run_outputs.yml
+    - backend/shared/python_schemas/code_run_outputs.py
+    - frontend/apps/web_app/src/routes/share/embed/[embedId]/+page.svelte
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/codeRunOutputs.ts
+    - frontend/packages/ui/src/services/handlersCodeRunOutputs.ts
+    - frontend/packages/ui/src/services/sendersCodeRunOutputs.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: highlight normalized source quotes'
+    section: bug_fixes
+    commits:
+    - 44effae26
+    authored_at: '2026-05-19T18:35:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent embed highlight scroll loop'
+    section: bug_fixes
+    commits:
+    - 4c8d8c2e6
+    authored_at: '2026-05-19T18:00:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep code run output out of code embeds'
+    section: bug_fixes
+    commits:
+    - d9bd0565a
+    authored_at: '2026-05-19T17:07:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: write code run binary attachments'
+    section: bug_fixes
+    commits:
+    - d4a57829b
+    authored_at: '2026-05-19T16:34:21+00:00'
+    changed_paths:
+    - backend/shared/providers/e2b_code_runner.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: improve code run output toggle'
+    section: bug_fixes
+    commits:
+    - d15a67dc0
+    authored_at: '2026-05-19T15:16:23+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/embedResolver.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: secure email change reauth'
+    section: bug_fixes
+    commits:
+    - 08a91814f
+    authored_at: '2026-05-19T15:13:34+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/directus/user/user_profile.py
+    - backend/tests/test_security_regressions.py
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show code run charges in chat billing'
+    section: bug_fixes
+    commits:
+    - cc4653c22
+    authored_at: '2026-05-19T14:40:48+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/tests/test_code_execution.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep chat cache warming alive with null versions'
+    section: bug_fixes
+    commits:
+    - effaf49f7
+    authored_at: '2026-05-19T14:33:33+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/tests/test_user_cache_tasks.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: run code from cached embeds or client fallback'
+    section: bug_fixes
+    commits:
+    - 7a39e8f07
+    authored_at: '2026-05-19T14:11:30+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/code_execution.py
+    - backend/tests/test_code_execution.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/codeRunService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align code run output pane'
+    section: bug_fixes
+    commits:
+    - e0383f6de
+    authored_at: '2026-05-19T13:53:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reload code run dev edge routes'
+    section: bug_fixes
+    commits:
+    - 39b8f2b88
+    authored_at: '2026-05-19T13:40:53+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: heal chat indexeddb schema before sync'
+    section: bug_fixes
+    commits:
+    - 4d19860bf
+    authored_at: '2026-05-19T13:34:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    - frontend/packages/ui/src/services/db.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align code run e2b provider limits'
+    section: bug_fixes
+    commits:
+    - bfbcf2d05
+    authored_at: '2026-05-19T12:53:18+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow code run API routes'
+    section: bug_fixes
+    commits:
+    - b4f91502d
+    authored_at: '2026-05-19T11:53:23+00:00'
+    changed_paths:
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: prevent Directus admin login stampedes'
+    section: bug_fixes
+    commits:
+    - 7595c1265
+    authored_at: '2026-05-19T09:14:19+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/auth_methods.py
+    - backend/core/api/app/services/directus/directus.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: add E2B privacy provider'
+    section: docs
+    commits:
+    - bb032f260
+    authored_at: '2026-05-19T15:18:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - shared/docs/privacy_policy.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: cover code run cancellation'
+    section: tests
+    commits:
+    - a704d5e5f
+    authored_at: '2026-05-19T22:54:34+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/code_run_cancel.json
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: accept code run billing text'
+    section: tests
+    commits:
+    - 459cdde3b
+    authored_at: '2026-05-19T17:38:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: guard code run source immutability'
+    section: tests
+    commits:
+    - 86f0a3ab6
+    authored_at: '2026-05-19T17:16:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use fixture code files for code run selection'
+    section: tests
+    commits:
+    - 26ac1b26b
+    authored_at: '2026-05-19T16:49:03+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/code_run_e2b_smoke.json
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover code run file selection'
+    section: tests
+    commits:
+    - a6a143974
+    authored_at: '2026-05-19T16:38:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix indexeddb recovery prep url'
+    section: tests
+    commits:
+    - f8255b53c
+    authored_at: '2026-05-19T13:52:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize indexeddb recovery setup'
+    section: tests
+    commits:
+    - d60a98246
+    authored_at: '2026-05-19T13:46:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert code run billing output'
+    section: tests
+    commits:
+    - 12f9043ff
+    authored_at: '2026-05-19T12:58:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: allow account preflight otp retries'
+    section: tests
+    commits:
+    - 8a0aad3d9
+    authored_at: '2026-05-19T12:54:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/test-account-preflight.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: detect stale e2e account otp secrets'
+    section: tests
+    commits:
+    - 0344d1499
+    authored_at: '2026-05-19T12:50:27+00:00'
+    changed_paths:
+    - backend/scripts/reset_test_2fa.py
+    - backend/tests/test_reset_test_2fa.py
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/test-account-preflight.spec.ts
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add code run mock fixture'
+    section: tests
+    commits:
+    - 7489d00e6
+    authored_at: '2026-05-19T11:39:28+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/code_run_e2b_smoke.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover code run sandbox execution'
+    section: tests
+    commits:
+    - aaf1936aa
+    authored_at: '2026-05-19T11:21:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'style: darken code run terminal'
+    section: other
+    commits:
+    - 729ba389c
+    authored_at: '2026-05-19T13:37:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: use Gemini 3.5 Flash'
+    commits:
+    - 8956fce2a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Stoffe.de shopping provider'
+    commits:
+    - 991eb90f3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add code run sandbox execution'
+    commits:
+    - cb584b78d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: route shopping providers by category and country'
+    commits:
+    - e4fd4e7aa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: use Gemini 3.5 Flash'
+    commits:
+    - 8956fce2a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: infer code run installs from selected snippets'
+    commits:
+    - af47b3ce2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: cancel active code runs'
+    commits:
+    - b953c5798
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: show Stoffe shopping result details'
+    commits:
+    - 594b055a4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: select code run dependency installs'
+    commits:
+    - d679a87bc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Stoffe.de shopping provider'
+    commits:
+    - 991eb90f3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide fake travel provider attribution'
+    commits:
+    - 7811a35fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: record code run billing metadata'
+    commits:
+    - 9370f758c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: clarify empty travel searches'
+    commits:
+    - bd36dee68
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize code run output persistence'
+    commits:
+    - 723e8bd68
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: refresh image search header bubbles'
+    commits:
+    - 63e6ac0e6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: sync code run outputs'
+    commits:
+    - d2142ee25
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: highlight normalized source quotes'
+    commits:
+    - 44effae26
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent embed highlight scroll loop'
+    commits:
+    - 4c8d8c2e6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep code run output out of code embeds'
+    commits:
+    - d9bd0565a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add code run file selection'
+    commits:
+    - bfca9239b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve code run output toggle'
+    commits:
+    - d15a67dc0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: secure email change reauth'
+    commits:
+    - 08a91814f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show code run charges in chat billing'
+    commits:
+    - cc4653c22
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: run code from cached embeds or client fallback'
+    commits:
+    - 7a39e8f07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align code run output pane'
+    commits:
+    - e0383f6de
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: move code actions to header cta'
+    commits:
+    - 88564acbd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'style: darken code run terminal'
+    commits:
+    - 729ba389c
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: heal chat indexeddb schema before sync'
+    commits:
+    - 4d19860bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align code run e2b provider limits'
+    commits:
+    - bfbcf2d05
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add code run sandbox execution'
+    commits:
+    - cb584b78d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: route shopping providers by category and country'
+    commits:
+    - e4fd4e7aa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: use Gemini 3.5 Flash'
+    commits:
+    - 8956fce2a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: infer code run installs from selected snippets'
+    commits:
+    - af47b3ce2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: cancel active code runs'
+    commits:
+    - b953c5798
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: show Stoffe shopping result details'
+    commits:
+    - 594b055a4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: select code run dependency installs'
+    commits:
+    - d679a87bc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Stoffe.de shopping provider'
+    commits:
+    - 991eb90f3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide fake travel provider attribution'
+    commits:
+    - 7811a35fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: record code run billing metadata'
+    commits:
+    - 9370f758c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: clarify empty travel searches'
+    commits:
+    - bd36dee68
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize code run output persistence'
+    commits:
+    - 723e8bd68
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: refresh image search header bubbles'
+    commits:
+    - 63e6ac0e6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: sync code run outputs'
+    commits:
+    - d2142ee25
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: highlight normalized source quotes'
+    commits:
+    - 44effae26
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent embed highlight scroll loop'
+    commits:
+    - 4c8d8c2e6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep code run output out of code embeds'
+    commits:
+    - d9bd0565a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add code run file selection'
+    commits:
+    - bfca9239b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve code run output toggle'
+    commits:
+    - d15a67dc0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: secure email change reauth'
+    commits:
+    - 08a91814f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show code run charges in chat billing'
+    commits:
+    - cc4653c22
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: run code from cached embeds or client fallback'
+    commits:
+    - 7a39e8f07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align code run output pane'
+    commits:
+    - e0383f6de
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: move code actions to header cta'
+    commits:
+    - 88564acbd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'style: darken code run terminal'
+    commits:
+    - 729ba389c
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: heal chat indexeddb schema before sync'
+    commits:
+    - 4d19860bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align code run e2b provider limits'
+    commits:
+    - bfbcf2d05
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add code run sandbox execution'
+    commits:
+    - cb584b78d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: e4fd4e7aa35a002b76c3b4f725e4278ff57011bd
+    short_sha: e4fd4e7aa
+    authored_at: '2026-05-19T23:49:54+00:00'
+    subject: 'fix: route shopping providers by category and country'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/shopping/skills/search_products.py
+    - backend/tests/test_shopping_stoffe_provider.py
+    related_feature_ids: []
+  - sha: 8956fce2ae7c29681a8251374f6374a1dfbaf497
+    short_sha: 8956fce2a
+    authored_at: '2026-05-19T23:29:40+00:00'
+    subject: 'feat: use Gemini 3.5 Flash'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/chat_compressor.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/apps/pdf/services/ocr_service.py
+    - backend/core/api/app/utils/config_manager.py
+    - backend/data/models_leaderboard.yml
+    - backend/providers/google.yml
+    - backend/scripts/fetch_openrouter_rankings.py
+    - backend/scripts/test_gemini_flash_function_calling.py
+    - backend/scripts/translate_text.py
+    - backend/shared/providers/google/vision_safety.py
+    - backend/shared/providers/openai/vision_safety_fallback.py
+    - backend/tests/test_image_safety_integration.py
+    - docs/architecture/image-safety-pipeline.md
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    related_feature_ids: []
+  - sha: af47b3ce2f5446b97a510a2315c3bf04d178647e
+    short_sha: af47b3ce2
+    authored_at: '2026-05-19T23:01:48+00:00'
+    subject: 'fix: infer code run installs from selected snippets'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/code_execution.py
+    - backend/tests/test_code_execution.py
+    related_feature_ids: []
+  - sha: a704d5e5f2d526279303e57da98ba2d5d265123f
+    short_sha: a704d5e5f
+    authored_at: '2026-05-19T22:54:34+00:00'
+    subject: 'test: cover code run cancellation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/code_run_cancel.json
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    related_feature_ids: []
+  - sha: b953c5798ca22d26458605cc0242a66ae724896d
+    short_sha: b953c5798
+    authored_at: '2026-05-19T22:48:52+00:00'
+    subject: 'feat: cancel active code runs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_e2b_code_runner.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/codeRunService.ts
+    related_feature_ids: []
+  - sha: 594b055a45c1fe375db2db86ef29692b434fa8fb
+    short_sha: 594b055a4
+    authored_at: '2026-05-19T22:42:39+00:00'
+    subject: 'feat: show Stoffe shopping result details'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    related_feature_ids: []
+  - sha: d679a87bcc70eb0fe1afea34d92f12a84556145f
+    short_sha: d679a87bc
+    authored_at: '2026-05-19T22:35:16+00:00'
+    subject: 'feat: select code run dependency installs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_e2b_code_runner.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/codeRunService.ts
+    related_feature_ids: []
+  - sha: 991eb90f3633a3bc708b08a414fdab02dbd57bf1
+    short_sha: 991eb90f3
+    authored_at: '2026-05-19T22:24:26+00:00'
+    subject: 'feat: add Stoffe.de shopping provider'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/shopping/app.yml
+    - backend/apps/shopping/providers/stoffe_provider.py
+    - backend/apps/shopping/skills/search_products.py
+    - backend/tests/test_shopping_stoffe_provider.py
+    related_feature_ids: []
+  - sha: 7811a35fa16dfb7367c4a55e29b3d2ea2e6ff6da
+    short_sha: 7811a35fa
+    authored_at: '2026-05-19T22:21:33+00:00'
+    subject: 'fix: hide fake travel provider attribution'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_travel_search_connections.py
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: 9370f758c08944fe9b1207a56d4ad27bb37318df
+    short_sha: 9370f758c
+    authored_at: '2026-05-19T22:19:41+00:00'
+    subject: 'fix: record code run billing metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/api/app/services/usage_archive_service.py
+    - backend/core/directus/schemas/usage.yml
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_code_execution.py
+    related_feature_ids: []
+  - sha: bd36dee684ee8a38c25d7f3533f820cbc81bedcc
+    short_sha: bd36dee68
+    authored_at: '2026-05-19T21:14:59+00:00'
+    subject: 'fix: clarify empty travel searches'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    - backend/shared/providers/deutsche_bahn.py
+    - backend/tests/test_travel_search_connections.py
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 20906cee3e3574a049f72166ddd63d58e295b1be
+    short_sha: 20906cee3
+    authored_at: '2026-05-19T20:32:12+00:00'
+    subject: 'fix: clone code run output before storage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/sendersCodeRunOutputs.ts
+    related_feature_ids: []
+  - sha: 723e8bd688772f32ac92c9b35dda9cf7ba429282
+    short_sha: 723e8bd68
+    authored_at: '2026-05-19T20:23:53+00:00'
+    subject: 'fix: stabilize code run output persistence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: e99e4de7420c07a884738b11dc30d7c364967397
+    short_sha: e99e4de74
+    authored_at: '2026-05-19T20:13:34+00:00'
+    subject: 'fix: preserve top-level websocket payloads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/websocketService.ts
+    related_feature_ids: []
+  - sha: 63e6ac0e67b96376c115aa535eff957cd8c666ea
+    short_sha: 63e6ac0e6
+    authored_at: '2026-05-19T20:05:54+00:00'
+    subject: 'fix: refresh image search header bubbles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-images-search.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: d2142ee259ac665090fa57d784b40c8439a01808
+    short_sha: d2142ee25
+    authored_at: '2026-05-19T19:57:13+00:00'
+    subject: 'fix: sync code run outputs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/code_run_output_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/directus/schemas/code_run_outputs.yml
+    - backend/shared/python_schemas/code_run_outputs.py
+    - frontend/apps/web_app/src/routes/share/embed/[embedId]/+page.svelte
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/codeRunOutputs.ts
+    - frontend/packages/ui/src/services/handlersCodeRunOutputs.ts
+    - frontend/packages/ui/src/services/sendersCodeRunOutputs.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 44effae261e4a8bd1ed5e181942c86b740717c81
+    short_sha: 44effae26
+    authored_at: '2026-05-19T18:35:17+00:00'
+    subject: 'fix: highlight normalized source quotes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 4c8d8c2e633fe508a8c3b2ed89a87bcc60ef80e8
+    short_sha: 4c8d8c2e6
+    authored_at: '2026-05-19T18:00:43+00:00'
+    subject: 'fix: prevent embed highlight scroll loop'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 459cdde3b1763e4e315208669b84bdcde4891e44
+    short_sha: 459cdde3b
+    authored_at: '2026-05-19T17:38:30+00:00'
+    subject: 'test: accept code run billing text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    related_feature_ids: []
+  - sha: 86f0a3ab6b39f7a1cde9ff9982d4ee87002373c3
+    short_sha: 86f0a3ab6
+    authored_at: '2026-05-19T17:16:45+00:00'
+    subject: 'test: guard code run source immutability'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: d9bd0565ac8cbbc476200d86ab7dcf0a05394ca2
+    short_sha: d9bd0565a
+    authored_at: '2026-05-19T17:07:38+00:00'
+    subject: 'fix: keep code run output out of code embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 26ac1b26b2adf609ac9ddc7ad9f335361628e65c
+    short_sha: 26ac1b26b
+    authored_at: '2026-05-19T16:49:03+00:00'
+    subject: 'test: use fixture code files for code run selection'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/code_run_e2b_smoke.json
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    related_feature_ids: []
+  - sha: a6a143974e2841e91de4cdbde51494e5faf1c1ec
+    short_sha: a6a143974
+    authored_at: '2026-05-19T16:38:00+00:00'
+    subject: 'test: cover code run file selection'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: d4a57829bd9d950bbc8ed231792bebc6f5215552
+    short_sha: d4a57829b
+    authored_at: '2026-05-19T16:34:21+00:00'
+    subject: 'fix: write code run binary attachments'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/e2b_code_runner.py
+    related_feature_ids: []
+  - sha: bfca9239b337b58cb9f199f3ba34f50c014b072e
+    short_sha: bfca9239b
+    authored_at: '2026-05-19T16:33:45+00:00'
+    subject: 'feat: add code run file selection'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/code_execution.py
+    - backend/tests/test_code_execution.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/codeRunService.ts
+    - frontend/packages/ui/src/types/embedFullscreen.ts
+    related_feature_ids: []
+  - sha: bb032f26071e017e9e93157603a88b23eb0b99c2
+    short_sha: bb032f260
+    authored_at: '2026-05-19T15:18:48+00:00'
+    subject: 'docs: add E2B privacy provider'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+  - sha: d15a67dc0d2357aee7130243891b855dfbca2b1c
+    short_sha: d15a67dc0
+    authored_at: '2026-05-19T15:16:23+00:00'
+    subject: 'fix: improve code run output toggle'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/embedResolver.ts
+    related_feature_ids: []
+  - sha: 08a91814ff6b32b4108fc399af32be243e78ffc5
+    short_sha: 08a91814f
+    authored_at: '2026-05-19T15:13:34+00:00'
+    subject: 'fix: secure email change reauth'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/directus/user/user_profile.py
+    - backend/tests/test_security_regressions.py
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    related_feature_ids: []
+  - sha: cc4653c2235ad24f873d768bde88aee5a85eaab9
+    short_sha: cc4653c22
+    authored_at: '2026-05-19T14:40:48+00:00'
+    subject: 'fix: show code run charges in chat billing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/tests/test_code_execution.py
+    related_feature_ids: []
+  - sha: effaf49f70ea04a60aed14ccbfdd58edda80e064
+    short_sha: effaf49f7
+    authored_at: '2026-05-19T14:33:33+00:00'
+    subject: 'fix: keep chat cache warming alive with null versions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/tests/test_user_cache_tasks.py
+    related_feature_ids: []
+  - sha: 7a39e8f07a24d8dab9042f75452b92c30fe435ab
+    short_sha: 7a39e8f07
+    authored_at: '2026-05-19T14:11:30+00:00'
+    subject: 'fix: run code from cached embeds or client fallback'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/code_execution.py
+    - backend/tests/test_code_execution.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/codeRunService.ts
+    related_feature_ids: []
+  - sha: e0383f6de06a9122da9adc30fdf5dbdde1bc929c
+    short_sha: e0383f6de
+    authored_at: '2026-05-19T13:53:01+00:00'
+    subject: 'fix: align code run output pane'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: f8255b53c6ad4e04700e5d850878b9bbcec6a311
+    short_sha: f8255b53c
+    authored_at: '2026-05-19T13:52:00+00:00'
+    subject: 'test: fix indexeddb recovery prep url'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    related_feature_ids: []
+  - sha: d60a98246a16640bbe32b7e827c5e0aada2a01e0
+    short_sha: d60a98246
+    authored_at: '2026-05-19T13:46:57+00:00'
+    subject: 'test: stabilize indexeddb recovery setup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    related_feature_ids: []
+  - sha: 88564acbda21047276fa04d662b3bbf727b94c6e
+    short_sha: 88564acbd
+    authored_at: '2026-05-19T13:45:44+00:00'
+    subject: 'feat: move code actions to header cta'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    related_feature_ids: []
+  - sha: 39b8f2b88dfb16ac9720f4f825962aa4f7bd558b
+    short_sha: 39b8f2b88
+    authored_at: '2026-05-19T13:40:53+00:00'
+    subject: 'fix: reload code run dev edge routes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    related_feature_ids: []
+  - sha: 729ba389cb7bab0f7a06e2623d373c7e0235ebd5
+    short_sha: 729ba389c
+    authored_at: '2026-05-19T13:37:09+00:00'
+    subject: 'style: darken code run terminal'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 4d19860bfb483eb9d9ba4bd963fc077aa4f1d79b
+    short_sha: 4d19860bf
+    authored_at: '2026-05-19T13:34:23+00:00'
+    subject: 'fix: heal chat indexeddb schema before sync'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    - frontend/packages/ui/src/services/db.ts
+    related_feature_ids: []
+  - sha: 12f9043ff418188aad224c38f15b45d0fcf19d1b
+    short_sha: 12f9043ff
+    authored_at: '2026-05-19T12:58:17+00:00'
+    subject: 'test: assert code run billing output'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    related_feature_ids: []
+  - sha: 8a0aad3d959a12c2dcb34aad5816bc0ac7926bbf
+    short_sha: 8a0aad3d9
+    authored_at: '2026-05-19T12:54:48+00:00'
+    subject: 'test: allow account preflight otp retries'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/test-account-preflight.spec.ts
+    related_feature_ids: []
+  - sha: bfbcf2d057de6ac04be91d17b04304c1a22b2089
+    short_sha: bfbcf2d05
+    authored_at: '2026-05-19T12:53:18+00:00'
+    subject: 'fix: align code run e2b provider limits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    related_feature_ids: []
+  - sha: 0344d14991288c33c70265acdedddb0bfa4839cc
+    short_sha: 0344d1499
+    authored_at: '2026-05-19T12:50:27+00:00'
+    subject: 'test: detect stale e2e account otp secrets'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/scripts/reset_test_2fa.py
+    - backend/tests/test_reset_test_2fa.py
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/test-account-preflight.spec.ts
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: b4f91502d123f6378d5731ffd22aa5450e6e21f4
+    short_sha: b4f91502d
+    authored_at: '2026-05-19T11:53:23+00:00'
+    subject: 'fix: allow code run API routes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    related_feature_ids: []
+  - sha: 7489d00e60d2e6f1ecd68120eaa6b714ae8113ee
+    short_sha: 7489d00e6
+    authored_at: '2026-05-19T11:39:28+00:00'
+    subject: 'test: add code run mock fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/code_run_e2b_smoke.json
+    related_feature_ids: []
+  - sha: aaf1936aaf530ddab706865c440e0bd612b9110e
+    short_sha: aaf1936aa
+    authored_at: '2026-05-19T11:21:32+00:00'
+    subject: 'test: cover code run sandbox execution'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    related_feature_ids: []
+  - sha: cb584b78d3fea71256872331c65cd2053d9a09b6
+    short_sha: cb584b78d
+    authored_at: '2026-05-19T11:15:51+00:00'
+    subject: 'feat: add code run sandbox execution'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .env.example
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/__init__.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/main.py
+    - backend/core/api/requirements.txt
+    - backend/core/docker-compose.yml
+    - backend/shared/providers/e2b_code_runner.py
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/codeRunService.ts
+    - frontend/packages/ui/src/styles/icons.css
+    related_feature_ids: []
+  - sha: 7595c1265cd0f2e2c2ecf0c67e26c7a650171b2e
+    short_sha: 7595c1265
+    authored_at: '2026-05-19T09:14:19+00:00'
+    subject: 'fix: prevent Directus admin login stampedes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/auth_methods.py
+    - backend/core/api/app/services/directus/directus.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced a major new code execution sandbox, upgraded its primary AI model to Gemini 3.5 Flash, and
+    expanded shopping capabilities with Stoffe.de integration. The update also includes significant stability fixes for chat
+    synchronization and travel searches.
+  released_changes:
+  - text: OpenMates added a secure sandbox for code execution, allowing users to run code, select specific files or dependencies
+      for the run, and cancel active executions via a new header CTA.
+    evidence:
+      commits:
+      - cb584b78d
+      - bfca9239b
+      - 88564acbd
+      - d679a87bc
+      - b953c5798
+    release_status: released_main
+  - text: The AI engine now utilizes Gemini 3.5 Flash for processing, daily inspiration generation, and OCR tasks.
+    evidence:
+      commits:
+      - 8956fce2a
+    release_status: released_main
+  - text: The shopping assistant now supports Stoffe.de as a provider, including detailed fullscreen result views.
+    evidence:
+      commits:
+      - 991eb90f3
+      - 594b055a4
+    release_status: released_main
+  - text: The code execution terminal interface was updated with a darker theme for better readability.
+    evidence:
+      commits:
+      - 729ba389c
+    release_status: released_main
+  bug_fixes:
+  - text: A series of updates to the code execution system improved billing metadata recording, output persistence, websocket
+      synchronization, and the reliability of running code from cached embeds.
+    evidence:
+      commits:
+      - 9370f758c
+      - 723e8bd68
+      - d2142ee25
+      - d15a67dc0
+      - cc4653c22
+      - 7a39e8f07
+      - e0383f6de
+      - bfbcf2d05
+      - af47b3ce2
+    release_status: released_main
+  - text: Travel search results now provide clearer messaging for empty results and no longer display placeholder provider
+      attribution.
+    evidence:
+      commits:
+      - 7811a35fa
+      - bd36dee68
+    release_status: released_main
+  - text: UI and data stability improvements include refreshed image search bubbles, better source quote highlighting, prevention
+      of scroll loops in embeds, and automated IndexedDB schema healing.
+    evidence:
+      commits:
+      - 63e6ac0e6
+      - 44effae26
+      - 4c8d8c2e6
+      - 4d19860bf
+    release_status: released_main
+  - text: The email change process now requires a secure re-authentication step.
+    evidence:
+      commits:
+      - 08a91814f
+    release_status: released_main
+  unreleased_progress:
+  - text: Documentation for the E2B privacy provider was added to the legal and privacy policy sections.
+    evidence:
+      commits:
+      - bb032f260
+    release_status: released_main
+  internal_progress:
+  - text: Internal infrastructure work addressed websocket payload preservation, binary attachment handling for code runs,
+      chat cache warming logic, and login stability to prevent database stampedes.
+    evidence:
+      commits:
+      - 20906cee3
+      - e99e4de74
+      - d4a57829b
+      - effaf49f7
+      - 39b8f2b88
+      - b4f91502d
+      - 7595c1265
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Secure code execution sandbox with file and dependency selection.
+      evidence:
+        commits:
+        - cb584b78d
+        - bfca9239b
+        - b953c5798
+        - d679a87bc
+      reason: Major new capability allowing users to run and manage code within a secure sandbox.
+    - text: Integration of Gemini 3.5 Flash for faster AI responses.
+      evidence:
+        commits:
+        - 8956fce2a
+      reason: Significant model upgrade for AI processing and daily inspiration.
+    - text: New Stoffe.de shopping provider with detailed result views.
+      evidence:
+        commits:
+        - 991eb90f3
+        - 594b055a4
+        - e4fd4e7aa
+      reason: Expansion of shopping capabilities with a specialized provider.
+    exclude:
+    - text: E2B privacy provider documentation update.
+      evidence:
+        commits:
+        - bb032f260
+      reason: Documentation-only change regarding privacy providers.
+    rationale: The introduction of a code execution sandbox and the upgrade to Gemini 3.5 Flash represent major functional
+      milestones for the platform. The addition of Stoffe.de expands the utility of the shopping assistant.
+  social_video_recommendations:
+  - idea: A demonstration of the new code sandbox showing a user selecting files and running a Python script directly in the
+      chat.
+    priority: high
+    reason: The code sandbox is a highly visual and powerful feature that differentiates the assistant's technical capabilities.
+    evidence:
+      commits:
+      - cb584b78d
+      - bfca9239b
+  - idea: A quick look at shopping for fabrics using the new Stoffe.de integration, highlighting the detailed result cards.
+    priority: medium
+    reason: Shows the practical, real-world utility of the shopping skills.
+    evidence:
+      commits:
+      - 991eb90f3
+      - 594b055a4
+  quality_notes:
+  - Extensive test coverage was added for the new code execution features, including cancellation and billing verification.
+  - Security was prioritized with the addition of re-authentication for sensitive account changes.
+  validation_warnings: []

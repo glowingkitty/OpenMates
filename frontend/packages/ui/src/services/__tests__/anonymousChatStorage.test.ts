@@ -200,6 +200,9 @@ describe("anonymousChatStorage", () => {
     mockDbState.messages.clear();
     mockKeyState.keys.clear();
     mockKeyState.hasAnonymousSession = false;
+    mockChatDB.addChat.mockClear();
+    mockChatDB.saveMessage.mockClear();
+    mockChatDB.deleteChat.mockClear();
     mockChatSyncService.activeAITasks.clear();
     mockChatSyncService.dispatchEvent.mockClear();
     mockAiTypingStore.setTyping.mockClear();
@@ -331,7 +334,8 @@ describe("anonymousChatStorage", () => {
     });
     const storage = await loadStorage();
 
-    await storage.sendTextMessage({ markdown: "Use the normal pipeline" });
+    const result = await storage.sendTextMessage({ markdown: "Use the normal pipeline" });
+    const assistantMessageId = result.assistantMessage.message_id;
 
     const events = mockChatSyncService.dispatchEvent.mock.calls.map(([event]) => event as CustomEvent);
     expect(events.map((event) => event.type)).toEqual(
@@ -343,14 +347,14 @@ describe("anonymousChatStorage", () => {
 
     const typingEvent = events.find((event) => event.type === "aiTypingStarted");
     expect(typingEvent?.detail).toEqual(expect.objectContaining({
-      message_id: "assistant-message",
+      message_id: assistantMessageId,
       category: "general_knowledge",
       model_name: "test-model",
     }));
     expect(mockAiTypingStore.setTyping).toHaveBeenCalledWith(
       expect.stringMatching(/^anonymous-/),
       expect.any(String),
-      "assistant-message",
+      assistantMessageId,
       "general_knowledge",
       "test-model",
       null,
@@ -362,11 +366,22 @@ describe("anonymousChatStorage", () => {
     expect(chunkEvents.length).toBeGreaterThanOrEqual(1);
     expect(chunkEvents[chunkEvents.length - 1]?.detail).toEqual(expect.objectContaining({
       type: "ai_message_chunk",
-      message_id: "assistant-message",
+      message_id: assistantMessageId,
       full_content_so_far: "Streaming anonymous answer",
       is_final_chunk: true,
       model_name: "test-model",
     }));
+    const saveAssistantCallIndex = mockChatDB.saveMessage.mock.calls.findIndex(
+      ([message]) => message.message_id === assistantMessageId,
+    );
+    const chatUpdatedCallIndex = mockChatSyncService.dispatchEvent.mock.calls.findIndex(
+      ([event]) => event.type === "chatUpdated",
+    );
+    expect(saveAssistantCallIndex).toBeGreaterThanOrEqual(0);
+    expect(chatUpdatedCallIndex).toBeGreaterThanOrEqual(0);
+    expect(mockChatDB.saveMessage.mock.invocationCallOrder[saveAssistantCallIndex]).toBeLessThan(
+      mockChatSyncService.dispatchEvent.mock.invocationCallOrder[chatUpdatedCallIndex],
+    );
     expect(mockAiTypingStore.clearTypingForChat).toHaveBeenCalledWith(expect.stringMatching(/^anonymous-/));
   });
 

@@ -30,9 +30,10 @@ from prometheus_client import make_asgi_app  # noqa: E402
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
 import httpx  # noqa: E402 # Used for CMS readiness check during lifespan startup
 from typing import Dict, Optional  # noqa: E402 # For type hinting
+from importlib import import_module  # noqa: E402
 
 # Make sure the path is correct based on your project structure
-from backend.core.api.app.routes import auth, chats, email, invoice, credit_note, settings, payments, referrals, websockets, sdk  # noqa: E402
+from backend.core.api.app.routes import account_exports, account_imports, auth, chats, email, settings, websockets, sdk  # noqa: E402
 from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free usage routes
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
@@ -46,14 +47,17 @@ from backend.core.api.app.routes import admin_client_logs  # noqa: E402 # Import
 from backend.core.api.app.routes import client_logs_ephemeral  # noqa: E402 # Import ephemeral client log forwarding (all users, anonymized)
 from backend.core.api.app.routes import e2e_api  # noqa: E402 # Import E2E test client log forwarding router (scoped HMAC auth)
 from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API router for external API access
+from backend.core.api.app.routes import openai_compat  # noqa: E402 # Canonical OpenAI-compatible API routes
 from backend.core.api.app.routes import code_execution  # noqa: E402 # Import Code Run web-app execution router
+from backend.core.api.app.routes import code_notebook_execution  # noqa: E402 # Import Code notebook execution router
 from backend.core.api.app.routes import electronics_pcb_schematic  # noqa: E402 # Electronics PCB schematic compile endpoints
 from backend.core.api.app.routes import application_preview, application_preview_gateway  # noqa: E402 # Generated application live preview routers
-from backend.core.api.app.routes import creators  # noqa: E402 # Import creators router
 from backend.core.api.app.routes import newsletter  # noqa: E402 # Import newsletter router
+from backend.core.api.app.routes import referrals  # noqa: E402 # Authenticated referral program routes
 from backend.core.api.app.routes import email_block  # noqa: E402 # Import email block router
 from backend.core.api.app.routes import geocode  # noqa: E402 # Import geocode proxy router (avoids browser CORS/425 on Nominatim)
 from backend.core.api.app.routes import generated_assets_api  # noqa: E402 # Generated media asset download links
+from backend.core.api.app.routes import design_icons  # noqa: E402 # Design app Iconify SVG fetch route
 from backend.core.api.app.routes import video_remotion  # noqa: E402 # Remotion videos.create render endpoints
 from backend.core.api.app.routes import features  # noqa: E402 # Feature availability endpoint
 from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
@@ -66,14 +70,19 @@ from backend.core.api.app.routes import debug_sync  # noqa: E402 # Import debug 
 from backend.core.api.app.routes import sync_api  # noqa: E402 # Native/desktop optional offline sync endpoints
 from backend.core.api.app.routes import token_broker  # noqa: E402 # Active-turn connected-account token broker
 from backend.core.api.app.routes import connected_accounts  # noqa: E402 # Encrypted connected-account storage APIs
+from backend.core.api.app.routes import connected_account_setup  # noqa: E402 # Public setup metadata for connected-account providers
 from backend.core.api.app.routes import connected_account_actions  # noqa: E402 # Connected-account operation actions
 from backend.core.api.app.routes import connected_account_oauth  # noqa: E402 # One-time connected-account OAuth handoffs
 from backend.core.api.app.routes import provider_oauth_google_calendar  # noqa: E402 # Google Calendar connected-account OAuth adapter
 from backend.core.api.app.routes import settings_software_update  # noqa: E402 # Import software update settings router (admin-only)
 from backend.core.api.app.routes import learning_mode  # noqa: E402 # Account-wide Learning Mode policy endpoints
+from backend.core.api.app.routes import teams  # noqa: E402 # Teams V1 endpoints
 from backend.core.api.app.routes import workflows  # noqa: E402 # Server-side Workflows V1 endpoints
 from backend.core.api.app.routes import user_plans  # noqa: E402 # User-facing Plans V1 endpoints
 from backend.core.api.app.routes import user_tasks  # noqa: E402 # User-facing Tasks V1 endpoints
+from backend.core.api.app.routes import developer_metadata_api  # noqa: E402 # Safe developer metadata for encrypted product objects
+from backend.core.api.app.routes import workspace_history  # noqa: E402 # Workspace history and undo endpoints
+from backend.core.api.app.routes import ideabucket  # noqa: E402 # IdeaBucket encrypted bucket routes
 from backend.core.api.app.routes import notifications as notifications_api  # noqa: E402 # Safe notification list + SSE stream
 from backend.core.api.app.routes import telemetry  # noqa: E402 # Import OTLP proxy for frontend browser traces
 from backend.core.api.app.routes import test_recordings  # noqa: E402 # Dev-only Playwright recording browser API
@@ -86,13 +95,10 @@ from backend.core.api.app.services.compliance import ComplianceService  # noqa: 
 from backend.core.api.app.utils.setup_compliance_logging import setup_compliance_logging  # noqa: E402
 from backend.core.api.app.services.email_template import EmailTemplateService  # noqa: E402
 from backend.core.api.app.services.s3.service import S3UploadService  # noqa: E402 # Import S3UploadService
-from backend.core.api.app.services.payment.payment_service import PaymentService  # noqa: E402 # Import PaymentService
-from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService  # noqa: E402 # Import InvoiceNinjaService
-from backend.core.api.app.services.stripe_product_sync import StripeProductSync  # noqa: E402 # Import StripeProductSync
 from backend.core.api.app.services.translations import TranslationService  # noqa: E402 # Import TranslationService for resolving app metadata translations
 from backend.core.api.app.utils.encryption import EncryptionService  # noqa: E402
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402 # Add import for SecretManager
-from backend.core.api.app.utils.server_mode import is_payment_enabled  # noqa: E402 # Import for checking payment status during router registration
+from backend.core.api.app.utils.server_mode import is_cloud_billing_enabled  # noqa: E402 # Import for cloud billing route registration
 from backend.core.api.app.services.limiter import limiter  # noqa: E402
 from backend.core.api.app.utils.config_manager import config_manager  # noqa: E402
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # noqa: E402 # Moved AppYAML to backend_shared
@@ -109,6 +115,21 @@ from backend.core.api.app.tasks.user_metrics import periodic_metrics_update, upd
 
 # Get a logger instance for this module (main.py) after setup
 logger = logging.getLogger(__name__)
+
+OPENMATESCLOUD_BILLING_OVERLAY_MODULE = "openmatescloud.api.billing_overlay"
+
+
+def _load_openmatescloud_billing_overlay():
+    try:
+        return import_module(OPENMATESCLOUD_BILLING_OVERLAY_MODULE)
+    except ModuleNotFoundError as exc:
+        missing_module = exc.name or ""
+        if missing_module == "openmatescloud" or missing_module.startswith("openmatescloud."):
+            raise RuntimeError(
+                "OPENMATES_CLOUD_OVERLAY_ENABLED=true but the OpenMatesCloud "
+                "billing overlay package is not mounted."
+            ) from exc
+        raise
 
 # DISCOVERED_APPS_METADATA_CACHE_KEY is now defined in CacheService
 
@@ -481,21 +502,15 @@ async def lifespan(app: FastAPI):
     app.state.s3_service = S3UploadService(secrets_manager=app.state.secrets_manager)
     logger.info("S3 service instance created.")
     
-    # Initialize PaymentService conditionally (only if payment is enabled)
-    # Note: We check payment_enabled later after domain validation, but create service instance here
-    # The service will only be initialized/used if payment_enabled is True
-    app.state.payment_service = PaymentService(secrets_manager=app.state.secrets_manager)
-    logger.info("Payment service instance created (will be initialized only if payment enabled).")
-
-    # Initialize InvoiceNinjaService conditionally (only if payment is enabled)
-    # Note: We check payment_enabled later after domain validation, but create service instance here
-    # The service will only be initialized/used if payment_enabled is True
-    logger.info("Initializing Invoice Ninja service (will be initialized only if payment enabled)...")
-    try:
-        app.state.invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager=app.state.secrets_manager)
-    except Exception as e:
-        logger.error(f"InvoiceNinjaService initialization failed (API will start without invoicing): {e}")
+    cloud_billing_enabled = is_cloud_billing_enabled()
+    app.state.cloud_billing_enabled = cloud_billing_enabled
+    if cloud_billing_enabled:
+        billing_overlay = _load_openmatescloud_billing_overlay()
+        await billing_overlay.create_billing_services(app)
+    else:
+        app.state.payment_service = None
         app.state.invoice_ninja_service = None
+        logger.info("Skipping cloud payment/accounting service instances (OpenMatesCloud overlay disabled).")
 
     # Store ConfigManager in app.state
     app.state.config_manager = config_manager
@@ -768,11 +783,12 @@ async def lifespan(app: FastAPI):
             )
             
             # Determine payment status
-            payment_enabled = is_payment_enabled()
+            domain_payment_eligible = is_payment_enabled()
+            payment_enabled = is_cloud_billing_enabled()
             hosting_domain = get_hosting_domain()
             server_edition = get_server_edition()
             is_development = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
-            is_self_hosted = not payment_enabled
+            is_self_hosted = server_edition == "self_hosted"
             
             # Store payment status flags in app.state for use throughout the application
             app.state.payment_enabled = payment_enabled
@@ -782,6 +798,7 @@ async def lifespan(app: FastAPI):
             
             logger.info(
                 f"Payment/Billing Status: enabled={payment_enabled}, "
+                f"domain_payment_eligible={domain_payment_eligible}, "
                 f"self_hosted={is_self_hosted}, "
                 f"server_edition={server_edition}, "
                 f"hosting_domain={hosting_domain or 'localhost'}"
@@ -799,38 +816,16 @@ async def lifespan(app: FastAPI):
         await app.state.metrics_service.initialize_metrics(app.state.directus_service)
         logger.info("Metrics service initialized successfully.")
 
-        # Initialize Payment service conditionally (only if payment is enabled)
-        # Check payment_enabled flag that was set during domain validation
-        if hasattr(app.state, 'payment_enabled') and app.state.payment_enabled:
-            logger.info("Initializing Payment service (payment enabled)...")
-            await app.state.payment_service.initialize(is_production=os.getenv("SERVER_ENVIRONMENT", "development") == "production")
-            logger.info("Payment service initialized successfully.")
-
-            # Initialize Stripe Product Sync service (only if payment enabled)
-            logger.info("Initializing Stripe Product Sync service...")
-            app.state.stripe_product_sync = StripeProductSync(app.state.payment_service.provider)
-            logger.info("Stripe Product Sync service initialized successfully.")
-
-            # Synchronize Stripe products with pricing configuration (only if payment enabled)
-            logger.info("Synchronizing Stripe products with pricing configuration...")
-            try:
-                sync_result = await app.state.stripe_product_sync.sync_all_products()
-                if sync_result.get("success"):
-                    results = sync_result.get("results", {})
-                    logger.info(f"Stripe product synchronization completed successfully. "
-                               f"One-time products: {results.get('one_time_products', {}).get('created', 0)} created, "
-                               f"{results.get('one_time_products', {}).get('updated', 0)} updated, "
-                               f"{results.get('one_time_products', {}).get('errors', 0)} errors. "
-                               f"Subscription products: {results.get('subscription_products', {}).get('created', 0)} created, "
-                               f"{results.get('subscription_products', {}).get('updated', 0)} updated, "
-                               f"{results.get('subscription_products', {}).get('errors', 0)} errors.")
-                else:
-                    error_msg = sync_result.get("error", "Unknown error")
-                    logger.warning(f"Stripe product synchronization failed: {error_msg}")
-                    # Don't fail startup, just log the warning
-            except Exception as sync_error:
-                logger.warning(f"Stripe product synchronization encountered an error: {str(sync_error)}")
-                # Don't fail startup, just log the warning
+        # Initialize payment providers through the OpenMatesCloud overlay only.
+        # Check payment_enabled flag that was set during domain validation.
+        cloud_billing_enabled = bool(getattr(app.state, 'cloud_billing_enabled', False))
+        if (
+            cloud_billing_enabled
+            and getattr(app.state, 'payment_enabled', False)
+            and getattr(app.state, 'payment_service', None)
+        ):
+            billing_overlay = _load_openmatescloud_billing_overlay()
+            await billing_overlay.initialize_billing_providers(app)
 
         else:
             logger.info("Skipping Payment service initialization (payment disabled - self-hosted mode)")
@@ -1111,12 +1106,14 @@ async def lifespan(app: FastAPI):
         await app.state.encryption_service.close()
         
     # Close Payment service client
-    if hasattr(app.state, 'payment_service'):
-        await app.state.payment_service.close()
+    payment_service = getattr(app.state, 'payment_service', None)
+    if payment_service:
+        await payment_service.close()
 
     # Close InvoiceNinja service client
-    if hasattr(app.state, 'invoice_ninja_service'):
-        await app.state.invoice_ninja_service.close()
+    invoice_ninja_service = getattr(app.state, 'invoice_ninja_service', None)
+    if invoice_ninja_service:
+        await invoice_ninja_service.close()
         
     # Close Directus service client
     if hasattr(app.state, 'directus_service'):
@@ -1316,16 +1313,14 @@ def create_app() -> FastAPI:
     # Note: We call is_payment_enabled() directly here because app.state.payment_enabled
     # is only set during lifespan startup, which happens after create_app() returns.
     # This ensures the payment router is registered correctly based on domain/environment.
-    payment_enabled = is_payment_enabled()
+    cloud_billing_enabled = is_cloud_billing_enabled()
     
-    if payment_enabled:
-        app.include_router(invoice.router, include_in_schema=False)  # Invoice endpoints - web app only
-        app.include_router(credit_note.router, include_in_schema=False)  # Credit note endpoints - web app only
-        app.include_router(payments.router, include_in_schema=False)  # Payments endpoints - web app only
-        app.include_router(referrals.router, include_in_schema=False)  # Referral endpoints - web app only
-        logger.info("Payment-related routes registered (payment enabled)")
+    if cloud_billing_enabled:
+        billing_overlay = _load_openmatescloud_billing_overlay()
+        billing_overlay.register_billing_routes(app)
+        logger.info("Payment-related routes registered (OpenMatesCloud overlay enabled)")
     else:
-        logger.info("Skipping payment-related routes (payment disabled - self-hosted mode)")
+        logger.info("Skipping payment-related routes (OpenMatesCloud overlay disabled)")
     
     # Web app only routers - excluded from API schema (use web app auth, not API keys)
     app.include_router(websockets.router, include_in_schema=False)  # WebSocket endpoints - web app only
@@ -1333,6 +1328,7 @@ def create_app() -> FastAPI:
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(code_execution.router, include_in_schema=False)  # Code Run sandbox execution - web app only
+    app.include_router(code_notebook_execution.router, include_in_schema=False)  # Code notebook execution - web app only
     app.include_router(electronics_pcb_schematic.router, include_in_schema=False)  # Electronics PCB schematic E2B compile - web app only
     app.include_router(application_preview.router, include_in_schema=False)  # Generated application preview sessions - web app only
     app.include_router(application_preview_gateway.router, include_in_schema=False)  # Token-gated user-content preview gateway
@@ -1344,6 +1340,7 @@ def create_app() -> FastAPI:
     app.include_router(client_logs_ephemeral.router, include_in_schema=False)  # Ephemeral client log forwarding - anonymized console logs from all users (48h retention)
     app.include_router(e2e_api.router, include_in_schema=False)  # E2E test client log forwarding - scoped HMAC auth, no session required
     app.include_router(newsletter.router, include_in_schema=False)  # Newsletter endpoints - web app only (uses verify_allowed_origin)
+    app.include_router(referrals.router, include_in_schema=False)  # Referral status and attribution - authenticated first-party clients
     app.include_router(email_block.router, include_in_schema=False)  # Email blocking endpoints - web app only (uses verify_allowed_origin)
 
     # Wikipedia proxy — web app only; prevents user IP from being exposed to Wikimedia
@@ -1354,12 +1351,16 @@ def create_app() -> FastAPI:
     from backend.core.api.app.routes import tasks_api
     from backend.core.api.app.routes import embeds_api
     from backend.core.api.app.routes import profile_api
-    app.include_router(settings.router, include_in_schema=True)  # Settings endpoints - some endpoints support API key auth
+    app.include_router(settings.router, include_in_schema=False)  # Settings contain sensitive account actions; expose narrow API docs via dedicated routers only
+    app.include_router(account_exports.router, include_in_schema=True)  # Account Export V1 - CLI/SDK first, web and Apple later
+    app.include_router(account_imports.router, include_in_schema=True)  # Account Import V1 - encrypted client persistence after transient scan
     app.include_router(sdk.router, include_in_schema=True)  # SDK bootstrap endpoints - API-key authenticated
     app.include_router(apps_api.router, include_in_schema=True)  # Apps API router - uses API key authentication for external API access
+    app.include_router(openai_compat.router, include_in_schema=True)  # OpenAI-compatible models/chat routes for external SDKs
     app.include_router(tasks_api.router, include_in_schema=True)  # Tasks API router - uses API key authentication for polling long-running tasks
     app.include_router(embeds_api.router, include_in_schema=True)  # Embeds API router - uses API key authentication for downloading embed files (images, etc.)
     app.include_router(generated_assets_api.router, include_in_schema=True)  # Short-lived decrypted download URLs for generated media assets
+    app.include_router(design_icons.router, include_in_schema=True)  # Design app sanitized Iconify SVG fetch route
     app.include_router(video_remotion.router, include_in_schema=True)  # Remotion videos.create render, stop, and version endpoints
     app.include_router(features.router, include_in_schema=True)  # Effective feature availability for clients
     app.include_router(profile_api.router, include_in_schema=True)  # Profile image API - authenticated proxy for AES-encrypted user profile images
@@ -1371,11 +1372,16 @@ def create_app() -> FastAPI:
     app.include_router(debug_sync.router, include_in_schema=False)  # Debug sync status - JWT auth, no admin required, window.debug integration
     app.include_router(sync_api.router, include_in_schema=False)  # Native/desktop optional offline prefetch - JWT auth, encrypted payloads only
     app.include_router(learning_mode.router, include_in_schema=False)  # Account-wide Learning Mode policy - web/CLI/Apple authenticated only
+    app.include_router(developer_metadata_api.router, include_in_schema=True)  # Safe task/plan status metadata without encrypted fields
     app.include_router(workflows.router, include_in_schema=True)  # Workflows V1 - web/CLI/SDK/Apple authenticated API
-    app.include_router(user_plans.router, include_in_schema=True)  # Plans V1 - user-facing plan management API
-    app.include_router(user_tasks.router, include_in_schema=True)  # Tasks V1 - user-facing task management API
+    app.include_router(teams.router, include_in_schema=False)  # Teams V1 can contain sensitive membership/billing context; hide until route-level developer docs are classified
+    app.include_router(user_plans.router, include_in_schema=False)  # Plans carry client-side encrypted content; expose only safe metadata via developer_metadata_api
+    app.include_router(user_tasks.router, include_in_schema=False)  # Tasks carry client-side encrypted content; expose only safe metadata via developer_metadata_api
+    app.include_router(workspace_history.router, include_in_schema=False)  # Workspace history can reference encrypted objects; official clients only until classified
+    app.include_router(ideabucket.router, include_in_schema=False)  # IdeaBucket stores encrypted bucket data; official clients only
     app.include_router(token_broker.router, include_in_schema=False)  # Connected-account token refs - web/CLI/Apple authenticated only
     app.include_router(connected_accounts.router, include_in_schema=False)  # Encrypted connected-account rows - client source of truth
+    app.include_router(connected_account_setup.router, include_in_schema=False)  # Public provider setup metadata, no user data
     app.include_router(connected_account_actions.router, include_in_schema=False)  # Connected-account operation actions
     app.include_router(connected_account_oauth.router, include_in_schema=False)  # OAuth refresh-token handoffs - one-time browser encryption bridge
     app.include_router(provider_oauth_google_calendar.router, include_in_schema=False)  # Google Calendar OAuth adapter - creates one-time handoffs
@@ -1392,13 +1398,6 @@ def create_app() -> FastAPI:
     from backend.core.api.app.routes import usage_api
     app.include_router(usage_api.router, include_in_schema=True)  # Usage API router - supports both session and API key auth
     
-    # Conditionally register creators router (only if payment is enabled - tips require payment)
-    if payment_enabled:
-        app.include_router(creators.router, include_in_schema=True)  # Creators router - requires authentication, supports API keys
-        logger.info("Creators router registered (payment enabled)")
-    else:
-        logger.info("Skipping creators router (payment disabled - tips require payment)")
-
     # Redirect /health to /v1/health for backward compatibility
     @app.get("/health", include_in_schema=False)
     async def health_redirect():

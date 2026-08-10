@@ -15,10 +15,11 @@ import SwiftUI
 
 struct ChatHeaderView: View {
     let chat: Chat?
+    let titleOverride: String?
     let isLoading: Bool
 
     private var appId: String? { chat?.category ?? chat?.appId }
-    private var title: String { chat?.displayTitle ?? "" }
+    private var title: String { titleOverride ?? chat?.displayTitle ?? "" }
 
     var body: some View {
         HStack(spacing: .spacing3) {

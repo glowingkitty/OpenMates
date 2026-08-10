@@ -9,15 +9,16 @@
 #
 # Structure:
 #   1. data_protection_overview       — plain-language summary of the privacy model
-#   2. data_protection_measures       — the six technical protections we implement
-#   3. data_categories                — what personal data we collect
-#   4. provider_groups                — third-party providers grouped by WHEN they are used
-#   5. data_processing_notes          — ephemeral stability logs + device fingerprinting specifics
-#   6. data_retention                 — how long we keep what
-#   7. limitations_of_erasure         — what survives account deletion and why
-#   8. legal_basis                    — GDPR Art. 6 bases
-#   9. legal_rights                   — GDPR and CCPA/CPRA rights that are actually implemented
-#  10. contact                        — controller, DPO, email
+#   2. quick_answers                  — top-of-policy FAQ for non-technical users
+#   3. data_protection_measures       — the six technical protections we implement
+#   4. data_categories                — what personal data we collect
+#   5. provider_groups                — third-party providers grouped by WHEN they are used
+#   6. data_processing_notes          — ephemeral stability logs + device fingerprinting specifics
+#   7. data_retention                 — how long we keep what
+#   8. limitations_of_erasure         — what survives account deletion and why
+#   9. legal_basis                    — GDPR Art. 6 bases
+#  10. legal_rights                   — GDPR and CCPA/CPRA rights that are actually implemented
+#  11. contact                        — controller, DPO, email
 
 data_protection_overview: >
   OpenMates is designed so that most of your data is encrypted on your device
@@ -27,6 +28,91 @@ data_protection_overview: >
   to disk, logs, or traces, and when you delete your account we destroy the
   encryption key that protects your data — cryptographically shredding every
   encrypted field we still hold.
+
+quick_answers:
+  employee_access: >
+    Private chats are not routinely reviewed by OpenMates employees, and we do
+    not provide a normal admin screen for browsing private chat content.
+    Relevant content can still be processed temporarily in server memory when
+    the user asks for an AI response or uses a feature that needs server
+    processing.
+  device_only_encryption: >
+    Saved chat history is encrypted on the user's device before it is stored or
+    synced. OpenMates does not provide staff with a normal admin tool to browse
+    private chats, and decrypted chat content is not intended to be written to
+    databases, backups, logs, or traces. When a user asks for an AI response or
+    uses a server-powered feature, OpenMates may temporarily process the relevant
+    decrypted content in server memory so the request can work. This means hosted
+    OpenMates is privacy-protective, but not a strict zero-knowledge or
+    device-only system.
+  recent_context_cache: >
+    OpenMates may keep a short-lived, server-readable AI context cache for
+    recent chats, currently designed around the last 3 chats. The cache is
+    encrypted with server-side Vault encryption, but OpenMates servers can
+    decrypt it while processing a request. On cache miss, the server may ask an
+    active client to resend the needed decrypted context and cache it
+    temporarily again.
+  storage_protection: >
+    Saved chats are stored on OpenMates infrastructure as encrypted data. Chat
+    content, titles, summaries, tags, app settings, memories, reminders, and
+    sensitive profile fields are designed to be encrypted before durable
+    storage. Persistent storage, backups, and sync caches should not contain
+    readable chat text.
+  third_party_providers: >
+    When a user chooses a model or uses a feature powered by a third-party
+    provider, the content needed to process that request may be sent to that
+    provider. OpenMates tries to reduce exposure by replacing recognized
+    personal details and secrets with placeholders before sending, but anything
+    not detected may be sent as typed.
+  model_training: >
+    OpenMates does not use private chats to train OpenMates-owned AI models. For
+    third-party providers, training use depends on the provider. Most audited
+    chat-model providers state that they do not train on API customer data, or
+    only train if the customer opts in. Some image or 3D generation providers
+    have broader or limited-use policies. The public policy renders a
+    provider-by-provider training table with status, source document, and last
+    verification date.
+  placeholder_protection: >
+    Placeholder substitution reduces risk but is not a guarantee. It works best
+    for recognized personal data, saved privacy-profile values, and common
+    secret patterns. It may miss typos, unusual formats, context-only sensitive
+    information, other people's personal data, or sensitive topics that are not
+    technically identifiable as personal data.
+  logs_diagnostics: >
+    OpenMates is designed so chat content is not written to logs or traces.
+    Application logs and telemetry include redaction and filtering for
+    authentication headers, cookies, tokens, passwords, emails, IP addresses,
+    and chat content. Browser stability logs are sanitized, use temporary
+    session identifiers, and can be disabled in privacy settings.
+  deletion: >
+    When users delete chats or their account, OpenMates deletes the corresponding
+    data according to the retention rules. For account deletion, OpenMates also
+    destroys encryption keys so remaining encrypted data in backups or caches
+    becomes unreadable ciphertext. Some records may remain for legal or
+    operational reasons, such as invoices, payment records, audit logs,
+    third-party provider logs, or short-lived encrypted backups.
+  open_source: >
+    Open source means the OpenMates software code is public and can be inspected
+    by others. It does not mean private user data is public. Chats, account
+    data, settings, memories, uploads, and billing data are not published on
+    GitHub. The code is public; personal data is not.
+  sensitive_topics: >
+    OpenMates is privacy-conscious, but it is not a zero-knowledge or
+    device-only system. It is reasonable for everyday private AI use when users
+    avoid unnecessary personal details. For highly sensitive legal, medical,
+    financial, business-confidential, or safety-critical topics, users should be
+    careful about what they enter and which model or provider they use.
+  highest_privacy: >
+    Users with very high privacy requirements can consider the self-hosting
+    edition of OpenMates and use local or offline AI models instead of
+    third-party AI providers. The setup guide is published at
+    https://github.com/glowingkitty/OpenMates/blob/dev/docs/self-hosting/setup.md.
+    This gives more control over infrastructure, model choice, logs, backups,
+    and provider exposure. It requires technical experience, ongoing
+    maintenance, secure server administration, and enough hardware for useful
+    local AI inference. Self-hosting does not automatically make everything
+    private: the operator must still secure the server, backups, secrets,
+    network access, logs, and any external providers they enable.
 
 # The six technical privacy measures we actually implement. Each is verifiable
 # in the codebase and is linked to the corresponding GDPR article.
@@ -320,12 +406,14 @@ provider_groups:
         location: US
         used_for:
           - server-side sanitization of external content (search results, scraped web pages) before inclusion in chat responses
+          - safety classification of audio.speak text before ElevenLabs text-to-speech generation
         data_shared:
           - External content retrieved from search providers (Brave) and web scraping (Firecrawl) for processing and sanitization
-          - No user identifiers; Groq does not know which user requested each piece of content
+          - Text requested for audio.speak text-to-speech when that skill is invoked
+          - No user identifiers; Groq does not know which user requested each piece of content or speech sample
       alibaba:
         privacy_policy: https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-privacy-policy
-        location: China
+        location: Hong Kong
         used_for:
           - Qwen-family model inference when an Alibaba-hosted model is selected
         data_shared:
@@ -389,7 +477,49 @@ provider_groups:
           - Source images when editing
 
   # =====================================================================
-  # Group E — Music generation. Only used when you invoke a music skill.
+  # Group D2 — Audio generation and text-to-speech. Only used when you
+  # invoke an audio generation skill.
+  # =====================================================================
+  audio_generation:
+    description: >
+      These providers are only used when you invoke an audio generation or
+      text-to-speech skill. If you never use the audio generation skills, none
+      of your data is shared with them.
+    providers:
+      elevenlabs:
+        privacy_policy: https://elevenlabs.io/privacy-policy  # verified 2026-08-09
+        location: US
+        used_for:
+          - short non-speech sound-effect generation via the audio.generate skill
+          - explicit user-invoked text-to-speech via the audio.speak skill
+        data_shared:
+          - Sound-effect generation prompts and generation settings
+          - Requested speech text, voice preset, accent, style, speed, and output settings when audio.speak passes the required safeguard
+          - Note: audio.speak text is checked by the Groq safeguard before ElevenLabs is called; rejected requests are not sent to ElevenLabs and are not charged generation credits
+
+  # =====================================================================
+  # Group E — 3D model generation. Only used when you invoke a 3D skill.
+  # =====================================================================
+  model_generation:
+    description: >
+      This provider is only used when you invoke a 3D model generation skill.
+      If you never use the 3D models app, none of your data is shared with it.
+    providers:
+      hi3d:
+        privacy_policy: https://docs.hi3d.ai/en/api/resources/privacy-policy  # verified 2026-07-11
+        location: China
+        legal_entity: Mathmagic
+        used_for:
+          - textured 3D model generation via the models3d.generate skill
+        data_shared:
+          - Reference images supplied by you
+          - Reference images generated from your text prompt when using text-to-3D
+          - Generation settings needed to produce the requested model
+          - Note: Hi3D's Terms license Inputs and Outputs for AI model improvement and training
+          - Note: Hi3D publishes no exact API retention period or per-task deletion endpoint; its policy provides account and personal-data deletion rights
+
+  # =====================================================================
+  # Group F — Music generation. Only used when you invoke a music skill.
   # =====================================================================
   music_generation:
     description: >
@@ -451,9 +581,10 @@ provider_groups:
   # =====================================================================
   web_and_search:
     description: >
-      These providers are only used when you invoke a web, videos, news, or
-      web-read skill. They see the content of what you search for or the URLs
-      you ask to read, but no user identifier.
+      These providers are only used when you invoke a web, videos, news,
+      web-read, or design icon search skill. They see the content of what you
+      search for, the URLs you ask to read, or the public icon identifiers you
+      ask to preview, but no user identifier.
     providers:
       brave:
         privacy_policy: https://brave.com/privacy/
@@ -475,6 +606,15 @@ provider_groups:
           - URLs of web pages requested
           - Full content of the scraped pages
           - Note: All data is shared without user identifiers
+      iconify:
+        privacy_policy: https://iconify.design/privacy/  # verified 2026-07-18
+        location: Global
+        used_for:
+          - public SVG icon search and icon SVG retrieval via the design.search_icons skill
+        data_shared:
+          - Icon search queries
+          - Icon collection prefix and icon name when fetching SVG previews
+          - Note: Shared server-side by OpenMates without user identifiers; clients do not call Iconify directly
       webshare:
         privacy_policy: https://www.webshare.io/privacy-policy
         location: US
@@ -494,6 +634,15 @@ provider_groups:
           - Place search queries (the text you type to find a place)
           - Approximate location for localized results
           - Note: Shared without user identifiers
+      geoapify:
+        privacy_policy: https://www.geoapify.com/privacy-policy/  # verified 2026-07-30
+        location: EU
+        used_for:
+          - OpenStreetMap-backed amenity enrichment for the Maps search skill
+        data_shared:
+          - Place search or matching queries needed for Maps enrichment
+          - Approximate coordinates, location bias, category/filter parameters, and Geoapify place IDs when needed for Place Details
+          - Note: Shared server-side without OpenMates user identifiers, chat IDs, or API keys
       youtube:
         privacy_policy: https://www.youtube.com/howyoutubeworks/privacy/
         location: US
@@ -699,16 +848,21 @@ provider_groups:
   # =====================================================================
   mail:
     description: >
-      This provider is only used when you invoke mail skills against a connected
-      mailbox. If you never use the mail app, none of your data is shared with it.
+      This provider is only used when you connect or invoke mail skills against
+      a connected mailbox. If you never use the mail app, none of your data is
+      shared with it.
     providers:
       protonmail:
-        privacy_policy: https://proton.me/legal/privacy
+        privacy_policy: https://proton.me/legal/privacy  # verified 2026-07-15
         location: EU
         used_for:
-          - mail search for connected Proton Mail accounts
+          - local Proton Mail Bridge connector setup from the OpenMates CLI
+          - mail search for connected Proton Mail accounts while the local connector is online
+          - optional delayed sending when the local connector is started with write access
         data_shared:
-          - Mail search queries and mailbox data needed to return matching results
+          - Mail search requests and mailbox data needed to return matching results
+          - Outgoing message metadata and content only when you explicitly enable write access and send mail
+          - Note: Proton Bridge account credentials stay on your device and are not sent to OpenMates servers
 
   # =====================================================================
   # Group N — Home and housing. Only used when you invoke the home search skill.

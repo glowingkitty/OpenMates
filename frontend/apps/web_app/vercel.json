@@ -1,5 +1,6 @@
 {
 	"$schema": "https://openapi.vercel.sh/vercel.json",
+	"buildCommand": "cd ../../.. && pnpm --filter web_app build",
 	"ignoreCommand": "cd ../../.. && python3 scripts/vercel_ignore_build.py",
 	"installCommand": "cd ../../.. && corepack enable && pnpm install --no-frozen-lockfile",
 	"rewrites": [
@@ -8,7 +9,7 @@
 			"destination": "/"
 		},
 		{
-			"source": "/((?!_app|static|docs|status|announcements|tips|s/|share/|favicon\\.ico|robots\\.txt|sitemap\\.xml|\\.well-known/apple-app-site-association).*)",
+			"source": "/((?!_app|static|docs|status|announcements|tips|legal/|privacy|oauth/|s/|share/|favicon\\.ico|robots\\.txt|sitemap\\.xml|\\.well-known/apple-app-site-association).*)",
 			"destination": "/"
 		}
 	],

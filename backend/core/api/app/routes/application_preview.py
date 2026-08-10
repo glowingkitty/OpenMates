@@ -202,9 +202,9 @@ async def get_application_preview_current_user(
     cache_service: Any = Depends(get_cache_service),
     refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False),
 ) -> Any:
-    from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+    from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
 
-    return await get_current_user(directus_service, cache_service, refresh_token, response, request)
+    return await get_current_user_or_api_key(request, response, directus_service, cache_service, refresh_token)
 
 
 def _decode_toon_content(plaintext_toon: str) -> dict[str, Any] | None:

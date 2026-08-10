@@ -1,0 +1,3292 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-02'
+generated_at: '2026-07-09T15:32:59+00:00'
+range:
+  since: '2026-06-02T00:00:00+00:00'
+  until: '2026-06-02T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 65
+  section_counts:
+    features: 13
+    bug_fixes: 42
+    improvements: 0
+    docs: 2
+    tests: 7
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 39
+  user_facing_items: 47
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add demo usage data for marketing'
+    section: features
+    commits:
+    - f70dc0c75
+    authored_at: '2026-06-02T17:48:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/demo_chats/usageDemoData.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: improve mobile header navigation'
+    section: features
+    commits:
+    - 34b9887c1
+    authored_at: '2026-06-02T16:52:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/i18n/sources/navigation.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add weather store examples'
+    section: features
+    commits:
+    - 9f7aeb20c
+    authored_at: '2026-06-02T16:09:28+00:00'
+    changed_paths:
+    - .agents/skills/add-app-skill/SKILL.md
+    - .claude/skills/add-app-skill/SKILL.md
+    - docs/architecture/apps/app-skills.md
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.examples.ts
+    - frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add weather forecast skill'
+    section: features
+    commits:
+    - a26752a67
+    authored_at: '2026-06-02T15:22:55+00:00'
+    changed_paths:
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/__init__.py
+    - backend/apps/weather/skills/forecast_skill.py
+    - backend/config/backend_config.yml
+    - backend/core/api/app/services/embed_service.py
+    - backend/shared/providers/bright_sky/__init__.py
+    - backend/shared/providers/bright_sky/bright_sky.py
+    - backend/shared/providers/open_meteo/__init__.py
+    - backend/shared/providers/open_meteo/open_meteo.py
+    - backend/tests/test_weather_forecast_skill.py
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/weatherEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add native code run embed support'
+    section: features
+    commits:
+    - 1cb0407e0
+    authored_at: '2026-06-02T13:52:55+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Networking/CodeRunService.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add Apple mention dropdown parity'
+    section: features
+    commits:
+    - 2970f4f61
+    authored_at: '2026-06-02T10:20:45+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add Apple composer upload previews'
+    section: features
+    commits:
+    - 27cb5fd05
+    authored_at: '2026-06-02T09:33:03+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add Apple composer embed send parity'
+    section: features
+    commits:
+    - 24680a578
+    authored_at: '2026-06-02T08:56:35+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add sequential sub-chat stop handler'
+    section: features
+    commits:
+    - 1bcd5dd98
+    authored_at: '2026-06-02T07:11:48+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/sub_chat_stop_handler.py
+    - backend/tests/test_sub_chat_stop_handler.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add sub-chat fanout approval'
+    section: features
+    commits:
+    - '612705468'
+    authored_at: '2026-06-02T07:04:29+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sub_chat_confirmation_handler.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_sub_chat_confirmation_handler.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: route OpenAI OSS models through Bedrock EU'
+    section: features
+    commits:
+    - 901092a9d
+    authored_at: '2026-06-02T06:02:25+00:00'
+    changed_paths:
+    - backend/data/models_leaderboard.yml
+    - backend/providers/openai.yml
+    - frontend/packages/openmates-cli/src/mentions.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add Apple audio and PII composer parity'
+    section: features
+    commits:
+    - 0d22c5a00
+    authored_at: '2026-06-02T05:49:34+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: improve Apple composer parity'
+    section: features
+    commits:
+    - ff1d7ad75
+    authored_at: '2026-06-02T05:39:17+00:00'
+    changed_paths:
+    - .claude/rules/apple-ui.md
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  bug_fixes:
+  - title: 'fix: use weather day card drilldown'
+    section: bug_fixes
+    commits:
+    - f2dc454c8
+    authored_at: '2026-06-02T22:56:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: open weather day fullscreen reliably'
+    section: bug_fixes
+    commits:
+    - 5a445261c
+    authored_at: '2026-06-02T22:43:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add weather day drilldown button'
+    section: bug_fixes
+    commits:
+    - a2e15e78d
+    authored_at: '2026-06-02T22:28:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: capture weather day card clicks'
+    section: bug_fixes
+    commits:
+    - e1c4d8047
+    authored_at: '2026-06-02T22:15:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: open weather day drilldown'
+    section: bug_fixes
+    commits:
+    - 9a02c462e
+    authored_at: '2026-06-02T21:57:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: resolve weather provider logos'
+    section: bug_fixes
+    commits:
+    - 3da9bf66c
+    authored_at: '2026-06-02T20:01:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: repair weather app store example UI'
+    section: bug_fixes
+    commits:
+    - 1ff5bed70
+    authored_at: '2026-06-02T19:38:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/components/settings/SkillExamplesSection.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: normalize header tab touch targets'
+    section: bug_fixes
+    commits:
+    - 043ef3eda
+    authored_at: '2026-06-02T18:33:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use demo billing values in marketing mode'
+    section: bug_fixes
+    commits:
+    - 85b4577d4
+    authored_at: '2026-06-02T18:10:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/SettingsBilling.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: initialize demo mode before settings auth check'
+    section: bug_fixes
+    commits:
+    - 0a0fb00b5
+    authored_at: '2026-06-02T17:56:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: repair weather day fullscreen drilldown'
+    section: bug_fixes
+    commits:
+    - 55df74d43
+    authored_at: '2026-06-02T17:07:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: correct weather app store previews'
+    section: bug_fixes
+    commits:
+    - 5fff3637d
+    authored_at: '2026-06-02T16:53:03+00:00'
+    changed_paths:
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/forecast_skill.py
+    - backend/providers/deutscher_wetterdienst.yml
+    - backend/providers/open_meteo.yml
+    - backend/shared/providers/bright_sky/bright_sky.py
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    - frontend/packages/ui/static/icons/deutscher_wetterdienst.svg
+    - frontend/packages/ui/static/icons/open_meteo.svg
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: wire native code run renderer'
+    section: bug_fixes
+    commits:
+    - 0b3a5c010
+    authored_at: '2026-06-02T13:53:26+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: derive opencode session url expectation'
+    section: bug_fixes
+    commits:
+    - 635c69af6
+    authored_at: '2026-06-02T13:33:48+00:00'
+    changed_paths:
+    - backend/tests/test_opencode_daily_meeting.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: use asyncio run in embed link tests'
+    section: bug_fixes
+    commits:
+    - 31c12742d
+    authored_at: '2026-06-02T13:31:08+00:00'
+    changed_paths:
+    - backend/tests/test_embed_link_fixes.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: keep celery config test stub compatible'
+    section: bug_fixes
+    commits:
+    - 9d0f6041d
+    authored_at: '2026-06-02T13:28:18+00:00'
+    changed_paths:
+    - backend/tests/test_webhook_incoming.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: preserve js import inference order'
+    section: bug_fixes
+    commits:
+    - 705dea4ed
+    authored_at: '2026-06-02T13:24:31+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/code_execution.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: complete llm utils test stub'
+    section: bug_fixes
+    commits:
+    - 149d822db
+    authored_at: '2026-06-02T13:21:21+00:00'
+    changed_paths:
+    - backend/tests/test_daily_inspiration_generator.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: match llm result test stub'
+    section: bug_fixes
+    commits:
+    - b873b9512
+    authored_at: '2026-06-02T13:18:25+00:00'
+    changed_paths:
+    - backend/tests/test_daily_inspiration_generator.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: keep llm utils test stub compatible'
+    section: bug_fixes
+    commits:
+    - fa6e6246b
+    authored_at: '2026-06-02T13:16:03+00:00'
+    changed_paths:
+    - backend/tests/test_daily_inspiration_generator.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: tolerate travel connections no-results'
+    section: bug_fixes
+    commits:
+    - 9f6e9c640
+    authored_at: '2026-06-02T10:48:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: tolerate travel stays no-results'
+    section: bug_fixes
+    commits:
+    - 33860e750
+    authored_at: '2026-06-02T10:40:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-stays.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: assert cli upload success signal'
+    section: bug_fixes
+    commits:
+    - 135110c9c
+    authored_at: '2026-06-02T10:31:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: wait for cli image embed persistence'
+    section: bug_fixes
+    commits:
+    - 0b36c3b13
+    authored_at: '2026-06-02T10:23:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use stable cli upload fixture'
+    section: bug_fixes
+    commits:
+    - 6a5d4038e
+    authored_at: '2026-06-02T10:17:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: send origin on cli uploads'
+    section: bug_fixes
+    commits:
+    - a68ceab76
+    authored_at: '2026-06-02T10:11:06+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/uploadService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: scope attachment persistence spec'
+    section: bug_fixes
+    commits:
+    - 62701fa71
+    authored_at: '2026-06-02T10:02:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: wait for attachment chat cold sync'
+    section: bug_fixes
+    commits:
+    - d7d863964
+    authored_at: '2026-06-02T09:51:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize attachment spec navigation'
+    section: bug_fixes
+    commits:
+    - 234764a0f
+    authored_at: '2026-06-02T09:44:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve e2e debug chat navigation'
+    section: bug_fixes
+    commits:
+    - fa5a22cb5
+    authored_at: '2026-06-02T09:28:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: accept current image embed selector'
+    section: bug_fixes
+    commits:
+    - 02998239f
+    authored_at: '2026-06-02T09:12:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: relax reload image preview assertion'
+    section: bug_fixes
+    commits:
+    - bc78aa6fc
+    authored_at: '2026-06-02T08:56:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align Apple upload endpoint'
+    section: bug_fixes
+    commits:
+    - bb2430c65
+    authored_at: '2026-06-02T08:44:50+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: align file attachment flow assertions'
+    section: bug_fixes
+    commits:
+    - '438651907'
+    authored_at: '2026-06-02T08:22:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: treat sub-chat cap as concurrency only'
+    section: bug_fixes
+    commits:
+    - 1a70c8ee8
+    authored_at: '2026-06-02T08:18:37+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/core/api/app/routes/share.py
+    - backend/tests/test_sub_chat_confirmation_handler.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep attachment sends available'
+    section: bug_fixes
+    commits:
+    - 8cacd97a2
+    authored_at: '2026-06-02T07:56:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: cap rendered sub-chat cards'
+    section: bug_fixes
+    commits:
+    - 46de52c80
+    authored_at: '2026-06-02T07:21:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add sub-chat chat translations'
+    section: bug_fixes
+    commits:
+    - 86315341d
+    authored_at: '2026-06-02T07:10:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: complete sub-chat translations'
+    section: bug_fixes
+    commits:
+    - c5b8f4b2f
+    authored_at: '2026-06-02T07:06:37+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: update reminder email settings path'
+    section: bug_fixes
+    commits:
+    - 5552186fd
+    authored_at: '2026-06-02T06:57:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-email.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align same-chat reminder ordering test'
+    section: bug_fixes
+    commits:
+    - 162968bb0
+    authored_at: '2026-06-02T06:44:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-same-chat.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize urgent e2e failures'
+    section: bug_fixes
+    commits:
+    - 28d4fc4dd
+    authored_at: '2026-06-02T06:24:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-replay-demo-mode.spec.ts
+    - frontend/apps/web_app/tests/cli-images.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/mention-dropdown-settings-memory.spec.ts
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
+    - frontend/apps/web_app/tests/reminder-email.spec.ts
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    - frontend/apps/web_app/tests/reminder-redesign.spec.ts
+    - frontend/apps/web_app/tests/reminder-same-chat.spec.ts
+    - frontend/apps/web_app/tests/seo-demo-chat.spec.ts
+    - frontend/apps/web_app/tests/webhook-incoming-chat.spec.ts
+    - frontend/packages/ui/src/components/settings/developers/SettingsDevices.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: add apple parity audit scaffold'
+    section: docs
+    commits:
+    - 7c6070fd8
+    authored_at: '2026-06-02T21:29:19+00:00'
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - docs/architecture/apple/message-processing-parity.md
+    - docs/architecture/apple/notifications-parity.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/architecture/apple/streaming-parity.md
+    - docs/architecture/apple/sync-parity.md
+    - scripts/apple_parity_audit.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: improve marketing app metadata'
+    section: docs
+    commits:
+    - '794873896'
+    authored_at: '2026-06-02T21:28:40+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/audio/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/events/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/mail/app.yml
+    - backend/apps/maps/app.yml
+    - backend/apps/math/app.yml
+    - backend/apps/music/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/nutrition/app.yml
+    - backend/apps/openmates/app.yml
+    - backend/apps/pdf/app.yml
+    - backend/apps/reminder/app.yml
+    - backend/apps/shopping/app.yml
+    - backend/apps/social_media/app.yml
+    - backend/apps/travel/app.yml
+    - backend/apps/videos/app.yml
+    - backend/apps/web/app.yml
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: assert weather day interactivity'
+    section: tests
+    commits:
+    - f8150fe8d
+    authored_at: '2026-06-02T22:17:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize weather layout assertion'
+    section: tests
+    commits:
+    - 5d67052b2
+    authored_at: '2026-06-02T22:07:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for weather forecast completion'
+    section: tests
+    commits:
+    - 7985b6e12
+    authored_at: '2026-06-02T21:59:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: clarify weather image assertions'
+    section: tests
+    commits:
+    - 698bd76e1
+    authored_at: '2026-06-02T20:06:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align weather provider assertions'
+    section: tests
+    commits:
+    - ad2ec04d6
+    authored_at: '2026-06-02T19:52:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align weather forecast assertions'
+    section: tests
+    commits:
+    - bbc561d05
+    authored_at: '2026-06-02T17:27:50+00:00'
+    changed_paths:
+    - backend/tests/test_weather_forecast_skill.py
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: strengthen weather forecast coverage'
+    section: tests
+    commits:
+    - e7813d487
+    authored_at: '2026-06-02T15:50:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: remove legacy Polar payment references'
+    section: infrastructure
+    commits:
+    - a062e2080
+    authored_at: '2026-06-02T13:08:31+00:00'
+    changed_paths:
+    - .claude/agents/e2e-test-investigator.md
+    - .claude/agents/settings-ui-consistency-checker.md
+    - .claude/hooks/external-resources-guard.sh
+    - .codex/agents/e2e-test-investigator.toml
+    - .codex/agents/settings-ui-consistency-checker.toml
+    - .codex/hooks/external-resources-guard.sh
+    - .env.example
+    - .opencode/agents/e2e-test-investigator.md
+    - .opencode/agents/settings-ui-consistency-checker.md
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/api/app/utils/geo_utils.py
+    - backend/core/api/requirements.txt
+    - backend/scripts/debug_logs.py
+    - backend/status/app/config.py
+    - backend/tests/test_privacy_promises.py
+    - backend/tests/test_sightengine_service.py
+    - docs/architecture/compliance/gdpr-audit.md
+    - docs/architecture/core/delete-account.md
+    - docs/architecture/image-safety-pipeline.md
+    - docs/contributing/guides/testing.md
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/i18n/sources/invoices_and_credit_notes/main.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - pnpm-lock.yaml
+    - scripts/_eu_vuln_helper.py
+    - scripts/run_tests.py
+    - shared/docs/privacy_policy.yml
+    - shared/docs/privacy_promises.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'docs: improve marketing app metadata'
+    commits:
+    - '794873896'
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: repair weather app store example UI'
+    commits:
+    - 1ff5bed70
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct weather app store previews'
+    commits:
+    - 5fff3637d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add weather forecast skill'
+    commits:
+    - a26752a67
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: use weather day card drilldown'
+    commits:
+    - f2dc454c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open weather day fullscreen reliably'
+    commits:
+    - 5a445261c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add weather day drilldown button'
+    commits:
+    - a2e15e78d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: capture weather day card clicks'
+    commits:
+    - e1c4d8047
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open weather day drilldown'
+    commits:
+    - 9a02c462e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: resolve weather provider logos'
+    commits:
+    - 3da9bf66c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: repair weather app store example UI'
+    commits:
+    - 1ff5bed70
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: normalize header tab touch targets'
+    commits:
+    - 043ef3eda
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use demo billing values in marketing mode'
+    commits:
+    - 85b4577d4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: initialize demo mode before settings auth check'
+    commits:
+    - 0a0fb00b5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add demo usage data for marketing'
+    commits:
+    - f70dc0c75
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: repair weather day fullscreen drilldown'
+    commits:
+    - 55df74d43
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct weather app store previews'
+    commits:
+    - 5fff3637d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: improve mobile header navigation'
+    commits:
+    - 34b9887c1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add weather store examples'
+    commits:
+    - 9f7aeb20c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add weather forecast skill'
+    commits:
+    - a26752a67
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve js import inference order'
+    commits:
+    - 705dea4ed
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: tolerate travel connections no-results'
+    commits:
+    - 9f6e9c640
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: tolerate travel stays no-results'
+    commits:
+    - 33860e750
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: assert cli upload success signal'
+    commits:
+    - 135110c9c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: wait for cli image embed persistence'
+    commits:
+    - 0b36c3b13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use stable cli upload fixture'
+    commits:
+    - 6a5d4038e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: send origin on cli uploads'
+    commits:
+    - a68ceab76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: scope attachment persistence spec'
+    commits:
+    - 62701fa71
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: wait for attachment chat cold sync'
+    commits:
+    - d7d863964
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize attachment spec navigation'
+    commits:
+    - 234764a0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve e2e debug chat navigation'
+    commits:
+    - fa5a22cb5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: accept current image embed selector'
+    commits:
+    - 02998239f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: relax reload image preview assertion'
+    commits:
+    - bc78aa6fc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align file attachment flow assertions'
+    commits:
+    - '438651907'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: treat sub-chat cap as concurrency only'
+    commits:
+    - 1a70c8ee8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep attachment sends available'
+    commits:
+    - 8cacd97a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: cap rendered sub-chat cards'
+    commits:
+    - 46de52c80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add sequential sub-chat stop handler'
+    commits:
+    - 1bcd5dd98
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add sub-chat fanout approval'
+    commits:
+    - '612705468'
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: update reminder email settings path'
+    commits:
+    - 5552186fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align same-chat reminder ordering test'
+    commits:
+    - 162968bb0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize urgent e2e failures'
+    commits:
+    - 28d4fc4dd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: route OpenAI OSS models through Bedrock EU'
+    commits:
+    - 901092a9d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: use weather day card drilldown'
+    commits:
+    - f2dc454c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open weather day fullscreen reliably'
+    commits:
+    - 5a445261c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add weather day drilldown button'
+    commits:
+    - a2e15e78d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: capture weather day card clicks'
+    commits:
+    - e1c4d8047
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open weather day drilldown'
+    commits:
+    - 9a02c462e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: resolve weather provider logos'
+    commits:
+    - 3da9bf66c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: repair weather app store example UI'
+    commits:
+    - 1ff5bed70
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: normalize header tab touch targets'
+    commits:
+    - 043ef3eda
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use demo billing values in marketing mode'
+    commits:
+    - 85b4577d4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: initialize demo mode before settings auth check'
+    commits:
+    - 0a0fb00b5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add demo usage data for marketing'
+    commits:
+    - f70dc0c75
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: repair weather day fullscreen drilldown'
+    commits:
+    - 55df74d43
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: correct weather app store previews'
+    commits:
+    - 5fff3637d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: improve mobile header navigation'
+    commits:
+    - 34b9887c1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add weather store examples'
+    commits:
+    - 9f7aeb20c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add weather forecast skill'
+    commits:
+    - a26752a67
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wire native code run renderer'
+    commits:
+    - 0b3a5c010
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add native code run embed support'
+    commits:
+    - 1cb0407e0
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve js import inference order'
+    commits:
+    - 705dea4ed
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: tolerate travel connections no-results'
+    commits:
+    - 9f6e9c640
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: tolerate travel stays no-results'
+    commits:
+    - 33860e750
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: assert cli upload success signal'
+    commits:
+    - 135110c9c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wait for cli image embed persistence'
+    commits:
+    - 0b36c3b13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Apple mention dropdown parity'
+    commits:
+    - 2970f4f61
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: use stable cli upload fixture'
+    commits:
+    - 6a5d4038e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: send origin on cli uploads'
+    commits:
+    - a68ceab76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: scope attachment persistence spec'
+    commits:
+    - 62701fa71
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wait for attachment chat cold sync'
+    commits:
+    - d7d863964
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize attachment spec navigation'
+    commits:
+    - 234764a0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Apple composer upload previews'
+    commits:
+    - 27cb5fd05
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve e2e debug chat navigation'
+    commits:
+    - fa5a22cb5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: accept current image embed selector'
+    commits:
+    - 02998239f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Apple composer embed send parity'
+    commits:
+    - 24680a578
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: relax reload image preview assertion'
+    commits:
+    - bc78aa6fc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align Apple upload endpoint'
+    commits:
+    - bb2430c65
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align file attachment flow assertions'
+    commits:
+    - '438651907'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: treat sub-chat cap as concurrency only'
+    commits:
+    - 1a70c8ee8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep attachment sends available'
+    commits:
+    - 8cacd97a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: cap rendered sub-chat cards'
+    commits:
+    - 46de52c80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add sequential sub-chat stop handler'
+    commits:
+    - 1bcd5dd98
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add sub-chat fanout approval'
+    commits:
+    - '612705468'
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: update reminder email settings path'
+    commits:
+    - 5552186fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align same-chat reminder ordering test'
+    commits:
+    - 162968bb0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize urgent e2e failures'
+    commits:
+    - 28d4fc4dd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: route OpenAI OSS models through Bedrock EU'
+    commits:
+    - 901092a9d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Apple audio and PII composer parity'
+    commits:
+    - 0d22c5a00
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: improve Apple composer parity'
+    commits:
+    - ff1d7ad75
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: f2dc454c8653e57b78d7d73a7225707cea98745a
+    short_sha: f2dc454c8
+    authored_at: '2026-06-02T22:56:32+00:00'
+    subject: 'fix: use weather day card drilldown'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 5a445261ce5701ba07eec0350d9c283427c94e38
+    short_sha: 5a445261c
+    authored_at: '2026-06-02T22:43:17+00:00'
+    subject: 'fix: open weather day fullscreen reliably'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: a2e15e78d570de4cb6a2957b022edc51afea3eb8
+    short_sha: a2e15e78d
+    authored_at: '2026-06-02T22:28:26+00:00'
+    subject: 'fix: add weather day drilldown button'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: f8150fe8d08cde73ac8059354a9ff1be9ecb26cb
+    short_sha: f8150fe8d
+    authored_at: '2026-06-02T22:17:45+00:00'
+    subject: 'test: assert weather day interactivity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    related_feature_ids: []
+  - sha: e1c4d8047ea82c571fdef4ca2bbc1eafa9417689
+    short_sha: e1c4d8047
+    authored_at: '2026-06-02T22:15:43+00:00'
+    subject: 'fix: capture weather day card clicks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 5d67052b2e128e0cca59dad131cc8f499fcccbc4
+    short_sha: 5d67052b2
+    authored_at: '2026-06-02T22:07:17+00:00'
+    subject: 'test: stabilize weather layout assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    related_feature_ids: []
+  - sha: 7985b6e1285106c09bf9a8bfbcd999cf0f76733b
+    short_sha: 7985b6e12
+    authored_at: '2026-06-02T21:59:14+00:00'
+    subject: 'test: wait for weather forecast completion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    related_feature_ids: []
+  - sha: 9a02c462ea829b16e9a1017bb892597b93d880fa
+    short_sha: 9a02c462e
+    authored_at: '2026-06-02T21:57:47+00:00'
+    subject: 'fix: open weather day drilldown'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 7c6070fd820a07be4ca8601917ab6f145319df7a
+    short_sha: 7c6070fd8
+    authored_at: '2026-06-02T21:29:19+00:00'
+    subject: 'docs: add apple parity audit scaffold'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - docs/architecture/apple/message-processing-parity.md
+    - docs/architecture/apple/notifications-parity.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/architecture/apple/streaming-parity.md
+    - docs/architecture/apple/sync-parity.md
+    - scripts/apple_parity_audit.py
+    related_feature_ids: []
+  - sha: 79487389665055905f92664f018376844a4bd598
+    short_sha: '794873896'
+    authored_at: '2026-06-02T21:28:40+00:00'
+    subject: 'docs: improve marketing app metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/audio/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/events/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/mail/app.yml
+    - backend/apps/maps/app.yml
+    - backend/apps/math/app.yml
+    - backend/apps/music/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/nutrition/app.yml
+    - backend/apps/openmates/app.yml
+    - backend/apps/pdf/app.yml
+    - backend/apps/reminder/app.yml
+    - backend/apps/shopping/app.yml
+    - backend/apps/social_media/app.yml
+    - backend/apps/travel/app.yml
+    - backend/apps/videos/app.yml
+    - backend/apps/web/app.yml
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    related_feature_ids: []
+  - sha: 698bd76e1d88bf7c98ee71629a679af67a868f2b
+    short_sha: 698bd76e1
+    authored_at: '2026-06-02T20:06:23+00:00'
+    subject: 'test: clarify weather image assertions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    related_feature_ids: []
+  - sha: 3da9bf66cb37468ca89a6b768ab217ca027f2300
+    short_sha: 3da9bf66c
+    authored_at: '2026-06-02T20:01:11+00:00'
+    subject: 'fix: resolve weather provider logos'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: ad2ec04d6814f6c3a2969fc05d0f9e1d37905f41
+    short_sha: ad2ec04d6
+    authored_at: '2026-06-02T19:52:16+00:00'
+    subject: 'test: align weather provider assertions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    related_feature_ids: []
+  - sha: 1ff5bed7054633e840386419066dbf93044f6609
+    short_sha: 1ff5bed70
+    authored_at: '2026-06-02T19:38:54+00:00'
+    subject: 'fix: repair weather app store example UI'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/components/settings/SkillExamplesSection.svelte
+    related_feature_ids: []
+  - sha: 043ef3edad3d6cbdac5c92cf1b81f4eb56f633b2
+    short_sha: 043ef3eda
+    authored_at: '2026-06-02T18:33:49+00:00'
+    subject: 'fix: normalize header tab touch targets'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    related_feature_ids: []
+  - sha: 85b4577d4587eeff29d3b347e72bfdf4a2e296c3
+    short_sha: 85b4577d4
+    authored_at: '2026-06-02T18:10:26+00:00'
+    subject: 'fix: use demo billing values in marketing mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/SettingsBilling.svelte
+    related_feature_ids: []
+  - sha: 0a0fb00b5959174cb52ce60a37a59df4aaee74a7
+    short_sha: 0a0fb00b5
+    authored_at: '2026-06-02T17:56:00+00:00'
+    subject: 'fix: initialize demo mode before settings auth check'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: f70dc0c75f2c64b95b78730db31c77b7b4511e12
+    short_sha: f70dc0c75
+    authored_at: '2026-06-02T17:48:46+00:00'
+    subject: 'feat: add demo usage data for marketing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/demo_chats/usageDemoData.ts
+    related_feature_ids: []
+  - sha: bbc561d0553bdb699527a0a42e6b6a7740cc641e
+    short_sha: bbc561d05
+    authored_at: '2026-06-02T17:27:50+00:00'
+    subject: 'test: align weather forecast assertions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_weather_forecast_skill.py
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    related_feature_ids: []
+  - sha: 55df74d43bec6f4d0464ed82ca12fa694c2259ef
+    short_sha: 55df74d43
+    authored_at: '2026-06-02T17:07:54+00:00'
+    subject: 'fix: repair weather day fullscreen drilldown'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 5fff3637d5c0cf498576c8c860adda99d5e42769
+    short_sha: 5fff3637d
+    authored_at: '2026-06-02T16:53:03+00:00'
+    subject: 'fix: correct weather app store previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/forecast_skill.py
+    - backend/providers/deutscher_wetterdienst.yml
+    - backend/providers/open_meteo.yml
+    - backend/shared/providers/bright_sky/bright_sky.py
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    - frontend/packages/ui/static/icons/deutscher_wetterdienst.svg
+    - frontend/packages/ui/static/icons/open_meteo.svg
+    related_feature_ids: []
+  - sha: 34b9887c11329d8e233ff85b04b0888c6186e01c
+    short_sha: 34b9887c1
+    authored_at: '2026-06-02T16:52:42+00:00'
+    subject: 'feat: improve mobile header navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/i18n/sources/navigation.yml
+    related_feature_ids: []
+  - sha: 9f7aeb20cc91ec21706b0a460b88e877034ea097
+    short_sha: 9f7aeb20c
+    authored_at: '2026-06-02T16:09:28+00:00'
+    subject: 'feat: add weather store examples'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/add-app-skill/SKILL.md
+    - .claude/skills/add-app-skill/SKILL.md
+    - docs/architecture/apps/app-skills.md
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.examples.ts
+    - frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
+    related_feature_ids: []
+  - sha: e7813d48748cfa35f5da38688c24182c8c5ecd9b
+    short_sha: e7813d487
+    authored_at: '2026-06-02T15:50:18+00:00'
+    subject: 'test: strengthen weather forecast coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    related_feature_ids: []
+  - sha: a26752a672943f8e4576ca8816ddb66615b5f6c3
+    short_sha: a26752a67
+    authored_at: '2026-06-02T15:22:55+00:00'
+    subject: 'feat: add weather forecast skill'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/__init__.py
+    - backend/apps/weather/skills/forecast_skill.py
+    - backend/config/backend_config.yml
+    - backend/core/api/app/services/embed_service.py
+    - backend/shared/providers/bright_sky/__init__.py
+    - backend/shared/providers/bright_sky/bright_sky.py
+    - backend/shared/providers/open_meteo/__init__.py
+    - backend/shared/providers/open_meteo/open_meteo.py
+    - backend/tests/test_weather_forecast_skill.py
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/weatherEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    related_feature_ids: []
+  - sha: 0b3a5c0106f76ca8c0aa21d36eae00881d9af2a7
+    short_sha: 0b3a5c010
+    authored_at: '2026-06-02T13:53:26+00:00'
+    subject: 'fix: wire native code run renderer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 1cb0407e0ea5ad16fc34face57156bf9f97ce495
+    short_sha: 1cb0407e0
+    authored_at: '2026-06-02T13:52:55+00:00'
+    subject: 'feat: add native code run embed support'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Networking/CodeRunService.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 635c69af60d2f7519c825601ff8749bde25bd37e
+    short_sha: 635c69af6
+    authored_at: '2026-06-02T13:33:48+00:00'
+    subject: 'fix: derive opencode session url expectation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_opencode_daily_meeting.py
+    related_feature_ids: []
+  - sha: 31c12742da567efbf5d8238c1f9b1c1773bb2919
+    short_sha: 31c12742d
+    authored_at: '2026-06-02T13:31:08+00:00'
+    subject: 'fix: use asyncio run in embed link tests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_embed_link_fixes.py
+    related_feature_ids: []
+  - sha: 9d0f6041d4bb00117a5e31bf14cbe9fb25a24953
+    short_sha: 9d0f6041d
+    authored_at: '2026-06-02T13:28:18+00:00'
+    subject: 'fix: keep celery config test stub compatible'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_webhook_incoming.py
+    related_feature_ids: []
+  - sha: 705dea4ed8bceee5a001e51687c199de45b82a93
+    short_sha: 705dea4ed
+    authored_at: '2026-06-02T13:24:31+00:00'
+    subject: 'fix: preserve js import inference order'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/code_execution.py
+    related_feature_ids: []
+  - sha: 149d822dbf4cb3c2aa090fa4bcd6c8f9ed4e9153
+    short_sha: 149d822db
+    authored_at: '2026-06-02T13:21:21+00:00'
+    subject: 'fix: complete llm utils test stub'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_daily_inspiration_generator.py
+    related_feature_ids: []
+  - sha: b873b9512e52c67a617eab9717f3c6339cc936ef
+    short_sha: b873b9512
+    authored_at: '2026-06-02T13:18:25+00:00'
+    subject: 'fix: match llm result test stub'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_daily_inspiration_generator.py
+    related_feature_ids: []
+  - sha: fa6e6246be6c047bb23fd9c8ac052f832387fd2d
+    short_sha: fa6e6246b
+    authored_at: '2026-06-02T13:16:03+00:00'
+    subject: 'fix: keep llm utils test stub compatible'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_daily_inspiration_generator.py
+    related_feature_ids: []
+  - sha: a062e2080e6a3e886335374dc6624e7d5e6b5523
+    short_sha: a062e2080
+    authored_at: '2026-06-02T13:08:31+00:00'
+    subject: 'chore: remove legacy Polar payment references'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/agents/e2e-test-investigator.md
+    - .claude/agents/settings-ui-consistency-checker.md
+    - .claude/hooks/external-resources-guard.sh
+    - .codex/agents/e2e-test-investigator.toml
+    - .codex/agents/settings-ui-consistency-checker.toml
+    - .codex/hooks/external-resources-guard.sh
+    - .env.example
+    - .opencode/agents/e2e-test-investigator.md
+    - .opencode/agents/settings-ui-consistency-checker.md
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/api/app/utils/geo_utils.py
+    - backend/core/api/requirements.txt
+    - backend/scripts/debug_logs.py
+    - backend/status/app/config.py
+    - backend/tests/test_privacy_promises.py
+    - backend/tests/test_sightengine_service.py
+    - docs/architecture/compliance/gdpr-audit.md
+    - docs/architecture/core/delete-account.md
+    - docs/architecture/image-safety-pipeline.md
+    - docs/contributing/guides/testing.md
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/i18n/sources/invoices_and_credit_notes/main.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - pnpm-lock.yaml
+    - scripts/_eu_vuln_helper.py
+    - scripts/run_tests.py
+    - shared/docs/privacy_policy.yml
+    - shared/docs/privacy_promises.yml
+    related_feature_ids: []
+  - sha: 9f6e9c640ca000561c563dd4fbdc302d9bd2b228
+    short_sha: 9f6e9c640
+    authored_at: '2026-06-02T10:48:07+00:00'
+    subject: 'fix: tolerate travel connections no-results'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+    related_feature_ids: []
+  - sha: 33860e750b2a2c4b698674ebd4d48991818ce020
+    short_sha: 33860e750
+    authored_at: '2026-06-02T10:40:11+00:00'
+    subject: 'fix: tolerate travel stays no-results'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-stays.spec.ts
+    related_feature_ids: []
+  - sha: 135110c9c17647d3f5507697b80568e8d39fce83
+    short_sha: 135110c9c
+    authored_at: '2026-06-02T10:31:23+00:00'
+    subject: 'fix: assert cli upload success signal'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    related_feature_ids: []
+  - sha: 0b36c3b13393fa64109fecd0ed2b64152bcd68e7
+    short_sha: 0b36c3b13
+    authored_at: '2026-06-02T10:23:50+00:00'
+    subject: 'fix: wait for cli image embed persistence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    related_feature_ids: []
+  - sha: 2970f4f611ba3f344311bcc9e193cb38125f236e
+    short_sha: 2970f4f61
+    authored_at: '2026-06-02T10:20:45+00:00'
+    subject: 'feat: add Apple mention dropdown parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6a5d4038e644a4d486ccdeede93d470cab536173
+    short_sha: 6a5d4038e
+    authored_at: '2026-06-02T10:17:17+00:00'
+    subject: 'fix: use stable cli upload fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    related_feature_ids: []
+  - sha: a68ceab7654f38db0b824b93915345d4d68f7538
+    short_sha: a68ceab76
+    authored_at: '2026-06-02T10:11:06+00:00'
+    subject: 'fix: send origin on cli uploads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/uploadService.ts
+    related_feature_ids: []
+  - sha: 62701fa7193e8952d24b10a19c6ab297e64a9a48
+    short_sha: 62701fa71
+    authored_at: '2026-06-02T10:02:31+00:00'
+    subject: 'fix: scope attachment persistence spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    related_feature_ids: []
+  - sha: d7d863964b983ec6e0cf8b324c1393e2ee30610f
+    short_sha: d7d863964
+    authored_at: '2026-06-02T09:51:45+00:00'
+    subject: 'fix: wait for attachment chat cold sync'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    related_feature_ids: []
+  - sha: 234764a0f7b9490c4b0a508a7821f44c49d08b71
+    short_sha: 234764a0f
+    authored_at: '2026-06-02T09:44:15+00:00'
+    subject: 'fix: stabilize attachment spec navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    related_feature_ids: []
+  - sha: 27cb5fd05ed81c45bfc5c4acdf1d7285901bc403
+    short_sha: 27cb5fd05
+    authored_at: '2026-06-02T09:33:03+00:00'
+    subject: 'feat: add Apple composer upload previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: fa5a22cb567130fc15264e441c49b4052b890ac0
+    short_sha: fa5a22cb5
+    authored_at: '2026-06-02T09:28:16+00:00'
+    subject: 'fix: preserve e2e debug chat navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    related_feature_ids: []
+  - sha: 02998239f85bb983eba66d2f05394e14d5790bac
+    short_sha: 02998239f
+    authored_at: '2026-06-02T09:12:15+00:00'
+    subject: 'fix: accept current image embed selector'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    related_feature_ids: []
+  - sha: 24680a578a2c7397c8a94f7b7af0324f87151b46
+    short_sha: 24680a578
+    authored_at: '2026-06-02T08:56:35+00:00'
+    subject: 'feat: add Apple composer embed send parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: bc78aa6fcb894ee722c7fdd2283ebe25b73c488b
+    short_sha: bc78aa6fc
+    authored_at: '2026-06-02T08:56:13+00:00'
+    subject: 'fix: relax reload image preview assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    related_feature_ids: []
+  - sha: bb2430c650b983af3ee2140a36d9081321b27390
+    short_sha: bb2430c65
+    authored_at: '2026-06-02T08:44:50+00:00'
+    subject: 'fix: align Apple upload endpoint'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 438651907e2d5d5d463ac2bdb05a44db6f75d0a0
+    short_sha: '438651907'
+    authored_at: '2026-06-02T08:22:00+00:00'
+    subject: 'fix: align file attachment flow assertions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    related_feature_ids: []
+  - sha: 1a70c8ee82432b0524cae5d65065dba45b802987
+    short_sha: 1a70c8ee8
+    authored_at: '2026-06-02T08:18:37+00:00'
+    subject: 'fix: treat sub-chat cap as concurrency only'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/core/api/app/routes/share.py
+    - backend/tests/test_sub_chat_confirmation_handler.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    related_feature_ids: []
+  - sha: 8cacd97a27ab0d0316b1a853dc0ab050e28dc4c4
+    short_sha: 8cacd97a2
+    authored_at: '2026-06-02T07:56:33+00:00'
+    subject: 'fix: keep attachment sends available'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 46de52c80819f004c996240117d8bc1a4c3f76ba
+    short_sha: 46de52c80
+    authored_at: '2026-06-02T07:21:17+00:00'
+    subject: 'fix: cap rendered sub-chat cards'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    related_feature_ids: []
+  - sha: 1bcd5dd98dc80f698acd08d6506aa60eefaf2b51
+    short_sha: 1bcd5dd98
+    authored_at: '2026-06-02T07:11:48+00:00'
+    subject: 'feat: add sequential sub-chat stop handler'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/sub_chat_stop_handler.py
+    - backend/tests/test_sub_chat_stop_handler.py
+    related_feature_ids: []
+  - sha: 86315341daa251c5c76b4f59055bc3468570ba0e
+    short_sha: 86315341d
+    authored_at: '2026-06-02T07:10:15+00:00'
+    subject: 'fix: add sub-chat chat translations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    related_feature_ids: []
+  - sha: c5b8f4b2fc6835f299de7fa1fecf7a1c58c9c349
+    short_sha: c5b8f4b2f
+    authored_at: '2026-06-02T07:06:37+00:00'
+    subject: 'fix: complete sub-chat translations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    related_feature_ids: []
+  - sha: 6127054687a7ac61ec5d9c56ed2f655e60c3981c
+    short_sha: '612705468'
+    authored_at: '2026-06-02T07:04:29+00:00'
+    subject: 'feat: add sub-chat fanout approval'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sub_chat_confirmation_handler.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_sub_chat_confirmation_handler.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    related_feature_ids: []
+  - sha: 5552186fd1ea8d5a9f694d2b894aaf6c490c8dea
+    short_sha: 5552186fd
+    authored_at: '2026-06-02T06:57:10+00:00'
+    subject: 'fix: update reminder email settings path'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-email.spec.ts
+    related_feature_ids: []
+  - sha: 162968bb0870f5384d01d04232c3b65e2996f843
+    short_sha: 162968bb0
+    authored_at: '2026-06-02T06:44:51+00:00'
+    subject: 'fix: align same-chat reminder ordering test'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-same-chat.spec.ts
+    related_feature_ids: []
+  - sha: 28d4fc4ddbfd2180ad6294e40dad63d39a6bf901
+    short_sha: 28d4fc4dd
+    authored_at: '2026-06-02T06:24:55+00:00'
+    subject: 'fix: stabilize urgent e2e failures'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-replay-demo-mode.spec.ts
+    - frontend/apps/web_app/tests/cli-images.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/mention-dropdown-settings-memory.spec.ts
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
+    - frontend/apps/web_app/tests/reminder-email.spec.ts
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    - frontend/apps/web_app/tests/reminder-redesign.spec.ts
+    - frontend/apps/web_app/tests/reminder-same-chat.spec.ts
+    - frontend/apps/web_app/tests/seo-demo-chat.spec.ts
+    - frontend/apps/web_app/tests/webhook-incoming-chat.spec.ts
+    - frontend/packages/ui/src/components/settings/developers/SettingsDevices.svelte
+    related_feature_ids: []
+  - sha: 901092a9d517879bc7db8d73616fdda17f0fc0a2
+    short_sha: 901092a9d
+    authored_at: '2026-06-02T06:02:25+00:00'
+    subject: 'feat: route OpenAI OSS models through Bedrock EU'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/data/models_leaderboard.yml
+    - backend/providers/openai.yml
+    - frontend/packages/openmates-cli/src/mentions.ts
+    related_feature_ids: []
+  - sha: 0d22c5a00ff7fb79cfc91d9dbf32d04d12eae998
+    short_sha: 0d22c5a00
+    authored_at: '2026-06-02T05:49:34+00:00'
+    subject: 'feat: add Apple audio and PII composer parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ff1d7ad75643d7045f38d0168cbe78da456d4491
+    short_sha: ff1d7ad75
+    authored_at: '2026-06-02T05:39:17+00:00'
+    subject: 'feat: improve Apple composer parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/rules/apple-ui.md
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+llm_summary:
+  overview: OpenMates introduced a new Weather Forecast skill and enhanced sub-chat orchestration capabilities. This update
+    also includes significant stability improvements for CLI uploads and file attachments, alongside optimized model routing
+    for European users.
+  released_changes:
+  - text: OpenMates added a Weather Forecast skill, allowing users to view forecasts and drill down into specific daily details.
+    evidence:
+      commits:
+      - a26752a67
+      - 9f7aeb20c
+    release_status: released_main
+  - text: The project now supports sub-chat fanout approval and sequential stop handling for more controlled AI orchestration.
+    evidence:
+      commits:
+      - '612705468'
+      - 1bcd5dd98
+    release_status: released_main
+  - text: OpenAI OSS models are now routed through Bedrock EU for improved performance in the region.
+    evidence:
+      commits:
+      - 901092a9d
+    release_status: released_main
+  - text: Mobile header navigation was improved, and demo usage data was added to enhance the marketing and demo experience.
+    evidence:
+      commits:
+      - 34b9887c1
+      - f70dc0c75
+    release_status: released_main
+  - text: The code execution engine now preserves JavaScript import inference order.
+    evidence:
+      commits:
+      - 705dea4ed
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved several issues with the weather forecast UI, including fixing fullscreen drilldown reliability, capturing
+      card clicks, and correcting provider logos.
+    evidence:
+      commits:
+      - f2dc454c8
+      - 5a445261c
+      - a2e15e78d
+      - e1c4d8047
+      - 9a02c462e
+      - 3da9bf66c
+      - 1ff5bed70
+      - 55df74d43
+      - 5fff3637d
+    release_status: released_main
+  - text: Adjusted sub-chat behavior to treat caps as concurrency limits and capped the number of rendered sub-chat cards.
+    evidence:
+      commits:
+      - 1a70c8ee8
+      - 46de52c80
+    release_status: released_main
+  - text: Improved CLI file upload stability by ensuring origin headers are sent and stabilizing success signals.
+    evidence:
+      commits:
+      - a68ceab76
+      - 135110c9c
+      - 0b36c3b13
+      - 6a5d4038e
+    release_status: released_main
+  - text: Stabilized the file attachment flow and associated end-to-end tests, addressing navigation and persistence issues.
+    evidence:
+      commits:
+      - 62701fa71
+      - d7d863964
+      - 234764a0f
+      - fa5a22cb5
+      - 02998239f
+      - bc78aa6fc
+      - '438651907'
+    release_status: released_main
+  - text: Refined the user interface by normalizing header touch targets and ensuring demo mode initializes correctly before
+      authentication checks.
+    evidence:
+      commits:
+      - 043ef3eda
+      - 85b4577d4
+      - 0a0fb00b5
+    release_status: released_main
+  - text: Fixed various regressions in travel skill result handling, reminder email settings paths, and general test suite
+      stability.
+    evidence:
+      commits:
+      - 9f6e9c640
+      - 33860e750
+      - 5552186fd
+      - 162968bb0
+      - 28d4fc4dd
+    release_status: released_main
+  unreleased_progress:
+  - text: Progress continued on Apple platform parity, including work on native code run support, mention dropdowns, composer
+      previews, and audio recording for iOS and macOS.
+    evidence:
+      commits:
+      - 1cb0407e0
+      - 2970f4f61
+      - 27cb5fd05
+      - 24680a578
+      - 0d22c5a00
+      - ff1d7ad75
+      - 0b3a5c010
+      - bb2430c65
+    release_status: released_main
+  - text: Internal documentation was updated with an Apple parity audit scaffold and improved marketing metadata for various
+      apps.
+    evidence:
+      commits:
+      - 7c6070fd8
+      - '794873896'
+    release_status: released_main
+  internal_progress:
+  - text: Removed legacy Polar payment references across the codebase and documentation.
+    evidence:
+      commits:
+      - a062e2080
+    release_status: released_main
+  - text: Updated internal test stubs and utility functions for better compatibility with asynchronous operations and LLM
+      result expectations.
+    evidence:
+      commits:
+      - 635c69af6
+      - 31c12742d
+      - 9d0f6041d
+      - 149d822db
+      - b873b9512
+      - fa6e6246b
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New Weather Forecast skill with interactive daily drilldowns.
+      evidence:
+        commits:
+        - a26752a67
+        - 9f7aeb20c
+      reason: A significant new user-facing capability with visual components.
+    - text: Enhanced sub-chat orchestration with fanout approval and sequential stop handling.
+      evidence:
+        commits:
+        - '612705468'
+        - 1bcd5dd98
+      reason: Improves the core AI orchestration experience for complex tasks.
+    - text: Optimized routing for OpenAI OSS models through Bedrock EU.
+      evidence:
+        commits:
+        - 901092a9d
+      reason: Relevant for users concerned with model performance and data residency.
+    exclude:
+    - text: Apple platform parity features (iOS/macOS).
+      evidence:
+        commits:
+        - 1cb0407e0
+        - 2970f4f61
+        - 27cb5fd05
+        - 24680a578
+        - 0d22c5a00
+        - ff1d7ad75
+        - 0b3a5c010
+        - bb2430c65
+      reason: These items relate to the iOS and macOS platforms, which are currently listed as disabled features.
+    - text: Legacy payment reference removal.
+      evidence:
+        commits:
+        - a062e2080
+      reason: Internal infrastructure cleanup with no direct user impact.
+    rationale: The primary highlights for this update are the introduction of the Weather Forecast skill and significant improvements
+      to the sub-chat orchestration system. These features provide immediate value to users. Apple-specific work is excluded
+      as those platforms are not yet enabled for public use.
+  social_video_recommendations:
+  - idea: Showcase the new Weather Forecast skill by asking for a weekly outlook and demonstrating the interactive daily drilldown
+      cards.
+    priority: high
+    reason: The weather skill is highly visual and demonstrates the project's ability to integrate real-time data into interactive
+      UI components.
+    evidence:
+      commits:
+      - a26752a67
+      - f2dc454c8
+  - idea: Demonstrate the sub-chat fanout approval process, showing how the main AI can delegate tasks to specialized sub-chats
+      with user oversight.
+    priority: medium
+    reason: This highlights the sophisticated orchestration capabilities of OpenMates for complex workflows.
+    evidence:
+      commits:
+      - '612705468'
+  quality_notes:
+  - Extensive testing was performed on the new weather skill, with multiple commits dedicated to stabilizing layout and interactivity
+    assertions.
+  - End-to-end test stability was a major focus, addressing several 'urgent' failures in the web application.
+  validation_warnings: []

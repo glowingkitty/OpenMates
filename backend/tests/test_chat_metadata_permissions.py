@@ -12,6 +12,8 @@ import pytest
 from backend.core.api.app.services.directus.chat_methods import (
     CHAT_METADATA_FIELDS,
     CHAT_METADATA_FIELDS_FALLBACK,
+    CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION,
+    CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS,
     CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
     ChatMethods,
 )
@@ -26,7 +28,9 @@ class PermissionFallbackDirectus:
         self.requested_fields.append(fields)
         if fields in {
             CHAT_METADATA_FIELDS,
+            CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION,
             CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
+            CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS,
         }:
             return None
         if fields == CHAT_METADATA_FIELDS_FALLBACK:
@@ -47,6 +51,15 @@ class BatchMetadataDirectus:
         return [{"id": chat_id, "hashed_user_id": "hash"} for chat_id in ids]
 
 
+class UserChatListDirectus:
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    async def get_items(self, _collection, params, **kwargs):
+        self.calls.append({"params": params, "kwargs": kwargs})
+        return [{"id": "chat-owned", "hashed_user_id": params["filter[hashed_user_id][_eq]"]}]
+
+
 @pytest.mark.anyio
 async def test_chat_metadata_uses_minimal_fallback_after_optional_field_403():
     directus = PermissionFallbackDirectus()
@@ -60,7 +73,9 @@ async def test_chat_metadata_uses_minimal_fallback_after_optional_field_403():
     assert metadata == {"id": "d7d558a5-2a8c-4fc4-9b1c-e21868b22bce", "hashed_user_id": "hash"}
     assert directus.requested_fields == [
         CHAT_METADATA_FIELDS,
+        CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION,
         CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
+        CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS,
         CHAT_METADATA_FIELDS_FALLBACK,
     ]
 
@@ -84,7 +99,12 @@ async def test_batch_chat_metadata_uses_json_in_filter():
 @pytest.mark.anyio
 async def test_batch_chat_metadata_uses_field_fallback_after_optional_field_403():
     directus = BatchMetadataDirectus(
-        denied_fields={CHAT_METADATA_FIELDS, CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS}
+        denied_fields={
+            CHAT_METADATA_FIELDS,
+            CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION,
+            CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
+            CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS,
+        }
     )
     chat_methods = ChatMethods(directus)
     chat_id = "33333333-3333-4333-8333-333333333333"
@@ -94,6 +114,27 @@ async def test_batch_chat_metadata_uses_field_fallback_after_optional_field_403(
     assert metadata == {chat_id: {"id": chat_id, "hashed_user_id": "hash"}}
     assert [request["fields"] for request in directus.requests] == [
         CHAT_METADATA_FIELDS,
+        CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION,
         CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
+        CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS,
         CHAT_METADATA_FIELDS_FALLBACK,
     ]
+
+
+@pytest.mark.anyio
+async def test_user_chat_metadata_can_use_admin_access_with_hashed_owner_filter():
+    directus = UserChatListDirectus()
+    chat_methods = ChatMethods(directus)
+
+    metadata = await chat_methods.get_user_chats_metadata(
+        "user-1",
+        limit=40,
+        sort="-pinned,-last_edited_overall_timestamp",
+        admin_required=True,
+    )
+
+    assert metadata[0]["id"] == "chat-owned"
+    call = directus.calls[0]
+    assert call["params"]["filter[hashed_user_id][_eq]"]
+    assert "filter[user_created][_eq]" not in call["params"]
+    assert call["kwargs"]["admin_required"] is True

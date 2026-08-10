@@ -49,6 +49,11 @@ class PolicyManager:
           capabilities = ["create", "read", "update", "list"]
         }
 
+        # Allow API to persist Revolut Business OAuth refresh-token rotations.
+        path "kv/data/providers/revolut_business" {
+          capabilities = ["create", "read", "update", "list"]
+        }
+
         # Allow API service to manage (CRUDL) user-specific raw AES keys for draft encryption
         path "kv/data/user-draft-aes-keys/*" {
           capabilities = ["create", "read", "update", "delete", "list"]

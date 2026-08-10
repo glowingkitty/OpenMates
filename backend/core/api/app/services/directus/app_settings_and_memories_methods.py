@@ -43,7 +43,16 @@ class AppSettingsAndMemoriesMethods:
         """Hash user_id for privacy in Directus storage."""
         return hashlib.sha256(user_id.encode()).hexdigest()
 
-    async def get_user_app_item_raw(self, user_id: str, app_id: str, item_key: str) -> Optional[Dict[str, Any]]:
+    def _hash_team_id(self, team_id: str) -> str:
+        """Hash team_id for privacy in Directus storage."""
+        return hashlib.sha256(team_id.encode()).hexdigest()
+
+    def _context_filter(self, user_id: str, team_id: str | None = None) -> Dict[str, Any]:
+        if team_id:
+            return {"hashed_team_id": {"_eq": self._hash_team_id(team_id)}}
+        return {"hashed_user_id": {"_eq": self._hash_user_id(user_id)}, "hashed_team_id": {"_null": True}}
+
+    async def get_user_app_item_raw(self, user_id: str, app_id: str, item_key: str, team_id: str | None = None) -> Optional[Dict[str, Any]]:
         """
         Fetches a raw user app setting or memory item (including encrypted_item_json)
         for a given user_id, app_id, and item_key.
@@ -58,10 +67,10 @@ class AppSettingsAndMemoriesMethods:
             The Directus-like item dictionary if found, else None.
         """
         hashed_user_id = self._hash_user_id(user_id)
-        log_prefix = f"AppSettingsAndMemoriesMethods.get_user_app_item_raw (User: {user_id[:8]}..., App: {app_id}, Key: {item_key}):"
+        log_prefix = f"AppSettingsAndMemoriesMethods.get_user_app_item_raw (User: {user_id[:8]}..., Team: {team_id or 'personal'}, App: {app_id}, Key: {item_key}):"
 
         # 1. Try to get from cache
-        if self._service.cache_service:
+        if not team_id and self._service.cache_service:
             try:
                 cached_encrypted_json = await self._service.cache_service.get_user_app_settings_and_memories_item(
                     user_id_hash=hashed_user_id,
@@ -80,19 +89,19 @@ class AppSettingsAndMemoriesMethods:
                     }
             except Exception as e_cache_get:
                 logger.error(f"{log_prefix} Error getting item from cache: {e_cache_get}", exc_info=True)
-        else:
+        elif not team_id:
             logger.warning(f"{log_prefix} Cache service not available for get_user_app_item_raw.")
 
         # 2. If not in cache or cache error, fetch from Directus
         logger.info(f"{log_prefix} Cache MISS or cache service unavailable. Fetching from Directus.")
         params = {
             "filter": {
-                "hashed_user_id": {"_eq": hashed_user_id},
+                **self._context_filter(user_id, team_id),
                 "app_id": {"_eq": app_id},
                 "item_key": {"_eq": item_key}
             },
             "limit": 1,
-            "fields": "id,hashed_user_id,app_id,item_key,item_type,encrypted_item_json,encrypted_app_key,created_at,updated_at,item_version,sequence_number"
+            "fields": "id,hashed_user_id,hashed_team_id,app_id,item_key,item_type,encrypted_item_json,encrypted_app_key,created_at,updated_at,item_version,sequence_number"
         }
         
         try:
@@ -102,7 +111,7 @@ class AppSettingsAndMemoriesMethods:
                 logger.info(f"{log_prefix} Fetched item from Directus: ID {directus_item.get('id')}")
 
                 # 3. Store in cache if fetched from Directus
-                if self._service.cache_service and directus_item.get("encrypted_item_json") is not None:
+                if not team_id and self._service.cache_service and directus_item.get("encrypted_item_json") is not None:
                     try:
                         await self._service.cache_service.set_user_app_settings_and_memories_item(
                             user_id_hash=hashed_user_id,
@@ -127,7 +136,8 @@ class AppSettingsAndMemoriesMethods:
         app_id: str,
         item_key: str,
         encrypted_item_json: Optional[str],
-        current_timestamp: int
+        current_timestamp: int,
+        team_id: str | None = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Creates or updates a raw user app setting or memory item with encrypted_item_json.
@@ -144,17 +154,18 @@ class AppSettingsAndMemoriesMethods:
             The created/updated Directus item dictionary or None on failure.
         """
         hashed_user_id = self._hash_user_id(user_id)
-        existing_item = await self.get_user_app_item_raw(user_id, app_id, item_key)
+        existing_item = await self.get_user_app_item_raw(user_id, app_id, item_key, team_id=team_id)
         
         payload = {
             "hashed_user_id": hashed_user_id,
+            "hashed_team_id": self._hash_team_id(team_id) if team_id else None,
             "app_id": app_id,
             "item_key": item_key,
             "encrypted_item_json": encrypted_item_json,
             "updated_at": current_timestamp
         }
 
-        log_prefix = f"AppSettingsAndMemoriesMethods.set_user_app_item_raw (User: {user_id[:8]}..., App: {app_id}, Key: {item_key}):"
+        log_prefix = f"AppSettingsAndMemoriesMethods.set_user_app_item_raw (User: {user_id[:8]}..., Team: {team_id or 'personal'}, App: {app_id}, Key: {item_key}):"
         
         directus_result_item: Optional[Dict[str, Any]] = None
         try:
@@ -168,7 +179,7 @@ class AppSettingsAndMemoriesMethods:
                 directus_result_item = await self._service.create_item(self.COLLECTION_NAME, payload)
 
             # After successful Directus operation, update cache
-            if directus_result_item and self._service.cache_service:
+            if directus_result_item and not team_id and self._service.cache_service:
                 if encrypted_item_json is not None:
                     logger.info(f"{log_prefix} Updating cache for item ID {directus_result_item.get('id')}.")
                     try:
@@ -190,7 +201,7 @@ class AppSettingsAndMemoriesMethods:
                         )
                     except Exception as e_cache_del:
                          logger.error(f"{log_prefix} Error deleting item from cache after Directus set (value was None): {e_cache_del}", exc_info=True)
-            elif not self._service.cache_service:
+            elif not team_id and not self._service.cache_service:
                 logger.warning(f"{log_prefix} Cache service not available for set_user_app_item_raw.")
             
             return directus_result_item
@@ -199,18 +210,18 @@ class AppSettingsAndMemoriesMethods:
             logger.error(f"{log_prefix} Error during Directus operation: {e_directus}", exc_info=True)
             return None
 
-    async def delete_user_app_item_raw(self, user_id: str, app_id: str, item_key: str) -> bool:
+    async def delete_user_app_item_raw(self, user_id: str, app_id: str, item_key: str, team_id: str | None = None) -> bool:
         """
         Deletes a user app setting or memory item for a given user_id, app_id, and item_key.
         Returns True if deletion was successful or item didn't exist, False on error.
         """
         hashed_user_id = self._hash_user_id(user_id)
-        existing_item = await self.get_user_app_item_raw(user_id, app_id, item_key)
+        existing_item = await self.get_user_app_item_raw(user_id, app_id, item_key, team_id=team_id)
         if not existing_item or not existing_item.get("id"):
             logger.debug(f"No app item found to delete for user {user_id[:8]}..., app {app_id}, key {item_key}. Considered successful.")
             return True
 
-        log_prefix = f"AppSettingsAndMemoriesMethods.delete_user_app_item_raw (User: {user_id[:8]}..., App: {app_id}, Key: {item_key}):"
+        log_prefix = f"AppSettingsAndMemoriesMethods.delete_user_app_item_raw (User: {user_id[:8]}..., Team: {team_id or 'personal'}, App: {app_id}, Key: {item_key}):"
         item_id = existing_item["id"]
         logger.info(f"{log_prefix} Deleting item from Directus, ID {item_id}.")
         
@@ -219,7 +230,7 @@ class AppSettingsAndMemoriesMethods:
             
             if directus_delete_success:
                 logger.info(f"{log_prefix} Successfully deleted item from Directus, ID {item_id}.")
-                if self._service.cache_service:
+                if not team_id and self._service.cache_service:
                     logger.info(f"{log_prefix} Deleting item from cache.")
                     try:
                         await self._service.cache_service.delete_user_app_settings_and_memories_item(
@@ -229,7 +240,7 @@ class AppSettingsAndMemoriesMethods:
                         )
                     except Exception as e_cache_del:
                         logger.error(f"{log_prefix} Error deleting item from cache after Directus delete: {e_cache_del}", exc_info=True)
-                elif not self._service.cache_service:
+                elif not team_id and not self._service.cache_service:
                     logger.warning(f"{log_prefix} Cache service not available for delete_user_app_item_raw.")
                 return True
             else:
@@ -239,13 +250,12 @@ class AppSettingsAndMemoriesMethods:
             logger.error(f"{log_prefix} Error during Directus delete operation for ID {item_id}: {e_directus}", exc_info=True)
             return False
 
-    async def get_user_app_data_metadata(self, user_id: str, app_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_user_app_data_metadata(self, user_id: str, app_id: Optional[str] = None, team_id: str | None = None) -> List[Dict[str, Any]]:
         """
         Fetches metadata (app_id, item_key, item_type) for all app settings/memories for a given user_id.
         Optionally filters by a specific app_id.
         """
-        hashed_user_id = self._hash_user_id(user_id)
-        filter_conditions = {"hashed_user_id": {"_eq": hashed_user_id}}
+        filter_conditions = self._context_filter(user_id, team_id)
         if app_id:
             filter_conditions["app_id"] = {"_eq": app_id}
         
@@ -266,7 +276,7 @@ class AppSettingsAndMemoriesMethods:
             logger.error(f"Error in get_user_app_data_metadata for user {user_id[:8]}...: {str(e)}", exc_info=True)
             return []
 
-    async def get_all_user_app_data_raw(self, user_id: str) -> List[Dict[str, Any]]:
+    async def get_all_user_app_data_raw(self, user_id: str, team_id: str | None = None) -> List[Dict[str, Any]]:
         """
         Fetches all raw app settings and memory items for a given user_id.
         Returns all fields needed for client sync.
@@ -279,13 +289,12 @@ class AppSettingsAndMemoriesMethods:
         Returns:
             A list of Directus item dictionaries with all sync-relevant fields.
         """
-        hashed_user_id = self._hash_user_id(user_id)
         params = {
             "filter": {
-                "hashed_user_id": {"_eq": hashed_user_id}
+                **self._context_filter(user_id, team_id)
             },
             # Fetch all fields needed for client sync
-            "fields": "id,app_id,item_key,item_type,encrypted_item_json,encrypted_app_key,created_at,updated_at,item_version,sequence_number"
+            "fields": "id,hashed_team_id,app_id,item_key,item_type,encrypted_item_json,encrypted_app_key,created_at,updated_at,item_version,sequence_number"
         }
         logger.debug(f"Fetching all raw app items for user {user_id[:8]}...")
         try:

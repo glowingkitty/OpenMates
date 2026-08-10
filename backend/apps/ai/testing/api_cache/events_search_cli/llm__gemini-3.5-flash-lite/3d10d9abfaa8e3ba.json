@@ -1,0 +1,117 @@
+{
+  "fingerprint": "3d10d9abfaa8e3ba",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "events_search_cli",
+  "recorded_at": "2026-08-02T13:57:25.596081+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 3,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[9]:\n  - id: \"315855468\"\n    provider: meetup\n    title: \"[face to face] professional communication exercise\"\n    description: \"Join this Professional Communication session — to sharpen the ski..."
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "Here are some tech-related events happening in Berlin this week:\n\n```embeds_results_view\ntitle: Tech Events in Berlin This Week\nembeds: face-to-face-tpq, investing-in-civic-Ree, august-meetup-interactive-0pR, accelerate-data-transformation-Py8, business-networking-startups-DOX, idea-to-merge-3xB\n```\n\n- **[Professional Communication Exercise](embed:face-to-face-tpq)** — Sunday, August 2 at 1:00 PM. A practice session for architectural and elevator pitches held at Monbijou Park.\n- **[Investing in Civic Infrastructure](embed:investing-in-civic-Ree)** — Tuesday, August 4 at 4:00 PM at Medulla. A public evening discussing permissioning, shared spaces, and the future of civic technology and digital infrastructure.\n- **[August Meetup: Interactive Audio](embed:august-meetup-interactive-0pR)** — Tuesday, August 4 at 6:00 PM at Ableton AG. Features talks on interactive audio storytelling (Protagonists!) and detecting AI-generated content in hybrid music mixtures.\n- **[Accelerate Data Transformation with Dataflows Gen2 in Microsoft Fabric](embed:accelerate-data-transformation-Py8)** — Tuesday, August 4 at 6:00 PM (Online). A deep-dive session hosted by the Microsoft Reactor team.\n- **[Business Networking - Startups, Investors & Tech](embed:business-networking-startups-DOX)** — Tuesday, August 4 at 7:00 PM at Winterfeldtstraße 21. An evening designed to connect founders, investors, and tech professionals.\n- **[Idea to Merge with the Copilot App](embed:idea-to-merge-3xB)** — Tuesday, August 4 at 10:00 PM (Online). An interactive session focused on using GitHub Copilot for issue-driven development and merging workflows.\n\nWould you like help preparing for any of these events, or are you interested in a specific subfield like AI or software development?",
+    "chunk_count": 21,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "text",
+        "value": "Here are"
+      },
+      {
+        "kind": "text",
+        "value": " some tech-related events happening in Berlin this week:\n\n```embeds_results_"
+      },
+      {
+        "kind": "text",
+        "value": "view\ntitle: Tech Events in Berlin This Week\nembeds: face-to-face-tpq, investing-in-"
+      },
+      {
+        "kind": "text",
+        "value": "civic-Ree, august-meetup-interactive-0pR, accelerate-data-transformation-Py8, business-networking-"
+      },
+      {
+        "kind": "text",
+        "value": "startups-DOX, idea-to-merge-3xB\n```\n\n- **[Professional Communication Exercise]("
+      },
+      {
+        "kind": "text",
+        "value": "embed:face-to-face-tpq)** — Sunday, August 2 at 1:00 PM"
+      },
+      {
+        "kind": "text",
+        "value": ". A practice session for architectural and elevator pitches held at Monbijou Park.\n- **[Investing in Civic Infrastructure](embed:investing"
+      },
+      {
+        "kind": "text",
+        "value": "-in-civic-Ree)** — Tuesday, August 4 at 4:00 PM at Medulla."
+      },
+      {
+        "kind": "text",
+        "value": " A public evening discussing permissioning, shared spaces, and the future of civic technology and digital infrastructure.\n- **"
+      },
+      {
+        "kind": "text",
+        "value": "[August Meetup: Interactive Audio](embed:august-meetup-interactive-0pR)** — Tuesday, August 4 at "
+      },
+      {
+        "kind": "text",
+        "value": "6:00 PM at Ableton AG. Features talks on interactive audio storytelling (Protagonists!) and detecting AI-generated content"
+      },
+      {
+        "kind": "text",
+        "value": " in hybrid music mixtures.\n- **[Accelerate Data Transformation with Dataflows Gen2 in Microsoft Fabric](embed:acceler"
+      },
+      {
+        "kind": "text",
+        "value": "ate-data-transformation-Py8)** — Tuesday, August 4 at 6:00 PM (Online"
+      },
+      {
+        "kind": "text",
+        "value": "). A deep-dive session hosted by the Microsoft Reactor team.\n- **"
+      },
+      {
+        "kind": "text",
+        "value": "[Business Networking - Startups, Investors & Tech](embed:business-networking-startups-DOX)** — Tuesday, August 4 at 7:"
+      },
+      {
+        "kind": "text",
+        "value": "00 PM at Winterfeldtstraße 21. An evening designed to connect founders, investors, and tech professionals."
+      },
+      {
+        "kind": "text",
+        "value": "\n- **[Idea to Merge with the Copilot App](embed:idea-to-merge-3xB)**"
+      },
+      {
+        "kind": "text",
+        "value": " — Tuesday, August 4 at 10:00 PM (Online). An interactive session focused on using GitHub Copilot for"
+      },
+      {
+        "kind": "text",
+        "value": " issue-driven development and merging workflows.\n\nWould you like help preparing for any of these events, or are you interested in a"
+      },
+      {
+        "kind": "text",
+        "value": " specific subfield like AI or software development?"
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 21189,
+          "candidates_token_count": 466,
+          "total_token_count": 21655,
+          "user_input_tokens": 5246,
+          "system_prompt_tokens": 14068
+        }
+      }
+    ]
+  }
+}

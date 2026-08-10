@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 // NOTE:
@@ -48,7 +47,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
-	getE2EDebugUrl
+	setToggleChecked
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -368,7 +367,15 @@ test('signup flow: bank transfer switch button appears in Stripe payment form an
 	log('"Pay via Bank Transfer" switch button visible in settings buy credits form.');
 	await screenshot(page, '04-switch-btn-visible');
 
+	const consentToggle = page.locator('#limited-refund-consent-toggle');
+	if (await consentToggle.waitFor({ state: 'attached', timeout: 5000 }).then(() => true).catch(() => false)) {
+		await setToggleChecked(consentToggle, true);
+		await expect(consentToggle).toBeHidden({ timeout: 10000 });
+		log('Accepted limited refund consent before switching to bank transfer.');
+	}
+
 	// Click it
+	await expect(bankTransferSwitchBtn).toBeEnabled({ timeout: 5000 });
 	await bankTransferSwitchBtn.click();
 	log('Clicked "Pay via Bank Transfer" switch.');
 

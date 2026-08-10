@@ -102,9 +102,52 @@ describe("ChatListCache", () => {
       expect(result![0].title).toBe("New");
     });
 
-    it("does nothing when cache is not ready", () => {
+    it("queues upserts when cache is not ready and merges them into the next full snapshot", () => {
       chatListCache.upsertChat(makeChat("a"));
       expect(chatListCache.getCache()).toBeNull();
+
+      chatListCache.setCache([makeChat("b")]);
+      const result = chatListCache.getCache();
+      expect(result).toHaveLength(2);
+      expect(result!.map((chat: any) => chat.chat_id)).toEqual(["b", "a"]);
+    });
+
+    it("lets pending upserts override stale chats from the next full snapshot", () => {
+      chatListCache.upsertChat(makeChat("a", { title: "Pending" }));
+
+      chatListCache.setCache([makeChat("a", { title: "Stale" })]);
+      const result = chatListCache.getCache();
+      expect(result).toHaveLength(1);
+      expect(result![0].title).toBe("Pending");
+    });
+
+    it("exposes queued pending upserts without allowing external mutation", () => {
+      chatListCache.upsertChat(makeChat("a"));
+      const pending = chatListCache.getPendingUpserts();
+      expect(pending.map((chat: any) => chat.chat_id)).toEqual(["a"]);
+
+      pending.push(makeChat("b"));
+      expect(chatListCache.getPendingUpserts().map((chat: any) => chat.chat_id)).toEqual(["a"]);
+    });
+
+    it("clears pending upserts after merging them into a full cache snapshot", () => {
+      chatListCache.upsertChat(makeChat("a"));
+      chatListCache.setCache([makeChat("b")]);
+
+      expect(chatListCache.getPendingUpserts()).toHaveLength(0);
+    });
+
+    it("persists queued pending upserts across module reloads until the next full snapshot", async () => {
+      chatListCache.upsertChat(makeChat("a"));
+
+      vi.resetModules();
+      const { chatListCache: freshCache } = await import("../chatListCache");
+
+      expect(freshCache.getPendingUpserts().map((chat: any) => chat.chat_id)).toEqual(["a"]);
+
+      freshCache.setCache([makeChat("b")]);
+      expect(freshCache.getCache()!.map((chat: any) => chat.chat_id)).toEqual(["b", "a"]);
+      expect(freshCache.getPendingUpserts()).toHaveLength(0);
     });
   });
 
@@ -149,23 +192,21 @@ describe("ChatListCache", () => {
       chatListCache.setCache([makeChat("a")]);
       chatListCache.notifySidebarDestroyed();
 
-      // Normal getCache (not a remount) still returns cached data
-      expect(chatListCache.getCache(false, false)).not.toBeNull();
+      // Any cache read misses until a full DB snapshot reaches setCache().
+      expect(chatListCache.getCache(false, false)).toBeNull();
 
       // Remount getCache forces a miss
       expect(chatListCache.getCache(false, true)).toBeNull();
     });
 
-    it("subsequent getCache after remount miss returns cached data (flag reset)", () => {
+    it("keeps remount cache misses active until a full cache reset completes", () => {
       chatListCache.setCache([makeChat("a")]);
       chatListCache.notifySidebarDestroyed();
 
-      // First remount call → miss (resets the flag)
+      // Remount calls keep missing until a fresh DB snapshot reaches setCache().
+      expect(chatListCache.getCache(false, true)).toBeNull();
       expect(chatListCache.getCache(false, true)).toBeNull();
 
-      // Second call → hit (flag was reset by the first miss)
-      // Need to re-set cache since the data is still there but the test needs
-      // to validate the flag behavior. setCache resets sidebarDestroyed flag.
       chatListCache.setCache([makeChat("a")]);
       expect(chatListCache.getCache(false, true)).not.toBeNull();
     });
@@ -175,6 +216,20 @@ describe("ChatListCache", () => {
       chatListCache.notifySidebarDestroyed();
       chatListCache.setCache([makeChat("b")]); // This should reset the flag
       expect(chatListCache.getCache(false, true)).not.toBeNull();
+    });
+
+    it("queues upserts while the sidebar is destroyed so remount can apply missed chats", () => {
+      chatListCache.setCache([makeChat("a")]);
+      chatListCache.notifySidebarDestroyed();
+
+      chatListCache.upsertChat(makeChat("new-chat"));
+
+      expect(chatListCache.getCache(false, true)).toBeNull();
+      expect(chatListCache.getPendingUpserts().map((chat: any) => chat.chat_id)).toEqual(["new-chat"]);
+
+      chatListCache.setCache([makeChat("a")]);
+      expect(chatListCache.getCache()!.map((chat: any) => chat.chat_id)).toEqual(["a", "new-chat"]);
+      expect(chatListCache.getPendingUpserts()).toHaveLength(0);
     });
   });
 

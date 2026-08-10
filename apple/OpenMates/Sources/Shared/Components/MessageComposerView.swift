@@ -22,9 +22,17 @@ enum MessageComposerMetric {
     static let expandedMinHeight: CGFloat = 100
     /// Browser-computed focused empty field height at 393x852: 117.59px from MessageInput's editor line box plus action row.
     static let focusedEmptyHeight: CGFloat = 118
+    /// Web `MessageInput.styles.css`: `.message-field { max-height: 350px; }`.
+    static let expandedMaxHeight: CGFloat = 350
     static let expandedCornerRadius: CGFloat = 24
     /// Web `MessageInput.styles.css`: `.message-field.inline-compact { min-height/max-height: 48px; border-radius: radius-full; }`.
     static let inlineCompactHeight: CGFloat = 48
+}
+
+enum MessageComposerPresentation {
+    static func showsPlaceholder(markdown: String, isFocused: Bool) -> Bool {
+        markdown.isEmpty && !isFocused
+    }
 }
 
 struct MessageComposerCapabilities: Equatable {
@@ -65,8 +73,8 @@ enum MessageComposerAction: Equatable {
 }
 
 struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionButtons: View>: View {
-    @Binding var text: String
-    let isFocused: FocusState<Bool>.Binding
+    @ObservedObject var session: NativeComposerSession
+    let isFocused: Binding<Bool>
     var compact: Bool
     var placeholder: String
     var compactHeight: CGFloat = MessageComposerMetric.inlineCompactHeight
@@ -75,6 +83,9 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
     var expandedMinHeight: CGFloat = MessageComposerMetric.expandedMinHeight
     var maxWidth: CGFloat? = MessageComposerMetric.mainAppMaxWidth
     var accessibilityHint: String = AppStrings.typeMessage
+    var isComposerEditable = true
+    var piiDecorations: [NativeComposerPIIDecoration] = []
+    var onExcludePII: (String) -> Void = { _ in }
     var onSubmit: () -> Void
     var inlineFieldContent: AnyView? = nil
     @ViewBuilder var preFieldContent: () -> PreFieldContent
@@ -86,7 +97,7 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
             preFieldContent()
 
             OMMessageInputField(
-                text: $text,
+                session: session,
                 isFocused: isFocused,
                 compact: compact,
                 placeholder: placeholder,
@@ -95,6 +106,9 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
                 showActionButtonsWhenCompact: showActionButtonsWhenCompact,
                 expandedMinHeight: expandedMinHeight,
                 accessibilityHint: accessibilityHint,
+                isComposerEditable: isComposerEditable,
+                piiDecorations: piiDecorations,
+                onExcludePII: onExcludePII,
                 inlineFieldContent: inlineFieldContent,
                 overlayContent: AnyView(overlayContent()),
                 onSubmit: onSubmit
@@ -112,8 +126,8 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
 
 extension MessageComposerView where PreFieldContent == EmptyView, OverlayContent == EmptyView {
     init(
-        text: Binding<String>,
-        isFocused: FocusState<Bool>.Binding,
+        session: NativeComposerSession,
+        isFocused: Binding<Bool>,
         compact: Bool,
         placeholder: String,
         compactHeight: CGFloat = MessageComposerMetric.inlineCompactHeight,
@@ -126,7 +140,7 @@ extension MessageComposerView where PreFieldContent == EmptyView, OverlayContent
         @ViewBuilder actionButtons: @escaping () -> ActionButtons
     ) {
         self.init(
-            text: text,
+            session: session,
             isFocused: isFocused,
             compact: compact,
             placeholder: placeholder,
@@ -147,8 +161,8 @@ extension MessageComposerView where PreFieldContent == EmptyView, OverlayContent
 
 extension MessageComposerView where PreFieldContent == EmptyView {
     init(
-        text: Binding<String>,
-        isFocused: FocusState<Bool>.Binding,
+        session: NativeComposerSession,
+        isFocused: Binding<Bool>,
         compact: Bool,
         placeholder: String,
         compactHeight: CGFloat = MessageComposerMetric.inlineCompactHeight,
@@ -162,7 +176,7 @@ extension MessageComposerView where PreFieldContent == EmptyView {
         @ViewBuilder actionButtons: @escaping () -> ActionButtons
     ) {
         self.init(
-            text: text,
+            session: session,
             isFocused: isFocused,
             compact: compact,
             placeholder: placeholder,
@@ -183,8 +197,8 @@ extension MessageComposerView where PreFieldContent == EmptyView {
 
 extension MessageComposerView where OverlayContent == EmptyView {
     init(
-        text: Binding<String>,
-        isFocused: FocusState<Bool>.Binding,
+        session: NativeComposerSession,
+        isFocused: Binding<Bool>,
         compact: Bool,
         placeholder: String,
         compactHeight: CGFloat = MessageComposerMetric.inlineCompactHeight,
@@ -198,7 +212,7 @@ extension MessageComposerView where OverlayContent == EmptyView {
         @ViewBuilder actionButtons: @escaping () -> ActionButtons
     ) {
         self.init(
-            text: text,
+            session: session,
             isFocused: isFocused,
             compact: compact,
             placeholder: placeholder,

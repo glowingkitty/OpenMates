@@ -20,6 +20,8 @@ private enum ApplePrivacySettingsContract {
     static let personalDataItemType = "personal_data_entry"
     static let piiSettingsItemType = "pii_detection_settings"
     static let settingsItemKey = "pii_detection_settings"
+    static let locationItemType = "location_settings"
+    static let locationItemKey = "location_settings"
 
     static let defaultCategories: [String: Bool] = [
         "email_addresses": true, "phone_numbers": true,
@@ -137,6 +139,7 @@ struct ApplePrivacyPersonalDataEntry: Identifiable, Codable, Equatable, Sendable
 struct ApplePrivacySettingsState: Equatable, Sendable {
     var detectionSettings = ApplePIIDetectionSettings()
     var entries: [ApplePrivacyPersonalDataEntry] = []
+    var locationImpreciseByDefault = true
 
     var contactEntries: [ApplePrivacyPersonalDataEntry] {
         entries.filter { $0.type == .name || $0.type == .address || $0.type == .birthday }
@@ -274,6 +277,18 @@ private struct PrivacyPersonalDataPayload: Codable {
     }
 }
 
+private struct PrivacyLocationPayload: Codable {
+    let impreciseByDefault: Bool
+    let originalItemKey: String?
+    let settingsGroup: String?
+
+    enum CodingKeys: String, CodingKey {
+        case impreciseByDefault
+        case originalItemKey = "_original_item_key"
+        case settingsGroup = "settings_group"
+    }
+}
+
 @MainActor
 final class ApplePrivacySettingsService: ObservableObject {
     static let shared = ApplePrivacySettingsService()
@@ -287,6 +302,7 @@ final class ApplePrivacySettingsService: ObservableObject {
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
     private var settingsRecord: PrivacyMemoryRecord?
+    private var locationRecord: PrivacyMemoryRecord?
     private var entryRecords: [String: PrivacyMemoryRecord] = [:]
 
     init() {}
@@ -312,6 +328,8 @@ final class ApplePrivacySettingsService: ObservableObject {
             var nextEntries: [ApplePrivacyPersonalDataEntry] = []
             var nextEntryRecords: [String: PrivacyMemoryRecord] = [:]
             var nextSettingsRecord: PrivacyMemoryRecord?
+            var nextLocationRecord: PrivacyMemoryRecord?
+            var nextLocationImpreciseByDefault = true
 
             for record in response.memories where record.appId == ApplePrivacySettingsContract.appId {
                 do {
@@ -340,6 +358,10 @@ final class ApplePrivacySettingsService: ObservableObject {
                         )
                         nextEntries.append(entry)
                         nextEntryRecords[entry.id] = record
+                    case ApplePrivacySettingsContract.locationItemType:
+                        let payload = try decoder.decode(PrivacyLocationPayload.self, from: data)
+                        nextLocationImpreciseByDefault = payload.impreciseByDefault
+                        nextLocationRecord = record
                     default:
                         continue
                     }
@@ -349,8 +371,13 @@ final class ApplePrivacySettingsService: ObservableObject {
             }
 
             settingsRecord = nextSettingsRecord
+            locationRecord = nextLocationRecord
             entryRecords = nextEntryRecords
-            publish(ApplePrivacySettingsState(detectionSettings: nextSettings, entries: nextEntries.sorted { $0.updatedAt > $1.updatedAt }))
+            publish(ApplePrivacySettingsState(
+                detectionSettings: nextSettings,
+                entries: nextEntries.sorted { $0.updatedAt > $1.updatedAt },
+                locationImpreciseByDefault: nextLocationImpreciseByDefault
+            ))
         } catch {
             errorMessage = error.localizedDescription
             publish(state)
@@ -376,6 +403,40 @@ final class ApplePrivacySettingsService: ObservableObject {
         await save(entry: updated)
     }
 
+    func setLocationImpreciseByDefault(_ enabled: Bool) async {
+        errorMessage = nil
+        do {
+            guard let masterKey = try await currentMasterKey() else { throw PrivacySettingsError.masterKeyUnavailable }
+            let now = PrivacyMemoryRecord.nowSeconds
+            let existing = locationRecord
+            let payload = PrivacyLocationPayload(
+                impreciseByDefault: enabled,
+                originalItemKey: ApplePrivacySettingsContract.locationItemKey,
+                settingsGroup: ApplePrivacySettingsContract.locationItemType
+            )
+            let record = PrivacyMemoryRecord(
+                id: existing?.id ?? UUID().uuidString,
+                appId: ApplePrivacySettingsContract.appId,
+                itemKey: existing?.itemKey ?? Self.hashString("privacy-location_settings-\(now)").prefixString(32),
+                itemType: ApplePrivacySettingsContract.locationItemType,
+                encryptedItemJson: try await encrypt(payload, masterKey: masterKey),
+                createdAt: existing?.createdAt ?? now,
+                updatedAt: now,
+                itemVersion: (existing?.itemVersion ?? 0) + 1
+            )
+            try await store(record)
+            locationRecord = record
+            publish(ApplePrivacySettingsState(
+                detectionSettings: state.detectionSettings,
+                entries: state.entries,
+                locationImpreciseByDefault: enabled
+            ))
+        } catch {
+            NativeDiagnostics.error("Location privacy save failed: \(type(of: error))", category: "privacy")
+            errorMessage = AppStrings.privacySaveError
+        }
+    }
+
     func addEntry(type: ApplePersonalDataType, title: String, textToHide: String, replaceWith: String) async {
         let now = PrivacyMemoryRecord.nowSeconds
         let entry = ApplePrivacyPersonalDataEntry(
@@ -399,7 +460,8 @@ final class ApplePrivacySettingsService: ObservableObject {
             entryRecords[entry.id] = nil
             publish(ApplePrivacySettingsState(
                 detectionSettings: state.detectionSettings,
-                entries: state.entries.filter { $0.id != entry.id }
+                entries: state.entries.filter { $0.id != entry.id },
+                locationImpreciseByDefault: state.locationImpreciseByDefault
             ))
         } catch {
             errorMessage = error.localizedDescription
@@ -431,7 +493,11 @@ final class ApplePrivacySettingsService: ObservableObject {
             )
             try await store(record)
             settingsRecord = record
-            publish(ApplePrivacySettingsState(detectionSettings: settings, entries: state.entries))
+            publish(ApplePrivacySettingsState(
+                detectionSettings: settings,
+                entries: state.entries,
+                locationImpreciseByDefault: state.locationImpreciseByDefault
+            ))
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -471,7 +537,11 @@ final class ApplePrivacySettingsService: ObservableObject {
             savedEntry.updatedAt = record.updatedAt
             var entries = state.entries.filter { $0.id != entry.id }
             entries.append(savedEntry)
-            publish(ApplePrivacySettingsState(detectionSettings: state.detectionSettings, entries: entries.sorted { $0.updatedAt > $1.updatedAt }))
+            publish(ApplePrivacySettingsState(
+                detectionSettings: state.detectionSettings,
+                entries: entries.sorted { $0.updatedAt > $1.updatedAt },
+                locationImpreciseByDefault: state.locationImpreciseByDefault
+            ))
         } catch {
             errorMessage = error.localizedDescription
         }

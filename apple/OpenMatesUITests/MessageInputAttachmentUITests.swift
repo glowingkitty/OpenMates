@@ -1,6 +1,6 @@
 // Message input attachment parity coverage for Apple UI contracts.
 // Uses the debug-only seeded ChatView preview and simulator-safe fixture seeding
-// so the composer pending-embed hierarchy can be verified without private
+// so the inline native embed hierarchy can be verified without private
 // credentials, system pickers, upload keys, or camera hardware.
 
 import XCTest
@@ -15,13 +15,17 @@ final class MessageInputAttachmentUITests: XCTestCase {
         let app = launchChatOpeningPreview(arguments: ["--ui-test-seed-pending-composer-embed"])
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
-        let editor = waitForMessageEditor(in: app)
-        XCTAssertTrue(waitForEditorOwnedEmbedDiagnostics(in: app, editor: editor, expectedCount: 1), "Expected editor-owned embed diagnostics after seeded attachment")
-        XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists, "Editor-owned embeds must replace the native pending strip")
-        XCTAssertTrue(waitForEditorOwnedText("ui-test-image.png", in: app, editor: editor), "Expected editor-owned image title")
+        let inlineEmbed = element(in: app, identifier: "native-composer-preview-image-finished")
+        XCTAssertTrue(inlineEmbed.waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            element(in: app, identifier: "native-composer-image-content").waitForExistence(timeout: 5),
+            "A finished uploaded photo must render its image pixels instead of the generic metadata card"
+        )
+        assertElement(inlineEmbed, isVisuallyInside: element(in: app, identifier: "message-field"))
+        XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
 
-        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForMessageEditor(in: app).waitForExistence(timeout: 5))
         XCTAssertTrue(element(in: app, identifier: "message-field").exists)
 
         let screenshot = XCUIScreen.main.screenshot()
@@ -106,15 +110,97 @@ final class MessageInputAttachmentUITests: XCTestCase {
         let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
 
-        XCTAssertTrue(waitForEditorOwnedEmbedDiagnostics(in: app, editor: messageEditor, expectedCount: 3), "Expected welcome seeded content to become editor-owned embeds")
-        XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists, "Welcome composer must not use native pending strips for seeded embeds")
-        XCTAssertTrue(waitForEditorOwnedText("welcome-file.pdf", in: app, editor: messageEditor), "Expected editor-owned file title")
-        XCTAssertTrue(waitForEditorOwnedText("welcome-sketch.png", in: app, editor: messageEditor), "Expected editor-owned image title")
-        XCTAssertTrue(waitForEditorOwnedText("welcome-recording.m4a", in: app, editor: messageEditor), "Expected editor-owned recording title")
+        let firstInlineEmbed = element(in: app, identifier: "native-composer-preview-docs-doc-finished")
+        XCTAssertTrue(firstInlineEmbed.waitForExistence(timeout: 5))
+        let visibleInlineEmbed = element(in: app, identifier: "native-composer-preview-recording-finished")
+        XCTAssertTrue(visibleInlineEmbed.waitForExistence(timeout: 5))
+        assertElement(visibleInlineEmbed, isVisuallyInside: element(in: app, identifier: "message-field"))
+        XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
+        XCTAssertTrue(app.staticTexts["welcome-file.pdf"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "embed_id")).firstMatch.exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "/private/")).firstMatch.exists)
+    }
+
+    func testImagePreviewSurvivesBackgroundAndKeepsActionsAboveIPadKeyboard() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+            "--ui-test-welcome-seed-pending-content"
+        ]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 8) {
+            skipInterests.tap()
+        }
+
+        let editor = waitForMessageEditor(in: app)
+        editor.tap()
+        editor.typeText("Image draft")
+        let imagePreview = element(in: app, identifier: "native-composer-preview-image-finished")
+        XCTAssertTrue(imagePreview.waitForExistence(timeout: 8))
+        let image = element(in: app, identifier: "native-composer-image-content")
+        XCTAssertTrue(image.waitForExistence(timeout: 8))
+        XCTAssertFalse(
+            imagePreview.staticTexts["Tap to show details"].exists,
+            "A finished local image uses web image metadata instead of the generic open-details subtitle"
+        )
+
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+        for identifier in ["attach-files-button", "share-location-button", "sketch-button", "take-photo-button", "send-button"] {
+            let button = app.buttons[identifier]
+            XCTAssertTrue(button.waitForExistence(timeout: 5), "Missing composer action: \(identifier)")
+            XCTAssertTrue(button.isHittable, "Composer action is covered: \(identifier)")
+            XCTAssertLessThanOrEqual(
+                button.frame.maxY,
+                keyboard.frame.minY - 2,
+                "Composer action must stay above the iPad keyboard: \(identifier)"
+            )
+        }
+
+        XCUIDevice.shared.press(.home)
+        app.activate()
+
+        XCTAssertTrue(
+            image.waitForExistence(timeout: 8),
+            "The local uploaded image preview must survive background/foreground restoration"
+        )
+        XCTAssertFalse(imagePreview.staticTexts["Tap to show details"].exists)
+        attachScreenshot(name: "Image composer preview restored above iPad keyboard")
+    }
+
+    func testAttachmentMenuOverlaysComposerActions() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat"
+        ]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 8) {
+            skipInterests.tap()
+        }
+
+        let editor = waitForMessageEditor(in: app)
+        editor.tap()
+        editor.typeText("Attachment menu")
+
+        let actionIDs = ["attach-files-button", "share-location-button", "sketch-button", "take-photo-button", "send-button"]
+        let actionFrames = Dictionary(uniqueKeysWithValues: actionIDs.map { identifier in
+            (identifier, app.buttons[identifier].frame)
+        })
+
+        app.buttons["attach-files-button"].tap()
+
+        for identifier in actionIDs {
+            XCTAssertEqual(app.buttons[identifier].frame, actionFrames[identifier])
+        }
+        attachScreenshot(name: "Attachment menu overlays composer actions")
     }
 
     private func launchChatOpeningPreview(arguments: [String] = []) -> XCUIApplication {
@@ -137,12 +223,6 @@ final class MessageInputAttachmentUITests: XCTestCase {
             .firstMatch
     }
 
-    private func element(in app: XCUIApplication, identifiers: [String]) -> XCUIElement {
-        app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier IN %@", identifiers))
-            .firstMatch
-    }
-
     private func textContaining(_ text: String, in app: XCUIApplication) -> XCUIElement {
         app.staticTexts
             .matching(NSPredicate(format: "label CONTAINS %@", text))
@@ -155,24 +235,6 @@ final class MessageInputAttachmentUITests: XCTestCase {
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
-    private func assertPendingLabel(
-        _ label: String,
-        in app: XCUIApplication,
-        scrollContainer: XCUIElement,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) {
-        let element = app.staticTexts[label]
-        if element.waitForExistence(timeout: 2) { return }
-
-        for _ in 0..<4 {
-            scrollContainer.swipeLeft()
-            if element.waitForExistence(timeout: 2) { return }
-        }
-
-        XCTFail("Expected pending composer embed named \(label)", file: file, line: line)
-    }
-
     private func waitForMessageEditor(in app: XCUIApplication) -> XCUIElement {
         let candidates = [element(in: app, identifier: "message-editor")]
 
@@ -182,41 +244,6 @@ final class MessageInputAttachmentUITests: XCTestCase {
 
         XCTFail("Expected welcome message editor to exist. Visible UI: \(app.debugDescription)")
         return candidates[0]
-    }
-
-    private func waitForEditorOwnedEmbedDiagnostics(in app: XCUIApplication, editor: XCUIElement, expectedCount: Int, timeout: TimeInterval = 8) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        let diagnostics = element(in: app, identifier: "message-editor-diagnostics")
-        while Date() < deadline {
-            if diagnostics.exists,
-               diagnostics.label.contains("embedCount=\(expectedCount)") {
-                return true
-            }
-            if let value = editor.value as? String,
-               value.contains("embedCount=\(expectedCount)") {
-                return true
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-        }
-        return false
-    }
-
-    private func waitForEditorOwnedText(_ text: String, in app: XCUIApplication, editor: XCUIElement, timeout: TimeInterval = 5) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        let diagnostics = element(in: app, identifier: "message-editor-diagnostics")
-        while Date() < deadline {
-            if textContaining(text, in: app).exists { return true }
-            if diagnostics.exists,
-               diagnostics.label.localizedCaseInsensitiveContains(text) {
-                return true
-            }
-            if let value = editor.value as? String,
-               value.localizedCaseInsensitiveContains(text) {
-                return true
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-        }
-        return false
     }
 
     private func assertElement(
@@ -236,5 +263,12 @@ final class MessageInputAttachmentUITests: XCTestCase {
             file: file,
             line: line
         )
+    }
+
+    private func attachScreenshot(name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 }

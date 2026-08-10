@@ -1,0 +1,2617 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-24'
+generated_at: '2026-08-06T13:17:18+00:00'
+range:
+  since: '2026-07-24T00:00:00+00:00'
+  until: '2026-07-25T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 54
+  section_counts:
+    features: 3
+    bug_fixes: 29
+    improvements: 0
+    docs: 2
+    tests: 20
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 23
+  dev_only_items: 54
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add project remote source CLI SDK parity'
+    section: features
+    commits:
+    - fc4ba62a0
+    authored_at: '2026-07-24T16:27:47+00:00'
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-projects.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_projects.py
+    - packages/openmates-python/tests/test_tasks.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add plan learnings'
+    section: features
+    commits:
+    - 3ceee0a86
+    authored_at: '2026-07-24T14:09:19+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/core/directus/schemas/user_plans.yml
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/tests/test_plan_learnings.py
+    - backend/tests/test_plan_reference_patterns.py
+    - backend/tests/test_user_plan_execution_contexts.py
+    - backend/tests/test_user_plans_api.py
+    - docs/specs/plans-v1/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:plans'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: refresh logged-out landing examples'
+    section: features
+    commits:
+    - 64b5debec
+    authored_at: '2026-07-24T13:44:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/welcome.yml
+    - frontend/packages/ui/src/i18n/sources/enter_message/placeholder.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: derive active sidebar title from messages'
+    section: bug_fixes
+    commits:
+    - 1f493fe13
+    authored_at: '2026-07-24T23:15:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover sidebar title after re-login'
+    section: bug_fixes
+    commits:
+    - e7b436847
+    authored_at: '2026-07-24T22:55:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist recent chat sidebar display'
+    section: bug_fixes
+    commits:
+    - ed26154b9
+    authored_at: '2026-07-24T22:33:28+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep recent chat visible after new chat'
+    section: bug_fixes
+    commits:
+    - 1ff2fc4f3
+    authored_at: '2026-07-24T22:18:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep sidebar remount chat upserts'
+    section: bug_fixes
+    commits:
+    - ee8cd99ff
+    authored_at: '2026-07-24T21:53:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatListCache.test.ts
+    - frontend/packages/ui/src/services/chatListCache.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: replace chat transcript on source switch'
+    section: bug_fixes
+    commits:
+    - 3660bc9e9
+    authored_at: '2026-07-24T21:04:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve interactive question answers in shared chats'
+    section: bug_fixes
+    commits:
+    - 64f7527a3
+    authored_at: '2026-07-24T20:48:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/InteractiveQuestionNode.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover keyed background chats without user stamp'
+    section: bug_fixes
+    commits:
+    - a58923726
+    authored_at: '2026-07-24T20:36:28+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: improve light mode UI contrast'
+    section: bug_fixes
+    commits:
+    - 50dd85487
+    authored_at: '2026-07-24T20:30:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/EmbeddPreview.styles.css
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refine landing guest slide polish'
+    section: bug_fixes
+    commits:
+    - d2c552022
+    authored_at: '2026-07-24T20:25:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/placeholder.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: notify recovered background assistant batches'
+    section: bug_fixes
+    commits:
+    - 2a94bd712
+    authored_at: '2026-07-24T20:05:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: notify background chat on blank composer'
+    section: bug_fixes
+    commits:
+    - 8987578d4
+    authored_at: '2026-07-24T19:50:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatNotificationVisibility.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clean privacy workspace example chat audit'
+    section: bug_fixes
+    commits:
+    - 67bf14cd3
+    authored_at: '2026-07-24T19:05:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-local-ai-workspace.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/privacy_first_local_ai_workspace.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound connected-account lookup before chat send'
+    section: bug_fixes
+    commits:
+    - 263a0d74d
+    authored_at: '2026-07-24T17:51:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: correct landing intro slide transition'
+    section: bug_fixes
+    commits:
+    - 0a369d9b2
+    authored_at: '2026-07-24T17:26:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: defer hidden chat settings work'
+    section: bug_fixes
+    commits:
+    - dad332cb7
+    authored_at: '2026-07-24T16:53:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refine landing welcome polish'
+    section: bug_fixes
+    commits:
+    - 7373e90d2
+    authored_at: '2026-07-24T16:36:18+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/welcome.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clarify screenshot HTML skill settings'
+    section: bug_fixes
+    commits:
+    - 763514a8c
+    authored_at: '2026-07-24T15:44:48+00:00'
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/core/api/app/routes/apps_api.py
+    - backend/tests/test_apps_api.py
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/data/__tests__/appsMetadata.test.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:code'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: correct landing mic and intro slides'
+    section: bug_fixes
+    commits:
+    - f94af9ef3
+    authored_at: '2026-07-24T15:12:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/recordingHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/recordingStore.ts
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/enter_message/main.yml
+    - frontend/packages/ui/src/i18n/sources/enter_message/record_audio.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: settle bank transfers with readable references'
+    section: bug_fixes
+    commits:
+    - 9cfb8ecb0
+    authored_at: '2026-07-24T14:43:07+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/routes/teams.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/api/app/tasks/email_tasks/bank_transfer_amount_notice_email_task.py
+    - backend/core/api/app/utils/bank_transfer_references.py
+    - backend/core/api/templates/email/bank-transfer-amount-notice.mjml
+    - backend/core/directus/schemas/pending_bank_transfers.yml
+    - backend/scripts/approve_bank_transfer.py
+    - backend/tests/test_approve_bank_transfer_script.py
+    - backend/tests/test_bank_transfer.py
+    - backend/tests/test_cli_bank_transfer_gift_card_purchase.py
+    - docs/specs/revolut-bank-transfer-auto-credit/spec.yml
+    - scripts/api_tests/test_revolut_business_bank_transfer_settlement.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:teams'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render screenshot HTML app skill preview'
+    section: bug_fixes
+    commits:
+    - 390ba5671
+    authored_at: '2026-07-24T14:42:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/embeds/app_skill/GenericAppSkillEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route screenshot HTML app skill fullscreen'
+    section: bug_fixes
+    commits:
+    - b31351099
+    authored_at: '2026-07-24T14:38:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: apply guest landing placeholder'
+    section: bug_fixes
+    commits:
+    - 620c3d59d
+    authored_at: '2026-07-24T13:57:57+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist assistant message versions locally'
+    section: bug_fixes
+    commits:
+    - 41b050aa6
+    authored_at: '2026-07-24T13:32:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep chat message versions monotonic'
+    section: bug_fixes
+    commits:
+    - 1175576cb
+    authored_at: '2026-07-24T13:17:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: wait longer for encrypted chat preflight'
+    section: bug_fixes
+    commits:
+    - a50eda20c
+    authored_at: '2026-07-24T13:01:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: remove blank landing collapse and show examples'
+    section: bug_fixes
+    commits:
+    - bf6784ac3
+    authored_at: '2026-07-24T11:04:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: install chat E2E readiness hooks'
+    section: bug_fixes
+    commits:
+    - 03a78e057
+    authored_at: '2026-07-24T09:57:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/app.ts
+    - frontend/packages/ui/src/services/e2eTestHooks.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make landing intro collapse as overlay'
+    section: bug_fixes
+    commits:
+    - 290d59c14
+    authored_at: '2026-07-24T09:30:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record project remote source evidence'
+    section: docs
+    commits:
+    - 366a5905f
+    authored_at: '2026-07-24T17:05:11+00:00'
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record landing overlay verification'
+    section: docs
+    commits:
+    - 0b6c3362b
+    authored_at: '2026-07-24T11:30:21+00:00'
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: use translated chat flow fixture category'
+    section: tests
+    commits:
+    - 31f5a3756
+    authored_at: '2026-07-24T21:37:38+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/chat_flow_quick_tip.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize chat flow mock response'
+    section: tests
+    commits:
+    - acc3b1d42
+    authored_at: '2026-07-24T21:28:15+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/chat_flow_quick_tip.json
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover batch sync message count mock'
+    section: tests
+    commits:
+    - 26e181b42
+    authored_at: '2026-07-24T20:41:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for background chat send before navigation'
+    section: tests
+    commits:
+    - cb2c3394c
+    authored_at: '2026-07-24T19:34:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/background-chat-notification.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize background chat notification wait'
+    section: tests
+    commits:
+    - 6428af8ee
+    authored_at: '2026-07-24T19:19:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/background-chat-notification.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align long history active window check'
+    section: tests
+    commits:
+    - b84d23a67
+    authored_at: '2026-07-24T18:36:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize long history forgotten page'
+    section: tests
+    commits:
+    - 3ce804891
+    authored_at: '2026-07-24T18:25:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: accept current share expiry label'
+    section: tests
+    commits:
+    - 3e3f30c5a
+    authored_at: '2026-07-24T17:17:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: keep share chat flow plain'
+    section: tests
+    commits:
+    - aeaeb876b
+    authored_at: '2026-07-24T17:07:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize landing slide assertions'
+    section: tests
+    commits:
+    - 1cf5a93ea
+    authored_at: '2026-07-24T15:50:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize share chat header action'
+    section: tests
+    commits:
+    - 29d10b530
+    authored_at: '2026-07-24T15:31:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: accept inlined landing icon mask'
+    section: tests
+    commits:
+    - c8c97118c
+    authored_at: '2026-07-24T15:22:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use screenshot HTML canonical chat id'
+    section: tests
+    commits:
+    - 535c94f82
+    authored_at: '2026-07-24T15:04:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover screenshot HTML thumbnail selector'
+    section: tests
+    commits:
+    - 1fdb085ed
+    authored_at: '2026-07-24T14:52:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/embeds/app_skill/GenericAppSkillEmbedPreview.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: close shared chat settings via close button'
+    section: tests
+    commits:
+    - ec872f09f
+    authored_at: '2026-07-24T13:56:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: close shared chat settings via close button'
+    section: tests
+    commits:
+    - ad1ca3715
+    authored_at: '2026-07-24T13:53:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reveal synced chat before tab encryption assertion'
+    section: tests
+    commits:
+    - 06424521e
+    authored_at: '2026-07-24T12:41:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for unified detail sync readiness'
+    section: tests
+    commits:
+    - 122d570d4
+    authored_at: '2026-07-24T12:22:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for landing intro overlay geometry'
+    section: tests
+    commits:
+    - 284ef69f7
+    authored_at: '2026-07-24T09:47:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert auth demo return input focus'
+    section: tests
+    commits:
+    - 30f8f2e7f
+    authored_at: '2026-07-24T09:39:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/auth-back-to-demo.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: derive active sidebar title from messages'
+    commits:
+    - 1f493fe13
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: recover sidebar title after re-login'
+    commits:
+    - e7b436847
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: persist recent chat sidebar display'
+    commits:
+    - ed26154b9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep recent chat visible after new chat'
+    commits:
+    - 1ff2fc4f3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep sidebar remount chat upserts'
+    commits:
+    - ee8cd99ff
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use translated chat flow fixture category'
+    commits:
+    - 31f5a3756
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: stabilize chat flow mock response'
+    commits:
+    - acc3b1d42
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: replace chat transcript on source switch'
+    commits:
+    - 3660bc9e9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve interactive question answers in shared chats'
+    commits:
+    - 64f7527a3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: cover batch sync message count mock'
+    commits:
+    - 26e181b42
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover keyed background chats without user stamp'
+    commits:
+    - a58923726
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: improve light mode UI contrast'
+    commits:
+    - 50dd85487
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: refine landing guest slide polish'
+    commits:
+    - d2c552022
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: notify recovered background assistant batches'
+    commits:
+    - 2a94bd712
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: notify background chat on blank composer'
+    commits:
+    - 8987578d4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for background chat send before navigation'
+    commits:
+    - cb2c3394c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize background chat notification wait'
+    commits:
+    - 6428af8ee
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clean privacy workspace example chat audit'
+    commits:
+    - 67bf14cd3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align long history active window check'
+    commits:
+    - b84d23a67
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize long history forgotten page'
+    commits:
+    - 3ce804891
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: bound connected-account lookup before chat send'
+    commits:
+    - 263a0d74d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: correct landing intro slide transition'
+    commits:
+    - 0a369d9b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: accept current share expiry label'
+    commits:
+    - 3e3f30c5a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: keep share chat flow plain'
+    commits:
+    - aeaeb876b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record project remote source evidence'
+    commits:
+    - 366a5905f
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: defer hidden chat settings work'
+    commits:
+    - dad332cb7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: refine landing welcome polish'
+    commits:
+    - 7373e90d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: add project remote source CLI SDK parity'
+    commits:
+    - fc4ba62a0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: stabilize landing slide assertions'
+    commits:
+    - 1cf5a93ea
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clarify screenshot HTML skill settings'
+    commits:
+    - 763514a8c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+  - title: 'test: stabilize share chat header action'
+    commits:
+    - 29d10b530
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: accept inlined landing icon mask'
+    commits:
+    - c8c97118c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: correct landing mic and intro slides'
+    commits:
+    - f94af9ef3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: use screenshot HTML canonical chat id'
+    commits:
+    - 535c94f82
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover screenshot HTML thumbnail selector'
+    commits:
+    - 1fdb085ed
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: settle bank transfers with readable references'
+    commits:
+    - 9cfb8ecb0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: render screenshot HTML app skill preview'
+    commits:
+    - 390ba5671
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: route screenshot HTML app skill fullscreen'
+    commits:
+    - b31351099
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add plan learnings'
+    commits:
+    - 3ceee0a86
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: apply guest landing placeholder'
+    commits:
+    - 620c3d59d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: close shared chat settings via close button'
+    commits:
+    - ec872f09f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: close shared chat settings via close button'
+    commits:
+    - ad1ca3715
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: refresh logged-out landing examples'
+    commits:
+    - 64b5debec
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: persist assistant message versions locally'
+    commits:
+    - 41b050aa6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep chat message versions monotonic'
+    commits:
+    - 1175576cb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: wait longer for encrypted chat preflight'
+    commits:
+    - a50eda20c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: reveal synced chat before tab encryption assertion'
+    commits:
+    - 06424521e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for unified detail sync readiness'
+    commits:
+    - 122d570d4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record landing overlay verification'
+    commits:
+    - 0b6c3362b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: remove blank landing collapse and show examples'
+    commits:
+    - bf6784ac3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: install chat E2E readiness hooks'
+    commits:
+    - 03a78e057
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: wait for landing intro overlay geometry'
+    commits:
+    - 284ef69f7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: assert auth demo return input focus'
+    commits:
+    - 30f8f2e7f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: make landing intro collapse as overlay'
+    commits:
+    - 290d59c14
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: clarify screenshot HTML skill settings'
+    commits:
+    - 763514a8c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+  - title: 'test: wait for unified detail sync readiness'
+    commits:
+    - 122d570d4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: derive active sidebar title from messages'
+    commits:
+    - 1f493fe13
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover sidebar title after re-login'
+    commits:
+    - e7b436847
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: persist recent chat sidebar display'
+    commits:
+    - ed26154b9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep recent chat visible after new chat'
+    commits:
+    - 1ff2fc4f3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: replace chat transcript on source switch'
+    commits:
+    - 3660bc9e9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve interactive question answers in shared chats'
+    commits:
+    - 64f7527a3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: improve light mode UI contrast'
+    commits:
+    - 50dd85487
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refine landing guest slide polish'
+    commits:
+    - d2c552022
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: correct landing intro slide transition'
+    commits:
+    - 0a369d9b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: defer hidden chat settings work'
+    commits:
+    - dad332cb7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refine landing welcome polish'
+    commits:
+    - 7373e90d2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: add project remote source CLI SDK parity'
+    commits:
+    - fc4ba62a0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: clarify screenshot HTML skill settings'
+    commits:
+    - 763514a8c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix: correct landing mic and intro slides'
+    commits:
+    - f94af9ef3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: settle bank transfers with readable references'
+    commits:
+    - 9cfb8ecb0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: render screenshot HTML app skill preview'
+    commits:
+    - 390ba5671
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: route screenshot HTML app skill fullscreen'
+    commits:
+    - b31351099
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add plan learnings'
+    commits:
+    - 3ceee0a86
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: apply guest landing placeholder'
+    commits:
+    - 620c3d59d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: refresh logged-out landing examples'
+    commits:
+    - 64b5debec
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: remove blank landing collapse and show examples'
+    commits:
+    - bf6784ac3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: install chat E2E readiness hooks'
+    commits:
+    - 03a78e057
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: make landing intro collapse as overlay'
+    commits:
+    - 290d59c14
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 1f493fe1373b7e972fd9bbdda5816ebb89b1e867
+    short_sha: 1f493fe13
+    authored_at: '2026-07-24T23:15:09+00:00'
+    subject: 'fix: derive active sidebar title from messages'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    related_feature_ids: []
+  - sha: e7b4368479bdae03c69694e94d2fc4eff1562709
+    short_sha: e7b436847
+    authored_at: '2026-07-24T22:55:14+00:00'
+    subject: 'fix: recover sidebar title after re-login'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    related_feature_ids: []
+  - sha: ed26154b9295e4cc561c4edcba24266b22b49267
+    short_sha: ed26154b9
+    authored_at: '2026-07-24T22:33:28+00:00'
+    subject: 'fix: persist recent chat sidebar display'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: 1ff2fc4f31d782e53e640af61eb3047961f0fb92
+    short_sha: 1ff2fc4f3
+    authored_at: '2026-07-24T22:18:35+00:00'
+    subject: 'fix: keep recent chat visible after new chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: ee8cd99ff8a318b5485a7a3bb81be42a56dccc87
+    short_sha: ee8cd99ff
+    authored_at: '2026-07-24T21:53:15+00:00'
+    subject: 'fix: keep sidebar remount chat upserts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatListCache.test.ts
+    - frontend/packages/ui/src/services/chatListCache.ts
+    related_feature_ids: []
+  - sha: 31f5a375640809b7500d39043f1c3f21090c8303
+    short_sha: 31f5a3756
+    authored_at: '2026-07-24T21:37:38+00:00'
+    subject: 'test: use translated chat flow fixture category'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/chat_flow_quick_tip.json
+    related_feature_ids:
+    - app:ai
+  - sha: acc3b1d426143fa0e6b565a3657e2fdbb7d12c4e
+    short_sha: acc3b1d42
+    authored_at: '2026-07-24T21:28:15+00:00'
+    subject: 'test: stabilize chat flow mock response'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/chat_flow_quick_tip.json
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 3660bc9e9a3fdb29e84bbdc0af974ffe3cce1d62
+    short_sha: 3660bc9e9
+    authored_at: '2026-07-24T21:04:54+00:00'
+    subject: 'fix: replace chat transcript on source switch'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 64f7527a3f62aacf79230dd50d9b2a2c7253ac85
+    short_sha: 64f7527a3
+    authored_at: '2026-07-24T20:48:13+00:00'
+    subject: 'fix: preserve interactive question answers in shared chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/InteractiveQuestionNode.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.test.ts
+    related_feature_ids: []
+  - sha: 26e181b4262f1516ec80e89bec5a7134ab74170d
+    short_sha: 26e181b42
+    authored_at: '2026-07-24T20:41:17+00:00'
+    subject: 'test: cover batch sync message count mock'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    related_feature_ids: []
+  - sha: a5892372603973c3b8eded2d48c6d5f526815833
+    short_sha: a58923726
+    authored_at: '2026-07-24T20:36:28+00:00'
+    subject: 'fix: recover keyed background chats without user stamp'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    related_feature_ids: []
+  - sha: 50dd85487a506ac412f21e020acac02c9a822891
+    short_sha: 50dd85487
+    authored_at: '2026-07-24T20:30:54+00:00'
+    subject: 'fix: improve light mode UI contrast'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/EmbeddPreview.styles.css
+    - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
+    related_feature_ids: []
+  - sha: d2c552022ac93aba940a297e7d23d3c6c994bc04
+    short_sha: d2c552022
+    authored_at: '2026-07-24T20:25:11+00:00'
+    subject: 'fix: refine landing guest slide polish'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/placeholder.yml
+    related_feature_ids: []
+  - sha: 2a94bd712dc3f86a8f437accf50ce6968149bfbe
+    short_sha: 2a94bd712
+    authored_at: '2026-07-24T20:05:55+00:00'
+    subject: 'fix: notify recovered background assistant batches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    related_feature_ids: []
+  - sha: 8987578d4acb5ab65960946aca2db8a77f945db3
+    short_sha: 8987578d4
+    authored_at: '2026-07-24T19:50:50+00:00'
+    subject: 'fix: notify background chat on blank composer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatNotificationVisibility.ts
+    related_feature_ids: []
+  - sha: cb2c3394cbd94320bbf9c8d169dcc9665dd764cb
+    short_sha: cb2c3394c
+    authored_at: '2026-07-24T19:34:45+00:00'
+    subject: 'test: wait for background chat send before navigation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/background-chat-notification.spec.ts
+    related_feature_ids: []
+  - sha: 6428af8eeedb44399feba72878ee11920d7b2664
+    short_sha: 6428af8ee
+    authored_at: '2026-07-24T19:19:42+00:00'
+    subject: 'test: stabilize background chat notification wait'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/background-chat-notification.spec.ts
+    related_feature_ids: []
+  - sha: 67bf14cd3e0437dcfe8d15e6e4341e30b0728fc6
+    short_sha: 67bf14cd3
+    authored_at: '2026-07-24T19:05:01+00:00'
+    subject: 'fix: clean privacy workspace example chat audit'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-local-ai-workspace.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/privacy_first_local_ai_workspace.yml
+    related_feature_ids: []
+  - sha: b84d23a6730c7066e9f1fbc272cbb44e291c811b
+    short_sha: b84d23a67
+    authored_at: '2026-07-24T18:36:25+00:00'
+    subject: 'test: align long history active window check'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    related_feature_ids: []
+  - sha: 3ce804891c5cad77614e58c6b58b05e154ae4a41
+    short_sha: 3ce804891
+    authored_at: '2026-07-24T18:25:15+00:00'
+    subject: 'test: stabilize long history forgotten page'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    related_feature_ids: []
+  - sha: 263a0d74d14c3af004a2501aedf792babe69f4fa
+    short_sha: 263a0d74d
+    authored_at: '2026-07-24T17:51:58+00:00'
+    subject: 'fix: bound connected-account lookup before chat send'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    related_feature_ids: []
+  - sha: 0a369d9b220ac59b8ac0009c1f4b01c7bd2f805d
+    short_sha: 0a369d9b2
+    authored_at: '2026-07-24T17:26:16+00:00'
+    subject: 'fix: correct landing intro slide transition'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 3e3f30c5a586c801841b27dfecdb3d47f688d274
+    short_sha: 3e3f30c5a
+    authored_at: '2026-07-24T17:17:57+00:00'
+    subject: 'test: accept current share expiry label'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: aeaeb876b439e31471d8ff74c5db99cef24b9bf8
+    short_sha: aeaeb876b
+    authored_at: '2026-07-24T17:07:23+00:00'
+    subject: 'test: keep share chat flow plain'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 366a5905f55d8f3e3f1e13b3de0e80ffaf73ffc0
+    short_sha: 366a5905f
+    authored_at: '2026-07-24T17:05:11+00:00'
+    subject: 'docs: record project remote source evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    related_feature_ids:
+    - platform:projects
+  - sha: dad332cb76b134d760b6ddfcbf7285f3dc72307e
+    short_sha: dad332cb7
+    authored_at: '2026-07-24T16:53:09+00:00'
+    subject: 'fix: defer hidden chat settings work'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    related_feature_ids: []
+  - sha: 7373e90d23b28b6a2f9bffebb7ef5d4d459c8d64
+    short_sha: 7373e90d2
+    authored_at: '2026-07-24T16:36:18+00:00'
+    subject: 'fix: refine landing welcome polish'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/welcome.yml
+    related_feature_ids:
+    - app:ai
+  - sha: fc4ba62a08ead065b3b13c87d9d75251ef30f9e1
+    short_sha: fc4ba62a0
+    authored_at: '2026-07-24T16:27:47+00:00'
+    subject: 'feat: add project remote source CLI SDK parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/projects-remote-sources/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-projects.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_projects.py
+    - packages/openmates-python/tests/test_tasks.py
+    related_feature_ids:
+    - platform:projects
+  - sha: 1cf5a93ea83bf5b124e2efa71a5be6d27329d195
+    short_sha: 1cf5a93ea
+    authored_at: '2026-07-24T15:50:10+00:00'
+    subject: 'test: stabilize landing slide assertions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 763514a8c316dd643acaa53ab9f6e770f62d337a
+    short_sha: 763514a8c
+    authored_at: '2026-07-24T15:44:48+00:00'
+    subject: 'fix: clarify screenshot HTML skill settings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/core/api/app/routes/apps_api.py
+    - backend/tests/test_apps_api.py
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/data/__tests__/appsMetadata.test.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    related_feature_ids:
+    - app:code
+  - sha: 29d10b530dfcac60878dfaea00a0bf0077f124c8
+    short_sha: 29d10b530
+    authored_at: '2026-07-24T15:31:34+00:00'
+    subject: 'test: stabilize share chat header action'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: c8c97118cc5f3f1722188b7053b6db1e8d1c5e40
+    short_sha: c8c97118c
+    authored_at: '2026-07-24T15:22:41+00:00'
+    subject: 'test: accept inlined landing icon mask'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    related_feature_ids: []
+  - sha: f94af9ef3d8c64df47987b392b4f5bfa4fc9b400
+    short_sha: f94af9ef3
+    authored_at: '2026-07-24T15:12:59+00:00'
+    subject: 'fix: correct landing mic and intro slides'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/recordingHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/recordingStore.ts
+    - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/enter_message/main.yml
+    - frontend/packages/ui/src/i18n/sources/enter_message/record_audio.yml
+    related_feature_ids: []
+  - sha: 535c94f82e39fe3f3b2ef0154cb2697f0083ac9f
+    short_sha: 535c94f82
+    authored_at: '2026-07-24T15:04:12+00:00'
+    subject: 'test: use screenshot HTML canonical chat id'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    related_feature_ids: []
+  - sha: 1fdb085ed55f9dbe4e2103bfcb832d8533d86149
+    short_sha: 1fdb085ed
+    authored_at: '2026-07-24T14:52:30+00:00'
+    subject: 'test: cover screenshot HTML thumbnail selector'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/embeds/app_skill/GenericAppSkillEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 9cfb8ecb0082b304f92df629819c30d35d504050
+    short_sha: 9cfb8ecb0
+    authored_at: '2026-07-24T14:43:07+00:00'
+    subject: 'fix: settle bank transfers with readable references'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/routes/teams.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/api/app/tasks/email_tasks/bank_transfer_amount_notice_email_task.py
+    - backend/core/api/app/utils/bank_transfer_references.py
+    - backend/core/api/templates/email/bank-transfer-amount-notice.mjml
+    - backend/core/directus/schemas/pending_bank_transfers.yml
+    - backend/scripts/approve_bank_transfer.py
+    - backend/tests/test_approve_bank_transfer_script.py
+    - backend/tests/test_bank_transfer.py
+    - backend/tests/test_cli_bank_transfer_gift_card_purchase.py
+    - docs/specs/revolut-bank-transfer-auto-credit/spec.yml
+    - scripts/api_tests/test_revolut_business_bank_transfer_settlement.py
+    related_feature_ids:
+    - platform:teams
+  - sha: 390ba5671dc39d7a4b807dcf077db4118a8c1057
+    short_sha: 390ba5671
+    authored_at: '2026-07-24T14:42:35+00:00'
+    subject: 'fix: render screenshot HTML app skill preview'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/embeds/app_skill/GenericAppSkillEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    related_feature_ids: []
+  - sha: b3135109927f917e81e3c9edd540278d5c00b868
+    short_sha: b31351099
+    authored_at: '2026-07-24T14:38:24+00:00'
+    subject: 'fix: route screenshot HTML app skill fullscreen'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    related_feature_ids: []
+  - sha: 3ceee0a86c603bf9d30e2dfa49db6dafcd9e961d
+    short_sha: 3ceee0a86
+    authored_at: '2026-07-24T14:09:19+00:00'
+    subject: 'feat: add plan learnings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/core/directus/schemas/user_plans.yml
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/tests/test_plan_learnings.py
+    - backend/tests/test_plan_reference_patterns.py
+    - backend/tests/test_user_plan_execution_contexts.py
+    - backend/tests/test_user_plans_api.py
+    - docs/specs/plans-v1/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    related_feature_ids:
+    - platform:plans
+  - sha: 620c3d59d74cc9d45bd2826db5a1525979a6e92e
+    short_sha: 620c3d59d
+    authored_at: '2026-07-24T13:57:57+00:00'
+    subject: 'fix: apply guest landing placeholder'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: ec872f09f86ae0e5a846bc6137b5256d1a16b633
+    short_sha: ec872f09f
+    authored_at: '2026-07-24T13:56:24+00:00'
+    subject: 'test: close shared chat settings via close button'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    related_feature_ids: []
+  - sha: ad1ca37150aa8edfa3be7a3a2351f51f8adc2da0
+    short_sha: ad1ca3715
+    authored_at: '2026-07-24T13:53:06+00:00'
+    subject: 'test: close shared chat settings via close button'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    related_feature_ids: []
+  - sha: 64b5debec36d1fe2f09a42781554fd6f2dab2e3f
+    short_sha: 64b5debec
+    authored_at: '2026-07-24T13:44:53+00:00'
+    subject: 'feat: refresh logged-out landing examples'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/welcome.yml
+    - frontend/packages/ui/src/i18n/sources/enter_message/placeholder.yml
+    related_feature_ids: []
+  - sha: 41b050aa6d9d23da7e5b9b004308a295834aa126
+    short_sha: 41b050aa6
+    authored_at: '2026-07-24T13:32:17+00:00'
+    subject: 'fix: persist assistant message versions locally'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: 1175576cbcb26c3a6a03a8fb5e3fcd47b4a0a6c5
+    short_sha: 1175576cb
+    authored_at: '2026-07-24T13:17:39+00:00'
+    subject: 'fix: keep chat message versions monotonic'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    related_feature_ids: []
+  - sha: a50eda20c39eddc6ea2d6c9ed0189e07aa29d113
+    short_sha: a50eda20c
+    authored_at: '2026-07-24T13:01:18+00:00'
+    subject: 'fix: wait longer for encrypted chat preflight'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: 06424521eab6fe30519e5547ebd503838d26a95c
+    short_sha: 06424521e
+    authored_at: '2026-07-24T12:41:15+00:00'
+    subject: 'test: reveal synced chat before tab encryption assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    related_feature_ids: []
+  - sha: 122d570d4170e5996acc31c1b87407e5b2d8cca0
+    short_sha: 122d570d4
+    authored_at: '2026-07-24T12:22:19+00:00'
+    subject: 'test: wait for unified detail sync readiness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    related_feature_ids: []
+  - sha: 0b6c3362bfc998ced2bf5274e6c110da3b6304d4
+    short_sha: 0b6c3362b
+    authored_at: '2026-07-24T11:30:21+00:00'
+    subject: 'docs: record landing overlay verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/landing-page-onboarding-refresh/spec.yml
+    related_feature_ids: []
+  - sha: bf6784ac326e7a804658d908a4b21dfdc9589d09
+    short_sha: bf6784ac3
+    authored_at: '2026-07-24T11:04:28+00:00'
+    subject: 'fix: remove blank landing collapse and show examples'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 03a78e05703aa3e8ca7434d0401a9015224eece7
+    short_sha: 03a78e057
+    authored_at: '2026-07-24T09:57:05+00:00'
+    subject: 'fix: install chat E2E readiness hooks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/app.ts
+    - frontend/packages/ui/src/services/e2eTestHooks.ts
+    related_feature_ids: []
+  - sha: 284ef69f7b63761b32306b28e87c1ad5bcdde02f
+    short_sha: 284ef69f7
+    authored_at: '2026-07-24T09:47:42+00:00'
+    subject: 'test: wait for landing intro overlay geometry'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    related_feature_ids: []
+  - sha: 30f8f2e7f7a29b677315e94eee2e8c8000a6ceaa
+    short_sha: 30f8f2e7f
+    authored_at: '2026-07-24T09:39:29+00:00'
+    subject: 'test: assert auth demo return input focus'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/auth-back-to-demo.spec.ts
+    related_feature_ids: []
+  - sha: 290d59c14ac79a4294b29367108285977bb6d9f2
+    short_sha: 290d59c14
+    authored_at: '2026-07-24T09:30:55+00:00'
+    subject: 'fix: make landing intro collapse as overlay'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on a comprehensive refresh of the landing page and onboarding experience, alongside critical
+    stability fixes for chat sidebar persistence and background synchronization.
+  released_changes: []
+  bug_fixes:
+  - text: The chat sidebar now correctly derives titles from message content and maintains visibility when creating new chats
+      or re-logging.
+    evidence:
+      commits:
+      - 1f493fe13
+      - e7b436847
+      - ed26154b9
+      - 1ff2fc4f3
+    release_status: dev_only
+  - text: The guest landing page received several polish updates, including improved slide transitions, microphone handling,
+      and an overlay-based intro collapse.
+    evidence:
+      commits:
+      - d2c552022
+      - 0a369d9b2
+      - f94af9ef3
+      - 290d59c14
+      - bf6784ac3
+    release_status: dev_only
+  - text: Background chat synchronization was improved to better handle recovery of assistant batches and ensure message versions
+      remain monotonic.
+    evidence:
+      commits:
+      - a58923726
+      - 2a94bd712
+      - 1175576cb
+      - 41b050aa6
+    release_status: dev_only
+  - text: The screenshot HTML app skill now supports fullscreen routing and improved preview rendering.
+    evidence:
+      commits:
+      - 390ba5671
+      - b31351099
+      - 763514a8c
+    release_status: dev_only
+  - text: UI refinements include better light mode contrast, transcript replacement when switching sources, and preservation
+      of interactive question answers in shared chats.
+    evidence:
+      commits:
+      - 64f7527a3
+      - 50dd85487
+      - 3660bc9e9
+    release_status: dev_only
+  unreleased_progress:
+  - text: Work continues on project remote sources, adding parity between the CLI and SDK.
+    evidence:
+      commits:
+      - fc4ba62a0
+      - 366a5905f
+    release_status: dev_only
+  - text: Initial support for plan learnings was added to the backend and Python SDK.
+    evidence:
+      commits:
+      - 3ceee0a86
+    release_status: dev_only
+  - text: Automated bank transfer settlement with readable references is in development for team accounts.
+    evidence:
+      commits:
+      - 9cfb8ecb0
+    release_status: dev_only
+  - text: Logged-out landing examples were refreshed to provide better context for prospective users.
+    evidence:
+      commits:
+      - 64b5debec
+    release_status: dev_only
+  internal_progress:
+  - text: Significant effort was directed toward stabilizing E2E tests for chat flows, multi-tab encryption, and landing page
+      geometry.
+    evidence:
+      commits:
+      - 03a78e057
+      - acc3b1d42
+      - 6428af8ee
+      - 06424521e
+      - 284ef69f7
+      - 122d570d4
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Project remote source CLI SDK parity.
+      evidence:
+        commits:
+        - fc4ba62a0
+      reason: Related to disabled platform:projects feature.
+    - text: Plan learnings integration.
+      evidence:
+        commits:
+        - 3ceee0a86
+      reason: Related to disabled platform:plans feature.
+    - text: Bank transfer settlement logic.
+      evidence:
+        commits:
+        - 9cfb8ecb0
+      reason: Related to disabled platform:teams feature.
+    rationale: All user-facing changes are currently in development and have not yet reached the main branch for public release.
+  social_video_recommendations:
+  - idea: A walkthrough of the refreshed guest landing page and onboarding experience.
+    priority: medium
+    reason: The landing page refresh is a visual update that demonstrates product polish and ease of entry for new users.
+    evidence:
+      commits:
+      - 64b5debec
+      - d2c552022
+      - 0a369d9b2
+      - f94af9ef3
+  quality_notes:
+  - Extensive test coverage was added for the new landing page onboarding flow to ensure UI geometry and transitions are stable.
+  - Chat synchronization logic was hardened to prevent versioning conflicts during background updates.
+  validation_warnings: []

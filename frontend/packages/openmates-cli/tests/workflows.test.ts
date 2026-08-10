@@ -15,9 +15,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { OpenMatesClient, type WorkflowGraph } from "../src/client.ts";
+import { formatEmbedPreviewLines } from "../src/embedRenderers.ts";
 import type { OpenMatesSession } from "../src/storage.ts";
 
-type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
+type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown; headers: IncomingMessage["headers"] };
 
 function testSession(): OpenMatesSession {
   return {
@@ -45,6 +46,19 @@ function minimalGraph(): WorkflowGraph {
   };
 }
 
+function templateImportPayload() {
+  return {
+    template_version: 1,
+    title: "Morning",
+    trigger_template: { type: "manual_trigger", config: {} },
+    node_templates: [],
+    edge_templates: [],
+    variables_schema: {},
+    required_capabilities: [],
+    binding_requirements: [],
+  };
+}
+
 async function withServer(
   handler: (request: IncomingMessage, body: unknown) => unknown,
   run: (apiUrl: string, seen: SeenRequest[]) => Promise<void>,
@@ -58,7 +72,7 @@ async function withServer(
     });
     request.on("end", () => {
       const body = raw ? JSON.parse(raw) : undefined;
-      seen.push({ method: request.method, url: request.url, body });
+      seen.push({ method: request.method, url: request.url, body, headers: request.headers });
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify(handler(request, body)));
     });
@@ -74,6 +88,27 @@ async function withServer(
 }
 
 describe("OpenMatesClient workflows", () => {
+  it("formats workflow child embeds for CLI output", () => {
+    const lines = formatEmbedPreviewLines({
+      embedId: "workflow-embed-12345678",
+      type: "workflows-workflow",
+      status: "finished",
+      content: {
+        type: "workflow",
+        workflow_id: "wf-1",
+        title: "Morning weather",
+        status: "draft",
+      },
+    });
+
+    assert.equal(lines[0], "┌─ ✓ workflow · Morning weather");
+    assert.deepEqual(lines.slice(1, 4), [
+      "│  Status: draft",
+      "│  ID: wf-1",
+      "└─ openmates workflows show wf-1",
+    ]);
+  });
+
   it("creates, lists, and updates workflows through typed endpoints", async () => {
     const graph = minimalGraph();
     await withServer(
@@ -116,20 +151,166 @@ describe("OpenMatesClient workflows", () => {
         if (request.url === "/v1/workflows/wf-1/runs") {
           return { runs: [{ id: "run-1", workflow_id: "wf-1", version_id: "v1", trigger_type: "manual", status: "completed", content_retention_mode: "last_5", content_available: true, content_storage: "durable" }] };
         }
+        if (request.url === "/v1/workflows/wf-1/runs/run-1/cancel") {
+          return { run_id: "run-1", status: "cancellation_requested" };
+        }
         return { run: { id: "run-1", workflow_id: "wf-1", version_id: "v1", trigger_type: "manual", status: "completed", content_retention_mode: "last_5", content_available: true, content_storage: "durable", node_runs: [] } };
       },
       async (apiUrl, seen) => {
         const client = new OpenMatesClient({ apiUrl, session: testSession() });
-        assert.equal((await client.runWorkflow("wf-1", { mode: "test", input: { dry: true } })).id, "run-1");
+        assert.equal((await client.runWorkflow("wf-1", { idempotencyKey: "stable-run-1", mode: "test", input: { dry: true } })).id, "run-1");
         assert.equal((await client.listWorkflowRuns("wf-1"))[0]?.id, "run-1");
         assert.equal((await client.getWorkflowRun("wf-1", "run-1")).status, "completed");
+        assert.equal((await client.cancelWorkflowRun("wf-1", "run-1")).status, "cancellation_requested");
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
           ["POST", "/v1/workflows/wf-1/run"],
           ["GET", "/v1/workflows/wf-1/runs"],
           ["GET", "/v1/workflows/wf-1/runs/run-1"],
+          ["POST", "/v1/workflows/wf-1/runs/run-1/cancel"],
         ]);
         assert.deepEqual(seen[0]?.body, { mode: "test", input: { dry: true } });
+        assert.equal(seen[0]?.headers["idempotency-key"], "stable-run-1");
+      },
+    );
+  });
+
+  it("validates, creates, updates YAML, step-tests, and responds to waiting runs", async () => {
+    const graph = minimalGraph();
+    await withServer(
+      (request, body) => {
+        if (request.url === "/v1/workflows/validate") {
+          assert.deepEqual(body, { source: "title: Test\n" });
+          return { validation: { draft_valid: true, enable_ready: false, diagnostics: [{ code: "REQUIRED_RUNTIME_INPUT" }] } };
+        }
+        if (request.url === "/v1/workflows/yaml") {
+          assert.deepEqual(body, { source: "title: Test\n" });
+          return { workflow: { id: "wf-1", title: "Test", status: "disabled", enabled: false, current_version_id: "v1", created_at: 1, updated_at: 1, graph }, validation: { draft_valid: true, enable_ready: true, diagnostics: [] } };
+        }
+        if (request.url === "/v1/workflows/wf-1/yaml") {
+          assert.deepEqual(body, { source: "title: Updated\n" });
+          return { workflow: { id: "wf-1", title: "Updated", status: "disabled", enabled: false, current_version_id: "v2", created_at: 1, updated_at: 2, graph }, validation: { draft_valid: true, enable_ready: true, diagnostics: [] } };
+        }
+        if (request.url === "/v1/workflows/wf-1/steps/weather/test") {
+          assert.deepEqual(body, { input: { location: "Berlin" }, confirmed: true });
+          return { run: { id: "run-step", workflow_id: "wf-1", version_id: "v2", trigger_type: "step_test", status: "completed", content_retention_mode: "last_5", content_available: true, content_storage: "durable", node_runs: [] } };
+        }
+        if (request.url === "/v1/workflows/wf-1/runs/run-1/respond") {
+          assert.deepEqual(body, { step_id: "ask", input: { city: "Berlin" } });
+          return { run: { id: "run-1", workflow_id: "wf-1", version_id: "v2", trigger_type: "manual", status: "completed", content_retention_mode: "last_5", content_available: true, content_storage: "durable", node_runs: [] } };
+        }
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        assert.equal((await client.validateWorkflowYaml("title: Test\n")).draft_valid, true);
+        assert.equal((await client.createWorkflowYaml("title: Test\n")).workflow.id, "wf-1");
+        assert.equal((await client.updateWorkflowYaml("wf-1", "title: Updated\n")).workflow.title, "Updated");
+        assert.equal((await client.testWorkflowStep("wf-1", "weather", { input: { location: "Berlin" }, confirmed: true })).trigger_type, "step_test");
+        assert.equal((await client.respondToWorkflowRun("wf-1", "run-1", "ask", { city: "Berlin" })).status, "completed");
+
+        assert.deepEqual(seen.map((request) => [request.method, request.url]), [
+          ["POST", "/v1/workflows/validate"],
+          ["POST", "/v1/workflows/yaml"],
+          ["POST", "/v1/workflows/wf-1/yaml"],
+          ["POST", "/v1/workflows/wf-1/steps/weather/test"],
+          ["POST", "/v1/workflows/wf-1/runs/run-1/respond"],
+        ]);
+      },
+    );
+  });
+
+  it("manages client-encrypted workflow template projection and sharing contracts", async () => {
+    const payload = templateImportPayload();
+    await withServer(
+      (request, body) => {
+        if (request.url === "/v1/workflows/wf-1/template-projection" && request.method === "PUT") {
+          assert.deepEqual(body, {
+            template_id: "tpl-1",
+            source_version: 2,
+            ciphertext: "opaque-ciphertext",
+            ciphertext_checksum: "sha256:abc",
+            owner_wrapped_key: "wrapped-key",
+            projection_schema_version: 1,
+          });
+          return { template_id: "tpl-1", source_version: 2, updated_at: 123 };
+        }
+        if (request.url === "/v1/share/short-url" && request.method === "POST") {
+          assert.deepEqual(body, {
+            token: "Abc123XY",
+            encrypted_url: "opaque-url",
+            content_type: "workflow_template",
+            content_id: "tpl-1",
+            password_protected: false,
+            ttl_seconds: 3600,
+          });
+          return { success: true, expires_at: 999 };
+        }
+        if (request.url === "/v1/share/short-url/Abc123XY" && request.method === "DELETE") {
+          return { success: true, revoked_at: 1000 };
+        }
+        if (request.url === "/v1/workflows/template-import" && request.method === "POST") {
+          assert.deepEqual(body, payload);
+          return { workflow: { id: "wf-imported", title: "Morning", status: "disabled", enabled: false, current_version_id: "v1", created_at: 1, updated_at: 1, graph: minimalGraph(), binding_requirements: [] } };
+        }
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        assert.equal((await client.upsertWorkflowTemplateProjection("wf-1", {
+          templateId: "tpl-1",
+          sourceVersion: 2,
+          ciphertext: "opaque-ciphertext",
+          ciphertextChecksum: "sha256:abc",
+          ownerWrappedKey: "wrapped-key",
+          projectionSchemaVersion: 1,
+        })).updated_at, 123);
+        assert.equal((await client.createWorkflowTemplateShortUrl({ token: "Abc123XY", encryptedUrl: "opaque-url", templateId: "tpl-1", ttlSeconds: 3600 })).expires_at, 999);
+        assert.equal((await client.revokeShortUrl("Abc123XY")).revoked_at, 1000);
+        assert.equal((await client.importWorkflowTemplate(payload)).id, "wf-imported");
+
+        assert.deepEqual(seen.map((request) => [request.method, request.url]), [
+          ["PUT", "/v1/workflows/wf-1/template-projection"],
+          ["POST", "/v1/share/short-url"],
+          ["DELETE", "/v1/share/short-url/Abc123XY"],
+          ["POST", "/v1/workflows/template-import"],
+        ]);
+      },
+    );
+  });
+
+  it("retrieves, revokes, restores, and completes workflow template sharing bindings", async () => {
+    await withServer(
+      (request, body) => {
+        if (request.url === "/v1/workflows/template-projections/tpl-1" && request.method === "GET") {
+          return {
+            template_id: "tpl-1",
+            ciphertext: "opaque-ciphertext",
+            ciphertext_checksum: "sha256:abc",
+            projection_schema_version: 1,
+          };
+        }
+        if (request.url === "/v1/workflows/wf-1/template-projection/revoke" && request.method === "POST") {
+          assert.deepEqual(body, {});
+          return { template_id: "tpl-1", revoked_at: 1000 };
+        }
+        if (request.url === "/v1/workflows/wf-1/template-projection/unrevoke" && request.method === "POST") {
+          assert.deepEqual(body, {});
+          return { template_id: "tpl-1", revoked_at: null };
+        }
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        assert.equal((await client.getPublicWorkflowTemplateProjection("tpl-1")).ciphertext, "opaque-ciphertext");
+        assert.equal((await client.revokeWorkflowTemplateProjection("wf-1")).revoked_at, 1000);
+        assert.equal((await client.unrevokeWorkflowTemplateProjection("wf-1")).revoked_at, null);
+
+        assert.deepEqual(seen.map((request) => [request.method, request.url]), [
+          ["GET", "/v1/workflows/template-projections/tpl-1"],
+          ["POST", "/v1/workflows/wf-1/template-projection/revoke"],
+          ["POST", "/v1/workflows/wf-1/template-projection/unrevoke"],
+        ]);
       },
     );
   });

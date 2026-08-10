@@ -38,20 +38,44 @@ def test_travel_app_schema_exposes_supported_flight_constraints() -> None:
     with app_yml.open("r", encoding="utf-8") as handle:
         app_config = yaml.safe_load(handle)
     search_connections = next(skill for skill in app_config["skills"] if skill["id"] == "search_connections")
-    request_props = search_connections["tool_schema"]["properties"]["requests"]["items"]["properties"]
+    request_item_schema = search_connections["tool_schema"]["properties"]["requests"]["items"]
+    request_props = request_item_schema["properties"]
 
     for field in [
         "max_stops",
         "max_price",
         "include_airlines",
         "exclude_airlines",
+        "owned_passes",
+        "pass_only",
+        "rail_products",
         "min_departure_time",
         "max_departure_time",
         "max_duration_minutes",
+        "min_transfer_minutes",
         "max_layover_minutes",
         "avoid_overnight_layovers",
+        "origin",
+        "destination",
+        "date",
+        "transport_method",
+        "provider",
     ]:
         assert field in request_props
+
+    assert "legs" not in request_item_schema.get("required", [])
+    assert "transitous" in request_props["providers"]["items"]["enum"]
+    assert request_props["rail_products"]["items"]["enum"] == [
+        "high_speed",
+        "intercity",
+        "regional_express",
+        "regional",
+        "s_bahn",
+        "subway",
+        "tram",
+        "bus",
+        "ferry",
+    ]
 
 
 def test_search_connections_empty_group_metadata_explains_filtered_out() -> None:

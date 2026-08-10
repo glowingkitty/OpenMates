@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: Optional image tag override, e.g. v0.14.0
+        description: Optional image tag override, e.g. v0.15.0-alpha.0
         required: false
         type: string
       notify_pr:
@@ -22,25 +22,29 @@ on:
       - 'backend/**'
       - 'frontend/apps/web_app/**'
       - 'frontend/packages/ui/**'
+      - 'docs/**'
       - 'shared/**'
       - 'backend/core/docker-compose.selfhost.yml'
       - 'backend/upload/docker-compose.selfhost.yml'
       - 'backend/preview/docker-compose.selfhost.yml'
       - '.github/workflows/publish-selfhost-images.yml'
       - 'shared/config/product_version.json'
+      - 'config/media_encryption_rollout.yml'
       - 'scripts/prepare_cli_publish_version.mjs'
   push:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - 'backend/**'
       - 'frontend/apps/web_app/**'
       - 'frontend/packages/ui/**'
+      - 'docs/**'
       - 'shared/**'
       - 'backend/core/docker-compose.selfhost.yml'
       - 'backend/upload/docker-compose.selfhost.yml'
       - 'backend/preview/docker-compose.selfhost.yml'
       - '.github/workflows/publish-selfhost-images.yml'
       - 'shared/config/product_version.json'
+      - 'config/media_encryption_rollout.yml'
       - 'scripts/prepare_cli_publish_version.mjs'
 
 concurrency:
@@ -55,7 +59,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAMESPACE: glowingkitty
-  PUBLISH_IMAGES: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+  PUBLISH_IMAGES: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') }}
 
 jobs:
   prepare:
@@ -70,6 +74,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify domain-security policy and image inclusion
+        run: |
+          python -m pip install --disable-pip-version-check cryptography==48.0.1
+          python scripts/audit_domain_security.py --verify-api-worker-selfhost-images
 
       - name: Derive image tag
         id: version
@@ -173,6 +186,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - image: openmates-directus
+            file: backend/core/directus/Dockerfile
+            context: backend/core/directus
           - image: openmates-cms-setup
             file: backend/core/directus/Dockerfile.setup.selfhost
             context: backend/core/directus

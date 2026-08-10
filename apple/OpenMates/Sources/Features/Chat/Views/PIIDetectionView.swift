@@ -52,6 +52,11 @@ struct PIIRedactionResult: Equatable, Sendable {
     let mappings: [PIIMapping]
 }
 
+struct PIIPlaceholderRewriteResult: Equatable, Sendable {
+    let text: String
+    let appliedMappings: [PIIMapping]
+}
+
 struct PIIPrivacySettings: Equatable, Sendable {
     let masterEnabled: Bool
     let disabledCategories: Set<String>
@@ -312,6 +317,53 @@ enum PIIDetector {
         )
     }
 
+    static func rewriteKnownPIIPlaceholders(
+        in text: String,
+        mappings: [PIIMapping],
+        excludedOriginals: Set<String> = [],
+        excludedPlaceholders: Set<String> = []
+    ) -> PIIPlaceholderRewriteResult {
+        guard !text.isEmpty, !mappings.isEmpty else {
+            return PIIPlaceholderRewriteResult(text: text, appliedMappings: [])
+        }
+
+        let protected = protectEmbedReferenceBlocks(in: text)
+        var rewritten = protected.text
+        var appliedMappings: [PIIMapping] = []
+        var appliedKeys = Set<String>()
+
+        for mapping in rewriteMappings(
+            mappings,
+            excludedOriginals: excludedOriginals,
+            excludedPlaceholders: excludedPlaceholders
+        ) {
+            guard rewritten.contains(mapping.original) else { continue }
+            rewritten = rewritten.replacingOccurrences(of: mapping.original, with: mapping.placeholder)
+            let key = mappingKey(mapping)
+            if !appliedKeys.contains(key) {
+                appliedKeys.insert(key)
+                appliedMappings.append(mapping)
+            }
+        }
+
+        return PIIPlaceholderRewriteResult(
+            text: restoreProtectedBlocks(in: rewritten, blocks: protected.blocks),
+            appliedMappings: appliedMappings
+        )
+    }
+
+    static func mergePIIMappings(_ mappings: [PIIMapping]) -> [PIIMapping] {
+        var merged: [PIIMapping] = []
+        var seen = Set<String>()
+        for mapping in mappings {
+            let key = mappingKey(mapping)
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            merged.append(mapping)
+        }
+        return merged
+    }
+
     static func redactedText(_ text: String, matches: [PIIMatch], excludedIds: Set<String>) -> String {
         let mutable = NSMutableString(string: text)
         for match in matches.sorted(by: { $0.range.location > $1.range.location }) where !excludedIds.contains(match.id) {
@@ -324,6 +376,72 @@ enum PIIDetector {
         matches
             .filter { !excludedIds.contains($0.id) }
             .map { PIIMapping(placeholder: $0.placeholder, original: $0.value, type: $0.type.rawValue) }
+    }
+
+    private static func rewriteMappings(
+        _ mappings: [PIIMapping],
+        excludedOriginals: Set<String>,
+        excludedPlaceholders: Set<String>
+    ) -> [PIIMapping] {
+        var seenOriginals = Set<String>()
+        return mappings
+            .filter { mapping in
+                guard !mapping.original.isEmpty, !mapping.placeholder.isEmpty else { return false }
+                guard mapping.original != mapping.placeholder else { return false }
+                guard !excludedOriginals.contains(mapping.original) else { return false }
+                guard !excludedPlaceholders.contains(mapping.placeholder) else { return false }
+                guard !seenOriginals.contains(mapping.original) else { return false }
+                seenOriginals.insert(mapping.original)
+                return true
+            }
+            .sorted { $0.original.count > $1.original.count }
+    }
+
+    private static func mappingKey(_ mapping: PIIMapping) -> String {
+        "\(mapping.placeholder)\u{0}\(mapping.original)"
+    }
+
+    private struct ProtectedBlock {
+        let token: String
+        let value: String
+    }
+
+    private static func protectEmbedReferenceBlocks(in text: String) -> (text: String, blocks: [ProtectedBlock]) {
+        guard let expression = try? NSRegularExpression(pattern: #"```json\n([\s\S]*?)\n```"#) else {
+            return (text, [])
+        }
+        let source = text as NSString
+        let matches = expression.matches(in: text, range: NSRange(location: 0, length: source.length))
+        guard !matches.isEmpty else { return (text, []) }
+
+        let mutable = NSMutableString(string: text)
+        var blocks: [ProtectedBlock] = []
+        for match in matches.reversed() {
+            guard match.numberOfRanges > 1 else { continue }
+            let block = source.substring(with: match.range(at: 0))
+            let content = source.substring(with: match.range(at: 1))
+            guard isEmbedReferenceJSON(content) else { continue }
+            let token = "__OPENMATES_EMBED_REF_REWRITE_PROTECTED_\(blocks.count)__"
+            blocks.append(ProtectedBlock(token: token, value: block))
+            mutable.replaceCharacters(in: match.range(at: 0), with: token)
+        }
+        return (mutable as String, blocks)
+    }
+
+    private static func restoreProtectedBlocks(in text: String, blocks: [ProtectedBlock]) -> String {
+        var restored = text
+        for block in blocks {
+            restored = restored.replacingOccurrences(of: block.token, with: block.value)
+        }
+        return restored
+    }
+
+    private static func isEmbedReferenceJSON(_ content: String) -> Bool {
+        guard let data = content.trimmingCharacters(in: .whitespacesAndNewlines).data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return false
+        }
+        return object["embed_id"] != nil || object["embed_ids"] != nil
     }
 
     static func restorePII(in text: String, mappings: [PIIMapping]) -> String {

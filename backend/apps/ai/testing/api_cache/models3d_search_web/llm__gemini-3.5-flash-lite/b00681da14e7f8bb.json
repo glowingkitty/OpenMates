@@ -1,0 +1,56 @@
+{
+  "fingerprint": "b00681da14e7f8bb",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "models3d_search_web",
+  "recorded_at": "2026-07-28T21:16:23.688716+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 4,
+    "tools_count": 3,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "tool",
+      "content": "results[0]:\ncount: 0"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "models3d-search-c5b7e34b",
+          "function_name": "models3d-search",
+          "function_arguments_raw": "{\"requests\": [{\"query\": \"benchy\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "query": "benchy"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "EjQKMgERTTIPqPT2MyWkU9Lom0vffyN2g3S6Y+7H5yoYeYchsQYsqR9buf60cj9eX8uODTUs"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 12790,
+          "candidates_token_count": 22,
+          "total_token_count": 12812,
+          "user_input_tokens": 18,
+          "system_prompt_tokens": 11885
+        }
+      }
+    ]
+  }
+}

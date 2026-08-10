@@ -13,6 +13,43 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CHAT_VERSION = 0
 DEFAULT_UNREAD_COUNT = 0
+CACHE_WARMING_IN_PROGRESS_KEY_PREFIX = "cache_warming_in_progress:"
+
+
+def _cache_warming_in_progress_key(user_id: str) -> str:
+    return f"{CACHE_WARMING_IN_PROGRESS_KEY_PREFIX}{user_id}"
+
+
+async def _clear_cache_warming_in_progress_flag(
+    cache_service: CacheService,
+    user_id: str,
+    task_id: Optional[str],
+) -> None:
+    flag_key = _cache_warming_in_progress_key(user_id)
+    deleted = await cache_service.delete(flag_key)
+    if deleted:
+        logger.info(
+            "TASK_CLEANUP_SYNC_WRAPPER: Cleared cache warming flag for user_id: %s, task_id: %s",
+            user_id,
+            task_id,
+        )
+    else:
+        logger.debug(
+            "TASK_CLEANUP_SYNC_WRAPPER: Cache warming flag absent for user_id: %s, task_id: %s",
+            user_id,
+            task_id,
+        )
+
+
+async def _clear_cache_warming_in_progress_flag_for_user(
+    user_id: str,
+    task_id: Optional[str],
+) -> None:
+    cache_service = CacheService()
+    try:
+        await _clear_cache_warming_in_progress_flag(cache_service, user_id, task_id)
+    finally:
+        await cache_service.close()
 
 
 def _timestamp_or_zero(value: Optional[int]) -> int:
@@ -36,6 +73,7 @@ def _cached_chat_versions_from_details(
     chat_data: Dict[str, Any],
     user_id: str,
     chat_id: str,
+    existing_versions: Optional[CachedChatVersions] = None,
 ) -> CachedChatVersions:
     """Build cache version metadata while tolerating old corrupted rows."""
 
@@ -53,6 +91,37 @@ def _cached_chat_versions_from_details(
             )
             value = DEFAULT_CHAT_VERSION
         version_values[field] = value
+
+    metadata_v = chat_data.get("metadata_v")
+    if metadata_v is None:
+        logger.warning(
+            "[CACHE_WARMING_DATA_REPAIR] Chat %s for user %s has null metadata_v; "
+            "using %s so cache warming can complete.",
+            chat_id,
+            user_id,
+            DEFAULT_CHAT_VERSION,
+        )
+        metadata_v = DEFAULT_CHAT_VERSION
+    version_values["metadata_v"] = metadata_v
+    if not metadata_v and version_values["title_v"] > 0:
+        version_values["metadata_v"] = version_values["title_v"]
+
+    if existing_versions:
+        version_values["messages_v"] = max(
+            int(version_values["messages_v"] or 0),
+            int(existing_versions.messages_v or 0),
+        )
+        version_values["title_v"] = max(
+            int(version_values["title_v"] or 0),
+            int(existing_versions.title_v or 0),
+        )
+        existing_metadata_v = int(getattr(existing_versions, "metadata_v", None) or 0)
+        if not existing_metadata_v and existing_versions.title_v:
+            existing_metadata_v = int(existing_versions.title_v or 0)
+        version_values["metadata_v"] = max(
+            int(version_values["metadata_v"] or 0),
+            existing_metadata_v,
+        )
 
     return CachedChatVersions(**version_values)
 
@@ -75,6 +144,66 @@ def _cached_unread_count_from_details(
         )
         return DEFAULT_UNREAD_COUNT
     return unread_count
+
+
+def _cached_chat_list_item_from_details(
+    chat_data: Dict[str, Any],
+    user_id: str,
+    chat_id: str,
+    existing_cache_data: Optional[CachedChatListItemData] = None,
+    existing_versions: Optional[CachedChatVersions] = None,
+) -> CachedChatListItemData:
+    fresh_title_v = int(chat_data.get("title_v") or 0)
+    fresh_metadata_v = int(chat_data.get("metadata_v") or 0)
+    if not fresh_metadata_v and fresh_title_v > 0:
+        fresh_metadata_v = fresh_title_v
+
+    cached_title_v = int(getattr(existing_versions, "title_v", 0) or 0)
+    cached_metadata_v = int(getattr(existing_versions, "metadata_v", None) or 0)
+    if not cached_metadata_v and cached_title_v > 0:
+        cached_metadata_v = cached_title_v
+
+    title = chat_data.get("encrypted_title")
+    cached_title_is_newer = cached_title_v > fresh_title_v or (
+        cached_title_v == fresh_title_v and cached_metadata_v > fresh_metadata_v
+    )
+    if existing_cache_data and existing_cache_data.title and cached_title_is_newer:
+        title = existing_cache_data.title
+
+    encrypted_chat_summary = chat_data.get("encrypted_chat_summary")
+    if (
+        existing_cache_data
+        and existing_cache_data.encrypted_chat_summary
+        and cached_metadata_v > fresh_metadata_v
+    ):
+        encrypted_chat_summary = existing_cache_data.encrypted_chat_summary
+
+    return CachedChatListItemData(
+        title=title,
+        unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
+        created_at=chat_data["created_at"],
+        updated_at=chat_data["updated_at"],
+        encrypted_chat_key=chat_data.get("encrypted_chat_key"),
+        encrypted_icon=chat_data.get("encrypted_icon"),
+        encrypted_category=chat_data.get("encrypted_category"),
+        encrypted_chat_summary=encrypted_chat_summary,
+        encrypted_share_cta_text=chat_data.get("encrypted_share_cta_text"),
+        encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
+        encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
+        encrypted_top_recommended_apps_for_chat=chat_data.get("encrypted_top_recommended_apps_for_chat"),
+        encrypted_quick_tip_slugs=chat_data.get("encrypted_quick_tip_slugs"),
+        encrypted_shared_short_url=chat_data.get("encrypted_shared_short_url"),
+        encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
+        last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
+        is_shared=chat_data.get("is_shared"),
+        is_private=chat_data.get("is_private"),
+        parent_id=chat_data.get("parent_id"),
+        is_sub_chat=chat_data.get("is_sub_chat"),
+        budget_limit=chat_data.get("budget_limit"),
+        budget_spent=chat_data.get("budget_spent"),
+        pinned=chat_data.get("pinned"),
+        user_id=user_id,
+    )
 
 
 async def _load_and_cache_embeds_for_chats(
@@ -281,31 +410,14 @@ async def _warm_cache_phase_one(
         user_draft_content = full_data.get("user_encrypted_draft_content")
         user_draft_version_db = full_data.get("user_draft_version_db", 0)
 
-        list_item_data = CachedChatListItemData(
-            title=chat_details["encrypted_title"],
-            unread_count=_cached_unread_count_from_details(chat_details, user_id, target_immediate_chat_id),
-            created_at=chat_details['created_at'],
-            updated_at=chat_details['updated_at'],
-            encrypted_chat_key=chat_details.get("encrypted_chat_key"),
-            encrypted_icon=chat_details.get("encrypted_icon"),
-            encrypted_category=chat_details.get("encrypted_category"),
-            encrypted_chat_summary=chat_details.get("encrypted_chat_summary"),
-            encrypted_share_cta_text=chat_details.get("encrypted_share_cta_text"),
-            encrypted_chat_tags=chat_details.get("encrypted_chat_tags"),
-            encrypted_follow_up_request_suggestions=chat_details.get("encrypted_follow_up_request_suggestions"),
-            encrypted_top_recommended_apps_for_chat=chat_details.get("encrypted_top_recommended_apps_for_chat"),
-            encrypted_quick_tip_slugs=chat_details.get("encrypted_quick_tip_slugs"),
-            encrypted_shared_short_url=chat_details.get("encrypted_shared_short_url"),
-            encrypted_active_focus_id=chat_details.get("encrypted_active_focus_id"),
-            last_message_timestamp=chat_details.get("last_edited_overall_timestamp") or chat_details.get("last_message_timestamp"),
-            is_shared=chat_details.get("is_shared"),
-            is_private=chat_details.get("is_private"),
-            parent_id=chat_details.get("parent_id"),
-            is_sub_chat=chat_details.get("is_sub_chat"),
-            budget_limit=chat_details.get("budget_limit"),
-            budget_spent=chat_details.get("budget_spent"),
-            pinned=chat_details.get("pinned"),
-            user_id=user_id  # Cache the owner ID
+        existing_list_item = await cache_service.get_chat_list_item_data(user_id, target_immediate_chat_id)
+        existing_versions = await cache_service.get_chat_versions(user_id, target_immediate_chat_id)
+        list_item_data = _cached_chat_list_item_from_details(
+            chat_details,
+            user_id,
+            target_immediate_chat_id,
+            existing_cache_data=existing_list_item,
+            existing_versions=existing_versions,
         )
         await cache_service.set_chat_list_item_data(user_id, target_immediate_chat_id, list_item_data)
 
@@ -313,6 +425,7 @@ async def _warm_cache_phase_one(
             chat_details,
             user_id,
             target_immediate_chat_id,
+            existing_versions=existing_versions,
         )
         await cache_service.set_chat_versions(user_id, target_immediate_chat_id, versions_data)
         await cache_service.set_chat_version_component(
@@ -390,39 +503,29 @@ async def _warm_cache_phase_two_optimized(
         # OPTIMIZATION: Use Redis pipelining to batch cache operations
         # Instead of individual awaits, collect all operations and execute them together
         pipeline_operations = []
+        chat_ids = [item["chat_details"]["id"] for item in core_chats_with_user_drafts]
+        existing_list_items = await cache_service.get_batch_chat_list_item_data(user_id, chat_ids)
+        existing_versions_by_chat = await cache_service.get_batch_chat_versions(user_id, chat_ids)
 
         for item in core_chats_with_user_drafts:
             chat_data = item["chat_details"]
             chat_id = chat_data["id"]
 
             effective_timestamp = _effective_chat_timestamp(chat_data, item.get("draft_updated_at"))
-            versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
+            existing_versions = existing_versions_by_chat.get(chat_id)
+            versions = _cached_chat_versions_from_details(
+                chat_data,
+                user_id,
+                chat_id,
+                existing_versions=existing_versions,
+            )
 
-            list_item = CachedChatListItemData(
-                title=chat_data["encrypted_title"],
-                unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
-                created_at=chat_data['created_at'],
-                updated_at=chat_data['updated_at'],
-                encrypted_chat_key=chat_data.get("encrypted_chat_key"),
-                encrypted_icon=chat_data.get("encrypted_icon"),
-                encrypted_category=chat_data.get("encrypted_category"),
-                encrypted_chat_summary=chat_data.get("encrypted_chat_summary"),
-                encrypted_share_cta_text=chat_data.get("encrypted_share_cta_text"),
-                encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
-                encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
-                encrypted_top_recommended_apps_for_chat=chat_data.get("encrypted_top_recommended_apps_for_chat"),
-                encrypted_quick_tip_slugs=chat_data.get("encrypted_quick_tip_slugs"),
-                encrypted_shared_short_url=chat_data.get("encrypted_shared_short_url"),
-                encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
-                is_shared=chat_data.get("is_shared"),
-                is_private=chat_data.get("is_private"),
-                parent_id=chat_data.get("parent_id"),
-                is_sub_chat=chat_data.get("is_sub_chat"),
-                budget_limit=chat_data.get("budget_limit"),
-                budget_spent=chat_data.get("budget_spent"),
-                pinned=chat_data.get("pinned"),
-                user_id=user_id  # Cache the owner ID
+            list_item = _cached_chat_list_item_from_details(
+                chat_data,
+                user_id,
+                chat_id,
+                existing_cache_data=existing_list_items.get(chat_id),
+                existing_versions=existing_versions,
             )
 
             # Prepare pipeline operations for this chat
@@ -449,35 +552,22 @@ async def _warm_cache_phase_two_optimized(
                     effective_timestamp = _effective_chat_timestamp(chat_data, item.get("draft_updated_at"))
                     await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
 
-                    versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
+                    existing_versions = existing_versions_by_chat.get(chat_id)
+                    versions = _cached_chat_versions_from_details(
+                        chat_data,
+                        user_id,
+                        chat_id,
+                        existing_versions=existing_versions,
+                    )
                     await cache_service.set_chat_versions(user_id, chat_id, versions)
                     await cache_service.set_chat_version_component(user_id, chat_id, f"user_draft_v:{user_id}", item.get("user_draft_version_db", 0))
 
-                    list_item = CachedChatListItemData(
-                        title=chat_data["encrypted_title"],
-                        unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
-                        created_at=chat_data['created_at'],
-                        updated_at=chat_data['updated_at'],
-                        encrypted_chat_key=chat_data.get("encrypted_chat_key"),
-                        encrypted_icon=chat_data.get("encrypted_icon"),
-                        encrypted_category=chat_data.get("encrypted_category"),
-                        encrypted_chat_summary=chat_data.get("encrypted_chat_summary"),
-                        encrypted_share_cta_text=chat_data.get("encrypted_share_cta_text"),
-                        encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
-                        encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
-                        encrypted_top_recommended_apps_for_chat=chat_data.get("encrypted_top_recommended_apps_for_chat"),
-                        encrypted_quick_tip_slugs=chat_data.get("encrypted_quick_tip_slugs"),
-                        encrypted_shared_short_url=chat_data.get("encrypted_shared_short_url"),
-                        encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                        last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
-                        is_shared=chat_data.get("is_shared"),
-                        is_private=chat_data.get("is_private"),
-                        parent_id=chat_data.get("parent_id"),
-                        is_sub_chat=chat_data.get("is_sub_chat"),
-                        budget_limit=chat_data.get("budget_limit"),
-                        budget_spent=chat_data.get("budget_spent"),
-                        pinned=chat_data.get("pinned"),
-                        user_id=user_id  # Cache the owner ID
+                    list_item = _cached_chat_list_item_from_details(
+                        chat_data,
+                        user_id,
+                        chat_id,
+                        existing_cache_data=existing_list_items.get(chat_id),
+                        existing_versions=existing_versions,
                     )
                     await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 
@@ -584,39 +674,29 @@ async def _warm_cache_phase_three_optimized(
         # OPTIMIZATION: Use Redis pipelining to batch cache operations
         # Instead of individual awaits, collect all operations and execute them together
         pipeline_operations = []
+        chat_ids = [item["chat_details"]["id"] for item in core_chats_with_user_drafts]
+        existing_list_items = await cache_service.get_batch_chat_list_item_data(user_id, chat_ids)
+        existing_versions_by_chat = await cache_service.get_batch_chat_versions(user_id, chat_ids)
 
         for item in core_chats_with_user_drafts:
             chat_data = item["chat_details"]
             chat_id = chat_data["id"]
 
             effective_timestamp = _effective_chat_timestamp(chat_data, item.get("draft_updated_at"))
-            versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
+            existing_versions = existing_versions_by_chat.get(chat_id)
+            versions = _cached_chat_versions_from_details(
+                chat_data,
+                user_id,
+                chat_id,
+                existing_versions=existing_versions,
+            )
 
-            list_item = CachedChatListItemData(
-                title=chat_data["encrypted_title"],
-                unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
-                created_at=chat_data['created_at'],
-                updated_at=chat_data['updated_at'],
-                encrypted_chat_key=chat_data.get("encrypted_chat_key"),
-                encrypted_icon=chat_data.get("encrypted_icon"),
-                encrypted_category=chat_data.get("encrypted_category"),
-                encrypted_chat_summary=chat_data.get("encrypted_chat_summary"),
-                encrypted_share_cta_text=chat_data.get("encrypted_share_cta_text"),
-                encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
-                encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
-                encrypted_top_recommended_apps_for_chat=chat_data.get("encrypted_top_recommended_apps_for_chat"),
-                encrypted_quick_tip_slugs=chat_data.get("encrypted_quick_tip_slugs"),
-                encrypted_shared_short_url=chat_data.get("encrypted_shared_short_url"),
-                encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
-                is_shared=chat_data.get("is_shared"),
-                is_private=chat_data.get("is_private"),
-                parent_id=chat_data.get("parent_id"),
-                is_sub_chat=chat_data.get("is_sub_chat"),
-                budget_limit=chat_data.get("budget_limit"),
-                budget_spent=chat_data.get("budget_spent"),
-                pinned=chat_data.get("pinned"),
-                user_id=user_id  # Cache the owner ID
+            list_item = _cached_chat_list_item_from_details(
+                chat_data,
+                user_id,
+                chat_id,
+                existing_cache_data=existing_list_items.get(chat_id),
+                existing_versions=existing_versions,
             )
 
             # Prepare pipeline operations for this chat
@@ -643,35 +723,22 @@ async def _warm_cache_phase_three_optimized(
                     effective_timestamp = _effective_chat_timestamp(chat_data, item.get("draft_updated_at"))
                     await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
 
-                    versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
+                    existing_versions = existing_versions_by_chat.get(chat_id)
+                    versions = _cached_chat_versions_from_details(
+                        chat_data,
+                        user_id,
+                        chat_id,
+                        existing_versions=existing_versions,
+                    )
                     await cache_service.set_chat_versions(user_id, chat_id, versions)
                     await cache_service.set_chat_version_component(user_id, chat_id, f"user_draft_v:{user_id}", item.get("user_draft_version_db", 0))
 
-                    list_item = CachedChatListItemData(
-                        title=chat_data["encrypted_title"],
-                        unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
-                        created_at=chat_data['created_at'],
-                        updated_at=chat_data['updated_at'],
-                        encrypted_chat_key=chat_data.get("encrypted_chat_key"),
-                        encrypted_icon=chat_data.get("encrypted_icon"),
-                        encrypted_category=chat_data.get("encrypted_category"),
-                        encrypted_chat_summary=chat_data.get("encrypted_chat_summary"),
-                        encrypted_share_cta_text=chat_data.get("encrypted_share_cta_text"),
-                        encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
-                        encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
-                        encrypted_top_recommended_apps_for_chat=chat_data.get("encrypted_top_recommended_apps_for_chat"),
-                        encrypted_quick_tip_slugs=chat_data.get("encrypted_quick_tip_slugs"),
-                        encrypted_shared_short_url=chat_data.get("encrypted_shared_short_url"),
-                        encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                        last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
-                        is_shared=chat_data.get("is_shared"),
-                        is_private=chat_data.get("is_private"),
-                        parent_id=chat_data.get("parent_id"),
-                        is_sub_chat=chat_data.get("is_sub_chat"),
-                        budget_limit=chat_data.get("budget_limit"),
-                        budget_spent=chat_data.get("budget_spent"),
-                        pinned=chat_data.get("pinned"),
-                        user_id=user_id  # Cache the owner ID
+                    list_item = _cached_chat_list_item_from_details(
+                        chat_data,
+                        user_id,
+                        chat_id,
+                        existing_cache_data=existing_list_items.get(chat_id),
+                        existing_versions=existing_versions,
                     )
                     await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 
@@ -899,12 +966,14 @@ async def _async_warm_user_cache(user_id: str, last_opened_path_from_user_model:
     client = await cache_service.client
     if not client:
         logger.error(f"Failed to connect to Redis cache. Cache warming cannot proceed for user {user_id}")
+        await cache_service.close()
         return
     try:
         pong = await client.ping()
         logger.debug(f"Cache service connected successfully (PING={pong})")
     except Exception as e:
         logger.error(f"Failed to ping Redis cache: {e}. Cache warming cannot proceed for user {user_id}")
+        await cache_service.close()
         return
     
     directus_service = DirectusService()
@@ -987,6 +1056,18 @@ def warm_user_cache(self, user_id: str, last_opened_path_from_user_model: Option
         return False
     finally:
         if loop:
+            try:
+                loop.run_until_complete(
+                    _clear_cache_warming_in_progress_flag_for_user(user_id, task_id)
+                )
+            except Exception as cleanup_error:
+                logger.error(
+                    "TASK_CLEANUP_SYNC_WRAPPER: Failed to clear cache warming flag for user_id: %s, task_id: %s: %s",
+                    user_id,
+                    task_id,
+                    cleanup_error,
+                    exc_info=True,
+                )
             loop.close()
         logger.info(f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for warm_user_cache task_id: {task_id}")
 
@@ -1574,6 +1655,14 @@ async def _async_delete_user_account(
                 },
             )
             invoices = invoices or []
+            invoice_versions = await directus_service.get_items(
+                "invoice_ciphertext_versions",
+                params={
+                    "filter": {"user_id_hash": {"_eq": user_id_hash}},
+                    "fields": "id,invoice_id,encrypted_s3_object_key",
+                },
+            )
+            invoice_versions = invoice_versions or []
 
             # Delete each PDF from S3 using the user's still-live Vault key to
             # decrypt the encrypted_s3_object_key reference. Failures are logged
@@ -1581,7 +1670,8 @@ async def _async_delete_user_account(
             # 10-year lifecycle policy as a safety net anyway.
             deleted_s3_pdfs = 0
             skipped_s3_pdfs = 0
-            if invoices:
+            invoice_ciphertexts = [*invoices, *invoice_versions]
+            if invoice_ciphertexts:
                 try:
                     from backend.core.api.app.services.s3.service import S3UploadService
                     from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -1596,7 +1686,7 @@ async def _async_delete_user_account(
                     )
                     vault_key_id_for_pdfs = (user_data_for_vault or {}).get("vault_key_id")
 
-                    for inv in invoices:
+                    for inv in invoice_ciphertexts:
                         enc_s3_key = inv.get("encrypted_s3_object_key")
                         if not enc_s3_key or not vault_key_id_for_pdfs:
                             skipped_s3_pdfs += 1
@@ -1628,9 +1718,20 @@ async def _async_delete_user_account(
             )
 
             invoice_ids = [i.get("id") for i in invoices if i.get("id")]
+            invoice_version_ids = [
+                version.get("id") for version in invoice_versions if version.get("id")
+            ]
+            if invoice_version_ids:
+                await directus_service.bulk_delete_items(
+                    "invoice_ciphertext_versions",
+                    invoice_version_ids,
+                )
             if invoice_ids:
                 await directus_service.bulk_delete_items("invoices", invoice_ids)
-            logger.info(f"[DELETE_ACCOUNT] Deleted {len(invoice_ids)} invoices for user {user_id}")
+            logger.info(
+                f"[DELETE_ACCOUNT] Deleted {len(invoice_ids)} invoices and "
+                f"{len(invoice_version_ids)} ciphertext versions for user {user_id}"
+            )
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting invoices for user {user_id}: {e}", exc_info=True)
 

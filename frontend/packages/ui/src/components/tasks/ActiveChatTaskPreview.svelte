@@ -9,8 +9,9 @@
   import { onDestroy, onMount } from 'svelte';
   import { featureAvailabilityStore, initializeFeatureAvailability } from '../../stores/appSkillsStore';
   import {
+    completeUserTask,
     listUserTasks,
-    updateUserTask,
+    reorderUserTasks,
     type UserTaskViewModel,
   } from '../../services/userTaskService';
   import { listUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
@@ -81,7 +82,10 @@
     const previous = tasks;
     tasks = tasks.map((task) => task.task_id === currentTask.task_id ? { ...task, status: nextStatus } : task);
     try {
-      const updated = await updateUserTask(currentTask, { status: nextStatus });
+      const updated = nextStatus === 'done'
+        ? await completeUserTask(currentTask)
+        : (await reorderUserTasks([{ task: currentTask, status: nextStatus }]))[0];
+      if (!updated) throw new Error('Task update returned no task');
       tasks = tasks.map((task) => task.task_id === updated.task_id ? updated : task);
       window.dispatchEvent(new CustomEvent('openmates-user-tasks-changed', { detail: { chatId } }));
     } catch (error) {

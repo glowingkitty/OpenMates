@@ -2,9 +2,9 @@
 /**
  * Workflows input home coverage.
  *
- * Purpose: verifies the deployed Workflows route exposes chat-like workflow
- * input affordances without reusing chat send behavior, and that text input
- * creates a durable workflow-input session that can be undone.
+ * Purpose: verifies the deployed Workflows landing keeps Daily Inspiration,
+ * renders one mixed recent/example row, and uses a restrained composer to
+ * create manual drafts without invoking workflow-input planning.
  * Security: uses the shared E2E account and deletes only workflows created by
  * this spec run.
  */
@@ -26,6 +26,10 @@ function deriveApiUrl(baseUrl: string): string {
 	return 'https://api.openmates.org';
 }
 
+function workflowDetailsHashUrlPattern(workflowId: string): RegExp {
+	return new RegExp(`/workflows#(?:[^#]*&)?workflow-id=${workflowId}&workflow-tab=details(?:&|$)`);
+}
+
 function blankWorkflowGraph(index: number) {
 	return {
 		version: 1,
@@ -44,7 +48,7 @@ function blankWorkflowGraph(index: number) {
 }
 
 test.describe('Workflows input home', () => {
-	test('shows workflow input states and can undo a text-created workflow', async ({ page }) => {
+	test('preserves home content and creates a title-only manual draft', async ({ page }) => {
 		test.setTimeout(180000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
@@ -55,12 +59,17 @@ test.describe('Workflows input home', () => {
 			console.log(`[WORKFLOWS_INPUT_E2E] ${message} ${JSON.stringify(metadata)}`);
 		};
 		const screenshot = async () => {};
+		const workflowInputRequests: string[] = [];
+		const recordWorkflowInputRequest = (request: { url: () => string }) => {
+			if (new URL(request.url()).pathname.startsWith('/v1/workflows/input')) {
+				workflowInputRequests.push(request.url());
+			}
+		};
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page, log, screenshot);
 
 		try {
-			let firstSeedWorkflowTitle = '';
 			for (let index = 0; index < 6; index += 1) {
 				const title = `Input spec seed ${Date.now()} ${index}`;
 				const response = await page.request.post(`${apiUrl}/v1/workflows`, {
@@ -74,31 +83,37 @@ test.describe('Workflows input home', () => {
 				expect(response.ok()).toBe(true);
 				const data = await response.json();
 				createdWorkflowIds.add(data.workflow.id);
-				if (index === 0) firstSeedWorkflowTitle = title;
 			}
 
-			await page.setViewportSize({ width: 390, height: 844 });
+			await page.setViewportSize({ width: 1024, height: 844 });
 			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
+			await expect(page.getByTestId('chats-nav-link')).toBeVisible();
+			await expect(page.getByTestId('workflows-nav-link')).toBeVisible();
+			await expect(page.getByTestId('workflows-nav-link')).toHaveAttribute('aria-current', 'page');
+			await page.setViewportSize({ width: 390, height: 844 });
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
 			await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
 			await expect(page.getByTestId('daily-inspiration-label')).toBeVisible();
 			await expect(page.getByTestId('workflow-inspiration-card')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-management')).toHaveCount(0);
-			await expect(page.getByText('Manage automations')).toHaveCount(0);
-			await expect(page.getByTestId('workflows-list')).toHaveCount(0);
-			await expect(page.getByTestId('workflow-detail')).toHaveCount(0);
-			await expect(page.getByTestId('workflows-show-all')).toHaveCount(0);
 			await expect(page.getByTestId('workflows-workspace-center')).toContainText('Hey');
 			await expect(page.getByTestId('workflows-workspace-center')).toContainText('What do you want to automate next?');
-			await expect(page.getByTestId('workflow-recommendations')).toContainText('Tell me if it will rain tomorrow');
+			const mixedRow = page.getByTestId('workflow-mixed-row');
+			await expect(mixedRow).toBeVisible();
 			await expect(page.getByTestId('recent-workflows')).toHaveCount(0);
-			await expect(page.getByTestId('resume-chat-card').first()).toBeVisible();
-			await expect(page.getByTestId('resume-chat-card').first()).toHaveClass(/resume-chat-card/);
+			await expect(page.getByText('Continue where you left off', { exact: true })).toHaveCount(0);
+			const mixedCards = mixedRow.getByTestId('workflow-landing-card');
+			await expect.poll(async () => await mixedCards.count(), { timeout: 30000 }).toBeGreaterThan(6);
+			await expect(mixedCards.first()).toHaveAttribute('data-card-source', 'recent');
+			await expect(mixedCards.last()).toHaveAttribute('data-card-source', 'example');
+			await expect(page.getByTestId('workflows-show-all')).toBeVisible();
+			await expect(page.getByTestId('workflows-search')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
-			await expect(page.getByTestId('workflow-input-textarea')).toHaveAttribute('placeholder', /Ask OpenMates to create or update a workflow/);
-			await expect(page.getByTestId('workflow-input-submit')).toBeDisabled();
+			await expect(page.getByTestId('workflow-input-submit')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-input-mic')).toBeVisible();
 			await expect(page.getByTestId('message-editor')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-input-textarea')).toHaveCSS('text-align', 'center');
 
 			const startScreenBox = await page.getByTestId('workflows-start-screen').boundingBox();
 			const composerBox = await page.getByTestId('workflow-input-composer').boundingBox();
@@ -108,44 +123,53 @@ test.describe('Workflows input home', () => {
 			expect(composerBox.y + composerBox.height).toBeGreaterThan(760);
 			expect(centerBox.y + centerBox.height).toBeLessThan(composerBox.y);
 
-			await page.setViewportSize({ width: 1365, height: 900 });
-			await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
-			await expect(page.getByTestId('resume-chat-large-card').first()).toBeVisible();
-			await expect(page.getByTestId('workflow-management')).toHaveCount(0);
-			await page.getByTestId('workflow-recommendations').getByText(firstSeedWorkflowTitle).click();
-			await expect(page).toHaveURL(/\/workflows\?view=manage/);
-			await expect(page.getByTestId('workflow-title-input')).toHaveValue(firstSeedWorkflowTitle, { timeout: 30000 });
-
-			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+			await page.getByTestId('workflows-show-all').click();
+			await expect(page.getByTestId('workflow-mixed-row')).toHaveCount(0);
+			await expect(page.getByTestId('recent-workflows')).toHaveCount(0);
+			await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+			await expect(page.getByTestId('workflows-all-toolbar')).toBeVisible();
+			await expect(page.getByTestId('workflows-back-to-recent')).toBeVisible();
+			await expect(page.getByTestId('workflows-search')).toBeVisible();
+			await expect(page.getByTestId('workflows-search')).toBeEnabled();
+			await expect(page.getByTestId('all-workflows-grid')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
-			await expect(page.getByTestId('workflow-input-textarea')).toBeEnabled({ timeout: 30000 });
+			await expect.poll(async () => page.getByTestId('all-workflows-grid').evaluate((element: HTMLElement) => element.scrollHeight > element.clientHeight), { timeout: 15000 }).toBe(true);
+			const allGridBox = await page.getByTestId('all-workflows-grid').boundingBox();
+			const allComposerBox = await page.getByTestId('workflow-input-composer').boundingBox();
+			if (!allGridBox || !allComposerBox) throw new Error('All workflows grid and composer must be measurable.');
+			expect(allGridBox.y + allGridBox.height).toBeLessThan(allComposerBox.y);
 
-			const createInputResponse = page.waitForResponse(
-				(response) => response.url().includes('/v1/workflows/input') && response.request().method() === 'POST' && response.ok(),
+			await page.getByTestId('workflows-back-to-recent').click();
+			await expect(page.getByTestId('workflow-mixed-row')).toBeVisible();
+			await expect(page.getByTestId('recent-workflows')).toHaveCount(0);
+			await expect(page.getByTestId('all-workflows-grid')).toHaveCount(0);
+
+			page.on('request', recordWorkflowInputRequest);
+			const createDraftResponse = page.waitForResponse(
+				(response) => new URL(response.url()).pathname === '/v1/workflows' && response.request().method() === 'POST' && response.ok(),
 				{ timeout: 30000 }
 			);
-			await page.getByTestId('workflow-input-textarea').fill('Tell me if it will rain tomorrow morning');
+			await page.getByTestId('workflow-input-textarea').focus();
+			await expect(page.getByTestId('workflow-input-submit')).toHaveCount(0);
+			await page.getByTestId('workflow-input-textarea').fill('Daily school weather');
+			await expect(page.getByTestId('workflow-input-submit')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-submit')).toBeEnabled();
 			await page.getByTestId('workflow-input-submit').click();
-			const inputResponse = await createInputResponse;
-			const inputData = await inputResponse.json();
-			createdWorkflowIds.add(inputData.session.workflow.id);
-
-			await expect(page.getByTestId('workflow-input-status')).toHaveAttribute('data-status', 'executed', { timeout: 30000 });
-			await expect(page.getByTestId('workflow-input-status')).toContainText('committed');
-			await expect(page.getByTestId('workflow-title-input')).toHaveCount(0);
-			await expect(page.getByTestId('workflow-input-undo')).toBeVisible();
-
-			const undoResponse = page.waitForResponse(
-				(response) => response.url().includes('/undo') && response.request().method() === 'POST' && response.ok(),
-				{ timeout: 30000 }
-			);
-			await page.getByTestId('workflow-input-undo').click();
-			await undoResponse;
-			await expect(page.getByTestId('workflow-input-status')).toHaveAttribute('data-status', 'undone', { timeout: 30000 });
-			await expect(page.getByTestId('workflow-management')).toHaveCount(0);
-			await expect(page.getByText('Manage automations')).toHaveCount(0);
+			const draftData = await createDraftResponse;
+			const draft = (await draftData.json()).workflow;
+			createdWorkflowIds.add(draft.id);
+			await expect(page.getByTestId('workflow-editor')).toBeVisible({ timeout: 30000 });
+			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(draft.id));
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText('Daily school weather');
+			expect(draft.title).toBe('Daily school weather');
+			expect(draft.enabled).toBe(false);
+			expect(draft.graph.nodes).toHaveLength(1);
+			expect(draft.graph.nodes[0].id).toBe('manual');
+			expect(draft.graph.nodes[0].type).toBe('manual_trigger');
+			expect(draft.graph.edges).toHaveLength(0);
+			expect(workflowInputRequests).toEqual([]);
 		} finally {
+			page.off('request', recordWorkflowInputRequest);
 			for (const workflowId of createdWorkflowIds) {
 				await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
 			}

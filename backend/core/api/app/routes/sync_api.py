@@ -34,6 +34,12 @@ from backend.core.api.app.routes.handlers.websocket_handlers.chat_compression_ch
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_content_batch_handler import (
     _fetch_code_run_outputs_for_chats,
 )
+from backend.core.api.app.routes.handlers.websocket_handlers.notebook_run_output_handlers import (
+    fetch_notebook_run_outputs_for_chats,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.sync_message_hydration import (
+    load_sync_messages_with_directus_fallback,
+)
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
@@ -78,7 +84,9 @@ class OfflinePrefetchResponse(BaseModel):
     compression_checkpoints_by_chat_id: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
     embeds: list[dict[str, Any]] = Field(default_factory=list)
     embed_keys: list[dict[str, Any]] = Field(default_factory=list)
+    chat_key_wrappers: list[dict[str, Any]] = Field(default_factory=list)
     code_run_outputs: list[dict[str, Any]] = Field(default_factory=list)
+    notebook_run_outputs: list[dict[str, Any]] = Field(default_factory=list)
     next_cursor: int | None = None
     done: bool = False
 
@@ -141,20 +149,21 @@ async def build_offline_prefetch_chunk(
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
     for chat_id in selected_chat_ids:
-        messages = await cache_service.get_sync_messages_history(user_id, chat_id)
-        if not messages:
-            messages = await directus_service.chat.get_all_messages_for_chat(
-                chat_id=chat_id,
-                decrypt_content=False,
-            ) or []
+        messages, server_message_count = await load_sync_messages_with_directus_fallback(
+            cache_service=cache_service,
+            directus_service=directus_service,
+            user_id=user_id,
+            chat_id=chat_id,
+            log_prefix="[OFFLINE_PREFETCH]",
+        )
         messages_by_chat_id[chat_id] = messages
 
         server_versions = await cache_service.get_chat_versions(user_id, chat_id)
         messages_v = server_versions.messages_v if server_versions and server_versions.messages_v is not None else 0
-        effective_messages_v = max(messages_v, len(messages))
+        effective_messages_v = max(messages_v, server_message_count)
         versions_by_chat_id[chat_id] = {
             "messages_v": effective_messages_v,
-            "server_message_count": len(messages),
+            "server_message_count": server_message_count,
         }
 
         checkpoint = await get_latest_chat_compression_checkpoint(
@@ -168,6 +177,7 @@ async def build_offline_prefetch_chunk(
 
     embeds: list[dict[str, Any]] = []
     embed_keys: list[dict[str, Any]] = []
+    chat_key_wrappers: list[dict[str, Any]] = []
     if include_embeds and selected_chat_ids:
         seen_embed_ids: set[str] = set()
         seen_key_ids: set[str] = set()
@@ -189,7 +199,18 @@ async def build_offline_prefetch_chunk(
                 embed_keys.append(key_entry)
                 seen_key_ids.add(key_id)
 
+    if hashed_chat_ids:
+        chat_key_wrappers = await directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
+            hashed_chat_ids,
+            hashed_user_id=user_id_hash,
+        )
+
     code_run_outputs = await _fetch_code_run_outputs_for_chats(
+        directus_service,
+        selected_chat_ids,
+        user_id,
+    )
+    notebook_run_outputs = await fetch_notebook_run_outputs_for_chats(
         directus_service,
         selected_chat_ids,
         user_id,
@@ -203,7 +224,9 @@ async def build_offline_prefetch_chunk(
         compression_checkpoints_by_chat_id=compression_checkpoints_by_chat_id,
         embeds=embeds,
         embed_keys=embed_keys,
+        chat_key_wrappers=chat_key_wrappers,
         code_run_outputs=code_run_outputs,
+        notebook_run_outputs=notebook_run_outputs,
         next_cursor=None if done else next_cursor_candidate,
         done=done,
     )

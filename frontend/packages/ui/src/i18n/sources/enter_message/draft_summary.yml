@@ -1,0 +1,360 @@
+separator:
+  context: Separator between compact inactive draft summary parts, such as attachments and typed text
+  en: ", "
+  de: ", "
+  zh: "，"
+  es: ", "
+  fr: ", "
+  pt: ", "
+  ru: ", "
+  ja: "、"
+  ko: ", "
+  it: ", "
+  tr: ", "
+  vi: ", "
+  id: ", "
+  pl: ", "
+  nl: ", "
+  ar: "، "
+  hi: ", "
+  th: ", "
+  cs: ", "
+  sv: ", "
+  he: ", "
+  verified_by_human: []
+embed_one:
+  context: Compact inactive draft summary fragment for one embedded attachment. Values are {count} and {type}.
+  en: "{count} {type} attachment"
+  de: "{count} {type}-Anhang"
+  zh: "{count} 个{type}附件"
+  es: "{count} adjunto de {type}"
+  fr: "{count} pièce jointe {type}"
+  pt: "{count} anexo de {type}"
+  ru: "{count} вложение: {type}"
+  ja: "{count} 件の{type}添付"
+  ko: "{type} 첨부 {count}개"
+  it: "{count} allegato {type}"
+  tr: "{count} {type} eki"
+  vi: "{count} tệp đính kèm {type}"
+  id: "{count} lampiran {type}"
+  pl: "{count} załącznik {type}"
+  nl: "{count} {type}-bijlage"
+  ar: "{count} مرفق {type}"
+  hi: "{count} {type} अटैचमेंट"
+  th: "ไฟล์แนบ{type} {count} รายการ"
+  cs: "{count} příloha {type}"
+  sv: "{count} {type}-bilaga"
+  he: "קובץ {type} מצורף {count}"
+  verified_by_human: []
+embed_many:
+  context: Compact inactive draft summary fragment for multiple embedded attachments. Values are {count} and {type}.
+  en: "{count} {type} attachments"
+  de: "{count} {type}-Anhänge"
+  zh: "{count} 个{type}附件"
+  es: "{count} adjuntos de {type}"
+  fr: "{count} pièces jointes {type}"
+  pt: "{count} anexos de {type}"
+  ru: "{count} вложений: {type}"
+  ja: "{count} 件の{type}添付"
+  ko: "{type} 첨부 {count}개"
+  it: "{count} allegati {type}"
+  tr: "{count} {type} eki"
+  vi: "{count} tệp đính kèm {type}"
+  id: "{count} lampiran {type}"
+  pl: "{count} załączników {type}"
+  nl: "{count} {type}-bijlagen"
+  ar: "{count} مرفقات {type}"
+  hi: "{count} {type} अटैचमेंट"
+  th: "ไฟล์แนบ{type} {count} รายการ"
+  cs: "{count} příloh {type}"
+  sv: "{count} {type}-bilagor"
+  he: "{count} קבצי {type} מצורפים"
+  verified_by_human: []
+type.audio:
+  context: Attachment type label used inside the compact inactive draft summary
+  en: audio
+  de: Audio
+  zh: 音频
+  es: audio
+  fr: audio
+  pt: áudio
+  ru: аудио
+  ja: 音声
+  ko: 오디오
+  it: audio
+  tr: ses
+  vi: âm thanh
+  id: audio
+  pl: audio
+  nl: audio
+  ar: صوتي
+  hi: ऑडियो
+  th: เสียง
+  cs: audio
+  sv: ljud
+  he: שמע
+  verified_by_human: []
+type.image:
+  context: Attachment type label used inside the compact inactive draft summary
+  en: image
+  de: Bild
+  zh: 图片
+  es: imagen
+  fr: image
+  pt: imagem
+  ru: изображение
+  ja: 画像
+  ko: 이미지
+  it: immagine
+  tr: görsel
+  vi: hình ảnh
+  id: gambar
+  pl: obraz
+  nl: afbeelding
+  ar: صورة
+  hi: छवि
+  th: รูปภาพ
+  cs: obrázek
+  sv: bild
+  he: תמונה
+  verified_by_human: []
+type.pdf:
+  context: Attachment type label used inside the compact inactive draft summary
+  en: PDF
+  de: PDF
+  zh: PDF
+  es: PDF
+  fr: PDF
+  pt: PDF
+  ru: PDF
+  ja: PDF
+  ko: PDF
+  it: PDF
+  tr: PDF
+  vi: PDF
+  id: PDF
+  pl: PDF
+  nl: PDF
+  ar: PDF
+  hi: PDF
+  th: PDF
+  cs: PDF
+  sv: PDF
+  he: PDF
+  verified_by_human: []
+type.website:
+  context: Attachment type label used inside the compact inactive draft summary
+  en: website
+  de: Website
+  zh: 网站
+  es: sitio web
+  fr: site web
+  pt: site
+  ru: сайт
+  ja: ウェブサイト
+  ko: 웹사이트
+  it: sito web
+  tr: web sitesi
+  vi: trang web
+  id: situs web
+  pl: strona internetowa
+  nl: website
+  ar: موقع ويب
+  hi: वेबसाइट
+  th: เว็บไซต์
+  cs: web
+  sv: webbplats
+  he: אתר
+  verified_by_human: []
+type.video:
+  context: Attachment type label used inside the compact inactive draft summary
+  en: video
+  de: Video
+  zh: 视频
+  es: video
+  fr: vidéo
+  pt: vídeo
+  ru: видео
+  ja: 動画
+  ko: 비디오
+  it: video
+  tr: video
+  vi: video
+  id: video
+  pl: wideo
+  nl: video
+  ar: فيديو
+  hi: वीडियो
+  th: วิดีโอ
+  cs: video
+  sv: video
+  he: וידאו
+  verified_by_human: []
+type.map:
+  context: Attachment type label used inside the compact inactive draft summary
+  en: map
+  de: Karten
+  zh: 地图
+  es: mapa
+  fr: carte
+  pt: mapa
+  ru: карта
+  ja: 地図
+  ko: 지도
+  it: mappa
+  tr: harita
+  vi: bản đồ
+  id: peta
+  pl: mapa
+  nl: kaart
+  ar: خريطة
+  hi: मानचित्र
+  th: แผนที่
+  cs: mapa
+  sv: karta
+  he: מפה
+  verified_by_human: []
+type.code:
+  context: Attachment type label used inside the compact inactive draft summary
+  en: code
+  de: Code
+  zh: 代码
+  es: código
+  fr: code
+  pt: código
+  ru: код
+  ja: コード
+  ko: 코드
+  it: codice
+  tr: kod
+  vi: mã
+  id: kode
+  pl: kod
+  nl: code
+  ar: كود
+  hi: कोड
+  th: โค้ด
+  cs: kód
+  sv: kod
+  he: קוד
+  verified_by_human: []
+type.document:
+  context: Attachment type label used inside the compact inactive draft summary
+  en: document
+  de: Dokument
+  zh: 文档
+  es: documento
+  fr: document
+  pt: documento
+  ru: документ
+  ja: ドキュメント
+  ko: 문서
+  it: documento
+  tr: belge
+  vi: tài liệu
+  id: dokumen
+  pl: dokument
+  nl: document
+  ar: مستند
+  hi: दस्तावेज़
+  th: เอกสาร
+  cs: dokument
+  sv: dokument
+  he: מסמך
+  verified_by_human: []
+type.sheet:
+  context: Attachment type label used inside the compact inactive draft summary
+  en: sheet
+  de: Tabellen
+  zh: 表格
+  es: hoja de cálculo
+  fr: feuille de calcul
+  pt: planilha
+  ru: таблица
+  ja: スプレッドシート
+  ko: 스프레드시트
+  it: foglio di calcolo
+  tr: elektronik tablo
+  vi: bảng tính
+  id: spreadsheet
+  pl: arkusz
+  nl: spreadsheet
+  ar: جدول بيانات
+  hi: स्प्रेडशीट
+  th: สเปรดชีต
+  cs: tabulka
+  sv: kalkylblad
+  he: גיליון
+  verified_by_human: []
+type.file:
+  context: Attachment type label used inside the compact inactive draft summary
+  en: file
+  de: Datei
+  zh: 文件
+  es: archivo
+  fr: fichier
+  pt: arquivo
+  ru: файл
+  ja: ファイル
+  ko: 파일
+  it: file
+  tr: dosya
+  vi: tệp
+  id: file
+  pl: plik
+  nl: bestand
+  ar: ملف
+  hi: फ़ाइल
+  th: ไฟล์
+  cs: soubor
+  sv: fil
+  he: קובץ
+  verified_by_human: []
+type.app:
+  context: Attachment type label used inside the compact inactive draft summary
+  en: app
+  de: App
+  zh: 应用
+  es: app
+  fr: app
+  pt: app
+  ru: приложение
+  ja: アプリ
+  ko: 앱
+  it: app
+  tr: uygulama
+  vi: ứng dụng
+  id: aplikasi
+  pl: aplikacja
+  nl: app
+  ar: تطبيق
+  hi: ऐप
+  th: แอป
+  cs: aplikace
+  sv: app
+  he: אפליקציה
+  verified_by_human: []
+type.embed:
+  context: Generic attachment type label used inside the compact inactive draft summary when the specific type is unknown
+  en: embedded
+  de: eingebettet
+  zh: 嵌入式
+  es: incrustado
+  fr: intégré
+  pt: incorporado
+  ru: встроенный
+  ja: 埋め込み
+  ko: 임베드
+  it: incorporato
+  tr: gömülü
+  vi: nhúng
+  id: tersemat
+  pl: osadzony
+  nl: ingesloten
+  ar: مضمن
+  hi: एम्बेडेड
+  th: แบบฝัง
+  cs: vložený
+  sv: inbäddad
+  he: מוטמע
+  verified_by_human: []

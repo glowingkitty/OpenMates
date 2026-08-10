@@ -13,6 +13,7 @@ import { replaceState } from "$app/navigation";
 import { createEntryPrefillStore } from "../stores/createEntryPrefillStore";
 import { updateEntryPrefillStore } from "../stores/updateEntryPrefillStore";
 import { allAppsInitialFilter, type AllAppsFilterType } from "../stores/allAppsFilterStore";
+import { buildSettingsHash, getSettingsPathFromHash, normalizeSettingsPath } from "../utils/settingsHashUtils";
 
 export type DeepLinkType =
   | "chat"
@@ -72,6 +73,9 @@ export function parseDeepLink(
   // Also support / prefix (e.g. /#chatid=...)
   // Optional params: &message-id={id}  &scroll=latest-response  &embed-id={id}
   const normalizedHash = hash.startsWith("#/") ? "#" + hash.substring(2) : hash;
+  // Settings deep links can also be embedded in parameter-style hashes so the
+  // URL can keep chat/embed context: #chat-id={id}&settings=privacy/pii.
+  const settingsParamPath = getSettingsPathFromHash(normalizedHash);
 
   const chatMatch = normalizedHash.match(/^#chat[-_]?id=([^&]+)(.*)$/);
   if (chatMatch) {
@@ -97,9 +101,18 @@ export function parseDeepLink(
     };
   }
 
+  if (settingsParamPath) {
+    return {
+      type: "settings",
+      data: { path: settingsParamPath, fullHash: normalizedHash },
+    };
+  }
+
   // Settings deep links: #settings/{path}
-  if (normalizedHash.startsWith("#settings")) {
-    const settingsPath = normalizedHash.substring("#settings".length);
+  if (normalizedHash === "#settings" || normalizedHash.startsWith("#settings/")) {
+    const settingsPath = normalizeSettingsPath(
+      normalizedHash.substring("#settings".length),
+    );
     return {
       type: "settings",
       data: { path: settingsPath, fullHash: normalizedHash },
@@ -208,6 +221,23 @@ export async function processDeepLink(
           parsed.data.embedId ?? null,
           parsed.data.autoplayVideo ?? false,
         );
+        const settingsPath = getSettingsPathFromHash(hash);
+        if (settingsPath && handlers.onSettings) {
+          if (handlers.requiresAuthentication && handlers.isAuthenticated) {
+            const needsAuth = handlers.requiresAuthentication(settingsPath);
+            if (needsAuth && !handlers.isAuthenticated()) {
+              if (typeof window !== "undefined") {
+                sessionStorage.setItem("pendingDeepLink", buildSettingsHash(settingsPath));
+              }
+              if (handlers.openLogin) {
+                handlers.openLogin();
+              }
+              return { type: "chat", processed: true, requiresAuth: true };
+            }
+          }
+
+          handlers.onSettings(settingsPath, buildSettingsHash(settingsPath));
+        }
         return { type: "chat", processed: true };
       }
       break;
@@ -455,7 +485,12 @@ export function processSettingsDeepLink(
     setSettingsDeepLink: (path: string) => void;
   },
 ): void {
-  const settingsPath = hash.substring("#settings".length);
+  const normalizedHash = hash.startsWith("#/settings") ? `#${hash.slice(2)}` : hash;
+  const isLegacySettingsHash = normalizedHash === "#settings" || normalizedHash.startsWith("#settings/");
+  const embeddedSettingsPath = isLegacySettingsHash ? null : getSettingsPathFromHash(hash);
+  const settingsPath = embeddedSettingsPath
+    ? `/${embeddedSettingsPath}`
+    : stripE2EDebugHashParams(normalizedHash.substring("#settings".length));
 
   handlers.openSettings();
 
@@ -530,15 +565,7 @@ export function processSettingsDeepLink(
       path = "settings_memories" + path.substring("memories".length);
     }
 
-    // Normalize hyphens to underscores for route segments (e.g., report-issue -> report_issue),
-    // but preserve hyphens in ai/model and ai/provider ID segments since model IDs use hyphens
-    // (e.g., claude-opus-4-7, gemini-3-flash-preview, gemini-3.5-flash).
-    const aiDetailMatch = path.match(/^(ai\/(?:model|provider))\/(.*)/);
-    if (aiDetailMatch) {
-      path = aiDetailMatch[1].replace(/-/g, "_") + "/" + aiDetailMatch[2];
-    } else {
-      path = path.replace(/-/g, "_");
-    }
+    path = normalizeSettingsPath(path);
 
     // Deep link to All Apps with a filter: apps/all/{filter}
     // e.g. #settings/apps/all/focus-modes -> apps/all with filter 'focus_modes'
@@ -563,14 +590,11 @@ export function processSettingsDeepLink(
       path = path.replace(/\/memories\//, "/settings_memories/");
     }
 
-    if (path === "billing/referral_code") {
-      path = "billing/referral-code";
-    }
-
     handlers.setSettingsDeepLink(path);
 
-    // Clear the hash after processing
-    if (typeof window !== "undefined" && window.location) {
+    // OAuth handoff returns need the settings hash until Settings.svelte has
+    // routed away from its default main view; clearing it here races hash sync.
+    if (typeof window !== "undefined" && window.location && !hasOAuthHandoffQueryParam()) {
       replaceState(window.location.pathname + window.location.search, {});
     }
   } else if (settingsPath === "") {
@@ -589,4 +613,24 @@ export function processSettingsDeepLink(
       replaceState(window.location.pathname + window.location.search, {});
     }
   }
+}
+
+function hasOAuthHandoffQueryParam(): boolean {
+  if (typeof window === "undefined" || !window.location) return false;
+  return new URLSearchParams(window.location.search).has("oauth_handoff_id");
+}
+
+function stripE2EDebugHashParams(path: string): string {
+  const hashParamParts = path.split("&");
+  if (hashParamParts.length === 1) {
+    return path;
+  }
+
+  const [settingsPath, ...params] = hashParamParts;
+  const retainedParams = params.filter((param) => {
+    const name = param.split("=", 1)[0];
+    return name !== "e2e-debug" && name !== "e2e-token";
+  });
+
+  return [settingsPath, ...retainedParams].join("&");
 }

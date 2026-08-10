@@ -60,13 +60,28 @@ def _validate_client_encrypted_message_content(message_id: str, encrypted_conten
 # Define metadata fields to fetch (exclude large content fields)
 # NOTE: user_id is NOT included here to avoid permission issues on public share endpoints
 # Use hashed_user_id for ownership verification instead
-CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
-CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
-CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION = ",".join(
+    field for field in CHAT_METADATA_FIELDS.split(",") if field != "metadata_v"
+)
+CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS = ",".join(
+    field
+    for field in CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS.split(",")
+    if field != "metadata_v"
+)
+CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,messages_v,title_v,metadata_v,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 
 # Fallback field sets for when encrypted fields are not accessible due to permissions
-CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,hashed_team_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELD_SETS = (
+    CHAT_METADATA_FIELDS,
+    CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION,
+    CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
+    CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS,
+    CHAT_METADATA_FIELDS_FALLBACK,
+)
 
 
 # Fields required for get_core_chats_for_cache_warming from 'chats' collection
@@ -80,6 +95,7 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "created_at,"
     "updated_at,"
     "title_v,"
+    "metadata_v,"
     "messages_v,"
     "unread_count,"
     "encrypted_chat_summary,"
@@ -114,6 +130,7 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "created_at,"
     "updated_at,"
     "title_v,"
+    "metadata_v,"
     "messages_v,"
     "unread_count,"
     "encrypted_chat_summary,"
@@ -193,16 +210,20 @@ class ChatMethods:
         self.directus_service = directus_service_instance
         # encryption_service and cache can be accessed via self.directus_service if needed
 
-    async def get_user_chat_count(self, user_id: str) -> int:
+    async def get_user_chat_count(self, user_id: str, team_id: str | None = None) -> int:
         """
         Returns the total number of chats for a user from Directus.
         Uses aggregate count query for efficiency (no row data transferred).
         """
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         params = {
-            'filter[hashed_user_id][_eq]': hashed_user_id,
             'aggregate[count]': '*',
         }
+        if team_id:
+            params['filter[hashed_team_id][_eq]'] = hashlib.sha256(team_id.encode()).hexdigest()
+        else:
+            params['filter[hashed_user_id][_eq]'] = hashed_user_id
+            params['filter[hashed_team_id][_null]'] = True
         try:
             response = await self.directus_service.get_items('chats', params=params, no_cache=True)
             if response and isinstance(response, list) and len(response) > 0:
@@ -255,38 +276,24 @@ class ChatMethods:
             return None
         
         logger.info(f"Fetching chat metadata for chat_id: {chat_id}")
-        params = {
+        base_params = {
             'filter[id][_eq]': chat_id,
-            'fields': CHAT_METADATA_FIELDS,
             'limit': 1
         }
         try:
-            response = await self.directus_service.get_items(
-                'chats',
-                params=params,
-                no_cache=True,
-                return_none_on_403=True,
-                admin_required=admin_required,
-            )
-            if response is None:
-                fallback_params = dict(params)
-                fallback_params['fields'] = CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS
+            response = None
+            for fields in CHAT_METADATA_FIELD_SETS:
+                params = dict(base_params)
+                params['fields'] = fields
                 response = await self.directus_service.get_items(
                     'chats',
-                    params=fallback_params,
+                    params=params,
                     no_cache=True,
                     return_none_on_403=True,
                     admin_required=admin_required,
                 )
-            if response is None:
-                fallback_params = dict(params)
-                fallback_params['fields'] = CHAT_METADATA_FIELDS_FALLBACK
-                response = await self.directus_service.get_items(
-                    'chats',
-                    params=fallback_params,
-                    no_cache=True,
-                    admin_required=admin_required,
-                )
+                if response is not None:
+                    break
             if response and isinstance(response, list) and len(response) > 0:
                 logger.info(f"Successfully fetched metadata for chat {chat_id}")
                 return response[0]
@@ -309,14 +316,9 @@ class ChatMethods:
             return {}
 
         logger.info(f"Batch fetching chat metadata for {len(valid_ids)} chats")
-        field_sets = [
-            CHAT_METADATA_FIELDS,
-            CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
-            CHAT_METADATA_FIELDS_FALLBACK,
-        ]
         chunk_size = 25
         try:
-            for fields in field_sets:
+            for fields in CHAT_METADATA_FIELD_SETS:
                 result: Dict[str, Dict[str, Any]] = {}
                 permission_denied = False
 
@@ -380,7 +382,7 @@ class ChatMethods:
             
             # 3. Cache miss or not primed: Fallback to Directus (DB hit)
             logger.info(f"Ownership check CACHE MISS for chat {chat_id}, user {user_id}. Falling back to DB.")
-            chat_metadata = await self.get_chat_metadata(chat_id)
+            chat_metadata = await self.get_chat_metadata(chat_id, admin_required=True)
             if not chat_metadata:
                 logger.warning(f"Chat {chat_id} not found when checking ownership for user {user_id}")
                 return False
@@ -408,6 +410,8 @@ class ChatMethods:
         limit: int = 100,
         offset: int = 0,
         sort: str = "-pinned,-updated_at",
+        admin_required: bool = False,
+        team_id: str | None = None,
     ) -> List[Dict[str, Any]]:
         """
         Fetches metadata for all chats belonging to a user from Directus, excluding content.
@@ -417,14 +421,22 @@ class ChatMethods:
         # Hash the user_id for privacy-preserving lookup
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         params = {
-            'filter[hashed_user_id][_eq]': hashed_user_id,
             'fields': CHAT_METADATA_FIELDS,
             'limit': limit,
             'offset': offset,
             'sort': sort
         }
+        if team_id:
+            params['filter[hashed_team_id][_eq]'] = hashlib.sha256(team_id.encode()).hexdigest()
+        else:
+            params['filter[hashed_user_id][_eq]'] = hashed_user_id
+            params['filter[hashed_team_id][_null]'] = True
         try:
-            response = await self.directus_service.get_items('chats', params=params)
+            response = await self.directus_service.get_items(
+                'chats',
+                params=params,
+                admin_required=admin_required,
+            )
             if response and isinstance(response, list):
                 logger.info(f"Successfully fetched {len(response)} chat metadata items for user {user_id}")
                 return response
@@ -503,6 +515,7 @@ class ChatMethods:
             success, result_data = await self.directus_service.create_item('chats', chat_metadata)
             if success and result_data:
                 logger.info(f"Chat created in Directus: {result_data.get('id')}")
+                await self._ensure_chat_key_wrapper_from_metadata(result_data)
                 if chat_id_val:
                     await self.directus_service.cache.delete(f"chat:{chat_id_val}:metadata")
                 
@@ -599,6 +612,7 @@ class ChatMethods:
                                 'chats', chat_id_val, fields_to_update
                             )
                             if updated_data:
+                                await self._ensure_chat_key_wrapper_from_metadata(updated_data)
                                 await self.directus_service.cache.delete(f"chat:{chat_id_val}:metadata")
                                 return updated_data, True
                         except Exception as update_err:
@@ -621,6 +635,26 @@ class ChatMethods:
         except Exception as e:
             logger.error(f"Error creating chat in Directus: {e}", exc_info=True)
             return None, False
+
+    async def _ensure_chat_key_wrapper_from_metadata(self, chat_metadata: Dict[str, Any]) -> None:
+        encrypted_chat_key = chat_metadata.get("encrypted_chat_key")
+        chat_id = chat_metadata.get("id")
+        hashed_user_id = chat_metadata.get("hashed_user_id")
+        if not chat_id or not hashed_user_id or not encrypted_chat_key:
+            return
+        try:
+            await self.directus_service.chat_key_wrapper.ensure_master_wrapper_for_chat(
+                chat_id=str(chat_id),
+                hashed_user_id=str(hashed_user_id),
+                encrypted_chat_key=str(encrypted_chat_key),
+            )
+        except Exception as wrapper_error:
+            logger.warning(
+                "Failed to ensure chat key wrapper for chat %s: %s",
+                chat_id,
+                wrapper_error,
+                exc_info=True,
+            )
 
     async def message_exists_by_client_message_id(self, client_message_id: str) -> bool:
         """
@@ -995,6 +1029,186 @@ class ChatMethods:
             )
             return []
 
+    @staticmethod
+    def _normalize_message_window_rows(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        for msg in messages:
+            msg['message_id'] = msg.get('client_message_id') or msg.get('id')
+        return messages
+
+    @staticmethod
+    def _message_cursor(message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        message_id = message.get('message_id') or message.get('client_message_id') or message.get('id')
+        created_at = message.get('created_at')
+        if message_id is None or created_at is None:
+            return None
+        try:
+            created_at = int(created_at)
+        except (TypeError, ValueError):
+            return None
+        return {"created_at": created_at, "message_id": str(message_id)}
+
+    @staticmethod
+    def _cursor_before_filter(chat_id: str, timestamp: int, message_id: Optional[str] = None) -> Dict[str, Any]:
+        if not message_id:
+            return {'chat_id': {'_eq': chat_id}, 'created_at': {'_lte': timestamp}}
+        return {
+            'chat_id': {'_eq': chat_id},
+            '_or': [
+                {'created_at': {'_lt': timestamp}},
+                {'created_at': {'_eq': timestamp}, 'client_message_id': {'_lt': message_id}},
+                {'created_at': {'_eq': timestamp}, 'client_message_id': {'_null': True}, 'id': {'_lt': message_id}},
+            ],
+        }
+
+    @staticmethod
+    def _cursor_after_filter(chat_id: str, timestamp: int, message_id: Optional[str] = None) -> Dict[str, Any]:
+        if not message_id:
+            return {'chat_id': {'_eq': chat_id}, 'created_at': {'_gt': timestamp}}
+        return {
+            'chat_id': {'_eq': chat_id},
+            '_or': [
+                {'created_at': {'_gt': timestamp}},
+                {'created_at': {'_eq': timestamp}, 'client_message_id': {'_gt': message_id}},
+                {'created_at': {'_eq': timestamp}, 'client_message_id': {'_null': True}, 'id': {'_gt': message_id}},
+            ],
+        }
+
+    @staticmethod
+    def _apply_lower_bound(message_filter: Dict[str, Any], lower_bound_timestamp: Optional[int]) -> Dict[str, Any]:
+        if not lower_bound_timestamp:
+            return message_filter
+        return {
+            '_and': [
+                message_filter,
+                {'created_at': {'_gt': lower_bound_timestamp}},
+            ],
+        }
+
+    async def _fetch_message_window_rows(
+        self,
+        message_filter: Dict[str, Any],
+        sort: List[str],
+        limit: int,
+    ) -> List[Dict[str, Any]]:
+        rows = await self.directus_service.get_items(
+            'messages',
+            params={
+                'filter': message_filter,
+                'fields': MESSAGE_ALL_FIELDS,
+                'sort': sort,
+                'limit': limit,
+            },
+            admin_required=True,
+        )
+        if not rows or not isinstance(rows, list):
+            return []
+        return self._normalize_message_window_rows(rows)
+
+    async def get_message_window_for_chat(
+        self,
+        chat_id: str,
+        direction: str = "latest",
+        limit: int = 30,
+        before_timestamp: Optional[int] = None,
+        before_message_id: Optional[str] = None,
+        after_timestamp: Optional[int] = None,
+        after_message_id: Optional[str] = None,
+        anchor_message_id: Optional[str] = None,
+        lower_bound_timestamp: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Fetch a bounded encrypted chat message window without changing full-sync semantics."""
+        safe_limit = max(1, min(int(limit or 30), 100))
+        direction = direction if direction in {"latest", "before", "after", "around"} else "latest"
+
+        if direction == "after":
+            if after_timestamp is None:
+                return self._message_window_result([], True, False, anchor_found=False)
+            rows = await self._fetch_message_window_rows(
+                self._cursor_after_filter(chat_id, int(after_timestamp), after_message_id),
+                ['created_at', 'client_message_id', 'id'],
+                safe_limit + 1,
+            )
+            has_more_after = len(rows) > safe_limit
+            if has_more_after:
+                rows = rows[:safe_limit]
+            return self._message_window_result(rows, True, has_more_after)
+
+        if direction == "around":
+            anchor = await self.get_message_for_chat_by_client_id(chat_id, anchor_message_id) if anchor_message_id else None
+            if not anchor:
+                return self._message_window_result([], False, False, anchor_found=False)
+            anchor_timestamp = int(anchor.get('created_at') or 0)
+            if lower_bound_timestamp and anchor_timestamp <= lower_bound_timestamp:
+                return self._message_window_result([], False, False, anchor_found=False)
+            anchor_id = anchor.get('message_id') or anchor.get('client_message_id') or anchor.get('id')
+            before_limit = max(0, (safe_limit - 1) // 2)
+            after_limit = max(0, safe_limit - 1 - before_limit)
+            before_rows = await self._fetch_message_window_rows(
+                self._apply_lower_bound(
+                    self._cursor_before_filter(chat_id, anchor_timestamp, str(anchor_id) if anchor_id else None),
+                    lower_bound_timestamp,
+                ),
+                ['-created_at', '-client_message_id', '-id'],
+                before_limit + 1,
+            ) if before_limit > 0 else []
+            after_rows = await self._fetch_message_window_rows(
+                self._cursor_after_filter(chat_id, anchor_timestamp, str(anchor_id) if anchor_id else None),
+                ['created_at', 'client_message_id', 'id'],
+                after_limit + 1,
+            ) if after_limit > 0 else []
+            has_more_before = len(before_rows) > before_limit
+            has_more_after = len(after_rows) > after_limit
+            if has_more_before:
+                before_rows = before_rows[:before_limit]
+            if has_more_after:
+                after_rows = after_rows[:after_limit]
+            before_rows.reverse()
+            return self._message_window_result([*before_rows, anchor, *after_rows], has_more_before, has_more_after, anchor_found=True)
+
+        if direction == "before":
+            if before_timestamp is None:
+                return self._message_window_result([], False, True, anchor_found=False)
+            rows = await self._fetch_message_window_rows(
+                self._apply_lower_bound(
+                    self._cursor_before_filter(chat_id, int(before_timestamp), before_message_id),
+                    lower_bound_timestamp,
+                ),
+                ['-created_at', '-client_message_id', '-id'],
+                safe_limit + 1,
+            )
+            has_more_before = len(rows) > safe_limit
+            if has_more_before:
+                rows = rows[:safe_limit]
+            rows.reverse()
+            return self._message_window_result(rows, has_more_before, True)
+
+        rows = await self._fetch_message_window_rows(
+            self._apply_lower_bound({'chat_id': {'_eq': chat_id}}, lower_bound_timestamp),
+            ['-created_at', '-client_message_id', '-id'],
+            safe_limit + 1,
+        )
+        has_more_before = len(rows) > safe_limit
+        if has_more_before:
+            rows = rows[:safe_limit]
+        rows.reverse()
+        return self._message_window_result(rows, has_more_before, False)
+
+    def _message_window_result(
+        self,
+        rows: List[Dict[str, Any]],
+        has_more_before: bool,
+        has_more_after: bool,
+        anchor_found: bool = True,
+    ) -> Dict[str, Any]:
+        return {
+            "messages": [json.dumps(row) for row in rows],
+            "has_more_before": has_more_before,
+            "has_more_after": has_more_after,
+            "start_cursor": self._message_cursor(rows[0]) if rows else None,
+            "end_cursor": self._message_cursor(rows[-1]) if rows else None,
+            "anchor_found": anchor_found,
+        }
+
     async def get_message_for_chat_by_client_id(
         self,
         chat_id: str,
@@ -1110,7 +1324,7 @@ class ChatMethods:
             return None
 
     async def get_core_chats_and_user_drafts_for_cache_warming(
-        self, user_id: str, limit: int = 1000, offset: int = 0
+        self, user_id: str, limit: int = 1000, offset: int = 0, team_id: str | None = None
     ) -> List[Dict[str, Any]]:
         """
         Fetches core data for multiple chats and all user drafts in a batched manner.
@@ -1118,12 +1332,16 @@ class ChatMethods:
         """
         logger.info(f"Fetching core chats and user drafts for cache warming for user_id: {user_id}, limit: {limit}, offset: {offset}")
         chat_params = {
-            'filter[hashed_user_id][_eq]': hashlib.sha256(user_id.encode()).hexdigest(),
             'fields': CORE_CHAT_FIELDS_FOR_WARMING,
             'sort': '-pinned,-last_edited_overall_timestamp',
             'limit': limit,
             'offset': offset
         }
+        if team_id:
+            chat_params['filter[hashed_team_id][_eq]'] = hashlib.sha256(team_id.encode()).hexdigest()
+        else:
+            chat_params['filter[hashed_user_id][_eq]'] = hashlib.sha256(user_id.encode()).hexdigest()
+            chat_params['filter[hashed_team_id][_null]'] = True
         results_list = []
         try:
             # 1. Fetch all core chat metadata in one request

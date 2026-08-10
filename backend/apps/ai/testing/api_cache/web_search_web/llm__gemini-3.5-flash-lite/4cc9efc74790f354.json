@@ -1,0 +1,56 @@
+{
+  "fingerprint": "4cc9efc74790f354",
+  "category": "llm/gemini-3.5-flash-lite",
+  "group_id": "web_search_web",
+  "recorded_at": "2026-07-29T10:51:47.663556+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "messages_count": 2,
+    "tools_count": 2,
+    "temperature": 0.4,
+    "tool_choice": "auto",
+    "last_message_preview": {
+      "role": "user",
+      "content": "[user]: Search the web for openmates_e2e_web_fixture_ai"
+    }
+  },
+  "response": {
+    "type": "mixed_stream",
+    "body": "",
+    "chunk_count": 2,
+    "chunk_format_version": 1,
+    "chunks": [
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "ParsedGoogleToolCall",
+        "value": {
+          "tool_call_id": "web-search-81de81b5",
+          "function_name": "web-search",
+          "function_arguments_raw": "{\"requests\": [{\"query\": \"openmates_e2e_web_fixture_ai\"}]}",
+          "function_arguments_parsed": {
+            "requests": [
+              {
+                "query": "openmates_e2e_web_fixture_ai"
+              }
+            ]
+          },
+          "parsing_error": null,
+          "thought_signature": "EjQKMgERTTIPlHNc+3LPQxL4v4Jgpkn9FcgooVlKsIi9fEQBpZ/O7R+oCBZGc2bOusbx06pN"
+        }
+      },
+      {
+        "kind": "pydantic",
+        "module": "backend.apps.ai.llm_providers.google_client",
+        "class": "GoogleUsageMetadata",
+        "value": {
+          "prompt_token_count": 11657,
+          "candidates_token_count": 30,
+          "total_token_count": 11687,
+          "user_input_tokens": 14,
+          "system_prompt_tokens": 10803
+        }
+      }
+    ]
+  }
+}

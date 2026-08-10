@@ -44,6 +44,7 @@ const {
 
 const {
 	loginToTestAccount,
+	waitForChatReady,
 	startNewChat,
 	sendMessage,
 	deleteActiveChat
@@ -64,6 +65,7 @@ test.describe('Usage Token Breakdown', () => {
 		attachNetworkListeners(page, testInfo);
 	});
 
+	// contract-test: direct surface=gui.web assertions=billing.usage.receipt-token-breakdown
 	test('receipt-style breakdown: sub-items sum to total input', async ({ page }) => {
 		test.setTimeout(120000); // 2 minutes — AI inference + usage fetch
 		const logStep = createSignupLogger('USAGE_TOKENS');
@@ -72,6 +74,7 @@ test.describe('Usage Token Breakdown', () => {
 
 		// Step 1: Login
 		await loginToTestAccount(page, logStep, takeScreenshot);
+		await waitForChatReady(page, logStep);
 		logStep('Logged in successfully');
 
 		// Step 2: Start a new chat and send a message
@@ -113,16 +116,14 @@ test.describe('Usage Token Breakdown', () => {
 		logStep('Navigated to Billing');
 		await takeScreenshot(page, 'billing-page');
 
-		// Wait for usage overview to load (the "Usage" section in billing)
-		// The overview shows daily items — wait for at least one entry to appear
-		await page.waitForTimeout(3000); // Allow API fetch to complete
+		// Wait for usage overview to load (the "Usage" section in billing).
+		await expect(settingsMenu.getByTestId('usage-overview-day-heading').first()).toBeVisible({
+			timeout: 15000,
+		});
 
 		// Click the first usage item in the overview (most recent chat)
-		// These are SettingsItem components rendered as clickable menu items
-		const firstUsageEntry = settingsMenu
-			.locator('[data-testid="menu-item"][role="menuitem"]')
-			.filter({ hasText: /request/ })
-			.first();
+		// These are SettingsItem components rendered as usage overview chat rows.
+		const firstUsageEntry = settingsMenu.getByTestId('usage-overview-chat-row').first();
 		await expect(firstUsageEntry).toBeVisible({ timeout: 15000 });
 		await firstUsageEntry.click();
 		logStep('Clicked first usage entry (drill into chat entries)');
@@ -153,6 +154,13 @@ test.describe('Usage Token Breakdown', () => {
 		logStep('Clicked chat entry with token breakdown to see detail view');
 		logStep('Usage detail view is visible');
 		await takeScreenshot(page, 'usage-detail-view');
+		const desktopViewport = page.viewportSize();
+		await page.setViewportSize({ width: 390, height: 844 });
+		await expect(usageDetailView).toBeVisible();
+		await takeScreenshot(page, 'usage-detail-view-mobile');
+		if (desktopViewport) {
+			await page.setViewportSize(desktopViewport);
+		}
 
 		// Step 4: Extract token values from the receipt-style breakdown
 		// All rows use data-testid on the row and data-testid="entry-value" on the value span

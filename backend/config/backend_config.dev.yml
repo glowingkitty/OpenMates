@@ -1,0 +1,24 @@
+# Development-only backend configuration.
+#
+# This file is selected only by backend/core/docker-compose.override.yml on the
+# OpenMates dev machine. Production and self-hosted deployments continue using
+# backend_config.yml, where unreleased product surfaces remain disabled.
+
+feature_overrides:
+  enabled:
+    - "platform:projects"
+    - "platform:plans"
+    - "platform:tasks"
+    - "platform:workflows"
+    - "platform:teams"
+  disabled:
+    - "app:life_coaching"
+    - "app:plants"
+
+logging:
+  level: "INFO"
+  format: "json"
+
+feature_flags:
+  new_dashboard_feature: true
+  experimental_analytics: false

@@ -71,3 +71,13 @@ def test_schema_accepts_sparse_default_enabled_false() -> None:
     )
 
     assert app.default_enabled is False
+
+
+def test_health_memories_remain_disabled_pending_compliance_review() -> None:
+    health_app = yaml.safe_load((APPS_DIR / "health" / "app.yml").read_text(encoding="utf-8"))
+
+    assert {
+        memory["id"]
+        for memory in health_app["settings_and_memories"]
+        if memory.get("default_enabled") is False
+    } == {"appointments", "medical_history", "symptoms_log", "sleep_diary"}

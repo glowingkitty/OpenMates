@@ -7,10 +7,12 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
+let signupEmailForCleanup: string | null = null;
 
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 	networkActivities.length = 0;
+	signupEmailForCleanup = null;
 });
 
 // eslint-disable-next-line no-empty-pattern
@@ -23,6 +25,9 @@ test.afterEach(async ({}, testInfo: any) => {
 		console.log('\n[RECENT NETWORK ACTIVITIES]');
 		networkActivities.slice(-20).forEach((activity) => console.log(activity));
 		console.log('\n--- END DEBUG INFO ---\n');
+		await cleanupFailedSignupAccount(signupEmailForCleanup, console.log, {
+			testFile: testInfo.file || 'signup-flow-passkey.spec.ts'
+		});
 	}
 });
 
@@ -31,6 +36,8 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
+	validateSignupInviteIfRequired,
+	cleanupFailedSignupAccount,
 	getSignupTestDomain,
 	buildSignupEmail,
 	createEmailClient,
@@ -58,6 +65,7 @@ const { openSignupInterface } = require('./helpers/chat-test-helpers');
  */
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
+const PASSKEY_STAY_LOGGED_IN_CASES = [true, false] as const;
 
 /**
  * Attach a virtual authenticator so WebAuthn prompts are satisfied automatically.
@@ -111,7 +119,8 @@ async function teardownVirtualPasskeyAuthenticator(
  * the PRF error screen, which is also valid behavior to test.
  */
 
-test('completes passkey signup flow with email', async ({
+for (const stayLoggedIn of PASSKEY_STAY_LOGGED_IN_CASES) {
+test(`completes passkey signup and account deletion with stay logged in ${stayLoggedIn ? 'enabled' : 'disabled'}`, async ({
 	page,
 	context
 }: {
@@ -141,9 +150,10 @@ test('completes passkey signup flow with email', async ({
 	// GHA runners are slower — 240s was insufficient; 420s provides comfortable margin.
 	test.setTimeout(420000);
 
-	const logSignupCheckpoint = createSignupLogger('SIGNUP_PASSKEY');
+	const caseLabel = stayLoggedIn ? 'STAY_LOGGED_IN' : 'SESSION_ONLY';
+	const logSignupCheckpoint = createSignupLogger(`SIGNUP_PASSKEY_${caseLabel}`);
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint, {
-		filenamePrefix: 'passkey'
+		filenamePrefix: `passkey-${stayLoggedIn ? 'stay-logged-in' : 'session-only'}`
 	});
 
 	await archiveExistingScreenshots(logSignupCheckpoint);
@@ -174,6 +184,7 @@ test('completes passkey signup flow with email', async ({
 		logSignupCheckpoint('Virtual authenticator configured for passkey flow.');
 
 		const signupEmail = buildSignupEmail(signupDomain);
+		signupEmailForCleanup = signupEmail;
 		const emailLocal = signupEmail.split('@')[0];
 		const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 		logSignupCheckpoint('Initialized passkey signup identity.', { signupEmail });
@@ -199,18 +210,25 @@ test('completes passkey signup flow with email', async ({
 		await takeStepScreenshot(page, 'basics-step');
 		logSignupCheckpoint('Reached basics step.');
 
+		await validateSignupInviteIfRequired(page, logSignupCheckpoint);
+
 		// Basics step: fill email/username and exercise key toggles.
-		const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 		const usernameInput = page.locator('input[autocomplete="username"]');
+		await expect(usernameInput).toBeVisible({ timeout: 10000 });
+		const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 		await expect(emailInput).toBeVisible({ timeout: 10000 });
 		await emailInput.fill(signupEmail);
 		await usernameInput.fill(signupUsername);
 		await takeStepScreenshot(page, 'basics-filled');
 
-		// Toggle "Stay logged in" on (explicitly test toggle wiring).
+		// Explicitly exercise both long-lived and session-only passkey signup.
 		const stayLoggedInToggle = page.locator('#stayLoggedIn');
-		await setToggleChecked(stayLoggedInToggle, true);
-		await expect(stayLoggedInToggle).toBeChecked();
+		await setToggleChecked(stayLoggedInToggle, stayLoggedIn);
+		if (stayLoggedIn) {
+			await expect(stayLoggedInToggle).toBeChecked();
+		} else {
+			await expect(stayLoggedInToggle).not.toBeChecked();
+		}
 
 		// Toggle newsletter on then off so we test the control without sending a subscription.
 		const newsletterToggle = page.locator('#newsletter-subscribe-toggle');
@@ -304,6 +322,19 @@ test('completes passkey signup flow with email', async ({
 		await takeStepScreenshot(page, 'delete-account-confirmed');
 		logSignupCheckpoint('Confirmed delete account data warning.');
 
+		const passkeyVerifyResponsePromise = page.waitForResponse(
+			(response: any) =>
+				response.url().includes('/auth/passkey/assertion/verify') &&
+				response.request().method() === 'POST',
+			{ timeout: 30000 }
+		);
+		const deleteAccountResponsePromise = page.waitForResponse(
+			(response: any) =>
+				response.url().includes('/settings/delete-account') &&
+				response.request().method() === 'POST',
+			{ timeout: 30000 }
+		);
+
 		// Start deletion and complete passkey authentication (auto-starts).
 		await page.getByTestId('delete-account-container').getByTestId('delete-button').click();
 		const authModal = page.getByTestId('auth-modal');
@@ -311,10 +342,28 @@ test('completes passkey signup flow with email', async ({
 		await takeStepScreenshot(page, 'delete-account-auth');
 		logSignupCheckpoint('Passkey auth modal opened for deletion.');
 
-		// Wait for deletion success after passkey authentication completes.
-		await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
-			timeout: 10000
-		});
+		const passkeyVerifyResponse = await passkeyVerifyResponsePromise;
+		expect(passkeyVerifyResponse.status()).toBe(200);
+		const passkeyVerifyBody = await passkeyVerifyResponse.json();
+		expect(passkeyVerifyBody.success).toBe(true);
+		logSignupCheckpoint('Passkey assertion verified before account deletion.');
+
+		const deleteAccountResponse = await deleteAccountResponsePromise;
+		expect(deleteAccountResponse.status()).toBe(200);
+		const deleteAccountBody = await deleteAccountResponse.json();
+		expect(deleteAccountBody.success).toBe(true);
+		logSignupCheckpoint('Delete account API accepted recent passkey proof.');
+
+		// The app may redirect to the logged-out shell before the in-panel success
+		// message is observable. The 200 API response above is the deletion proof;
+		// wait for either UI acknowledgement or the post-delete logged-out state.
+		const successMessage = page.getByTestId('delete-account-container').getByTestId('success-message');
+		const loginButton = page.getByRole('button', { name: /login/i });
+		await expect(async () => {
+			const successVisible = await successMessage.isVisible().catch(() => false);
+			const loggedOutVisible = await loginButton.isVisible().catch(() => false);
+			expect(successVisible || loggedOutVisible).toBe(true);
+		}).toPass({ timeout: 30000 });
 		await takeStepScreenshot(page, 'delete-account-success');
 		logSignupCheckpoint('Account deletion confirmed via passkey.');
 
@@ -323,8 +372,16 @@ test('completes passkey signup flow with email', async ({
 		// as guest chrome, so the Login CTA is the unauthenticated-shell proof.
 		await expect(page.getByRole('button', { name: /login/i })).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('profile-container')).toBeVisible({ timeout: 30000 });
+		const settingsMenu = page.getByTestId('settings-menu');
+		await expect(settingsMenu).not.toHaveClass(/visible/, { timeout: 10000 });
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'main');
+		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('daily-inspiration-area')).toHaveClass(
+			/landing-intro-overlay-active/
+		);
 		logSignupCheckpoint('Returned to logged-out home after account deletion.');
 	} finally {
 		await teardownVirtualPasskeyAuthenticator(client, authenticatorId);
 	}
 });
+}

@@ -10,6 +10,7 @@
 -->
 
 <script lang="ts">
+  import { onDestroy, untrack } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedZoomControls from '../shared/EmbedZoomControls.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -23,6 +24,7 @@
 
   const MIN_ZOOM = 0.35;
   const MAX_ZOOM = 2.5;
+  const DOWNLOAD_URL_REVOKE_DELAY_MS = 60_000;
 
   interface Props {
     data: EmbedFullscreenRawData;
@@ -85,6 +87,10 @@
 
   let graph = $derived(normalized.model ? buildMindMapLayout(normalized.model, collapsedNodeIds) : { nodes: [], edges: [], width: 0, height: 0 });
   let zoomLabel = $derived(`${Math.round(scale * 100)}%`);
+  let filenameBase = $derived(title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'mindmap');
+  let downloadFilename = $derived(`${filenameBase}.ommindmap`);
+  let preparedDownloadUrl = $state<string | null>(null);
+  let preparedDownloadKey = $state<string | null>(null);
 
   $effect(() => {
     const model = normalized.model;
@@ -96,17 +102,34 @@
     fitToView();
   });
 
+  $effect(() => {
+    if (sourceJson === untrack(() => preparedDownloadKey)) return;
+
+    const previousUrl = untrack(() => preparedDownloadUrl);
+    if (previousUrl) URL.revokeObjectURL(previousUrl);
+    preparedDownloadUrl = URL.createObjectURL(createMindMapBlob());
+    preparedDownloadKey = sourceJson;
+  });
+
+  onDestroy(() => {
+    if (preparedDownloadUrl) URL.revokeObjectURL(preparedDownloadUrl);
+  });
+
+  function createMindMapBlob() {
+    return new Blob([sourceJson], { type: 'application/json' });
+  }
+
   function downloadMindMap() {
-    const filenameBase = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'mindmap';
-    const blob = new Blob([sourceJson], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+    const url = preparedDownloadUrl ?? URL.createObjectURL(createMindMapBlob());
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${filenameBase}.ommindmap`;
+    link.download = downloadFilename;
     document.body.appendChild(link);
     link.click();
     link.remove();
-    URL.revokeObjectURL(url);
+    if (!preparedDownloadUrl) {
+      window.setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_URL_REVOKE_DELAY_MS);
+    }
   }
 
   function fitToView() {
@@ -202,6 +225,8 @@
   skillId="mindmap"
   {onClose}
   onDownload={downloadMindMap}
+  downloadHref={preparedDownloadUrl}
+  {downloadFilename}
   embedHeaderTitle={title}
   embedHeaderSubtitle={`${normalized.nodeCount} nodes · ${normalized.edgeCount} edges`}
   skillIconName=""

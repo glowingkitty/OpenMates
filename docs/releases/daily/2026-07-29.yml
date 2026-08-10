@@ -1,0 +1,2864 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-29'
+generated_at: '2026-08-06T13:18:07+00:00'
+range:
+  since: '2026-07-29T00:00:00+00:00'
+  until: '2026-07-30T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 53
+  section_counts:
+    features: 8
+    bug_fixes: 22
+    improvements: 0
+    docs: 4
+    tests: 18
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 23
+  dev_only_items: 53
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add embeds map view example chat'
+    section: features
+    commits:
+    - 78fec92ae
+    authored_at: '2026-07-29T23:22:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-ai-founder-meetups-map.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_ai_founder_meetups_map.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add deutschlandticket fare example chat'
+    section: features
+    commits:
+    - 6fd0d41f2
+    authored_at: '2026-07-29T23:16:27+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/deutschlandticket-train-fare-breakdown.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/deutschlandticket_train_fare_breakdown.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add pass-aware travel routing'
+    section: features
+    commits:
+    - 6537009ac
+    authored_at: '2026-07-29T16:15:35+00:00'
+    changed_paths:
+    - .claude/hooks/auto-track.sh
+    - .claude/hooks/bash-guard.sh
+    - .claude/rules/session-lifecycle.md
+    - .codex/hooks/auto-track.sh
+    - .codex/hooks/bash-guard.sh
+    - .opencode/plugins/openmates-hooks.js
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/travel/app.yml
+    - backend/apps/travel/providers/base_provider.py
+    - backend/apps/travel/providers/db_provider.py
+    - backend/apps/travel/providers/flix_provider.py
+    - backend/apps/travel/providers/serpapi_provider.py
+    - backend/apps/travel/providers/transitous_provider.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/shared/providers/deutsche_bahn.py
+    - backend/tests/test_travel_search_connections.py
+    - backend/tests/test_travel_skill_constraints.py
+    - docs/architecture/apps/travel-train-api-research.md
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/specs/travel-pass-aware-routing/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/travel/fareDisplay.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:travel, embed:travel:search_connections, skill:travel:search_connections'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add prompt-budget benchmark harness'
+    section: features
+    commits:
+    - 8839a4cc7
+    authored_at: '2026-07-29T16:10:02+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/llm_utils.py
+    - docs/specs/prompt-budget-cli-evaluation/spec.yml
+    - frontend/packages/openmates-cli/src/__tests__/benchmark.test.ts
+    - frontend/packages/openmates-cli/src/benchmark.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: wire embeds map view'
+    section: features
+    commits:
+    - 2c0990650
+    authored_at: '2026-07-29T14:58:40+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/tests/test_code_block_detection.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - docs/specs/embeds-map-view/spec.yml
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.preview.ts
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/EmbedsMapViewRenderer.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/index.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/embedsMapViewParsing.test.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add embeds map view renderer'
+    section: features
+    commits:
+    - 564857ba5
+    authored_at: '2026-07-29T14:54:37+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: render sub-chat batches inline'
+    section: features
+    commits:
+    - 4fc658e3e
+    authored_at: '2026-07-29T14:02:01+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/tests/test_ascii_smuggling_boundaries.py
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/SubChatBatchRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/index.ts
+    - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/subChatPreviewService.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add tasks web parity surface'
+    section: features
+    commits:
+    - 0e06c2de0
+    authored_at: '2026-07-29T10:24:39+00:00'
+    changed_paths:
+    - docs/specs/tasks-web-app-parity/spec.yml
+    - frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+    - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - scripts/verify_tasks_cli_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: enable guest example toolbar clicks'
+    section: bug_fixes
+    commits:
+    - b3b441838
+    authored_at: '2026-07-29T23:43:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve manual summary updates'
+    section: bug_fixes
+    commits:
+    - ad239d5d4
+    authored_at: '2026-07-29T17:39:56+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/tests/test_unified_detail_metadata.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/sendersChatManagement.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ignore stale post-processing summaries'
+    section: bug_fixes
+    commits:
+    - 24153d953
+    authored_at: '2026-07-29T17:21:14+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/tests/test_unified_detail_metadata.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prefer current server chat summary metadata'
+    section: bug_fixes
+    commits:
+    - 1d41ab74b
+    authored_at: '2026-07-29T16:57:23+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncMerge.test.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh phase one metadata from directus'
+    section: bug_fixes
+    commits:
+    - 130bf4cf1
+    authored_at: '2026-07-29T16:35:17+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render sub-chat batches after message content'
+    section: bug_fixes
+    commits:
+    - 42b78cf53
+    authored_at: '2026-07-29T16:27:03+00:00'
+    changed_paths:
+    - backend/tests/test_ai_instruction_contracts.py
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/index.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stack map view in narrow containers'
+    section: bug_fixes
+    commits:
+    - 5b32e4f2e
+    authored_at: '2026-07-29T16:24:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: return static embeds as payloads'
+    section: bug_fixes
+    commits:
+    - 82bb6eab1
+    authored_at: '2026-07-29T15:51:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve newer chat metadata cache'
+    section: bug_fixes
+    commits:
+    - c9087cd77
+    authored_at: '2026-07-29T15:49:44+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/offline_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/title_update_handler.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_unified_detail_metadata.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route embed map preview correctly'
+    section: bug_fixes
+    commits:
+    - 4c142f2f0
+    authored_at: '2026-07-29T15:29:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/eslint.config.js
+    - frontend/apps/web_app/src/lib/devPreviewEmbedApps.ts
+    - frontend/apps/web_app/src/params/embedApp.ts
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app=embedApp]/+page.svelte
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - scripts/lint_changed.sh
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair embeds map parser merge'
+    section: bug_fixes
+    commits:
+    - 6c4170ca4
+    authored_at: '2026-07-29T15:03:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hydrate partial synced chat messages'
+    section: bug_fixes
+    commits:
+    - 95baa87d8
+    authored_at: '2026-07-29T14:50:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: load example sub-chat from inline cards'
+    section: bug_fixes
+    commits:
+    - 9d22d6fc5
+    authored_at: '2026-07-29T14:28:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: deduplicate usage summary rows'
+    section: bug_fixes
+    commits:
+    - bdc9a0df2
+    authored_at: '2026-07-29T13:14:17+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/directus/setup/migrate_usage_overview_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    - backend/tests/test_usage_summary_deduplication.py
+    - backend/tests/test_usage_summary_write_race.py
+    - docs/specs/usage-summary-deduplication/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align guest all examples controls'
+    section: bug_fixes
+    commits:
+    - a243e070b
+    authored_at: '2026-07-29T13:02:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: return login lookup salt before cache warmup'
+    section: bug_fixes
+    commits:
+    - ad53e0bf6
+    authored_at: '2026-07-29T11:46:53+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/tests/test_auth_endpoints.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: replay web search live-mock flows'
+    section: bug_fixes
+    commits:
+    - 0cedc8910
+    authored_at: '2026-07-29T11:13:20+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/web_search_cli/llm__gemini-3.5-flash-lite/24f29b34238315d1.json
+    - backend/apps/ai/testing/api_cache/web_search_cli/llm__gemini-3.5-flash-lite/f71e2bf3e25fb573.json
+    - backend/apps/ai/testing/api_cache/web_search_web/llm__gemini-3.5-flash-lite/4b2e9a8d29f71f6a.json
+    - backend/apps/ai/testing/api_cache/web_search_web/llm__gemini-3.5-flash-lite/4cc9efc74790f354.json
+    - backend/apps/ai/testing/api_cache/web_search_zero_results/llm__gemini-3.5-flash-lite/584e1cf983dfc3cf.json
+    - backend/apps/ai/testing/api_cache/web_search_zero_results/llm__gemini-3.5-flash-lite/e4580c7024c7e5c6.json
+    - backend/apps/ai/testing/api_cache/web_search_zero_results/wikipedia/61dfb9ea2c727f51.json
+    - backend/apps/web/skills/search_skill.py
+    - backend/tests/test_web_search_fixture.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:web, embed:web:search, skill:web:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair hashed file embed refs'
+    section: bug_fixes
+    commits:
+    - eda56302d
+    authored_at: '2026-07-29T03:49:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: avoid double closing train fullscreen'
+    section: bug_fixes
+    commits:
+    - 27b340e2d
+    authored_at: '2026-07-29T03:48:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize train E2E message send'
+    section: bug_fixes
+    commits:
+    - 53ace0b12
+    authored_at: '2026-07-29T03:14:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: replay provider-prefixed live mock llm caches'
+    section: bug_fixes
+    commits:
+    - 5babc2755
+    authored_at: '2026-07-29T02:30:27+00:00'
+    changed_paths:
+    - backend/shared/testing/api_response_cache.py
+    - backend/tests/test_caching_llm_wrapper.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize train connection embed spec'
+    section: bug_fixes
+    commits:
+    - '575300290'
+    authored_at: '2026-07-29T01:45:08+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/travel_train_web.json
+    - backend/tests/test_mock_replay.py
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: update map view handoff'
+    section: docs
+    commits:
+    - 9e37678e6
+    authored_at: '2026-07-29T16:46:50+00:00'
+    changed_paths:
+    - docs/specs/embeds-map-view/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record map view verification evidence'
+    section: docs
+    commits:
+    - e396c0eff
+    authored_at: '2026-07-29T16:44:52+00:00'
+    changed_paths:
+    - docs/specs/embeds-map-view/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record travel Playwright evidence'
+    section: docs
+    commits:
+    - 894a004c8
+    authored_at: '2026-07-29T16:30:01+00:00'
+    changed_paths:
+    - docs/specs/travel-pass-aware-routing/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record spec verification evidence'
+    section: docs
+    commits:
+    - 558612acb
+    authored_at: '2026-07-29T16:27:45+00:00'
+    changed_paths:
+    - docs/specs/tasks-web-app-parity/spec.yml
+    - docs/specs/usage-summary-deduplication/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: fix embeds map view example coverage'
+    section: tests
+    commits:
+    - bf3c062cf
+    authored_at: '2026-07-29T23:44:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_ai_founder_meetups_map.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add focus-mode example contract guard'
+    section: tests
+    commits:
+    - dbb248cfb
+    authored_at: '2026-07-29T23:39:47+00:00'
+    changed_paths:
+    - docs/specs/focus-mode-example-chat-rendering/spec.yml
+    - scripts/tests/test_example_chat_focus_mode_contract.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: guard cloud-only operator helper exclusion'
+    section: tests
+    commits:
+    - 4831dfc71
+    authored_at: '2026-07-29T23:23:39+00:00'
+    changed_paths:
+    - scripts/revolut_business_setup.py
+    - scripts/tests/test_cloud_only_operator_exclusions.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: resolve svelte client runtime in vitest'
+    section: tests
+    commits:
+    - 65b8e4ac8
+    authored_at: '2026-07-29T16:01:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/vitest.config.ts
+    - frontend/packages/ui/vitest.simple.config.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: run map view component test in jsdom'
+    section: tests
+    commits:
+    - df416be2c
+    authored_at: '2026-07-29T15:55:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize message sync version wait'
+    section: tests
+    commits:
+    - 855168d84
+    authored_at: '2026-07-29T14:00:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: clear cli preflight after fallback'
+    section: tests
+    commits:
+    - ceaaa6465
+    authored_at: '2026-07-29T13:12:15+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: fall back cli integration account'
+    section: tests
+    commits:
+    - f9697137a
+    authored_at: '2026-07-29T12:43:18+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: avoid chat task parity title collision'
+    section: tests
+    commits:
+    - bd3b89a8a
+    authored_at: '2026-07-29T10:54:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: resolve shared asset refs from cli cache'
+    section: tests
+    commits:
+    - c92d4b43c
+    authored_at: '2026-07-29T04:52:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize train fullscreen cleanup'
+    section: tests
+    commits:
+    - 63d4f7cbb
+    authored_at: '2026-07-29T04:16:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use full cli chat id in shared asset spec'
+    section: tests
+    commits:
+    - c4e133ce0
+    authored_at: '2026-07-29T04:14:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize fullscreen close helper'
+    section: tests
+    commits:
+    - d10f5362b
+    authored_at: '2026-07-29T03:45:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: keep pdf cli composer open'
+    section: tests
+    commits:
+    - a4a34b387
+    authored_at: '2026-07-29T02:39:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize train connection spec'
+    section: tests
+    commits:
+    - 1564d7636
+    authored_at: '2026-07-29T02:29:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: keep embed service module stable'
+    section: tests
+    commits:
+    - 38b65060f
+    authored_at: '2026-07-29T02:24:34+00:00'
+    changed_paths:
+    - backend/tests/test_audio_recording_embed_filter.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate audio recording embed filter'
+    section: tests
+    commits:
+    - 4c83a0db4
+    authored_at: '2026-07-29T02:12:56+00:00'
+    changed_paths:
+    - backend/tests/test_audio_recording_embed_filter.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: update screenshot html embed label'
+    section: tests
+    commits:
+    - e2c76dff6
+    authored_at: '2026-07-29T01:17:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: harden opencode workflow guardrails'
+    section: infrastructure
+    commits:
+    - f1fff36dc
+    authored_at: '2026-07-29T16:20:56+00:00'
+    changed_paths:
+    - .agents/skills/specify/SKILL.md
+    - .claude/hooks/tdd-session-context.sh
+    - .claude/rules/testing.md
+    - .claude/skills/specify/SKILL.md
+    - .codex/hooks/tdd-session-context.sh
+    - .opencode/plugins/cli-auto-login.js
+    - docs/specs/agent-workflow-quality-parity/spec.yml
+    - opencode.json
+    - scripts/_daily_meeting_helper.py
+    - scripts/_dependabot_helper.py
+    - scripts/_deploy_checker_helper.py
+    - scripts/_eu_vuln_helper.py
+    - scripts/_legal_compliance_helper.py
+    - scripts/_opencode_daily_meeting.py
+    - scripts/_opencode_utils.py
+    - scripts/_security_deep_audit_helper.py
+    - scripts/agent-trigger-watcher.sh
+    - scripts/audit_opencode_automation_budget.py
+    - scripts/docs_guide_review.py
+    - scripts/openai_compat_opencode_smoke.py
+    - scripts/safe_bash_guard.py
+    - scripts/tests/test_cli_auto_login_plugin.mjs
+    - scripts/tests/test_opencode_automation_budget_audit.py
+    - scripts/tests/test_sessions_stale_read.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'test: fix embeds map view example coverage'
+    commits:
+    - bf3c062cf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: enable guest example toolbar clicks'
+    commits:
+    - b3b441838
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: add focus-mode example contract guard'
+    commits:
+    - dbb248cfb
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: guard cloud-only operator helper exclusion'
+    commits:
+    - 4831dfc71
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add embeds map view example chat'
+    commits:
+    - 78fec92ae
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add deutschlandticket fare example chat'
+    commits:
+    - 6fd0d41f2
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve manual summary updates'
+    commits:
+    - ad239d5d4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: ignore stale post-processing summaries'
+    commits:
+    - 24153d953
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: prefer current server chat summary metadata'
+    commits:
+    - 1d41ab74b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: update map view handoff'
+    commits:
+    - 9e37678e6
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record map view verification evidence'
+    commits:
+    - e396c0eff
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: refresh phase one metadata from directus'
+    commits:
+    - 130bf4cf1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record travel Playwright evidence'
+    commits:
+    - 894a004c8
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record spec verification evidence'
+    commits:
+    - 558612acb
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: render sub-chat batches after message content'
+    commits:
+    - 42b78cf53
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stack map view in narrow containers'
+    commits:
+    - 5b32e4f2e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'chore: harden opencode workflow guardrails'
+    commits:
+    - f1fff36dc
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add pass-aware travel routing'
+    commits:
+    - 6537009ac
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'feat: add prompt-budget benchmark harness'
+    commits:
+    - 8839a4cc7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: resolve svelte client runtime in vitest'
+    commits:
+    - 65b8e4ac8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: run map view component test in jsdom'
+    commits:
+    - df416be2c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: return static embeds as payloads'
+    commits:
+    - 82bb6eab1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve newer chat metadata cache'
+    commits:
+    - c9087cd77
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: route embed map preview correctly'
+    commits:
+    - 4c142f2f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: repair embeds map parser merge'
+    commits:
+    - 6c4170ca4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: wire embeds map view'
+    commits:
+    - 2c0990650
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: add embeds map view renderer'
+    commits:
+    - 564857ba5
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: hydrate partial synced chat messages'
+    commits:
+    - 95baa87d8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: load example sub-chat from inline cards'
+    commits:
+    - 9d22d6fc5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: render sub-chat batches inline'
+    commits:
+    - 4fc658e3e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: stabilize message sync version wait'
+    commits:
+    - 855168d84
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: deduplicate usage summary rows'
+    commits:
+    - bdc9a0df2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: clear cli preflight after fallback'
+    commits:
+    - ceaaa6465
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align guest all examples controls'
+    commits:
+    - a243e070b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: fall back cli integration account'
+    commits:
+    - f9697137a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: return login lookup salt before cache warmup'
+    commits:
+    - ad53e0bf6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: replay web search live-mock flows'
+    commits:
+    - 0cedc8910
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'test: avoid chat task parity title collision'
+    commits:
+    - bd3b89a8a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add tasks web parity surface'
+    commits:
+    - 0e06c2de0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: resolve shared asset refs from cli cache'
+    commits:
+    - c92d4b43c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize train fullscreen cleanup'
+    commits:
+    - 63d4f7cbb
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use full cli chat id in shared asset spec'
+    commits:
+    - c4e133ce0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: repair hashed file embed refs'
+    commits:
+    - eda56302d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: avoid double closing train fullscreen'
+    commits:
+    - 27b340e2d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize fullscreen close helper'
+    commits:
+    - d10f5362b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize train E2E message send'
+    commits:
+    - 53ace0b12
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: keep pdf cli composer open'
+    commits:
+    - a4a34b387
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: replay provider-prefixed live mock llm caches'
+    commits:
+    - 5babc2755
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize train connection spec'
+    commits:
+    - 1564d7636
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: keep embed service module stable'
+    commits:
+    - 38b65060f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate audio recording embed filter'
+    commits:
+    - 4c83a0db4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize train connection embed spec'
+    commits:
+    - '575300290'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: update screenshot html embed label'
+    commits:
+    - e2c76dff6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: preserve manual summary updates'
+    commits:
+    - ad239d5d4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: ignore stale post-processing summaries'
+    commits:
+    - 24153d953
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add pass-aware travel routing'
+    commits:
+    - 6537009ac
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+  - title: 'fix: preserve newer chat metadata cache'
+    commits:
+    - c9087cd77
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: enable guest example toolbar clicks'
+    commits:
+    - b3b441838
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add embeds map view example chat'
+    commits:
+    - 78fec92ae
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve manual summary updates'
+    commits:
+    - ad239d5d4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: ignore stale post-processing summaries'
+    commits:
+    - 24153d953
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refresh phase one metadata from directus'
+    commits:
+    - 130bf4cf1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: render sub-chat batches after message content'
+    commits:
+    - 42b78cf53
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stack map view in narrow containers'
+    commits:
+    - 5b32e4f2e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add pass-aware travel routing'
+    commits:
+    - 6537009ac
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: embed:travel:search_connections
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    - id: skill:travel:search_connections
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:travel
+      source: backend/apps/travel/app.yml
+    newsletter_ready: false
+  - title: 'feat: add prompt-budget benchmark harness'
+    commits:
+    - 8839a4cc7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: return static embeds as payloads'
+    commits:
+    - 82bb6eab1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve newer chat metadata cache'
+    commits:
+    - c9087cd77
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: route embed map preview correctly'
+    commits:
+    - 4c142f2f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: wire embeds map view'
+    commits:
+    - 2c0990650
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: add embeds map view renderer'
+    commits:
+    - 564857ba5
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: load example sub-chat from inline cards'
+    commits:
+    - 9d22d6fc5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: render sub-chat batches inline'
+    commits:
+    - 4fc658e3e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: align guest all examples controls'
+    commits:
+    - a243e070b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: return login lookup salt before cache warmup'
+    commits:
+    - ad53e0bf6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: replay web search live-mock flows'
+    commits:
+    - 0cedc8910
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'feat: add tasks web parity surface'
+    commits:
+    - 0e06c2de0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: avoid double closing train fullscreen'
+    commits:
+    - 27b340e2d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize train E2E message send'
+    commits:
+    - 53ace0b12
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize train connection embed spec'
+    commits:
+    - '575300290'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: bf3c062cf75e89e903282f95e9ee7710d42a00e0
+    short_sha: bf3c062cf
+    authored_at: '2026-07-29T23:44:21+00:00'
+    subject: 'test: fix embeds map view example coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_ai_founder_meetups_map.yml
+    related_feature_ids: []
+  - sha: b3b4418381cd5a3f37fba486fc4c7a927e76d3ab
+    short_sha: b3b441838
+    authored_at: '2026-07-29T23:43:49+00:00'
+    subject: 'fix: enable guest example toolbar clicks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: dbb248cfbdba577e84201456fa245a4f0c64b5d9
+    short_sha: dbb248cfb
+    authored_at: '2026-07-29T23:39:47+00:00'
+    subject: 'test: add focus-mode example contract guard'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/focus-mode-example-chat-rendering/spec.yml
+    - scripts/tests/test_example_chat_focus_mode_contract.py
+    related_feature_ids: []
+  - sha: 4831dfc71f81a6aebf0fa65b85170d85a8c07869
+    short_sha: 4831dfc71
+    authored_at: '2026-07-29T23:23:39+00:00'
+    subject: 'test: guard cloud-only operator helper exclusion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/revolut_business_setup.py
+    - scripts/tests/test_cloud_only_operator_exclusions.py
+    related_feature_ids: []
+  - sha: 78fec92aede61aae2dde159c097f27ff9d7495f0
+    short_sha: 78fec92ae
+    authored_at: '2026-07-29T23:22:18+00:00'
+    subject: 'feat: add embeds map view example chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-ai-founder-meetups-map.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_ai_founder_meetups_map.yml
+    related_feature_ids: []
+  - sha: 6fd0d41f21fc61bd02fed50820480adc6d43465b
+    short_sha: 6fd0d41f2
+    authored_at: '2026-07-29T23:16:27+00:00'
+    subject: 'feat: add deutschlandticket fare example chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/deutschlandticket-train-fare-breakdown.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/deutschlandticket_train_fare_breakdown.yml
+    related_feature_ids: []
+  - sha: ad239d5d4515e2dd80f54b3f0ef58a5c278597f9
+    short_sha: ad239d5d4
+    authored_at: '2026-07-29T17:39:56+00:00'
+    subject: 'fix: preserve manual summary updates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/tests/test_unified_detail_metadata.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/sendersChatManagement.ts
+    related_feature_ids: []
+  - sha: 24153d953cd385aba61c80cc8219fc2e0d868f2f
+    short_sha: 24153d953
+    authored_at: '2026-07-29T17:21:14+00:00'
+    subject: 'fix: ignore stale post-processing summaries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/tests/test_unified_detail_metadata.py
+    related_feature_ids: []
+  - sha: 1d41ab74bd64004e73abc71bf8d8bd70625a84af
+    short_sha: 1d41ab74b
+    authored_at: '2026-07-29T16:57:23+00:00'
+    subject: 'fix: prefer current server chat summary metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncMerge.test.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    related_feature_ids: []
+  - sha: 9e37678e67a126b807ec1c5301356a6bd4e2df77
+    short_sha: 9e37678e6
+    authored_at: '2026-07-29T16:46:50+00:00'
+    subject: 'docs: update map view handoff'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/embeds-map-view/spec.yml
+    related_feature_ids: []
+  - sha: e396c0eff6de669b0a088dbc8d9f3bfab01b555e
+    short_sha: e396c0eff
+    authored_at: '2026-07-29T16:44:52+00:00'
+    subject: 'docs: record map view verification evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/embeds-map-view/spec.yml
+    related_feature_ids: []
+  - sha: 130bf4cf1ce3147b264fa52ecd26dd1f1b5e5c74
+    short_sha: 130bf4cf1
+    authored_at: '2026-07-29T16:35:17+00:00'
+    subject: 'fix: refresh phase one metadata from directus'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    related_feature_ids: []
+  - sha: 894a004c89755603a536edcb6e69f67d246f7b08
+    short_sha: 894a004c8
+    authored_at: '2026-07-29T16:30:01+00:00'
+    subject: 'docs: record travel Playwright evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/travel-pass-aware-routing/spec.yml
+    related_feature_ids: []
+  - sha: 558612acbe8af8e5e61c4adad5584d6e54fa4fda
+    short_sha: 558612acb
+    authored_at: '2026-07-29T16:27:45+00:00'
+    subject: 'docs: record spec verification evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/tasks-web-app-parity/spec.yml
+    - docs/specs/usage-summary-deduplication/spec.yml
+    related_feature_ids: []
+  - sha: 42b78cf532ca9193d46b8f3a166764267f9f85f1
+    short_sha: 42b78cf53
+    authored_at: '2026-07-29T16:27:03+00:00'
+    subject: 'fix: render sub-chat batches after message content'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_ai_instruction_contracts.py
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/index.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    related_feature_ids: []
+  - sha: 5b32e4f2eef84625b663f8b3a8492360265f059e
+    short_sha: 5b32e4f2e
+    authored_at: '2026-07-29T16:24:19+00:00'
+    subject: 'fix: stack map view in narrow containers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    related_feature_ids: []
+  - sha: f1fff36dc947bc08ace109b2e8f3afd9325b85a8
+    short_sha: f1fff36dc
+    authored_at: '2026-07-29T16:20:56+00:00'
+    subject: 'chore: harden opencode workflow guardrails'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/specify/SKILL.md
+    - .claude/hooks/tdd-session-context.sh
+    - .claude/rules/testing.md
+    - .claude/skills/specify/SKILL.md
+    - .codex/hooks/tdd-session-context.sh
+    - .opencode/plugins/cli-auto-login.js
+    - docs/specs/agent-workflow-quality-parity/spec.yml
+    - opencode.json
+    - scripts/_daily_meeting_helper.py
+    - scripts/_dependabot_helper.py
+    - scripts/_deploy_checker_helper.py
+    - scripts/_eu_vuln_helper.py
+    - scripts/_legal_compliance_helper.py
+    - scripts/_opencode_daily_meeting.py
+    - scripts/_opencode_utils.py
+    - scripts/_security_deep_audit_helper.py
+    - scripts/agent-trigger-watcher.sh
+    - scripts/audit_opencode_automation_budget.py
+    - scripts/docs_guide_review.py
+    - scripts/openai_compat_opencode_smoke.py
+    - scripts/safe_bash_guard.py
+    - scripts/tests/test_cli_auto_login_plugin.mjs
+    - scripts/tests/test_opencode_automation_budget_audit.py
+    - scripts/tests/test_sessions_stale_read.py
+    related_feature_ids: []
+  - sha: 6537009ac87e7e3fee7312585ddbd03f6fb67cb9
+    short_sha: 6537009ac
+    authored_at: '2026-07-29T16:15:35+00:00'
+    subject: 'feat: add pass-aware travel routing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/auto-track.sh
+    - .claude/hooks/bash-guard.sh
+    - .claude/rules/session-lifecycle.md
+    - .codex/hooks/auto-track.sh
+    - .codex/hooks/bash-guard.sh
+    - .opencode/plugins/openmates-hooks.js
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/travel/app.yml
+    - backend/apps/travel/providers/base_provider.py
+    - backend/apps/travel/providers/db_provider.py
+    - backend/apps/travel/providers/flix_provider.py
+    - backend/apps/travel/providers/serpapi_provider.py
+    - backend/apps/travel/providers/transitous_provider.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/shared/providers/deutsche_bahn.py
+    - backend/tests/test_travel_search_connections.py
+    - backend/tests/test_travel_skill_constraints.py
+    - docs/architecture/apps/travel-train-api-research.md
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/specs/travel-pass-aware-routing/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/travel/fareDisplay.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/sessions.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    related_feature_ids:
+    - app:ai
+    - app:travel
+    - embed:travel:search_connections
+    - skill:travel:search_connections
+  - sha: 8839a4cc757029d8174e01e65d1b4a68b3280861
+    short_sha: 8839a4cc7
+    authored_at: '2026-07-29T16:10:02+00:00'
+    subject: 'feat: add prompt-budget benchmark harness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/llm_utils.py
+    - docs/specs/prompt-budget-cli-evaluation/spec.yml
+    - frontend/packages/openmates-cli/src/__tests__/benchmark.test.ts
+    - frontend/packages/openmates-cli/src/benchmark.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 65b8e4ac8d473af559c34bc1b71d3ce43beeb41b
+    short_sha: 65b8e4ac8
+    authored_at: '2026-07-29T16:01:22+00:00'
+    subject: 'test: resolve svelte client runtime in vitest'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/vitest.config.ts
+    - frontend/packages/ui/vitest.simple.config.ts
+    related_feature_ids: []
+  - sha: df416be2c9d57c17d3c963a972e9670444c56b3a
+    short_sha: df416be2c
+    authored_at: '2026-07-29T15:55:31+00:00'
+    subject: 'test: run map view component test in jsdom'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    related_feature_ids: []
+  - sha: 82bb6eab1aa188e8753b3d418aee70f374f2cff4
+    short_sha: 82bb6eab1
+    authored_at: '2026-07-29T15:51:58+00:00'
+    subject: 'fix: return static embeds as payloads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: c9087cd7767639f3b5f19d74c9176ae10fe233d1
+    short_sha: c9087cd77
+    authored_at: '2026-07-29T15:49:44+00:00'
+    subject: 'fix: preserve newer chat metadata cache'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/offline_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/title_update_handler.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_unified_detail_metadata.py
+    related_feature_ids: []
+  - sha: 4c142f2f0081c9dc3a70b81dffd97456ab94b751
+    short_sha: 4c142f2f0
+    authored_at: '2026-07-29T15:29:57+00:00'
+    subject: 'fix: route embed map preview correctly'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/eslint.config.js
+    - frontend/apps/web_app/src/lib/devPreviewEmbedApps.ts
+    - frontend/apps/web_app/src/params/embedApp.ts
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app=embedApp]/+page.svelte
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - scripts/lint_changed.sh
+    related_feature_ids: []
+  - sha: 6c4170ca42c70f2a1f4f1d72be82a96376ca5933
+    short_sha: 6c4170ca4
+    authored_at: '2026-07-29T15:03:46+00:00'
+    subject: 'fix: repair embeds map parser merge'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    related_feature_ids: []
+  - sha: 2c099065011110f14a1053d66535ea22ebd2af07
+    short_sha: 2c0990650
+    authored_at: '2026-07-29T14:58:40+00:00'
+    subject: 'feat: wire embeds map view'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/tests/test_code_block_detection.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - docs/specs/embeds-map-view/spec.yml
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.preview.ts
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/EmbedsMapViewRenderer.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/index.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/embedsMapViewParsing.test.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 564857ba54b6ef609820ae370402e00204397bde
+    short_sha: 564857ba5
+    authored_at: '2026-07-29T14:54:37+00:00'
+    subject: 'feat: add embeds map view renderer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    related_feature_ids: []
+  - sha: 95baa87d8936047bda70e1e885ed536e06f311b9
+    short_sha: 95baa87d8
+    authored_at: '2026-07-29T14:50:24+00:00'
+    subject: 'fix: hydrate partial synced chat messages'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    related_feature_ids: []
+  - sha: 9d22d6fc5191633b707ab5607cffb80b80e0775f
+    short_sha: 9d22d6fc5
+    authored_at: '2026-07-29T14:28:19+00:00'
+    subject: 'fix: load example sub-chat from inline cards'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+    related_feature_ids: []
+  - sha: 4fc658e3eee2fc4ae310b147ccefa24de47db59e
+    short_sha: 4fc658e3e
+    authored_at: '2026-07-29T14:02:01+00:00'
+    subject: 'feat: render sub-chat batches inline'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/tests/test_ascii_smuggling_boundaries.py
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/SubChatBatchRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/index.ts
+    - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/subChatPreviewService.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 855168d8470295f42eee720ac43f2fe07b7cebf2
+    short_sha: 855168d84
+    authored_at: '2026-07-29T14:00:40+00:00'
+    subject: 'test: stabilize message sync version wait'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    related_feature_ids: []
+  - sha: bdc9a0df21a0dbe4a0f5a8d0891473216a74b112
+    short_sha: bdc9a0df2
+    authored_at: '2026-07-29T13:14:17+00:00'
+    subject: 'fix: deduplicate usage summary rows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/directus/setup/migrate_usage_overview_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    - backend/tests/test_usage_summary_deduplication.py
+    - backend/tests/test_usage_summary_write_race.py
+    - docs/specs/usage-summary-deduplication/spec.yml
+    related_feature_ids: []
+  - sha: ceaaa6465812dd9276986fd348c6b5e0eed24a85
+    short_sha: ceaaa6465
+    authored_at: '2026-07-29T13:12:15+00:00'
+    subject: 'test: clear cli preflight after fallback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: a243e070b9acae0674a9fae0489f1fdb67321237
+    short_sha: a243e070b
+    authored_at: '2026-07-29T13:02:48+00:00'
+    subject: 'fix: align guest all examples controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: f9697137a98ef855154fc943dc776350417282c8
+    short_sha: f9697137a
+    authored_at: '2026-07-29T12:43:18+00:00'
+    subject: 'test: fall back cli integration account'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: ad53e0bf6296c1386bc286f11e3f1dd9a923c2d7
+    short_sha: ad53e0bf6
+    authored_at: '2026-07-29T11:46:53+00:00'
+    subject: 'fix: return login lookup salt before cache warmup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/tests/test_auth_endpoints.py
+    related_feature_ids: []
+  - sha: 0cedc891082250ed5f3158a90b777e1de2817ce0
+    short_sha: 0cedc8910
+    authored_at: '2026-07-29T11:13:20+00:00'
+    subject: 'fix: replay web search live-mock flows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/web_search_cli/llm__gemini-3.5-flash-lite/24f29b34238315d1.json
+    - backend/apps/ai/testing/api_cache/web_search_cli/llm__gemini-3.5-flash-lite/f71e2bf3e25fb573.json
+    - backend/apps/ai/testing/api_cache/web_search_web/llm__gemini-3.5-flash-lite/4b2e9a8d29f71f6a.json
+    - backend/apps/ai/testing/api_cache/web_search_web/llm__gemini-3.5-flash-lite/4cc9efc74790f354.json
+    - backend/apps/ai/testing/api_cache/web_search_zero_results/llm__gemini-3.5-flash-lite/584e1cf983dfc3cf.json
+    - backend/apps/ai/testing/api_cache/web_search_zero_results/llm__gemini-3.5-flash-lite/e4580c7024c7e5c6.json
+    - backend/apps/ai/testing/api_cache/web_search_zero_results/wikipedia/61dfb9ea2c727f51.json
+    - backend/apps/web/skills/search_skill.py
+    - backend/tests/test_web_search_fixture.py
+    related_feature_ids:
+    - app:ai
+    - app:web
+    - embed:web:search
+    - skill:web:search
+  - sha: bd3b89a8aa395833cc268011910916bb452791d8
+    short_sha: bd3b89a8a
+    authored_at: '2026-07-29T10:54:32+00:00'
+    subject: 'test: avoid chat task parity title collision'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
+    related_feature_ids: []
+  - sha: 0e06c2de0ecc6db5d9c68ea9a9c0006ea28f4c39
+    short_sha: 0e06c2de0
+    authored_at: '2026-07-29T10:24:39+00:00'
+    subject: 'feat: add tasks web parity surface'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/tasks-web-app-parity/spec.yml
+    - frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+    - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - scripts/verify_tasks_cli_smoke.py
+    related_feature_ids:
+    - platform:tasks
+  - sha: c92d4b43c2feb9a4893c168ee5bb16bd8bf51a7b
+    short_sha: c92d4b43c
+    authored_at: '2026-07-29T04:52:12+00:00'
+    subject: 'test: resolve shared asset refs from cli cache'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: 63d4f7cbb4cf6032a2969f7ca6391e7979735a1a
+    short_sha: 63d4f7cbb
+    authored_at: '2026-07-29T04:16:58+00:00'
+    subject: 'test: stabilize train fullscreen cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    related_feature_ids: []
+  - sha: c4e133ce01e827f74f11cea4f3736357e2f980f1
+    short_sha: c4e133ce0
+    authored_at: '2026-07-29T04:14:19+00:00'
+    subject: 'test: use full cli chat id in shared asset spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/shared-chat-embed-assets.spec.ts
+    related_feature_ids: []
+  - sha: eda56302d760b799f033f6bf628a7323df6c18ed
+    short_sha: eda56302d
+    authored_at: '2026-07-29T03:49:49+00:00'
+    subject: 'fix: repair hashed file embed refs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 27b340e2dd7998aedffe63db9724a01e28b3fc25
+    short_sha: 27b340e2d
+    authored_at: '2026-07-29T03:48:41+00:00'
+    subject: 'fix: avoid double closing train fullscreen'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    related_feature_ids: []
+  - sha: d10f5362ba4bbccf853ea759685fc8256628ffab
+    short_sha: d10f5362b
+    authored_at: '2026-07-29T03:45:47+00:00'
+    subject: 'test: stabilize fullscreen close helper'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    related_feature_ids: []
+  - sha: 53ace0b12861d7cea23433dcb4b2d95947407b23
+    short_sha: 53ace0b12
+    authored_at: '2026-07-29T03:14:46+00:00'
+    subject: 'fix: stabilize train E2E message send'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: a4a34b387d7e08103b1c5d2e2e4febb7ca3377c4
+    short_sha: a4a34b387
+    authored_at: '2026-07-29T02:39:12+00:00'
+    subject: 'test: keep pdf cli composer open'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    related_feature_ids: []
+  - sha: 5babc27559bcec1b5a88f004a3c5f9cebb0733d7
+    short_sha: 5babc2755
+    authored_at: '2026-07-29T02:30:27+00:00'
+    subject: 'fix: replay provider-prefixed live mock llm caches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/testing/api_response_cache.py
+    - backend/tests/test_caching_llm_wrapper.py
+    related_feature_ids: []
+  - sha: 1564d76366c49aa1c239bbcb8767e959c5c1e0b6
+    short_sha: 1564d7636
+    authored_at: '2026-07-29T02:29:03+00:00'
+    subject: 'test: stabilize train connection spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    related_feature_ids: []
+  - sha: 38b65060ff2bd1bf828c9193aa0a182645d23a8e
+    short_sha: 38b65060f
+    authored_at: '2026-07-29T02:24:34+00:00'
+    subject: 'test: keep embed service module stable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_audio_recording_embed_filter.py
+    related_feature_ids: []
+  - sha: 4c83a0db4df9844e6658a44b4cf8959cd77c298c
+    short_sha: 4c83a0db4
+    authored_at: '2026-07-29T02:12:56+00:00'
+    subject: 'test: isolate audio recording embed filter'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_audio_recording_embed_filter.py
+    related_feature_ids: []
+  - sha: 57530029013357bec05211c8877ccede35fd256e
+    short_sha: '575300290'
+    authored_at: '2026-07-29T01:45:08+00:00'
+    subject: 'fix: stabilize train connection embed spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/travel_train_web.json
+    - backend/tests/test_mock_replay.py
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    related_feature_ids:
+    - app:ai
+  - sha: e2c76dff678be7777c8aca3b1d8c372801020de6
+    short_sha: e2c76dff6
+    authored_at: '2026-07-29T01:17:57+00:00'
+    subject: 'test: update screenshot html embed label'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on expanding the chat interface with map view embeds and refining travel routing capabilities.
+    Significant work was also done on chat metadata synchronization, internal benchmarking tools, and stabilizing the Tasks
+    web parity surface.
+  released_changes: []
+  bug_fixes:
+  - text: Chat metadata handling was improved to preserve manual summary updates and ignore stale post-processing data.
+    evidence:
+      commits:
+      - ad239d5d4
+      - 24153d953
+      - c9087cd77
+    release_status: dev_only
+  - text: The map view embed was updated to stack correctly in narrow containers and route previews accurately.
+    evidence:
+      commits:
+      - 5b32e4f2e
+      - 4c142f2f0
+    release_status: dev_only
+  - text: Authentication flows now return login lookup salts before cache warmup to improve reliability.
+    evidence:
+      commits:
+      - ad53e0bf6
+    release_status: dev_only
+  - text: Usage summary rows are now deduplicated to prevent data inflation in the backend.
+    evidence:
+      commits:
+      - bdc9a0df2
+    release_status: dev_only
+  unreleased_progress:
+  - text: Development continued on a map view embed, including a new renderer and example chat data for geographic visualization.
+    evidence:
+      commits:
+      - 78fec92ae
+      - 2c0990650
+      - 564857ba5
+    release_status: dev_only
+  - text: Travel routing was updated to support pass-aware logic, allowing the system to account for specific transit passes
+      during connection searches.
+    evidence:
+      commits:
+      - 6537009ac
+    release_status: dev_only
+  - text: The Tasks platform received updates for web app parity, including new task board and card components.
+    evidence:
+      commits:
+      - 0e06c2de0
+    release_status: dev_only
+  - text: Sub-chat batches can now be rendered inline within the chat interface to improve the flow of multi-part AI interactions.
+    evidence:
+      commits:
+      - 4fc658e3e
+    release_status: dev_only
+  internal_progress:
+  - text: A prompt-budget benchmark harness was added to evaluate AI performance and cost efficiency.
+    evidence:
+      commits:
+      - 8839a4cc7
+    release_status: dev_only
+  - text: Infrastructure guardrails for OpenCode workflows were hardened to improve automation reliability.
+    evidence:
+      commits:
+      - f1fff36dc
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Map View Embeds
+      evidence:
+        commits:
+        - 78fec92ae
+        - 2c0990650
+        - 564857ba5
+      reason: The map view embed feature is currently in development and not yet released to the main branch.
+    - text: Pass-Aware Travel Routing
+      evidence:
+        commits:
+        - 6537009ac
+      reason: Pass-aware travel routing is an unreleased improvement to the travel application.
+    - text: Tasks Web Parity
+      evidence:
+        commits:
+        - 0e06c2de0
+      reason: The Tasks platform is currently a disabled feature.
+    rationale: All updates from this period are currently in the development branch and have not been promoted to the main
+      release. Major features like the Map View and Tasks parity are still undergoing internal testing.
+  social_video_recommendations:
+  - idea: A video demonstrating the new Map View embed by visualizing AI founder meetups in Berlin.
+    priority: medium
+    reason: This provides a concrete visual product story showing map integration within the chat interface.
+    evidence:
+      commits:
+      - 78fec92ae
+      - 2c0990650
+  quality_notes:
+  - Extensive test stabilization was performed for travel and train connection specs (1564d7636, 575300290, 63d4f7cbb).
+  - Improved synchronization logic for chat summaries and metadata ensures better consistency between client and server (1d41ab74b,
+    130bf4cf1).
+  validation_warnings: []

@@ -12,8 +12,16 @@ try:
     from backend.apps.ai.processing.preprocessor import (
         _contains_onboarding_trigger_in_user_history,
         _contains_mindmap_intent_in_user_history,
+        _contains_image_generation_intent_in_user_history,
+        _contains_image_search_intent_in_user_history,
+        _contains_image_to_html_intent_in_user_history,
         _contains_rain_radar_intent_in_user_history,
         _contains_repo_search_intent_in_user_history,
+        _request_has_image_upload_embed,
+        _resolve_override_model_provider,
+        IMAGE_CHAT_SAFE_MODEL_ID,
+        IMAGE_CHAT_SAFE_MODEL_NAME,
+        _latest_assistant_category_from_history,
         _normalize_topic_area,
         _resolve_category_from_topic_area,
         ONBOARDING_TRIGGER_PHRASES,
@@ -34,9 +42,10 @@ except ImportError as _exc:
 
 class FakeMessage:
     """Minimal stand-in for AIHistoryMessage with role and content."""
-    def __init__(self, role: str, content):
+    def __init__(self, role: str, content, category=None):
         self.role = role
         self.content = content
+        self.category = category
 
 
 def _user_msg(content: str) -> FakeMessage:
@@ -45,6 +54,63 @@ def _user_msg(content: str) -> FakeMessage:
 
 def _assistant_msg(content: str) -> FakeMessage:
     return FakeMessage(role="assistant", content=content)
+
+
+def _assistant_msg_with_category(content: str, category: str) -> FakeMessage:
+    return FakeMessage(role="assistant", content=content, category=category)
+
+
+class FakeConfigManager:
+    def __init__(self):
+        self.provider_configs = {
+            "alibaba": {
+                "models": [
+                    {
+                        "id": "qwen3-235b-a22b-2507",
+                        "servers": [{"id": "cerebras"}, {"id": "openrouter"}],
+                    }
+                ]
+            },
+            "openai": {
+                "models": [
+                    {
+                        "id": "gpt-5.4",
+                        "servers": [{"id": "openai"}],
+                    }
+                ]
+            },
+        }
+
+    def get_provider_config(self, provider_id: str):
+        return self.provider_configs.get(provider_id)
+
+    def find_provider_for_model(self, model_id: str):
+        for provider_id, provider_config in self.provider_configs.items():
+            for model in provider_config.get("models", []):
+                aliases = model.get("aliases", [])
+                if model.get("id") == model_id or model_id in aliases:
+                    return provider_id
+        return None
+
+
+def test_resolve_override_model_provider_normalizes_server_id():
+    result = _resolve_override_model_provider(
+        "qwen3-235b-a22b-2507",
+        "cerebras",
+        FakeConfigManager(),
+    )
+
+    assert result == "alibaba"
+
+
+def test_resolve_override_model_provider_keeps_direct_provider_id():
+    result = _resolve_override_model_provider(
+        "gpt-5.4",
+        "openai",
+        FakeConfigManager(),
+    )
+
+    assert result == "openai"
 
 
 # ===========================================================================
@@ -241,6 +307,120 @@ class TestContainsMindMapIntent:
 
 
 # ===========================================================================
+# _contains_image_generation_intent_in_user_history
+# ===========================================================================
+
+class TestContainsImageGenerationIntent:
+    def test_detects_text_to_image_generation_request(self):
+        history = [_user_msg("Generate an image of a minimalist red circle on a white background")]
+
+        assert _contains_image_generation_intent_in_user_history(history) is True
+        assert _contains_image_search_intent_in_user_history(history) is False
+
+    def test_detects_design_mockup_request(self):
+        history = [_user_msg("Design a coffee cup mockup for a landing page")]
+
+        assert _contains_image_generation_intent_in_user_history(history) is True
+
+    def test_ignores_existing_image_search_request(self):
+        history = [_user_msg("Find images of cafes in Berlin Mitte")]
+
+        assert _contains_image_generation_intent_in_user_history(history) is False
+        assert _contains_image_search_intent_in_user_history(history) is True
+
+    def test_only_user_messages_checked(self):
+        history = [
+            _assistant_msg("Generate an image of a minimalist red circle."),
+            _user_msg("Thanks"),
+        ]
+
+        assert _contains_image_generation_intent_in_user_history(history) is False
+
+
+class TestContainsImageToHtmlIntent:
+    def test_detects_uploaded_screenshot_to_html_request(self):
+        history = [_user_msg("Please turn the uploaded screenshot into a standalone index.html code embed.")]
+
+        assert _contains_image_to_html_intent_in_user_history(history) is True
+
+    def test_detects_mockup_to_self_contained_webpage_request(self):
+        history = [_user_msg("Convert this UI mockup image into a self-contained webpage with CSS.")]
+
+        assert _contains_image_to_html_intent_in_user_history(history) is True
+
+    def test_ignores_regular_image_search_request(self):
+        history = [_user_msg("Find images of SaaS dashboard mockups")]
+
+        assert _contains_image_to_html_intent_in_user_history(history) is False
+
+    def test_only_user_messages_checked(self):
+        history = [
+            _assistant_msg("Turn the screenshot into HTML."),
+            _user_msg("Thanks"),
+        ]
+
+        assert _contains_image_to_html_intent_in_user_history(history) is False
+
+
+class TestImageUploadEmbedDetection:
+    def test_detects_current_turn_image_upload_flag(self):
+        request = type("Request", (), {
+            "message_history": [_user_msg("Evaluate this design.")],
+            "current_user_content": "Evaluate this design.",
+            "embed_file_path_index": None,
+            "has_image_upload_embed": True,
+        })()
+
+        assert _request_has_image_upload_embed(request) is True
+
+    def test_detects_history_image_upload_toon(self):
+        request = type("Request", (), {
+            "message_history": [_user_msg("app_id: images\nskill_id: upload\nembed_ref: photo.jpg")],
+            "current_user_content": "Evaluate this design.",
+            "embed_file_path_index": None,
+        })()
+
+        assert _request_has_image_upload_embed(request) is True
+
+    def test_detects_current_turn_image_file_path_index(self):
+        request = type("Request", (), {
+            "message_history": [_user_msg("Evaluate this design.")],
+            "current_user_content": "Evaluate this design.",
+            "embed_file_path_index": {"large_message_e2e.jpg": "embed-image-1"},
+        })()
+
+        assert _request_has_image_upload_embed(request) is True
+
+    def test_detects_raw_current_turn_image_embed_reference(self):
+        request = type("Request", (), {
+            "message_history": [_user_msg("Evaluate this design.")],
+            "current_user_content": """Evaluate this design.
+
+```json
+{"type":"image","embed_id":"client-upload-image-1"}
+```""",
+            "embed_file_path_index": None,
+            "has_image_upload_embed": False,
+        })()
+
+        assert _request_has_image_upload_embed(request) is True
+
+    def test_ignores_non_image_file_path_index(self):
+        request = type("Request", (), {
+            "message_history": [_user_msg("Summarize this document.")],
+            "current_user_content": "Summarize this document.",
+            "embed_file_path_index": {"notes.pdf": "embed-pdf-1"},
+            "has_image_upload_embed": False,
+        })()
+
+        assert _request_has_image_upload_embed(request) is False
+
+    def test_safe_model_matches_image_reroute_contract(self):
+        assert IMAGE_CHAT_SAFE_MODEL_ID == "anthropic/claude-haiku-4-5-20251001"
+        assert IMAGE_CHAT_SAFE_MODEL_NAME == "Claude Haiku 4.5"
+
+
+# ===========================================================================
 # Audio recording transcription guard
 # ===========================================================================
 
@@ -338,6 +518,13 @@ class TestTopicAreaMateRouting:
     def test_normalizes_full_topic_string(self):
         assert _normalize_topic_area("textiles_sewing: Fabric and sewing") == "textiles_sewing"
 
+    def test_finds_previous_category_from_latest_assistant_message(self):
+        assert _latest_assistant_category_from_history([
+            _user_msg("Explain the basics of machine learning"),
+            _assistant_msg_with_category("Machine learning basics", "software_development"),
+            _user_msg("I'm just starting out and want fundamentals"),
+        ]) == "software_development"
+
     def test_routes_textiles_to_maker_not_cooking(self):
         assert _resolve_category_from_topic_area(
             raw_topic_area="textiles_sewing",
@@ -369,6 +556,15 @@ class TestTopicAreaMateRouting:
             previous_category="maker_prototyping",
             available_category_ids=AVAILABLE_CATEGORY_IDS,
         ) == "maker_prototyping"
+
+    def test_keeps_previous_category_for_learning_follow_up(self):
+        assert _resolve_category_from_topic_area(
+            raw_topic_area="education_learning",
+            raw_topic_shift="noticeable_shift",
+            previous_category="software_development",
+            available_category_ids=AVAILABLE_CATEGORY_IDS,
+            raw_task_area="general",
+        ) == "software_development"
 
     def test_allows_clear_follow_up_topic_shift(self):
         assert _resolve_category_from_topic_area(

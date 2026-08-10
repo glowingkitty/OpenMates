@@ -10,6 +10,14 @@ logo_svg: "icons/amazon.svg"
 region: "US" # Amazon HQ is in Seattle, US
 privacy_policy: "https://www.amazon.com/gp/help/customer/display.html?nodeId=GX7NJQ4ZB8MHFRNJ" # verified via official search result 2026-05-24
 
+required_keys:
+  - env_key: "SECRET__SERPAPI__API_KEY"
+    vault_path: "kv/data/providers/serpapi"
+    vault_key: "api_key"
+    description: "SerpAPI key used for Amazon marketplace search."
+    setup_url: "https://serpapi.com/manage-api-key"
+    docs_url: "https://serpapi.com/amazon-search-api"
+
 
 # API access
 # Amazon product search is provided via SerpAPI's Amazon Search API.

@@ -17,7 +17,6 @@ from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.apps.ai.llm_providers.google_client import invoke_google_ai_studio_chat_completions
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +49,9 @@ ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY = "admin:compression_threshold_override"
 # Category marker for compression summary system messages
 COMPRESSION_SUMMARY_CATEGORY = "compression_summary"
 
-# Compression model: Gemini 3 Flash (fast, cheap, 1M context)
-COMPRESSION_MODEL_ID = "gemini-3-flash-preview"
-COMPRESSION_MODEL_SERVER = "google_ai_studio"  # Default server for Gemini Flash
+# Compression model: Gemini Flash-Lite (cheap, high-context summarization path)
+COMPRESSION_MODEL_ID = "gemini-3.5-flash-lite"
+COMPRESSION_MODEL_SERVER = "google_ai_studio"  # Default server for Gemini Flash-Lite
 CEREBRAS_COMPRESSION_FALLBACK_MODEL_ID = os.getenv(
     "CEREBRAS_COMPRESSION_FALLBACK_MODEL_ID",
     "gpt-oss-120b",
@@ -67,7 +66,27 @@ class CompressionResult(BaseModel):
     summary_token_estimate: int = 0  # Estimated tokens in the summary
     recent_messages: Optional[List[Dict[str, Any]]] = None  # Messages kept in full
     compressed_up_to_timestamp: Optional[int] = None  # Timestamp of newest compressed message
+    model_id: Optional[str] = None
+    input_tokens: int = 0
+    output_tokens: int = 0
     error: Optional[str] = None
+
+
+def _response_token_usage(response: Any) -> Tuple[int, int]:
+    """Extract normalized token usage from supported compression providers."""
+
+    usage = getattr(response, "usage", None)
+    input_tokens = getattr(
+        usage,
+        "input_tokens",
+        getattr(usage, "prompt_tokens", getattr(usage, "prompt_token_count", 0)),
+    )
+    output_tokens = getattr(
+        usage,
+        "output_tokens",
+        getattr(usage, "completion_tokens", getattr(usage, "candidates_token_count", 0)),
+    )
+    return int(input_tokens or 0), int(output_tokens or 0)
 
 
 def estimate_tokens_for_message(msg: Dict[str, Any]) -> int:
@@ -128,6 +147,7 @@ def should_compress(
 
 def split_history_for_compression(
     message_history: List[Dict[str, Any]],
+    force_latest_assistant_tail_split: bool = False,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Split message history into messages to compress and recent messages to keep.
 
@@ -140,6 +160,12 @@ def split_history_for_compression(
 
     Args:
         message_history: Full message history in chronological order (oldest first).
+        force_latest_assistant_tail_split: When compression has already been
+            triggered, force older messages before the latest assistant response
+            into the compressed set even if they fit within the fixed recent
+            window budget. This keeps low admin thresholds from producing an
+            empty compression set while preserving the latest assistant + user
+            follow-up tail for immediate context.
 
     Returns:
         Tuple of (messages_to_compress, recent_messages).
@@ -147,6 +173,8 @@ def split_history_for_compression(
     """
     if not message_history:
         return [], []
+
+    protected_tail_start = _find_latest_assistant_tail_start(message_history)
 
     # Walk backwards to find the split point
     accumulated_tokens = 0
@@ -178,6 +206,12 @@ def split_history_for_compression(
         accumulated_tokens += msg_tokens
         split_index = i
 
+    if protected_tail_start is not None:
+        if force_latest_assistant_tail_split and split_index < protected_tail_start:
+            split_index = protected_tail_start
+        else:
+            split_index = min(split_index, protected_tail_start)
+
     # Split the history
     messages_to_compress = message_history[:split_index]
     recent_messages = [
@@ -192,6 +226,28 @@ def split_history_for_compression(
     )
 
     return messages_to_compress, recent_messages
+
+
+def _find_latest_assistant_tail_start(message_history: List[Dict[str, Any]]) -> Optional[int]:
+    """Return the index where the latest assistant turn's visible tail starts.
+
+    The visible forgotten-message UI is separate from active AI context. After a
+    token-triggered compression, the model still needs the latest user prompt,
+    latest full assistant response, and any user follow-up messages after it so
+    immediate replies stay grounded even when those messages exceed the normal
+    recent-window token budget.
+    """
+    for index in range(len(message_history) - 1, -1, -1):
+        msg = message_history[index]
+        if msg.get("role") == "assistant":
+            for previous_index in range(index - 1, -1, -1):
+                previous_msg = message_history[previous_index]
+                previous_role = previous_msg.get("role")
+                if previous_role == "system":
+                    continue
+                return previous_index if previous_role == "user" else index
+            return index
+    return None
 
 
 def _find_existing_summary(messages: List[Dict[str, Any]]) -> Optional[str]:
@@ -307,6 +363,8 @@ async def compress_chat_history(
     task_id: str,
     secrets_manager: SecretsManager,
     compression_threshold: int = DEFAULT_COMPRESSION_TRIGGER_THRESHOLD,
+    prior_summary: Optional[str] = None,
+    force: bool = False,
 ) -> CompressionResult:
     """Compress older messages in a chat history into a structured summary.
 
@@ -329,7 +387,7 @@ async def compress_chat_history(
     """
     log_prefix = f"[{task_id}] Compression:"
 
-    if not should_compress(message_history, compression_threshold):
+    if not force and not should_compress(message_history, compression_threshold):
         return CompressionResult(was_compressed=False)
 
     compress_start = time.time()
@@ -340,14 +398,20 @@ async def compress_chat_history(
     )
 
     # Split history
-    messages_to_compress, recent_messages = split_history_for_compression(message_history)
+    if force:
+        messages_to_compress, recent_messages = message_history, []
+    else:
+        messages_to_compress, recent_messages = split_history_for_compression(
+            message_history,
+            force_latest_assistant_tail_split=True,
+        )
 
     if not messages_to_compress:
         logger.info(f"{log_prefix} No messages to compress after split. Skipping.")
         return CompressionResult(was_compressed=False)
 
     # Check for existing compression summary in the messages being compressed
-    previous_summary = _find_existing_summary(messages_to_compress)
+    previous_summary = prior_summary or _find_existing_summary(messages_to_compress)
     if previous_summary:
         logger.info(f"{log_prefix} Found existing compression summary to incorporate.")
 
@@ -371,6 +435,9 @@ async def compress_chat_history(
 
     # Call the compression LLM
     try:
+        from backend.apps.ai.llm_providers.google_client import invoke_google_ai_studio_chat_completions
+
+        used_provider = "google"
         llm_messages = [{"role": "system", "content": system_prompt}]
         llm_messages.extend(formatted_messages)
 
@@ -407,6 +474,7 @@ async def compress_chat_history(
                     max_tokens=MAX_SUMMARY_TOKENS * 4,
                     stream=False,
                 )
+                used_provider = "cerebras"
 
                 if not response.success or not response.direct_message_content:
                     fallback_error = response.error_message or "Fallback also failed"
@@ -424,6 +492,7 @@ async def compress_chat_history(
 
         summary_content = response.direct_message_content.strip()
         summary_token_estimate = int(len(summary_content) / AVG_CHARS_PER_TOKEN)
+        input_tokens, output_tokens = _response_token_usage(response)
 
         compress_time = time.time() - compress_start
         logger.info(
@@ -439,6 +508,9 @@ async def compress_chat_history(
             summary_token_estimate=summary_token_estimate,
             recent_messages=[msg for msg in recent_messages],
             compressed_up_to_timestamp=compressed_up_to_timestamp,
+            model_id=f"{used_provider}/{str(getattr(response, 'model_id', None) or COMPRESSION_MODEL_ID).split('/')[-1]}",
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
         )
 
     except Exception as e:
@@ -466,7 +538,10 @@ async def get_admin_compression_threshold(
         Custom threshold in tokens, or None to use the default.
     """
     try:
-        override = await cache_service.redis_client.get(
+        redis_client = await cache_service.client
+        if redis_client is None:
+            return None
+        override = await redis_client.get(
             f"{ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY}:{user_id}"
         )
         if override:

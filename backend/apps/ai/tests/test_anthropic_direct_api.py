@@ -24,8 +24,17 @@ except ImportError:
     not HAS_ANTHROPIC_DIRECT_API,
     reason="Anthropic direct API dependencies not installed",
 )
-def test_opus_4_8_omits_deprecated_temperature():
-    """Claude Opus 4.8 rejects temperature, so the direct client must omit it."""
+@pytest.mark.parametrize(
+    "model_id, expected_text",
+    [
+        ("claude-fable-5", "Fable 5 is online."),
+        ("claude-opus-5", "Opus 5 is online."),
+        ("claude-sonnet-5", "Sonnet 5 is online."),
+        ("claude-opus-4-8", "Opus 4.8 is online."),
+    ],
+)
+def test_adaptive_thinking_models_omit_deprecated_temperature(model_id, expected_text):
+    """Adaptive-thinking Claude models reject temperature, so the client must omit it."""
 
     @dataclass
     class MockUsage:
@@ -35,7 +44,7 @@ def test_opus_4_8_omits_deprecated_temperature():
     @dataclass
     class MockTextBlock:
         type: str = "text"
-        text: str = "Opus 4.8 is online."
+        text: str = expected_text
 
     @dataclass
     class MockResponse:
@@ -48,7 +57,7 @@ def test_opus_4_8_omits_deprecated_temperature():
 
         response = await invoke_direct_api(
             task_id="test-opus48-temperature",
-            model_id="claude-opus-4-8",
+            model_id=model_id,
             messages=[{"role": "user", "content": "test"}],
             anthropic_client=mock_client,
             temperature=0,
@@ -58,7 +67,7 @@ def test_opus_4_8_omits_deprecated_temperature():
 
         assert response.success is True
         request_kwargs = mock_client.messages.create.call_args.kwargs
-        assert request_kwargs["model"] == "claude-opus-4-8"
+        assert request_kwargs["model"] == model_id
         assert "temperature" not in request_kwargs
 
     asyncio.run(run())

@@ -16,42 +16,19 @@ if echo "$COMMAND" | grep -qE 'sessions\.py\s+deploy'; then
   exit 0
 fi
 
+# --- Allow orchestrated session worktree commands, not raw git worktree ---
+if echo "$COMMAND" | grep -qE 'sessions\.py\s+worktree\s+(ensure|cleanup)'; then
+  exit 0
+fi
+
 # --- Allow git operations in the marketing repo (no code, just yml/md content) ---
 if echo "$COMMAND" | grep -qE 'openmates-marketing'; then
   exit 0
 fi
 
-# --- Allow pnpm dependency installs, but block local builds/tests/dev servers ---
-if echo "$COMMAND" | grep -qE '(^|[[:space:];&|])pnpm([[:space:]][^;&|]*)*[[:space:]](add|install|i)([[:space:]]|$)'; then
-  exit 0
-fi
-
-if echo "$COMMAND" | grep -qE '(^|[[:space:];&|])(npx|pnpm)([[:space:]]|$)'; then
-  echo '{"decision":"block","reason":"BLOCKED: pnpm/npx build, dev, run, and test commands are not allowed locally — they crash the server. pnpm add/install is allowed for dependency changes; use sessions.py deploy for builds and python3 scripts/run_tests.py for tests."}' >&2
-  exit 2
-fi
-
-# --- Block raw git commit (must use sessions.py deploy) ---
-if echo "$COMMAND" | grep -qE '\bgit\s+commit\b'; then
-  echo '{"decision":"block","reason":"BLOCKED: Use sessions.py deploy instead of raw git commit. It handles linting, translation validation, and session tracking."}' >&2
-  exit 2
-fi
-
-# --- Block raw git push (must use sessions.py deploy) ---
-if echo "$COMMAND" | grep -qE '\bgit\s+push\b'; then
-  echo '{"decision":"block","reason":"BLOCKED: Use sessions.py deploy instead of raw git push. It handles session tracking and deploy coordination."}' >&2
-  exit 2
-fi
-
-# --- Block git add -A / git add . (stages everything including secrets and unrelated files) ---
-if echo "$COMMAND" | grep -qE '\bgit\s+add\s+(-A|--all|\.)'; then
-  echo '{"decision":"block","reason":"BLOCKED: git add -A / git add . stages everything (secrets, unrelated files). Add specific files by name instead."}' >&2
-  exit 2
-fi
-
-# --- Block git stash (forbidden by project rules) ---
-if echo "$COMMAND" | grep -qE '\bgit\s+stash\b'; then
-  echo '{"decision":"block","reason":"BLOCKED: git stash is forbidden. Commit your work via sessions.py deploy instead."}' >&2
+# --- Block parsed unsafe command invocations without matching quoted data. ---
+if ! PARSED_GUARD_OUTPUT=$(python3 "/home/superdev/projects/OpenMates/scripts/safe_bash_guard.py" "$COMMAND" 2>&1); then
+  printf '%s\n' "$PARSED_GUARD_OUTPUT" >&2
   exit 2
 fi
 
@@ -90,17 +67,5 @@ for script_path in $(echo "$COMMAND" | grep -oE '(^|[[:space:];&|])([^[:space:];
     exit 2
   fi
 done
-
-# --- Block git worktree (all work in main directory) ---
-if echo "$COMMAND" | grep -qE '\bgit\s+worktree\b'; then
-  echo '{"decision":"block","reason":"BLOCKED: git worktree is forbidden. All work happens in the main working directory."}' >&2
-  exit 2
-fi
-
-# --- Block force push to main/master ---
-if echo "$COMMAND" | grep -qE 'git\s+push\s+.*--force.*\b(main|master)\b|git\s+push\s+.*\b(main|master)\b.*--force'; then
-  echo '{"decision":"block","reason":"BLOCKED: Force pushing to main/master is not allowed."}' >&2
-  exit 2
-fi
 
 exit 0

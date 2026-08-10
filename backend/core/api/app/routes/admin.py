@@ -4,7 +4,7 @@ REST API endpoints for server administration functionality.
 """
 
 import logging
-import random
+import secrets
 import string
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, Request, Depends
@@ -436,6 +436,17 @@ async def update_anonymous_free_usage_budget(
     except RuntimeError as exc:
         logger.error("Failed to save anonymous free usage budget: %s", exc, exc_info=True)
         raise HTTPException(status_code=502, detail="Failed to save anonymous free usage budget") from exc
+    logger.info(
+        "Anonymous free usage budget saved: admin_user_id=%s enabled=%s active=%s reason=%s monthly_budget_credits=%s daily_cap_credits=%s weekly_cap_credits=%s per_identity_daily_cap_credits=%s",
+        admin_user.id,
+        status.enabled,
+        status.active,
+        status.reason,
+        status.monthly_budget_credits,
+        status.daily_hard_cap_credits,
+        status.weekly_cap_credits,
+        status.per_identity_daily_cap_credits,
+    )
     return _anonymous_free_usage_budget_response(status)
 
 
@@ -467,12 +478,12 @@ def generate_gift_card_code(prefix: Optional[str] = None) -> str:
         # Prefix replaces start of first segment, pad remainder with random chars
         prefix = prefix.upper()
         remaining = 4 - len(prefix)
-        part1 = prefix + ''.join(random.choices(GIFT_CARD_CHARSET, k=remaining))
+        part1 = prefix + ''.join(secrets.choice(GIFT_CARD_CHARSET) for _ in range(remaining))
     else:
-        part1 = ''.join(random.choices(GIFT_CARD_CHARSET, k=4))
+        part1 = ''.join(secrets.choice(GIFT_CARD_CHARSET) for _ in range(4))
     
-    part2 = ''.join(random.choices(GIFT_CARD_CHARSET, k=4))
-    part3 = ''.join(random.choices(GIFT_CARD_CHARSET, k=4))
+    part2 = ''.join(secrets.choice(GIFT_CARD_CHARSET) for _ in range(4))
+    part3 = ''.join(secrets.choice(GIFT_CARD_CHARSET) for _ in range(4))
     
     return f"{part1}-{part2}-{part3}"
 
@@ -643,6 +654,10 @@ async def admin_list_gift_cards(
 ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY = "admin:compression_threshold_override"
 
 
+def _compression_threshold_cache_key(user_id: str) -> str:
+    return f"{ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY}:{user_id}"
+
+
 class CompressionThresholdRequest(BaseModel):
     """Request body for setting the admin compression threshold override."""
     threshold: int = Field(
@@ -676,9 +691,7 @@ async def get_compression_threshold(
         redis_client = await cache_service.client
         if redis_client is None:
             raise RuntimeError("cache client not connected")
-        raw = await redis_client.hget(
-            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id
-        )
+        raw = await redis_client.get(_compression_threshold_cache_key(admin_user.id))
         threshold = int(raw) if raw else None
         return CompressionThresholdResponse(
             success=True,
@@ -703,9 +716,7 @@ async def set_compression_threshold(
         redis_client = await cache_service.client
         if redis_client is None:
             raise RuntimeError("cache client not connected")
-        await redis_client.hset(
-            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id, str(body.threshold)
-        )
+        await redis_client.set(_compression_threshold_cache_key(admin_user.id), str(body.threshold))
         logger.info(
             f"Admin {admin_user.id} set compression threshold to {body.threshold} tokens"
         )
@@ -731,9 +742,7 @@ async def delete_compression_threshold(
         redis_client = await cache_service.client
         if redis_client is None:
             raise RuntimeError("cache client not connected")
-        await redis_client.hdel(
-            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id
-        )
+        await redis_client.delete(_compression_threshold_cache_key(admin_user.id))
         logger.info(f"Admin {admin_user.id} removed compression threshold override")
         return CompressionThresholdResponse(
             success=True,

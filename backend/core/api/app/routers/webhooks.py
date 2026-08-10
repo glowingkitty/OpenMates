@@ -9,7 +9,7 @@
 # Incoming flow (mirrors the reminder pattern — see backend/apps/reminder/tasks.py):
 #   1. Auth + rate-limit + dedupe the webhook key.
 #   2. Pre-create the chat in Directus so later AI persistence has a row to attach to.
-#   3. Broadcast a `webhook_chat` WebSocket event with PLAINTEXT content to any online
+#   3. Send a `webhook_chat` WebSocket event with PLAINTEXT content to one online
 #      device for that user. The frontend handler encrypts with a freshly-generated
 #      chat key and persists via `chat_system_message_added`, matching reminder_fired.
 #   4. If the user is offline, queue an email notification + cache a vault-encrypted
@@ -40,8 +40,33 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.utils.webhook_auth import verify_webhook_key
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 
 logger = logging.getLogger(__name__)
+SERVER_TRIGGER_TASK_IDENTITY_PREFIX = "server-trigger:"
+
+
+def _select_webhook_chat_devices(manager: Any, user_id: str) -> List[str]:
+    """Order devices that can create the encrypted webhook chat."""
+    get_connections = getattr(manager, "get_connections_for_user", None)
+    if callable(get_connections):
+        connections = get_connections(user_id)
+    else:
+        connections = getattr(manager, "active_connections", {}).get(user_id, {})
+    device_hashes = sorted(connections.keys())
+    if not device_hashes:
+        return []
+
+    is_completion_capable = getattr(manager, "is_connection_completion_capable", None)
+    if callable(is_completion_capable):
+        capable = [
+            device_hash
+            for device_hash in device_hashes
+            if is_completion_capable(user_id, device_hash)
+        ]
+        fallback = [device_hash for device_hash in device_hashes if device_hash not in capable]
+        return capable + fallback
+    return device_hashes
 
 router = APIRouter(
     prefix="/v1/webhooks",
@@ -460,7 +485,7 @@ async def webhook_incoming(
     Mirrors the reminder-fired flow (backend/apps/reminder/tasks.py):
       1. Pre-create a minimal chat row in Directus so the AI response has something
          to attach to.
-      2. Broadcast a `webhook_chat` WebSocket event carrying PLAINTEXT content —
+      2. Send one `webhook_chat` WebSocket event carrying PLAINTEXT content —
          the WS channel is already TLS + session-authenticated, and the frontend
          is responsible for chat-key-encrypting and persisting via
          `chat_system_message_added`.
@@ -580,14 +605,15 @@ async def webhook_incoming(
         logger.warning(f"Failed to cache pending webhook chat record: {e}")
         # Non-fatal — online delivery path doesn't depend on this cache.
 
-    # --- Broadcast plaintext via WebSocket (reminder_fired pattern) ---
+    # --- Send plaintext to one WebSocket device (reminder_fired pattern) ---
     user_is_online = False
     try:
         from backend.core.api.app.routes.websockets import manager
-        user_is_online = manager.is_user_active(user_id)
+        target_device_hashes = _select_webhook_chat_devices(manager, user_id)
+        delivered_device_hash = None
 
-        if user_is_online:
-            await manager.broadcast_to_user(
+        for target_device_hash in target_device_hashes:
+            sent = await manager.send_personal_message(
                 message={
                     "type": "webhook_chat",
                     "event": "webhook_chat",
@@ -602,13 +628,20 @@ async def webhook_incoming(
                     },
                 },
                 user_id=user_id,
+                device_fingerprint_hash=target_device_hash,
             )
+            if sent is not False:
+                delivered_device_hash = target_device_hash
+                break
+
+        user_is_online = bool(delivered_device_hash) or manager.is_user_active(user_id)
+        if delivered_device_hash:
             logger.info(
                 f"Delivered webhook chat {chat_id} to online user {user_id[:8]}... "
-                f"(status={status_value})"
+                f"device {delivered_device_hash[:8]}... (status={status_value})"
             )
     except Exception as e:
-        logger.warning(f"Failed to broadcast webhook_chat WS event: {e}")
+        logger.warning(f"Failed to send webhook_chat WS event: {e}")
         # Non-fatal — offline delivery path still fires below.
 
     # --- Offline notification (only when no device was live to receive it) ---
@@ -635,6 +668,7 @@ async def webhook_incoming(
                 message_id=message_id,
                 message=rendered_message,
                 cache_service=cache_service,
+                directus_service=directus_service,
             )
         except Exception as ai_error:
             logger.warning(
@@ -726,6 +760,7 @@ async def approve_pending_webhook(
             message_id=message_id,
             message=plaintext,
             cache_service=cache_service,
+            directus_service=request.app.state.directus_service,
         )
     except Exception as ai_err:
         logger.error(f"AI dispatch failed for webhook approval {chat_id[:8]}...: {ai_err}", exc_info=True)
@@ -872,6 +907,7 @@ async def _dispatch_webhook_ai_request(
     message_id: str,
     message: str,
     cache_service: CacheService,
+    directus_service: DirectusService,
 ) -> None:
     """
     Dispatch an AI ask request for a fired webhook.
@@ -883,6 +919,20 @@ async def _dispatch_webhook_ai_request(
     pipeline to Directus whether or not any device is online.
     """
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    legacy_task_identity = SERVER_TRIGGER_TASK_IDENTITY_PREFIX + hashlib.sha256(
+        f"{user_id}:{chat_id}:{message_id}".encode()
+    ).hexdigest()
+    admission = await ChatRecoveryCutoverController(
+        cache_service, directus_service
+    ).admit_legacy_inference(legacy_task_identity)
+    if admission.get("idempotent"):
+        logger.info(
+            f"Webhook AI dispatch for chat {chat_id} already admitted "
+            f"(task_identity={legacy_task_identity})"
+        )
+        return
+    if admission.get("admitted") is not True:
+        raise RuntimeError("Webhook AI dispatch was not admitted by chat recovery cutover")
 
     task_content = WEBHOOK_TASK_TEMPLATE.format(message=message)
     message_history = [
@@ -912,6 +962,7 @@ async def _dispatch_webhook_ai_request(
         "active_focus_id": None,
         "user_preferences": user_preferences,
         "app_settings_memories_metadata": None,
+        "legacy_cutover_task_id": legacy_task_identity,
     }
 
     # Dispatch via in-process SkillRegistry (same pattern as reminder AI dispatch;

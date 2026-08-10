@@ -10,7 +10,7 @@
 # Architecture: docs/architecture/github-actions-ci.md
 
 name: "Playwright: Single Spec"
-run-name: "Playwright: ${{ github.event.inputs.spec }} account ${{ github.event.inputs.account }} ${{ github.event.inputs.dispatch_token }}"
+run-name: "Playwright: ${{ inputs.spec }} account ${{ inputs.account }} ${{ inputs.dispatch_token }}"
 
 on:
   workflow_dispatch:
@@ -20,7 +20,7 @@ on:
         required: true
         type: string
       account:
-        description: "Test account number (1-20)"
+        description: "Test account number (1-27)"
         required: true
         type: string
         default: "1"
@@ -41,13 +41,99 @@ on:
         type: boolean
         default: true
       create_account_slot:
-        description: "Account slot for create-test-account.spec.ts (1-20). Leave empty for normal tests."
+        description: "Account slot for account-creation utilities. Reserved auth provisioning uses 14-20."
         type: string
         default: ""
       dispatch_token:
         description: "Unique token from scripts/run_tests.py used to identify this dispatch."
         type: string
         default: ""
+      checkout_ref:
+        description: "Commit SHA selected by scripts/run_tests.py."
+        required: true
+        type: string
+        default: "dev"
+      allow_credential_updates:
+        description: "Allow credential-mutating utility specs to update repository secrets."
+        type: boolean
+        default: true
+      migrate_account_secrets_to_expanded_bundle:
+        description: "Move the selected expanded account credentials into the consolidated encrypted secret."
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      spec:
+        required: true
+        type: string
+      account:
+        required: true
+        type: string
+      record_fixtures:
+        required: false
+        type: boolean
+        default: false
+      use_mocks:
+        required: false
+        type: boolean
+        default: true
+      record_live_fixtures:
+        required: false
+        type: boolean
+        default: false
+      use_live_mocks:
+        required: false
+        type: boolean
+        default: true
+      create_account_slot:
+        required: false
+        type: string
+        default: ""
+      dispatch_token:
+        required: false
+        type: string
+        default: ""
+      checkout_ref:
+        required: true
+        type: string
+      allow_credential_updates:
+        required: false
+        type: boolean
+        default: false
+      migrate_account_secrets_to_expanded_bundle:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      E2E_DEV_API_URL: {required: true}
+      E2E_DEV_TEST_BASE_URL: {required: true}
+      OPENMATES_TEST_ACCOUNT_API_KEY: {required: false}
+      OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON: {required: false}
+      TEST_ACCOUNT_EMAIL: {required: true}
+      TEST_ACCOUNT_PASSWORD: {required: true}
+      TEST_ACCOUNT_OTP_KEY: {required: true}
+      SIGNUP_TEST_EMAIL_DOMAINS: {required: false}
+      E2E_SIGNUP_INVITE_CODE: {required: false}
+      MAILOSAUR_API_KEY: {required: false}
+      MAILOSAUR_SERVER_ID: {required: false}
+      GMAIL_CLIENT_ID: {required: false}
+      GMAIL_CLIENT_SECRET: {required: false}
+      GMAIL_REFRESH_TOKEN: {required: false}
+      GMAIL_TEST_ADDRESS: {required: false}
+      GOOGLE_CALENDAR_TEST_EMAIL: {required: false}
+      GOOGLE_CALENDAR_TEST_PASSWORD: {required: false}
+      GOOGLE_CALENDAR_TEST_TOTP_KEY: {required: false}
+      GOOGLE_TEST_EMAIL: {required: false}
+      GOOGLE_TEST_PASSWORD: {required: false}
+      GOOGLE_TEST_TOTP_KEY: {required: false}
+      PROTON_BRIDGE_TEST_EMAIL: {required: false}
+      PROTON_BRIDGE_TEST_PASSWORD: {required: false}
+      PROTON_BRIDGE_TEST_TOTP_KEY: {required: false}
+      GH_SECRETS_TOKEN: {required: false}
+
+concurrency:
+  group: ${{ (inputs.migrate_account_secrets_to_expanded_bundle || inputs.create_account_slot != '') && 'playwright-account-secret-writes' || format('playwright-account-{0}', inputs.account) }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -58,18 +144,224 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: dev
+          ref: ${{ inputs.checkout_ref }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
       - uses: pnpm/action-setup@v4
+      - name: Load selected test account credentials
+        env:
+          DIRECT_EMAIL: ${{ secrets.TEST_ACCOUNT_EMAIL != '' && secrets.TEST_ACCOUNT_EMAIL || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.account)] }}
+          DIRECT_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD != '' && secrets.TEST_ACCOUNT_PASSWORD || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', inputs.account)] }}
+          DIRECT_OTP_KEY: ${{ secrets.TEST_ACCOUNT_OTP_KEY != '' && secrets.TEST_ACCOUNT_OTP_KEY || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', inputs.account)] }}
+          EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}
+        run: |
+          set -euo pipefail
+          SLOT="${{ inputs.account }}"
+          if [ "$SLOT" -ge 21 ]; then
+            mapfile -t CREDS < <(python3 - "$SLOT" <<'PY'
+          import json
+          import os
+          import sys
+
+          data = json.loads(os.environ.get("EXPANDED_ACCOUNTS_JSON") or "{}")
+          account = data.get(sys.argv[1]) or {}
+          print(account.get("email", ""))
+          print(account.get("password", ""))
+          print(account.get("otpKey", ""))
+          PY
+            )
+            EMAIL="${CREDS[0]}"
+            PASSWORD="${CREDS[1]}"
+            OTP_KEY="${CREDS[2]}"
+            if [ -z "$EMAIL" ] && [ -z "$PASSWORD" ] && [ -z "$OTP_KEY" ] && [ "${{ inputs.migrate_account_secrets_to_expanded_bundle }}" = "true" ]; then
+              EMAIL="$DIRECT_EMAIL"
+              PASSWORD="$DIRECT_PASSWORD"
+              OTP_KEY="$DIRECT_OTP_KEY"
+            fi
+          else
+            EMAIL="$DIRECT_EMAIL"
+            PASSWORD="$DIRECT_PASSWORD"
+            OTP_KEY="$DIRECT_OTP_KEY"
+          fi
+
+          if [ -z "$EMAIL" ] || [ -z "$PASSWORD" ] || [ -z "$OTP_KEY" ]; then
+            if [ "${{ inputs.spec }}" = "create-test-account.spec.ts" ]; then
+              echo "Slot $SLOT has no existing credentials; account creation will provision them."
+              exit 0
+            fi
+            echo "Slot $SLOT does not have complete configured credentials." >&2
+            exit 1
+          fi
+
+          echo "::add-mask::$EMAIL"
+          echo "::add-mask::$PASSWORD"
+          echo "::add-mask::$OTP_KEY"
+          {
+            echo "OPENMATES_TEST_ACCOUNT_EMAIL=$EMAIL"
+            echo "OPENMATES_TEST_ACCOUNT_PASSWORD=$PASSWORD"
+            echo "OPENMATES_TEST_ACCOUNT_OTP_KEY=$OTP_KEY"
+            echo "OPENMATES_TEST_ACCOUNT_1_EMAIL=$EMAIL"
+            echo "OPENMATES_TEST_ACCOUNT_1_PASSWORD=$PASSWORD"
+            echo "OPENMATES_TEST_ACCOUNT_1_OTP_KEY=$OTP_KEY"
+          } >> "$GITHUB_ENV"
+      - name: Migrate expanded account secrets to consolidated bundle
+        if: inputs.migrate_account_secrets_to_expanded_bundle
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+          EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}
+        run: |
+          set -euo pipefail
+          SLOT="${{ inputs.account }}"
+          if [ "$SLOT" -lt 21 ] || [ "$SLOT" -gt 27 ]; then
+            echo "Secret migration is limited to expanded normal account slots 21-27." >&2
+            exit 1
+          fi
+          python3 - "$SLOT" > /tmp/expanded-test-accounts.json <<'PY'
+          import json
+          import os
+          import sys
+
+          data = json.loads(os.environ.get("EXPANDED_ACCOUNTS_JSON") or "{}")
+          data[sys.argv[1]] = {
+              "email": os.environ["OPENMATES_TEST_ACCOUNT_EMAIL"],
+              "password": os.environ["OPENMATES_TEST_ACCOUNT_PASSWORD"],
+              "otpKey": os.environ["OPENMATES_TEST_ACCOUNT_OTP_KEY"],
+          }
+          print(json.dumps(data, separators=(",", ":")))
+          PY
+          gh secret set OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON < /tmp/expanded-test-accounts.json
+          rm -f /tmp/expanded-test-accounts.json
+          gh secret delete "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL"
+          gh secret delete "OPENMATES_TEST_ACCOUNT_${SLOT}_PASSWORD"
+          gh secret delete "OPENMATES_TEST_ACCOUNT_${SLOT}_OTP_KEY"
+          echo "Migrated expanded account slot $SLOT into the consolidated secret."
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build openmates CLI (required by cli-skills-* specs)
         run: pnpm --filter openmates build
         working-directory: frontend
+      - name: Prepare API key for CLI specs
+        run: |
+          set -euo pipefail
+          mkdir -p frontend/apps/web_app/artifacts
+
+          SPEC="${{ inputs.spec }}"
+          API_URL="${{ secrets.E2E_DEV_API_URL }}"
+          if [ -z "$API_URL" ]; then
+            API_URL="https://api.dev.openmates.org"
+          fi
+
+          needs_fresh_key=0
+          if [ "$SPEC" = "__cli_integration_code_docs__" ]; then
+            needs_fresh_key=1
+          elif [[ "$SPEC" == skill-* ]]; then
+            needs_fresh_key=1
+          elif [[ "$SPEC" == signup-* ]]; then
+            needs_fresh_key=1
+          elif [ "$SPEC" = "default-model-cli.spec.ts" ]; then
+            needs_fresh_key=1
+          elif [ "$SPEC" = "cross-client-draft-sync.spec.ts" ]; then
+            needs_fresh_key=1
+          fi
+
+          if [ "$needs_fresh_key" -ne 1 ]; then
+            echo "OPENMATES_TEST_ACCOUNT_API_KEY=${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          login_status=0
+          for attempt in 1 2 3; do
+            if node scripts/openmates_cli_test_account.mjs login \
+              --slot "${{ inputs.account }}" \
+              --api-url "$API_URL"; then
+              login_status=0
+              break
+            else
+              login_status=$?
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit "$login_status"
+            fi
+            echo "Test account login attempt $attempt failed; retrying..."
+            sleep $((attempt * 5))
+          done
+
+          existing_keys_json=$(node frontend/packages/openmates-cli/dist/cli.js \
+            --api-url "$API_URL" \
+            settings developers api-keys list --json)
+          printf '%s' "$existing_keys_json" | node -e 'let raw=""; process.stdin.on("data", d => raw += d); process.stdin.on("end", () => { const start = raw.indexOf("{"); if (start < 0) return; const data = JSON.parse(raw.slice(start)); const keys = Array.isArray(data.api_keys) ? data.api_keys : []; const stale = keys.filter((key) => typeof key.id === "string" && typeof key.name === "string" && key.name.startsWith("gha-")); const revoke = stale.length > 0 ? stale : keys.length >= 5 ? keys.slice().sort((a, b) => String(a.last_used_at || a.created_at || "").localeCompare(String(b.last_used_at || b.created_at || ""))).slice(0, 1) : []; for (const key of revoke) { if (typeof key.id === "string") console.log(key.id); } });' \
+            | while IFS= read -r stale_key_id; do
+                if [ -n "$stale_key_id" ]; then
+                  node frontend/packages/openmates-cli/dist/cli.js \
+                    --api-url "$API_URL" \
+                    settings developers api-keys revoke "$stale_key_id" --yes --json \
+                    || echo "⚠️ Failed to revoke stale CI API key $stale_key_id"
+                fi
+              done
+
+          created_json=$(node frontend/packages/openmates-cli/dist/cli.js \
+            --api-url "$API_URL" \
+            settings developers api-keys create "gha-${SPEC}-${{ github.run_id }}" --yes --json)
+
+          api_key=$(printf '%s' "$created_json" | node -e 'let raw=""; process.stdin.on("data", d => raw += d); process.stdin.on("end", () => { const start = raw.indexOf("{"); if (start < 0) process.exit(2); const data = JSON.parse(raw.slice(start)); if (!data.api_key || !data.api_key.startsWith("sk-api-")) process.exit(3); process.stdout.write(data.api_key); });')
+          api_key_id=$(printf '%s' "$created_json" | node -e 'let raw=""; process.stdin.on("data", d => raw += d); process.stdin.on("end", () => { const start = raw.indexOf("{"); if (start < 0) process.exit(2); const data = JSON.parse(raw.slice(start)); const id = data.key && typeof data.key.id === "string" ? data.key.id : typeof data.id === "string" ? data.id : ""; if (!id) process.exit(3); process.stdout.write(id); });')
+
+          echo "::add-mask::$api_key"
+
+          probe_home=$(mktemp -d)
+          cleanup_probe_home() {
+            rm -rf "$probe_home"
+          }
+          trap cleanup_probe_home EXIT
+
+          run_api_key_probe() {
+            HOME="$probe_home" OPENMATES_API_KEY="$api_key" node frontend/packages/openmates-cli/dist/cli.js \
+              --api-url "$API_URL" apps math calculate "1+1" --json \
+              > frontend/apps/web_app/artifacts/api_key_probe.out \
+              2> frontend/apps/web_app/artifacts/api_key_probe.err
+          }
+
+          set +e
+          run_api_key_probe
+          probe_status=$?
+
+          if [ "$probe_status" -ne 0 ] && grep -Eq "New device detected|Device not approved" frontend/apps/web_app/artifacts/api_key_probe.err; then
+            for attempt in 1 2 3; do
+              node scripts/approve_test_api_key_device.mjs --api-url "$API_URL"
+              approve_status=$?
+              if [ "$approve_status" -ne 0 ]; then
+                echo "Device approval attempt $attempt failed with status $approve_status; retrying probe anyway."
+              fi
+              sleep $((attempt * 2))
+              run_api_key_probe
+              probe_status=$?
+              if [ "$probe_status" -eq 0 ]; then
+                break
+              fi
+              if ! grep -Eq "New device detected|Device not approved" frontend/apps/web_app/artifacts/api_key_probe.err; then
+                break
+              fi
+            done
+          fi
+          set -e
+
+          if [ "$probe_status" -ne 0 ]; then
+            cat frontend/apps/web_app/artifacts/api_key_probe.err >&2
+            exit "$probe_status"
+          fi
+
+          cleanup_probe_home
+          trap - EXIT
+
+          echo "OPENMATES_TEST_ACCOUNT_API_KEY=$api_key" >> "$GITHUB_ENV"
+          echo "OPENMATES_CI_API_KEY_ID=$api_key_id" >> "$GITHUB_ENV"
+          echo "Prepared fresh CLI API key for $SPEC."
+        env:
+          OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: ${{ inputs.account }}
       - name: Run CLI integration checks
-        if: github.event.inputs.spec == '__cli_integration_code_docs__'
+        if: inputs.spec == '__cli_integration_code_docs__'
         id: cli_run
         continue-on-error: true
         run: |
@@ -78,15 +370,30 @@ jobs:
             --output "$GITHUB_WORKSPACE/test-results/cli-integration.json"
         working-directory: frontend/packages/openmates-cli
         env:
-          OPENMATES_TEST_ACCOUNT_API_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}
           OPENMATES_CLI_TEST_API_URL: ${{ secrets.E2E_DEV_API_URL }}
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
       - name: Install Playwright browsers
-        if: github.event.inputs.spec != '__cli_integration_code_docs__'
+        if: inputs.spec != '__cli_integration_code_docs__'
         run: npx playwright install --with-deps chromium
         working-directory: frontend/apps/web_app
+      - name: Install Proton Mail Bridge for live Proton specs
+        if: inputs.spec == 'proton-bridge-live.spec.ts'
+        run: |
+          set -euo pipefail
+          if [ "$(dpkg --print-architecture)" != "amd64" ]; then
+            echo "Proton's official Linux Bridge DEB is amd64-only; runner architecture is $(dpkg --print-architecture)."
+            exit 1
+          fi
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg2 pass dbus-x11 libopengl0
+          gpg --batch --passphrase '' --quick-generate-key openmates-proton-bridge-ci@example.invalid default default never
+          fingerprint="$(gpg --list-secret-keys --with-colons openmates-proton-bridge-ci@example.invalid | awk -F: '/^fpr:/ { print $10; exit }')"
+          pass init "$fingerprint"
+          wget -O /tmp/protonmail-bridge.deb https://proton.me/download/bridge/protonmail-bridge_3.22.0-1_amd64.deb
+          sudo apt-get install -y /tmp/protonmail-bridge.deb
+          protonmail-bridge --version || protonmail-bridge -v || true
       - name: Run spec
-        if: github.event.inputs.spec != '__cli_integration_code_docs__'
+        if: inputs.spec != '__cli_integration_code_docs__'
         id: pw_run
         continue-on-error: true
         run: |
@@ -94,7 +401,7 @@ jobs:
           cd frontend/apps/web_app
           set +e
           while true; do
-            echo "[playwright heartbeat] still running ${{ github.event.inputs.spec }}"
+            echo "[playwright heartbeat] still running ${{ inputs.spec }}"
             sleep 30
           done &
           heartbeat_pid=$!
@@ -105,9 +412,11 @@ jobs:
           }
           trap cleanup_heartbeat EXIT
 
+          # The longest specs declare a 30-minute Playwright timeout. Keep the
+          # outer process guard slightly longer so Playwright can report cleanly.
           PLAYWRIGHT_JSON_OUTPUT_NAME=$GITHUB_WORKSPACE/test-results/playwright.json \
-          timeout --kill-after=30s 390s \
-            npx playwright test "tests/${{ github.event.inputs.spec }}" \
+          timeout --kill-after=30s 1830s \
+            npx playwright test "tests/${{ inputs.spec }}" \
             --reporter=line,json
           pw_status=$?
 
@@ -124,12 +433,12 @@ jobs:
           exit "$pw_status"
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
-          OPENMATES_TEST_ACCOUNT_1_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', github.event.inputs.account)] }}
-          OPENMATES_TEST_ACCOUNT_1_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', github.event.inputs.account)] }}
-          OPENMATES_TEST_ACCOUNT_1_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', github.event.inputs.account)] }}
-          OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: ${{ github.event.inputs.account }}
+          OPENMATES_E2E_API_URL: ${{ secrets.E2E_DEV_API_URL }}
+          OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: ${{ inputs.account }}
           PLAYWRIGHT_WORKER_SLOT: "1"
           SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
+          E2E_SIGNUP_INVITE_CODE: ${{ (contains(inputs.spec, 'signup') || inputs.spec == 'referral-signup-purchase.spec.ts' || inputs.spec == 'create-test-account.spec.ts') && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
+          OPENMATES_CLI_SIGNUP_INVITE_CODE: ${{ inputs.spec == 'cli-provision-auth-accounts.spec.ts' && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
           MAILOSAUR_API_KEY: ${{ secrets.MAILOSAUR_API_KEY }}
           MAILOSAUR_SERVER_ID: ${{ secrets.MAILOSAUR_SERVER_ID }}
           GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
@@ -142,11 +451,14 @@ jobs:
           GOOGLE_TEST_EMAIL: ${{ secrets.GOOGLE_TEST_EMAIL }}
           GOOGLE_TEST_PASSWORD: ${{ secrets.GOOGLE_TEST_PASSWORD }}
           GOOGLE_TEST_TOTP_KEY: ${{ secrets.GOOGLE_TEST_TOTP_KEY }}
-          E2E_USE_MOCKS: ${{ github.event.inputs.use_mocks == 'true' && '1' || '' }}
-          E2E_RECORD_FIXTURES: ${{ github.event.inputs.record_fixtures == 'true' && '1' || '' }}
-          E2E_USE_LIVE_MOCKS: ${{ github.event.inputs.use_live_mocks == 'true' && '1' || '' }}
-          E2E_RECORD_LIVE_FIXTURES: ${{ github.event.inputs.record_live_fixtures == 'true' && '1' || '' }}
-          CREATE_ACCOUNT_SLOT: ${{ github.event.inputs.create_account_slot }}
+          PROTON_BRIDGE_TEST_EMAIL: ${{ secrets.PROTON_BRIDGE_TEST_EMAIL }}
+          PROTON_BRIDGE_TEST_PASSWORD: ${{ secrets.PROTON_BRIDGE_TEST_PASSWORD }}
+          PROTON_BRIDGE_TEST_TOTP_KEY: ${{ secrets.PROTON_BRIDGE_TEST_TOTP_KEY }}
+          E2E_USE_MOCKS: ${{ inputs.use_mocks && '1' || '' }}
+          E2E_RECORD_FIXTURES: ${{ inputs.record_fixtures && '1' || '' }}
+          E2E_USE_LIVE_MOCKS: ${{ inputs.use_live_mocks && '1' || '' }}
+          E2E_RECORD_LIVE_FIXTURES: ${{ inputs.record_live_fixtures && '1' || '' }}
+          CREATE_ACCOUNT_SLOT: ${{ inputs.create_account_slot }}
       - name: Show results
         if: always()
         run: |
@@ -176,35 +488,145 @@ jobs:
           PY
           fi
       - name: Update OTP key if changed by test
-        if: always()
+        if: always() && inputs.allow_credential_updates
         env:
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+          EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}
         run: |
+          set -euo pipefail
           OTP_FILE="frontend/apps/web_app/artifacts/new_otp_key.txt"
           if [ -f "$OTP_FILE" ]; then
             NEW_KEY=$(cat "$OTP_FILE")
-            ACCOUNT="${{ github.event.inputs.account }}"
-            SECRET_NAME="OPENMATES_TEST_ACCOUNT_${ACCOUNT}_OTP_KEY"
-            echo "Updating $SECRET_NAME after credential-mutating test..."
-            gh secret set "$SECRET_NAME" --body "$NEW_KEY" && echo "✅ Updated $SECRET_NAME" || echo "⚠️ Failed to update $SECRET_NAME"
+            echo "::add-mask::$NEW_KEY"
+            ACCOUNT="${{ inputs.account }}"
+            if [ "$ACCOUNT" -ge 21 ]; then
+              export NEW_KEY
+              python3 - "$ACCOUNT" > /tmp/expanded-test-accounts.json <<'PY'
+          import json
+          import os
+          import sys
+
+          data = json.loads(os.environ.get("EXPANDED_ACCOUNTS_JSON") or "{}")
+          account = data.get(sys.argv[1]) or {}
+          if not account:
+              raise SystemExit(f"Expanded account {sys.argv[1]} is missing from the bundle")
+          account["otpKey"] = os.environ["NEW_KEY"]
+          data[sys.argv[1]] = account
+          print(json.dumps(data, separators=(",", ":")))
+          PY
+              gh secret set OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON < /tmp/expanded-test-accounts.json
+              rm -f /tmp/expanded-test-accounts.json
+              echo "✅ Updated expanded account $ACCOUNT OTP key"
+            else
+              SECRET_NAME="OPENMATES_TEST_ACCOUNT_${ACCOUNT}_OTP_KEY"
+              gh secret set "$SECRET_NAME" --body "$NEW_KEY"
+              echo "✅ Updated $SECRET_NAME"
+            fi
           fi
       - name: Update API key if changed by test
-        if: always()
+        if: always() && inputs.allow_credential_updates
         env:
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
         run: |
+          set -euo pipefail
           API_KEY_FILE="frontend/apps/web_app/artifacts/api_key.txt"
           if [ -f "$API_KEY_FILE" ]; then
             NEW_API_KEY=$(cat "$API_KEY_FILE")
             echo "Updating OPENMATES_TEST_ACCOUNT_API_KEY after credential-mutating test..."
             gh secret set OPENMATES_TEST_ACCOUNT_API_KEY --body "$NEW_API_KEY" && echo "✅ Updated OPENMATES_TEST_ACCOUNT_API_KEY" || echo "⚠️ Failed to update OPENMATES_TEST_ACCOUNT_API_KEY"
           fi
+      - name: Revoke per-run CLI API key
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -z "${OPENMATES_CI_API_KEY_ID:-}" ]; then
+            exit 0
+          fi
+          API_URL="${{ secrets.E2E_DEV_API_URL }}"
+          if [ -z "$API_URL" ]; then
+            API_URL="https://api.dev.openmates.org"
+          fi
+          node frontend/packages/openmates-cli/dist/cli.js \
+            --api-url "$API_URL" \
+            settings developers api-keys revoke "$OPENMATES_CI_API_KEY_ID" --yes --json \
+            || echo "⚠️ Failed to revoke per-run CLI API key $OPENMATES_CI_API_KEY_ID"
+      - name: Update account credentials if created by utility spec
+        if: always() && inputs.allow_credential_updates
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+          EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}
+        run: |
+          CREDS_FILE="frontend/apps/web_app/artifacts/test_account_credentials.json"
+          ENV_FILE="frontend/apps/web_app/artifacts/cli-slot-${{ inputs.create_account_slot }}.env"
+          if [ -f "$CREDS_FILE" ] || [ -f "$ENV_FILE" ]; then
+            mapfile -t CREDS < <(python3 - "$CREDS_FILE" "$ENV_FILE" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          json_path = Path(sys.argv[1])
+          env_path = Path(sys.argv[2])
+          if json_path.exists():
+              data = json.loads(json_path.read_text())
+              print(data["slot"])
+              print(data["email"])
+              print(data["password"])
+              print(data["otpKey"])
+              raise SystemExit(0)
+
+          values = {}
+          for line in env_path.read_text().splitlines():
+              if not line or line.startswith("#") or "=" not in line:
+                  continue
+              key, value = line.split("=", 1)
+              values[key] = value
+          slot = env_path.stem.rsplit("-", 1)[-1]
+          print(slot)
+          print(values[f"OPENMATES_TEST_ACCOUNT_{slot}_EMAIL"])
+          print(values[f"OPENMATES_TEST_ACCOUNT_{slot}_PASSWORD"])
+          print(values[f"OPENMATES_TEST_ACCOUNT_{slot}_OTP_KEY"])
+          PY
+            )
+            SLOT="${CREDS[0]}"
+            EMAIL="${CREDS[1]}"
+            PASSWORD="${CREDS[2]}"
+            OTP_KEY="${CREDS[3]}"
+            echo "::add-mask::$EMAIL"
+            echo "::add-mask::$PASSWORD"
+            echo "::add-mask::$OTP_KEY"
+            rm -f "$CREDS_FILE"
+            rm -f "$ENV_FILE"
+            echo "Updating OPENMATES_TEST_ACCOUNT_${SLOT}_* after account provisioning..."
+            if [ "$SLOT" -ge 21 ]; then
+              export EMAIL PASSWORD OTP_KEY
+              python3 - "$SLOT" > /tmp/expanded-test-accounts.json <<'PY'
+          import json
+          import os
+          import sys
+
+          data = json.loads(os.environ.get("EXPANDED_ACCOUNTS_JSON") or "{}")
+          data[sys.argv[1]] = {
+              "email": os.environ["EMAIL"],
+              "password": os.environ["PASSWORD"],
+              "otpKey": os.environ["OTP_KEY"],
+          }
+          print(json.dumps(data, separators=(",", ":")))
+          PY
+              gh secret set OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON < /tmp/expanded-test-accounts.json
+              rm -f /tmp/expanded-test-accounts.json
+            else
+              gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL" --body "$EMAIL"
+              gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_PASSWORD" --body "$PASSWORD"
+              gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_OTP_KEY" --body "$OTP_KEY"
+            fi
+            echo "✅ Updated OPENMATES_TEST_ACCOUNT_${SLOT}_* secrets"
+          fi
       - name: Sanitize artifact name
         if: always()
         id: artifact_name
         run: echo "name=playwright-${SPEC//\//-}" >> "$GITHUB_OUTPUT"
         env:
-          SPEC: ${{ github.event.inputs.spec }}
+          SPEC: ${{ inputs.spec }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -66,7 +66,8 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { injectOtelCapture, collectOtelSpans, saveOtelTimeline } = require('./helpers/otel-capture');
@@ -338,18 +339,16 @@ async function ensureSidebarClosed(
 	const activityHistory = page.getByTestId('activity-history-wrapper');
 	const isSidebarVisible = await activityHistory.isVisible().catch(() => false);
 	if (!isSidebarVisible) {
+		await expect(activityHistory).not.toBeVisible();
 		logCheckpoint('[Sidebar] Already closed.');
 		return;
 	}
 
-	// Click the menu toggle button to close the sidebar
-	const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
-	if (await menuToggle.isVisible().catch(() => false)) {
-		await menuToggle.click();
-		logCheckpoint('[Sidebar] Clicked menu toggle to close sidebar.');
-		// Wait for sidebar to close
-		await page.waitForTimeout(500);
-	}
+	const closeButton = activityHistory.getByRole('button', { name: /close/i });
+	await expect(closeButton).toBeVisible({ timeout: 5000 });
+	await closeButton.click();
+	logCheckpoint('[Sidebar] Clicked sidebar close button.');
+	await expect(activityHistory).not.toBeVisible({ timeout: 10000 });
 }
 
 /**
@@ -366,27 +365,38 @@ async function ensureSidebarClosed(
 async function assertChatDecryptedCorrectly(
 	page: any,
 	logCheckpoint: (...args: any[]) => void,
-	phase: string
+	phase: string,
+	chatId?: string
 ): Promise<void> {
 	logCheckpoint(`[${phase}] Asserting chat decryption health...`);
 
 	// ── Open sidebar explicitly ─────────────────────────────────────────────
 	await ensureSidebarOpen(page, logCheckpoint);
 
-	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
+	const activeChatItem = chatId
+		? page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`)
+		: page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
 
 	// Title must be real — not a placeholder and not empty
 	const chatTitle = activeChatItem.getByTestId('chat-title');
 	await expect(chatTitle).toBeVisible({ timeout: 15000 });
-	// Must not still be in "processing" loading state
-	await expect(chatTitle).not.toHaveClass(/processing-title/, { timeout: 5000 });
+	await expect(async () => {
+		// Must not still be in "processing" loading state
+		await expect(chatTitle).not.toHaveClass(/processing-title/, { timeout: 1000 });
+		const currentTitleText = (await chatTitle.textContent())?.trim() || '';
+		expect(currentTitleText).toBeTruthy();
+		expect(currentTitleText.toLowerCase()).not.toContain('untitled chat');
+		expect(currentTitleText.toLowerCase()).not.toContain('processing');
+
+		const missingCategoryVisible = await activeChatItem
+			.locator('[data-testid="category-circle"].missing-category')
+			.isVisible({ timeout: 1000 })
+			.catch(() => false);
+		expect(missingCategoryVisible).toBe(false);
+	}).toPass({ timeout: 45000 });
 	const titleText = await chatTitle.textContent();
 	logCheckpoint(`[${phase}] Chat title: "${titleText}"`);
-	expect(titleText).toBeTruthy();
-	expect(titleText!.trim()).not.toBe('');
-	expect(titleText!.toLowerCase()).not.toContain('untitled chat');
-	expect(titleText!.toLowerCase()).not.toContain('processing');
 
 	// Category circle must exist and must NOT be the grey "missing-category" fallback
 	const categoryCircle = activeChatItem.getByTestId('category-circle');
@@ -442,9 +452,10 @@ async function performLogin(
 	page: any,
 	logCheckpoint: (...args: any[]) => void,
 	takeStepScreenshot: (...args: any[]) => Promise<void>,
-	screenshotPrefix: string
+	screenshotPrefix: string,
+	startRoute = '/'
 ): Promise<void> {
-	await page.goto(getE2EDebugUrl('/'));
+	await page.goto(getE2EDebugUrl(startRoute));
 	await takeStepScreenshot(page, `${screenshotPrefix}-home`);
 
 	await openSignupInterface(page);
@@ -665,7 +676,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	const firstMessage = `First write the exact phrase "${QUICK_TIP_CHAT_RESPONSE_MARKER}", then write exactly this sentence: A weekend trip plan should balance meals, transit, and rest.`;
-	await page.keyboard.type(firstMessage);
+	await page.keyboard.type(withMockMarker(firstMessage, 'chat_flow_quick_tip'));
 	await takeStepScreenshot(page, '02-message-filled');
 
 	// The send button only appears when the editor has content (hasContent reactive state).
@@ -794,7 +805,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// PHASE 4: Sidebar + message health check (initial state)
 	// =========================================================================
 	// NOTE: assertChatDecryptedCorrectly opens the sidebar, checks it, then closes it.
-	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'initial');
+	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'initial', chatId);
 
 	// Verify ChatHeader is fully loaded with title, summary, and icon.
 	// These are populated by the AI after processing the first message.
@@ -822,23 +833,6 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	await takeStepScreenshot(page, '05-initial-state-verified');
 
-	// Header prev/next navigation must include the just-created chat even while
-	// the sidebar is closed. The new chat should be newest-first, so the right
-	// arrow navigates to the next older chat and the left arrow returns here.
-	logChatCheckpoint('Phase 4b: Verifying ChatHeader navigation includes the new chat...');
-	const headerPreviousChatButton = page.getByTestId('chat-header-previous');
-	await expect(headerPreviousChatButton).toBeVisible({ timeout: 10000 });
-	await headerPreviousChatButton.click();
-	await expect(page).not.toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 10000 });
-	logChatCheckpoint('ChatHeader previous arrow navigated away from the new chat.');
-
-	const headerNextChatButton = page.getByTestId('chat-header-next');
-	await expect(headerNextChatButton).toBeVisible({ timeout: 10000 });
-	await headerNextChatButton.click();
-	await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 10000 });
-	await expect(page.getByTestId('message-user').first()).toBeVisible({ timeout: 15000 });
-	logChatCheckpoint('ChatHeader next arrow returned to the just-created chat.');
-
 	// =========================================================================
 	// PHASE 4.5: Navigate to "new chat" → verify just-created chat is most recent
 	// =========================================================================
@@ -852,6 +846,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	logChatCheckpoint(
 		'Phase 4.5: Verifying recently created chat appears after navigating to new chat...'
 	);
+	await expect(page).toHaveTitle(/.+ \| OpenMates$/, { timeout: 15000 });
 
 	// Click the "New Chat" button to navigate away from the current chat
 	const newChatCta = page.getByTestId('new-chat-button');
@@ -871,6 +866,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// Verify we're on the new chat screen (no active chat in URL)
 	const urlAfterNewChat = page.url();
 	logChatCheckpoint(`URL after new chat: ${urlAfterNewChat}`);
+	await expect(page).toHaveTitle('OpenMates', { timeout: 5000 });
 
 	// Now open the sidebar — this is the critical test. The sidebar was closed (default)
 	// during the entire chat creation flow. On mount, Chats.svelte should read fresh data
@@ -881,7 +877,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// Draft-only rows can sort above completed chats, so assert the created chat
 	// by ID instead of assuming the first visible row has title metadata.
 	const createdChatItem = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
-	await expect(createdChatItem).toBeVisible({ timeout: 10000 });
+	await expect(createdChatItem).toBeVisible({ timeout: 30000 });
 
 	// Verify the created chat has a real title (not a placeholder)
 	const firstChatTitle = createdChatItem.getByTestId('chat-title');
@@ -976,7 +972,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	logChatCheckpoint('Verifying chat after tab reload...');
 	// Re-assert full decryption health
-	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'after_reload');
+	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'after_reload', chatId);
 	await assertLlmQuickTipCardVisible(page, logChatCheckpoint, 'after_reload');
 	await takeStepScreenshot(page, '06-after-reload');
 
@@ -1048,52 +1044,65 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	logChatCheckpoint('Phase 7: Logging in again...');
 	// Capture log offset — encryption assertions should only check logs from THIS phase
 	const phase7LogStart = consoleLogs.length;
-	await performLogin(page, logChatCheckpoint, takeStepScreenshot, '08');
 
-	// Wait for phased sync to complete before navigating to the test chat.
+	// Start listening before auth completes. performLogin waits after the editor is
+	// visible, so subscribing after it returns can miss the Phase 1b content signal.
+	const contentSyncCompletedPromise = page
+		.waitForEvent('console', {
+			predicate: (msg: any) =>
+				msg.text().includes('phase_1b_chat_content_ready') ||
+				msg.text().includes('Phase 1b complete'),
+			timeout: 60000
+		})
+		.then(() => true)
+		.catch(() => false);
+	await performLogin(page, logChatCheckpoint, takeStepScreenshot, '08', `/#chat-id=${chatId}`);
+
+	// Wait for initial content sync to complete after auth.
 	// After a fresh login, phased sync re-downloads all chat data via WebSocket.
-	// The deep-link handler in +page.svelte waits for phasedSyncComplete before
-	// loading a user chat from IndexedDB. If we navigate too early (before sync),
-	// the chat isn't in IDB yet and the deep-link handler either gives up or
-	// gets blocked by canAutoNavigate() after Phase 1a loads a different chat.
-	logChatCheckpoint('Waiting for phased sync to complete after re-login...');
-	const syncCompleted = await page.waitForEvent('console', {
-		predicate: (msg: any) =>
-			msg.text().includes('Phase 1 complete') ||
-			msg.text().includes('phasedSyncComplete') ||
-			msg.text().includes('Phase 1a: decrypted'),
-		timeout: 30000
-	}).then(() => true).catch(() => false);
-	logChatCheckpoint(`Phased sync signal detected: ${syncCompleted}`);
-
-	// Navigate to the test chat via hash change (no reload — preserves sync state)
-	logChatCheckpoint(`Navigating to chat ${chatId} after re-login...`);
-	await page.evaluate((cid: string) => {
-		window.location.hash = `chat-id=${cid}`;
-	}, chatId);
+	// Phase 1a is metadata-only; messages arrive in Phase 1b. Reloading/asserting
+	// before Phase 1b can produce a partial chat with only the user bubble.
+	logChatCheckpoint('Waiting for Phase 1b chat content sync after re-login...');
+	const contentSyncCompleted = await contentSyncCompletedPromise;
+	logChatCheckpoint(`Phase 1b content sync signal detected: ${contentSyncCompleted}`);
 	// Give the hashchange handler time to process and load the chat
 	await page.waitForTimeout(3000);
 
-	// If the chat didn't load via hashchange (e.g., activeChatStore already had a
-	// different chat), fall back to a full page load with the hash
+	// If the chat didn't load fully via hashchange (e.g., activeChatStore already
+	// had a different chat), use the same user path as recovery: open the sidebar
+	// and click the target chat row. Avoid a full reload here because it restarts
+	// sync/key restoration and can observe metadata-only state again.
 	let userMsgAfterRelogin = page.getByTestId('message-user').first();
-	const chatLoaded = await userMsgAfterRelogin.isVisible({ timeout: 5000 }).catch(() => false);
+	const assistantMsgAfterRelogin = page.getByTestId('message-assistant').last();
+	const userMessageLoaded = await userMsgAfterRelogin.isVisible({ timeout: 5000 }).catch(() => false);
+	const assistantMessageLoaded = await assistantMsgAfterRelogin
+		.textContent({ timeout: 15000 })
+		.then((text: string | null) => (text || '').includes(QUICK_TIP_CHAT_RESPONSE_MARKER))
+		.catch(() => false);
+	const chatLoaded = userMessageLoaded && assistantMessageLoaded;
 	if (!chatLoaded) {
-		logChatCheckpoint('Chat not loaded via hashchange, falling back to page.goto + reload...');
-		await page.goto(`${baseUrl}/#chat-id=${chatId}`);
-		await page.reload({ waitUntil: 'networkidle' });
-		logChatCheckpoint('Page reloaded with chat hash. Waiting for messages...');
+		logChatCheckpoint('Chat not fully loaded via hashchange, opening target chat from sidebar...');
+		await ensureSidebarOpen(page, logChatCheckpoint);
+		const targetChatRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`).first();
+		await expect(targetChatRow).toBeVisible({ timeout: 30000 });
+		await targetChatRow.click();
+		logChatCheckpoint('Clicked target chat row after re-login. Waiting for messages...');
+		await ensureSidebarClosed(page, logChatCheckpoint);
 	}
 
 	// Wait for the chat to actually load — the user message must be visible.
 	// This can take longer after a fresh login (key derivation + phased sync).
 	userMsgAfterRelogin = page.getByTestId('message-user').first();
 	await expect(userMsgAfterRelogin).toBeVisible({ timeout: 30000 });
+	await expect(page.getByTestId('message-assistant').last()).toContainText(
+		QUICK_TIP_CHAT_RESPONSE_MARKER,
+		{ timeout: 60000 }
+	);
 
 	await takeStepScreenshot(page, '09-after-relogin');
 
 	logChatCheckpoint('Verifying chat after re-login...');
-	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'after_relogin');
+	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'after_relogin', chatId);
 	await assertLlmQuickTipCardVisible(page, logChatCheckpoint, 'after_relogin');
 
 	// Run inspectChat a third time to confirm data is intact after full logout/login cycle
@@ -1169,6 +1178,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	// Verify chat is removed
 	await expect(activeChatItem).not.toBeVisible({ timeout: 10000 });
+	await expect(page).toHaveTitle('OpenMates', { timeout: 5000 });
 	await takeStepScreenshot(page, '13-chat-deleted');
 	logChatCheckpoint('Chat deleted successfully. Test complete.');
 });

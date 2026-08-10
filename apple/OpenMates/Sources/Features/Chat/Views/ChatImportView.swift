@@ -1,147 +1,61 @@
-// Chat import — upload a ZIP file to import chats from export.
-// Settings > Account > Import route.
+// Native Account Import V1 deferral screen.
+// Apple opens the verified web import flow until native parsing implements the
+// same scan, compression, billing, encryption, and persistence contract.
+//
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
+// CSS:     frontend/packages/ui/src/styles/settings.css
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
-#if os(iOS)
-import UniformTypeIdentifiers
-#endif
 
 struct ChatImportView: View {
-    @State private var isPickingFile = false
-    @State private var importResult: ImportResult?
-    @State private var isImporting = false
-    @State private var error: String?
+    static let nativeImportEnabled = false
 
-    struct ImportResult: Decodable {
-        let chatCount: Int
-        let messageCount: Int
-        let status: String?
-    }
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
-        List {
-            Section {
-                Text(LocalizationManager.shared.text("settings.account.import_description"))
-                    .foregroundStyle(Color.fontSecondary)
-            }
+        OMSettingsPage(title: AppStrings.importChats) {
+            OMSettingsSection(AppStrings.importChats, icon: "upload") {
+                VStack(alignment: .leading, spacing: .spacing5) {
+                    Text(AppStrings.importDescription)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
 
-            Section {
-                Button {
-                    isPickingFile = true
-                } label: {
-                    if isImporting {
-                        HStack {
-                            ProgressView()
-                                .accessibilityHidden(true)
-                            Text(LocalizationManager.shared.text("settings.account.import_importing")).font(.omP)
-                        }
-                    } else {
-                        Label("Select ZIP File", systemImage: "doc.zipper")
-                    }
-                }
-                .disabled(isImporting)
-                .accessibleButton(
-                    isImporting ? "Importing chats" : "Select ZIP file to import",
-                    hint: isImporting ? nil : "Opens the file picker to select a chat export ZIP file"
-                )
-            }
+                    Text(AppStrings.importNativeDeferred)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontTertiary)
 
-            if let result = importResult {
-                Section("Import Complete") {
-                    HStack {
-                        Text(LocalizationManager.shared.text("settings.account.import_chats_selected"))
-                        Spacer()
-                        Text("\(result.chatCount)").foregroundStyle(Color.fontSecondary)
+                    Button(AppStrings.importOpenWeb) {
+                        openVerifiedWebImport()
                     }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Chats imported: \(result.chatCount)")
-                    HStack {
-                        Text(LocalizationManager.shared.text("settings.account.import_messages_imported"))
-                        Spacer()
-                        Text("\(result.messageCount)").foregroundStyle(Color.fontSecondary)
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Messages imported: \(result.messageCount)")
+                    .buttonStyle(OMPrimaryButtonStyle())
+                    .accessibilityIdentifier("settings-import-open-web")
                 }
-            }
-
-            if let error {
-                Section {
-                    Text(error).font(.omXs).foregroundStyle(Color.error)
-                }
+                .padding(.spacing6)
             }
         }
-        .navigationTitle("Import Chats")
-        #if os(iOS)
-        .sheet(isPresented: $isPickingFile) {
-            DocumentPickerView { url in
-                importFile(url)
-            }
-        }
-        #endif
+        .accessibilityIdentifier("settings-import-page")
     }
 
-    private func importFile(_ url: URL) {
-        isImporting = true
-        error = nil
+    static func webImportURL(baseURL: URL) -> URL? {
+        guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+        components.fragment = "settings/account/import"
+        return components.url
+    }
 
+    private func openVerifiedWebImport() {
         Task {
-            do {
-                let data = try Data(contentsOf: url)
-                let boundary = UUID().uuidString
-                var body = Data()
-                body.append("--\(boundary)\r\n".data(using: .utf8)!)
-                body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(url.lastPathComponent)\"\r\n".data(using: .utf8)!)
-                body.append("Content-Type: application/zip\r\n\r\n".data(using: .utf8)!)
-                body.append(data)
-                body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-
-                let apiURL = await APIClient.shared.baseURL.appendingPathComponent("/v1/settings/import-chat")
-                var request = URLRequest(url: apiURL)
-                request.httpMethod = "POST"
-                request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-                request.httpBody = body
-
-                let (responseData, _) = try await URLSession.shared.data(for: request)
-                importResult = try JSONDecoder().decode(ImportResult.self, from: responseData)
-                AccessibilityAnnouncement.announce("Import complete")
-                ToastManager.shared.show("Import complete!", type: .success)
-            } catch {
-                self.error = error.localizedDescription
+            let baseURL = await APIClient.shared.webAppURL
+            guard let url = Self.webImportURL(baseURL: baseURL) else {
+                NativeDiagnostics.error("Account import web URL unavailable", category: "settings.account")
+                return
             }
-            isImporting = false
+            openURL(url)
         }
     }
 }
-
-#if os(iOS)
-private struct DocumentPickerView: UIViewControllerRepresentable {
-    let onFileSelected: (URL) -> Void
-
-    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.zip, .archive])
-        picker.allowsMultipleSelection = false
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onFileSelected: onFileSelected)
-    }
-
-    final class Coordinator: NSObject, UIDocumentPickerDelegate {
-        let onFileSelected: (URL) -> Void
-
-        init(onFileSelected: @escaping (URL) -> Void) {
-            self.onFileSelected = onFileSelected
-        }
-
-        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-            guard let url = urls.first else { return }
-            onFileSelected(url)
-        }
-    }
-}
-#endif

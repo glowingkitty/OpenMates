@@ -8,3 +8,4 @@ description: "OpenMates platform services for onboarding, documentation lookup, 
 logo_svg: "logos/openmates.svg"
 region: "EU"
 privacy_policy: ""
+no_api_key: true

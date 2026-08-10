@@ -36,6 +36,7 @@ changes to the documentation (to keep the documentation up to date).
 
 <script lang="ts">
     import { onMount, createEventDispatcher, tick } from 'svelte';
+    import { get } from 'svelte/store';
     import { fly, fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { authStore, isCheckingAuth, logout } from '../stores/authStore'; // Import logout action
@@ -60,18 +61,21 @@ changes to the documentation (to keep the documentation up to date).
     import { isRestrictedSession } from '../stores/pairSessionStore'; // Pair session restricted mode
     import { loadReferralStatus, referralStatus } from '../services/referralService';
     import { DEMO_MARKETING_CREDITS, DEMO_MARKETING_USERNAME } from '../demo_chats/usageDemoData';
+    import { convertDemoChatToChat, convertDemoMessagesToMessages, getExampleChat, getExampleChatMessages, getPublicChatById, isExampleChat, translateDemoChat } from '../demo_chats';
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
     import CurrentSettingsPage from './settings/CurrentSettingsPage.svelte';
     import SettingsItem from './SettingsItem.svelte';
     import AppDetailsHeader from './settings/AppDetailsHeader.svelte';
+    import ChatSettingsHeader from './settings/ChatSettingsHeader.svelte';
     import SettingsMainHeader from './settings/SettingsMainHeader.svelte';
     
     // Import all settings route definitions and the dynamic wrapper components
     import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper, EditPersonalDataEntryWrapper, SettingsProjects } from './settings/settingsRoutes';
     import AiModelDetailsWrapper from './settings/AiModelDetailsWrapper.svelte';
     import AiProviderDetailsWrapper from './settings/AiProviderDetailsWrapper.svelte';
+    import ChatSettingsPage from './chats/ChatSettingsPage.svelte';
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
@@ -83,7 +87,8 @@ changes to the documentation (to keep the documentation up to date).
     import { chatListCache } from '../services/chatListCache';
     import { chatMetadataCache } from '../services/chatMetadataCache';
     import { chatDB } from '../services/db';
-    import type { Chat } from '../types/chat';
+    import { chatSettingsStore } from '../stores/chatSettingsStore';
+    import type { Chat, Message } from '../types/chat';
     import {
         getCategoryGradientColors,
         getFallbackIconForCategory,
@@ -92,6 +97,7 @@ changes to the documentation (to keep the documentation up to date).
     } from '../utils/categoryUtils';
     import { resolveIconName } from '../utils/iconNameResolver';
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
+    import { clearSettingsPathFromHash, getSettingsPathFromHash, setSettingsPathInHash } from '../utils/settingsHashUtils';
 
     const CALENDAR_UPDATE_ACCOUNT_KEY = 'openmates_calendar_update_account_id';
 
@@ -288,6 +294,8 @@ changes to the documentation (to keep the documentation up to date).
                 views[route] = AiModelDetailsWrapper;
             } else if (/^ai\/provider\//.test(route)) {
                 views[route] = AiProviderDetailsWrapper;
+            } else if (/^chats\/[^/]+(?:\/[^/]+)?$/.test(route)) {
+                views[route] = ChatSettingsPage;
             } else if (/^projects\/[^/]+$/.test(route)) {
                 views[route] = SettingsProjects;
             } else if (/^developers\/api-keys\/[^/]+$/.test(route)) {
@@ -357,7 +365,8 @@ changes to the documentation (to keep the documentation up to date).
             }
             
             // For non-authenticated users, include interface settings (top-level and nested),
-            // privacy overview, Apps (including app details), memories examples, mates (browse only), share chat (for sharing demo chats),
+            // privacy overview, Apps (including app details), memories examples, mates (browse only),
+            // read-only chat settings for shared chats, share chat (for sharing demo chats),
             // newsletter, support, report issue, and the pricing overview page.
             // Apps and mates are read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
@@ -367,6 +376,7 @@ changes to the documentation (to keep the documentation up to date).
                     key === 'settings_memories' ||
                     key === 'apps' || key.startsWith('apps/') ||
                     key === 'mates' || key.startsWith('mates/') ||
+                    key.startsWith('chats/') ||
                     key === 'shared/share' || key === 'newsletter' ||
                     key === 'support' || key.startsWith('support/') ||
                     key === 'report_issue' || key.startsWith('report_issue/') || key === 'account/delete' ||
@@ -515,6 +525,7 @@ changes to the documentation (to keep the documentation up to date).
             const insetPx = Math.round(deterministicValue(`${item.chatId}-inset`, 6, 18));
             const rotationDeg = Math.round(deterministicValue(`${item.chatId}-rotation`, -28, 28));
             const gradient = getCategoryGradientColors(item.category) ?? getCategoryGradientColors('general_knowledge');
+            const fallbackGradient = getCategoryGradientColors('general_knowledge');
 
             decor.push({
                 key: `${item.chatId}-${item.iconName}-${side}`,
@@ -523,8 +534,8 @@ changes to the documentation (to keep the documentation up to date).
                 topPercent,
                 insetPx,
                 rotationDeg,
-                gradientStart: gradient?.start ?? '#de1e66',
-                gradientEnd: gradient?.end ?? '#ff763b',
+                gradientStart: gradient?.start ?? fallbackGradient?.start ?? 'var(--color-primary-start)',
+                gradientEnd: gradient?.end ?? fallbackGradient?.end ?? 'var(--color-primary-end)',
             });
         }
 
@@ -545,6 +556,68 @@ changes to the documentation (to keep the documentation up to date).
             }
         } finally {
             isRefreshingHeaderIcons = false;
+        }
+    }
+
+    function getNormalizedChatSettingsPath(settingsPath: string): string {
+        const match = settingsPath.match(/^chats\/([^/]+)(?:\/[^/]+)?$/);
+        return match ? `chats/${match[1]}` : settingsPath;
+    }
+
+    async function hydrateChatSettingsContext(settingsPath: string): Promise<void> {
+        const match = settingsPath.match(/^chats\/([^/]+)(?:\/([^/]+))?$/);
+        if (!match) return;
+
+        const [, chatId, tab] = match;
+        const existingContext = get(chatSettingsStore);
+        if (existingContext?.chat.chat_id === chatId) {
+            chatSettingsStore.setTab(tab);
+            return;
+        }
+
+        try {
+            let chat = await chatDB.getChat(chatId);
+            let messages: Message[] = [];
+            if (!chat) {
+                if (isExampleChat(chatId)) {
+                    chat = getExampleChat(chatId);
+                    messages = getExampleChatMessages(chatId);
+                }
+
+                const publicChat = chat ? null : getPublicChatById(chatId);
+                if (!chat && !publicChat) {
+                    chatSettingsStore.clear();
+                    console.warn('[Settings] Cannot hydrate chat settings context: chat not found', { chatId });
+                    return;
+                }
+                if (publicChat) {
+                    const translatedPublicChat = translateDemoChat(publicChat);
+                    chat = convertDemoChatToChat(translatedPublicChat);
+                    messages = convertDemoMessagesToMessages(
+                        translatedPublicChat.messages,
+                        chatId,
+                        translatedPublicChat.metadata.category,
+                    );
+                }
+            } else {
+                try {
+                    messages = await chatDB.getMessagesForChat(chatId);
+                } catch (error) {
+                    console.error('[Settings] Failed to load messages for chat settings deep link:', error);
+                }
+            }
+
+            const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
+            chatSettingsStore.open(chat, messages, tab, {
+                title: metadata?.title || chat.title || null,
+                summary: metadata?.summary || chat.chat_summary || null,
+                category: metadata?.category || chat.category || null,
+                icon: metadata?.icon || chat.icon?.split(',')[0]?.trim() || null,
+                credits: chat.budget_spent ?? null,
+            });
+        } catch (error) {
+            chatSettingsStore.clear();
+            console.error('[Settings] Failed to hydrate chat settings deep link:', error);
         }
     }
 
@@ -750,6 +823,10 @@ changes to the documentation (to keep the documentation up to date).
                     const translationKey = `settings.${translationKeyParts.join('.')}`;
                     pathLabels.push($text(translationKey));
                 }
+            } else if (pathString === 'chats') {
+                pathLabels.push('Chats');
+            } else if (pathString.startsWith('chats/')) {
+                continue;
             } else {
                 // For other routes, use translation keys
                 const translationKey = getSettingsRouteTitleKey(pathString) ??
@@ -796,7 +873,8 @@ changes to the documentation (to keep the documentation up to date).
     let showReferralCta = $derived(
         $authStore.isAuthenticated && !$isRestrictedSession && !isSelfHosted && !!$referralStatus?.available
     );
-    let showLearningModeCta = $derived($learningMode.enabled);
+    let showLearningModeCta = $derived($authStore.isAuthenticated && $learningMode.enabled);
+    let hideHeaderGithubLink = $derived($isMobileView && (showReferralCta || showLearningModeCta));
 
     $effect(() => {
         const url = $userProfile.profile_image_url;
@@ -824,12 +902,49 @@ changes to the documentation (to keep the documentation up to date).
     let activeSubMenuIcon = $state('');
     let activeSubMenuTitleKey = $state(''); // Store the translation key
     let activeSubMenuTitleRaw = $state(''); // Raw title (used when no translation key, e.g. model name)
+    let pendingSettingsDeepLinkPath = $state<string | null>(null);
     // SVG path for provider icon (e.g. "icons/anthropic.svg") — set when on a model detail page
     let activeSubMenuProviderIconSvg = $state('');
     
     // Reactive translation of the submenu title — falls back to raw title when no key
     let activeSubMenuTitle = $derived(activeSubMenuTitleKey ? $text(activeSubMenuTitleKey) : activeSubMenuTitleRaw);
     let routedPendingConnectedAccountOAuth = $state(false);
+    let hasSyncedSettingsHash = $state(false);
+
+    function shouldPreserveComponentSettingsHash(hash: string): boolean {
+        const normalizedHash = hash.startsWith('#/') ? `#${hash.slice(2)}` : hash;
+        return /^#settings\/(billing\/invoices\/[^/]+\/refund|newsletter\/(confirm|unsubscribe)\/|email\/block\/|account\/delete\/)/.test(normalizedHash);
+    }
+
+    function replaceCurrentHash(nextHash: string): void {
+        if (typeof window === 'undefined') return;
+        if (window.location.hash === nextHash) return;
+        history.replaceState(null, '', `${window.location.pathname}${window.location.search}${nextHash}`);
+    }
+
+    $effect(() => {
+        if (typeof window === 'undefined') return;
+        if (shouldPreserveComponentSettingsHash(window.location.hash)) return;
+
+        if (isMenuVisible) {
+            const currentSettingsPath = getSettingsPathFromHash(window.location.hash);
+            // Cold deep links open the panel before the delayed route navigation applies.
+            if (
+                activeSettingsView === 'main' &&
+                ((currentSettingsPath && currentSettingsPath !== 'main') ||
+                    (pendingSettingsDeepLinkPath && pendingSettingsDeepLinkPath !== 'main'))
+            ) {
+                return;
+            }
+            hasSyncedSettingsHash = true;
+            replaceCurrentHash(setSettingsPathInHash(window.location.hash, activeSettingsView));
+            return;
+        }
+
+        if (hasSyncedSettingsHash) {
+            replaceCurrentHash(clearSettingsPathFromHash(window.location.hash));
+        }
+    });
 
     $effect(() => {
         if (!$authStore.isAuthenticated || !hasPendingConnectedAccountOAuthUpdate()) {
@@ -912,6 +1027,8 @@ changes to the documentation (to keep the documentation up to date).
         cameFromPath !== 'ai'
     );
 
+    let isChatSettingsPage = $derived(/^chats\/[^/]+(?:\/[^/]+)?$/.test(activeSettingsView));
+
     /**
      * True when any gradient banner (top-level or sub-page) should be visible.
      * Used to suppress the normal submenu-info header and shrink the settings-header.
@@ -927,6 +1044,7 @@ changes to the documentation (to keep the documentation up to date).
     let isStandardSubPage = $derived(
         activeSettingsView !== 'main' &&
         !isAnyAppBannerPage &&
+        !isChatSettingsPage &&
         !isMateDetailPage &&
         !isModelDetailPage
     );
@@ -935,7 +1053,7 @@ changes to the documentation (to keep the documentation up to date).
      * True when ANY gradient banner should be visible (Apps OR standard sub-page).
      * Used to suppress the normal submenu-info block and shrink the settings-header.
      */
-    let isAnyBannerPage = $derived(isAnyAppBannerPage || isStandardSubPage);
+    let isAnyBannerPage = $derived(isAnyAppBannerPage || isStandardSubPage || isChatSettingsPage);
 
     /**
      * Description translation keys for standard settings pages.
@@ -995,6 +1113,32 @@ changes to the documentation (to keep the documentation up to date).
             { count: totalMemories,  iconClass: 'memory' },
         ];
     });
+
+    let chatSettingsContext = $derived($chatSettingsStore);
+    let chatSettingsTitle = $derived(
+        chatSettingsContext?.display?.title ||
+        chatSettingsContext?.chat.title ||
+        [...(chatSettingsContext?.messages ?? [])].reverse().find((message) => message.current_chat_title)?.current_chat_title ||
+        $text('common.untitled_chat')
+    );
+    let chatSettingsCategory = $derived(chatSettingsContext?.display?.category || chatSettingsContext?.chat.category || 'general_knowledge');
+    let chatSettingsIcon = $derived(
+        getValidIconName(
+            chatSettingsContext?.display?.icon || chatSettingsContext?.chat.icon || getFallbackIconForCategory(chatSettingsCategory),
+            chatSettingsCategory
+        )
+    );
+    let chatSettingsGradient = $derived(
+        getCategoryGradientColors(chatSettingsCategory) ??
+        getCategoryGradientColors('general_knowledge') ??
+        { start: 'var(--color-primary-start)', end: 'var(--color-primary-end)' }
+    );
+    let chatSettingsCredits = $derived(
+        chatSettingsContext?.display?.credits ??
+        chatSettingsContext?.chat.budget_spent ??
+        chatSettingsContext?.messages.reduce((sum, message) => sum + (message.example_response_credits ?? 0), 0) ??
+        0
+    );
 
     /**
      * Data needed to render the AppDetailsHeader for sub-pages (skill/focus/memories).
@@ -1387,6 +1531,16 @@ changes to the documentation (to keep the documentation up to date).
 
         const apiKeyDetailPattern = /^developers\/api-keys\/[^/]+$/;
         if (apiKeyDetailPattern.test(settingsPath) && settingsPath !== 'developers/api-keys/create' && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+        }
+
+        const chatSettingsPattern = /^chats\/[^/]+(?:\/[^/]+)?$/;
+        if (chatSettingsPattern.test(settingsPath)) {
+            await hydrateChatSettingsContext(settingsPath);
+            settingsPath = getNormalizedChatSettingsPath(settingsPath);
+        }
+        if (chatSettingsPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
             dynamicEntryRoutes.add(settingsPath);
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
         }
@@ -2443,7 +2597,8 @@ changes to the documentation (to keep the documentation up to date).
                                      settingsPath.startsWith('report_issue/') ||
                                      settingsPath.startsWith('account/delete/') ||
                                      settingsPath.startsWith('mates/') ||
-                                     settingsPath.startsWith('ai/');
+                                      settingsPath.startsWith('ai/') ||
+                                      settingsPath.startsWith('chats/');
                 
                 if (!isAllowedPath) {
                     // Clear the deep link if path is not allowed for non-authenticated users
@@ -2455,6 +2610,7 @@ changes to the documentation (to keep the documentation up to date).
 
             // Reset the deep link store immediately to prevent multiple triggers
             settingsDeepLink.set(null);
+            pendingSettingsDeepLinkPath = settingsPath;
 
             // Scroll to top of the page
             if (typeof window !== 'undefined') {
@@ -2557,6 +2713,7 @@ changes to the documentation (to keep the documentation up to date).
                         title
                     }
                 }));
+                pendingSettingsDeepLinkPath = null;
             }, 300);
         }
     });
@@ -2697,7 +2854,7 @@ changes to the documentation (to keep the documentation up to date).
     	out:fade
     >
     <div bind:this={profileContainerWrapper}> <!-- Bind the wrapper -->
-        {#if visuallyAuthenticated}
+        {#if visuallyAuthenticated && !hideHeaderGithubLink}
             <a
                 class="header-github-link"
                 data-testid="header-github-link"
@@ -2785,7 +2942,7 @@ changes to the documentation (to keep the documentation up to date).
 {/if}
 
 <!-- Dummy element to make linter recognize mobile-overlay class as used -->
-<div class="settings-menu mobile-overlay" style="display: none;"></div>
+<div class="settings-menu mobile-overlay mobile-overlay-sentinel"></div>
 
 <div
     class="settings-menu"
@@ -2811,6 +2968,7 @@ changes to the documentation (to keep the documentation up to date).
                 <button
 					id="settings-back-button"
                     class="nav-button"
+                    data-testid="settings-back-button"
                     class:left={navButtonLeft}
                     class:left-aligned={activeSettingsView !== 'main'}
                     onclick={activeSettingsView !== 'main' ? (e) => backToMainView(e) : null}
@@ -2891,15 +3049,19 @@ changes to the documentation (to keep the documentation up to date).
                     class="header-chat-icons-layer on-banner"
                     class:menu-open={isMenuVisible}
                     aria-hidden="true"
-                    style="opacity: {headerDecorOpacity}"
+                    style:--header-chat-decor-opacity={headerDecorOpacity}
                 >
                     {#each headerChatDecorIcons as decor, index (decor.key)}
                         {@const IconComponent = getLucideIcon(decor.iconName)}
                         <div
                             class="header-chat-icon {decor.side}"
-                            style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg; --deco-rotate: {decor.rotationDeg}deg; --float-rx: 6px; --float-ry: 7px; animation-delay: {-index * 2}s;"
+                            style:--header-chat-icon-top={`${decor.topPercent}%`}
+                            style:--header-chat-icon-inset={`${decor.insetPx}px`}
+                            style:--header-chat-icon-rotation={`${decor.rotationDeg}deg`}
+                            style:--deco-rotate={`${decor.rotationDeg}deg`}
+                            style:--header-chat-icon-animation-delay={`${-index * 2}s`}
                         >
-                            <IconComponent size={22} color="rgba(255, 255, 255, 0.45)" />
+                            <IconComponent size={22} color="var(--header-chat-icon-color)" />
                         </div>
                     {/each}
                 </div>
@@ -2941,6 +3103,22 @@ changes to the documentation (to keep the documentation up to date).
                     iconType: subPageBannerData.iconType,
                 } : undefined}
                 onSubItemMention={subPageBannerData?.mentionSyntax ? handleSubPageBannerMentionClick : undefined}
+            />
+        </div>
+    {/if}
+
+    {#if isChatSettingsPage}
+        <div class="settings-banner-shell" data-testid="settings-banner-shell">
+            <ChatSettingsHeader
+                title={chatSettingsTitle}
+                icon={chatSettingsIcon}
+                credits={chatSettingsCredits}
+                gradientStart={chatSettingsGradient.start}
+                gradientEnd={chatSettingsGradient.end}
+                scrollTop={contentScrollTop}
+                breadcrumbLabel={breadcrumbLabel}
+                fullBreadcrumbLabel={fullBreadcrumbLabel}
+                onBack={() => backToMainView()}
             />
         </div>
     {/if}
@@ -3193,6 +3371,15 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
+    @media (max-width: 730px) {
+        .referral-cta {
+            inset-inline-end: 58px;
+            width: 42px;
+            min-width: 42px;
+            max-width: 42px;
+        }
+    }
+
     .profile-container.menu-open {
         opacity: 0;
         pointer-events: none;
@@ -3276,16 +3463,21 @@ changes to the documentation (to keep the documentation up to date).
     }
     
     .settings-menu {
+        --settings-panel-width: 323px;
         background-color: var(--color-grey-20);
         height: 100%;
         width: 0px;
         border-radius: 17px;
-        box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+        box-shadow: var(--shadow-xl);
         display: flex;
         flex-direction: column;
         overflow: hidden;
         transition: width var(--duration-slow) var(--easing-default);
         z-index: var(--z-index-modal-above);
+    }
+
+    .mobile-overlay-sentinel {
+        display: none;
     }
 
     @media (max-width: 1100px) {
@@ -3298,7 +3490,7 @@ changes to the documentation (to keep the documentation up to date).
             height: auto;
             z-index: var(--z-index-modal);
             /* Override desktop width animation — keep full width, slide with GPU-accelerated transform */
-            width: 323px;
+            width: var(--settings-panel-width);
             transition: transform var(--duration-slow) var(--easing-default), visibility var(--duration-slow) var(--easing-default);
             transform: translateX(calc(100% + 40px));
             visibility: hidden;
@@ -3320,7 +3512,7 @@ changes to the documentation (to keep the documentation up to date).
         }
 
         .settings-menu.overlay {
-            box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
+            box-shadow: var(--shadow-md);
         }
         
         /* Add mobile overlay style for higher z-index */
@@ -3352,7 +3544,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .settings-menu.visible {
-        width: 323px;
+        width: var(--settings-panel-width);
         visibility: visible;
     }
 
@@ -3365,14 +3557,16 @@ changes to the documentation (to keep the documentation up to date).
 
     .settings-header,
     .settings-content-wrapper,
-    :global(.app-details-header) {
+    :global(.app-details-header),
+    :global(.chat-settings-header) {
         opacity: 0;
         transition: opacity var(--duration-slow) var(--easing-default);
     }
 
     .settings-menu.visible .settings-header,
     .settings-menu.visible .settings-content-wrapper,
-    .settings-menu.visible :global(.app-details-header) {
+    .settings-menu.visible :global(.app-details-header),
+    .settings-menu.visible :global(.chat-settings-header) {
         opacity: 1;
         transition: opacity var(--duration-slow) var(--easing-default);
     }
@@ -3383,7 +3577,7 @@ changes to the documentation (to keep the documentation up to date).
         position: sticky;
         top: 0;
         z-index: var(--z-index-dropdown-1);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        box-shadow: var(--shadow-sm);
         display: flex;
         flex-direction: column;
         border-bottom: 1px solid var(--color-grey-30);
@@ -3397,6 +3591,7 @@ changes to the documentation (to keep the documentation up to date).
         overflow: hidden;
         pointer-events: none;
         z-index: var(--z-index-base);
+        opacity: var(--header-chat-decor-opacity, 1);
         transition: opacity 0.28s ease;
     }
 
@@ -3409,13 +3604,16 @@ changes to the documentation (to keep the documentation up to date).
         display: flex;
         align-items: center;
         justify-content: center;
+        top: var(--header-chat-icon-top);
+        --header-chat-icon-color: color-mix(in srgb, var(--color-white) 45%, transparent);
+        --float-rx: 6px;
+        --float-ry: 7px;
         transform: translateY(-50%) rotate(var(--header-chat-icon-rotation));
         opacity: 0;
         transition: opacity 0.28s ease;
-        /* Orbital float — each icon drifts in a small circle. Per-icon phase
-           offset set via negative animation-delay in the inline style so all
-           8 icons orbit independently (staggered by 2s each). */
+        /* Orbital float — each icon drifts in a small circle with a per-icon phase offset. */
         animation: decoFloat 16s linear infinite;
+        animation-delay: var(--header-chat-icon-animation-delay);
     }
 
     .header-chat-icons-layer.menu-open .header-chat-icon {
@@ -3447,7 +3645,8 @@ changes to the documentation (to keep the documentation up to date).
         width: 100%;
     }
 
-    .settings-banner-shell :global(.app-details-header) {
+    .settings-banner-shell :global(.app-details-header),
+    .settings-banner-shell :global(.chat-settings-header) {
         position: relative;
         z-index: var(--z-index-raised);
     }

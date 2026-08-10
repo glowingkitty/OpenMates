@@ -7,4 +7,4 @@ globs:
 
 @docs/design-guide/settings-ui.md
 
-All settings visual elements MUST use canonical components from `settings/elements/` (29 components). No custom inline CSS. Preview at: `/dev/preview/settings`.
+All settings visual elements MUST use canonical components from `settings/elements/` (26 component files; the design guide documents 29 visual variants). No custom inline CSS. Preview at: `/dev/preview/settings`.

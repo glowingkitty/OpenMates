@@ -25,6 +25,11 @@ user_app_settings_and_memories:
       length: 255
       note: "[Indexed] Hashed identifier of the user. Backend hashes user's actual ID before storing/querying."
 
+    hashed_team_id:
+      type: string
+      length: 64
+      note: "[Indexed optional] SHA256 team context for team-owned memories. Null means personal memory."
+
     app_id:
       type: string
       length: 64
@@ -47,7 +52,7 @@ user_app_settings_and_memories:
 
     encrypted_item_json:
       type: text
-      note: "[Encrypted] Single item encrypted with user's master key. Structure defined in each app's app.yml (e.g., backend/apps/tv/app.yml). Examples: one movie, one restaurant, one trip."
+      note: "[Encrypted] Single item encrypted client-side with the personal master key or team key. Structure defined in each app's app.yml (e.g., backend/apps/tv/app.yml). Examples: one movie, one restaurant, one trip."
 
     created_at:
       type: integer

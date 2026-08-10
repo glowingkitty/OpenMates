@@ -12,6 +12,8 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { OpenMatesClient, type UserTaskCreateInput } from "../src/client.ts";
+import { formatEmbedPreviewLines } from "../src/embedRenderers.ts";
+import { decryptUserTask, findTask, type DecryptedUserTask } from "../src/tasksCli.ts";
 import type { OpenMatesSession } from "../src/storage.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
@@ -40,6 +42,7 @@ function encryptedTaskInput(): UserTaskCreateInput {
     encrypted_tags: "cipher-tags",
     status: "todo",
     assignee_type: "user",
+    version: 1,
     linked_project_ids: ["project-1"],
     primary_chat_id: "chat-1",
     created_at: 100,
@@ -83,7 +86,7 @@ describe("OpenMatesClient user tasks", () => {
       },
       async (apiUrl, seen) => {
         const client = new OpenMatesClient({ apiUrl, session: testSession() });
-        assert.equal((await client.listUserTasks({ status: "todo", chatId: "chat-1", projectId: "project-1" }))[0]?.task_id, "task-1");
+        assert.equal((await client.listUserTasks({ status: "todo", chatId: "chat-1", projectId: "project-1", limit: 1000 }))[0]?.task_id, "task-1");
         assert.equal((await client.createUserTask(task)).encrypted_title, "cipher-title");
         assert.equal((await client.updateUserTask("task-1", { status: "done", version: 1 })).status, "done");
         assert.equal((await client.startUserTaskWithAI("task-1", {
@@ -93,7 +96,7 @@ describe("OpenMatesClient user tasks", () => {
         })).task_id, "task-1");
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1"],
+          ["GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1&limit=1000"],
           ["POST", "/v1/user-tasks"],
           ["PATCH", "/v1/user-tasks/task-1"],
           ["POST", "/v1/user-tasks/task-1/start-ai"],
@@ -107,5 +110,71 @@ describe("OpenMatesClient user tasks", () => {
         });
       },
     );
+  });
+
+  it("rejects ambiguous short task IDs", () => {
+    const tasks = [
+      { taskId: "task-1", shortId: "TASK-1234" },
+      { taskId: "task-2", shortId: "TASK-1234" },
+    ] as DecryptedUserTask[];
+
+    assert.throws(() => findTask(tasks, "TASK-1234"), /ambiguous/);
+    assert.equal(findTask(tasks, "task-2").taskId, "task-2");
+  });
+
+  it("renders workflow task projections without decrypting task ciphertext", async () => {
+    const task = await decryptUserTask({
+      task_id: "workflow-schedule:trigger-1:1000",
+      source: "workflow_run",
+      projection_kind: "next_run",
+      workflow_id: "workflow-1",
+      workflow_run_id: null,
+      trigger_id: "trigger-1",
+      title: "Morning rain - 1970-01-01 00:16 UTC",
+      status: "todo",
+      run_status: "planned",
+      due_at: 1000,
+      position: 1000,
+      can_cancel: false,
+      can_delete: true,
+      read_only: true,
+      encrypted_title: "",
+      assignee_type: "user",
+    }, Buffer.alloc(32));
+
+    assert.equal(task.source, "workflow_run");
+    assert.equal(task.projectionKind, "next_run");
+    assert.equal(task.workflowId, "workflow-1");
+    assert.equal(task.workflowRunId, null);
+    assert.equal(task.triggerId, "trigger-1");
+    assert.equal(task.title, "Morning rain - 1970-01-01 00:16 UTC");
+    assert.equal(task.status, "todo");
+    assert.equal(task.queueState, "planned");
+    assert.equal(task.readOnly, true);
+    assert.equal(task.canCancel, false);
+    assert.equal(task.canDelete, true);
+    assert.match(task.shortId, /^WF-/);
+  });
+
+  it("formats task child embeds for CLI output", () => {
+    const lines = formatEmbedPreviewLines({
+      embedId: "task-embed-12345678",
+      type: "tasks-task",
+      status: "finished",
+      content: {
+        type: "task",
+        title: "Draft launch announcement",
+        short_id: "TASK-42",
+        status: "todo",
+        assignee: "openmates",
+      },
+    });
+
+    assert.equal(lines[0], "┌─ ✓ task · TASK-42 · Draft launch announcement");
+    assert.deepEqual(lines.slice(1, 4), [
+      "│  Status: todo",
+      "│  Assignee: openmates",
+      "└─ openmates tasks show TASK-42",
+    ]);
   });
 });

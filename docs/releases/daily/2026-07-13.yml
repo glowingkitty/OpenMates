@@ -1,0 +1,3077 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-13'
+generated_at: '2026-07-14T00:20:04+00:00'
+range:
+  since: '2026-07-13T00:00:00+00:00'
+  until: '2026-07-14T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 68
+  section_counts:
+    features: 3
+    bug_fixes: 41
+    improvements: 0
+    docs: 3
+    tests: 21
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 25
+  dev_only_items: 68
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add workflow graph tabs to CLI TUI'
+    section: features
+    commits:
+    - dc669853e
+    authored_at: '2026-07-13T22:57:44+00:00'
+    changed_paths:
+    - docs/specs/cli-terminal-chat-tui/spec.yml
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/tests/tui.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add workflow screens to CLI TUI'
+    section: features
+    commits:
+    - 2d59e96b0
+    authored_at: '2026-07-13T22:38:57+00:00'
+    changed_paths:
+    - docs/specs/cli-terminal-chat-tui/spec.yml
+    - docs/specs/workflows-sdk-runtime/spec.yml
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/tests/tui.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add workflow CLI runtime'
+    section: features
+    commits:
+    - 934f79115
+    authored_at: '2026-07-13T16:06:51+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/events/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/weather/app.yml
+    - backend/apps/web/app.yml
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_inspiration_chat_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_chat_delivery_handlers.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_action_adapter.py
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/core/api/app/services/workflow_chat_delivery_service.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/app/services/workflow_scheduler_service.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/services/workflow_template_expressions.py
+    - backend/core/api/app/services/workflow_yaml_compiler.py
+    - backend/core/directus/schemas/workflow_chat_deliveries.yml
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/tests/fixtures/workflow_yaml_conformance.yml
+    - backend/tests/test_workflow_action_adapter.py
+    - backend/tests/test_workflow_ai_and_chat_actions.py
+    - backend/tests/test_workflow_chat_delivery.py
+    - backend/tests/test_workflow_chat_delivery_websocket_handlers.py
+    - backend/tests/test_workflow_control_runtime.py
+    - backend/tests/test_workflow_due_scanner.py
+    - backend/tests/test_workflow_step_test.py
+    - backend/tests/test_workflow_template_expressions.py
+    - backend/tests/test_workflows_models.py
+    - docs/specs/workflows-cli-runtime/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/generated/workflowAuthoringSchema.ts
+    - frontend/packages/openmates-cli/tests/workflows-yaml.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - scripts/generate_workflow_authoring_schema.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: true
+      override: enabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: keep early recovery jobs through cold boot'
+    section: bug_fixes
+    commits:
+    - 46d084480
+    authored_at: '2026-07-13T23:44:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hydrate quick tips from stored chat metadata'
+    section: bug_fixes
+    commits:
+    - 9e8fbe55b
+    authored_at: '2026-07-13T23:22:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: replay early recovery availability'
+    section: bug_fixes
+    commits:
+    - 1ca2ce369
+    authored_at: '2026-07-13T23:10:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sync chat quick tip metadata'
+    section: bug_fixes
+    commits:
+    - 945114f46
+    authored_at: '2026-07-13T23:03:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep decrypted chat titles from sync'
+    section: bug_fixes
+    commits:
+    - 254892a72
+    authored_at: '2026-07-13T22:43:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: discover recovery jobs on final streams'
+    section: bug_fixes
+    commits:
+    - 4b0d05a6b
+    authored_at: '2026-07-13T22:41:04+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prefer decrypted chat titles over placeholders'
+    section: bug_fixes
+    commits:
+    - 2e220c7ba
+    authored_at: '2026-07-13T22:23:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hydrate recovery chats before claim'
+    section: bug_fixes
+    commits:
+    - 5cf1a5ae9
+    authored_at: '2026-07-13T22:16:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: wait for recovery prerequisites'
+    section: bug_fixes
+    commits:
+    - bdb8f11ac
+    authored_at: '2026-07-13T21:55:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retry authenticated chat deep links'
+    section: bug_fixes
+    commits:
+    - ebd785b28
+    authored_at: '2026-07-13T21:26:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: order recovery discovery before final chat frame'
+    section: bug_fixes
+    commits:
+    - b39a6c507
+    authored_at: '2026-07-13T21:20:36+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist recovery jobs despite local synced row'
+    section: bug_fixes
+    commits:
+    - c3209bed4
+    authored_at: '2026-07-13T20:59:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: process recovery jobs concurrently'
+    section: bug_fixes
+    commits:
+    - e616451f5
+    authored_at: '2026-07-13T20:42:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: release recovery leases on logout'
+    section: bug_fixes
+    commits:
+    - 2b4566115
+    authored_at: '2026-07-13T20:34:55+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_logout.py
+    - backend/tests/test_auth_logout.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: announce active recovery jobs'
+    section: bug_fixes
+    commits:
+    - 75ed6baa9
+    authored_at: '2026-07-13T20:12:10+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: let recovery finalize normal completions'
+    section: bug_fixes
+    commits:
+    - 1341e4a21
+    authored_at: '2026-07-13T20:10:52+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore workflow CLI runtime verification'
+    section: bug_fixes
+    commits:
+    - d8f0f701d
+    authored_at: '2026-07-13T19:56:53+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflow_scheduler_contract.py
+    - docs/specs/workflows-cli-runtime/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: true
+      override: enabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: skip normal task-end legacy persistence'
+    section: bug_fixes
+    commits:
+    - 2402a4205
+    authored_at: '2026-07-13T19:53:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve recovery user turn metadata'
+    section: bug_fixes
+    commits:
+    - a44b779e0
+    authored_at: '2026-07-13T19:30:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: scan due workflow triggers'
+    section: bug_fixes
+    commits:
+    - 3419f0269
+    authored_at: '2026-07-13T19:08:11+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_runtime_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/core/directus/extensions/workflow-runtime-transaction/src/operations.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
+    - backend/tests/test_workflow_due_scanner_task.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: true
+      override: enabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: authorize legacy completion by user turn'
+    section: bug_fixes
+    commits:
+    - b6db66008
+    authored_at: '2026-07-13T19:04:00+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - backend/tests/test_ai_response_completed_key_guard.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: seal recovery mock replay completions'
+    section: bug_fixes
+    commits:
+    - 4dc531185
+    authored_at: '2026-07-13T18:38:53+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/tests/test_mock_replay.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: accept workflow news search requests'
+    section: bug_fixes
+    commits:
+    - e2d203c54
+    authored_at: '2026-07-13T18:37:15+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_yaml_compiler.py
+    - backend/tests/test_workflow_yaml_news_readiness.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: true
+      override: enabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep chat list remount cache invalidated until refresh'
+    section: bug_fixes
+    commits:
+    - 83cf3f55a
+    authored_at: '2026-07-13T18:02:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatListCache.test.ts
+    - frontend/packages/ui/src/services/chatListCache.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: skip legacy ai response persistence for recovery'
+    section: bug_fixes
+    commits:
+    - 3997b47fa
+    authored_at: '2026-07-13T18:01:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/__tests__/activeChatUtils.test.ts
+    - frontend/packages/ui/src/components/activeChatUtils.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: adapt workflow ai ask requests'
+    section: bug_fixes
+    commits:
+    - e0638d20e
+    authored_at: '2026-07-13T17:42:41+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: true
+      override: enabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route workflow celery tasks'
+    section: bug_fixes
+    commits:
+    - 2d265accd
+    authored_at: '2026-07-13T17:10:22+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/tests/test_celery_config.py
+    - backend/tests/test_workflow_runtime_python_transactions.py
+    - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route epoch-one background completions through recovery'
+    section: bug_fixes
+    commits:
+    - f1295f340
+    authored_at: '2026-07-13T15:33:31+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: compare raw chat keys during sync merge'
+    section: bug_fixes
+    commits:
+    - 64ce9a293
+    authored_at: '2026-07-13T15:03:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncMerge.test.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: correlate recovery job retries'
+    section: bug_fixes
+    commits:
+    - 0365a441c
+    authored_at: '2026-07-13T15:00:29+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/tests/test_chat_completion_recovery_authorization.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep OpenCode edit coordination warning-only'
+    section: bug_fixes
+    commits:
+    - 7d2dac015
+    authored_at: '2026-07-13T14:04:13+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/opencode_file_leases.py
+    - scripts/tests/test_opencode_file_lease_hook.mjs
+    - scripts/tests/test_opencode_file_leases.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use stable signup and sidebar controls'
+    section: bug_fixes
+    commits:
+    - 0bb56c466
+    authored_at: '2026-07-13T13:30:08+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/packages/ui/src/components/signup/steps/basics/Basics.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: wait for signup and sidebar readiness'
+    section: bug_fixes
+    commits:
+    - d81b4433a
+    authored_at: '2026-07-13T13:02:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve late recovery acknowledgements'
+    section: bug_fixes
+    commits:
+    - cdce04ef4
+    authored_at: '2026-07-13T12:26:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize signup and chat navigation specs'
+    section: bug_fixes
+    commits:
+    - f31ed369e
+    authored_at: '2026-07-13T12:25:33+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts
+    - scripts/tests/test_playwright_workflow_timeout.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retry delayed recovery acknowledgements'
+    section: bug_fixes
+    commits:
+    - bf8953f9e
+    authored_at: '2026-07-13T11:59:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: add models3d embed surfaces'
+    section: bug_fixes
+    commits:
+    - a19eb1f11
+    authored_at: '2026-07-13T11:28:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/models3d.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound legacy chat recovery cutover'
+    section: bug_fixes
+    commits:
+    - 4dc6d8f66
+    authored_at: '2026-07-13T11:27:12+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/services/chat_recovery_cutover.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/api/app/services/chat_recovery_telemetry.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/schemas/chat_recovery_protocol_state.yml
+    - backend/tests/test_ai_response_completed_key_guard.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_chat_recovery_directus_deployment.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - backend/tests/test_chat_recovery_protocol_cutover.py
+    - backend/tests/test_chat_recovery_service.py
+    - backend/tests/test_chat_recovery_telemetry.py
+    - backend/tests/test_chat_turn_preflight.py
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_persistence_tasks.py
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    - scripts/measure_chat_preflight_latency.py
+    - scripts/test_cross_client_chat_recovery.py
+    - scripts/test_legacy_cli_cutover.py
+    - scripts/tests/test_chat_recovery_harnesses.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make daily Playwright dispatch reliable'
+    section: bug_fixes
+    commits:
+    - 41786daeb
+    authored_at: '2026-07-13T11:19:12+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_vercel_ignore_build.py
+    - scripts/vercel_ignore_build.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep workflows workspace gated'
+    section: bug_fixes
+    commits:
+    - fe0d08762
+    authored_at: '2026-07-13T11:16:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/config/workspaceFeatureGates.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: true
+      override: enabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: app:workflows, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize nightly regression suite'
+    section: bug_fixes
+    commits:
+    - 51cda394f
+    authored_at: '2026-07-13T10:52:33+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/tests/test_apple_remote.py
+    - backend/tests/test_chat_metadata_permissions.py
+    - backend/tests/test_delete_chat_handler.py
+    - backend/tests/test_s3_service_no_sync_boto3_in_async.py
+    - backend/tests/test_user_cache_tasks.py
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record local workflow TUI proof'
+    section: docs
+    commits:
+    - 5efc7381d
+    authored_at: '2026-07-13T23:24:43+00:00'
+    changed_paths:
+    - docs/specs/cli-terminal-chat-tui/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record workflow CLI e2e evidence'
+    section: docs
+    commits:
+    - 9cc039c9b
+    authored_at: '2026-07-13T21:45:05+00:00'
+    changed_paths:
+    - docs/specs/workflows-cli-runtime/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: verify workflow CLI runtime spec'
+    section: docs
+    commits:
+    - ddcaecb61
+    authored_at: '2026-07-13T20:24:48+00:00'
+    changed_paths:
+    - docs/specs/workflows-cli-runtime/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: update recovery correlation mock'
+    section: tests
+    commits:
+    - aae27157c
+    authored_at: '2026-07-13T23:15:33+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add workflow TUI CI coverage'
+    section: tests
+    commits:
+    - ac09a48c8
+    authored_at: '2026-07-13T23:09:28+00:00'
+    changed_paths:
+    - docs/specs/cli-terminal-chat-tui/spec.yml
+    - frontend/apps/web_app/tests/cli-tui-workflows.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify workflow CLI commands'
+    section: tests
+    commits:
+    - d072788ef
+    authored_at: '2026-07-13T21:28:45+00:00'
+    changed_paths:
+    - docs/specs/workflows-cli-runtime/spec.yml
+    - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use sidebar fallback after chat relogin'
+    section: tests
+    commits:
+    - cf392892f
+    authored_at: '2026-07-13T19:02:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for chat content sync after relogin'
+    section: tests
+    commits:
+    - 68a50a396
+    authored_at: '2026-07-13T18:42:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize chat relogin deep-link readiness'
+    section: tests
+    commits:
+    - e102a1693
+    authored_at: '2026-07-13T18:19:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: refresh workflow chat polling cache'
+    section: tests
+    commits:
+    - 5f340c905
+    authored_at: '2026-07-13T18:12:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reload partially hydrated chat after relogin'
+    section: tests
+    commits:
+    - 0efef368f
+    authored_at: '2026-07-13T17:41:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for recovery origin dispatch before closing'
+    section: tests
+    commits:
+    - b6277a44d
+    authored_at: '2026-07-13T17:34:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: pass signup invite secret to password flow'
+    section: tests
+    commits:
+    - 6662def22
+    authored_at: '2026-07-13T17:21:38+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - scripts/tests/test_playwright_workflow_timeout.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: close recovery origin before terminal persistence'
+    section: tests
+    commits:
+    - f27e54be5
+    authored_at: '2026-07-13T17:11:02+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize signup and chat flow specs'
+    section: tests
+    commits:
+    - 4a0f817ea
+    authored_at: '2026-07-13T17:10:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add workflow CLI E2E specs'
+    section: tests
+    commits:
+    - f36ac9ae9
+    authored_at: '2026-07-13T16:38:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-search-controls-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
+    - frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize resilience spec new chat setup'
+    section: tests
+    commits:
+    - 93d9f608c
+    authored_at: '2026-07-13T16:24:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use stable chat send helper in resilience spec'
+    section: tests
+    commits:
+    - 32512acea
+    authored_at: '2026-07-13T16:10:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: correlate recovery protocol assertions by job'
+    section: tests
+    commits:
+    - b3b802781
+    authored_at: '2026-07-13T15:53:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize recovery correlation UUIDs'
+    section: tests
+    commits:
+    - 10ba14f64
+    authored_at: '2026-07-13T15:03:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: run recovery correlation regression'
+    section: tests
+    commits:
+    - 009189f7d
+    authored_at: '2026-07-13T14:57:05+00:00'
+    changed_paths:
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add recovery correlation regression'
+    section: tests
+    commits:
+    - 6f39eaf0f
+    authored_at: '2026-07-13T14:51:15+00:00'
+    changed_paths:
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: scope chat flow to core behavior'
+    section: tests
+    commits:
+    - 00fa8eba8
+    authored_at: '2026-07-13T14:42:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reproduce delayed recovery claim'
+    section: tests
+    commits:
+    - 3324b5625
+    authored_at: '2026-07-13T11:50:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: keep early recovery jobs through cold boot'
+    commits:
+    - 46d084480
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record local workflow TUI proof'
+    commits:
+    - 5efc7381d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: hydrate quick tips from stored chat metadata'
+    commits:
+    - 9e8fbe55b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: update recovery correlation mock'
+    commits:
+    - aae27157c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: replay early recovery availability'
+    commits:
+    - 1ca2ce369
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add workflow TUI CI coverage'
+    commits:
+    - ac09a48c8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: sync chat quick tip metadata'
+    commits:
+    - 945114f46
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add workflow graph tabs to CLI TUI'
+    commits:
+    - dc669853e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep decrypted chat titles from sync'
+    commits:
+    - 254892a72
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: discover recovery jobs on final streams'
+    commits:
+    - 4b0d05a6b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add workflow screens to CLI TUI'
+    commits:
+    - 2d59e96b0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: prefer decrypted chat titles over placeholders'
+    commits:
+    - 2e220c7ba
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: hydrate recovery chats before claim'
+    commits:
+    - 5cf1a5ae9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: wait for recovery prerequisites'
+    commits:
+    - bdb8f11ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record workflow CLI e2e evidence'
+    commits:
+    - 9cc039c9b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: verify workflow CLI commands'
+    commits:
+    - d072788ef
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: retry authenticated chat deep links'
+    commits:
+    - ebd785b28
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: order recovery discovery before final chat frame'
+    commits:
+    - b39a6c507
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: persist recovery jobs despite local synced row'
+    commits:
+    - c3209bed4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: process recovery jobs concurrently'
+    commits:
+    - e616451f5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: release recovery leases on logout'
+    commits:
+    - 2b4566115
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: verify workflow CLI runtime spec'
+    commits:
+    - ddcaecb61
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: announce active recovery jobs'
+    commits:
+    - 75ed6baa9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: let recovery finalize normal completions'
+    commits:
+    - 1341e4a21
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore workflow CLI runtime verification'
+    commits:
+    - d8f0f701d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: true
+      override: enabled
+      parent_id: null
+      source: platform
+  - title: 'fix: skip normal task-end legacy persistence'
+    commits:
+    - 2402a4205
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve recovery user turn metadata'
+    commits:
+    - a44b779e0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: scan due workflow triggers'
+    commits:
+    - 3419f0269
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: true
+      override: enabled
+      parent_id: null
+      source: platform
+  - title: 'fix: authorize legacy completion by user turn'
+    commits:
+    - b6db66008
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: use sidebar fallback after chat relogin'
+    commits:
+    - cf392892f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for chat content sync after relogin'
+    commits:
+    - 68a50a396
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: seal recovery mock replay completions'
+    commits:
+    - 4dc531185
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: accept workflow news search requests'
+    commits:
+    - e2d203c54
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: true
+      override: enabled
+      parent_id: null
+      source: platform
+  - title: 'test: stabilize chat relogin deep-link readiness'
+    commits:
+    - e102a1693
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: refresh workflow chat polling cache'
+    commits:
+    - 5f340c905
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep chat list remount cache invalidated until refresh'
+    commits:
+    - 83cf3f55a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: skip legacy ai response persistence for recovery'
+    commits:
+    - 3997b47fa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: adapt workflow ai ask requests'
+    commits:
+    - e0638d20e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: true
+      override: enabled
+      parent_id: null
+      source: platform
+  - title: 'test: reload partially hydrated chat after relogin'
+    commits:
+    - 0efef368f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for recovery origin dispatch before closing'
+    commits:
+    - b6277a44d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: pass signup invite secret to password flow'
+    commits:
+    - 6662def22
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: close recovery origin before terminal persistence'
+    commits:
+    - f27e54be5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize signup and chat flow specs'
+    commits:
+    - 4a0f817ea
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: route workflow celery tasks'
+    commits:
+    - 2d265accd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: add workflow CLI E2E specs'
+    commits:
+    - f36ac9ae9
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize resilience spec new chat setup'
+    commits:
+    - 93d9f608c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use stable chat send helper in resilience spec'
+    commits:
+    - 32512acea
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add workflow CLI runtime'
+    commits:
+    - 934f79115
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: true
+      override: enabled
+      parent_id: null
+      source: platform
+  - title: 'test: correlate recovery protocol assertions by job'
+    commits:
+    - b3b802781
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: route epoch-one background completions through recovery'
+    commits:
+    - f1295f340
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize recovery correlation UUIDs'
+    commits:
+    - 10ba14f64
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: compare raw chat keys during sync merge'
+    commits:
+    - 64ce9a293
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: correlate recovery job retries'
+    commits:
+    - 0365a441c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: run recovery correlation regression'
+    commits:
+    - 009189f7d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add recovery correlation regression'
+    commits:
+    - 6f39eaf0f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: scope chat flow to core behavior'
+    commits:
+    - 00fa8eba8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep OpenCode edit coordination warning-only'
+    commits:
+    - 7d2dac015
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: use stable signup and sidebar controls'
+    commits:
+    - 0bb56c466
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: wait for signup and sidebar readiness'
+    commits:
+    - d81b4433a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve late recovery acknowledgements'
+    commits:
+    - cdce04ef4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize signup and chat navigation specs'
+    commits:
+    - f31ed369e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: retry delayed recovery acknowledgements'
+    commits:
+    - bf8953f9e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: reproduce delayed recovery claim'
+    commits:
+    - 3324b5625
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: add models3d embed surfaces'
+    commits:
+    - a19eb1f11
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: bound legacy chat recovery cutover'
+    commits:
+    - 4dc6d8f66
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: make daily Playwright dispatch reliable'
+    commits:
+    - 41786daeb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep workflows workspace gated'
+    commits:
+    - fe0d08762
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: true
+      override: enabled
+      parent_id: null
+      source: platform
+  - title: 'fix: stabilize nightly regression suite'
+    commits:
+    - 51cda394f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add workflow CLI runtime'
+    commits:
+    - 934f79115
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: true
+      override: enabled
+      parent_id: null
+      source: platform
+  - title: 'fix: stabilize nightly regression suite'
+    commits:
+    - 51cda394f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: hydrate quick tips from stored chat metadata'
+    commits:
+    - 9e8fbe55b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add workflow graph tabs to CLI TUI'
+    commits:
+    - dc669853e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: discover recovery jobs on final streams'
+    commits:
+    - 4b0d05a6b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add workflow screens to CLI TUI'
+    commits:
+    - 2d59e96b0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: prefer decrypted chat titles over placeholders'
+    commits:
+    - 2e220c7ba
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: retry authenticated chat deep links'
+    commits:
+    - ebd785b28
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: order recovery discovery before final chat frame'
+    commits:
+    - b39a6c507
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: release recovery leases on logout'
+    commits:
+    - 2b4566115
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: announce active recovery jobs'
+    commits:
+    - 75ed6baa9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: let recovery finalize normal completions'
+    commits:
+    - 1341e4a21
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: skip normal task-end legacy persistence'
+    commits:
+    - 2402a4205
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve recovery user turn metadata'
+    commits:
+    - a44b779e0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: authorize legacy completion by user turn'
+    commits:
+    - b6db66008
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: seal recovery mock replay completions'
+    commits:
+    - 4dc531185
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: skip legacy ai response persistence for recovery'
+    commits:
+    - 3997b47fa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: route workflow celery tasks'
+    commits:
+    - 2d265accd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add workflow CLI runtime'
+    commits:
+    - 934f79115
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: true
+      override: enabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: route epoch-one background completions through recovery'
+    commits:
+    - f1295f340
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: correlate recovery job retries'
+    commits:
+    - 0365a441c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: use stable signup and sidebar controls'
+    commits:
+    - 0bb56c466
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: wait for signup and sidebar readiness'
+    commits:
+    - d81b4433a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve late recovery acknowledgements'
+    commits:
+    - cdce04ef4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize signup and chat navigation specs'
+    commits:
+    - f31ed369e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: add models3d embed surfaces'
+    commits:
+    - a19eb1f11
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: bound legacy chat recovery cutover'
+    commits:
+    - 4dc6d8f66
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 46d0844808f3fd6680ffc7ec5ffac5078c0e4b18
+    short_sha: 46d084480
+    authored_at: '2026-07-13T23:44:46+00:00'
+    subject: 'fix: keep early recovery jobs through cold boot'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    related_feature_ids: []
+  - sha: 5efc7381d2f591fdc9cb31e050c4bc74729b464a
+    short_sha: 5efc7381d
+    authored_at: '2026-07-13T23:24:43+00:00'
+    subject: 'docs: record local workflow TUI proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/cli-terminal-chat-tui/spec.yml
+    related_feature_ids: []
+  - sha: 9e8fbe55b21904a5bef2601993982c964323da5d
+    short_sha: 9e8fbe55b
+    authored_at: '2026-07-13T23:22:39+00:00'
+    subject: 'fix: hydrate quick tips from stored chat metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: aae27157c789de2935382c3441a8ca9ac71dc06e
+    short_sha: aae27157c
+    authored_at: '2026-07-13T23:15:33+00:00'
+    subject: 'test: update recovery correlation mock'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+    related_feature_ids: []
+  - sha: 1ca2ce3694e553cb59d33d49342ea7b50c1925fc
+    short_sha: 1ca2ce369
+    authored_at: '2026-07-13T23:10:50+00:00'
+    subject: 'fix: replay early recovery availability'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    related_feature_ids: []
+  - sha: ac09a48c8a40d683e744eaf26ca9639582d0b04e
+    short_sha: ac09a48c8
+    authored_at: '2026-07-13T23:09:28+00:00'
+    subject: 'test: add workflow TUI CI coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/cli-terminal-chat-tui/spec.yml
+    - frontend/apps/web_app/tests/cli-tui-workflows.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
+    related_feature_ids: []
+  - sha: 945114f4691fe82d306234afd21171760a0d125c
+    short_sha: 945114f46
+    authored_at: '2026-07-13T23:03:46+00:00'
+    subject: 'fix: sync chat quick tip metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: dc669853e8e3f1c943b4a0f1094f0fe9091543d5
+    short_sha: dc669853e
+    authored_at: '2026-07-13T22:57:44+00:00'
+    subject: 'feat: add workflow graph tabs to CLI TUI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/cli-terminal-chat-tui/spec.yml
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/tests/tui.test.ts
+    related_feature_ids: []
+  - sha: 254892a72967430193bbbfba7ad7b80b8580b88e
+    short_sha: 254892a72
+    authored_at: '2026-07-13T22:43:20+00:00'
+    subject: 'fix: keep decrypted chat titles from sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    related_feature_ids: []
+  - sha: 4b0d05a6b87ea6b785d1eebe2c90a75bc3daa57d
+    short_sha: 4b0d05a6b
+    authored_at: '2026-07-13T22:41:04+00:00'
+    subject: 'fix: discover recovery jobs on final streams'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    related_feature_ids: []
+  - sha: 2d59e96b0850d2d1cc3491e2b1068912890ed374
+    short_sha: 2d59e96b0
+    authored_at: '2026-07-13T22:38:57+00:00'
+    subject: 'feat: add workflow screens to CLI TUI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/cli-terminal-chat-tui/spec.yml
+    - docs/specs/workflows-sdk-runtime/spec.yml
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/tests/tui.test.ts
+    related_feature_ids: []
+  - sha: 2e220c7bab0e63ead46400ef67adddafb501c3b9
+    short_sha: 2e220c7ba
+    authored_at: '2026-07-13T22:23:58+00:00'
+    subject: 'fix: prefer decrypted chat titles over placeholders'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    related_feature_ids: []
+  - sha: 5cf1a5ae9f80e919fbfe899e2c531ce53e643c3a
+    short_sha: 5cf1a5ae9
+    authored_at: '2026-07-13T22:16:49+00:00'
+    subject: 'fix: hydrate recovery chats before claim'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    related_feature_ids: []
+  - sha: bdb8f11ac37ef2e033a13289ffda84ce13cf2bd5
+    short_sha: bdb8f11ac
+    authored_at: '2026-07-13T21:55:02+00:00'
+    subject: 'fix: wait for recovery prerequisites'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    related_feature_ids: []
+  - sha: 9cc039c9b1f5af2dcd62b9ce63398eed27fe432f
+    short_sha: 9cc039c9b
+    authored_at: '2026-07-13T21:45:05+00:00'
+    subject: 'docs: record workflow CLI e2e evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/workflows-cli-runtime/spec.yml
+    related_feature_ids: []
+  - sha: d072788ef85f64aad36fefe5b9b407b14294fde7
+    short_sha: d072788ef
+    authored_at: '2026-07-13T21:28:45+00:00'
+    subject: 'test: verify workflow CLI commands'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/workflows-cli-runtime/spec.yml
+    - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+    related_feature_ids: []
+  - sha: ebd785b28f093769d0347e2a053c476319a665b2
+    short_sha: ebd785b28
+    authored_at: '2026-07-13T21:26:29+00:00'
+    subject: 'fix: retry authenticated chat deep links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: b39a6c50706293416d9f3892a05f5e8aad111d27
+    short_sha: b39a6c507
+    authored_at: '2026-07-13T21:20:36+00:00'
+    subject: 'fix: order recovery discovery before final chat frame'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    related_feature_ids: []
+  - sha: c3209bed49af526be25a7e0923635af91553de36
+    short_sha: c3209bed4
+    authored_at: '2026-07-13T20:59:49+00:00'
+    subject: 'fix: persist recovery jobs despite local synced row'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    related_feature_ids: []
+  - sha: e616451f5feb7f214df08d016d38233e59f66822
+    short_sha: e616451f5
+    authored_at: '2026-07-13T20:42:20+00:00'
+    subject: 'fix: process recovery jobs concurrently'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    related_feature_ids: []
+  - sha: 2b4566115a10e2844a262e298d572697fa620e1d
+    short_sha: 2b4566115
+    authored_at: '2026-07-13T20:34:55+00:00'
+    subject: 'fix: release recovery leases on logout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_logout.py
+    - backend/tests/test_auth_logout.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    related_feature_ids: []
+  - sha: ddcaecb6157c3a045c7ae5a9bfacb108e8e3b68b
+    short_sha: ddcaecb61
+    authored_at: '2026-07-13T20:24:48+00:00'
+    subject: 'docs: verify workflow CLI runtime spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/workflows-cli-runtime/spec.yml
+    related_feature_ids: []
+  - sha: 75ed6baa951afb5324123313fcec634e2d716368
+    short_sha: 75ed6baa9
+    authored_at: '2026-07-13T20:12:10+00:00'
+    subject: 'fix: announce active recovery jobs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    related_feature_ids: []
+  - sha: 1341e4a21e9491afe0bbc8ca7f9b681d4d51f354
+    short_sha: 1341e4a21
+    authored_at: '2026-07-13T20:10:52+00:00'
+    subject: 'fix: let recovery finalize normal completions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: d8f0f701dd5d4e540b462be7e2f5dff0a9d91781
+    short_sha: d8f0f701d
+    authored_at: '2026-07-13T19:56:53+00:00'
+    subject: 'fix: restore workflow CLI runtime verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflow_scheduler_contract.py
+    - docs/specs/workflows-cli-runtime/spec.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 2402a42058499196e72ec7b3548fa90fd0f61acb
+    short_sha: 2402a4205
+    authored_at: '2026-07-13T19:53:22+00:00'
+    subject: 'fix: skip normal task-end legacy persistence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: a44b779e0abb7bdcc2ce45d857b54db41fd68a70
+    short_sha: a44b779e0
+    authored_at: '2026-07-13T19:30:03+00:00'
+    subject: 'fix: preserve recovery user turn metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 3419f0269b470adcc2ba6ffaccfaf8a2cf035da5
+    short_sha: 3419f0269
+    authored_at: '2026-07-13T19:08:11+00:00'
+    subject: 'fix: scan due workflow triggers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_runtime_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/core/directus/extensions/workflow-runtime-transaction/src/operations.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
+    - backend/tests/test_workflow_due_scanner_task.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: b6db6600833864524a2149423cda78e0fc6b625b
+    short_sha: b6db66008
+    authored_at: '2026-07-13T19:04:00+00:00'
+    subject: 'fix: authorize legacy completion by user turn'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - backend/tests/test_ai_response_completed_key_guard.py
+    related_feature_ids: []
+  - sha: cf392892fed3ff0efe468c9f0ec52cc6a8c55db4
+    short_sha: cf392892f
+    authored_at: '2026-07-13T19:02:51+00:00'
+    subject: 'test: use sidebar fallback after chat relogin'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 68a50a39658f3adfa55d63aa4a0c4c03137dc292
+    short_sha: 68a50a396
+    authored_at: '2026-07-13T18:42:29+00:00'
+    subject: 'test: wait for chat content sync after relogin'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 4dc5311854a0ea8310eaf71940c0b2b48ad97b18
+    short_sha: 4dc531185
+    authored_at: '2026-07-13T18:38:53+00:00'
+    subject: 'fix: seal recovery mock replay completions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/tests/test_mock_replay.py
+    related_feature_ids: []
+  - sha: e2d203c54d9df6490e8ae3957a0cf5c153400e2e
+    short_sha: e2d203c54
+    authored_at: '2026-07-13T18:37:15+00:00'
+    subject: 'fix: accept workflow news search requests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_yaml_compiler.py
+    - backend/tests/test_workflow_yaml_news_readiness.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: e102a16937218fff31919d17a6b17cc2ba1f38d6
+    short_sha: e102a1693
+    authored_at: '2026-07-13T18:19:56+00:00'
+    subject: 'test: stabilize chat relogin deep-link readiness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 5f340c905a7ce9fda50f1de3dceb1d9074b1ed07
+    short_sha: 5f340c905
+    authored_at: '2026-07-13T18:12:52+00:00'
+    subject: 'test: refresh workflow chat polling cache'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts
+    related_feature_ids: []
+  - sha: 83cf3f55a6093507f945c29135ed27577c7f56fc
+    short_sha: 83cf3f55a
+    authored_at: '2026-07-13T18:02:04+00:00'
+    subject: 'fix: keep chat list remount cache invalidated until refresh'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatListCache.test.ts
+    - frontend/packages/ui/src/services/chatListCache.ts
+    related_feature_ids: []
+  - sha: 3997b47faf83d09096ad03882d0fab06d2aacf75
+    short_sha: 3997b47fa
+    authored_at: '2026-07-13T18:01:44+00:00'
+    subject: 'fix: skip legacy ai response persistence for recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/__tests__/activeChatUtils.test.ts
+    - frontend/packages/ui/src/components/activeChatUtils.ts
+    related_feature_ids: []
+  - sha: e0638d20ef1228acf32f68d868a90038f11fcfb2
+    short_sha: e0638d20e
+    authored_at: '2026-07-13T17:42:41+00:00'
+    subject: 'fix: adapt workflow ai ask requests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: 0efef368f0b87f05c777b8bb2fc45df50b59bf09
+    short_sha: 0efef368f
+    authored_at: '2026-07-13T17:41:49+00:00'
+    subject: 'test: reload partially hydrated chat after relogin'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: b6277a44d26115912e2ebc2ba8a455e1e2b6c94c
+    short_sha: b6277a44d
+    authored_at: '2026-07-13T17:34:42+00:00'
+    subject: 'test: wait for recovery origin dispatch before closing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    related_feature_ids: []
+  - sha: 6662def2247135a3d4754e61a03063330931cc6f
+    short_sha: 6662def22
+    authored_at: '2026-07-13T17:21:38+00:00'
+    subject: 'test: pass signup invite secret to password flow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - scripts/tests/test_playwright_workflow_timeout.py
+    related_feature_ids: []
+  - sha: f27e54be56fa740eacc85258b116572c01e21ca5
+    short_sha: f27e54be5
+    authored_at: '2026-07-13T17:11:02+00:00'
+    subject: 'test: close recovery origin before terminal persistence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    related_feature_ids: []
+  - sha: 4a0f817ea25b51322767880c4ef159974789024a
+    short_sha: 4a0f817ea
+    authored_at: '2026-07-13T17:10:32+00:00'
+    subject: 'test: stabilize signup and chat flow specs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    related_feature_ids: []
+  - sha: 2d265accdd43ac1c668ab157e1184354bcdfd659
+    short_sha: 2d265accd
+    authored_at: '2026-07-13T17:10:22+00:00'
+    subject: 'fix: route workflow celery tasks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/tests/test_celery_config.py
+    - backend/tests/test_workflow_runtime_python_transactions.py
+    - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+    related_feature_ids: []
+  - sha: f36ac9ae96779578fad753675d7c712eaae09f32
+    short_sha: f36ac9ae9
+    authored_at: '2026-07-13T16:38:57+00:00'
+    subject: 'test: add workflow CLI E2E specs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-search-controls-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
+    - frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: 93d9f608cc90d7e615c1afa332341e785421c3e6
+    short_sha: 93d9f608c
+    authored_at: '2026-07-13T16:24:12+00:00'
+    subject: 'test: stabilize resilience spec new chat setup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    related_feature_ids: []
+  - sha: 32512acea0e002f5f39d4337a4884906f17cf676
+    short_sha: 32512acea
+    authored_at: '2026-07-13T16:10:32+00:00'
+    subject: 'test: use stable chat send helper in resilience spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    related_feature_ids: []
+  - sha: 934f79115affa7d00f1fdc926ee60d43516c5ec0
+    short_sha: 934f79115
+    authored_at: '2026-07-13T16:06:51+00:00'
+    subject: 'feat: add workflow CLI runtime'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/events/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/weather/app.yml
+    - backend/apps/web/app.yml
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_inspiration_chat_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_chat_delivery_handlers.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_action_adapter.py
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/core/api/app/services/workflow_chat_delivery_service.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/app/services/workflow_scheduler_service.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/services/workflow_template_expressions.py
+    - backend/core/api/app/services/workflow_yaml_compiler.py
+    - backend/core/directus/schemas/workflow_chat_deliveries.yml
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/tests/fixtures/workflow_yaml_conformance.yml
+    - backend/tests/test_workflow_action_adapter.py
+    - backend/tests/test_workflow_ai_and_chat_actions.py
+    - backend/tests/test_workflow_chat_delivery.py
+    - backend/tests/test_workflow_chat_delivery_websocket_handlers.py
+    - backend/tests/test_workflow_control_runtime.py
+    - backend/tests/test_workflow_due_scanner.py
+    - backend/tests/test_workflow_step_test.py
+    - backend/tests/test_workflow_template_expressions.py
+    - backend/tests/test_workflows_models.py
+    - docs/specs/workflows-cli-runtime/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/generated/workflowAuthoringSchema.ts
+    - frontend/packages/openmates-cli/tests/workflows-yaml.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - scripts/generate_workflow_authoring_schema.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: b3b8027812f1cd1cc96bb58f6155b07fb542851b
+    short_sha: b3b802781
+    authored_at: '2026-07-13T15:53:15+00:00'
+    subject: 'test: correlate recovery protocol assertions by job'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    related_feature_ids: []
+  - sha: f1295f340c2d8ea7e2dbfcc013df814e38708e2c
+    short_sha: f1295f340
+    authored_at: '2026-07-13T15:33:31+00:00'
+    subject: 'fix: route epoch-one background completions through recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 10ba14f64490d779d2fba4b2ee23797c73341e1f
+    short_sha: 10ba14f64
+    authored_at: '2026-07-13T15:03:42+00:00'
+    subject: 'test: stabilize recovery correlation UUIDs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+    related_feature_ids: []
+  - sha: 64ce9a2935a5a1004d6f815bc25ee47dab4fa29e
+    short_sha: 64ce9a293
+    authored_at: '2026-07-13T15:03:20+00:00'
+    subject: 'fix: compare raw chat keys during sync merge'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncMerge.test.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    related_feature_ids: []
+  - sha: 0365a441cec899208a09f00cfb36489b30dfebc8
+    short_sha: 0365a441c
+    authored_at: '2026-07-13T15:00:29+00:00'
+    subject: 'fix: correlate recovery job retries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/tests/test_chat_completion_recovery_authorization.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    related_feature_ids: []
+  - sha: 009189f7d4b6bb4ed94a7777d03c0fb9497ecba4
+    short_sha: 009189f7d
+    authored_at: '2026-07-13T14:57:05+00:00'
+    subject: 'test: run recovery correlation regression'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+    related_feature_ids: []
+  - sha: 6f39eaf0f3af43619fe7afd78b2459f5da84a4bb
+    short_sha: 6f39eaf0f
+    authored_at: '2026-07-13T14:51:15+00:00'
+    subject: 'test: add recovery correlation regression'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    related_feature_ids: []
+  - sha: 00fa8eba81934731070c61b27e8507e6fd21a823
+    short_sha: 00fa8eba8
+    authored_at: '2026-07-13T14:42:53+00:00'
+    subject: 'test: scope chat flow to core behavior'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 7d2dac015fd69493109b37afb9f9cf920cb4538d
+    short_sha: 7d2dac015
+    authored_at: '2026-07-13T14:04:13+00:00'
+    subject: 'fix: keep OpenCode edit coordination warning-only'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/opencode_file_leases.py
+    - scripts/tests/test_opencode_file_lease_hook.mjs
+    - scripts/tests/test_opencode_file_leases.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    related_feature_ids: []
+  - sha: 0bb56c4660c2606fb342897143abaa962023aefe
+    short_sha: 0bb56c466
+    authored_at: '2026-07-13T13:30:08+00:00'
+    subject: 'fix: use stable signup and sidebar controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/packages/ui/src/components/signup/steps/basics/Basics.svelte
+    related_feature_ids: []
+  - sha: d81b4433a57a2a7738412baec127bdb1c6499c3d
+    short_sha: d81b4433a
+    authored_at: '2026-07-13T13:02:13+00:00'
+    subject: 'fix: wait for signup and sidebar readiness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    related_feature_ids: []
+  - sha: cdce04ef4e62d438544f841b77e2268381c525c9
+    short_sha: cdce04ef4
+    authored_at: '2026-07-13T12:26:06+00:00'
+    subject: 'fix: preserve late recovery acknowledgements'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    related_feature_ids: []
+  - sha: f31ed369ee936ac073e4fadc05b312d7588407e5
+    short_sha: f31ed369e
+    authored_at: '2026-07-13T12:25:33+00:00'
+    subject: 'fix: stabilize signup and chat navigation specs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts
+    - scripts/tests/test_playwright_workflow_timeout.py
+    related_feature_ids: []
+  - sha: bf8953f9edcb6b005d5a7de206fd800ea492da43
+    short_sha: bf8953f9e
+    authored_at: '2026-07-13T11:59:53+00:00'
+    subject: 'fix: retry delayed recovery acknowledgements'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    related_feature_ids: []
+  - sha: 3324b5625f7f2ccf05bfcbc37ec365a42fefd751
+    short_sha: 3324b5625
+    authored_at: '2026-07-13T11:50:22+00:00'
+    subject: 'test: reproduce delayed recovery claim'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    related_feature_ids: []
+  - sha: a19eb1f11bb7713e3fbc8ac3b07ec6d43d3a502b
+    short_sha: a19eb1f11
+    authored_at: '2026-07-13T11:28:03+00:00'
+    subject: 'fix: add models3d embed surfaces'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/models3d.yml
+    related_feature_ids: []
+  - sha: 4dc6d8f66acd0880d3b0c3f780a3d6e797ec67ed
+    short_sha: 4dc6d8f66
+    authored_at: '2026-07-13T11:27:12+00:00'
+    subject: 'fix: bound legacy chat recovery cutover'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/services/chat_recovery_cutover.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/api/app/services/chat_recovery_telemetry.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/schemas/chat_recovery_protocol_state.yml
+    - backend/tests/test_ai_response_completed_key_guard.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_chat_recovery_directus_deployment.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - backend/tests/test_chat_recovery_protocol_cutover.py
+    - backend/tests/test_chat_recovery_service.py
+    - backend/tests/test_chat_recovery_telemetry.py
+    - backend/tests/test_chat_turn_preflight.py
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_persistence_tasks.py
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    - scripts/measure_chat_preflight_latency.py
+    - scripts/test_cross_client_chat_recovery.py
+    - scripts/test_legacy_cli_cutover.py
+    - scripts/tests/test_chat_recovery_harnesses.py
+    related_feature_ids: []
+  - sha: 41786daeb98d0f8895a185529fce36cd677b89c8
+    short_sha: 41786daeb
+    authored_at: '2026-07-13T11:19:12+00:00'
+    subject: 'fix: make daily Playwright dispatch reliable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_vercel_ignore_build.py
+    - scripts/vercel_ignore_build.py
+    related_feature_ids: []
+  - sha: fe0d0876288359675769bb982af7b45d85438b4e
+    short_sha: fe0d08762
+    authored_at: '2026-07-13T11:16:20+00:00'
+    subject: 'fix: keep workflows workspace gated'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/config/workspaceFeatureGates.ts
+    related_feature_ids:
+    - app:workflows
+    - platform:workflows
+  - sha: 51cda394fa1314b5283883f5d968308bc9f2fd64
+    short_sha: 51cda394f
+    authored_at: '2026-07-13T10:52:33+00:00'
+    subject: 'fix: stabilize nightly regression suite'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/tests/test_apple_remote.py
+    - backend/tests/test_chat_metadata_permissions.py
+    - backend/tests/test_delete_chat_handler.py
+    - backend/tests/test_s3_service_no_sync_boto3_in_async.py
+    - backend/tests/test_user_cache_tasks.py
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    related_feature_ids: []
+llm_summary:
+  overview: 'OpenMates development focused on two major technical tracks: the introduction of a workflow runtime and TUI for
+    the CLI, and a comprehensive overhaul of the cross-device chat recovery system to improve session resilience.'
+  released_changes: []
+  bug_fixes:
+  - text: The chat recovery system received extensive updates to ensure session resilience across devices, including improved
+      job discovery on final streams, lease release on logout, and better correlation of retry attempts.
+    evidence:
+      commits:
+      - 4b0d05a6b
+      - 2b4566115
+      - 75ed6baa9
+      - 1341e4a21
+      - a44b779e0
+      - b6db66008
+      - 4dc531185
+      - 3997b47fa
+      - f1295f340
+      - 0365a441c
+      - cdce04ef4
+      - 4dc6d8f66
+    release_status: dev_only
+  - text: UI stability was improved for the signup and sidebar components, alongside fixes for chat deep-link retries and
+      the hydration of quick tips from metadata.
+    evidence:
+      commits:
+      - 9e8fbe55b
+      - 2e220c7ba
+      - ebd785b28
+      - 0bb56c466
+      - d81b4433a
+      - f31ed369e
+    release_status: dev_only
+  - text: OpenMates added new embed surfaces for 3D models, including fullscreen and preview components.
+    evidence:
+      commits:
+      - a19eb1f11
+    release_status: dev_only
+  unreleased_progress:
+  - text: Development of the Workflows platform continued with the addition of a CLI runtime, TUI graph tabs, and background
+      task routing via Celery.
+    evidence:
+      commits:
+      - dc669853e
+      - 2d59e96b0
+      - 934f79115
+      - d8f0f701d
+      - 3419f0269
+      - e2d203c54
+      - e0638d20e
+      - 2d265accd
+      - fe0d08762
+    release_status: dev_only
+  internal_progress:
+  - text: Internal development focused on stabilizing the nightly regression suite, improving Playwright test reliability,
+      and refining chat synchronization logic for recovery jobs.
+    evidence:
+      commits:
+      - 46d084480
+      - 1ca2ce369
+      - 945114f46
+      - 254892a72
+      - 5cf1a5ae9
+      - bdb8f11ac
+      - c3209bed4
+      - e616451f5
+      - 2402a4205
+      - 83cf3f55a
+      - 64ce9a293
+      - 7d2dac015
+      - 41786daeb
+      - 51cda394f
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Workflow CLI and TUI features.
+      evidence:
+        commits:
+        - dc669853e
+        - 2d59e96b0
+        - 934f79115
+      reason: The workflow CLI and TUI are currently gated and unreleased.
+    - text: Cross-device chat recovery protocol.
+      evidence:
+        commits:
+        - 4dc6d8f66
+        - f1295f340
+      reason: Chat recovery features are currently in development and not yet available on the main branch.
+    rationale: All changes from this period are currently in the development branch and have not yet reached the main release.
+      Major features like Workflows remain gated.
+  social_video_recommendations:
+  - idea: A preview of the new OpenMates CLI TUI showing workflow graph tabs and interactive screens.
+    priority: medium
+    reason: The TUI provides a concrete visual update for power users and developers.
+    evidence:
+      commits:
+      - dc669853e
+      - 2d59e96b0
+  - idea: A demonstration of 'Resilient Chat' showing a session seamlessly recovering after a simulated connection failure
+      or device switch.
+    priority: low
+    reason: While technical, it demonstrates a key reliability feature of the platform.
+    evidence:
+      commits:
+      - 4dc6d8f66
+      - f1295f340
+  quality_notes:
+  - Extensive test coverage was added for the new workflow CLI and chat recovery protocols.
+  - Several fixes were implemented to stabilize the signup flow and sidebar navigation in automated testing environments.
+  validation_warnings: []

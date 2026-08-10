@@ -21,6 +21,7 @@ import type {
   AITypingStartedPayload,
   AIMessageReadyPayload,
   AITaskCancelRequestedPayload,
+  ChatTitleUpdatedPayload,
   ChatDraftUpdatedPayload,
   ChatMessageReceivedPayload,
   ChatMessageConfirmedPayload,
@@ -60,6 +61,7 @@ import * as aiHandlers from "./chatSyncServiceHandlersAI";
 import * as chatUpdateHandlers from "./chatSyncServiceHandlersChatUpdates";
 import * as coreSyncHandlers from "./chatSyncServiceHandlersCoreSync";
 import * as phasedSyncHandlers from "./chatSyncServiceHandlersPhasedSync";
+import { handleRecoveryJobsAvailableImpl } from "./chatSyncServiceHandlersRecovery";
 import * as senders from "./chatSyncServiceSenders";
 import { flushPendingEmbedOperations } from "./embedSenders";
 import { sendOfflineChangesImpl } from "./chatSyncServiceSenders";
@@ -71,6 +73,8 @@ import { prepareConnectedAccountSendContext } from "./connectedAccountTokenBroke
 import { buildConnectedAccountSendContext, listConnectedAccounts } from "./connectedAccountStorageService";
 
 // All payload interface definitions are now expected to be in types/chat.ts
+
+const CHAT_CONTENT_BATCH_WS_READY_TIMEOUT_MS = 8_000;
 
 export class ChatSynchronizationService extends EventTarget {
   private isSyncing = false;
@@ -86,6 +90,7 @@ export class ChatSynchronizationService extends EventTarget {
   private readonly CACHE_STATUS_REQUEST_DELAY = 0; // INSTANT - cache is pre-warmed during /lookup
   public activeAITasks: Map<string, { taskId: string; userMessageId: string }> =
     new Map(); // Made public for handlers
+  public activeSubChatIds: Set<string> = new Set();
   private syncingMessageIds: Set<string> = new Set(); // Track message IDs being sent to server to prevent duplicates
 
   // CRITICAL: Sync timeout mechanism to prevent UI from being stuck in "Loading chats..." state
@@ -418,7 +423,12 @@ export class ChatSynchronizationService extends EventTarget {
         payload as SyncStatusResponsePayload,
       ),
     );
-    // chat_title_updated removed - titles now handled via ai_typing_started in dual-phase architecture
+    webSocketService.on("chat_title_updated", (payload) =>
+      chatUpdateHandlers.handleChatTitleUpdatedImpl(
+        this,
+        payload as ChatTitleUpdatedPayload,
+      ),
+    );
     webSocketService.on("chat_draft_updated", (payload) =>
       chatUpdateHandlers.handleChatDraftUpdatedImpl(
         this,
@@ -572,6 +582,17 @@ export class ChatSynchronizationService extends EventTarget {
         Promise.all(outputs.map((output) => m.handleCodeRunOutputSyncedImpl(output))),
       );
     });
+    webSocketService.on("notebook_run_output_synced", (payload) => {
+      void import("./handlersNotebookRunOutputs").then((m) =>
+        m.handleNotebookRunOutputSyncedImpl(payload),
+      );
+    });
+    webSocketService.on("notebook_run_outputs_sync_ready", (payload) => {
+      const outputs = (payload as { outputs?: unknown[] })?.outputs ?? [];
+      void import("./handlersNotebookRunOutputs").then((m) =>
+        Promise.all(outputs.map((output) => m.handleNotebookRunOutputSyncedImpl(output))),
+      );
+    });
     // Handle draft_embed_deleted broadcast from other devices:
     // Another device deleted an uploaded file from the message draft — clean up
     // the local IndexedDB EmbedStore entry so it doesn't accumulate indefinitely.
@@ -647,6 +668,9 @@ export class ChatSynchronizationService extends EventTarget {
             id: string;
             user_message_id: string;
             prompt: string;
+            title?: string;
+            category?: string;
+            icon?: string;
             wait_for_completion?: boolean;
           }>;
         },
@@ -685,6 +709,7 @@ export class ChatSynchronizationService extends EventTarget {
     );
     webSocketService.on("sub_chat_progress", (payload) =>
       aiHandlers.handleSubChatProgressImpl(
+        this,
         payload as {
           type: "sub_chat_progress";
           chat_id: string;
@@ -695,6 +720,30 @@ export class ChatSynchronizationService extends EventTarget {
           total?: number;
           completed?: number;
           active_sub_chat_id?: string | null;
+        },
+      ),
+    );
+    webSocketService.on("sub_chat_completed", (payload) =>
+      aiHandlers.handleSubChatCompletedImpl(
+        this,
+        payload as {
+          type: "sub_chat_completed";
+          chat_id: string;
+          parent_id?: string;
+          message_id?: string;
+          task_id?: string;
+          summary?: string;
+        },
+      ),
+    );
+    webSocketService.on("awaiting_sub_chats_completion", (payload) =>
+      aiHandlers.handleAwaitingSubChatsCompletionImpl(
+        this,
+        payload as {
+          type: "awaiting_sub_chats_completion";
+          chat_id: string;
+          task_id?: string;
+          message_id?: string;
         },
       ),
     );
@@ -929,6 +978,16 @@ export class ChatSynchronizationService extends EventTarget {
       ),
     );
 
+    // Recovery availability can arrive immediately after connection establishment.
+    // Register its already-loaded handler before any dynamic handler imports so an
+    // available sealed completion is never dropped.
+    webSocketService.on("recovery_jobs_available", (payload) =>
+      handleRecoveryJobsAvailableImpl(
+        this,
+        payload as Parameters<typeof handleRecoveryJobsAvailableImpl>[1],
+      ),
+    );
+
     // IMPORTANT: "request_app_settings_memories" and "dismiss_app_settings_memories_dialog"
     // are registered synchronously (not inside a dynamic import .then()) to avoid a race
     // condition where the server sends these events immediately after the AI task completes —
@@ -1051,6 +1110,22 @@ export class ChatSynchronizationService extends EventTarget {
           payload as Parameters<typeof module.handlePendingAIResponseImpl>[1],
         ),
       );
+      webSocketService.on("workflow_chat_deliveries_available", (payload) =>
+        module.handleWorkflowChatDeliveriesAvailableImpl(
+          payload as Parameters<typeof module.handleWorkflowChatDeliveriesAvailableImpl>[0],
+        ),
+      );
+      webSocketService.on("workflow_chat_delivery_claimed", (payload) =>
+        module.handleWorkflowChatDeliveryClaimedImpl(
+          this,
+          payload as Parameters<typeof module.handleWorkflowChatDeliveryClaimedImpl>[1],
+        ),
+      );
+      webSocketService.on("workflow_chat_delivery_persisted", (payload) =>
+        module.handleWorkflowChatDeliveryPersistedImpl(
+          payload as Parameters<typeof module.handleWorkflowChatDeliveryPersistedImpl>[0],
+        ),
+      );
     });
 
     // Handle focus mode activated events (sent after auto-confirm task fires)
@@ -1161,6 +1236,12 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.on("ai_response_storage_confirmed", (payload) =>
       aiHandlers.handleAIResponseStorageConfirmedImpl(
         this,
+        payload as Parameters<typeof aiHandlers.handleEncryptedMetadataStoredImpl>[1],
+      ),
+    );
+    webSocketService.on("ai_response_storage_failed", (payload) =>
+      aiHandlers.handleAIResponseStorageFailedImpl(
+        this,
         payload as { chat_id: string; message_id: string; task_id?: string },
       ),
     );
@@ -1217,7 +1298,7 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.on("post_processing_metadata_stored", (payload) =>
       aiHandlers.handlePostProcessingMetadataStoredImpl(
         this,
-        payload as { chat_id: string; task_id?: string },
+        payload as Parameters<typeof aiHandlers.handlePostProcessingMetadataStoredImpl>[1],
       ),
     );
 
@@ -1436,6 +1517,9 @@ export class ChatSynchronizationService extends EventTarget {
   public markInitialSyncCompleted(): void {
     this.hasCompletedInitialSync = true;
   }
+  public get hasCompletedInitialSync_FOR_HANDLERS_ONLY(): boolean {
+    return this.hasCompletedInitialSync;
+  }
   public get serverChatOrder_FOR_HANDLERS_ONLY(): string[] {
     return this.serverChatOrder;
   }
@@ -1624,7 +1708,27 @@ export class ChatSynchronizationService extends EventTarget {
   }
 
   private async requestChatContentBatch(chat_ids: string[]): Promise<void> {
-    if (!this.webSocketConnected || chat_ids.length === 0) return;
+    if (chat_ids.length === 0) return;
+    if (!this.webSocketConnected) {
+      await new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+          this.removeEventListener("webSocketConnected", handleConnected);
+          resolve();
+        }, CHAT_CONTENT_BATCH_WS_READY_TIMEOUT_MS);
+        const handleConnected = () => {
+          clearTimeout(timeout);
+          resolve();
+        };
+        this.addEventListener("webSocketConnected", handleConnected, { once: true });
+      });
+    }
+    if (!this.webSocketConnected) {
+      console.warn(
+        "[ChatSyncService] Skipping request_chat_content_batch because WebSocket did not connect in time.",
+        { chat_ids },
+      );
+      return;
+    }
     const payload: RequestChatContentBatchPayload = { chat_ids };
     try {
       await webSocketService.sendMessage("request_chat_content_batch", payload);
@@ -1659,20 +1763,48 @@ export class ChatSynchronizationService extends EventTarget {
     return this.activeAITasks.get(chatId)?.userMessageId || null;
   }
 
+  public isSubChatProcessing(chatId: string): boolean {
+    return this.activeSubChatIds.has(chatId);
+  }
+
+  public setSubChatProcessing(chatId: string | null | undefined, isProcessing: boolean): void {
+    if (!chatId) return;
+
+    const wasProcessing = this.activeSubChatIds.has(chatId);
+    if (isProcessing) {
+      this.activeSubChatIds.add(chatId);
+    } else {
+      this.activeSubChatIds.delete(chatId);
+    }
+
+    if (wasProcessing !== isProcessing) {
+      this.dispatchEvent(
+        new CustomEvent("subChatProcessingStateChanged", {
+          detail: { chatId, isProcessing },
+        }),
+      );
+    }
+  }
+
   // --- Senders (delegating to chatSyncServiceSenders.ts) ---
   public async sendUpdateTitle(chat_id: string, new_title: string) {
     await senders.sendUpdateTitleImpl(this, chat_id, new_title);
+  }
+  public async sendUpdateSummary(chat_id: string, new_summary: string) {
+    await senders.sendUpdateSummaryImpl(this, chat_id, new_summary);
   }
   public async sendUpdateDraft(
     chat_id: string,
     draft_content: string | null,
     draft_preview?: string | null,
+    expectedDraftVersion = 0,
   ) {
     await senders.sendUpdateDraftImpl(
       this,
       chat_id,
       draft_content,
       draft_preview,
+      expectedDraftVersion,
     );
   }
   public async sendUpdateEncryptedChatKey(
@@ -1894,8 +2026,9 @@ export class ChatSynchronizationService extends EventTarget {
    * server's messages_v is incremented before version comparison happens.
    */
   public async flushPendingAIResponses(): Promise<void> {
-    const { getPendingAIResponses, removePendingAIResponse } =
-      await import("./pendingAIResponses");
+    const { getPendingAIResponses, removePendingAIResponse } = await import(
+      "./pendingAIResponses"
+    );
 
     const pending = getPendingAIResponses();
     if (pending.length === 0) return;
@@ -1915,9 +2048,8 @@ export class ChatSynchronizationService extends EventTarget {
           continue;
         }
         await this.sendCompletedAIResponse(message);
-        removePendingAIResponse(message_id);
         console.warn(
-          `[ChatSyncService] Successfully flushed pending AI response ${message_id} for chat ${chat_id}`,
+          `[ChatSyncService] Sent pending AI response ${message_id} for chat ${chat_id}; retaining it until storage confirmation`,
         );
       } catch (error) {
         // Leave in queue — will be retried on the next reconnect.
@@ -2052,7 +2184,12 @@ export class ChatSynchronizationService extends EventTarget {
 
       const client_chat_versions: Record<
         string,
-        { messages_v: number; title_v: number; draft_v: number }
+        {
+          messages_v: number;
+          title_v: number;
+          metadata_v?: number;
+          draft_v: number;
+        }
       > = {};
       const client_chat_ids: string[] = [];
 
@@ -2078,6 +2215,7 @@ export class ChatSynchronizationService extends EventTarget {
           client_chat_versions[chat.chat_id] = {
             messages_v: chat.messages_v || 0,
             title_v: chat.title_v || 0,
+            metadata_v: chat.metadata_v,
             draft_v: chat.draft_v || 0,
           };
         }

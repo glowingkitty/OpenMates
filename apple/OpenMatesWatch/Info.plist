@@ -30,12 +30,12 @@
 	<string>OpenMates uses the microphone to record voice messages you choose to send in chat.</string>
 	<key>UIAppFonts</key>
 	<array>
-		<string>LexendDeca-Light.ttf</string>
-		<string>LexendDeca-Regular.ttf</string>
-		<string>LexendDeca-Medium.ttf</string>
-		<string>LexendDeca-SemiBold.ttf</string>
-		<string>LexendDeca-Bold.ttf</string>
-		<string>LexendDeca-ExtraBold.ttf</string>
+		<string>Fonts/LexendDeca-Light.ttf</string>
+		<string>Fonts/LexendDeca-Regular.ttf</string>
+		<string>Fonts/LexendDeca-Medium.ttf</string>
+		<string>Fonts/LexendDeca-SemiBold.ttf</string>
+		<string>Fonts/LexendDeca-Bold.ttf</string>
+		<string>Fonts/LexendDeca-ExtraBold.ttf</string>
 	</array>
 	<key>WKCompanionAppBundleIdentifier</key>
 	<string>org.openmates.app</string>

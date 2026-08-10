@@ -18,6 +18,7 @@ import yaml
 
 from backend.apps.ai.processing.connected_account_receipts import publish_connected_account_action_receipt
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,28 @@ async def handle_connected_account_permission_confirmed(
         except Exception:
             pass
 
-        if not await directus_service.chat.check_chat_ownership(chat_id, user_id):
+        pending_context = await cache_service.get_pending_connected_account_permission_request(request_id)
+        if not pending_context:
+            logger.warning("No pending connected-account permission request found for %s", request_id)
+            return
+        team_id = pending_context.get("team_id")
+        if team_id:
+            try:
+                await directus_service.team.require_team_role(str(team_id), user_id, {"owner", "admin", "member"})
+            except TeamPermissionError:
+                logger.warning("User %s attempted connected-account confirmation without team write role", user_id)
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "TEAM_PERMISSION_DENIED"}},
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+            chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+            has_chat_access = bool(chat and chat.get("hashed_team_id") == hash_id(str(team_id)))
+        else:
+            has_chat_access = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+
+        if not has_chat_access:
             logger.warning("User %s attempted connected-account confirmation for unowned chat %s", user_id, chat_id)
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "You do not have permission to modify this chat."}},
@@ -80,10 +102,6 @@ async def handle_connected_account_permission_confirmed(
             )
             return
 
-        pending_context = await cache_service.get_pending_connected_account_permission_request(request_id)
-        if not pending_context:
-            logger.warning("No pending connected-account permission request found for %s", request_id)
-            return
         if pending_context.get("user_id") != user_id or pending_context.get("chat_id") != chat_id:
             logger.warning("Connected-account permission request %s owner/chat mismatch", request_id)
             return
@@ -168,6 +186,8 @@ async def _trigger_connected_account_continuation(
             "skill_id": pending_context.get("skill_id"),
             "action": pending_context.get("action"),
         },
+        "team_id": pending_context.get("team_id"),
+        "team_role": pending_context.get("team_role"),
         "is_connected_account_permission_continuation": True,
     }
     skill_config_dict = _load_ask_skill_config_from_app_yml()

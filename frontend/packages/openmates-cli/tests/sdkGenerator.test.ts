@@ -13,12 +13,31 @@ import assert from "node:assert/strict";
 const { APP_SKILL_METADATA, GeneratedAppSkills } = await import("../src/generated/appSkills.ts");
 
 describe("generated npm SDK app skills", () => {
-  it("includes native web search, images generate, and fitness metadata", () => {
+  // contract-test: supporting surface=sdks.npm assertions=audio-generate.surface-parity,audio-speak.surface-parity
+  it("includes native audio, web, design, images, models3d, business, and fitness metadata", () => {
+    const audioGenerate = APP_SKILL_METADATA.find(
+      (skill) => skill.app_id === "audio" && skill.skill_id === "generate",
+    );
+    const audioSpeak = APP_SKILL_METADATA.find(
+      (skill) => skill.app_id === "audio" && skill.skill_id === "speak",
+    );
     const webSearch = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "web" && skill.skill_id === "search",
     );
     const imageGenerate = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "images" && skill.skill_id === "generate",
+    );
+    const designSearchIcons = APP_SKILL_METADATA.find(
+      (skill) => skill.app_id === "design" && skill.skill_id === "search_icons",
+    );
+    const models3dGenerate = APP_SKILL_METADATA.find(
+      (skill) => skill.app_id === "models3d" && skill.skill_id === "generate",
+    );
+    const models3dSearch = APP_SKILL_METADATA.find(
+      (skill) => skill.app_id === "models3d" && skill.skill_id === "search",
+    );
+    const businessFinancials = APP_SKILL_METADATA.find(
+      (skill) => skill.app_id === "business" && skill.skill_id === "company_financials",
     );
     const fitnessLocations = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "fitness" && skill.skill_id === "search_locations",
@@ -26,6 +45,27 @@ describe("generated npm SDK app skills", () => {
     const fitnessClasses = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "fitness" && skill.skill_id === "search_classes",
     );
+
+    assert.ok(audioGenerate);
+    assert.equal(audioGenerate.app_namespace_ts, "audio");
+    assert.equal(audioGenerate.skill_method_ts, "generate");
+    assert.deepEqual(
+      audioGenerate.schema.properties.requests.items.properties.provider.enum,
+      ["elevenlabs"],
+    );
+
+    assert.ok(audioSpeak);
+    assert.equal(audioSpeak.app_namespace_ts, "audio");
+    assert.equal(audioSpeak.skill_method_ts, "speak");
+    assert.deepEqual(
+      audioSpeak.schema.properties.requests.items.properties.voice.enum,
+      ["warm_neutral", "bright_neutral", "calm_narrator"],
+    );
+    assert.deepEqual(
+      audioSpeak.schema.properties.requests.items.properties.model.enum,
+      ["eleven_flash_v2_5", "eleven_multilingual_v2"],
+    );
+    assert.equal(audioSpeak.schema.properties.requests.items.properties.model.default, "eleven_flash_v2_5");
 
     assert.ok(webSearch);
     assert.equal(webSearch.app_namespace_ts, "web");
@@ -36,6 +76,23 @@ describe("generated npm SDK app skills", () => {
     assert.ok(imageGenerate);
     assert.equal(imageGenerate.app_namespace_ts, "images");
     assert.equal(imageGenerate.skill_method_ts, "generate");
+
+    assert.ok(designSearchIcons);
+    assert.equal(designSearchIcons.app_namespace_ts, "design");
+    assert.equal(designSearchIcons.skill_method_ts, "searchIcons");
+    assert.ok(designSearchIcons.schema.properties.requests);
+
+    assert.equal(models3dGenerate, undefined);
+
+    assert.ok(models3dSearch);
+    assert.equal(models3dSearch.app_namespace_ts, "models3d");
+    assert.equal(models3dSearch.skill_method_ts, "search");
+    assert.ok(models3dSearch.schema.properties.requests);
+
+    assert.ok(businessFinancials);
+    assert.equal(businessFinancials.app_namespace_ts, "business");
+    assert.equal(businessFinancials.skill_method_ts, "companyFinancials");
+    assert.ok(businessFinancials.schema.properties.companies);
 
     assert.ok(fitnessLocations);
     assert.equal(fitnessLocations.app_namespace_ts, "fitness");
@@ -48,20 +105,44 @@ describe("generated npm SDK app skills", () => {
     assert.ok(fitnessClasses.schema.properties.requests);
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=audio-generate.surface-parity,audio-speak.surface-parity
   it("delegates native methods to the app-skill runner", async () => {
     const calls: unknown[] = [];
-    const apps = new GeneratedAppSkills(async (appId, skillId, input) => {
-      calls.push({ appId, skillId, input });
+    const apps = new GeneratedAppSkills(async (appId, skillId, input, options) => {
+      calls.push({ appId, skillId, input, options });
       return { ok: true };
     });
 
     const result = await apps.web.search({ requests: [{ query: "hello" }] });
+    const audioResult = await apps.audio.generate({ requests: [{ prompt: "soft tick", provider: "elevenlabs" }] });
+    const speechResult = await apps.audio.speak({ requests: [{ text: "Welcome back.", provider: "elevenlabs" }] });
+    const iconResult = await apps.design.searchIcons({ requests: [{ query: "home" }] });
     const fitnessResult = await apps.fitness.searchClasses({ requests: [{ address: "Sorauer Str. 12" }] });
+    const modelSearchResult = await apps.models3d.search({ requests: [{ query: "benchy" }] });
+    const businessResult = await apps.business.companyFinancials(
+      { companies: [{ query: "CALM" }] },
+      { promptInjectionProtection: false },
+    );
     assert.deepEqual(result, { ok: true });
+    assert.deepEqual(audioResult, { ok: true });
+    assert.deepEqual(speechResult, { ok: true });
+    assert.deepEqual(iconResult, { ok: true });
     assert.deepEqual(fitnessResult, { ok: true });
+    assert.deepEqual(modelSearchResult, { ok: true });
+    assert.deepEqual(businessResult, { ok: true });
     assert.deepEqual(calls, [
-      { appId: "web", skillId: "search", input: { requests: [{ query: "hello" }] } },
-      { appId: "fitness", skillId: "search_classes", input: { requests: [{ address: "Sorauer Str. 12" }] } },
+      { appId: "web", skillId: "search", input: { requests: [{ query: "hello" }] }, options: undefined },
+      { appId: "audio", skillId: "generate", input: { requests: [{ prompt: "soft tick", provider: "elevenlabs" }] }, options: undefined },
+      { appId: "audio", skillId: "speak", input: { requests: [{ text: "Welcome back.", provider: "elevenlabs" }] }, options: undefined },
+      { appId: "design", skillId: "search_icons", input: { requests: [{ query: "home" }] }, options: undefined },
+      { appId: "fitness", skillId: "search_classes", input: { requests: [{ address: "Sorauer Str. 12" }] }, options: undefined },
+      { appId: "models3d", skillId: "search", input: { requests: [{ query: "benchy" }] }, options: undefined },
+      {
+        appId: "business",
+        skillId: "company_financials",
+        input: { companies: [{ query: "CALM" }] },
+        options: { promptInjectionProtection: false },
+      },
     ]);
   });
 });

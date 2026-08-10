@@ -2,13 +2,14 @@
  * Unit tests for CLI local session storage.
  *
  * Tests session persistence, file permissions, backward compatibility with
- * legacy sessions, and keychain migration.
+ * legacy sessions, and keychain-backed storage.
  *
  * Run: node --test --experimental-strip-types tests/storage.test.ts
  */
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, statSync, readFileSync, writeFileSync, chmodSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -18,10 +19,18 @@ import {
   saveSession,
   loadSession,
   clearSession,
+  purgeLocalPrivateData,
+  saveLocalTeamKey,
+  saveSyncCache,
+  pruneLocalTeamArtifacts,
 } from "../src/storage.ts";
 
 // Storage always writes to ~/.openmates — tests use the real directory.
 const STATE_DIR = join(homedir(), ".openmates");
+
+function teamDigest(teamId: string): string {
+  return createHash("sha256").update(teamId).digest("hex").slice(0, 32);
+}
 
 const SAMPLE_SESSION: OpenMatesSession = {
   apiUrl: "https://api.dev.openmates.org",
@@ -127,6 +136,92 @@ describe("clearSession", () => {
   });
 });
 
+describe("purgeLocalPrivateData", () => {
+  it("removes session keys, user sync cache, team sync caches, and team keys", () => {
+    const activeTeamId = "team-active";
+    const staleTeamId = "team-stale";
+    const activeCachePath = join(STATE_DIR, `sync_cache.team.${teamDigest(activeTeamId)}.json`);
+    const staleCachePath = join(STATE_DIR, `sync_cache.team.${teamDigest(staleTeamId)}.json`);
+    const emptyCache = {
+      syncedAt: Date.now(),
+      totalChatCount: 0,
+      loadedChatCount: 0,
+      chats: [],
+      embeds: [],
+      embedKeys: [],
+    };
+
+    saveSession({ ...SAMPLE_SESSION, activeTeamId });
+    saveLocalTeamKey(SAMPLE_SESSION.hashedEmail, activeTeamId, "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=");
+    saveLocalTeamKey(SAMPLE_SESSION.hashedEmail, staleTeamId, "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=");
+    saveSyncCache(emptyCache);
+    saveSyncCache(emptyCache, activeTeamId);
+    saveSyncCache(emptyCache, staleTeamId);
+
+    purgeLocalPrivateData();
+
+    assert.strictEqual(loadSession(), null);
+    assert.ok(!existsSync(join(STATE_DIR, "session.json")), "session.json should be removed");
+    assert.ok(!existsSync(join(STATE_DIR, "sync_cache.json")), "user sync cache should be removed");
+    assert.ok(!existsSync(activeCachePath), "active team sync cache should be removed");
+    assert.ok(!existsSync(staleCachePath), "stale team sync cache should be removed");
+    const teamKeysPath = join(STATE_DIR, "team_keys.json");
+    const teamKeys = existsSync(teamKeysPath)
+      ? JSON.parse(readFileSync(teamKeysPath, "utf-8"))
+      : { teams: {} };
+    assert.strictEqual(
+      teamKeys.teams[`${SAMPLE_SESSION.hashedEmail}:team:${teamDigest(activeTeamId)}`],
+      undefined,
+      "active team key should be removed",
+    );
+    assert.strictEqual(
+      teamKeys.teams[`${SAMPLE_SESSION.hashedEmail}:team:${teamDigest(staleTeamId)}`],
+      undefined,
+      "stale team key should be removed",
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Team artifact pruning
+// ---------------------------------------------------------------------------
+
+describe("pruneLocalTeamArtifacts", () => {
+  after(() => {
+    pruneLocalTeamArtifacts(SAMPLE_SESSION.hashedEmail, []);
+  });
+
+  it("removes stale local team keys and sync caches", () => {
+    const retainedTeamId = "team-retained";
+    const staleTeamId = "team-stale";
+    const retainedKeyId = `${SAMPLE_SESSION.hashedEmail}:team:${teamDigest(retainedTeamId)}`;
+    const staleKeyId = `${SAMPLE_SESSION.hashedEmail}:team:${teamDigest(staleTeamId)}`;
+    const retainedCachePath = join(STATE_DIR, `sync_cache.team.${teamDigest(retainedTeamId)}.json`);
+    const staleCachePath = join(STATE_DIR, `sync_cache.team.${teamDigest(staleTeamId)}.json`);
+    const emptyCache = {
+      syncedAt: Date.now(),
+      totalChatCount: 0,
+      loadedChatCount: 0,
+      chats: [],
+      embeds: [],
+      embedKeys: [],
+    };
+
+    saveLocalTeamKey(SAMPLE_SESSION.hashedEmail, retainedTeamId, "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=");
+    saveLocalTeamKey(SAMPLE_SESSION.hashedEmail, staleTeamId, "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=");
+    saveSyncCache(emptyCache, retainedTeamId);
+    saveSyncCache(emptyCache, staleTeamId);
+
+    pruneLocalTeamArtifacts(SAMPLE_SESSION.hashedEmail, [retainedTeamId]);
+
+    const keys = JSON.parse(readFileSync(join(STATE_DIR, "team_keys.json"), "utf-8"));
+    assert.ok(keys.teams[retainedKeyId], "retained team key should remain");
+    assert.strictEqual(keys.teams[staleKeyId], undefined, "stale team key should be removed");
+    assert.ok(existsSync(retainedCachePath), "retained team cache should remain");
+    assert.ok(!existsSync(staleCachePath), "stale team cache should be removed");
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Backward compatibility — legacy session files (no masterKeyStorage field)
 // ---------------------------------------------------------------------------
@@ -168,8 +263,7 @@ describe("legacy session backward compatibility", () => {
     assert.strictEqual(loaded.apiUrl, "https://api.dev.openmates.org");
   });
 
-  it("auto-migrates legacy session and removes plaintext key from disk", () => {
-    // Write a legacy session
+  it("loads a legacy session without rewriting durable state", () => {
     const legacySession = {
       apiUrl: "https://api.dev.openmates.org",
       sessionId: "migrate-test-id",
@@ -188,24 +282,12 @@ describe("legacy session backward compatibility", () => {
       mode: 0o600,
     });
     chmodSync(filePath, 0o600);
+    const beforeLoad = readFileSync(filePath, "utf-8");
 
-    // Load triggers auto-migration
     const loaded = loadSession();
-    assert.ok(loaded, "should load and migrate");
+    assert.ok(loaded, "should load legacy session");
     assert.strictEqual(loaded.masterKeyExportedB64, "MIGRATE_THIS_KEY==");
-
-    // After migration, re-read the file — it should now have masterKeyStorage
-    const onDisk = JSON.parse(readFileSync(filePath, "utf-8"));
-    assert.ok(onDisk.masterKeyStorage, "should have masterKeyStorage after migration");
-
-    // If migrated to keychain or encrypted, plaintext key should be absent
-    if (onDisk.masterKeyStorage !== "plaintext") {
-      assert.strictEqual(
-        onDisk.masterKeyExportedB64,
-        undefined,
-        "plaintext key should be removed from disk after migration",
-      );
-    }
+    assert.strictEqual(readFileSync(filePath, "utf-8"), beforeLoad);
   });
 });
 

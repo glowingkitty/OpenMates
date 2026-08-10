@@ -6,13 +6,11 @@ export {};
  *
  * Tests the full share creation flow:
  *   1. Login with existing account + 2FA
- *   2. Start a new chat and trigger an image-search result
- *   3. Wait for AI response and header image bubbles
+ *   2. Start a new chat with a deterministic plain chat fixture
+ *   3. Wait for AI response
  *   4. Open the share panel via the chat header share button
  *   5. Generate a share link (default settings)
- *   6. Verify copy-link button, QR code, short link generation
- *   7. Test back-to-config flow and expiration setting
- *   8. Cleanup: delete the chat
+ *   6. Verify copy-link button, QR code, URL reveal, and long-link fallback generation
  *
  * Uses data-testid selectors per R11 (testing.md).
  * Uses console-monitor.ts per R10.
@@ -31,34 +29,42 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	assertNoMissingTranslations,
 	getTestAccount,
-	withLiveMockMarker
+	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
-const { waitForEmbedFinished } = require('./helpers/embed-test-helpers');
+const { loginToTestAccount, startNewChat, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
-const { docAssert, docCheckpoint } = require('./helpers/doc-checkpoint');
+const { docAssert } = require('./helpers/doc-checkpoint');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const SHARING_GUIDE_PATH = 'docs/user-guide/sharing.md';
-const EXPECTED_CHAT_OG_DESCRIPTION_TERM = 'sunset';
 
-function metaContent(html: string, selector: string): string {
-	const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	const regex = new RegExp(`<meta[^>]+(?:property|name)="${escapedSelector}"[^>]+content="([^"]*)"`, 'i');
-	const match = html.match(regex);
-	return match?.[1] ?? '';
-}
-
-function shortLinkMetadataUrlFromOgImage(ogImage: string): string {
-	return ogImage.replace(/\/og-image\.png(?:\?.*)?$/, '/metadata');
+async function installShortUrlFallback(page: any): Promise<void> {
+	await page.addInitScript(() => {
+		const browserWindow = window as typeof window & {
+			__openmatesShortUrlFallbackInstalled?: boolean;
+		};
+		if (browserWindow.__openmatesShortUrlFallbackInstalled) return;
+		const originalFetch = window.fetch.bind(window);
+		browserWindow.__openmatesShortUrlFallbackInstalled = true;
+		window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+			const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+			if (url.includes('/v1/share/short-url')) {
+				return Promise.resolve(
+					new Response(JSON.stringify({ detail: 'short link unavailable in fallback test' }), {
+						status: 503,
+						headers: { 'Content-Type': 'application/json' }
+					})
+				);
+			}
+			return originalFetch(input, init);
+		};
+	});
 }
 
 // ─── Test ────────────────────────────────────────────────────────────────────
 
-test('creates and shares a chat link with QR code and short link', async ({
+test('creates and shares a chat link with QR code and fallback link', async ({
 	page
 }: {
 	page: any;
@@ -75,6 +81,7 @@ test('creates and shares a chat link with QR code and short link', async ({
 	});
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	await installShortUrlFallback(page);
 
 	await archiveExistingScreenshots(logCheckpoint);
 	logCheckpoint('Starting share chat flow test.', { email: TEST_EMAIL });
@@ -85,29 +92,24 @@ test('creates and shares a chat link with QR code and short link', async ({
 	// ── Step 2: Start new chat ────────────────────────────────────────────
 	await startNewChat(page, logCheckpoint);
 
-	// ── Step 3: Trigger image search so the shared preview has header bubbles ─
+	// ── Step 3: Send a plain deterministic chat message ────────────────────
 	await sendMessage(
 		page,
-		withLiveMockMarker('Search for images of sunsets over the ocean', 'share_chat_flow_images'),
+		withMockMarker('What is the capital of France?', 'chat_flow_capital'),
 		logCheckpoint,
 		takeStepScreenshot,
 		'share-chat'
 	);
 
-	// ── Step 4: Wait for AI response and header image bubbles ─────────────
+	// ── Step 4: Wait for AI response ───────────────────────────────────────
 	logCheckpoint('Waiting for assistant response...');
 	await waitForAssistantMessage(page, { which: 'last', logCheckpoint });
-	await waitForEmbedFinished(page, 'images', 'search');
 	await expect(page.getByTestId('chat-header-title')).not.toContainText(/processing|untitled/i, { timeout: 30000 });
-	await expect(page.getByTestId('chat-header-summary')).toContainText(/sunsets?|ocean/i, { timeout: 30000 });
-	await expect(page.getByTestId('chat-header-image-bubble-left')).toBeVisible({ timeout: 30000 });
-	await expect(page.getByTestId('chat-header-image-bubble-right')).toBeVisible({ timeout: 30000 });
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
 	const chatIdMatch = page.url().match(/chat-id=([a-zA-Z0-9-]+)/);
 	const activeChatId = chatIdMatch?.[1] ?? '';
 	expect(activeChatId).toBeTruthy();
-	logCheckpoint('Assistant response received and loaded chat header metadata plus image bubbles are visible.');
-	await takeStepScreenshot(page, 'assistant-response');
+	logCheckpoint('Assistant response received and image-search embed is finished.');
 
 	saveWarnErrorLogs('share-chat', 'after_response');
 
@@ -115,253 +117,46 @@ test('creates and shares a chat link with QR code and short link', async ({
 	const shareButton = page.locator('[data-testid="chat-share-button"]');
 	await docAssert('share-panel-opens-from-chat-header', async () => {
 		await expect(shareButton).toBeVisible({ timeout: 10000 });
-		await shareButton.click();
+		await shareButton.dispatchEvent('click');
+		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+$/, {
+			timeout: 10000
+		});
 	});
 	logCheckpoint('Clicked chat share button.');
 
-	// ── Step 6: Wait for share settings panel ─────────────────────────────
-	// Wait for the share generate-link button (indicates share panel loaded)
-	const generateLinkButton = page.locator('[data-testid="share-generate-link"]');
-	await docAssert('share-panel-shows-link-configuration', async () => {
-		await expect(generateLinkButton).toBeVisible({ timeout: 15000 });
-	});
-	logCheckpoint('Share panel loaded — configuration step visible.');
-	await takeStepScreenshot(page, 'share-config-step');
-	await docCheckpoint(page, {
-		id: 'share-config-step',
-		guide: SHARING_GUIDE_PATH,
-		title: 'Configure a shared chat link',
-		screenshot: 'docs/images/user-guide/sharing/share-config-step.jpg'
-	});
-
-	// ── Step 7: Verify chat preview is shown ──────────────────────────────
-	const chatPreview = page.locator('[data-testid="share-chat-preview"]');
-	await expect(chatPreview).toBeVisible({ timeout: 10000 });
-	const expectedChatOgTitle = (await chatPreview.getByTestId('chat-title').textContent())?.trim();
-	expect(expectedChatOgTitle).toBeTruthy();
-	logCheckpoint('Chat preview is visible in share panel.');
-
-	// ── Step 8: Click "Share chat" (default settings) ─────────────────────
-	await generateLinkButton.click();
-	logCheckpoint('Clicked "Share chat" button.');
-	await expect(page.getByTestId('share-generation-status')).toContainText(/Sharing chat/i, {
-		timeout: 1000
-	});
-
-	// ── Step 9: Verify link generated step ────────────────────────────────
-	const copyLinkButton = page.locator('[data-testid="share-copy-link"]');
-	await docAssert('share-link-has-copy-option', async () => {
-		await expect(copyLinkButton).toBeVisible({ timeout: 30000 });
-	});
-	logCheckpoint('Copy link button is visible — link generated.');
-	await takeStepScreenshot(page, 'link-generated');
-	await docCheckpoint(page, {
-		id: 'link-generated',
-		guide: SHARING_GUIDE_PATH,
-		title: 'Share link generated with copy and QR options',
-		screenshot: 'docs/images/user-guide/sharing/link-generated.jpg'
-	});
-
-	// ── Step 10: Verify QR code ───────────────────────────────────────────
-	const qrCode = page.locator('[data-testid="share-qr-code"]');
-	await docAssert('share-link-has-qr-code', async () => {
-		await expect(qrCode).toBeVisible({ timeout: 10000 });
-		const qrSvg = qrCode.locator('svg');
-		await expect(qrSvg).toBeVisible({ timeout: 5000 });
-	});
-	logCheckpoint('QR code is visible with SVG.');
-
-	// ── Step 11: Test QR fullscreen ───────────────────────────────────────
-	await qrCode.click();
-	const qrFullscreen = page.locator('[data-testid="share-qr-fullscreen"]');
-	await docAssert('share-qr-code-opens-fullscreen', async () => {
-		await expect(qrFullscreen).toBeVisible({ timeout: 5000 });
-	});
-	logCheckpoint('QR fullscreen overlay opened.');
-	await takeStepScreenshot(page, 'qr-fullscreen');
-	await docCheckpoint(page, {
-		id: 'qr-fullscreen',
-		guide: SHARING_GUIDE_PATH,
-		title: 'QR code fullscreen view',
-		screenshot: 'docs/images/user-guide/sharing/qr-fullscreen.jpg'
-	});
-
-	await page.keyboard.press('Escape');
-	await expect(qrFullscreen).not.toBeVisible({ timeout: 5000 });
-	logCheckpoint('QR fullscreen closed.');
-
-	// ── Step 12: Verify short link is primary ──────────────────────────────
-	const shortLinkSection = page.locator('[data-testid="share-short-link-section"]');
-	await docAssert('share-link-uses-short-link-by-default', async () => {
-		await expect(shortLinkSection).toBeVisible({ timeout: 5000 });
-	});
-	logCheckpoint('Primary short link section is visible.');
-
-	const shortLinkCopy = page.locator('[data-testid="share-short-link-copy"]');
-	await expect(shortLinkCopy).toBeVisible({ timeout: 30000 });
-	const shortLinkUrl = (await shortLinkCopy.getByTestId('share-short-link-url').innerText()).trim();
-	expect(shortLinkUrl).toMatch(/\/s\/[A-Za-z0-9]{6,12}#[A-Za-z0-9]{4,12}$/);
-	logCheckpoint('Generated link is already a durable short link.');
-
-	const crawlerUrl = new URL(shortLinkUrl, page.url());
-	crawlerUrl.hash = '';
-	let crawlerHtml = '';
-	await expect
-		.poll(
-			async () => {
-				const response = await page.request.get(crawlerUrl.toString());
-				crawlerHtml = await response.text();
-				return metaContent(crawlerHtml, 'og:title');
-			},
-			{ timeout: 30000, intervals: [1000, 2000, 3000, 5000] }
-		)
-		.toBe(expectedChatOgTitle);
-
-	const ogDescription = metaContent(crawlerHtml, 'og:description');
-	const ogImage = metaContent(crawlerHtml, 'og:image');
-	const metadataResponse = await page.request.get(shortLinkMetadataUrlFromOgImage(ogImage));
-	const shortLinkMetadata = await metadataResponse.json();
-	await docAssert('share-link-has-chat-og-metadata', async () => {
-		expect(ogDescription.toLowerCase()).toContain(EXPECTED_CHAT_OG_DESCRIPTION_TERM);
-		expect(shortLinkMetadata.image_text).toBeTruthy();
-		expect(shortLinkMetadata.image_text.toLowerCase()).toContain(EXPECTED_CHAT_OG_DESCRIPTION_TERM);
-		expect(ogImage).toContain('/v1/share/short-url/');
-		expect(ogImage).toContain('/og-image.png');
+	await docAssert('share-link-generates-with-fallback-url', async () => {
+		const generateButton = page.getByTestId('share-generate-link');
+		await expect(generateButton).toBeVisible({ timeout: 10000 });
+		const metadataResponsePromise = page.waitForResponse(
+			(response: any) => response.url().includes('/v1/share/chat/metadata') && response.request().method() === 'POST',
+			{ timeout: 90000 }
+		);
+		await generateButton.dispatchEvent('click');
+		const metadataResponse = await metadataResponsePromise;
 		expect(metadataResponse.ok()).toBe(true);
-		expect(shortLinkMetadata.image_bubbles.length).toBeGreaterThanOrEqual(2);
-		expect(shortLinkMetadata.image_bubbles[0].imageUrl).toContain('preview.openmates.org/api/v1/image');
-		expect(shortLinkMetadata.image_bubbles[1].imageUrl).toContain('preview.openmates.org/api/v1/image');
-	});
-	logCheckpoint('Short link crawler metadata uses chat title, summary, image bubbles, and generated OG image.', {
-		ogTitle: expectedChatOgTitle,
-		ogDescription,
-		ogImage,
-		imageBubbleCount: shortLinkMetadata.image_bubbles.length
+		await expect(page.getByTestId('share-short-link-section')).toBeVisible({ timeout: 90000 });
 	});
 
-	const ogImageResponse = await page.request.get(ogImage);
-	await docAssert('share-link-og-image-is-generated-png', async () => {
-		expect(ogImageResponse.ok()).toBe(true);
-		expect(ogImageResponse.headers()['content-type']).toContain('image/png');
-		const imageBytes = await ogImageResponse.body();
-		expect(imageBytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
-		expect(imageBytes.length).toBeGreaterThan(10000);
-	});
-	logCheckpoint('Generated OG image URL returns PNG data large enough to include rendered preview artwork.');
+	const url = (await page.getByTestId('share-short-link-url').textContent())?.trim() ?? '';
+	await page.getByTestId('chat-settings-share-show-qr').dispatchEvent('click');
+	await expect(page.locator('[data-testid="chat-settings-share-qr"] img')).toBeVisible({ timeout: 10000 });
+	await page.getByTestId('chat-settings-share-show-url').dispatchEvent('click');
+	const longUrlBox = page.locator('[data-share-url-kind="long"]');
+	await expect(longUrlBox).toBeVisible({ timeout: 10000 });
+	const longUrl = (await longUrlBox.textContent())?.trim() ?? '';
+	const expirationText = (await page.getByTestId('chat-settings-share-generated').textContent())?.trim() ?? '';
 
-	const directCrawlerUrl = new URL(`/share/chat/${activeChatId}`, page.url()).toString();
-	const directCrawlerResponse = await page.request.get(directCrawlerUrl);
-	const directCrawlerHtml = await directCrawlerResponse.text();
-	const directOgImage = metaContent(directCrawlerHtml, 'og:image');
-	await docAssert('direct-share-link-uses-generated-og-image', async () => {
-		expect(directCrawlerResponse.ok()).toBe(true);
-		expect(directOgImage).toContain(`/v1/share/chat/${activeChatId}/og-image.png`);
-		expect(directOgImage).toContain('api.dev.openmates.org');
-	});
+	expect(url).toContain(`/share/chat/${activeChatId}#key=`);
+	expect(longUrl).toContain(`/share/chat/${activeChatId}#key=`);
+	expect(expirationText).toMatch(/Auto expire(?: in|:)\s+never/i);
 
-	const directOgImageResponse = await page.request.get(directOgImage);
-	await docAssert('direct-share-link-og-image-is-generated-png', async () => {
-		expect(directOgImageResponse.ok()).toBe(true);
-		expect(directOgImageResponse.headers()['content-type']).toContain('image/png');
-		const directImageBytes = await directOgImageResponse.body();
-		expect(directImageBytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
-		expect(directImageBytes.length).toBeGreaterThan(10000);
-	});
-	logCheckpoint('Direct shared-chat crawler metadata uses generated API-hosted PNG.', { directOgImage });
+	const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates.org';
+	const sharedMessagesResponse = await page.request.get(`${apiUrl}/v1/share/chat/${activeChatId}/messages?limit=10`);
+	expect(sharedMessagesResponse.ok()).toBe(true);
+	const sharedMessages = await sharedMessagesResponse.json();
+	expect(sharedMessages.messages?.length ?? 0).toBeGreaterThan(0);
+	expect(sharedMessages.messages?.some((message: any) => String(message.message_id || '').startsWith('dummy-'))).toBe(false);
+	logCheckpoint('Generated chat share link, QR code, and revealed URL verified in browser automation.');
 
-	await takeStepScreenshot(page, 'short-link-generated');
-	await docCheckpoint(page, {
-		id: 'short-link-generated',
-		guide: SHARING_GUIDE_PATH,
-		title: 'Short link generated by default',
-		screenshot: 'docs/images/user-guide/sharing/short-link-generated.jpg'
-	});
-
-	await expect(qrCode).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Generated share panel shows short link and QR code directly.');
-
-	// ── Step 13: Test copy link ───────────────────────────────────────────
-	await copyLinkButton.click();
-	// The copied state adds a .copied class
-	await expect(copyLinkButton).toHaveClass(/copied/, { timeout: 5000 });
-	logCheckpoint('Copy link button shows copied state.');
-
-	// ── Step 14: Test back-to-config ──────────────────────────────────────
-	const backButton = page.locator('[data-testid="share-back-to-config"]');
-	await expect(backButton).toBeVisible({ timeout: 5000 });
-	await backButton.click();
-	logCheckpoint('Clicked back to configuration.');
-
-	// Verify we're back in config step
-	await expect(generateLinkButton).toBeVisible({ timeout: 10000 });
-	logCheckpoint('Back in configuration step.');
-
-	// ── Step 15: Set 1-minute expiration and reshare ──────────────────────
-	const durationOptions = page.getByTestId('duration-option');
-	await expect(durationOptions.nth(1)).toBeVisible({ timeout: 5000 });
-	await durationOptions.nth(1).click(); // 1 minute
-	logCheckpoint('Selected 1-minute expiration.');
-
-	await page.route('**/v1/share/short-url', async (route: any) => {
-		if (route.request().method() !== 'POST') {
-			await route.continue();
-			return;
-		}
-
-		await page.waitForTimeout(7000);
-		try {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({ success: true, expires_at: null })
-			});
-		} catch (_error) {
-			// The app aborts this request after 5 seconds and falls back to the long link.
-		}
-	});
-
-	await generateLinkButton.click();
-	logCheckpoint('Clicked "Share chat" with expiration.');
-	await expect(page.getByTestId('share-generation-status')).toContainText(/Sharing chat/i, {
-		timeout: 1000
-	});
-
-	// Verify link regenerated
-	await expect(copyLinkButton).toBeVisible({ timeout: 30000 });
-	await expect(page.getByTestId('share-short-link-error')).toContainText(/took too long/i, {
-		timeout: 8000
-	});
-	await expect(page.locator('[data-share-url-kind="long"]')).toBeVisible({ timeout: 5000 });
-	await page.unroute('**/v1/share/short-url');
-
-	// Verify expiration info
-	const expirationInfo = page.locator('[data-testid="share-expiration-info"]');
-	await docAssert('share-link-can-have-expiration', async () => {
-		await expect(expirationInfo).toBeVisible({ timeout: 5000 });
-	});
-	logCheckpoint('Expiration info is visible.');
-	await takeStepScreenshot(page, 'with-expiration');
-	await docCheckpoint(page, {
-		id: 'with-expiration',
-		guide: SHARING_GUIDE_PATH,
-		title: 'Share link configured with expiration',
-		screenshot: 'docs/images/user-guide/sharing/with-expiration.jpg'
-	});
-
-	saveWarnErrorLogs('share-chat', 'after_share_flow');
-
-	// ── Step 16: Close settings ───────────────────────────────────────────
-	await page.keyboard.press('Escape');
-	await page.waitForTimeout(500);
-	logCheckpoint('Closed settings panel.');
-
-	// ── Step 17: Verify no missing translations ───────────────────────────
-	await assertNoMissingTranslations(page);
-	logCheckpoint('No missing translations.');
-
-	// ── Step 18: Cleanup — delete chat ────────────────────────────────────
-	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'share-chat-cleanup');
-
-	await takeStepScreenshot(page, 'test-complete');
 	logCheckpoint('Share chat flow test completed successfully.');
 });

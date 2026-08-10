@@ -1,0 +1,2266 @@
+schema_version: 1
+cadence: weekly
+week_start: '2026-04-20'
+week_end: '2026-04-26'
+generated_at: '2026-07-09T15:56:15+00:00'
+summary:
+  daily_files: 7
+  total_items: 82
+  newsletter_ready_items: 48
+  user_facing_items: 48
+  dev_only_items: 0
+  unknown_release_items: 0
+  themes: 7
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+daily_summaries:
+- date: '2026-04-20'
+  total_commits: 19
+  newsletter_ready_items: 13
+  dev_only_items: 0
+- date: '2026-04-21'
+  total_commits: 11
+  newsletter_ready_items: 2
+  dev_only_items: 0
+- date: '2026-04-22'
+  total_commits: 1
+  newsletter_ready_items: 1
+  dev_only_items: 0
+- date: '2026-04-23'
+  total_commits: 10
+  newsletter_ready_items: 5
+  dev_only_items: 0
+- date: '2026-04-24'
+  total_commits: 16
+  newsletter_ready_items: 10
+  dev_only_items: 0
+- date: '2026-04-25'
+  total_commits: 10
+  newsletter_ready_items: 8
+  dev_only_items: 0
+- date: '2026-04-26'
+  total_commits: 15
+  newsletter_ready_items: 9
+  dev_only_items: 0
+themes:
+- theme: chat
+  item_count: 25
+  newsletter_ready_count: 21
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-20'
+    title: 'feat(ui): add expanding grey circle transition when starting a new chat (OPE-451)'
+    commits:
+    - 90b2adf61
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'feat(ui): reduce chat header to 35vh and make daily inspiration banner match height (OPE-450)'
+    commits:
+    - adb33e854
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(chat-header): add bottom padding so signup button clears banner edge'
+    commits:
+    - d25d07a2c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(seo): remove remaining affirmative E2E encryption claims across codebase'
+    commits:
+    - c26b6135f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(ui): increase mobile ChatHeader min-height to 230px to clear video player buttons'
+    commits:
+    - 8095b4170
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(ui): replace clip-path animation with transform:scale to fix iOS Safari crash (OPE-451)'
+    commits:
+    - 7880352c6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(ui): revert min-height to 240px, match inspiration banner height, hide for-everyone title (OPE-450)'
+    commits:
+    - 881e3841a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: embed centering, center-content position, header title/video order, circle animation'
+    commits:
+    - 6fedb1441
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: maintain 16:9 ratio on video header at all viewport sizes'
+    commits:
+    - 79d91dd3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: move signup/login button below video in chat header'
+    commits:
+    - 4a2fe0d08
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: remove circle animation, fade-out on input focus, video height on small viewports'
+    commits:
+    - cc02f5ab3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: restore width:100% on mobile media-frame to prevent collapse'
+    commits:
+    - d1bcbd55f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-21'
+    title: 'fix(encryption): use withKey() in highlight decrypt handler to prevent key-race drop'
+    commits:
+    - 50cc95473
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-21'
+    title: 'fix: CLI pair login - passkey users blocked + chats list timeout'
+    commits:
+    - 83beb2f44
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: allow ai_response_completed and post_processing_metadata for new chats when persist task is in flight'
+    commits:
+    - 2953fb0b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: queue ai_response_completed on WS disconnect to prevent permanent message loss'
+    commits:
+    - 70638ca77
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: prevent email text from clearing field; fix empty code embed on EmbedStore failure'
+    commits:
+    - c0ff297e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'revert: restore all multi-line pastes to code embed (remove looksLikeCode guard)'
+    commits:
+    - b0868ee8c
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix: gate IDB encrypted_chat_key write on injectKey acceptance; reject conflicting server key'
+    commits:
+    - b105e8c1b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix(test): use banner-signup-button when intro banner is visible in loginToTestAccount'
+    commits:
+    - 11ea27791
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: add header-login-signup-btn testid; update all specs to avoid banner button ambiguity'
+    commits:
+    - 05093d121
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: candidate key fallback for race conditions + weekly error digest'
+    commits:
+    - 0b6cc11ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: fix Stripe Link interstitial ZIP/State selectors and add page load wait before login button checks'
+    commits:
+    - cc845275f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: replace networkidle with load in loginToTestAccount; increase test timeout to 420s'
+    commits:
+    - a6391eda7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: setChatKey returns bool; candidate save on rejection in sendersChatMessages'
+    commits:
+    - 98de6ac0e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: other
+  item_count: 22
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-20'
+    title: 'Merge pull request #378 from glowingkitty/dev'
+    commits:
+    - da53b73bf
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-20'
+    title: 'Revert "docs: fix grammar in marketing meeting notes 2026-04-20"'
+    commits:
+    - 048ef9b51
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-20'
+    title: 'docs: fix grammar in marketing meeting notes 2026-04-20'
+    commits:
+    - 09199fa0c
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(seo): update OG/meta description, remove E2E encryption mention'
+    commits:
+    - 3ae64c416
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-21'
+    title: 'Merge pull request #379 from glowingkitty/dev'
+    commits:
+    - f6fd398fe
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-21'
+    title: 'Merge pull request #382 from glowingkitty/dev'
+    commits:
+    - 9a00ae09a
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-21'
+    title: 'Merge pull request #383 from glowingkitty/dev'
+    commits:
+    - 135c9f981
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-21'
+    title: 'fix: upgrade python-dotenv to 1.2.2 (GHSA-mf9w-mj56-hr94)'
+    commits:
+    - df6621043
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-23'
+    title: 'feat: add force_migrate flag to setup_schemas.py for automatic field type migrations'
+    commits:
+    - 83a282c7c
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: disable Polar provider in PaymentService (OPE-471)'
+    commits:
+    - 7e9f0975a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: prevent Directus write failure and anonymous attribution in issue reports (OPE-459)'
+    commits:
+    - 05e4ff10a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: truncate long issue titles and show user ID for authenticated reporters (OPE-459)'
+    commits:
+    - 7d2629447
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: add allow_redisplay_filters to Checkout Session saved_payment_method_options'
+    commits:
+    - 6f321ad4a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: expose card.country in list_payment_methods response'
+    commits:
+    - 1882618d1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: skip bank_transfer_only tiers in Stripe product sync'
+    commits:
+    - daa15e4c4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: sync global (non-EU) Stripe products for Managed Payments checkout'
+    commits:
+    - 807801b76
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: upgrade Stripe API version to 2026-03-25.dahlia for embedded_page support'
+    commits:
+    - fff8bff63
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-25'
+    title: 'feat: add /clarify skill for structured bug/feature understanding'
+    commits:
+    - de8776c8a
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: add redirect_on_completion=never to use onComplete instead of redirect'
+    commits:
+    - 0ec0ec672
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: candidate key fallback for multi-tab race + weekly error digest'
+    commits:
+    - 0f90e0505
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: remove invalid payment_method_options[link][enabled] from Checkout Session'
+    commits:
+    - 54dbdde3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: use ui_mode=embedded_page (embedded renamed in dahlia API)'
+    commits:
+    - e7775c322
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: settings
+  item_count: 17
+  newsletter_ready_count: 17
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-22'
+    title: 'feat: always include authenticated user email in issue reports'
+    commits:
+    - 8d48dc344
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: deactivate Polar, fix bank transfer empty encryption key (OPE-471)'
+    commits:
+    - 142e5544c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: defensive title truncation before Directus write in issue report route (OPE-459)'
+    commits:
+    - bead5354a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'refactor: comment out Polar code instead of removing (OPE-471)'
+    commits:
+    - fe412d37d
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'feat: add Stripe Managed Payments for non-EU users (Checkout Sessions)'
+    commits:
+    - 16963fe6d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: require passkey/OTP auth before opening Checkout Session for non-EU saved cards'
+    commits:
+    - 3f2fed9a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: route non-EU saved cards to Checkout Session (Managed Payments)'
+    commits:
+    - b139ffebe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: show all saved cards; route to Checkout Session on Buy Now for non-EU cards'
+    commits:
+    - 68d79d14f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix(test): fill cardholder name and billing address in managed payments spec'
+    commits:
+    - 8a4bac522
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix(test): handle Stripe Link flow; use placeholder selectors for cardholder/address'
+    commits:
+    - a5451297e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix(test): soft add-payment-method check; handle Stripe Link OTP in managed payments'
+    commits:
+    - dc9acccfe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix: disable Stripe Link wallet in Checkout Session; simplify managed payments spec'
+    commits:
+    - d8c9ae1ae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix: switch Checkout to embedded mode with onComplete; add managed payments spec'
+    commits:
+    - d4ff38da8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix(test): fill City/State/ZIP in billing; smarter Link interstitial detection'
+    commits:
+    - 9d3f560d7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix(test): move City/ZIP filling to Link interstitial handler; they appear after Pay'
+    commits:
+    - 528219a30
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: skip State selectOption in Stripe Link interstitial; wait 5s for ZIP→State auto-populate'
+    commits:
+    - 39c7d9323
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: support managed Stripe payment documents'
+    commits:
+    - 8b500c39d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: cli_sdk
+  item_count: 6
+  newsletter_ready_count: 2
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-21'
+    title: 'fix(ci): auto-increment patch version on repeated stable publishes to main'
+    commits:
+    - c339c9177
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-21'
+    title: 'fix(ci): bump CLI prerelease from published npm version, not package.json'
+    commits:
+    - 3a2216cbf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-21'
+    title: 'fix(ci): fix $TARGET variable not expanding in npm version call'
+    commits:
+    - 88c5d65ce
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-21'
+    title: 'fix(ci): strip prerelease suffix before stable npm publish on main'
+    commits:
+    - cefccc4af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-25'
+    title: 'feat: show click/tap hint on finished embeds then fade to skill-name-only'
+    commits:
+    - 98131b250
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix(test): click through Stripe Link save-payment interstitial after Pay'
+    commits:
+    - e7d0ceb07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: product
+  item_count: 6
+  newsletter_ready_count: 6
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-20'
+    title: 'style: increase notification max-width margin to 40px'
+    commits:
+    - 74067d343
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: add card.country to list_payment_methods; guard non-EU cards in saved-method endpoint'
+    commits:
+    - 3c726e3c4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: remove appearance from createEmbeddedCheckoutPage (not a valid param)'
+    commits:
+    - 332f5cd98
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: require auth before managed Checkout Session; add managed-checkout-wrapper CSS'
+    commits:
+    - ab040ea5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: show all saved cards in Checkout Session; apply dark mode to embedded checkout'
+    commits:
+    - 1c7f9d6fc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix: Checkout Session embedded mode with onComplete callback (no page reload)'
+    commits:
+    - e7b28c5be
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: infrastructure
+  item_count: 4
+  newsletter_ready_count: 2
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-21'
+    title: 'fix: text selectability and markdown rendering in embed fullscreens'
+    commits:
+    - 203d4ce66
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'feat: add backfill_newsletter_deliveries script + fix sent_at guard'
+    commits:
+    - 1d2519c7e
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: stripe product sync EUR-only, drop USD/JPY (Adaptive Pricing)'
+    commits:
+    - 8aa636c84
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix: two-line title regression + hint skipping history-loaded embeds'
+    commits:
+    - dc490d670
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: apple
+  item_count: 2
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-20'
+    title: 'chore(apple): update auth, settings, and root swift ui files'
+    commits:
+    - 3333c6574
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-04-20'
+    title: 'chore(apple): update swift ui files'
+    commits:
+    - 7cad36037
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+marketing_candidates:
+  newsletter:
+  - date: '2026-04-20'
+    title: 'feat(ui): add expanding grey circle transition when starting a new chat (OPE-451)'
+    commits:
+    - 90b2adf61
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'feat(ui): reduce chat header to 35vh and make daily inspiration banner match height (OPE-450)'
+    commits:
+    - adb33e854
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(chat-header): add bottom padding so signup button clears banner edge'
+    commits:
+    - d25d07a2c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(seo): remove remaining affirmative E2E encryption claims across codebase'
+    commits:
+    - c26b6135f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(ui): increase mobile ChatHeader min-height to 230px to clear video player buttons'
+    commits:
+    - 8095b4170
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(ui): replace clip-path animation with transform:scale to fix iOS Safari crash (OPE-451)'
+    commits:
+    - 7880352c6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(ui): revert min-height to 240px, match inspiration banner height, hide for-everyone title (OPE-450)'
+    commits:
+    - 881e3841a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: embed centering, center-content position, header title/video order, circle animation'
+    commits:
+    - 6fedb1441
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: maintain 16:9 ratio on video header at all viewport sizes'
+    commits:
+    - 79d91dd3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: move signup/login button below video in chat header'
+    commits:
+    - 4a2fe0d08
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: remove circle animation, fade-out on input focus, video height on small viewports'
+    commits:
+    - cc02f5ab3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: restore width:100% on mobile media-frame to prevent collapse'
+    commits:
+    - d1bcbd55f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'style: increase notification max-width margin to 40px'
+    commits:
+    - 74067d343
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-21'
+    title: 'fix: CLI pair login - passkey users blocked + chats list timeout'
+    commits:
+    - 83beb2f44
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-21'
+    title: 'fix: text selectability and markdown rendering in embed fullscreens'
+    commits:
+    - 203d4ce66
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-22'
+    title: 'feat: always include authenticated user email in issue reports'
+    commits:
+    - 8d48dc344
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: allow ai_response_completed and post_processing_metadata for new chats when persist task is in flight'
+    commits:
+    - 2953fb0b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: deactivate Polar, fix bank transfer empty encryption key (OPE-471)'
+    commits:
+    - 142e5544c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: defensive title truncation before Directus write in issue report route (OPE-459)'
+    commits:
+    - bead5354a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: queue ai_response_completed on WS disconnect to prevent permanent message loss'
+    commits:
+    - 70638ca77
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'refactor: comment out Polar code instead of removing (OPE-471)'
+    commits:
+    - fe412d37d
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'feat: add Stripe Managed Payments for non-EU users (Checkout Sessions)'
+    commits:
+    - 16963fe6d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: add card.country to list_payment_methods; guard non-EU cards in saved-method endpoint'
+    commits:
+    - 3c726e3c4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: prevent email text from clearing field; fix empty code embed on EmbedStore failure'
+    commits:
+    - c0ff297e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: remove appearance from createEmbeddedCheckoutPage (not a valid param)'
+    commits:
+    - 332f5cd98
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: require auth before managed Checkout Session; add managed-checkout-wrapper CSS'
+    commits:
+    - ab040ea5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: require passkey/OTP auth before opening Checkout Session for non-EU saved cards'
+    commits:
+    - 3f2fed9a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: route non-EU saved cards to Checkout Session (Managed Payments)'
+    commits:
+    - b139ffebe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: show all saved cards in Checkout Session; apply dark mode to embedded checkout'
+    commits:
+    - 1c7f9d6fc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: show all saved cards; route to Checkout Session on Buy Now for non-EU cards'
+    commits:
+    - 68d79d14f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'revert: restore all multi-line pastes to code embed (remove looksLikeCode guard)'
+    commits:
+    - b0868ee8c
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'feat: show click/tap hint on finished embeds then fade to skill-name-only'
+    commits:
+    - 98131b250
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix(test): fill cardholder name and billing address in managed payments spec'
+    commits:
+    - 8a4bac522
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix(test): handle Stripe Link flow; use placeholder selectors for cardholder/address'
+    commits:
+    - a5451297e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix(test): soft add-payment-method check; handle Stripe Link OTP in managed payments'
+    commits:
+    - dc9acccfe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix: Checkout Session embedded mode with onComplete callback (no page reload)'
+    commits:
+    - e7b28c5be
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix: disable Stripe Link wallet in Checkout Session; simplify managed payments spec'
+    commits:
+    - d8c9ae1ae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix: switch Checkout to embedded mode with onComplete; add managed payments spec'
+    commits:
+    - d4ff38da8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix: two-line title regression + hint skipping history-loaded embeds'
+    commits:
+    - dc490d670
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix(test): click through Stripe Link save-payment interstitial after Pay'
+    commits:
+    - e7d0ceb07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix(test): fill City/State/ZIP in billing; smarter Link interstitial detection'
+    commits:
+    - 9d3f560d7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix(test): move City/ZIP filling to Link interstitial handler; they appear after Pay'
+    commits:
+    - 528219a30
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix(test): use banner-signup-button when intro banner is visible in loginToTestAccount'
+    commits:
+    - 11ea27791
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: add header-login-signup-btn testid; update all specs to avoid banner button ambiguity'
+    commits:
+    - 05093d121
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: fix Stripe Link interstitial ZIP/State selectors and add page load wait before login button checks'
+    commits:
+    - cc845275f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: replace networkidle with load in loginToTestAccount; increase test timeout to 420s'
+    commits:
+    - a6391eda7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: skip State selectOption in Stripe Link interstitial; wait 5s for ZIP→State auto-populate'
+    commits:
+    - 39c7d9323
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: support managed Stripe payment documents'
+    commits:
+    - 8b500c39d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  social_or_video:
+  - date: '2026-04-20'
+    title: 'feat(ui): add expanding grey circle transition when starting a new chat (OPE-451)'
+    commits:
+    - 90b2adf61
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'feat(ui): reduce chat header to 35vh and make daily inspiration banner match height (OPE-450)'
+    commits:
+    - adb33e854
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(chat-header): add bottom padding so signup button clears banner edge'
+    commits:
+    - d25d07a2c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(seo): remove remaining affirmative E2E encryption claims across codebase'
+    commits:
+    - c26b6135f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(ui): increase mobile ChatHeader min-height to 230px to clear video player buttons'
+    commits:
+    - 8095b4170
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(ui): replace clip-path animation with transform:scale to fix iOS Safari crash (OPE-451)'
+    commits:
+    - 7880352c6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix(ui): revert min-height to 240px, match inspiration banner height, hide for-everyone title (OPE-450)'
+    commits:
+    - 881e3841a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: embed centering, center-content position, header title/video order, circle animation'
+    commits:
+    - 6fedb1441
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: maintain 16:9 ratio on video header at all viewport sizes'
+    commits:
+    - 79d91dd3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: move signup/login button below video in chat header'
+    commits:
+    - 4a2fe0d08
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: remove circle animation, fade-out on input focus, video height on small viewports'
+    commits:
+    - cc02f5ab3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'fix: restore width:100% on mobile media-frame to prevent collapse'
+    commits:
+    - d1bcbd55f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-20'
+    title: 'style: increase notification max-width margin to 40px'
+    commits:
+    - 74067d343
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-21'
+    title: 'fix: CLI pair login - passkey users blocked + chats list timeout'
+    commits:
+    - 83beb2f44
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-21'
+    title: 'fix: text selectability and markdown rendering in embed fullscreens'
+    commits:
+    - 203d4ce66
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-22'
+    title: 'feat: always include authenticated user email in issue reports'
+    commits:
+    - 8d48dc344
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: allow ai_response_completed and post_processing_metadata for new chats when persist task is in flight'
+    commits:
+    - 2953fb0b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: deactivate Polar, fix bank transfer empty encryption key (OPE-471)'
+    commits:
+    - 142e5544c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: defensive title truncation before Directus write in issue report route (OPE-459)'
+    commits:
+    - bead5354a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'fix: queue ai_response_completed on WS disconnect to prevent permanent message loss'
+    commits:
+    - 70638ca77
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-23'
+    title: 'refactor: comment out Polar code instead of removing (OPE-471)'
+    commits:
+    - fe412d37d
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'feat: add Stripe Managed Payments for non-EU users (Checkout Sessions)'
+    commits:
+    - 16963fe6d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: add card.country to list_payment_methods; guard non-EU cards in saved-method endpoint'
+    commits:
+    - 3c726e3c4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: prevent email text from clearing field; fix empty code embed on EmbedStore failure'
+    commits:
+    - c0ff297e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: remove appearance from createEmbeddedCheckoutPage (not a valid param)'
+    commits:
+    - 332f5cd98
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: require auth before managed Checkout Session; add managed-checkout-wrapper CSS'
+    commits:
+    - ab040ea5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: require passkey/OTP auth before opening Checkout Session for non-EU saved cards'
+    commits:
+    - 3f2fed9a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: route non-EU saved cards to Checkout Session (Managed Payments)'
+    commits:
+    - b139ffebe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: show all saved cards in Checkout Session; apply dark mode to embedded checkout'
+    commits:
+    - 1c7f9d6fc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'fix: show all saved cards; route to Checkout Session on Buy Now for non-EU cards'
+    commits:
+    - 68d79d14f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-24'
+    title: 'revert: restore all multi-line pastes to code embed (remove looksLikeCode guard)'
+    commits:
+    - b0868ee8c
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'feat: show click/tap hint on finished embeds then fade to skill-name-only'
+    commits:
+    - 98131b250
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix(test): fill cardholder name and billing address in managed payments spec'
+    commits:
+    - 8a4bac522
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix(test): handle Stripe Link flow; use placeholder selectors for cardholder/address'
+    commits:
+    - a5451297e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix(test): soft add-payment-method check; handle Stripe Link OTP in managed payments'
+    commits:
+    - dc9acccfe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix: Checkout Session embedded mode with onComplete callback (no page reload)'
+    commits:
+    - e7b28c5be
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix: disable Stripe Link wallet in Checkout Session; simplify managed payments spec'
+    commits:
+    - d8c9ae1ae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix: switch Checkout to embedded mode with onComplete; add managed payments spec'
+    commits:
+    - d4ff38da8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-25'
+    title: 'fix: two-line title regression + hint skipping history-loaded embeds'
+    commits:
+    - dc490d670
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix(test): click through Stripe Link save-payment interstitial after Pay'
+    commits:
+    - e7d0ceb07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix(test): fill City/State/ZIP in billing; smarter Link interstitial detection'
+    commits:
+    - 9d3f560d7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix(test): move City/ZIP filling to Link interstitial handler; they appear after Pay'
+    commits:
+    - 528219a30
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix(test): use banner-signup-button when intro banner is visible in loginToTestAccount'
+    commits:
+    - 11ea27791
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: add header-login-signup-btn testid; update all specs to avoid banner button ambiguity'
+    commits:
+    - 05093d121
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: fix Stripe Link interstitial ZIP/State selectors and add page load wait before login button checks'
+    commits:
+    - cc845275f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: replace networkidle with load in loginToTestAccount; increase test timeout to 420s'
+    commits:
+    - a6391eda7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: skip State selectOption in Stripe Link interstitial; wait 5s for ZIP→State auto-populate'
+    commits:
+    - 39c7d9323
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-26'
+    title: 'fix: support managed Stripe payment documents'
+    commits:
+    - 8b500c39d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+risks:
+  communication:
+  - Use weekly themes for PR/release/newsletter drafting; do not list every daily item one-by-one.
+  - Keep dev_only and unknown_release_status items out of public newsletters until released on main.
+sources:
+  daily_files:
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-04-20.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-04-21.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-04-22.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-04-23.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-04-24.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-04-25.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-04-26.yml
+llm_summary:
+  overview: OpenMates completed a significant week of infrastructure and interface updates, highlighted by the launch of Stripe
+    Managed Payments for international users and a visual redesign of the chat header. The project transitioned to an embedded
+    checkout flow to eliminate page reloads and introduced new interaction hints for finished embeds. Reliability was a core
+    focus, with fixes for iOS Safari stability, CLI authentication for passkey users, and a new queuing system to prevent
+    message loss during network interruptions.
+  released_changes:
+  - text: Redesigned the chat header with a 35vh height and strict 16:9 video ratio, ensuring signup and login buttons clear
+      the banner edges across all viewports.
+    evidence:
+      commits:
+      - adb33e854
+      - 881e3841a
+      - 79d91dd3a
+      - 4a2fe0d08
+      - d25d07a2c
+    release_status: released_main
+  - text: Added an expanding circle transition effect when starting new chat sessions.
+    evidence:
+      commits:
+      - 90b2adf61
+    release_status: released_main
+  - text: Introduced support for Stripe Managed Payments for users outside the EU, enabling international credit purchases
+      via Checkout Sessions.
+    evidence:
+      commits:
+      - 16963fe6d
+    release_status: released_main
+  - text: Transitioned the Stripe Checkout process to an embedded mode that finalizes transactions without requiring a full
+      page reload.
+    evidence:
+      commits:
+      - e7b28c5be
+      - d4ff38da8
+    release_status: released_main
+  - text: Implemented temporary click or tap hints on finished embeds that fade out to reveal the skill name, improving interactive
+      element discoverability.
+    evidence:
+      commits:
+      - 98131b250
+    release_status: released_main
+  - text: Updated the issue reporting system to automatically include the authenticated user's email address.
+    evidence:
+      commits:
+      - 8d48dc344
+    release_status: released_main
+  - text: Restored the ability to paste multi-line text into code embeds by removing previous code-detection restrictions.
+    evidence:
+      commits:
+      - b0868ee8c
+    release_status: released_main
+  - text: Increased the maximum width margin for notifications to 40px for improved legibility.
+    evidence:
+      commits:
+      - 74067d343
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved a critical crash on iOS Safari by replacing clip-path animations with scale transforms during chat initialization.
+    evidence:
+      commits:
+      - 7880352c6
+      - cc02f5ab3
+      - 6fedb1441
+    release_status: released_main
+  - text: Fixed a login blocker in the CLI where passkey users were unable to complete the pairing process.
+    evidence:
+      commits:
+      - 83beb2f44
+    release_status: released_main
+  - text: Implemented a queuing mechanism for AI responses to prevent permanent message loss when a WebSocket disconnects
+      before processing is complete.
+    evidence:
+      commits:
+      - 70638ca77
+    release_status: released_main
+  - text: Improved text selectability and markdown rendering within fullscreen embeds for travel, nutrition, and event views.
+    evidence:
+      commits:
+      - 203d4ce66
+    release_status: released_main
+  - text: Added defensive title truncation to the issue reporting system to prevent database write failures on long titles.
+    evidence:
+      commits:
+      - bead5354a
+    release_status: released_main
+  - text: Enabled support for managed Stripe payment documents, allowing users to view invoices and credit notes within the
+      billing interface.
+    evidence:
+      commits:
+      - 8b500c39d
+    release_status: released_main
+  - text: Enhanced security for international transactions by requiring passkey or OTP authentication before opening Checkout
+      Sessions for non-EU saved cards.
+    evidence:
+      commits:
+      - 3f2fed9a2
+      - ab040ea5e
+    release_status: released_main
+  - text: Corrected mobile layout issues where the media frame could collapse and the header height was insufficient to clear
+      video controls.
+    evidence:
+      commits:
+      - d1bcbd55f
+      - 8095b4170
+    release_status: released_main
+  - text: Updated the messaging input to prevent email-formatted text from clearing the field unexpectedly.
+    evidence:
+      commits:
+      - c0ff297e8
+    release_status: released_main
+  - text: Corrected documentation and metadata to remove inaccurate references to end-to-end encryption.
+    evidence:
+      commits:
+      - c26b6135f
+      - 3ae64c416
+    release_status: released_main
+  unreleased_progress:
+  - text: Continued development on Apple platforms with updates to SwiftUI views for authentication, settings, and the root
+      interface (currently disabled).
+    evidence:
+      commits:
+      - 3333c6574
+      - 7cad36037
+    release_status: released_main
+  - text: Developed an internal /clarify skill to assist with structured understanding of bugs and features.
+    evidence:
+      commits:
+      - de8776c8a
+    release_status: released_main
+  - text: Hardened IndexedDB encryption logic for chat key management, gating writes on key acceptance.
+    evidence:
+      commits:
+      - b105e8c1b
+    release_status: released_main
+  - text: Refined the CLI publishing workflow to ensure correct versioning and handling of prerelease suffixes.
+    evidence:
+      commits:
+      - 88c5d65ce
+      - c339c9177
+      - cefccc4af
+      - 3a2216cbf
+    release_status: released_main
+  - text: Hardened automated testing for billing flows to better handle Stripe Link interstitials and login stability.
+    evidence:
+      commits:
+      - 39c7d9323
+      - a6391eda7
+      - cc845275f
+      - 528219a30
+      - 9d3f560d7
+      - e7d0ceb07
+    release_status: released_main
+  - text: Updated chat encryption logic with candidate key fallbacks to resolve race conditions in multi-tab sessions.
+    evidence:
+      commits:
+      - 98de6ac0e
+      - 0b6cc11ab
+      - 0f90e0505
+    release_status: released_main
+  - text: Added a new force_migrate flag to schema setup tools for automated field type migrations.
+    evidence:
+      commits:
+      - 83a282c7c
+    release_status: released_main
+  internal_progress:
+  - text: Upgraded the Stripe API to version 2026-03-25.dahlia to support new embedded page features.
+    evidence:
+      commits:
+      - fff8bff63
+    release_status: released_main
+  - text: Refined Stripe product synchronization to handle global products and adaptive pricing models while skipping bank-transfer-only
+      tiers.
+    evidence:
+      commits:
+      - 807801b76
+      - daa15e4c4
+      - 8aa636c84
+    release_status: released_main
+  - text: Developed internal scripts to backfill newsletter deliveries and manage sent timestamps.
+    evidence:
+      commits:
+      - 1d2519c7e
+    release_status: released_main
+  - text: Updated internal marketing documentation to correct grammatical errors.
+    evidence:
+      commits:
+      - 09199fa0c
+      - 048ef9b51
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Stripe Managed Payments for non-EU users.
+      evidence:
+        commits:
+        - 16963fe6d
+      reason: Significant expansion of payment accessibility for international users.
+    - text: Embedded Stripe Checkout flow.
+      evidence:
+        commits:
+        - e7b28c5be
+        - d4ff38da8
+      reason: Improves the user experience by removing page reloads during transactions.
+    - text: Redesigned chat header with 16:9 video support.
+      evidence:
+        commits:
+        - adb33e854
+        - 881e3841a
+        - 79d91dd3a
+      reason: Major visual improvement to the primary chat interface.
+    - text: New interaction hints for finished embeds.
+      evidence:
+        commits:
+        - 98131b250
+      reason: Improves the discoverability of interactive elements within finished embeds.
+    - text: Automatic email inclusion in issue reports.
+      evidence:
+        commits:
+        - 8d48dc344
+      reason: Streamlines the support experience by automatically linking reports to user accounts.
+    - text: Support for managed Stripe payment documents and invoices.
+      evidence:
+        commits:
+        - 8b500c39d
+      reason: Provides tangible value by improving visibility of billing documents.
+    exclude:
+    - text: Apple platform SwiftUI updates.
+      evidence:
+        commits:
+        - 3333c6574
+        - 7cad36037
+      reason: iOS and macOS platforms are currently listed as disabled features.
+    - text: Internal /clarify skill.
+      evidence:
+        commits:
+        - de8776c8a
+      reason: The /clarify skill is an internal tool for development and bug understanding.
+    - text: CI publishing workflow refinements.
+      evidence:
+        commits:
+        - 88c5d65ce
+        - c339c9177
+        - cefccc4af
+        - 3a2216cbf
+      reason: CI and build workflow improvements are internal-only.
+    - text: Security update for python-dotenv.
+      evidence:
+        commits:
+        - df6621043
+      reason: Security dependency updates are generally not featured in public newsletters.
+    - text: Encryption key management updates.
+      evidence:
+        commits:
+        - b105e8c1b
+        - 50cc95473
+      reason: Internal encryption logic and database management are not user-facing.
+    rationale: The newsletter should focus on the major expansion of international payment options, the visual overhaul of
+      the chat interface, and general UX refinements to the feedback and billing systems. Internal tools and disabled platform
+      work are excluded.
+  social_video_recommendations:
+  - idea: A demonstration of the new international checkout flow, showing the seamless transition to embedded Stripe Managed
+      Payments.
+    priority: high
+    reason: This is a major product milestone for global accessibility and a significant UX improvement.
+    evidence:
+      commits:
+      - 16963fe6d
+      - e7b28c5be
+  - idea: A short clip showcasing the new chat transition and the responsive 16:9 video header.
+    priority: medium
+    reason: The visual changes to the header and the new transition provide a clear 'before and after' story for the UI.
+    evidence:
+      commits:
+      - adb33e854
+      - 90b2adf61
+  - idea: A demonstration of the new fade-out hints on finished embeds to show how they guide user interaction.
+    priority: medium
+    reason: Visual UI improvements are well-suited for social media demonstrations.
+    evidence:
+      commits:
+      - 98131b250
+  quality_notes:
+  - The transition to scale transforms for animations specifically addresses stability on mobile browsers.
+  - The move to embedded checkout and managed payment documents indicates a focus on product maturity and billing transparency.
+  - Data integrity in the chat layer was prioritized through new synchronization queuing logic.
+  validation_warnings: []

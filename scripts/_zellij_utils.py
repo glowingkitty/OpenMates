@@ -1,11 +1,11 @@
 """
 scripts/_zellij_utils.py
 
-Thin wrapper around the Zellij CLI for programmatic session management.
+Thin wrapper around legacy Zellij session management plus OpenCode chat launch.
 
-Each Claude Code task gets its own named Zellij session, visible at the
-Zellij web UI (localhost:8082). Sessions are created, listed, and cleaned
-up through this module.
+OpenCode worker chats are now persisted through the existing OpenCode Web
+server and appear in that project sidebar. Zellij helpers remain for legacy
+cleanup and manually attached terminals.
 
 All public functions are non-fatal: they print warnings to stderr and
 return None/False on failure. Callers should never crash due to Zellij
@@ -15,10 +15,13 @@ being unavailable.
 from __future__ import annotations
 
 import os
+import json
 import re
 import shlex
+import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -26,9 +29,12 @@ from typing import Dict, List, Optional
 
 ZELLIJ_BIN = "/usr/local/bin/zellij"
 ZELLIJ_WEB_URL = "http://localhost:8082"
+OPENCODE_SERVER_URL = os.environ.get("OPENCODE_SERVER_URL", "http://127.0.0.1:4096")
+OPENCODE_EXECUTE_MODEL = os.environ.get("OPENCODE_EXECUTE_MODEL", "openai/gpt-5.6-sol")
+OPENCODE_SPAWN_LOG_TAIL_CHARS = 2_000
 
 # Hard cap on concurrent Zellij sessions to prevent OOM on a 30GB server.
-# Each Claude session uses ~500MB RAM. 6 sessions = ~3GB headroom.
+# Each agent session uses ~500MB RAM. 6 sessions = ~3GB headroom.
 # The poller, sessions.py, and cleanup all enforce this limit.
 MAX_CONCURRENT_SESSIONS = 6
 
@@ -37,6 +43,17 @@ MAX_CONCURRENT_SESSIONS = 6
 # MUST never be killed by any automated cleanup path (sessions.py end,
 # session-cleanup daemon, spawn-claude --kill-on-exit, etc.).
 _PROTECTED_SESSION_RE = re.compile(r"^claude\d+$")
+
+
+def _resolve_opencode_bin() -> str | None:
+    """Resolve OpenCode even under the minimal PATH used by systemd services."""
+    configured = os.environ.get("OPENCODE_BIN")
+    candidates = [configured, str(Path.home() / ".npm-global" / "bin" / "opencode")]
+    candidates.append(shutil.which("opencode"))
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file() and os.access(candidate, os.X_OK):
+            return candidate
+    return None
 
 
 def is_protected_session(session_name: str) -> bool:
@@ -319,7 +336,7 @@ POLLER_SESSION_PREFIXES = ("fix-", "plan-", "research-")
 
 def count_poller_sessions() -> int:
     """
-    Count non-EXITED Zellij sessions spawned by the linear-poller.
+    Count non-EXITED legacy Zellij sessions spawned by older poller runs.
 
     Only sessions with poller-managed prefixes (fix-*, plan-*, research-*)
     are counted. Manual sessions (claude1, session-XXXX, etc.) are excluded
@@ -561,6 +578,141 @@ def spawn_claude_session(
 
     print(f"Warning: session '{session_name}' not found after launch.", file=sys.stderr)
     return False
+
+
+def spawn_opencode_session(
+    session_name: str,
+    prompt: str,
+    cwd: str,
+    permission_mode: str = "plan",
+    opencode_session_id: str | None = None,
+) -> bool:
+    """Spawn a persisted OpenCode chat through the already-running web server."""
+    session_name = _sanitize_session_name(session_name)
+    if permission_mode not in {"plan", "execute"}:
+        print(f"Warning: invalid OpenCode permission mode '{permission_mode}'.", file=sys.stderr)
+        return False
+    opencode_bin = _resolve_opencode_bin()
+    if not opencode_bin:
+        print("Warning: OpenCode binary not found.", file=sys.stderr)
+        return False
+
+    command = [
+        opencode_bin,
+        "run",
+        "--attach",
+        OPENCODE_SERVER_URL,
+        "--dir",
+        cwd,
+        "--format",
+        "json",
+    ]
+    if opencode_session_id:
+        command.extend(["--session", opencode_session_id])
+    else:
+        command.extend(["--title", session_name])
+    if permission_mode == "plan":
+        command.extend(["--agent", "plan"])
+    else:
+        command.extend(["--agent", "build", "--model", OPENCODE_EXECUTE_MODEL, "--auto"])
+    command.append(prompt)
+
+    tmp_dir = Path(cwd) / "scripts" / ".tmp"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    log_path = tmp_dir / f"opencode-spawn-{session_name}-{int(time.time())}.jsonl"
+
+    run_env = os.environ.copy()
+    run_env["PATH"] = (
+        "/home/superdev/.local/bin:/home/superdev/.npm-global/bin:"
+        + run_env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
+    )
+
+    try:
+        with log_path.open("ab") as log_handle:
+            process = subprocess.Popen(
+                command,
+                cwd=cwd,
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                env=run_env,
+                start_new_session=True,
+            )
+    except (FileNotFoundError, OSError) as exc:
+        print(f"Warning: OpenCode chat launch failed: {exc}", file=sys.stderr)
+        return False
+
+    time.sleep(1)
+    returncode = process.poll()
+    if returncode is None or returncode == 0:
+        return True
+
+    try:
+        output_tail = log_path.read_text(encoding="utf-8", errors="replace")[-OPENCODE_SPAWN_LOG_TAIL_CHARS:]
+    except OSError:
+        output_tail = ""
+    detail = f"\n{output_tail}" if output_tail else ""
+    print(f"Warning: OpenCode chat '{session_name}' exited with code {returncode}.{detail}", file=sys.stderr)
+    return False
+
+
+def resume_opencode_session(
+    session_name: str,
+    opencode_session_id: str,
+    cwd: str,
+    prompt: str = "The server restarted and this session was interrupted. Continue where you left off.",
+    permission_mode: str = "plan",
+) -> bool:
+    """Send a continuation prompt to an existing OpenCode session."""
+    return spawn_opencode_session(
+        session_name=session_name,
+        prompt=prompt,
+        cwd=cwd,
+        permission_mode=permission_mode,
+        opencode_session_id=opencode_session_id,
+    )
+
+
+def find_opencode_session_id(
+    session_title: str,
+    cwd: str,
+    *,
+    created_after_ms: int = 0,
+    limit: int = 50,
+    attempts: int = 5,
+) -> str | None:
+    """Poll for a newly created OpenCode session with the exact title."""
+    import time
+
+    opencode_bin = _resolve_opencode_bin()
+    if not opencode_bin:
+        return None
+    for attempt in range(attempts):
+        try:
+            result = subprocess.run(
+                [opencode_bin, "session", "list", "-n", str(limit), "--format", "json"],
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        if result.returncode == 0:
+            try:
+                sessions = json.loads(result.stdout)
+            except json.JSONDecodeError:
+                sessions = []
+            for session in sessions if isinstance(sessions, list) else []:
+                if (
+                    isinstance(session, dict)
+                    and session.get("title") == session_title
+                    and int(session.get("created") or 0) >= created_after_ms
+                ):
+                    return str(session.get("id") or "") or None
+        if attempt + 1 < attempts:
+            time.sleep(1)
+    return None
 
 
 def resume_claude_session(
